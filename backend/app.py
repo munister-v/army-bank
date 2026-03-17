@@ -24,10 +24,40 @@ def create_app() -> Flask:
     app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path=BASE_PATH or '')
     prefix = BASE_PATH or ''
 
+    _ALLOWED_ORIGINS = {
+        'https://munister.com.ua',
+        'https://www.munister.com.ua',
+        'http://localhost:9099',
+        'http://localhost:5173',
+        'http://127.0.0.1:5500',
+    }
+
     @app.after_request
     def add_headers(resp):
         resp.headers['X-Content-Type-Options'] = 'nosniff'
+        from flask import request as _req
+        origin = _req.headers.get('Origin', '')
+        if origin in _ALLOWED_ORIGINS:
+            resp.headers['Access-Control-Allow-Origin'] = origin
+            resp.headers['Access-Control-Allow-Credentials'] = 'true'
+            resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PATCH, PUT, DELETE, OPTIONS'
+            resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            resp.headers['Access-Control-Expose-Headers'] = 'X-Refresh-Token'
         return resp
+
+    @app.route('/api/<path:p>', methods=['OPTIONS'])
+    @app.route(prefix + '/api/<path:p>', methods=['OPTIONS'])
+    def cors_preflight(p=''):
+        from flask import request as _req
+        origin = _req.headers.get('Origin', '')
+        r = app.make_default_options_response()
+        if origin in _ALLOWED_ORIGINS:
+            r.headers['Access-Control-Allow-Origin'] = origin
+            r.headers['Access-Control-Allow-Credentials'] = 'true'
+            r.headers['Access-Control-Allow-Methods'] = 'GET, POST, PATCH, PUT, DELETE, OPTIONS'
+            r.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            r.headers['Access-Control-Max-Age'] = '86400'
+        return r
 
     @app.errorhandler(400)
     def bad_request(e):
