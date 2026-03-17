@@ -6,7 +6,7 @@ from pathlib import Path
 from flask import Flask, Response, jsonify, send_from_directory
 
 from .config import BASE_PATH, DEBUG
-from .database import init_db
+from .database import init_db, init_admin
 from .routes.account_routes import account_bp
 from .routes.admin_routes import admin_bp
 from .routes.auth_routes import auth_bp
@@ -21,6 +21,7 @@ FRONTEND_DIR = Path(__file__).resolve().parent.parent / 'frontend'
 def create_app() -> Flask:
     """Створює та налаштовує Flask-застосунок."""
     init_db()
+    init_admin()
     app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path=BASE_PATH or '')
     prefix = BASE_PATH or ''
 
