@@ -750,18 +750,50 @@ input:focus-visible, select:focus-visible { outline: none; }
 /* ── RESPONSIVE ───────────────────────────────────────────── */
 
 @media (max-width: 1100px) {
-  .content { padding: 24px; }
+  .content { padding: 24px 28px; }
   .auth-columns { grid-template-columns: 1fr; }
   .auth-columns > div:first-child { border-right: none; border-bottom: 1px solid var(--border); }
   .grid.two-col { grid-template-columns: 1fr; }
   .grid.three-col { grid-template-columns: 1fr; }
   .action-grid { grid-template-columns: 1fr 1fr; }
+  .hero-balance { grid-template-columns: 1fr; }
+  .topbar { flex-wrap: wrap; min-height: auto; padding: 12px 16px; gap: 8px; }
+  .topbar h1 { font-size: 20px; }
 }
 
-@media (max-width: 700px) {
-  .menu-btn { padding: 0 10px; font-size: 9px; letter-spacing: 0.06em; }
+@media (max-width: 860px) {
+  /* topnav: allow scroll */
+  .sidebar { height: auto; flex-wrap: nowrap; overflow-x: auto; }
+  .menu { flex: none; overflow-x: auto; }
+  .sidebar > div:first-child { min-width: auto; }
+}
+
+@media (max-width: 640px) {
+  /* topnav collapses to essentials */
+  .menu { display: none; }
+  .sidebar-footer button { font-size: 9px; padding: 0 12px; }
   .content { padding: 16px; }
   .action-grid { grid-template-columns: 1fr; }
   .action-tile { border-right: none; border-bottom: 1px solid var(--border); }
+  .action-tile:last-child { border-bottom: none; }
   .auth-headline { font-size: 36px; }
+  .auth-screen { margin: 20px auto; }
+  .forms-grid > form { padding: 24px 20px; }
+  .hero-balance strong { font-size: 32px; }
+  .balance-box strong { font-size: 22px; }
+  .topbar { flex-direction: column; align-items: flex-start; padding: 16px; margin-bottom: 24px; }
+  .balance-box { text-align: left; }
+  h2, .h2 { font-size: 16px; }
+}
+
+/* mobile nav burger fallback label */
+@media (max-width: 640px) {
+  .sidebar::after {
+    content: '';
+  }
+  /* show condensed brand + logout only */
+  .sidebar > div:first-child { border-right: none; }
+  .sidebar { flex-wrap: wrap; height: auto; padding: 0; }
+  .sidebar > div:first-child { padding: 0 16px; height: 44px; }
+  .sidebar-footer { border-left: none; border-top: none; padding: 0 16px; height: 44px; margin-left: auto; }
 }
