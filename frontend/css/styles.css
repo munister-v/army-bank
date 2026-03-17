@@ -1,30 +1,28 @@
-/* Цифровий Армійський Банк — візуал як на weego-web.github.io/army.html */
+/* Army Bank — mono-style як monobank.ua */
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --bg: #070b12;
-  --bg-card: #0f172a;
-  --bg-card-soft: #111c33;
-  --border: rgba(255,255,255,.08);
-  --text: #f1f5f9;
-  --muted: #94a3b8;
-  --accent: #22c55e;
-  --accent-hover: #16a34a;
-  --accent-soft: rgba(34, 197, 94, .15);
-  --danger: #ef4444;
-  --good: #22c55e;
-  --warn: #f59e0b;
-  --shadow: 0 18px 60px rgba(0,0,0,.45);
-  --radius: 18px;
-  --radius-sm: 14px;
+  --bg: #000;
+  --bg-card: #0a0a0a;
+  --bg-card-soft: #111;
+  --border: rgba(255,255,255,.12);
+  --text: #fff;
+  --muted: rgba(255,255,255,.6);
+  --accent: #fff;
+  --accent-soft: rgba(255,255,255,.1);
+  --danger: #ff6b6b;
+  --good: #4ade80;
+  --warn: #fbbf24;
+  --shadow: 0 4px 24px rgba(0,0,0,.4);
+  --radius: 16px;
+  --radius-sm: 12px;
 }
 
 * { box-sizing: border-box; }
 body {
   margin: 0;
   font-family: 'Manrope', system-ui, -apple-system, sans-serif;
-  background: radial-gradient(1200px 600px at 20% 0%, rgba(34,197,94,.12) 0%, rgba(34,197,94,0) 55%),
-              var(--bg);
+  background: var(--bg);
   color: var(--text);
   min-height: 100vh;
 }
@@ -47,7 +45,7 @@ body {
 .sidebar {
   border-right: 1px solid var(--border);
   padding: 24px;
-  background: rgba(7, 11, 18, .98);
+  background: var(--bg);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -55,11 +53,8 @@ body {
 .sidebar .brand {
   font-size: 20px;
   font-weight: 800;
-  letter-spacing: -0.03em;
-  background: linear-gradient(135deg, rgba(34,197,94,.95) 0%, rgba(74,222,128,.92) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  letter-spacing: -0.04em;
+  color: var(--text);
 }
 .sidebar .muted { font-size: 13px; color: var(--muted); margin-top: 4px; }
 .menu { display: grid; gap: 6px; margin-top: 28px; }
@@ -81,9 +76,9 @@ body {
 }
 .menu-btn:hover { background: var(--bg-card-soft); }
 .menu-btn.active {
-  background: var(--accent-soft);
-  border-color: rgba(34, 197, 94, .35);
-  color: #4ade80;
+  background: rgba(255,255,255,.1);
+  border-color: var(--border);
+  color: var(--text);
 }
 .menu-btn.nav-link { text-decoration: none; color: inherit; display: block; }
 .sidebar-footer { margin-top: auto; padding-top: 24px; }
@@ -133,7 +128,7 @@ body {
 .topbar h1 { font-size: 22px; font-weight: 700; margin: 0; }
 .balance-box { text-align: right; }
 .balance-box span { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 4px; }
-.balance-box strong { display: block; font-size: 28px; font-weight: 800; color: var(--accent); letter-spacing: -0.02em; }
+.balance-box strong { display: block; font-size: 28px; font-weight: 800; color: var(--text); letter-spacing: -0.02em; }
 .balance-box small { font-size: 12px; color: var(--muted); }
 
 .hero-balance {
@@ -143,10 +138,8 @@ body {
   align-items: center;
   padding: 22px;
   border-radius: var(--radius);
-  border: 1px solid rgba(34,197,94,.22);
-  background: radial-gradient(700px 260px at 20% 0%, rgba(34,197,94,.18) 0%, rgba(34,197,94,0) 60%),
-              linear-gradient(180deg, rgba(255,255,255,.03) 0%, rgba(255,255,255,.01) 100%);
-  box-shadow: 0 10px 30px rgba(34,197,94,.08);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
 }
 .hero-balance strong { font-size: 34px; letter-spacing: -0.03em; }
 .pill {
@@ -164,8 +157,8 @@ body {
   content: "";
   width: 8px; height: 8px;
   border-radius: 999px;
-  background: var(--accent);
-  box-shadow: 0 0 0 3px rgba(34,197,94,.15);
+  background: var(--good);
+  box-shadow: 0 0 0 3px rgba(74,222,128,.2);
 }
 
 label { display: grid; gap: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; color: var(--text); }
@@ -181,17 +174,18 @@ input, select {
 input::placeholder { color: var(--muted); }
 input:focus, select:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: rgba(255,255,255,.4);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 button {
-  background: linear-gradient(135deg, rgba(34,197,94,.95) 0%, rgba(74,222,128,.92) 100%);
-  color: #022c22;
+  background: var(--text);
+  color: var(--bg);
   font-weight: 700;
+  border: 1px solid var(--text);
   transition: filter .15s, transform .05s;
 }
-button:hover { filter: brightness(1.03); }
+button:hover { filter: brightness(.95); }
 button:active { transform: scale(0.98); }
 .secondary-btn {
   background: transparent;
@@ -298,7 +292,7 @@ button:active { transform: scale(0.98); }
   width: 28px;
   height: 28px;
   border: 3px solid var(--border);
-  border-top-color: var(--accent);
+  border-top-color: var(--text);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -311,7 +305,7 @@ button:active { transform: scale(0.98); }
   height: 32px;
   margin: 24px auto;
   border: 3px solid var(--border);
-  border-top-color: var(--accent);
+  border-top-color: var(--text);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -326,7 +320,7 @@ button:active { transform: scale(0.98); }
 
 button:focus-visible, .menu-btn:focus-visible, a:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text);
 }
 input:focus-visible, select:focus-visible { outline: none; }
 
@@ -354,7 +348,7 @@ input:focus-visible, select:focus-visible { outline: none; }
   font-size: 13px;
   color: var(--muted);
 }
-.app-footer a { color: var(--accent); text-decoration: none; }
+.app-footer a { color: var(--text); text-decoration: none; }
 .app-footer a:hover { text-decoration: underline; }
 
 .stats-grid {
@@ -369,7 +363,7 @@ input:focus-visible, select:focus-visible { outline: none; }
   padding: 18px;
   background: rgba(255,255,255,.02);
 }
-.stat-card .stat-val { font-size: 24px; font-weight: 900; letter-spacing: -0.02em; color: var(--accent); }
+.stat-card .stat-val { font-size: 24px; font-weight: 900; letter-spacing: -0.02em; color: var(--text); }
 .stat-card .stat-label { font-size: 12px; color: var(--muted); margin-top: 6px; }
 
 @media (max-width: 1180px) {
