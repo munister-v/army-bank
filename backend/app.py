@@ -78,6 +78,43 @@ def create_app() -> Flask:
     app.register_blueprint(operator_bp, url_prefix=prefix + '/api/operator')
     app.register_blueprint(platform_bp, url_prefix=prefix + '/api/platform')
 
+    # ── Bootstrap: одноразове підняття першого користувача до platform_admin ──
+    @app.route('/api/bootstrap', methods=['POST'])
+    def bootstrap():
+        """One-time setup: promotes first registered user to platform_admin.
+        Only works when no platform_admin exists yet.
+        Requires valid Bearer token of user id=1.
+        """
+        from flask import request as _req
+        from .database import get_connection
+        from .services.auth_service import AuthService as _AS
+
+        header = _req.headers.get('Authorization', '')
+        if not header.startswith('Bearer '):
+            return jsonify({'ok': False, 'error': 'Потрібна авторизація.'}), 401
+        token = header.replace('Bearer ', '', 1).strip()
+
+        svc = _AS()
+        user = svc.get_user_by_token(token)
+        if not user:
+            return jsonify({'ok': False, 'error': 'Недійсний токен.'}), 401
+
+        try:
+            with get_connection() as conn:
+                admin_cnt = conn.execute(
+                    "SELECT COUNT(*) as n FROM users WHERE role IN ('admin','platform_admin')"
+                ).fetchone()['n']
+                if admin_cnt > 0:
+                    return jsonify({'ok': False, 'error': 'platform_admin вже існує.'}), 409
+                # Promote this user
+                conn.execute(
+                    "UPDATE users SET role = 'platform_admin' WHERE id = %s",
+                    (user['id'],)
+                )
+            return jsonify({'ok': True, 'message': f'Користувача id={user["id"]} підвищено до platform_admin.'})
+        except Exception as exc:
+            return jsonify({'ok': False, 'error': str(exc)}), 500
+
     def send_html(name: str):
         path = FRONTEND_DIR / name
         if not prefix:
