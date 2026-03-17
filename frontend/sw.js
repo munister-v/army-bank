@@ -1,5 +1,5 @@
-/* Army Bank — Service Worker v1 */
-const CACHE = 'army-bank-v1';
+/* Army Bank — Service Worker v2 */
+const CACHE = 'army-bank-v2';
 const STATIC = [
   '/',
   '/css/styles.css',
