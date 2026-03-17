@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Army Bank</title>
   <meta name="description" content="Цифровий банкінг для захисників України">
-  <meta name="theme-color" content="#091628">
+  <meta name="theme-color" content="#07090f">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -387,7 +387,57 @@
   </div>
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <!-- PWA Install Banner -->
+  <div id="installBanner" class="install-banner hidden">
+    <div class="install-banner-icon">🛡</div>
+    <div class="install-banner-text">
+      <b>Army Bank</b>
+      <span>Додати на головний екран</span>
+    </div>
+    <button id="installBtn" class="install-banner-btn">Встановити</button>
+    <button id="installClose" class="install-banner-close" aria-label="Закрити">✕</button>
+  </div>
+
   <script src="/js/api.js"></script>
   <script src="/js/app.js"></script>
+  <script>
+    /* ── Service Worker ── */
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+
+    /* ── PWA Install prompt ── */
+    let deferredPrompt = null;
+    const banner = document.getElementById('installBanner');
+    const installBtn = document.getElementById('installBtn');
+    const installClose = document.getElementById('installClose');
+
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      /* Show banner 3s after load */
+      setTimeout(() => banner?.classList.remove('hidden'), 3000);
+    });
+
+    installBtn?.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      banner?.classList.add('hidden');
+    });
+
+    installClose?.addEventListener('click', () => {
+      banner?.classList.add('hidden');
+    });
+
+    window.addEventListener('appinstalled', () => {
+      banner?.classList.add('hidden');
+      deferredPrompt = null;
+    });
+  </script>
 </body>
 </html>
