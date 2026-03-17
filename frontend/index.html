@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WeeGo Army Bank</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <div>
+        <div class="brand">WeeGo Army Bank</div>
+        <p class="muted">Desktop-версія банкінгу для військових</p>
+      </div>
+      <nav class="menu">
+        <button class="menu-btn active" data-screen="dashboard">Огляд</button>
+        <button class="menu-btn" data-screen="transactions">Транзакції</button>
+        <button class="menu-btn" data-screen="payouts">Бойові виплати</button>
+        <button class="menu-btn" data-screen="donations">Донати</button>
+        <button class="menu-btn" data-screen="savings">Накопичення</button>
+        <button class="menu-btn" data-screen="contacts">Родина</button>
+      </nav>
+      <div class="sidebar-footer">
+        <button id="logoutBtn" class="secondary-btn">Вийти</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <section id="authScreen" class="auth-screen card">
+        <div class="auth-columns">
+          <div>
+            <h1>Вхід до Army Bank</h1>
+            <p class="muted">Усі поля та сценарії проєкту вже підготовлені для подальшого розвитку.</p>
+            <div class="demo-box">
+              <strong>Підказка для тесту:</strong>
+              <p>Спершу зареєструйте користувача, після цього автоматично створиться рахунок.</p>
+            </div>
+          </div>
+          <div class="forms-grid">
+            <form id="loginForm" class="card inner-card">
+              <h2>Вхід</h2>
+              <label>Телефон або email<input name="identity" required></label>
+              <label>Пароль<input name="password" type="password" required></label>
+              <button>Увійти</button>
+            </form>
+            <form id="registerForm" class="card inner-card">
+              <h2>Реєстрація</h2>
+              <label>ПІБ<input name="full_name" required></label>
+              <label>Телефон<input name="phone" required></label>
+              <label>Email<input name="email" required></label>
+              <label>Пароль<input name="password" type="password" required></label>
+              <button>Створити акаунт</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section id="appScreen" class="hidden">
+        <header class="topbar card">
+          <div>
+            <h1 id="userName">Кабінет</h1>
+            <p class="muted" id="userMeta">Профіль користувача</p>
+          </div>
+          <div class="balance-box">
+            <span>Баланс</span>
+            <strong id="balanceValue">0.00 грн</strong>
+            <small id="accountNumber">Рахунок: —</small>
+          </div>
+        </header>
+
+        <section id="dashboard" class="screen active-screen">
+          <div class="grid two-col">
+            <form id="topupForm" class="card">
+              <h2>Поповнення рахунку</h2>
+              <label>Сума<input name="amount" type="number" step="0.01" required></label>
+              <label>Опис<input name="description" value="Поповнення рахунку"></label>
+              <button>Поповнити</button>
+            </form>
+            <form id="transferForm" class="card">
+              <h2>Швидкий переказ</h2>
+              <label>Рахунок отримувача<input name="recipient_account_number" placeholder="AB-100001" required></label>
+              <label>Сума<input name="amount" type="number" step="0.01" required></label>
+              <label>Опис<input name="description" value="Переказ родині"></label>
+              <button>Переказати</button>
+            </form>
+          </div>
+          <div class="grid two-col">
+            <form id="demoPayoutForm" class="card">
+              <h2>Демо-нарахування виплати</h2>
+              <label>Назва<input name="title" value="Бойова виплата"></label>
+              <label>Тип<input name="payout_type" value="combat"></label>
+              <label>Сума<input name="amount" type="number" step="0.01" value="10000"></label>
+              <button>Нарахувати</button>
+            </form>
+            <div class="card">
+              <h2>Останні транзакції</h2>
+              <div id="recentTransactions" class="list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="transactions" class="screen card"><h2>Історія транзакцій</h2><div id="transactionsList" class="list"></div></section>
+        <section id="payouts" class="screen card"><h2>Бойові виплати</h2><div id="payoutsList" class="list"></div></section>
+
+        <section id="donations" class="screen">
+          <div class="grid two-col">
+            <form id="donationForm" class="card">
+              <h2>Новий донат</h2>
+              <label>Напрям / фонд<input name="fund_name" value="Фонд підтримки підрозділу" required></label>
+              <label>Сума<input name="amount" type="number" step="0.01" required></label>
+              <label>Коментар<input name="comment"></label>
+              <button>Задонатити</button>
+            </form>
+            <div class="card"><h2>Історія донатів</h2><div id="donationsList" class="list"></div></div>
+          </div>
+        </section>
+
+        <section id="savings" class="screen">
+          <div class="grid two-col">
+            <form id="goalForm" class="card">
+              <h2>Створити ціль</h2>
+              <label>Назва<input name="title" value="Спорядження" required></label>
+              <label>Цільова сума<input name="target_amount" type="number" step="0.01" required></label>
+              <label>Дедлайн<input name="deadline" type="date"></label>
+              <button>Створити</button>
+            </form>
+            <form id="goalContributionForm" class="card">
+              <h2>Внесок у накопичення</h2>
+              <label>ID цілі<input name="goal_id" type="number" required></label>
+              <label>Сума<input name="amount" type="number" step="0.01" required></label>
+              <button>Поповнити ціль</button>
+            </form>
+          </div>
+          <div class="card"><h2>Мої цілі</h2><div id="goalsList" class="list"></div></div>
+        </section>
+
+        <section id="contacts" class="screen">
+          <div class="grid two-col">
+            <form id="contactForm" class="card">
+              <h2>Контакт родини</h2>
+              <label>Ім'я<input name="contact_name" required></label>
+              <label>Зв'язок<input name="relation_type" placeholder="дружина, брат, мати" required></label>
+              <label>Телефон<input name="phone"></label>
+              <label>Рахунок<input name="account_number"></label>
+              <button>Додати контакт</button>
+            </form>
+            <div class="card"><h2>Довірені контакти</h2><div id="contactsList" class="list"></div></div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast hidden"></div>
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
