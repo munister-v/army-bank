@@ -2,221 +2,390 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Army Bank — Цифровий банкінг для військових</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Army Bank</title>
+  <meta name="description" content="Цифровий банкінг для захисників України">
+  <meta name="theme-color" content="#091628">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Army Bank">
+  <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
-  <div class="page-shell">
-    <aside class="sidebar" id="sidebar">
-      <div>
-        <div class="brand">Army Bank</div>
-        <p class="muted">Цифровий банкінг для військових</p>
-      </div>
-      <nav class="menu">
-        <a class="menu-btn nav-link" href="/dashboard" data-screen="dashboard">Огляд</a>
-        <a class="menu-btn nav-link" href="/transactions" data-screen="transactions">Транзакції</a>
-        <a class="menu-btn nav-link" href="/payouts" data-screen="payouts">Бойові виплати</a>
-        <a class="menu-btn nav-link" href="/donations" data-screen="donations">Донати</a>
-        <a class="menu-btn nav-link" href="/savings" data-screen="savings">Накопичення</a>
-        <a class="menu-btn nav-link" href="/contacts" data-screen="contacts">Родина</a>
-        <a class="menu-btn nav-link nav-admin hidden" href="/admin" data-screen="admin">Адмін</a>
-        <a class="menu-btn nav-link nav-operator hidden" href="/operator" data-screen="operator">Оператор</a>
-        <a class="menu-btn nav-link nav-platform hidden" href="/platform" data-screen="platform">Платформа</a>
-      </nav>
-      <div class="sidebar-footer">
-        <button id="logoutBtn" class="secondary-btn">Вийти</button>
-      </div>
-    </aside>
 
-    <main class="content">
-      <section id="authScreen" class="auth-screen">
-        <div class="auth-wrap">
-          <div class="auth-brand">
-            <h1>Army Bank</h1>
-            <p>Цифровий банкінг для військових</p>
+  <!-- ══ AUTH ══════════════════════════════════════════════ -->
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-glow"></div>
+    <div class="auth-container">
+      <div class="auth-logo">
+        <div class="auth-logo-mark">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <path d="M16 2L4 8v8c0 7.2 5.2 13.9 12 15.6C23.8 29.9 28 23.2 28 16V8L16 2z" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+            <path d="M11 16l3 3 7-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h1>Army Bank</h1>
+        <p>Цифровий банкінг для захисників</p>
+      </div>
+
+      <div class="auth-card">
+        <div class="auth-tabs">
+          <button type="button" class="auth-tab active" data-tab="login">Увійти</button>
+          <button type="button" class="auth-tab" data-tab="register">Реєстрація</button>
+        </div>
+
+        <form id="loginForm" class="auth-form active">
+          <div class="field">
+            <input name="identity" type="text" required placeholder=" " autocomplete="username">
+            <label>Телефон або email</label>
           </div>
-          <div class="auth-tabs">
-            <button type="button" class="auth-tab active" data-tab="login">Увійти</button>
-            <button type="button" class="auth-tab" data-tab="register">Реєстрація</button>
+          <div class="field">
+            <input name="password" type="password" required placeholder=" " autocomplete="current-password">
+            <label>Пароль</label>
           </div>
-          <form id="loginForm" class="auth-form active">
-            <div class="field">
-              <input name="identity" type="text" required placeholder=" " autocomplete="username">
-              <label>Телефон або email</label>
+          <button type="submit" class="auth-submit">Увійти</button>
+        </form>
+
+        <form id="registerForm" class="auth-form">
+          <div class="field">
+            <input name="full_name" type="text" required placeholder=" " autocomplete="name">
+            <label>ПІБ</label>
+          </div>
+          <div class="field">
+            <input name="phone" type="tel" required placeholder=" ">
+            <label>Телефон</label>
+          </div>
+          <div class="field">
+            <input name="email" type="email" required placeholder=" " autocomplete="email">
+            <label>Email</label>
+          </div>
+          <div class="field">
+            <input name="password" type="password" required minlength="6" placeholder=" " autocomplete="new-password">
+            <label>Пароль (мін. 6 символів)</label>
+          </div>
+          <button type="submit" class="auth-submit">Створити акаунт</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ APP SHELL ══════════════════════════════════════════ -->
+  <div id="appScreen" class="app-shell hidden">
+
+    <!-- Header / Balance card -->
+    <header class="app-header">
+      <div class="header-top">
+        <div class="header-user">
+          <div class="avatar" id="userAvatar">АБ</div>
+          <div class="header-info">
+            <div class="header-name" id="userName">Кабінет</div>
+            <div class="header-role" id="userMeta">Завантаження…</div>
+          </div>
+        </div>
+        <button id="logoutBtn" class="icon-btn" aria-label="Вийти">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="balance-block">
+        <div class="balance-label">Загальний баланс</div>
+        <div class="balance-amount" id="heroBalance">₴0,00</div>
+        <div class="balance-account" id="heroAccount">Рахунок: —</div>
+        <!-- Hidden legacy ids for JS -->
+        <span id="balanceValue" style="display:none"></span>
+        <span id="accountNumber" style="display:none"></span>
+      </div>
+
+      <div class="quick-actions">
+        <button type="button" class="qa-btn" data-jump="topup">
+          <span class="qa-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+            </svg>
+          </span>
+          <span class="qa-label">Поповнити</span>
+        </button>
+        <button type="button" class="qa-btn" data-jump="transfer">
+          <span class="qa-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </span>
+          <span class="qa-label">Переказ</span>
+        </button>
+        <button type="button" class="qa-btn" data-jump="history">
+          <span class="qa-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </span>
+          <span class="qa-label">Операції</span>
+        </button>
+        <button type="button" class="qa-btn" data-jump="donations-screen">
+          <span class="qa-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+          </span>
+          <span class="qa-label">Донати</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ── MAIN CONTENT ──────────────────────────────────── -->
+    <main class="app-content">
+
+      <!-- DASHBOARD -->
+      <section id="dashboard" class="screen active-screen">
+        <h2 class="section-title">Огляд</h2>
+        <div class="cards-row">
+          <form id="topupForm" class="card" id="topupCard">
+            <div class="card-head">
+              <div class="card-icon-wrap green">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                  <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+                </svg>
+              </div>
+              <h3>Поповнення</h3>
             </div>
-            <div class="field">
-              <input name="password" type="password" required placeholder=" " autocomplete="current-password">
-              <label>Пароль</label>
-            </div>
-            <button type="submit" class="auth-submit">Увійти</button>
+            <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
+            <label class="lbl">Опис<input name="description" value="Поповнення рахунку"></label>
+            <button type="submit" class="btn-accent">Поповнити</button>
           </form>
-          <form id="registerForm" class="auth-form">
-            <div class="field">
-              <input name="full_name" type="text" required placeholder=" " autocomplete="name">
-              <label>ПІБ</label>
+
+          <form id="transferForm" class="card">
+            <div class="card-head">
+              <div class="card-icon-wrap blue">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </div>
+              <h3>Переказ</h3>
             </div>
-            <div class="field">
-              <input name="phone" type="tel" required placeholder=" ">
-              <label>Телефон</label>
+            <label class="lbl">Шаблон
+              <select name="template_id" id="transferTemplateSelect">
+                <option value="">— Обрати шаблон —</option>
+              </select>
+            </label>
+            <label class="lbl">Рахунок отримувача<input name="recipient_account_number" placeholder="AB-100001" required></label>
+            <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
+            <label class="lbl">Опис<input name="description" value="Переказ родині"></label>
+            <button type="submit" class="btn-accent">Переказати</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>Останні транзакції</h3>
+          </div>
+          <div id="recentTransactions" class="list"></div>
+        </div>
+
+        <div class="cards-row">
+          <form id="demoPayoutForm" class="card">
+            <div class="card-head">
+              <div class="card-icon-wrap orange">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+              </div>
+              <h3>Бойова виплата</h3>
             </div>
-            <div class="field">
-              <input name="email" type="email" required placeholder=" " autocomplete="email">
-              <label>Email</label>
+            <label class="lbl">Назва<input name="title" value="Бойова виплата"></label>
+            <label class="lbl">Тип<input name="payout_type" value="combat"></label>
+            <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" value="10000"></label>
+            <button type="submit" class="btn-accent">Нарахувати</button>
+          </form>
+
+          <form id="templateForm" class="card">
+            <div class="card-head">
+              <div class="card-icon-wrap purple">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+              </div>
+              <h3>Шаблон платежу</h3>
             </div>
-            <div class="field">
-              <input name="password" type="password" required minlength="6" placeholder=" " autocomplete="new-password">
-              <label>Пароль (мін. 6 символів)</label>
-            </div>
-            <button type="submit" class="auth-submit">Створити акаунт</button>
+            <label class="lbl">Назва<input name="name" placeholder="Переказ родині" required></label>
+            <label class="lbl">Рахунок<input name="recipient_account" placeholder="AB-100001" required></label>
+            <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01"></label>
+            <label class="lbl">Опис<input name="description" placeholder="Щомісячний переказ"></label>
+            <button type="submit" class="btn-accent">Зберегти</button>
           </form>
         </div>
       </section>
 
-      <section id="appScreen" class="hidden">
-        <header class="topbar card">
-          <div>
-            <h1 id="userName">Кабінет</h1>
-            <p class="muted" id="userMeta">Основний рахунок</p>
-          </div>
-          <div class="balance-box">
-            <span>Баланс</span>
-            <strong id="balanceValue">₴0.00</strong>
-            <small id="accountNumber">Рахунок: —</small>
-          </div>
-        </header>
-
-        <section id="dashboard" class="screen active-screen">
-          <div class="hero-balance card">
-            <div>
-              <div class="pill dot">Активний рахунок</div>
-              <div style="margin-top: 10px;">
-                <div class="subtle">Баланс</div>
-                <strong id="heroBalance">₴0.00</strong>
-              </div>
-              <div class="subtle" id="heroAccount">UA ••••</div>
-            </div>
-            <div class="action-grid" aria-label="Швидкі дії">
-              <button type="button" class="action-tile" data-jump="topup">
-                <strong>Поповнення</strong>
-                <span>Додати кошти</span>
-              </button>
-              <button type="button" class="action-tile" data-jump="transfer">
-                <strong>Переказ</strong>
-                <span>Родині / волонтерам</span>
-              </button>
-              <button type="button" class="action-tile" data-jump="history">
-                <strong>Історія</strong>
-                <span>Фільтри та пошук</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="grid two-col" style="margin-top: 16px;">
-            <form id="topupForm" class="card">
-              <h2>Поповнення рахунку</h2>
-              <label>Сума<input name="amount" type="number" step="0.01" required></label>
-              <label>Опис<input name="description" value="Поповнення рахунку"></label>
-              <button>Поповнити</button>
-            </form>
-            <form id="transferForm" class="card">
-              <h2>Швидкий переказ</h2>
-              <label>Шаблон<select name="template_id" id="transferTemplateSelect"><option value="">— Обрати шаблон —</option></select></label>
-              <label>Рахунок отримувача<input name="recipient_account_number" placeholder="AB-100001" required></label>
-              <label>Сума<input name="amount" type="number" step="0.01" required></label>
-              <label>Опис<input name="description" value="Переказ родині"></label>
-              <button>Переказати</button>
-            </form>
-          </div>
-          <div class="grid two-col">
-            <form id="demoPayoutForm" class="card">
-              <h2>Нарахування виплати</h2>
-              <label>Назва<input name="title" value="Бойова виплата"></label>
-              <label>Тип<input name="payout_type" value="combat"></label>
-              <label>Сума<input name="amount" type="number" step="0.01" value="10000"></label>
-              <button>Нарахувати</button>
-            </form>
-            <div class="card">
-              <h2>Останні транзакції</h2>
-              <div id="recentTransactions" class="list"></div>
-            </div>
-          </div>
-          <div class="grid two-col" style="margin-top: 20px;">
-            <form id="templateForm" class="card">
-              <h2>Шаблон платежу</h2>
-              <label>Назва<input name="name" placeholder="Переказ родині" required></label>
-              <label>Рахунок отримувача<input name="recipient_account" placeholder="AB-100001" required></label>
-              <label>Сума (необовʼязково)<input name="amount" type="number" step="0.01"></label>
-              <label>Опис<input name="description" placeholder="Щомісячний переказ"></label>
-              <button type="submit">Зберегти шаблон</button>
-            </form>
-          </div>
-        </section>
-
-        <section id="transactions" class="screen card">
-          <h2>Історія транзакцій</h2>
+      <!-- TRANSACTIONS -->
+      <section id="transactions" class="screen">
+        <h2 class="section-title">Операції</h2>
+        <div class="card">
           <form id="transactionsFilters" class="filters-row">
-            <label>З дати<input type="date" name="from_date"></label>
-            <label>По дату<input type="date" name="to_date"></label>
-            <label>Тип<select name="tx_type"><option value="">Усі</option><option value="topup">Поповнення</option><option value="transfer">Переказ</option><option value="payout">Виплата</option><option value="donation">Донат</option><option value="savings">Накопичення</option></select></label>
-            <label>Напрям<select name="direction"><option value="">Усі</option><option value="in">Прихід</option><option value="out">Відхід</option></select></label>
-            <button type="submit">Застосувати</button>
+            <label class="lbl">З дати<input type="date" name="from_date"></label>
+            <label class="lbl">По дату<input type="date" name="to_date"></label>
+            <label class="lbl">Тип
+              <select name="tx_type">
+                <option value="">Усі</option>
+                <option value="topup">Поповнення</option>
+                <option value="transfer">Переказ</option>
+                <option value="payout">Виплата</option>
+                <option value="donation">Донат</option>
+                <option value="savings">Накопичення</option>
+              </select>
+            </label>
+            <label class="lbl">Напрям
+              <select name="direction">
+                <option value="">Усі</option>
+                <option value="in">Прихід</option>
+                <option value="out">Відхід</option>
+              </select>
+            </label>
+            <button type="submit" class="btn-ghost">Застосувати</button>
           </form>
           <div id="transactionsList" class="list"></div>
-        </section>
-        <section id="payouts" class="screen card"><h2>Бойові виплати</h2><div id="payoutsList" class="list"></div></section>
-
-        <section id="donations" class="screen">
-          <div class="grid two-col">
-            <form id="donationForm" class="card">
-              <h2>Новий донат</h2>
-              <label>Напрям / фонд<input name="fund_name" value="Фонд підтримки підрозділу" required></label>
-              <label>Сума<input name="amount" type="number" step="0.01" required></label>
-              <label>Коментар<input name="comment"></label>
-              <button>Задонатити</button>
-            </form>
-            <div class="card"><h2>Історія донатів</h2><div id="donationsList" class="list"></div></div>
-          </div>
-        </section>
-
-        <section id="savings" class="screen">
-          <div class="grid two-col">
-            <form id="goalForm" class="card">
-              <h2>Створити ціль</h2>
-              <label>Назва<input name="title" value="Спорядження" required></label>
-              <label>Цільова сума<input name="target_amount" type="number" step="0.01" required></label>
-              <label>Дедлайн<input name="deadline" type="date"></label>
-              <button>Створити</button>
-            </form>
-            <form id="goalContributionForm" class="card">
-              <h2>Внесок у накопичення</h2>
-              <label>ID цілі<input name="goal_id" type="number" required></label>
-              <label>Сума<input name="amount" type="number" step="0.01" required></label>
-              <button>Поповнити ціль</button>
-            </form>
-          </div>
-          <div class="card"><h2>Мої цілі</h2><div id="goalsList" class="list"></div></div>
-        </section>
-
-        <section id="contacts" class="screen">
-          <div class="grid two-col">
-            <form id="contactForm" class="card">
-              <h2>Контакт родини</h2>
-              <label>Ім'я<input name="contact_name" required></label>
-              <label>Зв'язок<input name="relation_type" placeholder="дружина, брат, мати" required></label>
-              <label>Телефон<input name="phone"></label>
-              <label>Рахунок<input name="account_number"></label>
-              <button>Додати контакт</button>
-            </form>
-            <div class="card"><h2>Довірені контакти</h2><div id="contactsList" class="list"></div></div>
-          </div>
-        </section>
+        </div>
       </section>
-        <footer class="app-footer">
-          <a href="https://munister.com.ua/army-bank" target="_blank" rel="noopener">munister.com.ua</a>
-        </footer>
+
+      <!-- PAYOUTS -->
+      <section id="payouts" class="screen">
+        <h2 class="section-title">Бойові виплати</h2>
+        <div class="card">
+          <div id="payoutsList" class="list"></div>
+        </div>
+      </section>
+
+      <!-- DONATIONS -->
+      <section id="donations" class="screen">
+        <h2 class="section-title">Донати</h2>
+        <div class="cards-row">
+          <form id="donationForm" class="card">
+            <div class="card-head">
+              <div class="card-icon-wrap red">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+              </div>
+              <h3>Новий донат</h3>
+            </div>
+            <label class="lbl">Фонд<input name="fund_name" value="Фонд підтримки підрозділу" required></label>
+            <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
+            <label class="lbl">Коментар<input name="comment" placeholder="Необов'язково"></label>
+            <button type="submit" class="btn-accent">Задонатити</button>
+          </form>
+          <div class="card">
+            <div class="card-head"><h3>Мої донати</h3></div>
+            <div id="donationsList" class="list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SAVINGS -->
+      <section id="savings" class="screen">
+        <h2 class="section-title">Накопичення</h2>
+        <div class="cards-row">
+          <form id="goalForm" class="card">
+            <div class="card-head">
+              <div class="card-icon-wrap yellow">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                  <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+                </svg>
+              </div>
+              <h3>Нова ціль</h3>
+            </div>
+            <label class="lbl">Назва<input name="title" value="Спорядження" required></label>
+            <label class="lbl">Ціль, ₴<input name="target_amount" type="number" step="0.01" required placeholder="0.00"></label>
+            <label class="lbl">Дедлайн<input name="deadline" type="date"></label>
+            <button type="submit" class="btn-accent">Створити</button>
+          </form>
+          <form id="goalContributionForm" class="card">
+            <div class="card-head">
+              <div class="card-icon-wrap green">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+              </div>
+              <h3>Внесок</h3>
+            </div>
+            <label class="lbl">ID цілі<input name="goal_id" type="number" required placeholder="1"></label>
+            <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
+            <button type="submit" class="btn-accent">Поповнити</button>
+          </form>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Мої цілі</h3></div>
+          <div id="goalsList" class="list"></div>
+        </div>
+      </section>
+
+      <!-- CONTACTS -->
+      <section id="contacts" class="screen">
+        <h2 class="section-title">Родина</h2>
+        <div class="cards-row">
+          <form id="contactForm" class="card">
+            <div class="card-head">
+              <div class="card-icon-wrap blue">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <h3>Новий контакт</h3>
+            </div>
+            <label class="lbl">Ім'я<input name="contact_name" required placeholder="Ім'я контакту"></label>
+            <label class="lbl">Зв'язок<input name="relation_type" placeholder="дружина, брат, мати" required></label>
+            <label class="lbl">Телефон<input name="phone" placeholder="+380…"></label>
+            <label class="lbl">Рахунок<input name="account_number" placeholder="AB-100001"></label>
+            <button type="submit" class="btn-accent">Додати</button>
+          </form>
+          <div class="card">
+            <div class="card-head"><h3>Довірені контакти</h3></div>
+            <div id="contactsList" class="list"></div>
+          </div>
+        </div>
+      </section>
+
     </main>
+
+    <!-- ── BOTTOM NAV ─────────────────────────────────────── -->
+    <nav class="bottom-nav" id="sidebar" aria-label="Навігація">
+      <a class="nav-item menu-btn nav-link" data-screen="dashboard" href="/dashboard">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+        </svg>
+        <span>Огляд</span>
+      </a>
+      <a class="nav-item menu-btn nav-link" data-screen="transactions" href="/transactions">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        <span>Операції</span>
+      </a>
+      <a class="nav-item menu-btn nav-link" data-screen="payouts" href="/payouts">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>Виплати</span>
+      </a>
+      <a class="nav-item menu-btn nav-link" data-screen="donations" href="/donations">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+        <span>Донати</span>
+      </a>
+      <a class="nav-item menu-btn nav-link" data-screen="savings" href="/savings">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span>Ще</span>
+      </a>
+    </nav>
   </div>
+
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   <script src="/js/api.js"></script>
   <script src="/js/app.js"></script>

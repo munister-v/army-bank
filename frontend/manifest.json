@@ -1,0 +1,26 @@
+{
+  "name": "Army Bank",
+  "short_name": "Army Bank",
+  "description": "Цифровий банкінг для захисників України",
+  "theme_color": "#091628",
+  "background_color": "#0B0E18",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "start_url": "/",
+  "lang": "uk",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%23091628'/><path d='M96 24L32 56v56c0 44 28 84 64 100 36-16 64-56 64-100V56z' fill='%231a3a6e' stroke='%234A8FE7' stroke-width='4'/><path d='M72 96l20 20 36-36' stroke='white' stroke-width='10' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='110' fill='%23091628'/><path d='M256 60L80 150v150c0 118 78 226 176 268 98-42 176-150 176-268V150z' fill='%231a3a6e' stroke='%234A8FE7' stroke-width='10'/><path d='M190 256l54 54 98-98' stroke='white' stroke-width='28' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["finance"],
+  "screenshots": []
+}

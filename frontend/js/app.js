@@ -1,4 +1,4 @@
-// Головний файл фронтенду: обробка подій, рендер списків та навігація.
+// Army Bank — головний фронтенд
 const state = {
   user: null,
   account: null,
@@ -12,12 +12,13 @@ function showToast(message) {
   const toast = $('#toast');
   toast.textContent = message;
   toast.classList.remove('hidden');
-  setTimeout(() => toast.classList.add('hidden'), 2600);
+  setTimeout(() => toast.classList.add('hidden'), 2800);
 }
 
 function setAuthenticated(authenticated) {
   $('#authScreen').classList.toggle('hidden', authenticated);
   $('#appScreen').classList.toggle('hidden', !authenticated);
+  // sidebar = bottom-nav (id reused for compat)
   $('#sidebar')?.classList.toggle('hidden', !authenticated);
   document.body.classList.toggle('auth-mode', !authenticated);
 }
@@ -49,7 +50,7 @@ function renderList(containerSelector, items, renderer, emptyText) {
   if (!container) return;
   container.classList.remove('loading');
   if (!items.length) {
-    container.innerHTML = `<div class="empty-state">${emptyText || 'Немає даних.'}</div>`;
+    container.innerHTML = `<div class="empty-state"><strong>Нічого немає</strong>${emptyText || 'Даних поки немає.'}</div>`;
     return;
   }
   container.innerHTML = items.map(renderer).join('');
@@ -60,9 +61,9 @@ function renderTransactions(list, container = '#transactionsList') {
     <div class="item">
       <div class="item-header">
         <strong>${tx.description}</strong>
-        <span class="amount ${tx.direction}">${tx.direction === 'in' ? '+' : '-'}${formatMoney(tx.amount)}</span>
+        <span class="amount ${tx.direction}">${tx.direction === 'in' ? '+' : '−'}${formatMoney(tx.amount)}</span>
       </div>
-      <div class="muted">Тип: ${tx.tx_type} · Дата: ${tx.created_at}${tx.related_account ? ` · Пов'язаний рахунок: ${tx.related_account}` : ''}</div>
+      <div class="muted">${tx.tx_type} · ${tx.created_at}${tx.related_account ? ` · ${tx.related_account}` : ''}</div>
     </div>
   `, 'Транзакцій поки немає.');
 }
@@ -85,32 +86,63 @@ function getScreenIdFromPath() {
 }
 
 function switchScreen(screenId) {
-  const id = ['dashboard', 'transactions', 'payouts', 'donations', 'savings', 'contacts'].includes(screenId) ? screenId : 'dashboard';
-  $$('.screen').forEach((section) => section.classList.remove('active-screen'));
+  const id = ['dashboard', 'transactions', 'payouts', 'donations', 'savings', 'contacts'].includes(screenId)
+    ? screenId : 'dashboard';
+
+  $$('.screen').forEach((s) => s.classList.remove('active-screen'));
   const el = $(`#${id}`);
   if (el) el.classList.add('active-screen');
-  $$('.menu-btn').forEach((btn) => {
+
+  // Update nav active state (bottom-nav + desktop sidebar nav)
+  $$('.nav-item').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.screen === id);
   });
+  // Also update legacy .menu-btn if any
+  $$('.menu-btn:not(.nav-item)').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.screen === id);
+  });
+
   if (id === 'transactions') loadTransactionsWithFilters();
 }
 
 async function refreshProfile() {
   state.user = await api.request('/api/auth/me');
   state.account = await api.request('/api/accounts/main');
-  $('#userName').textContent = state.user.full_name;
-  const roleLabels = { soldier: 'Військовий', operator: 'Оператор', admin: 'Адмін', platform_admin: 'Платформа' };
-  $('#userMeta').textContent = `${roleLabels[state.user.role] || state.user.role} · ${state.user.email}`;
-  $('#balanceValue').textContent = formatMoney(state.account.balance);
-  $('#accountNumber').textContent = `Рахунок: ${state.account.account_number}`;
-  $('#heroBalance')?.replaceChildren(document.createTextNode(formatMoney(state.account.balance)));
-  const masked = state.account.account_number ? `Рахунок: ${state.account.account_number}` : 'Рахунок: —';
-  $('#heroAccount')?.replaceChildren(document.createTextNode(masked));
+
+  // Header info
+  const nameEl = $('#userName');
+  if (nameEl) nameEl.textContent = state.user.full_name;
+
+  const roleLabels = { soldier: 'Військовий', operator: 'Оператор', admin: 'Адміністратор', platform_admin: 'Платформа' };
+  const metaEl = $('#userMeta');
+  if (metaEl) metaEl.textContent = `${roleLabels[state.user.role] || state.user.role} · ${state.user.email}`;
+
+  // Avatar initials
+  const avatarEl = $('#userAvatar');
+  if (avatarEl && state.user.full_name) {
+    const parts = state.user.full_name.trim().split(' ');
+    avatarEl.textContent = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
+  }
+
+  // Balance display
+  const balance = formatMoney(state.account.balance);
+  const heroBalEl = $('#heroBalance');
+  if (heroBalEl) heroBalEl.textContent = balance;
+  const heroAccEl = $('#heroAccount');
+  if (heroAccEl) heroAccEl.textContent = `Рахунок: ${state.account.account_number || '—'}`;
+
+  // Legacy hidden elements
+  const balVal = $('#balanceValue');
+  if (balVal) balVal.textContent = balance;
+  const accNum = $('#accountNumber');
+  if (accNum) accNum.textContent = `Рахунок: ${state.account.account_number}`;
+
+  // Show admin/operator nav items
   const adminLink = $('.nav-admin');
   const operatorLink = $('.nav-operator');
   const platformLink = $('.nav-platform');
   if (adminLink) adminLink.classList.toggle('hidden', state.user.role !== 'admin' && state.user.role !== 'platform_admin');
-  if (operatorLink) operatorLink.classList.toggle('hidden', state.user.role !== 'operator' && state.user.role !== 'admin' && state.user.role !== 'platform_admin');
+  if (operatorLink) operatorLink.classList.toggle('hidden', !['operator','admin','platform_admin'].includes(state.user.role));
   if (platformLink) platformLink.classList.toggle('hidden', state.user.role !== 'platform_admin');
 }
 
@@ -123,7 +155,9 @@ async function loadPaymentTemplates() {
   const sel = $('#transferTemplateSelect');
   if (!sel) return;
   sel.innerHTML = '<option value="">— Обрати шаблон —</option>' +
-    state.paymentTemplates.map((t) => `<option value="${t.id}" data-account="${t.recipient_account || ''}" data-amount="${t.amount || ''}" data-desc="${(t.description || '').replace(/"/g, '&quot;')}">${t.name}</option>`).join('');
+    state.paymentTemplates.map((t) =>
+      `<option value="${t.id}" data-account="${t.recipient_account || ''}" data-amount="${t.amount || ''}" data-desc="${(t.description || '').replace(/"/g, '&quot;')}">${t.name}</option>`
+    ).join('');
 }
 
 async function loadTransactionsWithFilters() {
@@ -133,15 +167,11 @@ async function loadTransactionsWithFilters() {
   let url = '/api/transactions/history';
   if (form) {
     const fd = new FormData(form);
-    const from = fd.get('from_date');
-    const to = fd.get('to_date');
-    const txType = fd.get('tx_type');
-    const dir = fd.get('direction');
     const params = new URLSearchParams();
-    if (from) params.set('from_date', from);
-    if (to) params.set('to_date', to);
-    if (txType) params.set('tx_type', txType);
-    if (dir) params.set('direction', dir);
+    if (fd.get('from_date')) params.set('from_date', fd.get('from_date'));
+    if (fd.get('to_date'))   params.set('to_date',   fd.get('to_date'));
+    if (fd.get('tx_type'))   params.set('tx_type',   fd.get('tx_type'));
+    if (fd.get('direction')) params.set('direction', fd.get('direction'));
     const q = params.toString();
     if (q) url += '?' + q;
   }
@@ -156,66 +186,64 @@ async function loadTransactionsWithFilters() {
 }
 
 async function refreshAllData() {
-  setListLoading('#recentTransactions', true);
-  setListLoading('#transactionsList', true);
-  setListLoading('#payoutsList', true);
-  setListLoading('#donationsList', true);
-  setListLoading('#goalsList', true);
-  setListLoading('#contactsList', true);
+  ['#recentTransactions','#transactionsList','#payoutsList','#donationsList','#goalsList','#contactsList']
+    .forEach((s) => setListLoading(s, true));
+
   await refreshProfile();
   await loadPaymentTemplates();
 
   try {
-  const [transactions, payouts, donations, goals, contacts] = await Promise.all([
-    api.request('/api/transactions/history'),
-    api.request('/api/payouts'),
-    api.request('/api/donations'),
-    api.request('/api/savings-goals'),
-    api.request('/api/family-contacts'),
-  ]);
+    const [transactions, payouts, donations, goals, contacts] = await Promise.all([
+      api.request('/api/transactions/history'),
+      api.request('/api/payouts'),
+      api.request('/api/donations'),
+      api.request('/api/savings-goals'),
+      api.request('/api/family-contacts'),
+    ]);
 
-  renderTransactions(transactions.slice(0, 5), '#recentTransactions');
-  renderTransactions(transactions, '#transactionsList');
-  renderSimpleList('#payoutsList', payouts, (row) => `
-    <div class="item">
-      <div class="item-header"><strong>${row.title}</strong><span class="amount in">+${formatMoney(row.amount)}</span></div>
-      <div class="muted">Тип: ${row.payout_type} · Статус: ${row.status} · ${row.created_at}</div>
-    </div>
-  `, 'Виплат поки немає.');
-  renderSimpleList('#donationsList', donations, (row) => `
-    <div class="item">
-      <div class="item-header"><strong>${row.fund_name}</strong><span class="amount out">-${formatMoney(row.amount)}</span></div>
-      <div class="muted">${row.comment || 'Без коментаря'} · ${row.created_at}</div>
-    </div>
-  `, 'Донатів поки немає.');
-  renderSimpleList('#goalsList', goals, (row) => `
-    <div class="item">
-      <div class="item-header"><strong>#${row.id} ${row.title}</strong><span>${formatMoney(row.current_amount)} / ${formatMoney(row.target_amount)}</span></div>
-      <div class="muted">Статус: ${row.status}${row.deadline ? ` · Дедлайн: ${row.deadline}` : ''}</div>
-    </div>
-  `, 'Цілей накопичення поки немає.');
-  renderSimpleList('#contactsList', contacts, (row) => `
-    <div class="item">
-      <div class="item-header"><strong>${row.contact_name}</strong><span>${row.relation_type}</span></div>
-      <div class="muted">${row.phone || 'Телефон не вказано'}${row.account_number ? ` · ${row.account_number}` : ''}</div>
-    </div>
-  `, 'Контактів поки немає.');
+    renderTransactions(transactions.slice(0, 5), '#recentTransactions');
+    renderTransactions(transactions, '#transactionsList');
+
+    renderSimpleList('#payoutsList', payouts, (row) => `
+      <div class="item">
+        <div class="item-header"><strong>${row.title}</strong><span class="amount in">+${formatMoney(row.amount)}</span></div>
+        <div class="muted">${row.payout_type} · ${row.status} · ${row.created_at}</div>
+      </div>
+    `, 'Виплат поки немає.');
+
+    renderSimpleList('#donationsList', donations, (row) => `
+      <div class="item">
+        <div class="item-header"><strong>${row.fund_name}</strong><span class="amount out">−${formatMoney(row.amount)}</span></div>
+        <div class="muted">${row.comment || 'Без коментаря'} · ${row.created_at}</div>
+      </div>
+    `, 'Донатів поки немає.');
+
+    renderSimpleList('#goalsList', goals, (row) => {
+      const pct = row.target_amount > 0 ? Math.min(100, Math.round(row.current_amount / row.target_amount * 100)) : 0;
+      return `
+        <div class="item">
+          <div class="item-header"><strong>${row.title}</strong><span>${formatMoney(row.current_amount)} / ${formatMoney(row.target_amount)}</span></div>
+          <div class="muted">${row.status}${row.deadline ? ` · до ${row.deadline}` : ''} · ${pct}%</div>
+        </div>
+      `;
+    }, 'Цілей накопичення поки немає.');
+
+    renderSimpleList('#contactsList', contacts, (row) => `
+      <div class="item">
+        <div class="item-header"><strong>${row.contact_name}</strong><span>${row.relation_type}</span></div>
+        <div class="muted">${row.phone || 'Телефон не вказано'}${row.account_number ? ` · ${row.account_number}` : ''}</div>
+      </div>
+    `, 'Контактів поки немає.');
+
   } finally {
-    setListLoading('#recentTransactions', false);
-    setListLoading('#transactionsList', false);
-    setListLoading('#payoutsList', false);
-    setListLoading('#donationsList', false);
-    setListLoading('#goalsList', false);
-    setListLoading('#contactsList', false);
+    ['#recentTransactions','#transactionsList','#payoutsList','#donationsList','#goalsList','#contactsList']
+      .forEach((s) => setListLoading(s, false));
   }
 }
 
 async function handleAuth(form, endpoint) {
   const formData = Object.fromEntries(new FormData(form).entries());
-  const result = await api.request(endpoint, {
-    method: 'POST',
-    body: JSON.stringify(formData),
-  });
+  const result = await api.request(endpoint, { method: 'POST', body: JSON.stringify(formData) });
   api.setToken(result.token);
   setAuthenticated(true);
   await refreshAllData();
@@ -223,9 +251,7 @@ async function handleAuth(form, endpoint) {
   switchScreen(screen);
   const base = getBasePath();
   const targetPath = base ? base + '/' + screen : '/' + screen;
-  if (window.location.pathname !== targetPath) {
-    window.history.replaceState(null, '', targetPath);
-  }
+  if (window.location.pathname !== targetPath) window.history.replaceState(null, '', targetPath);
   showToast('Успішна авторизація.');
 }
 
@@ -234,15 +260,12 @@ function bindJsonForm(selector, endpoint, options = {}) {
   if (!form) return;
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const btn = form.querySelector('button[type="submit"]');
+    const btn = form.querySelector('button[type="submit"], button:not([type])');
     try {
       setButtonLoading(btn, true);
       const values = Object.fromEntries(new FormData(form).entries());
       const payload = options.transform ? options.transform(values) : values;
-      await api.request(endpoint(payload), {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      await api.request(endpoint(payload), { method: 'POST', body: JSON.stringify(payload) });
       form.reset();
       if (options.afterReset) options.afterReset(form);
       await refreshAllData();
@@ -256,6 +279,7 @@ function bindJsonForm(selector, endpoint, options = {}) {
   });
 }
 
+// ── AUTH FORMS ───────────────────────────────────────────
 $('#loginForm')?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -284,6 +308,7 @@ $('#registerForm')?.addEventListener('submit', async (event) => {
   }
 });
 
+// ── BOUND FORMS ──────────────────────────────────────────
 bindJsonForm('#topupForm', () => '/api/transactions/topup', {
   transform: (v) => ({ ...v, amount: Number(v.amount) }),
   successMessage: 'Рахунок поповнено.',
@@ -297,7 +322,11 @@ bindJsonForm('#transferForm', () => '/api/transactions/transfer', {
     description: v.description || 'Переказ',
   }),
   successMessage: 'Переказ виконано.',
-  afterReset: (form) => { form.description.value = 'Переказ родині'; $('#transferTemplateSelect').value = ''; },
+  afterReset: (form) => {
+    form.description.value = 'Переказ родині';
+    const sel = $('#transferTemplateSelect');
+    if (sel) sel.value = '';
+  },
 });
 
 $('#transferTemplateSelect')?.addEventListener('change', function () {
@@ -354,10 +383,11 @@ $('#transactionsFilters')?.addEventListener('submit', (event) => {
   showToast('Фільтри застосовано.');
 });
 
-$$('.menu-btn.nav-link').forEach((btn) => {
+// ── NAVIGATION ───────────────────────────────────────────
+$$('.nav-item.nav-link').forEach((btn) => {
   btn.addEventListener('click', (event) => {
     const screen = btn.dataset.screen;
-    if (screen && !btn.href?.endsWith('/admin') && !btn.href?.endsWith('/operator')) {
+    if (screen) {
       event.preventDefault();
       const base = getBasePath();
       window.history.pushState(null, '', base ? base + '/' + screen : '/' + screen);
@@ -370,16 +400,22 @@ window.addEventListener('popstate', () => {
   switchScreen(getScreenIdFromPath());
 });
 
+// Quick action buttons
 $$('[data-jump]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.jump;
-    if (id === 'history') {
+    // Navigate to screen
+    const screenMap = { history: 'transactions', 'donations-screen': 'donations', payouts: 'payouts', savings: 'savings', contacts: 'contacts' };
+    if (screenMap[id]) {
+      const target = screenMap[id];
       const base = getBasePath();
-      window.history.pushState(null, '', base ? base + '/transactions' : '/transactions');
-      switchScreen('transactions');
+      window.history.pushState(null, '', base ? base + '/' + target : '/' + target);
+      switchScreen(target);
       return;
     }
-    const target = id === 'topup' ? '#topupForm' : id === 'transfer' ? '#transferForm' : null;
+    // Scroll to form
+    const formMap = { topup: '#topupForm', transfer: '#transferForm' };
+    const target = formMap[id];
     if (target) {
       $(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -391,14 +427,15 @@ $$('.auth-tab').forEach((tab) => {
   tab.addEventListener('click', () => {
     const t = tab.dataset.tab;
     $$('.auth-tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === t));
-    $$('.auth-form').forEach((f) => f.classList.toggle('active', (f.id === 'loginForm' && t === 'login') || (f.id === 'registerForm' && t === 'register')));
+    $$('.auth-form').forEach((f) => f.classList.toggle('active',
+      (f.id === 'loginForm' && t === 'login') || (f.id === 'registerForm' && t === 'register')
+    ));
   });
 });
 
+// Logout
 $('#logoutBtn')?.addEventListener('click', async () => {
-  try {
-    await api.request('/api/auth/logout', { method: 'POST' });
-  } catch (_) {}
+  try { await api.request('/api/auth/logout', { method: 'POST' }); } catch (_) {}
   api.setToken('');
   setAuthenticated(false);
   const base = getBasePath();
@@ -406,6 +443,7 @@ $('#logoutBtn')?.addEventListener('click', async () => {
   showToast('Ви вийшли з системи.');
 });
 
+// ── BOOTSTRAP ────────────────────────────────────────────
 (async function bootstrap() {
   if (!api.token) {
     setAuthenticated(false);
