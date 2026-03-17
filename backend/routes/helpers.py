@@ -28,3 +28,18 @@ def auth_required(func):
         g.current_token = token
         return func(*args, **kwargs)
     return wrapper
+
+
+def role_required(*allowed_roles: str):
+    """Декоратор: перевіряє, що g.current_user має одну з дозволених ролей. Після auth_required."""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            user = getattr(g, 'current_user', None)
+            if not user:
+                return api_error('Потрібна авторизація.', 401)
+            if user.get('role') not in allowed_roles:
+                return api_error('Доступ заборонено.', 403)
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator

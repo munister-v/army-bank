@@ -1,6 +1,7 @@
 """Репозиторій користувачів та сесій."""
 from __future__ import annotations
 
+from ..database import get_returning_id_suffix, insert_last_id
 from .base import BaseRepository
 
 
@@ -10,27 +11,27 @@ class UserRepository(BaseRepository):
             cursor = conn.execute(
                 '''
                 INSERT INTO users(full_name, phone, email, password_hash, role)
-                VALUES(?, ?, ?, ?, ?)
-                ''',
+                VALUES(%s, %s, %s, %s, %s)
+                ''' + get_returning_id_suffix(),
                 (full_name, phone, email, password_hash, role),
             )
-            return cursor.lastrowid
+            return insert_last_id(cursor)
 
     def get_by_phone_or_email(self, identity: str):
         with self.connection() as conn:
             return conn.execute(
-                'SELECT * FROM users WHERE phone = ? OR email = ?',
+                'SELECT * FROM users WHERE phone = %s OR email = %s',
                 (identity, identity),
             ).fetchone()
 
     def get_by_id(self, user_id: int):
         with self.connection() as conn:
-            return conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+            return conn.execute('SELECT * FROM users WHERE id = %s', (user_id,)).fetchone()
 
     def create_session(self, user_id: int, token: str, expires_at: str) -> None:
         with self.connection() as conn:
             conn.execute(
-                'INSERT INTO sessions(user_id, token, expires_at) VALUES(?, ?, ?)',
+                'INSERT INTO sessions(user_id, token, expires_at) VALUES(%s, %s, %s)',
                 (user_id, token, expires_at),
             )
 
@@ -41,11 +42,27 @@ class UserRepository(BaseRepository):
                 SELECT u.*, s.expires_at
                 FROM sessions s
                 JOIN users u ON u.id = s.user_id
-                WHERE s.token = ?
+                WHERE s.token = %s
                 ''',
                 (token,),
             ).fetchone()
 
     def delete_session(self, token: str) -> None:
         with self.connection() as conn:
-            conn.execute('DELETE FROM sessions WHERE token = ?', (token,))
+            conn.execute('DELETE FROM sessions WHERE token = %s', (token,))
+
+    def list_all(self, role_filter: str | None = None):
+        with self.connection() as conn:
+            if role_filter:
+                return conn.execute(
+                    'SELECT id, full_name, phone, email, role, military_status, created_at FROM users WHERE role = %s ORDER BY id',
+                    (role_filter,),
+                ).fetchall()
+            return conn.execute(
+                'SELECT id, full_name, phone, email, role, military_status, created_at FROM users ORDER BY id',
+                (),
+            ).fetchall()
+
+    def update_role(self, user_id: int, role: str) -> None:
+        with self.connection() as conn:
+            conn.execute('UPDATE users SET role = %s WHERE id = %s', (role, user_id))

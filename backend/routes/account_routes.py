@@ -48,6 +48,17 @@ def transfer():
 @auth_required
 def history():
     try:
-        return jsonify({'ok': True, 'data': service.list_transactions(g.current_user['id'])})
+        from_date = request.args.get('from_date') or None
+        to_date = request.args.get('to_date') or None
+        tx_type = request.args.get('tx_type') or None
+        direction = request.args.get('direction') or None
+        data = service.list_transactions(
+            g.current_user['id'],
+            from_date=from_date,
+            to_date=to_date,
+            tx_type=tx_type,
+            direction=direction,
+        )
+        return jsonify({'ok': True, 'data': data})
     except Exception as exc:
         return api_error(str(exc))

@@ -26,9 +26,9 @@ build/
 .DS_Store
 Thumbs.db
 
-# Database (optional: uncomment if DB should not be in repo)
-# database/*.db
-# database/*.sqlite
+# Database
+database/*.db
+database/*.sqlite
 
 # Logs
 *.log

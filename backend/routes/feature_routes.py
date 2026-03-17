@@ -79,3 +79,30 @@ def demo_payout():
         return jsonify({'ok': True, 'data': service.create_demo_payout(g.current_user['id'], request.get_json(force=True))})
     except Exception as exc:
         return api_error(str(exc))
+
+
+@feature_bp.get('/payment-templates')
+@auth_required
+def list_payment_templates():
+    return jsonify({'ok': True, 'data': service.list_payment_templates(g.current_user['id'])})
+
+
+@feature_bp.post('/payment-templates')
+@auth_required
+def create_payment_template():
+    try:
+        return jsonify({'ok': True, 'data': service.create_payment_template(g.current_user['id'], request.get_json(force=True))})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@feature_bp.get('/payment-templates/<int:template_id>')
+@auth_required
+def get_payment_template(template_id: int):
+    try:
+        t = service.get_payment_template(template_id, g.current_user['id'])
+        if not t:
+            return api_error('Шаблон не знайдено.', 404)
+        return jsonify({'ok': True, 'data': t})
+    except Exception as exc:
+        return api_error(str(exc))

@@ -3,23 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WeeGo Army Bank</title>
+  <title>Digital Army Bank — WeeGo Studio</title>
   <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
   <div class="page-shell">
     <aside class="sidebar">
       <div>
-        <div class="brand">WeeGo Army Bank</div>
-        <p class="muted">Desktop-версія банкінгу для військових</p>
+        <div class="brand">Digital Army Bank</div>
+        <p class="muted">Банкінг для військових · WeeGo Studio</p>
       </div>
       <nav class="menu">
-        <button class="menu-btn active" data-screen="dashboard">Огляд</button>
-        <button class="menu-btn" data-screen="transactions">Транзакції</button>
-        <button class="menu-btn" data-screen="payouts">Бойові виплати</button>
-        <button class="menu-btn" data-screen="donations">Донати</button>
-        <button class="menu-btn" data-screen="savings">Накопичення</button>
-        <button class="menu-btn" data-screen="contacts">Родина</button>
+        <a class="menu-btn nav-link" href="/dashboard" data-screen="dashboard">Огляд</a>
+        <a class="menu-btn nav-link" href="/transactions" data-screen="transactions">Транзакції</a>
+        <a class="menu-btn nav-link" href="/payouts" data-screen="payouts">Бойові виплати</a>
+        <a class="menu-btn nav-link" href="/donations" data-screen="donations">Донати</a>
+        <a class="menu-btn nav-link" href="/savings" data-screen="savings">Накопичення</a>
+        <a class="menu-btn nav-link" href="/contacts" data-screen="contacts">Родина</a>
+        <a class="menu-btn nav-link nav-admin hidden" href="/admin" data-screen="admin">Адмін</a>
+        <a class="menu-btn nav-link nav-operator hidden" href="/operator" data-screen="operator">Оператор</a>
       </nav>
       <div class="sidebar-footer">
         <button id="logoutBtn" class="secondary-btn">Вийти</button>
@@ -30,11 +32,10 @@
       <section id="authScreen" class="auth-screen card">
         <div class="auth-columns">
           <div>
-            <h1>Вхід до Army Bank</h1>
-            <p class="muted">Усі поля та сценарії проєкту вже підготовлені для подальшого розвитку.</p>
+            <h1>Увійдіть до акаунту</h1>
+            <p class="muted">Безпечний вхід до Army Bank. Реєстрація створює рахунок автоматично.</p>
             <div class="demo-box">
-              <strong>Підказка для тесту:</strong>
-              <p>Спершу зареєструйте користувача, після цього автоматично створиться рахунок.</p>
+              <strong>Підказка:</strong> спочатку зареєструйтеся — рахунок створиться автоматично.
             </div>
           </div>
           <div class="forms-grid">
@@ -79,6 +80,7 @@
             </form>
             <form id="transferForm" class="card">
               <h2>Швидкий переказ</h2>
+              <label>Шаблон<select name="template_id" id="transferTemplateSelect"><option value="">— Обрати шаблон —</option></select></label>
               <label>Рахунок отримувача<input name="recipient_account_number" placeholder="AB-100001" required></label>
               <label>Сума<input name="amount" type="number" step="0.01" required></label>
               <label>Опис<input name="description" value="Переказ родині"></label>
@@ -98,9 +100,29 @@
               <div id="recentTransactions" class="list"></div>
             </div>
           </div>
+          <div class="grid two-col" style="margin-top: 20px;">
+            <form id="templateForm" class="card">
+              <h2>Шаблон платежу</h2>
+              <label>Назва<input name="name" placeholder="Переказ родині" required></label>
+              <label>Рахунок отримувача<input name="recipient_account" placeholder="AB-100001" required></label>
+              <label>Сума (необовʼязково)<input name="amount" type="number" step="0.01"></label>
+              <label>Опис<input name="description" placeholder="Щомісячний переказ"></label>
+              <button type="submit">Зберегти шаблон</button>
+            </form>
+          </div>
         </section>
 
-        <section id="transactions" class="screen card"><h2>Історія транзакцій</h2><div id="transactionsList" class="list"></div></section>
+        <section id="transactions" class="screen card">
+          <h2>Історія транзакцій</h2>
+          <form id="transactionsFilters" class="filters-row">
+            <label>З дати<input type="date" name="from_date"></label>
+            <label>По дату<input type="date" name="to_date"></label>
+            <label>Тип<select name="tx_type"><option value="">Усі</option><option value="topup">Поповнення</option><option value="transfer">Переказ</option><option value="payout">Виплата</option><option value="donation">Донат</option><option value="savings">Накопичення</option></select></label>
+            <label>Напрям<select name="direction"><option value="">Усі</option><option value="in">Прихід</option><option value="out">Відхід</option></select></label>
+            <button type="submit">Застосувати</button>
+          </form>
+          <div id="transactionsList" class="list"></div>
+        </section>
         <section id="payouts" class="screen card"><h2>Бойові виплати</h2><div id="payoutsList" class="list"></div></section>
 
         <section id="donations" class="screen">
@@ -149,6 +171,11 @@
           </div>
         </section>
       </section>
+        <footer class="weego-footer">
+    <a href="https://weego-web.github.io/army.html" target="_blank" rel="noopener">WeeGo Studio · Army Bank</a>
+    <span> · </span>
+    <a href="https://munister.com.ua/" target="_blank" rel="noopener">munister.com.ua</a>
+        </footer>
     </main>
   </div>
   <div id="toast" class="toast hidden"></div>

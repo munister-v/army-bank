@@ -1,0 +1,26 @@
+# Systemd — сервіс Army Bank (Gunicorn)
+# Встановлення:
+#   sudo cp deploy/army-bank.service /etc/systemd/system/
+#   sudo sed -i 's|/home/USER/army_bank_project|/шлях/до/вашого/проєкту|g' /etc/systemd/system/army-bank.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable army-bank
+#   sudo systemctl start army-bank
+
+[Unit]
+Description=WeeGo Army Bank (Gunicorn)
+After=network.target
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/home/USER/army_bank_project
+Environment="PATH=/home/USER/army_bank_project/.venv/bin"
+EnvironmentFile=/home/USER/army_bank_project/.env
+ExecStart=/home/USER/army_bank_project/.venv/bin/gunicorn -c deploy/gunicorn.conf.py backend.app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

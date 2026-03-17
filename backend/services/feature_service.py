@@ -92,3 +92,20 @@ class FeatureService:
         self.repo.create_payout(user_id, title, amount, payout_type)
         self.repo.add_audit_log(user_id, 'demo_payout', f'Нараховано виплату {amount:.2f} грн.')
         return self.repo.list_payouts(user_id)
+
+    def list_payment_templates(self, user_id: int):
+        return self.repo.list_payment_templates(user_id)
+
+    def create_payment_template(self, user_id: int, data: dict):
+        name = (data.get('name') or '').strip()
+        recipient_account = (data.get('recipient_account') or '').strip()
+        amount = data.get('amount')
+        amount = float(amount) if amount is not None and amount != '' else None
+        description = (data.get('description') or '').strip()
+        if not name or not recipient_account:
+            raise ValueError('Потрібно вказати назву та рахунок отримувача.')
+        self.repo.create_payment_template(user_id, name, recipient_account, amount, description, is_system=False)
+        return self.repo.list_payment_templates(user_id)
+
+    def get_payment_template(self, template_id: int, user_id: int):
+        return self.repo.get_payment_template(template_id, user_id)

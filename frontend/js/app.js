@@ -2,6 +2,7 @@
 const state = {
   user: null,
   account: null,
+  paymentTemplates: [],
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -20,11 +21,12 @@ function setAuthenticated(authenticated) {
 }
 
 function formatMoney(value) {
-  return `${Number(value || 0).toFixed(2)} грн`;
+  return `₴${Number(value || 0).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function renderList(containerSelector, items, renderer, emptyText) {
   const container = $(containerSelector);
+  if (!container) return;
   if (!items.length) {
     container.innerHTML = `<div class="item"><span class="muted">${emptyText}</span></div>`;
     return;
@@ -48,6 +50,30 @@ function renderSimpleList(container, list, mapFn, emptyText) {
   renderList(container, list, mapFn, emptyText);
 }
 
+function getBasePath() {
+  return (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
+}
+
+function getScreenIdFromPath() {
+  let path = window.location.pathname;
+  const base = getBasePath();
+  if (base) path = path.replace(new RegExp('^' + base.replace(/\//g, '\\/')), '') || '/';
+  path = path.replace(/^\//, '') || 'dashboard';
+  const allowed = ['dashboard', 'transactions', 'payouts', 'donations', 'savings', 'contacts'];
+  return allowed.includes(path) ? path : 'dashboard';
+}
+
+function switchScreen(screenId) {
+  const id = ['dashboard', 'transactions', 'payouts', 'donations', 'savings', 'contacts'].includes(screenId) ? screenId : 'dashboard';
+  $$('.screen').forEach((section) => section.classList.remove('active-screen'));
+  const el = $(`#${id}`);
+  if (el) el.classList.add('active-screen');
+  $$('.menu-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.screen === id);
+  });
+  if (id === 'transactions') loadTransactionsWithFilters();
+}
+
 async function refreshProfile() {
   state.user = await api.request('/api/auth/me');
   state.account = await api.request('/api/accounts/main');
@@ -55,10 +81,53 @@ async function refreshProfile() {
   $('#userMeta').textContent = `${state.user.role} · ${state.user.email}`;
   $('#balanceValue').textContent = formatMoney(state.account.balance);
   $('#accountNumber').textContent = `Рахунок: ${state.account.account_number}`;
+  const adminLink = $('.nav-admin');
+  const operatorLink = $('.nav-operator');
+  if (adminLink) adminLink.classList.toggle('hidden', state.user.role !== 'admin');
+  if (operatorLink) operatorLink.classList.toggle('hidden', state.user.role !== 'operator' && state.user.role !== 'admin');
+}
+
+async function loadPaymentTemplates() {
+  try {
+    state.paymentTemplates = await api.request('/api/payment-templates');
+  } catch (_) {
+    state.paymentTemplates = [];
+  }
+  const sel = $('#transferTemplateSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Обрати шаблон —</option>' +
+    state.paymentTemplates.map((t) => `<option value="${t.id}" data-account="${t.recipient_account || ''}" data-amount="${t.amount || ''}" data-desc="${(t.description || '').replace(/"/g, '&quot;')}">${t.name}</option>`).join('');
+}
+
+async function loadTransactionsWithFilters() {
+  const form = $('#transactionsFilters');
+  let url = '/api/transactions/history';
+  if (form) {
+    const fd = new FormData(form);
+    const from = fd.get('from_date');
+    const to = fd.get('to_date');
+    const txType = fd.get('tx_type');
+    const dir = fd.get('direction');
+    const params = new URLSearchParams();
+    if (from) params.set('from_date', from);
+    if (to) params.set('to_date', to);
+    if (txType) params.set('tx_type', txType);
+    if (dir) params.set('direction', dir);
+    const q = params.toString();
+    if (q) url += '?' + q;
+  }
+  try {
+    const list = await api.request(url);
+    renderTransactions(list, '#transactionsList');
+  } catch (e) {
+    renderTransactions([], '#transactionsList');
+  }
 }
 
 async function refreshAllData() {
   await refreshProfile();
+  await loadPaymentTemplates();
+
   const [transactions, payouts, donations, goals, contacts] = await Promise.all([
     api.request('/api/transactions/history'),
     api.request('/api/payouts'),
@@ -67,8 +136,8 @@ async function refreshAllData() {
     api.request('/api/family-contacts'),
   ]);
 
-  renderTransactions(transactions, '#transactionsList');
   renderTransactions(transactions.slice(0, 5), '#recentTransactions');
+  renderTransactions(transactions, '#transactionsList');
   renderSimpleList('#payoutsList', payouts, (row) => `
     <div class="item">
       <div class="item-header"><strong>${row.title}</strong><span class="amount in">+${formatMoney(row.amount)}</span></div>
@@ -95,12 +164,6 @@ async function refreshAllData() {
   `, 'Контактів поки немає.');
 }
 
-function switchScreen(screenId) {
-  $$('.screen').forEach((section) => section.classList.remove('active-screen'));
-  $(`#${screenId}`).classList.add('active-screen');
-  $$('.menu-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.screen === screenId));
-}
-
 async function handleAuth(form, endpoint) {
   const formData = Object.fromEntries(new FormData(form).entries());
   const result = await api.request(endpoint, {
@@ -110,11 +173,19 @@ async function handleAuth(form, endpoint) {
   api.setToken(result.token);
   setAuthenticated(true);
   await refreshAllData();
+  const screen = getScreenIdFromPath();
+  switchScreen(screen);
+  const base = getBasePath();
+  const targetPath = base ? base + '/' + screen : '/' + screen;
+  if (window.location.pathname !== targetPath) {
+    window.history.replaceState(null, '', targetPath);
+  }
   showToast('Успішна авторизація.');
 }
 
 function bindJsonForm(selector, endpoint, options = {}) {
   const form = $(selector);
+  if (!form) return;
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     try {
@@ -127,6 +198,7 @@ function bindJsonForm(selector, endpoint, options = {}) {
       form.reset();
       if (options.afterReset) options.afterReset(form);
       await refreshAllData();
+      if (options.afterSuccess) options.afterSuccess();
       showToast(options.successMessage || 'Операцію виконано.');
     } catch (error) {
       showToast(error.message);
@@ -134,7 +206,7 @@ function bindJsonForm(selector, endpoint, options = {}) {
   });
 }
 
-$('#loginForm').addEventListener('submit', async (event) => {
+$('#loginForm')?.addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
     await handleAuth(event.currentTarget, '/api/auth/login');
@@ -143,7 +215,7 @@ $('#loginForm').addEventListener('submit', async (event) => {
   }
 });
 
-$('#registerForm').addEventListener('submit', async (event) => {
+$('#registerForm')?.addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
     await handleAuth(event.currentTarget, '/api/auth/register');
@@ -159,9 +231,24 @@ bindJsonForm('#topupForm', () => '/api/transactions/topup', {
 });
 
 bindJsonForm('#transferForm', () => '/api/transactions/transfer', {
-  transform: (v) => ({ ...v, amount: Number(v.amount) }),
+  transform: (v) => ({
+    recipient_account_number: v.recipient_account_number,
+    amount: Number(v.amount),
+    description: v.description || 'Переказ',
+  }),
   successMessage: 'Переказ виконано.',
-  afterReset: (form) => { form.description.value = 'Переказ родині'; },
+  afterReset: (form) => { form.description.value = 'Переказ родині'; $('#transferTemplateSelect').value = ''; },
+});
+
+$('#transferTemplateSelect')?.addEventListener('change', function () {
+  const opt = this.selectedOptions[0];
+  if (!opt || !opt.value) return;
+  const form = $('#transferForm');
+  if (form) {
+    form.recipient_account_number.value = opt.dataset.account || '';
+    form.amount.value = opt.dataset.amount || '';
+    form.description.value = (opt.dataset.desc || '').replace(/&quot;/g, '"');
+  }
 });
 
 bindJsonForm('#demoPayoutForm', () => '/api/payouts/demo-accrual', {
@@ -190,16 +277,47 @@ bindJsonForm('#contactForm', () => '/api/family-contacts', {
   successMessage: 'Контакт додано.',
 });
 
-$$('.menu-btn').forEach((btn) => btn.addEventListener('click', () => switchScreen(btn.dataset.screen)));
+bindJsonForm('#templateForm', () => '/api/payment-templates', {
+  transform: (v) => ({
+    name: v.name,
+    recipient_account: v.recipient_account,
+    amount: v.amount ? Number(v.amount) : null,
+    description: v.description || '',
+  }),
+  successMessage: 'Шаблон збережено.',
+  afterSuccess: () => loadPaymentTemplates(),
+});
 
-$('#logoutBtn').addEventListener('click', async () => {
+$('#transactionsFilters')?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  loadTransactionsWithFilters();
+  showToast('Фільтри застосовано.');
+});
+
+$$('.menu-btn.nav-link').forEach((btn) => {
+  btn.addEventListener('click', (event) => {
+    const screen = btn.dataset.screen;
+    if (screen && !btn.href?.endsWith('/admin') && !btn.href?.endsWith('/operator')) {
+      event.preventDefault();
+      const base = getBasePath();
+      window.history.pushState(null, '', base ? base + '/' + screen : '/' + screen);
+      switchScreen(screen);
+    }
+  });
+});
+
+window.addEventListener('popstate', () => {
+  switchScreen(getScreenIdFromPath());
+});
+
+$('#logoutBtn')?.addEventListener('click', async () => {
   try {
     await api.request('/api/auth/logout', { method: 'POST' });
-  } catch (_) {
-    // Навіть якщо сесію вже втрачено, локально очищаємо токен.
-  }
+  } catch (_) {}
   api.setToken('');
   setAuthenticated(false);
+  const base = getBasePath();
+  window.history.replaceState(null, '', base || '/');
   showToast('Ви вийшли з системи.');
 });
 
@@ -211,6 +329,7 @@ $('#logoutBtn').addEventListener('click', async () => {
   try {
     setAuthenticated(true);
     await refreshAllData();
+    switchScreen(getScreenIdFromPath());
   } catch (error) {
     api.setToken('');
     setAuthenticated(false);

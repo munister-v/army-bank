@@ -1,91 +1,208 @@
+/* WeeGo Army Bank — стиль з weego-web.github.io/army.html */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
 :root {
-  --bg: #121826;
-  --panel: #1b2335;
-  --panel-soft: #202b42;
-  --line: rgba(255,255,255,.08);
-  --text: #eef3ff;
-  --muted: #98a6c7;
-  --accent: #7db4ff;
-  --good: #72d29c;
-  --danger: #ff8f8f;
+  --bg: #0a0e17;
+  --bg-card: #111827;
+  --bg-card-soft: #1a2234;
+  --border: rgba(255,255,255,.06);
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --accent: #22c55e;
+  --accent-hover: #16a34a;
+  --accent-soft: rgba(34, 197, 94, .15);
+  --danger: #ef4444;
+  --good: #22c55e;
+  --radius: 16px;
+  --radius-sm: 12px;
 }
+
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  font-family: Inter, Arial, sans-serif;
-  background: linear-gradient(180deg, #0f1420 0%, #141d30 100%);
+  font-family: 'Manrope', -apple-system, sans-serif;
+  background: var(--bg);
   color: var(--text);
+  min-height: 100vh;
 }
 .hidden { display: none !important; }
-.page-shell { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+
+.page-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
 .sidebar {
-  border-right: 1px solid var(--line);
+  border-right: 1px solid var(--border);
   padding: 24px;
-  background: rgba(8, 14, 24, .5);
+  background: rgba(10, 14, 23, .98);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
-.brand { font-size: 24px; font-weight: 800; }
-.muted { color: var(--muted); }
-.menu { display: grid; gap: 10px; margin-top: 24px; }
+.sidebar .brand {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #22c55e 0%, #4ade80 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.sidebar .muted { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.menu { display: grid; gap: 6px; margin-top: 28px; }
 .menu-btn, button {
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--radius-sm);
   padding: 12px 16px;
-  font-size: 15px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
+  font-family: inherit;
 }
 .menu-btn {
   text-align: left;
   background: transparent;
   color: var(--text);
-  border: 1px solid var(--line);
+  border: 1px solid transparent;
+  transition: background .15s, border-color .15s;
 }
-.menu-btn.active { background: var(--panel-soft); border-color: rgba(125,180,255,.5); }
-.content { padding: 24px; }
-.card {
-  background: rgba(27, 35, 53, .95);
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  padding: 22px;
-  box-shadow: 0 14px 40px rgba(0,0,0,.18);
+.menu-btn:hover { background: var(--bg-card-soft); }
+.menu-btn.active {
+  background: var(--accent-soft);
+  border-color: rgba(34, 197, 94, .35);
+  color: #4ade80;
 }
-.inner-card { padding: 18px; }
-.auth-columns, .grid.two-col { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; }
-.forms-grid { display: grid; gap: 18px; }
-.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.balance-box { text-align: right; }
-.balance-box strong { display: block; font-size: 30px; margin: 6px 0; }
-label { display: grid; gap: 8px; margin-bottom: 12px; }
-input {
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: #0f1726;
+.menu-btn.nav-link { text-decoration: none; color: inherit; display: block; }
+.sidebar-footer { margin-top: auto; padding-top: 24px; }
+
+.filters-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; margin-bottom: 16px; }
+.filters-row label { margin-bottom: 0; }
+.filters-row select {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
   color: var(--text);
+  min-width: 120px;
+  font-family: inherit;
 }
-button { background: var(--accent); color: #06111f; font-weight: 700; }
-.secondary-btn { background: transparent; color: var(--text); border: 1px solid var(--line); }
+
+.content { padding: 24px; background: var(--bg); }
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.2);
+}
+.inner-card { padding: 20px; }
+.auth-columns, .grid.two-col { display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px; }
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 20px 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.topbar h1 { font-size: 22px; font-weight: 700; margin: 0; }
+.balance-box { text-align: right; }
+.balance-box span { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 4px; }
+.balance-box strong { display: block; font-size: 28px; font-weight: 800; color: var(--accent); letter-spacing: -0.02em; }
+.balance-box small { font-size: 12px; color: var(--muted); }
+
+label { display: grid; gap: 8px; margin-bottom: 14px; font-size: 14px; font-weight: 500; color: var(--text); }
+input, select {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,.25);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+}
+input::placeholder { color: var(--muted); }
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+button {
+  background: var(--accent);
+  color: #022c22;
+  font-weight: 700;
+  transition: background .15s, transform .05s;
+}
+button:hover { background: var(--accent-hover); }
+button:active { transform: scale(0.98); }
+.secondary-btn {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.secondary-btn:hover { background: var(--bg-card-soft); }
+.small-btn { padding: 8px 14px; font-size: 13px; }
+
 .screen { display: none; }
 .active-screen { display: block; }
-.list { display: grid; gap: 12px; }
+
+.list { display: grid; gap: 10px; }
 .item {
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
   background: rgba(255,255,255,.02);
+  transition: background .15s;
 }
-.item-header { display: flex; justify-content: space-between; gap: 12px; }
-.amount.in { color: var(--good); }
-.amount.out { color: var(--danger); }
-.demo-box { margin-top: 18px; padding: 14px; border-radius: 16px; background: rgba(125,180,255,.1); }
+.item:hover { background: rgba(255,255,255,.04); }
+.item-header { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.amount.in { color: var(--good); font-weight: 700; }
+.amount.out { color: var(--danger); font-weight: 700; }
+.item .muted { font-size: 13px; margin-top: 4px; }
+
+.demo-box {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  border: 1px solid rgba(34, 197, 94, .25);
+}
+
 .toast {
-  position: fixed; right: 20px; bottom: 20px;
-  min-width: 260px; max-width: 360px;
-  padding: 14px 16px; border-radius: 14px;
-  background: #0b1220; border: 1px solid var(--line);
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  min-width: 280px;
+  max-width: 380px;
+  padding: 14px 18px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 40px rgba(0,0,0,.3);
+  font-weight: 500;
+  z-index: 9999;
 }
+
+/* WeeGo / munister footer */
+.weego-footer {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+.weego-footer a { color: var(--accent); text-decoration: none; }
+.weego-footer a:hover { text-decoration: underline; }
+
+.auth-screen .weego-footer { margin-top: 24px; }
+
 @media (max-width: 1180px) {
   .page-shell { grid-template-columns: 1fr; }
   .sidebar { position: sticky; top: 0; z-index: 3; }

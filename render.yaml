@@ -1,0 +1,16 @@
+# Render.com — деплой з GitHub.
+# 1. render.com → New → Web Service → підключи репо army-bank
+# 2. Build: pip install -r requirements.txt; Start: gunicorn -c deploy/gunicorn.conf.py backend.app:app
+# 3. Env: SECRET_KEY (generate), DATABASE_URL — порожній (SQLite в /tmp) або рядок PostgreSQL з Render
+# 4. Отримаєш URL. На munister.com.ua зроби редірект /bank на цей URL або посилання.
+services:
+  - type: web
+    name: army-bank
+    runtime: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn -c deploy/gunicorn.conf.py backend.app:app"
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ARMY_BANK_DATABASE_PATH
+        value: "/tmp/army_bank.db"

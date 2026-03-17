@@ -48,6 +48,6 @@ class AccountService:
         self.features.add_audit_log(user_id, 'transfer', f'Переказ {amount:.2f} грн на {recipient_account_number}.')
         return self.get_main_account(user_id)
 
-    def list_transactions(self, user_id: int) -> list[dict]:
+    def list_transactions(self, user_id: int, from_date: str | None = None, to_date: str | None = None, tx_type: str | None = None, direction: str | None = None) -> list[dict]:
         account = self.get_main_account(user_id)
-        return self.accounts.list_transactions(account['id'])
+        return self.accounts.list_transactions(account['id'], from_date=from_date, to_date=to_date, tx_type=tx_type, direction=direction)
