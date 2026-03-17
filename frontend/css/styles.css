@@ -595,70 +595,85 @@ button:focus-visible, a:focus-visible {
 
 /* ── DESKTOP ≥ 768px ────────────────────────────────────── */
 @media (min-width: 768px) {
+  /* Left sidebar + scrollable content area */
   .app-shell {
     flex-direction: row;
     align-items: stretch;
+    min-height: 100vh;
   }
 
-  /* Left panel (header + nav merged) */
+  /* .app-header now contains both user/balance block AND .bottom-nav */
   .app-header {
-    width: 280px;
+    width: 260px;
     flex-shrink: 0;
-    min-height: 100vh;
-    padding: 28px 20px;
+    padding: 24px 16px;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
     position: sticky;
     top: 0;
     height: 100vh;
     overflow-y: auto;
-  }
-  .balance-block { margin-top: 32px; margin-bottom: 8px; }
-  .balance-amount { font-size: 32px; }
-  .quick-actions {
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-top: 24px;
+    border-right: 1px solid var(--border);
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 0%, rgba(20,50,15,.55) 0%, transparent 70%),
+      var(--header-1);
   }
 
-  /* Sidebar nav on desktop */
+  .balance-block { margin-top: 28px; margin-bottom: 6px; }
+  .balance-amount { font-size: 28px; }
+  .quick-actions {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .qa-icon { width: 44px; height: 44px; font-size: 18px; }
+  .qa-label { font-size: 10px; }
+
+  /* Nav inside .app-header — override mobile fixed positioning */
   .bottom-nav {
-    position: relative;
+    position: relative !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
     width: 100%;
     height: auto;
     flex-direction: column;
     justify-content: flex-start;
     align-items: stretch;
     border-top: 1px solid var(--border);
-    border-right: 0;
     background: transparent;
     backdrop-filter: none;
-    padding: 16px 0 0;
-    margin-top: 20px;
+    -webkit-backdrop-filter: none;
+    padding: 12px 0 0;
+    margin-top: 16px;
     gap: 2px;
     z-index: auto;
   }
+
   .nav-item {
     flex-direction: row;
-    gap: 12px;
+    gap: 10px;
     justify-content: flex-start;
-    padding: 11px 14px;
+    padding: 10px 12px;
     font-size: 13px;
     min-width: unset;
+    width: 100%;
     border-radius: var(--radius-sm);
     letter-spacing: -.01em;
   }
+  .nav-item svg { width: 18px; height: 18px; }
   .nav-item.active { background: rgba(201,168,76,.1); }
 
-  /* Main content */
+  /* Main content — fills remaining space */
   .app-content {
     flex: 1;
-    padding: 28px;
-    padding-bottom: 28px;
-    max-width: calc(100vw - 280px);
+    min-width: 0;
+    padding: 32px 36px 40px;
     overflow-y: auto;
   }
+
+  /* No bottom nav padding needed on desktop */
+  .screen { padding-bottom: 0; }
 
   .cards-row { grid-template-columns: 1fr 1fr; }
 }

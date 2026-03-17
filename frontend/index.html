@@ -136,6 +136,41 @@
           <span class="qa-label">Донати</span>
         </button>
       </div>
+
+      <!-- Nav moved inside header so it sits in the sidebar column on desktop -->
+      <nav class="bottom-nav" id="sidebar" aria-label="Навігація">
+        <a class="nav-item menu-btn nav-link" data-screen="dashboard" href="/dashboard">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+          </svg>
+          <span>Огляд</span>
+        </a>
+        <a class="nav-item menu-btn nav-link" data-screen="transactions" href="/transactions">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+          <span>Операції</span>
+        </a>
+        <a class="nav-item menu-btn nav-link" data-screen="payouts" href="/payouts">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <span>Виплати</span>
+        </a>
+        <a class="nav-item menu-btn nav-link" data-screen="donations" href="/donations">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+          <span>Донати</span>
+        </a>
+        <a class="nav-item menu-btn nav-link" data-screen="savings" href="/savings">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span>Ще</span>
+        </a>
+      </nav>
     </header>
 
     <!-- ── MAIN CONTENT ──────────────────────────────────── -->
@@ -351,39 +386,6 @@
     </main>
 
     <!-- ── BOTTOM NAV ─────────────────────────────────────── -->
-    <nav class="bottom-nav" id="sidebar" aria-label="Навігація">
-      <a class="nav-item menu-btn nav-link" data-screen="dashboard" href="/dashboard">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-          <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
-          <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
-        </svg>
-        <span>Огляд</span>
-      </a>
-      <a class="nav-item menu-btn nav-link" data-screen="transactions" href="/transactions">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-        </svg>
-        <span>Операції</span>
-      </a>
-      <a class="nav-item menu-btn nav-link" data-screen="payouts" href="/payouts">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-        </svg>
-        <span>Виплати</span>
-      </a>
-      <a class="nav-item menu-btn nav-link" data-screen="donations" href="/donations">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-        </svg>
-        <span>Донати</span>
-      </a>
-      <a class="nav-item menu-btn nav-link" data-screen="savings" href="/savings">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-        <span>Ще</span>
-      </a>
-    </nav>
   </div>
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
