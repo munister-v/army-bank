@@ -51,6 +51,14 @@ class UserRepository(BaseRepository):
         with self.connection() as conn:
             conn.execute('DELETE FROM sessions WHERE token = %s', (token,))
 
+    def delete_expired_sessions(self, user_id: int) -> None:
+        """Видаляє прострочені сесії конкретного користувача."""
+        with self.connection() as conn:
+            conn.execute(
+                "DELETE FROM sessions WHERE user_id = %s AND expires_at < %s",
+                (user_id, __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat()),
+            )
+
     def list_all(self, role_filter: str | None = None):
         with self.connection() as conn:
             if role_filter:

@@ -1,8 +1,10 @@
-// Базовий клієнт для роботи з REST API Армійського Банку.
+// Army Bank — REST API клієнт
 // При розміщенні на сайті під /bank (наприклад munister.com.ua/bank) використовується window.ARMY_BANK_BASE.
 const BASE = (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
 
 const api = {
+  // ── Token ──────────────────────────────────────────────────────────────────
+  // Читаємо з localStorage — зберігається назавжди до явного виходу
   token: localStorage.getItem('army_bank_token') || '',
 
   setToken(token) {
@@ -14,6 +16,7 @@ const api = {
     }
   },
 
+  // ── HTTP ───────────────────────────────────────────────────────────────────
   async request(url, options = {}) {
     const fullUrl = (url.startsWith('http') || url.startsWith('//')) ? url : BASE + url;
     const headers = {
@@ -25,6 +28,13 @@ const api = {
     }
 
     const response = await fetch(fullUrl, { ...options, headers });
+
+    // Автооновлення токену — якщо сервер повернув X-Refresh-Token
+    const refreshed = response.headers.get('X-Refresh-Token');
+    if (refreshed && refreshed !== this.token) {
+      this.setToken(refreshed);
+    }
+
     let payload;
     try {
       const text = await response.text();
@@ -32,9 +42,15 @@ const api = {
     } catch {
       throw new Error(response.ok ? 'Помилка читання відповіді.' : 'Помилка сервера. Спробуйте пізніше.');
     }
+
     if (!response.ok || payload.ok === false) {
+      // При 401 — очищаємо токен щоб не ходити з невалідним
+      if (response.status === 401) {
+        this.setToken('');
+      }
       throw new Error(payload.error || 'Помилка запиту до сервера.');
     }
+
     return payload.data ?? payload;
   },
 };

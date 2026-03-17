@@ -16,7 +16,7 @@ DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
 USE_PG = bool(DATABASE_URL)
 
 SECRET_KEY = os.getenv('SECRET_KEY') or os.getenv('ARMY_BANK_SECRET') or 'army-bank-demo-secret-key'
-TOKEN_TTL_HOURS = int(os.getenv('TOKEN_TTL_HOURS') or os.getenv('ARMY_BANK_TOKEN_TTL_HOURS') or '24')
+TOKEN_TTL_HOURS = int(os.getenv('TOKEN_TTL_HOURS') or os.getenv('ARMY_BANK_TOKEN_TTL_HOURS') or '720')  # 30 днів за замовчуванням
 DEBUG = (os.getenv('DEBUG') or os.getenv('ARMY_BANK_DEBUG') or '1') == '1'
 
 # Базовий шлях при розміщенні на сайті (наприклад /bank для munister.com.ua/bank)
