@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="page-shell">
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div>
         <div class="brand">Army Bank</div>
         <p class="muted">Цифровий банкінг для військових</p>
@@ -30,28 +30,46 @@
     </aside>
 
     <main class="content">
-      <section id="authScreen" class="auth-screen card">
-        <div class="auth-columns">
-          <div>
-            <h1>Вхід</h1>
-            <p class="muted">Реєстрація створює рахунок автоматично.</p>
+      <section id="authScreen" class="auth-screen">
+        <div class="auth-wrap">
+          <div class="auth-brand">
+            <h1>Army Bank</h1>
+            <p>Цифровий банкінг для військових</p>
           </div>
-          <div class="forms-grid">
-            <form id="loginForm" class="card inner-card">
-              <h2>Вхід</h2>
-              <label>Телефон або email<input name="identity" required></label>
-              <label>Пароль<input name="password" type="password" required></label>
-              <button type="submit">Увійти</button>
-            </form>
-            <form id="registerForm" class="card inner-card">
-              <h2>Реєстрація</h2>
-              <label>ПІБ<input name="full_name" required></label>
-              <label>Телефон<input name="phone" required></label>
-              <label>Email<input name="email" required></label>
-              <label>Пароль<input name="password" type="password" required minlength="6" placeholder="Мінімум 6 символів" autocomplete="new-password"></label>
-              <button type="submit">Створити акаунт</button>
-            </form>
+          <div class="auth-tabs">
+            <button type="button" class="auth-tab active" data-tab="login">Увійти</button>
+            <button type="button" class="auth-tab" data-tab="register">Реєстрація</button>
           </div>
+          <form id="loginForm" class="auth-form active">
+            <div class="field">
+              <input name="identity" type="text" required placeholder=" " autocomplete="username">
+              <label>Телефон або email</label>
+            </div>
+            <div class="field">
+              <input name="password" type="password" required placeholder=" " autocomplete="current-password">
+              <label>Пароль</label>
+            </div>
+            <button type="submit" class="auth-submit">Увійти</button>
+          </form>
+          <form id="registerForm" class="auth-form">
+            <div class="field">
+              <input name="full_name" type="text" required placeholder=" " autocomplete="name">
+              <label>ПІБ</label>
+            </div>
+            <div class="field">
+              <input name="phone" type="tel" required placeholder=" ">
+              <label>Телефон</label>
+            </div>
+            <div class="field">
+              <input name="email" type="email" required placeholder=" " autocomplete="email">
+              <label>Email</label>
+            </div>
+            <div class="field">
+              <input name="password" type="password" required minlength="6" placeholder=" " autocomplete="new-password">
+              <label>Пароль (мін. 6 символів)</label>
+            </div>
+            <button type="submit" class="auth-submit">Створити акаунт</button>
+          </form>
         </div>
       </section>
 

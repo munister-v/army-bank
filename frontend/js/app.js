@@ -18,6 +18,8 @@ function showToast(message) {
 function setAuthenticated(authenticated) {
   $('#authScreen').classList.toggle('hidden', authenticated);
   $('#appScreen').classList.toggle('hidden', !authenticated);
+  $('#sidebar')?.classList.toggle('hidden', !authenticated);
+  document.body.classList.toggle('auth-mode', !authenticated);
 }
 
 function formatMoney(value) {
@@ -381,6 +383,15 @@ $$('[data-jump]').forEach((btn) => {
     if (target) {
       $(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  });
+});
+
+// Auth tabs
+$$('.auth-tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    const t = tab.dataset.tab;
+    $$('.auth-tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === t));
+    $$('.auth-form').forEach((f) => f.classList.toggle('active', (f.id === 'loginForm' && t === 'login') || (f.id === 'registerForm' && t === 'register')));
   });
 });
 
