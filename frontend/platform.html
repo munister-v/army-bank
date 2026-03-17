@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Платформа — Цифровий Армійський Банк</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <div>
+        <div class="brand">Цифровий Армійський Банк — Платформа</div>
+        <p class="muted" id="platformUser">Завантаження…</p>
+      </div>
+      <nav class="menu">
+        <a class="menu-btn nav-link" href="/dashboard">На головну</a>
+        <a class="menu-btn nav-link" href="/admin">Адмін</a>
+        <button type="button" class="menu-btn active" data-tab="overview">Огляд</button>
+        <button type="button" class="menu-btn" data-tab="users">Користувачі</button>
+        <button type="button" class="menu-btn" data-tab="transactions">Транзакції</button>
+        <button type="button" class="menu-btn" data-tab="audit">Аудит</button>
+        <button type="button" class="menu-btn" data-tab="seed">Генерація демо</button>
+      </nav>
+      <div class="sidebar-footer">
+        <button id="logoutBtn" class="secondary-btn">Вийти</button>
+      </div>
+    </aside>
+    <main class="content">
+      <section id="overviewTab" class="admin-tab">
+        <h1>Огляд платформи</h1>
+        <div id="overviewStats" class="stats-grid"></div>
+      </section>
+      <section id="usersTab" class="admin-tab hidden">
+        <h1>Усі користувачі</h1>
+        <div class="card" style="padding: 0;">
+          <table class="table" aria-label="Таблиця користувачів платформи">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Користувач</th>
+                <th>Контакти</th>
+                <th>Роль</th>
+                <th>Рахунок</th>
+                <th>Баланс</th>
+              </tr>
+            </thead>
+            <tbody id="platformUsersBody"></tbody>
+          </table>
+        </div>
+      </section>
+      <section id="transactionsTab" class="admin-tab hidden">
+        <h1>Транзакції по платформі</h1>
+        <p class="muted">Фільтр: <select id="txTypeFilter"><option value="">Усі</option><option value="topup">Поповнення</option><option value="transfer">Переказ</option><option value="payout">Виплата</option><option value="donation">Донат</option><option value="savings">Накопичення</option></select></p>
+        <div id="platformTxList" class="list"></div>
+      </section>
+      <section id="auditTab" class="admin-tab hidden">
+        <h1>Аудит-логи платформи</h1>
+        <div id="platformAuditList" class="list"></div>
+      </section>
+      <section id="seedTab" class="admin-tab hidden">
+        <h1>Генерація демо-даних</h1>
+        <p class="muted">Створює тестових користувачів з рахунками та реалістичними транзакціями.</p>
+        <form id="seedForm" class="card" style="max-width: 420px;">
+          <label>Кількість користувачів<input name="users_count" type="number" value="10" min="1" max="50"></label>
+          <label>Транзакцій на користувача<input name="transactions_per_user" type="number" value="15" min="1" max="50"></label>
+          <button type="submit">Згенерувати демо-дані</button>
+        </form>
+        <div id="seedResult" class="card" style="margin-top: 16px; display: none;"></div>
+      </section>
+      <footer class="weego-footer">
+        <a href="https://weego-web.github.io/army.html" target="_blank" rel="noopener">WeeGo Studio</a>
+        <span> · </span>
+        <a href="https://munister.com.ua/bank" target="_blank" rel="noopener">munister.com.ua/bank</a>
+      </footer>
+    </main>
+  </div>
+  <div id="toast" class="toast hidden"></div>
+  <script src="/js/api.js"></script>
+  <script src="/js/platform.js"></script>
+</body>
+</html>

@@ -21,6 +21,20 @@ def test_register_and_login(client):
     assert data['data']['user']['role'] == 'soldier'
 
 
+def test_register_short_password(client):
+    """Реєстрація з паролем коротшим за 6 символів повертає помилку."""
+    r = client.post('/api/auth/register', json={
+        'full_name': 'Тест',
+        'phone': '+380991234567',
+        'email': 'short@example.com',
+        'password': '12345',
+    }, headers={'Content-Type': 'application/json'})
+    assert r.status_code == 400
+    data = r.get_json()
+    assert data.get('ok') is False
+    assert '6 символів' in data.get('error', '')
+
+
 def test_login_invalid_credentials(client):
     """Невірні облікові дані повертають помилку."""
     r = client.post('/api/auth/login', json={

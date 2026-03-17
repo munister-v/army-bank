@@ -7,7 +7,7 @@ from ..repositories.account_repository import AccountRepository
 from ..repositories.feature_repository import FeatureRepository
 from ..repositories.user_repository import UserRepository
 from ..utils.security import generate_token, hash_password, token_expiration_iso, verify_password
-from ..utils.validators import require_fields, validate_email, validate_phone
+from ..utils.validators import require_fields, validate_email, validate_password, validate_phone
 
 
 class AuthService:
@@ -20,9 +20,10 @@ class AuthService:
         require_fields(data, ['full_name', 'phone', 'email', 'password'])
         validate_phone(data['phone'])
         validate_email(data['email'])
+        validate_password(data['password'])
 
         if self.users.get_by_phone_or_email(data['phone']) or self.users.get_by_phone_or_email(data['email']):
-            raise ValueError('Користувач з таким телефоном або email уже існує.')
+            raise ValueError('Користувач з таким телефоном або email вже існує.')
 
         user_id = self.users.create_user(
             full_name=data['full_name'].strip(),

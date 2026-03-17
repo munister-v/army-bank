@@ -2,9 +2,15 @@
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 
 import pytest
+
+# Додати корінь проєкту до PYTHONPATH для імпортів backend
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _root not in sys.path:
+    sys.path.insert(0, _root)
 
 # Ізольована тестова БД та SQLite
 _test_db_dir = tempfile.mkdtemp()

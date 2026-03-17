@@ -5,6 +5,7 @@ import pytest
 from backend.utils.validators import (
     require_fields,
     validate_email,
+    validate_password,
     validate_phone,
     validate_positive_amount,
 )
@@ -50,3 +51,21 @@ def test_validate_positive_amount_invalid():
         validate_positive_amount(0)
     with pytest.raises(ValueError, match='більшою за нуль'):
         validate_positive_amount(-1)
+
+
+def test_validate_password_ok():
+    validate_password('123456')
+    validate_password('securePass1')
+
+
+def test_validate_password_too_short():
+    with pytest.raises(ValueError, match='6 символів'):
+        validate_password('')
+    with pytest.raises(ValueError, match='6 символів'):
+        validate_password('12345')
+
+
+def test_validate_positive_amount_max():
+    validate_positive_amount(99_999_999.99)
+    with pytest.raises(ValueError, match='перевищувати'):
+        validate_positive_amount(100_000_000)

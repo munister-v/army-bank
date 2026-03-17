@@ -1,4 +1,4 @@
-// Базовий клієнт для роботи з REST API Army Bank.
+// Базовий клієнт для роботи з REST API Армійського Банку.
 // При розміщенні на сайті під /bank (наприклад munister.com.ua/bank) використовується window.ARMY_BANK_BASE.
 const BASE = (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
 
@@ -25,7 +25,13 @@ const api = {
     }
 
     const response = await fetch(fullUrl, { ...options, headers });
-    const payload = await response.json();
+    let payload;
+    try {
+      const text = await response.text();
+      payload = text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error(response.ok ? 'Помилка читання відповіді.' : 'Помилка сервера. Спробуйте пізніше.');
+    }
     if (!response.ok || payload.ok === false) {
       throw new Error(payload.error || 'Помилка запиту до сервера.');
     }

@@ -24,11 +24,30 @@ function formatMoney(value) {
   return `₴${Number(value || 0).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function setListLoading(containerSelector, loading) {
+  const container = $(containerSelector);
+  if (!container) return;
+  container.classList.toggle('loading', !!loading);
+}
+
+function setButtonLoading(button, loading) {
+  if (!button) return;
+  if (loading) {
+    button.disabled = true;
+    button.dataset.originalText = button.textContent;
+    button.textContent = 'Завантаження…';
+  } else {
+    button.disabled = false;
+    button.textContent = button.dataset.originalText || button.textContent;
+  }
+}
+
 function renderList(containerSelector, items, renderer, emptyText) {
   const container = $(containerSelector);
   if (!container) return;
+  container.classList.remove('loading');
   if (!items.length) {
-    container.innerHTML = `<div class="item"><span class="muted">${emptyText}</span></div>`;
+    container.innerHTML = `<div class="empty-state">${emptyText || 'Немає даних.'}</div>`;
     return;
   }
   container.innerHTML = items.map(renderer).join('');
@@ -78,13 +97,19 @@ async function refreshProfile() {
   state.user = await api.request('/api/auth/me');
   state.account = await api.request('/api/accounts/main');
   $('#userName').textContent = state.user.full_name;
-  $('#userMeta').textContent = `${state.user.role} · ${state.user.email}`;
+  const roleLabels = { soldier: 'Військовий', operator: 'Оператор', admin: 'Адмін', platform_admin: 'Платформа' };
+  $('#userMeta').textContent = `${roleLabels[state.user.role] || state.user.role} · ${state.user.email}`;
   $('#balanceValue').textContent = formatMoney(state.account.balance);
   $('#accountNumber').textContent = `Рахунок: ${state.account.account_number}`;
+  $('#heroBalance')?.replaceChildren(document.createTextNode(formatMoney(state.account.balance)));
+  const masked = state.account.account_number ? `Рахунок: ${state.account.account_number}` : 'Рахунок: —';
+  $('#heroAccount')?.replaceChildren(document.createTextNode(masked));
   const adminLink = $('.nav-admin');
   const operatorLink = $('.nav-operator');
-  if (adminLink) adminLink.classList.toggle('hidden', state.user.role !== 'admin');
-  if (operatorLink) operatorLink.classList.toggle('hidden', state.user.role !== 'operator' && state.user.role !== 'admin');
+  const platformLink = $('.nav-platform');
+  if (adminLink) adminLink.classList.toggle('hidden', state.user.role !== 'admin' && state.user.role !== 'platform_admin');
+  if (operatorLink) operatorLink.classList.toggle('hidden', state.user.role !== 'operator' && state.user.role !== 'admin' && state.user.role !== 'platform_admin');
+  if (platformLink) platformLink.classList.toggle('hidden', state.user.role !== 'platform_admin');
 }
 
 async function loadPaymentTemplates() {
@@ -100,6 +125,8 @@ async function loadPaymentTemplates() {
 }
 
 async function loadTransactionsWithFilters() {
+  const container = $('#transactionsList');
+  if (container) setListLoading('#transactionsList', true);
   const form = $('#transactionsFilters');
   let url = '/api/transactions/history';
   if (form) {
@@ -121,13 +148,22 @@ async function loadTransactionsWithFilters() {
     renderTransactions(list, '#transactionsList');
   } catch (e) {
     renderTransactions([], '#transactionsList');
+  } finally {
+    if (container) setListLoading('#transactionsList', false);
   }
 }
 
 async function refreshAllData() {
+  setListLoading('#recentTransactions', true);
+  setListLoading('#transactionsList', true);
+  setListLoading('#payoutsList', true);
+  setListLoading('#donationsList', true);
+  setListLoading('#goalsList', true);
+  setListLoading('#contactsList', true);
   await refreshProfile();
   await loadPaymentTemplates();
 
+  try {
   const [transactions, payouts, donations, goals, contacts] = await Promise.all([
     api.request('/api/transactions/history'),
     api.request('/api/payouts'),
@@ -162,6 +198,14 @@ async function refreshAllData() {
       <div class="muted">${row.phone || 'Телефон не вказано'}${row.account_number ? ` · ${row.account_number}` : ''}</div>
     </div>
   `, 'Контактів поки немає.');
+  } finally {
+    setListLoading('#recentTransactions', false);
+    setListLoading('#transactionsList', false);
+    setListLoading('#payoutsList', false);
+    setListLoading('#donationsList', false);
+    setListLoading('#goalsList', false);
+    setListLoading('#contactsList', false);
+  }
 }
 
 async function handleAuth(form, endpoint) {
@@ -188,7 +232,9 @@ function bindJsonForm(selector, endpoint, options = {}) {
   if (!form) return;
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    const btn = form.querySelector('button[type="submit"]');
     try {
+      setButtonLoading(btn, true);
       const values = Object.fromEntries(new FormData(form).entries());
       const payload = options.transform ? options.transform(values) : values;
       await api.request(endpoint(payload), {
@@ -202,25 +248,37 @@ function bindJsonForm(selector, endpoint, options = {}) {
       showToast(options.successMessage || 'Операцію виконано.');
     } catch (error) {
       showToast(error.message);
+    } finally {
+      setButtonLoading(btn, false);
     }
   });
 }
 
 $('#loginForm')?.addEventListener('submit', async (event) => {
   event.preventDefault();
+  const form = event.currentTarget;
+  const btn = form.querySelector('button[type="submit"]');
   try {
-    await handleAuth(event.currentTarget, '/api/auth/login');
+    setButtonLoading(btn, true);
+    await handleAuth(form, '/api/auth/login');
   } catch (error) {
     showToast(error.message);
+  } finally {
+    setButtonLoading(btn, false);
   }
 });
 
 $('#registerForm')?.addEventListener('submit', async (event) => {
   event.preventDefault();
+  const form = event.currentTarget;
+  const btn = form.querySelector('button[type="submit"]');
   try {
-    await handleAuth(event.currentTarget, '/api/auth/register');
+    setButtonLoading(btn, true);
+    await handleAuth(form, '/api/auth/register');
   } catch (error) {
     showToast(error.message);
+  } finally {
+    setButtonLoading(btn, false);
   }
 });
 
@@ -308,6 +366,22 @@ $$('.menu-btn.nav-link').forEach((btn) => {
 
 window.addEventListener('popstate', () => {
   switchScreen(getScreenIdFromPath());
+});
+
+$$('[data-jump]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const id = btn.dataset.jump;
+    if (id === 'history') {
+      const base = getBasePath();
+      window.history.pushState(null, '', base ? base + '/transactions' : '/transactions');
+      switchScreen('transactions');
+      return;
+    }
+    const target = id === 'topup' ? '#topupForm' : id === 'transfer' ? '#transferForm' : null;
+    if (target) {
+      $(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
 });
 
 $('#logoutBtn')?.addEventListener('click', async () => {

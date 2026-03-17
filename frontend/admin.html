@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Адмін — Digital Army Bank</title>
+  <title>Адмін — Цифровий Армійський Банк</title>
   <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
   <div class="page-shell">
     <aside class="sidebar">
       <div>
-        <div class="brand">Digital Army Bank — Адмін</div>
+        <div class="brand">Цифровий Армійський Банк — Адмін</div>
         <p class="muted" id="adminUser">Завантаження…</p>
       </div>
       <nav class="menu">
@@ -25,8 +25,21 @@
     <main class="content">
       <section id="usersTab" class="admin-tab">
         <h1>Користувачі</h1>
-        <p class="muted">Фільтр за роллю: <select id="roleFilter"><option value="">Усі</option><option value="soldier">soldier</option><option value="operator">operator</option><option value="admin">admin</option></select></p>
-        <div id="usersList" class="list"></div>
+        <p class="muted">Фільтр за роллю: <select id="roleFilter"><option value="">Усі</option><option value="soldier">Військовий</option><option value="operator">Оператор</option><option value="admin">Адмін</option><option value="platform_admin">Платформа</option></select></p>
+        <div class="card" style="padding: 0;">
+          <table class="table" aria-label="Таблиця користувачів">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Користувач</th>
+                <th>Контакти</th>
+                <th>Роль</th>
+                <th>Дії</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
       </section>
       <section id="auditTab" class="admin-tab hidden">
         <h1>Аудит-логи</h1>
@@ -39,6 +52,34 @@
       </footer>
     </main>
   </div>
+  <div id="backdrop" class="backdrop"></div>
+  <aside id="drawer" class="drawer" aria-label="User details">
+    <div class="drawer-header">
+      <div>
+        <strong id="drawerTitle">Користувач</strong>
+        <div class="subtle" id="drawerSub">—</div>
+      </div>
+      <button id="drawerClose" class="ghost-btn" type="button">Закрити</button>
+    </div>
+    <div class="drawer-body">
+      <div class="stack">
+        <div class="card" style="box-shadow:none;">
+          <div class="subtle">Рахунок</div>
+          <div style="margin-top:8px;"><strong id="drawerBalance">—</strong></div>
+          <div class="subtle" id="drawerAccount">—</div>
+        </div>
+        <div class="card" style="box-shadow:none;">
+          <div class="subtle">Останні транзакції</div>
+          <div id="drawerTx" class="list" style="margin-top:12px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <div class="btn-row">
+        <a class="menu-btn nav-link" id="drawerOpenBank" href="/dashboard">Відкрити як користувач</a>
+      </div>
+    </div>
+  </aside>
   <div id="toast" class="toast hidden"></div>
   <script src="/js/api.js"></script>
   <script src="/js/admin.js"></script>

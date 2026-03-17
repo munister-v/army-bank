@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Оператор — Digital Army Bank</title>
+  <title>Оператор — Цифровий Армійський Банк</title>
   <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
   <div class="page-shell">
     <aside class="sidebar">
       <div>
-        <div class="brand">Digital Army Bank — Оператор</div>
+        <div class="brand">Цифровий Армійський Банк — Оператор</div>
         <p class="muted" id="operatorUser">Завантаження…</p>
       </div>
       <nav class="menu">
@@ -22,15 +22,15 @@
     </aside>
     <main class="content">
       <h1>Нарахування виплати</h1>
-      <form id="payoutForm" class="card" style="max-width: 420px;">
-        <label>Користувач (soldier)<select name="user_id" required id="userSelect"><option value="">— Обрати —</option></select></label>
+      <form id="payoutForm" class="card" style="max-width: 520px;">
+        <label>Користувач (військовий)<select name="user_id" required id="userSelect"><option value="">— Обрати —</option></select></label>
         <label>Назва<input name="title" value="Бойова виплата" required></label>
         <label>Тип<input name="payout_type" value="combat"></label>
         <label>Сума (грн)<input name="amount" type="number" step="0.01" required></label>
         <button type="submit">Нарахувати</button>
       </form>
       <div class="card" style="margin-top: 20px;">
-        <h2>Список військових (soldier)</h2>
+        <h2>Список військових</h2>
         <div id="soldiersList" class="list"></div>
       </div>
       <footer class="weego-footer">

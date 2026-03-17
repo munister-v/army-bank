@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from flask import Flask, Response, send_from_directory
+from flask import Flask, Response, jsonify, send_from_directory
 
 from .config import BASE_PATH, DEBUG
 from .database import init_db
@@ -12,6 +12,7 @@ from .routes.admin_routes import admin_bp
 from .routes.auth_routes import auth_bp
 from .routes.feature_routes import feature_bp
 from .routes.operator_routes import operator_bp
+from .routes.platform_routes import platform_bp
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / 'frontend'
@@ -23,11 +24,29 @@ def create_app() -> Flask:
     app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path=BASE_PATH or '')
     prefix = BASE_PATH or ''
 
+    @app.after_request
+    def add_headers(resp):
+        resp.headers['X-Content-Type-Options'] = 'nosniff'
+        return resp
+
+    @app.errorhandler(400)
+    def bad_request(e):
+        return jsonify({'ok': False, 'error': getattr(e, 'description', None) or 'Невірний запит.'}), 400
+
+    @app.errorhandler(404)
+    def not_found(_e):
+        return jsonify({'ok': False, 'error': 'Не знайдено.'}), 404
+
+    @app.errorhandler(500)
+    def server_error(_e):
+        return jsonify({'ok': False, 'error': 'Внутрішня помилка сервера.'}), 500
+
     app.register_blueprint(auth_bp, url_prefix=prefix + '/api/auth')
     app.register_blueprint(account_bp, url_prefix=prefix + '/api')
     app.register_blueprint(feature_bp, url_prefix=prefix + '/api')
     app.register_blueprint(admin_bp, url_prefix=prefix + '/api/admin')
     app.register_blueprint(operator_bp, url_prefix=prefix + '/api/operator')
+    app.register_blueprint(platform_bp, url_prefix=prefix + '/api/platform')
 
     def send_html(name: str):
         path = FRONTEND_DIR / name
@@ -58,6 +77,10 @@ def create_app() -> Flask:
     @app.get(prefix + '/operator')
     def operator_page():
         return send_html('operator.html')
+
+    @app.get(prefix + '/platform')
+    def platform_page():
+        return send_html('platform.html')
 
     @app.get(prefix + '/health')
     def health():

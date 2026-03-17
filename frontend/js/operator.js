@@ -1,5 +1,6 @@
 // Сторінка оператора
 const $ = (s) => document.querySelector(s);
+const roleLabels = { soldier: 'Військовий', operator: 'Оператор', admin: 'Адмін' };
 
 function showToast(msg) {
   const t = $('#toast');
@@ -38,7 +39,7 @@ async function loadSoldiers() {
   const list = $('#soldiersList');
   list.innerHTML = users.map((u) => `
     <div class="item">
-      <div class="item-header"><strong>#${u.id} ${u.full_name}</strong><span class="muted">${u.role}</span></div>
+      <div class="item-header"><strong>#${u.id} ${u.full_name}</strong><span class="muted">${roleLabels[u.role] || u.role}</span></div>
       <div class="muted">${u.phone} · ${u.email}</div>
     </div>
   `).join('');
@@ -47,7 +48,7 @@ async function loadSoldiers() {
 (async function () {
   const user = await checkOperator();
   if (!user) return;
-  $('#operatorUser').textContent = user.email + ' · ' + user.role;
+  $('#operatorUser').textContent = user.email + ' · ' + (roleLabels[user.role] || user.role);
 
   await loadSoldiers();
 
