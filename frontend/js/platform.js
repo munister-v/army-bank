@@ -183,7 +183,7 @@ async function loadPlatformAudit() {
       showToast(err.message);
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Згенерувати демо-дані';
+      btn.textContent = 'Згенерувати';
     }
   });
 

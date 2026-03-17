@@ -345,8 +345,8 @@ input:focus-visible, select:focus-visible { outline: none; }
   z-index: 9999;
 }
 
-/* WeeGo / munister footer */
-.weego-footer {
+/* App footer */
+.app-footer {
   margin-top: 32px;
   padding-top: 20px;
   border-top: 1px solid var(--border);
@@ -354,10 +354,8 @@ input:focus-visible, select:focus-visible { outline: none; }
   font-size: 13px;
   color: var(--muted);
 }
-.weego-footer a { color: var(--accent); text-decoration: none; }
-.weego-footer a:hover { text-decoration: underline; }
-
-.auth-screen .weego-footer { margin-top: 24px; }
+.app-footer a { color: var(--accent); text-decoration: none; }
+.app-footer a:hover { text-decoration: underline; }
 
 .stats-grid {
   display: grid;

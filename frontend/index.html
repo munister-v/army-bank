@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Цифровий Армійський Банк — WeeGo Studio</title>
+  <title>Army Bank — Цифровий банкінг для військових</title>
   <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
   <div class="page-shell">
     <aside class="sidebar">
       <div>
-        <div class="brand">Цифровий Армійський Банк</div>
-        <p class="muted">Банкінг для військових · WeeGo Studio</p>
+        <div class="brand">Army Bank</div>
+        <p class="muted">Цифровий банкінг для військових</p>
       </div>
       <nav class="menu">
         <a class="menu-btn nav-link" href="/dashboard" data-screen="dashboard">Огляд</a>
@@ -33,11 +33,8 @@
       <section id="authScreen" class="auth-screen card">
         <div class="auth-columns">
           <div>
-            <h1>Увійдіть до акаунту</h1>
-            <p class="muted">Безпечний вхід до Армійського Банку. Реєстрація створює рахунок автоматично.</p>
-            <div class="demo-box">
-              <strong>Підказка:</strong> спочатку зареєструйтеся — рахунок створиться автоматично.
-            </div>
+            <h1>Вхід</h1>
+            <p class="muted">Реєстрація створює рахунок автоматично.</p>
           </div>
           <div class="forms-grid">
             <form id="loginForm" class="card inner-card">
@@ -62,7 +59,7 @@
         <header class="topbar card">
           <div>
             <h1 id="userName">Кабінет</h1>
-            <p class="muted" id="userMeta">Профіль користувача</p>
+            <p class="muted" id="userMeta">Основний рахунок</p>
           </div>
           <div class="balance-box">
             <span>Баланс</span>
@@ -115,7 +112,7 @@
           </div>
           <div class="grid two-col">
             <form id="demoPayoutForm" class="card">
-              <h2>Демо-нарахування виплати</h2>
+              <h2>Нарахування виплати</h2>
               <label>Назва<input name="title" value="Бойова виплата"></label>
               <label>Тип<input name="payout_type" value="combat"></label>
               <label>Сума<input name="amount" type="number" step="0.01" value="10000"></label>
@@ -197,10 +194,8 @@
           </div>
         </section>
       </section>
-        <footer class="weego-footer">
-    <a href="https://weego-web.github.io/army.html" target="_blank" rel="noopener">WeeGo Studio · Армійський Банк</a>
-    <span> · </span>
-    <a href="https://munister.com.ua/" target="_blank" rel="noopener">munister.com.ua</a>
+        <footer class="app-footer">
+          <a href="https://munister.com.ua/army-bank" target="_blank" rel="noopener">munister.com.ua</a>
         </footer>
     </main>
   </div>
