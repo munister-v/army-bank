@@ -59,17 +59,19 @@ class UserRepository(BaseRepository):
                 (user_id, __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat()),
             )
 
-    def list_all(self, role_filter: str | None = None):
+    def list_all(self, role_filter: str | None = None, search: str | None = None):
         with self.connection() as conn:
+            sql = 'SELECT id, full_name, phone, email, role, military_status, created_at FROM users WHERE 1=1'
+            params: list = []
             if role_filter:
-                return conn.execute(
-                    'SELECT id, full_name, phone, email, role, military_status, created_at FROM users WHERE role = %s ORDER BY id',
-                    (role_filter,),
-                ).fetchall()
-            return conn.execute(
-                'SELECT id, full_name, phone, email, role, military_status, created_at FROM users ORDER BY id',
-                (),
-            ).fetchall()
+                sql += ' AND role = %s'
+                params.append(role_filter)
+            if search:
+                sql += ' AND (full_name ILIKE %s OR phone ILIKE %s OR email ILIKE %s)'
+                like = f'%{search}%'
+                params.extend([like, like, like])
+            sql += ' ORDER BY id'
+            return conn.execute(sql, tuple(params)).fetchall()
 
     def update_role(self, user_id: int, role: str) -> None:
         with self.connection() as conn:
