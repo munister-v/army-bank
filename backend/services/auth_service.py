@@ -74,7 +74,15 @@ class AuthService:
             return None
         expires_at_raw = user.get('expires_at', '')
         try:
-            expires_at = datetime.fromisoformat(expires_at_raw)
+            # PostgreSQL повертає datetime об'єкт, SQLite — рядок ISO
+            if isinstance(expires_at_raw, datetime):
+                expires_at = expires_at_raw
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+            else:
+                expires_at = datetime.fromisoformat(str(expires_at_raw))
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
         except (ValueError, TypeError):
             self.users.delete_session(token)
             return None
