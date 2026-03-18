@@ -154,7 +154,7 @@ async function refreshProfile() {
   const nameEl = $('#userName');
   if (nameEl) nameEl.textContent = state.user.full_name;
 
-  const roleLabels = { soldier: 'Військовий', operator: 'Оператор', admin: 'Адміністратор', platform_admin: 'Платформа' };
+  const roleLabels = { soldier: 'Клієнт', operator: 'Оператор', admin: 'Адміністратор', platform_admin: 'Платформа' };
   const metaEl = $('#userMeta');
   if (metaEl) metaEl.textContent = `${roleLabels[state.user.role] || state.user.role} · ${state.user.email}`;
 
