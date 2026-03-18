@@ -3,16 +3,57 @@ const state = {
   user: null,
   account: null,
   paymentTemplates: [],
+  _pollTimer: null,
+  _lastBalance: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
-function showToast(message) {
+function showToast(message, type = '') {
   const toast = $('#toast');
   toast.textContent = message;
+  toast.className = type ? `toast ${type}` : 'toast';
   toast.classList.remove('hidden');
-  setTimeout(() => toast.classList.add('hidden'), 2800);
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.add('hidden'), 3200);
+}
+
+/* ── Auto-refresh balance every 40 s ── */
+async function _pollBalance() {
+  if (!api.token || !state.account) return;
+  try {
+    const fresh = await api.request('/api/accounts/main');
+    const prev = state._lastBalance;
+    state._lastBalance = fresh.balance;
+    state.account = fresh;
+
+    // Update balance display without full page reload
+    const bal = formatMoney(fresh.balance);
+    const heroBalEl = $('#heroBalance');
+    if (heroBalEl) heroBalEl.textContent = bal;
+    const balVal = $('#balanceValue');
+    if (balVal) balVal.textContent = bal;
+
+    // Toast if balance grew
+    if (prev !== null && fresh.balance > prev + 0.01) {
+      const diff = fresh.balance - prev;
+      showToast(`💰 +${formatMoney(diff)} нараховано!`, 'success');
+    }
+  } catch (_) {}
+}
+
+function startPolling() {
+  stopPolling();
+  state._pollTimer = setInterval(_pollBalance, 40_000);
+}
+
+function stopPolling() {
+  if (state._pollTimer) {
+    clearInterval(state._pollTimer);
+    state._pollTimer = null;
+  }
+  state._lastBalance = null;
 }
 
 function setAuthenticated(authenticated) {
@@ -253,6 +294,9 @@ async function handleAuth(form, endpoint) {
   const targetPath = base ? base + '/' + screen : '/' + screen;
   if (window.location.pathname !== targetPath) window.history.replaceState(null, '', targetPath);
   showToast('Успішна авторизація.');
+  startPolling();
+  // Ask for push permission after short delay (better UX — user sees app first)
+  setTimeout(() => api.requestPushPermission(), 3000);
 }
 
 function bindJsonForm(selector, endpoint, options = {}) {
@@ -435,6 +479,7 @@ $$('.auth-tab').forEach((tab) => {
 
 // Logout
 $('#logoutBtn')?.addEventListener('click', async () => {
+  stopPolling();
   try { await api.request('/api/auth/logout', { method: 'POST' }); } catch (_) {}
   api.setToken('');
   setAuthenticated(false);
@@ -442,6 +487,22 @@ $('#logoutBtn')?.addEventListener('click', async () => {
   window.history.replaceState(null, '', base || '/');
   showToast('Ви вийшли з системи.');
 });
+
+// ── SW registration with update detection ────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(reg => {
+    // Detect SW update — send SKIP_WAITING and reload
+    reg.addEventListener('updatefound', () => {
+      const newSW = reg.installing;
+      newSW?.addEventListener('statechange', () => {
+        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+          newSW.postMessage({ type: 'SKIP_WAITING' });
+          navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+        }
+      });
+    });
+  });
+}
 
 // ── BOOTSTRAP ────────────────────────────────────────────
 (async function bootstrap() {
@@ -453,6 +514,9 @@ $('#logoutBtn')?.addEventListener('click', async () => {
     setAuthenticated(true);
     await refreshAllData();
     switchScreen(getScreenIdFromPath());
+    startPolling();
+    // Re-subscribe push if permission already granted
+    if (Notification?.permission === 'granted') api.subscribePush().catch(() => {});
   } catch (error) {
     api.setToken('');
     setAuthenticated(false);

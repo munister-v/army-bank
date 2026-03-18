@@ -13,6 +13,7 @@ from .routes.auth_routes import auth_bp
 from .routes.feature_routes import feature_bp
 from .routes.operator_routes import operator_bp
 from .routes.platform_routes import platform_bp
+from .routes.push_routes import push_bp
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / 'frontend'
@@ -78,6 +79,7 @@ def create_app() -> Flask:
     app.register_blueprint(admin_bp, url_prefix=prefix + '/api/admin')
     app.register_blueprint(operator_bp, url_prefix=prefix + '/api/operator')
     app.register_blueprint(platform_bp, url_prefix=prefix + '/api/platform')
+    app.register_blueprint(push_bp,     url_prefix=prefix + '/api/push')
 
     # ── Bootstrap: одноразове підняття першого користувача до platform_admin ──
     @app.route('/api/bootstrap', methods=['POST'])

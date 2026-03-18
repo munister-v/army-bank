@@ -53,4 +53,50 @@ const api = {
 
     return payload.data ?? payload;
   },
+
+  // ── Web Push ───────────────────────────────────────────────────────────────
+  VAPID_PUBLIC_KEY: 'BBkDBdD-nffWa34kkN60vFPKbsiUhz4htDfdAQUp7eVrlLIiaAveTB_qd5xGxGaUrTOXsSk50GmdYnmOARV9wJs',
+
+  _urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64);
+    return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+  },
+
+  async subscribePush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: this._urlBase64ToUint8Array(this.VAPID_PUBLIC_KEY),
+        });
+      }
+      const key = sub.getKey('p256dh');
+      const auth = sub.getKey('auth');
+      await this.request('/api/push/subscribe', {
+        method: 'POST',
+        body: JSON.stringify({
+          endpoint: sub.endpoint,
+          p256dh: btoa(String.fromCharCode(...new Uint8Array(key))),
+          auth:   btoa(String.fromCharCode(...new Uint8Array(auth))),
+        }),
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
+  },
+
+  async requestPushPermission() {
+    if (!('Notification' in window)) return false;
+    if (Notification.permission === 'granted') return this.subscribePush();
+    if (Notification.permission === 'denied') return false;
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') return this.subscribePush();
+    return false;
+  },
 };

@@ -8,6 +8,7 @@ from ..repositories.feature_repository import FeatureRepository
 from ..repositories.user_repository import UserRepository
 from ..database import get_connection
 from .helpers import api_error, auth_required, role_required
+from .push_routes import send_push
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 user_repo = UserRepository()
@@ -187,6 +188,13 @@ def create_payout():
         feature_repo.add_audit_log(
             g.current_user['id'], 'admin_payout',
             f'Нараховано {amount:.2f} грн користувачу id={user_id} ({user["full_name"]}).'
+        )
+        # Push notification to user (non-blocking)
+        send_push(
+            user_id,
+            title='💰 Нарахування на рахунок',
+            body=f'{title}: +{amount:,.2f} ₴. Новий баланс: {new_balance:,.2f} ₴',
+            url='/dashboard',
         )
         return jsonify({'ok': True, 'data': {
             'user_id': user_id, 'amount': amount, 'new_balance': new_balance

@@ -536,6 +536,12 @@ button { font-family: inherit; cursor: pointer; }
   white-space: nowrap;
 }
 
+.toast.success {
+  background: rgba(20,60,30,.97);
+  border-color: #3a8a50;
+  color: #7ddb99;
+}
+
 /* ── ADMIN / OPERATOR ───────────────────────────────────── */
 .nav-admin, .nav-operator, .nav-platform { display: none; }
 
