@@ -36,7 +36,7 @@ def _get_public_key() -> str:
     )
 
 
-def send_push(user_id: int, title: str, body: str, url: str = '/dashboard') -> None:
+def send_push(user_id: int, title: str, body: str, url: str = '/dashboard', push_type: str = 'default') -> None:
     """Send Web Push to all active subscriptions of a user. Never raises."""
     pem = _get_private_pem()
     if not pem:
@@ -52,7 +52,7 @@ def send_push(user_id: int, title: str, body: str, url: str = '/dashboard') -> N
         if not subs:
             logger.info('send_push: no subscriptions for user_id=%s', user_id)
             return
-        payload = json.dumps({'title': title, 'body': body, 'url': url})
+        payload = json.dumps({'title': title, 'body': body, 'url': url, 'type': push_type})
         for sub in subs:
             try:
                 webpush(

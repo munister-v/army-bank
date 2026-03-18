@@ -195,6 +195,7 @@ def create_payout():
             title='💰 Нарахування на рахунок',
             body=f'{title}: +{amount:,.2f} ₴. Новий баланс: {new_balance:,.2f} ₴',
             url='/dashboard',
+            push_type='payout',
         )
         return jsonify({'ok': True, 'data': {
             'user_id': user_id, 'amount': amount, 'new_balance': new_balance

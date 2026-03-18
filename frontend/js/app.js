@@ -296,13 +296,11 @@ async function handleAuth(form, endpoint) {
   showToast('Успішна авторизація.');
   startPolling();
   updatePushDot();
-  // Ask for push permission after short delay (better UX — user sees app first)
-  // Note: on iOS this only works if called from a user gesture, setTimeout may be blocked
+  // If permission already granted — re-subscribe immediately (refreshes endpoint on server)
   if (Notification?.permission === 'granted') {
     api.subscribePush().catch(() => {});
-  } else {
-    setTimeout(() => api.requestPushPermission(), 3000);
   }
+  // Note: requestPermission must be from user gesture on iOS — bell button handles this
 }
 
 function bindJsonForm(selector, endpoint, options = {}) {
@@ -548,19 +546,31 @@ $('#pushBtn')?.addEventListener('click', async () => {
   }
 });
 
-// ── SW registration with update detection ────────────────
+// ── SW registration with instant update detection ────────
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(reg => {
-    // Detect SW update — send SKIP_WAITING and reload
+    // Force check for SW update every time app opens
+    reg.update().catch(() => {});
+
+    // SW activated a new version → SW_UPDATED message → reload
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'SW_UPDATED') {
+        // Small delay so the new SW finishes claiming clients
+        setTimeout(() => location.reload(), 200);
+      }
+    });
+
+    // Legacy: also handle via updatefound (covers cases where old SW sent SKIP_WAITING)
     reg.addEventListener('updatefound', () => {
       const newSW = reg.installing;
       newSW?.addEventListener('statechange', () => {
         if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
           newSW.postMessage({ type: 'SKIP_WAITING' });
-          navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
         }
       });
     });
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
   });
 }
 
