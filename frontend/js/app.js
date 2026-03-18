@@ -295,8 +295,14 @@ async function handleAuth(form, endpoint) {
   if (window.location.pathname !== targetPath) window.history.replaceState(null, '', targetPath);
   showToast('Успішна авторизація.');
   startPolling();
+  updatePushDot();
   // Ask for push permission after short delay (better UX — user sees app first)
-  setTimeout(() => api.requestPushPermission(), 3000);
+  // Note: on iOS this only works if called from a user gesture, setTimeout may be blocked
+  if (Notification?.permission === 'granted') {
+    api.subscribePush().catch(() => {});
+  } else {
+    setTimeout(() => api.requestPushPermission(), 3000);
+  }
 }
 
 function bindJsonForm(selector, endpoint, options = {}) {
@@ -488,6 +494,60 @@ $('#logoutBtn')?.addEventListener('click', async () => {
   showToast('Ви вийшли з системи.');
 });
 
+// ── Push notification bell button ─────────────────────────
+async function updatePushDot() {
+  if (!('Notification' in window) || !('PushManager' in window)) return;
+  const granted = Notification.permission === 'granted';
+  const dot = $('#pushDot');
+  if (dot) dot.style.display = granted ? 'block' : 'none';
+}
+
+$('#pushBtn')?.addEventListener('click', async () => {
+  const btn = $('#pushBtn');
+  if (!('Notification' in window)) {
+    showToast('Браузер не підтримує сповіщення.');
+    return;
+  }
+  if (!('PushManager' in window)) {
+    showToast('Push API недоступний. На iPhone — додайте застосунок на Головний екран.');
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    showToast('Сповіщення заблоковані. Дозвольте в налаштуваннях браузера / системи.');
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    if (Notification.permission !== 'granted') {
+      showToast('Запит дозволу на сповіщення…');
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') {
+        showToast('Сповіщення не дозволені.');
+        return;
+      }
+    }
+
+    showToast('Підписка на сповіщення…');
+    const ok = await api.subscribePush();
+    if (!ok) {
+      showToast('Не вдалося підписатись на сповіщення.');
+      return;
+    }
+    updatePushDot();
+
+    // Send test push so user confirms it works
+    try {
+      await api.testPush();
+      showToast('🔔 Тест-сповіщення надіслано!', 'success');
+    } catch (err) {
+      showToast('Підписано. ' + (err.message || 'Помилка тест-пушу.'));
+    }
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // ── SW registration with update detection ────────────────
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(reg => {
@@ -515,7 +575,8 @@ if ('serviceWorker' in navigator) {
     await refreshAllData();
     switchScreen(getScreenIdFromPath());
     startPolling();
-    // Re-subscribe push if permission already granted
+    updatePushDot();
+    // Re-subscribe push if permission already granted (refreshes subscription on server)
     if (Notification?.permission === 'granted') api.subscribePush().catch(() => {});
   } catch (error) {
     api.setToken('');

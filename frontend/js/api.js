@@ -55,7 +55,6 @@ const api = {
   },
 
   // ── Web Push ───────────────────────────────────────────────────────────────
-  VAPID_PUBLIC_KEY: 'BBkDBdD-nffWa34kkN60vFPKbsiUhz4htDfdAQUp7eVrlLIiaAveTB_qd5xGxGaUrTOXsSk50GmdYnmOARV9wJs',
 
   _urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -64,18 +63,45 @@ const api = {
     return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
   },
 
+  async _getVapidKey() {
+    // Fetch actual VAPID key from server so it always matches backend config
+    try {
+      const data = await this.request('/api/push/vapid-public-key');
+      return typeof data === 'string' ? data : data.key || data;
+    } catch (_) {
+      return 'BBkDBdD-nffWa34kkN60vFPKbsiUhz4htDfdAQUp7eVrlLIiaAveTB_qd5xGxGaUrTOXsSk50GmdYnmOARV9wJs';
+    }
+  },
+
   async subscribePush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
     try {
       const reg = await navigator.serviceWorker.ready;
+      const vapidKey = await this._getVapidKey();
+
+      // Unsubscribe stale subscription if key changed
       let sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        // Check if key still matches (iOS creates new sub per install)
+        const existingKey = sub.options?.applicationServerKey;
+        if (existingKey) {
+          const existingB64 = btoa(String.fromCharCode(...new Uint8Array(existingKey)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+          if (existingB64 !== vapidKey.replace(/=/g, '')) {
+            await sub.unsubscribe();
+            sub = null;
+          }
+        }
+      }
+
       if (!sub) {
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: this._urlBase64ToUint8Array(this.VAPID_PUBLIC_KEY),
+          applicationServerKey: this._urlBase64ToUint8Array(vapidKey),
         });
       }
-      const key = sub.getKey('p256dh');
+
+      const key  = sub.getKey('p256dh');
       const auth = sub.getKey('auth');
       await this.request('/api/push/subscribe', {
         method: 'POST',
@@ -86,7 +112,8 @@ const api = {
         }),
       });
       return true;
-    } catch (_) {
+    } catch (err) {
+      console.warn('[push] subscribePush failed:', err);
       return false;
     }
   },
@@ -95,8 +122,21 @@ const api = {
     if (!('Notification' in window)) return false;
     if (Notification.permission === 'granted') return this.subscribePush();
     if (Notification.permission === 'denied') return false;
+    // requestPermission must be called synchronously from a user gesture
     const perm = await Notification.requestPermission();
     if (perm === 'granted') return this.subscribePush();
     return false;
+  },
+
+  async pushStatus() {
+    try {
+      return await this.request('/api/push/status');
+    } catch (_) {
+      return null;
+    }
+  },
+
+  async testPush() {
+    return this.request('/api/push/test', { method: 'POST' });
   },
 };
