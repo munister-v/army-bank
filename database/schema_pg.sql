@@ -107,3 +107,12 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
     auth TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS budget_limits (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    tx_type VARCHAR(30) NOT NULL,
+    monthly_limit NUMERIC(14,2) NOT NULL CHECK (monthly_limit > 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, tx_type)
+);

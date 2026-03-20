@@ -139,3 +139,30 @@ def get_payment_template(template_id: int):
         return jsonify({'ok': True, 'data': t})
     except Exception as exc:
         return api_error(str(exc))
+
+
+@feature_bp.get('/budget-limits')
+@auth_required
+def list_budget_limits():
+    return jsonify({'ok': True, 'data': service.list_budget_limits(g.current_user['id'])})
+
+
+@feature_bp.post('/budget-limits')
+@auth_required
+def set_budget_limit():
+    try:
+        data = request.get_json(force=True)
+        tx_type = (data.get('tx_type') or '').strip()
+        monthly_limit = float(data.get('monthly_limit') or 0)
+        return jsonify({'ok': True, 'data': service.set_budget_limit(g.current_user['id'], tx_type, monthly_limit)})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@feature_bp.delete('/budget-limits/<string:tx_type>')
+@auth_required
+def delete_budget_limit(tx_type: str):
+    try:
+        return jsonify({'ok': True, 'data': service.delete_budget_limit(g.current_user['id'], tx_type)})
+    except Exception as exc:
+        return api_error(str(exc))

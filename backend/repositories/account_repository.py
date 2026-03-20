@@ -177,6 +177,59 @@ class AccountRepository(BaseRepository):
                 result.append({'day': day_str, 'balance': round(running, 2)})
             return result
 
+    def get_spending_insights(self, account_id: int) -> dict:
+        with self.connection() as conn:
+            # Largest single expense this month
+            biggest = conn.execute('''
+                SELECT description, amount, tx_type FROM transactions
+                WHERE account_id = %s AND direction = 'out'
+                  AND created_at >= date_trunc('month', CURRENT_DATE)
+                ORDER BY amount DESC LIMIT 1
+            ''', (account_id,)).fetchone()
+
+            # Most active day of week
+            active_day = conn.execute('''
+                SELECT EXTRACT(DOW FROM created_at) AS dow, COUNT(*) AS cnt
+                FROM transactions WHERE account_id = %s
+                  AND created_at >= CURRENT_DATE - INTERVAL '30 days'
+                GROUP BY dow ORDER BY cnt DESC LIMIT 1
+            ''', (account_id,)).fetchone()
+
+            # Average transaction amount
+            avg_tx = conn.execute('''
+                SELECT COALESCE(AVG(amount), 0) AS avg_amount, COUNT(*) AS total
+                FROM transactions WHERE account_id = %s
+                  AND created_at >= date_trunc('month', CURRENT_DATE)
+            ''', (account_id,)).fetchone()
+
+            # Savings rate this month (in vs out)
+            rates = conn.execute('''
+                SELECT
+                    COALESCE(SUM(CASE WHEN direction='in' THEN amount ELSE 0 END), 0) AS total_in,
+                    COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END), 0) AS total_out
+                FROM transactions WHERE account_id = %s
+                  AND created_at >= date_trunc('month', CURRENT_DATE)
+            ''', (account_id,)).fetchone()
+
+            days_uk = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
+
+            insights = []
+            if biggest:
+                insights.append({'icon': '💸', 'text': f"Найбільша витрата цього місяця: {biggest['description']} ({float(biggest['amount']):.2f} ₴)"})
+            if active_day:
+                dow = int(active_day['dow'])
+                insights.append({'icon': '📅', 'text': f"Найактивніший день: {days_uk[dow]} ({int(active_day['cnt'])} операцій за 30 днів)"})
+            if avg_tx and avg_tx['total'] > 0:
+                insights.append({'icon': '📊', 'text': f"Середня операція цього місяця: {float(avg_tx['avg_amount']):.2f} ₴ (всього {int(avg_tx['total'])} операцій)"})
+            if rates:
+                tin, tout = float(rates['total_in']), float(rates['total_out'])
+                if tin > 0:
+                    savings_rate = round((tin - tout) / tin * 100, 1)
+                    emoji = '🟢' if savings_rate > 20 else ('🟡' if savings_rate > 0 else '🔴')
+                    insights.append({'icon': emoji, 'text': f"Норма заощадження: {savings_rate}% (прихід {tin:.0f} ₴, витрати {tout:.0f} ₴)"})
+
+            return {'insights': insights}
+
     def export_transactions_csv(self, account_id: int, from_date: str | None = None, to_date: str | None = None) -> str:
         transactions = self.list_transactions(account_id, from_date=from_date, to_date=to_date)
         output = io.StringIO()

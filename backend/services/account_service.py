@@ -70,3 +70,7 @@ class AccountService:
     def export_csv(self, user_id: int, from_date: str | None = None, to_date: str | None = None) -> str:
         account = self.get_main_account(user_id)
         return self.accounts.export_transactions_csv(account['id'], from_date=from_date, to_date=to_date)
+
+    def get_spending_insights(self, user_id: int) -> dict:
+        account = self.get_main_account(user_id)
+        return self.accounts.get_spending_insights(account['id'])

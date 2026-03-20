@@ -133,3 +133,26 @@ class FeatureService:
 
     def list_audit_logs(self, user_id: int):
         return self.repo.list_audit_logs(user_id, limit=50)
+
+    def list_budget_limits(self, user_id):
+        limits = self.repo.list_budget_limits(user_id)
+        account = self.account_repo.get_account_by_user_id(user_id)
+        spending = self.repo.get_monthly_spending(account['id']) if account else {}
+        result = []
+        for lim in limits:
+            spent = spending.get(lim['tx_type'], 0)
+            pct = round(spent / float(lim['monthly_limit']) * 100, 1) if lim['monthly_limit'] else 0
+            result.append({**dict(lim), 'spent': spent, 'pct': min(pct, 100)})
+        return result
+
+    def set_budget_limit(self, user_id, tx_type, monthly_limit):
+        validate_positive_amount(monthly_limit)
+        valid_types = ['transfer', 'donation', 'savings', 'topup']
+        if tx_type not in valid_types:
+            raise ValueError('Невідомий тип транзакції.')
+        self.repo.set_budget_limit(user_id, tx_type, monthly_limit)
+        return self.list_budget_limits(user_id)
+
+    def delete_budget_limit(self, user_id, tx_type):
+        self.repo.delete_budget_limit(user_id, tx_type)
+        return self.list_budget_limits(user_id)

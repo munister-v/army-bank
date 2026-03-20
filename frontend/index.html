@@ -222,6 +222,44 @@
           </div>
         </div>
 
+        <!-- Currency rates widget -->
+        <div class="card currency-card">
+          <div class="card-head">
+            <div class="card-icon-wrap blue">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <h3>Курси НБУ</h3>
+            <span id="ratesUpdated" class="muted" style="margin-left:auto;font-size:11px"></span>
+          </div>
+          <div class="currency-rates" id="currencyRates">
+            <div class="rate-item"><span class="rate-flag">🇺🇸</span><span class="rate-code">USD</span><span class="rate-val" id="rateUSD">…</span></div>
+            <div class="rate-item"><span class="rate-flag">🇪🇺</span><span class="rate-code">EUR</span><span class="rate-val" id="rateEUR">…</span></div>
+            <div class="rate-item"><span class="rate-flag">🇬🇧</span><span class="rate-code">GBP</span><span class="rate-val" id="rateGBP">…</span></div>
+            <div class="rate-item"><span class="rate-flag">🇵🇱</span><span class="rate-code">PLN</span><span class="rate-val" id="ratePLN">…</span></div>
+          </div>
+          <div class="currency-converter">
+            <div class="conv-row">
+              <input id="convAmount" type="number" value="100" min="0" step="any" class="conv-input">
+              <select id="convFrom" class="conv-select">
+                <option value="UAH">UAH</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+                <option value="PLN">PLN</option>
+              </select>
+              <span class="conv-arrow">→</span>
+              <select id="convTo" class="conv-select">
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="UAH">UAH</option>
+                <option value="GBP">GBP</option>
+                <option value="PLN">PLN</option>
+              </select>
+            </div>
+            <div id="convResult" class="conv-result">—</div>
+          </div>
+        </div>
+
         <div class="cards-row">
           <form id="topupForm" class="card" id="topupCard">
             <div class="card-head">
@@ -478,6 +516,62 @@
           <div class="card-head"><h3>Оборот за 6 місяців</h3></div>
           <div id="analyticsBarChart" class="bar-chart"></div>
         </div>
+
+        <!-- Spending insights -->
+        <div class="card" id="insightsCard">
+          <div class="card-head">
+            <div class="card-icon-wrap yellow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <h3>Аналіз витрат</h3>
+          </div>
+          <div id="insightsList" class="insights-list"></div>
+        </div>
+
+        <!-- Pie chart + budget limits -->
+        <div class="cards-row analytics-bottom-row">
+          <div class="card">
+            <div class="card-head"><h3>Розподіл витрат</h3></div>
+            <div id="spendingPie" class="pie-wrap"></div>
+            <div id="pieLegend" class="pie-legend"></div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <h3>Бюджетні ліміти</h3>
+              <button id="addBudgetBtn" class="btn-ghost btn-sm" style="margin-left:auto">+ Ліміт</button>
+            </div>
+            <div id="budgetLimitsList" class="budget-limits-list"></div>
+            <div id="budgetLimitForm" class="budget-form hidden">
+              <label class="lbl">Тип операції
+                <select id="budgetTxType">
+                  <option value="transfer">Переказ</option>
+                  <option value="donation">Донат</option>
+                  <option value="savings">Накопичення</option>
+                  <option value="topup">Поповнення</option>
+                </select>
+              </label>
+              <label class="lbl">Місячний ліміт, ₴<input id="budgetAmount" type="number" step="0.01" placeholder="0.00"></label>
+              <div style="display:flex;gap:8px">
+                <button id="saveBudgetBtn" class="btn-accent" style="flex:1">Зберегти</button>
+                <button id="cancelBudgetBtn" class="btn-ghost">✕</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity heatmap -->
+        <div class="card">
+          <div class="card-head"><h3>Активність за 12 тижнів</h3></div>
+          <div id="activityHeatmap" class="heatmap-wrap"></div>
+          <div class="heatmap-legend">
+            <span>Менше</span>
+            <span class="heatmap-dot" style="background:rgba(255,255,255,.06)"></span>
+            <span class="heatmap-dot" style="background:rgba(255,255,255,.2)"></span>
+            <span class="heatmap-dot" style="background:rgba(255,255,255,.45)"></span>
+            <span class="heatmap-dot" style="background:#4ade80"></span>
+            <span>Більше</span>
+          </div>
+        </div>
       </section>
 
       <!-- PROFILE -->
@@ -652,6 +746,46 @@
     <button id="installBtn" class="install-banner-btn">Встановити</button>
     <button id="installClose" class="install-banner-close" aria-label="Закрити">✕</button>
   </div>
+
+  <!-- Command palette (Ctrl+K) -->
+  <div id="cmdBackdrop" class="cmd-backdrop hidden"></div>
+  <div id="cmdPalette" class="cmd-palette hidden" role="dialog" aria-label="Пошук">
+    <div class="cmd-input-wrap">
+      <svg class="cmd-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="cmdInput" type="text" placeholder="Пошук транзакцій, цілей, контактів, розділів…" autocomplete="off" spellcheck="false">
+      <kbd class="cmd-esc">Esc</kbd>
+    </div>
+    <div id="cmdResults" class="cmd-results"></div>
+    <div class="cmd-footer">
+      <span><kbd>↑↓</kbd> навігація</span>
+      <span><kbd>↵</kbd> відкрити</span>
+      <span><kbd>Esc</kbd> закрити</span>
+    </div>
+  </div>
+
+  <!-- Keyboard shortcuts help (?+key) -->
+  <div id="kbBackdrop" class="cmd-backdrop hidden"></div>
+  <div id="kbHelp" class="kb-help hidden" role="dialog" aria-label="Клавіатурні скорочення">
+    <div class="kb-header">
+      <h3>Клавіатурні скорочення</h3>
+      <button id="kbClose" class="icon-btn">✕</button>
+    </div>
+    <div class="kb-list">
+      <div class="kb-item"><kbd>Ctrl</kbd><kbd>K</kbd><span>Відкрити пошук</span></div>
+      <div class="kb-item"><kbd>?</kbd><span>Показати скорочення</span></div>
+      <div class="kb-item"><kbd>G</kbd><kbd>D</kbd><span>Перейти: Огляд</span></div>
+      <div class="kb-item"><kbd>G</kbd><kbd>T</kbd><span>Перейти: Операції</span></div>
+      <div class="kb-item"><kbd>G</kbd><kbd>S</kbd><span>Перейти: Цілі</span></div>
+      <div class="kb-item"><kbd>G</kbd><kbd>C</kbd><span>Перейти: Родина</span></div>
+      <div class="kb-item"><kbd>G</kbd><kbd>A</kbd><span>Перейти: Аналітика</span></div>
+      <div class="kb-item"><kbd>G</kbd><kbd>P</kbd><span>Перейти: Профіль</span></div>
+      <div class="kb-item"><kbd>Esc</kbd><span>Закрити панель / діалог</span></div>
+      <div class="kb-item"><kbd>R</kbd><span>Оновити дані</span></div>
+    </div>
+  </div>
+
+  <!-- Confetti canvas -->
+  <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js"></script>
   <script src="/js/app.js"></script>

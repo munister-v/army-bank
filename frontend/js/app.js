@@ -197,7 +197,14 @@ async function openTxDrawer(txId) {
         <div class="drawer-info-row"><dt>Дата</dt><dd>${formatDate(tx.created_at)}</dd></div>
         <div class="drawer-info-row"><dt>ID</dt><dd>#${tx.id}</dd></div>
       </dl>
+      <button class="btn-ghost" id="shareTxBtn" style="width:100%;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Поділитися
+      </button>
     `;
+    $('#shareTxBtn')?.addEventListener('click', () => {
+      if (typeof shareTransaction === 'function') shareTransaction(tx);
+    });
   } catch (e) {
     if (body) body.innerHTML = `<div class="drawer-error">${e.message}</div>`;
   }
@@ -332,7 +339,17 @@ async function loadAnalytics() {
     } else if (chartEl) {
       chartEl.innerHTML = '<div class="empty-state">Недостатньо даних для графіку.</div>';
     }
+
+    // Render pie chart with by_type data
+    if (typeof renderPieChart === 'function') {
+      renderPieChart(byType);
+    }
   } catch (_) {}
+
+  // Load additional analytics features
+  if (typeof loadInsights === 'function') loadInsights().catch(() => {});
+  if (typeof loadBudgetLimits === 'function') loadBudgetLimits().catch(() => {});
+  if (typeof renderHeatmap === 'function') renderHeatmap().catch(() => {});
 }
 
 // ── PROFILE SCREEN ──────────────────────────────────────
@@ -545,6 +562,9 @@ async function refreshAllData() {
         <div class="muted">${row.comment || 'Без коментаря'} · ${formatDate(row.created_at)}</div>
       </div>
     `, 'Донатів поки немає.');
+
+    // Check goal completions for confetti celebrations
+    if (typeof checkGoalCompletion === 'function') checkGoalCompletion(goals);
 
     // Goals with progress bars + delete + estimated completion
     renderSimpleList('#goalsList', goals, (row) => {
@@ -1215,3 +1235,485 @@ $('#showQrBtn')?.addEventListener('click', () => {
     indicator.classList.add('hidden');
   }, { passive: true });
 })();
+
+// ═══════════════════════════════════════════════════════
+// WAVE 3 FEATURES
+// ═══════════════════════════════════════════════════════
+
+// ── SPENDING PIE CHART ────────────────────────────────
+const PIE_COLORS = {
+  transfer: '#60a5fa', donation: '#f87171', savings: '#4ade80',
+  topup: '#a78bfa', payout: '#fb923c', default: '#94a3b8',
+};
+
+function renderPieChart(byType) {
+  const pieEl = $('#spendingPie');
+  const legendEl = $('#pieLegend');
+  if (!pieEl) return;
+
+  const outItems = byType.filter(r => r.direction === 'out' || !r.direction);
+  const total = outItems.reduce((s, r) => s + Number(r.total), 0);
+  if (!total) {
+    pieEl.innerHTML = '<div class="empty-state">Витрат ще немає.</div>';
+    return;
+  }
+
+  const R = 70, CX = 80, CY = 80;
+  let angle = -Math.PI / 2;
+  const segments = outItems.map(r => {
+    const frac = Number(r.total) / total;
+    const startAngle = angle;
+    angle += frac * 2 * Math.PI;
+    return { ...r, frac, startAngle, endAngle: angle };
+  });
+
+  function polarToXY(a, r) {
+    return [CX + r * Math.cos(a), CY + r * Math.sin(a)];
+  }
+
+  const paths = segments.map(seg => {
+    const [x1, y1] = polarToXY(seg.startAngle, R);
+    const [x2, y2] = polarToXY(seg.endAngle, R);
+    const large = seg.frac > 0.5 ? 1 : 0;
+    const color = PIE_COLORS[seg.tx_type] || PIE_COLORS.default;
+    return `<path d="M${CX},${CY} L${x1},${y1} A${R},${R} 0 ${large},1 ${x2},${y2} Z" fill="${color}" opacity="0.85"/>`;
+  }).join('');
+
+  pieEl.innerHTML = `
+    <svg viewBox="0 0 160 160" width="160" height="160" style="display:block;margin:0 auto">
+      ${paths}
+      <circle cx="${CX}" cy="${CY}" r="36" fill="var(--surface)"/>
+      <text x="${CX}" y="${CY - 4}" text-anchor="middle" fill="var(--text)" font-size="10" font-weight="700" font-family="Manrope,sans-serif">Витрати</text>
+      <text x="${CX}" y="${CY + 10}" text-anchor="middle" fill="var(--muted)" font-size="8" font-family="Manrope,sans-serif">цього місяця</text>
+    </svg>`;
+
+  if (legendEl) {
+    legendEl.innerHTML = segments.map(seg => {
+      const color = PIE_COLORS[seg.tx_type] || PIE_COLORS.default;
+      const label = (TX_TYPE_LABELS || {})[seg.tx_type] || seg.tx_type;
+      return `<div class="pie-leg-item">
+        <span class="pie-leg-dot" style="background:${color}"></span>
+        <span class="pie-leg-label">${label}</span>
+        <span class="pie-leg-pct">${(seg.frac * 100).toFixed(1)}%</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ── ACTIVITY HEATMAP ─────────────────────────────────
+async function renderHeatmap() {
+  const el = $('#activityHeatmap');
+  if (!el) return;
+  try {
+    const WEEKS = 12, DAYS = 7;
+    const today = new Date();
+    const start = new Date(today);
+    start.setDate(today.getDate() - (WEEKS * DAYS - 1));
+
+    const params = new URLSearchParams({ from_date: start.toISOString().slice(0,10) });
+    const txs = await api.request('/api/transactions/history?' + params);
+
+    const counts = {};
+    txs.forEach(tx => {
+      const d = (tx.created_at || '').slice(0,10);
+      counts[d] = (counts[d] || 0) + 1;
+    });
+    const maxCount = Math.max(...Object.values(counts), 1);
+
+    function intensity(c) {
+      if (!c) return 0;
+      return Math.ceil((c / maxCount) * 4);
+    }
+    const COLORS = ['rgba(255,255,255,.06)','rgba(255,255,255,.18)','rgba(255,255,255,.35)','rgba(255,255,255,.55)','#4ade80'];
+
+    let html = '<div class="heatmap-grid">';
+    for (let w = 0; w < WEEKS; w++) {
+      html += '<div class="heatmap-col">';
+      for (let d = 0; d < DAYS; d++) {
+        const date = new Date(start);
+        date.setDate(start.getDate() + w * 7 + d);
+        const key = date.toISOString().slice(0,10);
+        const cnt = counts[key] || 0;
+        const col = COLORS[intensity(cnt)];
+        const title = cnt ? `${key}: ${cnt} операцій` : key;
+        html += `<div class="heatmap-cell" style="background:${col}" title="${title}"></div>`;
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+    el.innerHTML = html;
+  } catch(_) {}
+}
+
+// ── BUDGET LIMITS ────────────────────────────────────
+async function loadBudgetLimits() {
+  const listEl = $('#budgetLimitsList');
+  if (!listEl) return;
+  try {
+    const limits = await api.request('/api/budget-limits');
+    if (!limits.length) {
+      listEl.innerHTML = '<div class="empty-state" style="padding:8px 0">Лімітів не встановлено.</div>';
+      return;
+    }
+    const txLabels = { transfer: 'Переказ', donation: 'Донат', savings: 'Накопичення', topup: 'Поповнення' };
+    listEl.innerHTML = limits.map(l => {
+      const pct = l.pct || 0;
+      const color = pct >= 90 ? 'var(--red)' : pct >= 70 ? 'var(--orange)' : 'var(--green)';
+      return `<div class="budget-limit-item">
+        <div class="bl-header">
+          <span class="bl-type">${txLabels[l.tx_type] || l.tx_type}</span>
+          <span class="bl-pct" style="color:${color}">${pct}%</span>
+          <button class="btn-icon-danger bl-del" data-del-limit="${l.tx_type}" title="Видалити">×</button>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <div class="bl-amounts muted">${formatMoney(l.spent)} / ${formatMoney(l.monthly_limit)}</div>
+      </div>`;
+    }).join('');
+
+    listEl.querySelectorAll('[data-del-limit]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const txType = btn.dataset.delLimit;
+        try {
+          await api.request(`/api/budget-limits/${txType}`, { method: 'DELETE' });
+          await loadBudgetLimits();
+          showToast('Ліміт видалено.');
+        } catch(e) { showToast(e.message); }
+      });
+    });
+  } catch(e) {
+    listEl.innerHTML = `<div class="empty-state">Помилка: ${e.message}</div>`;
+  }
+}
+
+$('#addBudgetBtn')?.addEventListener('click', () => {
+  $('#budgetLimitForm')?.classList.toggle('hidden');
+});
+$('#cancelBudgetBtn')?.addEventListener('click', () => {
+  $('#budgetLimitForm')?.classList.add('hidden');
+});
+$('#saveBudgetBtn')?.addEventListener('click', async () => {
+  const txType = $('#budgetTxType')?.value;
+  const amount = Number($('#budgetAmount')?.value || 0);
+  if (!txType || !amount) { showToast('Вкажіть тип та суму.'); return; }
+  try {
+    await api.request('/api/budget-limits', {
+      method: 'POST',
+      body: JSON.stringify({ tx_type: txType, monthly_limit: amount }),
+    });
+    $('#budgetLimitForm')?.classList.add('hidden');
+    if ($('#budgetAmount')) $('#budgetAmount').value = '';
+    await loadBudgetLimits();
+    showToast('Ліміт встановлено.', 'success');
+  } catch(e) { showToast(e.message); }
+});
+
+// ── SPENDING INSIGHTS ────────────────────────────────
+async function loadInsights() {
+  const el = $('#insightsList');
+  if (!el) return;
+  try {
+    const data = await api.request('/api/analytics/insights');
+    const insights = data.insights || [];
+    if (!insights.length) {
+      el.innerHTML = '<div class="empty-state">Недостатньо даних для аналізу.</div>';
+      return;
+    }
+    el.innerHTML = insights.map(ins => `
+      <div class="insight-item">
+        <span class="insight-icon">${ins.icon}</span>
+        <span class="insight-text">${ins.text}</span>
+      </div>`).join('');
+  } catch(_) {}
+}
+
+// ── CURRENCY CONVERTER ────────────────────────────────
+const _ratesCache = {};
+async function loadCurrencyRates() {
+  try {
+    const res = await fetch('https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?json');
+    if (!res.ok) throw new Error('');
+    const data = await res.json();
+    const wanted = ['USD','EUR','GBP','PLN'];
+    wanted.forEach(code => {
+      const item = data.find(r => r.cc === code);
+      if (item) {
+        _ratesCache[code] = item.rate;
+        const el = $(`#rate${code}`);
+        if (el) el.textContent = `₴${item.rate.toFixed(2)}`;
+      }
+    });
+    const updated = $('#ratesUpdated');
+    if (updated) updated.textContent = 'Оновлено зараз';
+    updateConverter();
+  } catch(_) {
+    Object.assign(_ratesCache, { USD: 41.0, EUR: 44.5, GBP: 51.8, PLN: 10.2 });
+    ['USD','EUR','GBP','PLN'].forEach(code => {
+      const el = $(`#rate${code}`);
+      if (el) el.textContent = `₴${_ratesCache[code].toFixed(2)}`;
+    });
+    updateConverter();
+  }
+}
+
+function updateConverter() {
+  const amount = parseFloat($('#convAmount')?.value || 0);
+  const from = $('#convFrom')?.value;
+  const to = $('#convTo')?.value;
+  const result = $('#convResult');
+  if (!result || !from || !to || isNaN(amount)) return;
+
+  let uah;
+  if (from === 'UAH') uah = amount;
+  else uah = amount * (_ratesCache[from] || 1);
+
+  let converted;
+  if (to === 'UAH') converted = uah;
+  else converted = uah / (_ratesCache[to] || 1);
+
+  result.textContent = `${amount} ${from} = ${converted.toFixed(2)} ${to}`;
+}
+
+['#convAmount','#convFrom','#convTo'].forEach(sel => {
+  $(sel)?.addEventListener('input', updateConverter);
+  $(sel)?.addEventListener('change', updateConverter);
+});
+
+loadCurrencyRates();
+
+// ── COMMAND PALETTE (Ctrl+K) ──────────────────────────
+let _cmdOpen = false;
+let _cmdItems = [];
+let _cmdIdx = 0;
+
+const NAV_CMDS = [
+  { type: 'nav', label: 'Огляд', screen: 'dashboard', icon: '🏠' },
+  { type: 'nav', label: 'Операції', screen: 'transactions', icon: '📊' },
+  { type: 'nav', label: 'Цілі накопичення', screen: 'savings', icon: '🎯' },
+  { type: 'nav', label: 'Родина', screen: 'contacts', icon: '👨‍👩‍👧' },
+  { type: 'nav', label: 'Аналітика', screen: 'analytics', icon: '📈' },
+  { type: 'nav', label: 'Профіль', screen: 'profile', icon: '👤' },
+  { type: 'nav', label: 'Виплати', screen: 'payouts', icon: '🛡' },
+  { type: 'nav', label: 'Донати', screen: 'donations', icon: '❤️' },
+];
+
+function openCmdPalette() {
+  _cmdOpen = true;
+  $('#cmdPalette')?.classList.remove('hidden');
+  $('#cmdBackdrop')?.classList.remove('hidden');
+  const input = $('#cmdInput');
+  if (input) { input.value = ''; input.focus(); }
+  renderCmdResults('');
+}
+
+function closeCmdPalette() {
+  _cmdOpen = false;
+  $('#cmdPalette')?.classList.add('hidden');
+  $('#cmdBackdrop')?.classList.add('hidden');
+}
+
+function renderCmdResults(query) {
+  const el = $('#cmdResults');
+  if (!el) return;
+
+  const q = query.toLowerCase().trim();
+  let items = [...NAV_CMDS];
+
+  _cmdItems = q ? items.filter(it =>
+    it.label.toLowerCase().includes(q)
+  ) : items;
+
+  _cmdIdx = 0;
+  if (!_cmdItems.length) {
+    el.innerHTML = '<div class="cmd-empty">Нічого не знайдено</div>';
+    return;
+  }
+  renderCmdList();
+}
+
+function renderCmdList() {
+  const el = $('#cmdResults');
+  if (!el) return;
+  el.innerHTML = _cmdItems.map((item, i) => `
+    <div class="cmd-item ${i === _cmdIdx ? 'active' : ''}" data-idx="${i}">
+      <span class="cmd-item-icon">${item.icon}</span>
+      <span class="cmd-item-label">${item.label}</span>
+      ${item.type === 'nav' ? '<span class="cmd-item-type">Розділ</span>' : ''}
+    </div>
+  `).join('');
+  el.querySelectorAll('.cmd-item').forEach(row => {
+    row.addEventListener('click', () => {
+      _cmdIdx = Number(row.dataset.idx);
+      executeCmdItem();
+    });
+    row.addEventListener('mouseenter', () => {
+      _cmdIdx = Number(row.dataset.idx);
+      el.querySelectorAll('.cmd-item').forEach((r,i) => r.classList.toggle('active', i === _cmdIdx));
+    });
+  });
+}
+
+function executeCmdItem() {
+  const item = _cmdItems[_cmdIdx];
+  if (!item) return;
+  closeCmdPalette();
+  if (item.type === 'nav') {
+    const base = getBasePath();
+    window.history.pushState(null, '', base ? base + '/' + item.screen : '/' + item.screen);
+    switchScreen(item.screen);
+  }
+}
+
+$('#cmdInput')?.addEventListener('input', e => renderCmdResults(e.target.value));
+$('#cmdInput')?.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown') { _cmdIdx = Math.min(_cmdIdx + 1, _cmdItems.length - 1); renderCmdList(); e.preventDefault(); }
+  if (e.key === 'ArrowUp')   { _cmdIdx = Math.max(_cmdIdx - 1, 0); renderCmdList(); e.preventDefault(); }
+  if (e.key === 'Enter')     { executeCmdItem(); e.preventDefault(); }
+  if (e.key === 'Escape')    { closeCmdPalette(); }
+});
+$('#cmdBackdrop')?.addEventListener('click', closeCmdPalette);
+
+// ── KEYBOARD SHORTCUTS ────────────────────────────────
+let _kbBuffer = '';
+let _kbTimer = null;
+
+document.addEventListener('keydown', (e) => {
+  if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) {
+    if (e.key === 'Escape') {
+      document.activeElement.blur();
+      closeCmdPalette();
+      closeDrawer();
+    }
+    return;
+  }
+
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    _cmdOpen ? closeCmdPalette() : openCmdPalette();
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    closeCmdPalette();
+    closeDrawer();
+    closeConfirm();
+    return;
+  }
+
+  if (e.key === '?') {
+    $('#kbHelp')?.classList.toggle('hidden');
+    $('#kbBackdrop')?.classList.toggle('hidden');
+    return;
+  }
+
+  if (e.key === 'r' || e.key === 'R') {
+    refreshAllData().then(() => showToast('Оновлено', 'success')).catch(() => {});
+    return;
+  }
+
+  if (!state.user) return;
+  _kbBuffer += e.key.toUpperCase();
+  clearTimeout(_kbTimer);
+  _kbTimer = setTimeout(() => { _kbBuffer = ''; }, 800);
+
+  const navMap = { 'GD': 'dashboard', 'GT': 'transactions', 'GS': 'savings', 'GC': 'contacts', 'GA': 'analytics', 'GP': 'profile' };
+  if (navMap[_kbBuffer]) {
+    const screen = navMap[_kbBuffer];
+    const base = getBasePath();
+    window.history.pushState(null, '', base ? base + '/' + screen : '/' + screen);
+    switchScreen(screen);
+    _kbBuffer = '';
+  }
+});
+
+$('#kbClose')?.addEventListener('click', () => {
+  $('#kbHelp')?.classList.add('hidden');
+  $('#kbBackdrop')?.classList.add('hidden');
+});
+$('#kbBackdrop')?.addEventListener('click', () => {
+  $('#kbHelp')?.classList.add('hidden');
+  $('#kbBackdrop')?.classList.add('hidden');
+});
+
+// ── CONFETTI CELEBRATION ──────────────────────────────
+function launchConfetti() {
+  const canvas = $('#confettiCanvas');
+  if (!canvas) return;
+  canvas.style.display = 'block';
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const pieces = Array.from({ length: 80 }, () => ({
+    x: Math.random() * canvas.width,
+    y: -20,
+    w: Math.random() * 8 + 4,
+    h: Math.random() * 14 + 6,
+    rot: Math.random() * 360,
+    color: ['#4ade80','#60a5fa','#f87171','#facc15','#c084fc','#fb923c'][Math.floor(Math.random()*6)],
+    vx: (Math.random() - 0.5) * 3,
+    vy: Math.random() * 3 + 2,
+    vrot: (Math.random() - 0.5) * 8,
+  }));
+
+  let frame;
+  let t = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach(p => {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot * Math.PI / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+      p.x += p.vx; p.y += p.vy; p.rot += p.vrot; p.vy += 0.05;
+    });
+    t++;
+    if (t < 180) frame = requestAnimationFrame(draw);
+    else {
+      canvas.style.display = 'none';
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+  cancelAnimationFrame(frame);
+  requestAnimationFrame(draw);
+}
+
+function checkGoalCompletion(goals) {
+  goals.forEach(g => {
+    if (g.current_amount >= g.target_amount && g.target_amount > 0) {
+      const key = `celebrated_goal_${g.id}`;
+      if (!localStorage.getItem(key)) {
+        localStorage.setItem(key, '1');
+        setTimeout(() => {
+          showToast(`🎉 Ціль "${g.title}" досягнута!`, 'success');
+          launchConfetti();
+        }, 500);
+      }
+    }
+  });
+}
+
+// ── TRANSACTION RECEIPT SHARE ─────────────────────────
+function shareTransaction(tx) {
+  const text = [
+    '🏦 Army Bank — Виписка операції',
+    '─'.repeat(28),
+    `📝 ${tx.description}`,
+    `💰 ${tx.direction === 'in' ? '+' : '−'}${Number(tx.amount).toFixed(2)} ₴`,
+    `📂 Тип: ${(TX_TYPE_LABELS || {})[tx.tx_type] || tx.tx_type}`,
+    `📅 Дата: ${formatDate(tx.created_at)}`,
+    tx.related_account ? `🔗 Контрагент: ${tx.related_account}` : '',
+    `🔑 ID: #${tx.id}`,
+  ].filter(Boolean).join('\n');
+
+  if (navigator.share) {
+    navigator.share({ title: 'Army Bank — Виписка', text }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(text).then(() =>
+      showToast('Деталі скопійовано в буфер обміну.', 'success')
+    ).catch(() => showToast('Не вдалося скопіювати.'));
+  }
+}

@@ -132,6 +132,42 @@ class FeatureRepository(BaseRepository):
             )
             return (result.rowcount or 0) > 0
 
+    def list_budget_limits(self, user_id):
+        with self.connection() as conn:
+            return conn.execute(
+                'SELECT * FROM budget_limits WHERE user_id = %s ORDER BY tx_type',
+                (user_id,)
+            ).fetchall()
+
+    def set_budget_limit(self, user_id, tx_type, monthly_limit):
+        with self.connection() as conn:
+            conn.execute('''
+                INSERT INTO budget_limits(user_id, tx_type, monthly_limit)
+                VALUES(%s, %s, %s)
+                ON CONFLICT (user_id, tx_type)
+                DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit
+            ''', (user_id, tx_type, monthly_limit))
+
+    def delete_budget_limit(self, user_id, tx_type):
+        with self.connection() as conn:
+            conn.execute(
+                'DELETE FROM budget_limits WHERE user_id = %s AND tx_type = %s',
+                (user_id, tx_type)
+            )
+
+    def get_monthly_spending(self, account_id):
+        """Returns dict of {tx_type: total_spent} for current month outgoing transactions."""
+        with self.connection() as conn:
+            rows = conn.execute('''
+                SELECT tx_type, COALESCE(SUM(amount), 0) AS spent
+                FROM transactions
+                WHERE account_id = %s
+                  AND direction = 'out'
+                  AND created_at >= date_trunc('month', CURRENT_DATE)
+                GROUP BY tx_type
+            ''', (account_id,)).fetchall()
+            return {r['tx_type']: float(r['spent']) for r in rows}
+
     def list_audit_logs(self, user_id: int | None = None, limit: int = 200):
         with self.connection() as conn:
             if user_id is not None:

@@ -97,6 +97,16 @@ def balance_history():
         return api_error(str(exc))
 
 
+@account_bp.get('/analytics/insights')
+@auth_required
+def spending_insights():
+    try:
+        data = service.get_spending_insights(g.current_user['id'])
+        return jsonify({'ok': True, 'data': data})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
 @account_bp.get('/transactions/export')
 @auth_required
 def export_csv():

@@ -84,6 +84,29 @@ def get_connection() -> Iterator:
             yield _SqliteConnWrapper(conn)
 
 
+BUDGET_LIMITS_DDL = """
+CREATE TABLE IF NOT EXISTS budget_limits (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    tx_type VARCHAR(30) NOT NULL,
+    monthly_limit NUMERIC(14,2) NOT NULL CHECK (monthly_limit > 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, tx_type)
+);
+"""
+
+BUDGET_LIMITS_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS budget_limits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    tx_type TEXT NOT NULL,
+    monthly_limit REAL NOT NULL CHECK (monthly_limit > 0),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (user_id, tx_type)
+);
+"""
+
+
 def init_db() -> None:
     """Ініціалізує схему БД."""
     if USE_PG:
@@ -91,10 +114,12 @@ def init_db() -> None:
         with get_connection_pg() as conn:
             with conn.cursor() as cur:
                 cur.execute(schema_sql)
+                cur.execute(BUDGET_LIMITS_DDL)
     else:
         schema_sql = Path(SCHEMA_PATH).read_text(encoding='utf-8')
         with get_connection_sqlite() as conn:
             conn.executescript(schema_sql)
+            conn.executescript(BUDGET_LIMITS_DDL_SQLITE)
 
 
 def init_admin() -> None:
