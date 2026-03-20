@@ -1,14 +1,16 @@
 {
   "name": "Army Bank",
-  "short_name": "Army Bank",
+  "short_name": "ArmyBank",
   "description": "Цифровий банкінг для захисників України",
-  "theme_color": "#07090f",
-  "background_color": "#07090f",
+  "theme_color": "#080808",
+  "background_color": "#080808",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait-primary",
   "scope": "/",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "lang": "uk",
+  "categories": ["finance", "utilities"],
   "icons": [
     {
       "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%2307090f'/><path d='M96 28L36 60v52c0 42 26 80 60 96 34-16 60-54 60-96V60z' fill='%23161c10' stroke='%23c8a84b' stroke-width='4'/><path d='M96 44L48 68v44c0 32 20 62 48 76 28-14 48-44 48-76V68z' fill='rgba(200,168,75,.1)' stroke='%23c8a84b' stroke-width='2'/><path d='M78 96l14 14 28-28' stroke='%23c8a84b' stroke-width='9' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>",
@@ -21,6 +23,13 @@
       "type": "image/svg+xml"
     }
   ],
-  "categories": ["finance"],
-  "screenshots": []
+  "shortcuts": [
+    {"name": "Огляд", "short_name": "Огляд", "url": "/dashboard", "description": "Головний екран"},
+    {"name": "Операції", "short_name": "Операції", "url": "/transactions", "description": "Історія операцій"},
+    {"name": "Перекази", "short_name": "Переказ", "url": "/dashboard", "description": "Зробити переказ"},
+    {"name": "Накопичення", "short_name": "Цілі", "url": "/savings", "description": "Цілі накопичення"}
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false,
+  "edge_side_panel": {"preferred_width": 400}
 }

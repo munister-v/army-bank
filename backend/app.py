@@ -133,6 +133,10 @@ def create_app() -> Flask:
 
     @app.get(prefix + '/' if prefix else '/')
     def index():
+        return send_html('landing.html')
+
+    @app.get(prefix + '/app' if prefix else '/app')
+    def app_root():
         return send_index()
 
     for path in ('/dashboard', '/transactions', '/payouts', '/donations', '/savings',

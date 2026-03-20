@@ -2698,3 +2698,170 @@ window.handleAuth = async function(form, endpoint) {
 })();
 
 console.log('[Army Bank] Wave 5 loaded \u2014 PIN, Recurring, Debts, Tags, Velocity, Onboarding');
+
+// ── More Sheet ────────────────────────────────────────────
+(function() {
+  var btn = document.getElementById('navMoreBtn');
+  var sheet = document.getElementById('moreSheet');
+  var overlay = document.getElementById('moreSheetOverlay');
+  if (!btn || !sheet || !overlay) return;
+
+  function openSheet() {
+    sheet.classList.add('open');
+    overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSheet() {
+    sheet.classList.remove('open');
+    overlay.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  btn.addEventListener('click', openSheet);
+  overlay.addEventListener('click', closeSheet);
+
+  // Items in sheet close the sheet and navigate
+  sheet.querySelectorAll('.nav-link').forEach(function(el) {
+    el.addEventListener('click', function() {
+      closeSheet();
+    });
+  });
+
+  // Swipe down to close
+  var startY = 0;
+  sheet.addEventListener('touchstart', function(e) { startY = e.touches[0].clientY; }, { passive: true });
+  sheet.addEventListener('touchend', function(e) {
+    var dy = e.changedTouches[0].clientY - startY;
+    if (dy > 60) closeSheet();
+  }, { passive: true });
+})();
+
+// ── A2HS Install Banner ───────────────────────────────────
+(function() {
+  var deferredPrompt = null;
+  var banner = document.getElementById('installBanner');
+  var installBtn = document.getElementById('installBtn');
+  var dismissBtn = document.getElementById('installDismiss');
+  if (!banner) return;
+
+  // Don't show if already installed or dismissed
+  if (window.matchMedia('(display-mode: standalone)').matches) return;
+  if (localStorage.getItem('ab_install_dismissed')) return;
+
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    // Show banner after 3 seconds if not authenticated
+    setTimeout(function() {
+      if (api.token) banner.classList.remove('hidden');
+    }, 3000);
+  });
+
+  if (installBtn) {
+    installBtn.addEventListener('click', function() {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function(choice) {
+        deferredPrompt = null;
+        banner.classList.add('hidden');
+        if (choice.outcome === 'accepted') {
+          showToast('Додаток встановлено!', 'success');
+        }
+      });
+    });
+  }
+
+  if (dismissBtn) {
+    dismissBtn.addEventListener('click', function() {
+      banner.classList.add('hidden');
+      localStorage.setItem('ab_install_dismissed', '1');
+    });
+  }
+
+  // iOS Safari install hint
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var isInStandalone = ('standalone' in window.navigator) && window.navigator.standalone;
+  if (isIOS && !isInStandalone && !localStorage.getItem('ab_install_dismissed')) {
+    setTimeout(function() {
+      if (!api.token) return;
+      if (installBtn) installBtn.textContent = '+ Додати';
+      installBtn.addEventListener('click', function() {
+        showToast('Натисніть "Поділитися" → "На головний екран"', '');
+        banner.classList.add('hidden');
+        localStorage.setItem('ab_install_dismissed', '1');
+      });
+      banner.classList.remove('hidden');
+    }, 4000);
+  }
+})();
+
+// ── Pull-to-refresh ───────────────────────────────────────
+(function() {
+  var content = document.querySelector('.app-content');
+  var indicator = document.getElementById('pullRefreshIndicator');
+  if (!content || !indicator) return;
+  var startY = 0, pulling = false, threshold = 70;
+
+  content.addEventListener('touchstart', function(e) {
+    if (content.scrollTop === 0) startY = e.touches[0].clientY;
+    else startY = 0;
+  }, { passive: true });
+
+  content.addEventListener('touchmove', function(e) {
+    if (!startY) return;
+    var dy = e.touches[0].clientY - startY;
+    if (dy > 20 && !pulling) {
+      pulling = true;
+      indicator.classList.add('visible');
+    }
+  }, { passive: true });
+
+  content.addEventListener('touchend', function() {
+    if (pulling) {
+      pulling = false;
+      refreshAllData().finally(function() {
+        indicator.classList.remove('visible');
+      });
+    }
+    startY = 0;
+  }, { passive: true });
+})();
+
+// ── Swipe between screens ─────────────────────────────────
+(function() {
+  var SCREENS_ORDER = ['dashboard', 'transactions', 'savings', 'contacts', 'profile', 'recurring', 'debts'];
+  var content = document.querySelector('.app-content');
+  if (!content) return;
+  var startX = 0, startY = 0;
+
+  content.addEventListener('touchstart', function(e) {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, { passive: true });
+
+  content.addEventListener('touchend', function(e) {
+    var dx = e.changedTouches[0].clientX - startX;
+    var dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    // Find current screen
+    var activeEl = document.querySelector('.screen.active-screen');
+    if (!activeEl) return;
+    var cur = SCREENS_ORDER.indexOf(activeEl.id);
+    if (cur < 0) return;
+    if (dx < -50 && cur < SCREENS_ORDER.length - 1) {
+      // swipe left = next
+      var nextScreen = SCREENS_ORDER[cur + 1];
+      var base = getBasePath ? getBasePath() : '';
+      window.history.pushState(null, '', base ? base + '/' + nextScreen : '/' + nextScreen);
+      switchScreen(nextScreen);
+      if (typeof navigator.vibrate === 'function') navigator.vibrate(10);
+    } else if (dx > 50 && cur > 0) {
+      // swipe right = prev
+      var prevScreen = SCREENS_ORDER[cur - 1];
+      var base = getBasePath ? getBasePath() : '';
+      window.history.pushState(null, '', base ? base + '/' + prevScreen : '/' + prevScreen);
+      switchScreen(prevScreen);
+      if (typeof navigator.vibrate === 'function') navigator.vibrate(10);
+    }
+  }, { passive: true });
+})();
