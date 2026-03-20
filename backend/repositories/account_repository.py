@@ -230,6 +230,40 @@ class AccountRepository(BaseRepository):
 
             return {'insights': insights}
 
+    def update_transaction_note(self, transaction_id: int, account_id: int, note: str) -> bool:
+        with self.connection() as conn:
+            result = conn.execute(
+                'UPDATE transactions SET note = %s WHERE id = %s AND account_id = %s',
+                (note or None, transaction_id, account_id)
+            )
+            return (result.rowcount or 0) > 0
+
+    def list_transactions_with_contact(self, account_id: int, contact_account: str) -> list:
+        with self.connection() as conn:
+            return conn.execute(
+                '''SELECT * FROM transactions
+                   WHERE account_id = %s AND related_account = %s
+                   ORDER BY created_at DESC''',
+                (account_id, contact_account)
+            ).fetchall()
+
+    def get_achievements_data(self, account_id: int, user_id: int) -> dict:
+        with self.connection() as conn:
+            tx_count = conn.execute('SELECT COUNT(*) AS c FROM transactions WHERE account_id = %s', (account_id,)).fetchone()['c']
+            total_donated = conn.execute("SELECT COALESCE(SUM(amount),0) AS s FROM transactions WHERE account_id=%s AND tx_type='donation' AND direction='out'", (account_id,)).fetchone()['s']
+            total_saved = conn.execute("SELECT COALESCE(SUM(current_amount),0) AS s FROM savings_goals WHERE user_id=%s", (user_id,)).fetchone()['s']
+            goals_done = conn.execute("SELECT COUNT(*) AS c FROM savings_goals WHERE user_id=%s AND current_amount >= target_amount AND target_amount > 0", (user_id,)).fetchone()['c']
+            contacts_count = conn.execute('SELECT COUNT(*) AS c FROM family_contacts WHERE user_id=%s', (user_id,)).fetchone()['c']
+            transfers_count = conn.execute("SELECT COUNT(*) AS c FROM transactions WHERE account_id=%s AND tx_type='transfer'", (account_id,)).fetchone()['c']
+            return {
+                'tx_count': int(tx_count or 0),
+                'total_donated': float(total_donated or 0),
+                'total_saved': float(total_saved or 0),
+                'goals_done': int(goals_done or 0),
+                'contacts_count': int(contacts_count or 0),
+                'transfers_count': int(transfers_count or 0),
+            }
+
     def export_transactions_csv(self, account_id: int, from_date: str | None = None, to_date: str | None = None) -> str:
         transactions = self.list_transactions(account_id, from_date=from_date, to_date=to_date)
         output = io.StringIO()

@@ -108,6 +108,21 @@ class AuthService:
     def logout(self, token: str) -> None:
         self.users.delete_session(token)
 
+    def list_sessions(self, user_id: int, current_token: str) -> list:
+        sessions = self.users.list_sessions(user_id)
+        result = []
+        for s in sessions:
+            d = dict(s)
+            d['is_current'] = d.get('token') == current_token
+            d.pop('token', None)  # don't expose token
+            result.append(d)
+        return result
+
+    def revoke_session(self, session_id: int, user_id: int) -> None:
+        ok = self.users.delete_session_by_id(session_id, user_id)
+        if not ok:
+            raise ValueError('Сесію не знайдено.')
+
     def change_password(self, user_id: int, old_password: str, new_password: str) -> None:
         validate_password(new_password)
         user = self.users.get_by_id(user_id)

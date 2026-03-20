@@ -49,6 +49,23 @@ def me():
     }})
 
 
+@auth_bp.get('/sessions')
+@auth_required
+def list_sessions():
+    data = auth_service.list_sessions(g.current_user['id'], g.current_token)
+    return jsonify({'ok': True, 'data': data})
+
+
+@auth_bp.delete('/sessions/<int:session_id>')
+@auth_required
+def revoke_session(session_id: int):
+    try:
+        auth_service.revoke_session(session_id, g.current_user['id'])
+        return jsonify({'ok': True})
+    except Exception as exc:
+        return api_error(str(exc), 404)
+
+
 @auth_bp.put('/password')
 @auth_required
 def change_password():

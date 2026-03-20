@@ -135,7 +135,7 @@ function renderTransactions(list, container = '#transactionsList') {
           <div class="tx-dir-dot ${tx.direction}"></div>
           <div class="item-body">
             <div class="item-header">
-              <strong>${tx.description}</strong>
+              <strong>${tx.description}</strong>${tx.note ? ' <span title="Є нотатка" style="font-size:11px">📝</span>' : ''}
               <span class="amount ${tx.direction}">${tx.direction === 'in' ? '+' : '−'}${formatMoney(tx.amount)}</span>
             </div>
             <div class="muted">${TX_TYPE_LABELS[tx.tx_type] || tx.tx_type}${tx.related_account ? ` · ${tx.related_account}` : ''}</div>
@@ -201,9 +201,23 @@ async function openTxDrawer(txId) {
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         Поділитися
       </button>
+      <div class="drawer-note-section">
+        <label class="drawer-note-label">Нотатка</label>
+        <textarea id="drawerNoteInput" class="drawer-note-input" placeholder="Додайте особисту нотатку…" rows="2">${tx.note || ''}</textarea>
+        <button id="saveNoteBtn" class="btn-ghost btn-sm" style="margin-top:6px">Зберегти нотатку</button>
+      </div>
     `;
     $('#shareTxBtn')?.addEventListener('click', () => {
       if (typeof shareTransaction === 'function') shareTransaction(tx);
+    });
+    $('#saveNoteBtn')?.addEventListener('click', async () => {
+      const note = $('#drawerNoteInput')?.value || '';
+      try {
+        await api.request(`/api/transactions/${tx.id}/note`, {
+          method: 'PATCH', body: JSON.stringify({ note })
+        });
+        showToast('Нотатку збережено.', 'success');
+      } catch(e) { showToast(e.message); }
     });
   } catch (e) {
     if (body) body.innerHTML = `<div class="drawer-error">${e.message}</div>`;
@@ -350,6 +364,7 @@ async function loadAnalytics() {
   if (typeof loadInsights === 'function') loadInsights().catch(() => {});
   if (typeof loadBudgetLimits === 'function') loadBudgetLimits().catch(() => {});
   if (typeof renderHeatmap === 'function') renderHeatmap().catch(() => {});
+  if (typeof loadForecast === 'function') loadForecast().catch(() => {});
 }
 
 // ── PROFILE SCREEN ──────────────────────────────────────
@@ -362,6 +377,7 @@ function renderProfileScreen() {
   set('#piEmail',   state.user.email);
   set('#piAccount', state.account.account_number);
   set('#piRole',    roleLabels[state.user.role] || state.user.role);
+  loadAchievements();
 }
 
 // Change password form
@@ -404,7 +420,7 @@ $('#profileLogoutBtn')?.addEventListener('click', async () => {
 });
 
 // ── NAVIGATION ──────────────────────────────────────────
-const ALLOWED_SCREENS = ['dashboard', 'transactions', 'payouts', 'donations', 'savings', 'contacts', 'analytics', 'profile'];
+const ALLOWED_SCREENS = ['dashboard', 'transactions', 'payouts', 'donations', 'savings', 'contacts', 'analytics', 'profile', 'calendar'];
 
 function getBasePath() {
   return (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
@@ -435,6 +451,7 @@ function switchScreen(screenId) {
   if (id === 'transactions') loadTransactionsWithFilters();
   if (id === 'analytics') loadAnalytics();
   if (id === 'profile') renderProfileScreen();
+  if (id === 'calendar') loadCalendar();
 }
 
 async function refreshProfile() {
@@ -615,6 +632,9 @@ async function refreshAllData() {
         </div>
         <div class="item-btns">
           ${row.account_number ? `
+            <button class="btn-icon-history" data-history-account="${row.account_number}" data-history-name="${row.contact_name}" title="Історія переказів">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </button>
             <button class="btn-icon-transfer" data-transfer-account="${row.account_number}" title="Переказ" aria-label="Переказ">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </button>` : ''}
@@ -624,6 +644,52 @@ async function refreshAllData() {
         </div>
       </div>
     `, 'Контактів поки немає.');
+
+    // Bind contact history → drawer
+    $$('#contactsList [data-history-account]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const acc  = btn.dataset.historyAccount;
+        const name = btn.dataset.historyName;
+        openDrawer();
+        const body = $('#drawerBody');
+        if (body) body.innerHTML = '<div class="drawer-loading">Завантаження…</div>';
+        try {
+          const txs = await api.request(`/api/transactions/with-contact/${encodeURIComponent(acc)}`);
+          const totalIn  = txs.filter(t=>t.direction==='in').reduce((s,t)=>s+Number(t.amount),0);
+          const totalOut = txs.filter(t=>t.direction==='out').reduce((s,t)=>s+Number(t.amount),0);
+          if (body) body.innerHTML = `
+            <div style="margin-bottom:16px">
+              <div class="drawer-title" style="font-size:18px;font-weight:900;margin-bottom:4px">${name}</div>
+              <div class="muted">${acc}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+              <div style="background:var(--green-bg);border-radius:10px;padding:12px;text-align:center">
+                <div style="font-size:11px;color:var(--green);font-weight:700;text-transform:uppercase;margin-bottom:4px">Отримано</div>
+                <div style="font-size:16px;font-weight:900;color:var(--green)">+${formatMoney(totalIn)}</div>
+              </div>
+              <div style="background:var(--red-bg);border-radius:10px;padding:12px;text-align:center">
+                <div style="font-size:11px;color:var(--red);font-weight:700;text-transform:uppercase;margin-bottom:4px">Відправлено</div>
+                <div style="font-size:16px;font-weight:900;color:var(--red)">-${formatMoney(totalOut)}</div>
+              </div>
+            </div>
+            <div class="drawer-title" style="margin-bottom:10px">${txs.length} операцій</div>
+            ${txs.length ? txs.map(tx => `
+              <div class="item">
+                <div class="tx-dir-dot ${tx.direction}"></div>
+                <div class="item-body">
+                  <div class="item-header">
+                    <strong>${tx.description}</strong>
+                    <span class="amount ${tx.direction}">${tx.direction==='in'?'+':'−'}${formatMoney(tx.amount)}</span>
+                  </div>
+                  <div class="muted">${formatDate(tx.created_at)}</div>
+                </div>
+              </div>`).join('') : '<div class="empty-state">Переказів між вами ще немає.</div>'}
+          `;
+        } catch(e) {
+          if (body) body.innerHTML = `<div class="drawer-error">${e.message}</div>`;
+        }
+      });
+    });
 
     // Bind contact transfer → fill transfer form
     $$('#contactsList [data-transfer-account]').forEach((btn) => {
@@ -833,7 +899,7 @@ window.addEventListener('popstate', () => {
 $$('[data-jump]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.jump;
-    const screenMap = { history: 'transactions', 'donations-screen': 'donations', payouts: 'payouts', savings: 'savings', contacts: 'contacts' };
+    const screenMap = { history: 'transactions', 'donations-screen': 'donations', payouts: 'payouts', savings: 'savings', contacts: 'contacts', calendar: 'calendar' };
     if (screenMap[id]) {
       const target = screenMap[id];
       const base = getBasePath();
@@ -1717,3 +1783,354 @@ function shareTransaction(tx) {
     ).catch(() => showToast('Не вдалося скопіювати.'));
   }
 }
+
+// ── SESSION MANAGEMENT ─────────────────────────────────
+let _sessionsLoaded = false;
+$('#sessionsHead')?.addEventListener('click', async () => {
+  const list = $('#sessionsList');
+  const chevron = $('#sessionsChevron');
+  if (!list) return;
+  const isOpen = list.style.display !== 'none';
+  list.style.display = isOpen ? 'none' : 'block';
+  if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+  if (!isOpen && !_sessionsLoaded) {
+    _sessionsLoaded = true;
+    list.innerHTML = '<div class="sec-log-loading">Завантаження…</div>';
+    try {
+      const sessions = await api.request('/api/auth/sessions');
+      list.innerHTML = sessions.map(s => `
+        <div class="session-item">
+          <div class="session-info">
+            <div class="session-label">
+              ${s.is_current ? '<span class="session-current">Поточна</span> ' : ''}
+              Сесія #${s.id}
+            </div>
+            <div class="session-dates muted">Створено: ${formatDate(s.created_at)} · До: ${formatDate(s.expires_at)}</div>
+          </div>
+          ${!s.is_current ? `<button class="btn-icon-danger" data-revoke-session="${s.id}" title="Завершити сесію">×</button>` : ''}
+        </div>
+      `).join('') || '<div class="empty-state">Активних сесій немає.</div>';
+      list.querySelectorAll('[data-revoke-session]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = Number(btn.dataset.revokeSession);
+          confirmAction('Завершити сесію?', 'Ця сесія буде примусово завершена.', async () => {
+            try {
+              await api.request(`/api/auth/sessions/${id}`, { method: 'DELETE' });
+              _sessionsLoaded = false;
+              list.style.display = 'none';
+              if (chevron) chevron.style.transform = '';
+              showToast('Сесію завершено.', 'success');
+            } catch(e) { showToast(e.message); }
+          });
+        });
+      });
+    } catch(e) {
+      list.innerHTML = `<div class="sec-log-error">${e.message}</div>`;
+    }
+  }
+});
+
+// ── ACHIEVEMENTS ──────────────────────────────────────
+async function loadAchievements() {
+  const listEl = $('#achievementsList');
+  const countEl = $('#achieveCount');
+  if (!listEl) return;
+  try {
+    const data = await api.request('/api/achievements');
+    const { achievements, done, total } = data;
+    if (countEl) countEl.textContent = `${done}/${total}`;
+    listEl.innerHTML = achievements.map(a => `
+      <div class="achieve-item ${a.done ? 'done' : 'locked'}">
+        <div class="achieve-icon">${a.icon}</div>
+        <div class="achieve-body">
+          <div class="achieve-title">${a.title}</div>
+          <div class="achieve-desc">${a.desc}</div>
+        </div>
+        ${a.done ? '<div class="achieve-check">✓</div>' : ''}
+      </div>
+    `).join('');
+  } catch(_) {}
+}
+
+// ── SAVINGS CALCULATOR ─────────────────────────────────
+function updateSavingsCalc() {
+  const target  = parseFloat($('#calcTarget')?.value  || 0);
+  const monthly = parseFloat($('#calcMonthly')?.value || 0);
+  const current = parseFloat($('#calcCurrent')?.value || 0);
+  const result  = $('#calcResult');
+  if (!result) return;
+
+  if (!target || !monthly || monthly <= 0) {
+    result.innerHTML = '<span class="muted">Введіть суму цілі та щомісячний внесок.</span>';
+    return;
+  }
+
+  const remaining = Math.max(0, target - current);
+  const months = Math.ceil(remaining / monthly);
+  const years = Math.floor(months / 12);
+  const remMonths = months % 12;
+
+  const now = new Date();
+  const finishDate = new Date(now.getFullYear(), now.getMonth() + months, 1);
+  const dateStr = finishDate.toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' });
+
+  let timeStr = '';
+  if (months === 0) timeStr = 'Ціль вже досягнута! 🎉';
+  else if (years > 0) timeStr = `${years} р. ${remMonths ? remMonths + ' міс.' : ''}`;
+  else timeStr = `${months} міс.`;
+
+  const pct = target > 0 ? Math.min(100, Math.round(current / target * 100)) : 0;
+
+  result.innerHTML = `
+    <div class="calc-answer">
+      <div class="calc-main">${timeStr}</div>
+      <div class="muted">до ${dateStr} · ${remaining > 0 ? formatMoney(remaining) + ' залишилось' : 'ціль досягнута'}</div>
+    </div>
+    <div class="progress-bar-wrap" style="margin-top:10px">
+      <div class="progress-bar" style="width:${pct}%"></div>
+    </div>
+    <div class="muted" style="font-size:11px;margin-top:4px">${pct}% досягнуто</div>
+  `;
+}
+
+['#calcTarget','#calcMonthly','#calcCurrent'].forEach(sel => {
+  $(sel)?.addEventListener('input', updateSavingsCalc);
+});
+if ($('#calcTarget')) updateSavingsCalc();
+
+// ── CALENDAR VIEW ─────────────────────────────────────
+let _calYear = new Date().getFullYear();
+let _calMonth = new Date().getMonth();
+let _calTxData = {};
+
+async function loadCalendar() {
+  const from = new Date(_calYear, _calMonth, 1).toISOString().slice(0,10);
+  const to   = new Date(_calYear, _calMonth+1, 0).toISOString().slice(0,10);
+  try {
+    const txs = await api.request(`/api/transactions/history?from_date=${from}&to_date=${to}`);
+    _calTxData = {};
+    txs.forEach(tx => {
+      const d = (tx.created_at||'').slice(0,10);
+      if (!_calTxData[d]) _calTxData[d] = { in: 0, out: 0, count: 0, txs: [] };
+      _calTxData[d].count++;
+      _calTxData[d][tx.direction] += Number(tx.amount);
+      _calTxData[d].txs.push(tx);
+    });
+    renderCalendar();
+  } catch(_) {}
+}
+
+function renderCalendar() {
+  const label = $('#calMonthLabel');
+  if (label) {
+    label.textContent = new Date(_calYear, _calMonth, 1)
+      .toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' });
+  }
+  const grid = $('#calGrid');
+  if (!grid) return;
+
+  const firstDay = new Date(_calYear, _calMonth, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(_calYear, _calMonth+1, 0).getDate();
+  const today = new Date().toISOString().slice(0,10);
+
+  let html = '';
+  for (let i = 0; i < firstDay; i++) html += '<div class="cal-cell cal-empty"></div>';
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayData = _calTxData[dateStr];
+    const isToday = dateStr === today;
+    let dots = '';
+    if (dayData) {
+      if (dayData.in > 0)  dots += '<span class="cal-dot in"></span>';
+      if (dayData.out > 0) dots += '<span class="cal-dot out"></span>';
+    }
+    html += `
+      <div class="cal-cell ${isToday ? 'today' : ''} ${dayData ? 'has-tx' : ''}" data-cal-date="${dateStr}">
+        <span class="cal-day-num">${d}</span>
+        <div class="cal-dots">${dots}</div>
+      </div>`;
+  }
+  grid.innerHTML = html;
+
+  grid.querySelectorAll('.cal-cell[data-cal-date]').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const date = cell.dataset.calDate;
+      const dayData = _calTxData[date];
+      const detail = $('#calDayDetail');
+      const dayTitle = $('#calDayTitle');
+      const dayList = $('#calDayList');
+      if (!detail) return;
+      if (!dayData || !dayData.txs.length) { detail.style.display = 'none'; return; }
+      detail.style.display = 'block';
+      if (dayTitle) dayTitle.textContent = new Date(date + 'T12:00:00').toLocaleDateString('uk-UA', { weekday:'long', day:'numeric', month:'long' });
+      if (dayList) {
+        dayList.innerHTML = dayData.txs.map(tx => `
+          <div class="item">
+            <div class="tx-dir-dot ${tx.direction}"></div>
+            <div class="item-body">
+              <div class="item-header">
+                <strong>${tx.description}</strong>
+                <span class="amount ${tx.direction}">${tx.direction==='in'?'+':'−'}${formatMoney(tx.amount)}</span>
+              </div>
+              <div class="muted">${(TX_TYPE_LABELS||{})[tx.tx_type]||tx.tx_type}</div>
+            </div>
+          </div>`).join('');
+      }
+      grid.querySelectorAll('.cal-cell').forEach(c => c.classList.toggle('selected', c.dataset.calDate === date));
+    });
+  });
+}
+
+$('#calPrev')?.addEventListener('click', () => {
+  _calMonth--;
+  if (_calMonth < 0) { _calMonth = 11; _calYear--; }
+  const det = $('#calDayDetail');
+  if (det) det.style.display = 'none';
+  loadCalendar();
+});
+$('#calNext')?.addEventListener('click', () => {
+  _calMonth++;
+  if (_calMonth > 11) { _calMonth = 0; _calYear++; }
+  const det = $('#calDayDetail');
+  if (det) det.style.display = 'none';
+  loadCalendar();
+});
+
+// ── SOUND EFFECTS ─────────────────────────────────────
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let _audioCtx = null;
+
+function playSound(type) {
+  if (localStorage.getItem('ab_sound') === 'false') return;
+  try {
+    if (!_audioCtx) _audioCtx = new AudioCtx();
+    const osc = _audioCtx.createOscillator();
+    const gain = _audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(_audioCtx.destination);
+
+    if (type === 'success') {
+      osc.frequency.setValueAtTime(523, _audioCtx.currentTime);
+      osc.frequency.setValueAtTime(659, _audioCtx.currentTime + 0.1);
+      osc.frequency.setValueAtTime(784, _audioCtx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.08, _audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, _audioCtx.currentTime + 0.5);
+      osc.start(_audioCtx.currentTime);
+      osc.stop(_audioCtx.currentTime + 0.5);
+    } else if (type === 'error') {
+      osc.frequency.setValueAtTime(220, _audioCtx.currentTime);
+      osc.frequency.setValueAtTime(180, _audioCtx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.06, _audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, _audioCtx.currentTime + 0.3);
+      osc.start(_audioCtx.currentTime);
+      osc.stop(_audioCtx.currentTime + 0.3);
+    } else if (type === 'click') {
+      osc.frequency.setValueAtTime(800, _audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.03, _audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, _audioCtx.currentTime + 0.05);
+      osc.start(_audioCtx.currentTime);
+      osc.stop(_audioCtx.currentTime + 0.05);
+    }
+  } catch(_) {}
+}
+
+function haptic(pattern = [10]) {
+  if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
+function initSound() {
+  const toggle = $('#soundToggle');
+  const saved = localStorage.getItem('ab_sound') !== 'false';
+  if (toggle) toggle.checked = saved;
+}
+$('#soundToggle')?.addEventListener('change', function() {
+  localStorage.setItem('ab_sound', this.checked ? 'true' : 'false');
+});
+initSound();
+
+// Patch showToast to play sounds
+(function() {
+  const _origShowToast = showToast;
+  window.showToast = function(message, type) {
+    _origShowToast(message, type);
+    if (type === 'success') { playSound('success'); haptic([15]); }
+    else if (!type && message) playSound('error');
+  };
+})();
+
+// ── BALANCE FORECAST ──────────────────────────────────
+async function loadForecast() {
+  const el = $('#forecastContent');
+  if (!el) return;
+  try {
+    const [history, analytics] = await Promise.all([
+      api.request('/api/analytics/balance-history?days=30'),
+      api.request('/api/analytics/summary'),
+    ]);
+    if (!history || history.length < 7) {
+      el.innerHTML = '<div class="empty-state">Недостатньо даних для прогнозу.</div>';
+      return;
+    }
+
+    const cur = analytics.current_month || {};
+    const monthlyNet = (cur.total_in || 0) - (cur.total_out || 0);
+    const currentBalance = history[history.length - 1]?.balance || 0;
+
+    const forecasts = [1, 3, 6].map(months => ({
+      months,
+      balance: Math.max(0, currentBalance + monthlyNet * months),
+    }));
+
+    const trend = monthlyNet >= 0 ? 'green' : 'red';
+    const trendText = monthlyNet >= 0 ? `+${formatMoney(monthlyNet)}/міс` : `${formatMoney(monthlyNet)}/міс`;
+
+    el.innerHTML = `
+      <div class="forecast-trend muted" style="margin-bottom:14px">
+        Середній місячний баланс: <strong style="color:var(--${trend})">${trendText}</strong>
+      </div>
+      <div class="forecast-grid">
+        ${forecasts.map(f => `
+          <div class="forecast-item">
+            <div class="forecast-period">${f.months} ${f.months===1?'місяць':f.months<5?'місяці':'місяців'}</div>
+            <div class="forecast-balance ${f.balance > currentBalance ? 'up' : 'down'}">${formatMoney(f.balance)}</div>
+            <div class="forecast-change muted">
+              ${f.balance > currentBalance ? '↑' : '↓'} ${formatMoney(Math.abs(f.balance - currentBalance))}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch(_) {}
+}
+
+// ── MULTI-TAB SYNC ─────────────────────────────────────
+(function initTabSync() {
+  if (!('BroadcastChannel' in window)) return;
+  const bc = new BroadcastChannel('army_bank_sync');
+  window._bcChannel = bc;
+
+  bc.addEventListener('message', e => {
+    if (e.data?.type === 'DATA_UPDATED' && api.token) {
+      refreshAllData().catch(() => {});
+    }
+    if (e.data?.type === 'LOGOUT') {
+      api.setToken('');
+      setAuthenticated(false);
+      showToast('Вийшли в іншій вкладці.');
+    }
+  });
+
+  const _origRefreshAllData = window.refreshAllData || refreshAllData;
+  window.refreshAllData = async function() {
+    await _origRefreshAllData();
+    bc.postMessage({ type: 'DATA_UPDATED' });
+  };
+
+  const logoutBtn = $('#logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      bc.postMessage({ type: 'LOGOUT' });
+    });
+  }
+})();

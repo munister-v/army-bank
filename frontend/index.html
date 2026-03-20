@@ -149,6 +149,12 @@
           </span>
           <span class="qa-label">Донати</span>
         </button>
+        <button type="button" class="qa-btn" data-jump="calendar">
+          <span class="qa-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </span>
+          <span class="qa-label">Календар</span>
+        </button>
       </div>
 
       <!-- Nav moved inside header so it sits in the sidebar column on desktop -->
@@ -427,6 +433,23 @@
       <!-- SAVINGS -->
       <section id="savings" class="screen">
         <h2 class="section-title">Накопичення</h2>
+
+        <!-- Savings calculator -->
+        <div class="card calculator-card">
+          <div class="card-head">
+            <div class="card-icon-wrap purple">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+            </div>
+            <h3>Калькулятор накопичень</h3>
+          </div>
+          <div class="calc-grid">
+            <label class="lbl">Сума цілі, ₴<input id="calcTarget" type="number" placeholder="50000" value="50000"></label>
+            <label class="lbl">Щомісячний внесок, ₴<input id="calcMonthly" type="number" placeholder="2000" value="2000"></label>
+            <label class="lbl">Вже накопичено, ₴<input id="calcCurrent" type="number" placeholder="0" value="0"></label>
+          </div>
+          <div id="calcResult" class="calc-result"></div>
+        </div>
+
         <div class="cards-row">
           <form id="goalForm" class="card">
             <div class="card-head">
@@ -515,6 +538,17 @@
         <div class="card">
           <div class="card-head"><h3>Оборот за 6 місяців</h3></div>
           <div id="analyticsBarChart" class="bar-chart"></div>
+        </div>
+
+        <!-- Balance forecast -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-icon-wrap green">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+            </div>
+            <h3>Прогноз балансу</h3>
+          </div>
+          <div id="forecastContent" class="forecast-content"></div>
         </div>
 
         <!-- Spending insights -->
@@ -651,7 +685,29 @@
                 <span class="toggle-knob"></span>
               </label>
             </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-label">Звукові ефекти</div>
+                <div class="setting-desc">Звук при успішних операціях</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="soundToggle" checked>
+                <span class="toggle-knob"></span>
+              </label>
+            </div>
           </div>
+        </div>
+
+        <!-- Achievements card -->
+        <div class="card" id="achievementsCard">
+          <div class="card-head">
+            <div class="card-icon-wrap yellow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+            </div>
+            <h3>Досягнення</h3>
+            <span id="achieveCount" class="muted" style="margin-left:auto;font-size:12px;font-weight:700">…</span>
+          </div>
+          <div id="achievementsList" class="achievements-grid"></div>
         </div>
 
         <!-- Change password card -->
@@ -682,6 +738,18 @@
           <div id="securityLogList" class="list" style="display:none"></div>
         </div>
 
+        <!-- Active sessions card -->
+        <div class="card">
+          <div class="card-head" id="sessionsHead" style="cursor:pointer">
+            <div class="card-icon-wrap blue">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <h3>Активні сесії</h3>
+            <svg id="sessionsChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-left:auto;transition:transform .2s"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div id="sessionsList" class="list" style="display:none"></div>
+        </div>
+
         <!-- Quick links -->
         <div class="card">
           <div class="card-head"><h3>Швидкі посилання</h3></div>
@@ -703,6 +771,28 @@
               Вийти
             </button>
           </div>
+        </div>
+      </section>
+
+      <!-- CALENDAR -->
+      <section id="calendar" class="screen">
+        <div class="section-header-row">
+          <h2 class="section-title">Календар</h2>
+          <div class="cal-nav">
+            <button id="calPrev" class="icon-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+            <span id="calMonthLabel" class="cal-month-label"></span>
+            <button id="calNext" class="icon-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="cal-weekdays">
+            <span>Нд</span><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span>
+          </div>
+          <div id="calGrid" class="cal-grid"></div>
+        </div>
+        <div class="card" id="calDayDetail" style="display:none">
+          <div class="card-head"><h3 id="calDayTitle">Операції</h3></div>
+          <div id="calDayList" class="list"></div>
         </div>
       </section>
 

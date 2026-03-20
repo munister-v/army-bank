@@ -1450,3 +1450,96 @@ button:focus-visible, a:focus-visible {
 
 /* ══ CONFETTI ════════════════════════════════════════ */
 #confettiCanvas { pointer-events: none; }
+
+/* ══ ACHIEVEMENTS ══════════════════════════════════════ */
+.achievements-grid { display: flex; flex-direction: column; gap: 0; }
+.achieve-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 0; border-bottom: 1px solid var(--border);
+  transition: opacity .2s;
+}
+.achieve-item:last-child { border-bottom: 0; }
+.achieve-item.locked { opacity: .45; }
+.achieve-icon { font-size: 22px; flex-shrink: 0; width: 32px; text-align: center; }
+.achieve-body { flex: 1; min-width: 0; }
+.achieve-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+.achieve-desc { font-size: 11px; color: var(--muted); }
+.achieve-check { color: var(--green); font-size: 16px; font-weight: 900; flex-shrink: 0; }
+
+/* ══ SAVINGS CALCULATOR ════════════════════════════════ */
+.calculator-card { margin-bottom: 12px; }
+.calc-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+@media (max-width: 480px) { .calc-grid { grid-template-columns: 1fr; } }
+.calc-result { padding: 14px; background: var(--surface2); border-radius: var(--radius-sm); }
+.calc-answer { }
+.calc-main { font-size: 24px; font-weight: 900; letter-spacing: -.03em; margin-bottom: 4px; }
+
+/* ══ CALENDAR ══════════════════════════════════════════ */
+.cal-nav { display: flex; align-items: center; gap: 8px; }
+.cal-month-label { font-size: 14px; font-weight: 700; min-width: 130px; text-align: center; }
+.cal-weekdays {
+  display: grid; grid-template-columns: repeat(7,1fr);
+  text-align: center; margin-bottom: 8px;
+}
+.cal-weekdays span { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; padding: 4px 0; }
+.cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
+.cal-cell {
+  aspect-ratio: 1;
+  border-radius: var(--radius-xs);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; position: relative;
+  transition: background .1s;
+  padding: 2px;
+}
+.cal-cell:hover { background: rgba(255,255,255,.06); }
+.cal-cell.today { background: rgba(255,255,255,.1); }
+.cal-cell.today .cal-day-num { color: var(--text); font-weight: 900; }
+.cal-cell.has-tx { }
+.cal-cell.selected { background: rgba(255,255,255,.12); outline: 1px solid rgba(255,255,255,.3); }
+.cal-cell.cal-empty { pointer-events: none; }
+.cal-day-num { font-size: 12px; font-weight: 600; line-height: 1; }
+.cal-dots { display: flex; gap: 2px; margin-top: 2px; }
+.cal-dot { width: 4px; height: 4px; border-radius: 50%; }
+.cal-dot.in  { background: var(--green); }
+.cal-dot.out { background: var(--red); }
+
+/* ══ SESSION MANAGEMENT ════════════════════════════════ */
+.session-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.session-item:last-child { border-bottom: 0; }
+.session-info { flex: 1; min-width: 0; }
+.session-label { font-size: 13px; font-weight: 600; }
+.session-current { display: inline-block; background: var(--green-bg); color: var(--green); font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 100px; margin-right: 4px; text-transform: uppercase; letter-spacing: .05em; }
+.session-dates { font-size: 11px; margin-top: 2px; }
+
+/* ══ CONTACT HISTORY BUTTON ════════════════════════════ */
+.btn-icon-history {
+  width: 30px; height: 30px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); background: transparent;
+  cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+  color: var(--text-2); flex-shrink: 0;
+}
+.btn-icon-history:hover { background: rgba(250,204,21,.12); border-color: var(--yellow); color: var(--yellow); }
+
+/* ══ DRAWER NOTE ═══════════════════════════════════════ */
+.drawer-note-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.drawer-note-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; display: block; margin-bottom: 6px; }
+.drawer-note-input {
+  width: 100%; padding: 10px 12px;
+  border-radius: var(--radius-xs); border: 1px solid var(--border);
+  background: rgba(255,255,255,.04); color: var(--text);
+  font-family: inherit; font-size: 13px; line-height: 1.5;
+  resize: vertical; min-height: 60px;
+  transition: border-color .2s;
+}
+.drawer-note-input:focus { outline: none; border-color: rgba(255,255,255,.4); }
+
+/* ══ FORECAST ══════════════════════════════════════════ */
+.forecast-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+.forecast-item { text-align: center; padding: 12px 8px; background: var(--surface2); border-radius: var(--radius-sm); }
+.forecast-period { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.forecast-balance { font-size: 15px; font-weight: 900; letter-spacing: -.02em; }
+.forecast-balance.up   { color: var(--green); }
+.forecast-balance.down { color: var(--red); }
+.forecast-change { font-size: 11px; margin-top: 3px; }
+@media (max-width: 480px) { .forecast-grid { grid-template-columns: 1fr; } }

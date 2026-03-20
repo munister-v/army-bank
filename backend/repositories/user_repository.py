@@ -59,6 +59,21 @@ class UserRepository(BaseRepository):
                 (user_id, __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat()),
             )
 
+    def list_sessions(self, user_id: int):
+        with self.connection() as conn:
+            return conn.execute(
+                'SELECT id, token, expires_at, created_at FROM sessions WHERE user_id = %s ORDER BY created_at DESC',
+                (user_id,)
+            ).fetchall()
+
+    def delete_session_by_id(self, session_id: int, user_id: int) -> bool:
+        with self.connection() as conn:
+            result = conn.execute(
+                'DELETE FROM sessions WHERE id = %s AND user_id = %s',
+                (session_id, user_id)
+            )
+            return (result.rowcount or 0) > 0
+
     def list_all(self, role_filter: str | None = None, search: str | None = None):
         with self.connection() as conn:
             sql = 'SELECT id, full_name, phone, email, role, military_status, created_at FROM users WHERE 1=1'

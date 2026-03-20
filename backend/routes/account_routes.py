@@ -107,6 +107,38 @@ def spending_insights():
         return api_error(str(exc))
 
 
+@account_bp.patch('/transactions/<int:transaction_id>/note')
+@auth_required
+def update_note(transaction_id: int):
+    try:
+        data = request.get_json(force=True)
+        note = (data.get('note') or '').strip()
+        tx = service.update_transaction_note(g.current_user['id'], transaction_id, note)
+        return jsonify({'ok': True, 'data': tx})
+    except Exception as exc:
+        return api_error(str(exc), 404)
+
+
+@account_bp.get('/transactions/with-contact/<string:account_number>')
+@auth_required
+def transactions_with_contact(account_number: str):
+    try:
+        data = service.list_transactions_with_contact(g.current_user['id'], account_number)
+        return jsonify({'ok': True, 'data': data})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@account_bp.get('/achievements')
+@auth_required
+def achievements():
+    try:
+        data = service.get_achievements(g.current_user['id'])
+        return jsonify({'ok': True, 'data': data})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
 @account_bp.get('/transactions/export')
 @auth_required
 def export_csv():

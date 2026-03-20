@@ -115,11 +115,19 @@ def init_db() -> None:
             with conn.cursor() as cur:
                 cur.execute(schema_sql)
                 cur.execute(BUDGET_LIMITS_DDL)
+                try:
+                    cur.execute('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS note TEXT;')
+                except Exception:
+                    pass
     else:
         schema_sql = Path(SCHEMA_PATH).read_text(encoding='utf-8')
         with get_connection_sqlite() as conn:
             conn.executescript(schema_sql)
             conn.executescript(BUDGET_LIMITS_DDL_SQLITE)
+            try:
+                conn.execute('ALTER TABLE transactions ADD COLUMN note TEXT;')
+            except Exception:
+                pass
 
 
 def init_admin() -> None:
