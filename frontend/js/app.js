@@ -120,11 +120,14 @@ function renderTransactions(list, container = '#transactionsList') {
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 
   function dayLabel(day) {
+    if (!day || day.length < 8) return 'Невідома дата';
     if (day === today) return 'Сьогодні';
     if (day === yesterday) return 'Вчора';
     try {
-      return new Date(day).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', weekday: 'short' });
-    } catch(_) { return day; }
+      const d = new Date(day + 'T00:00:00');
+      if (isNaN(d.getTime())) return day || 'Невідома дата';
+      return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', weekday: 'short' });
+    } catch(_) { return day || 'Невідома дата'; }
   }
 
   el.innerHTML = Object.keys(groups).sort((a,b) => b.localeCompare(a)).map(day => `

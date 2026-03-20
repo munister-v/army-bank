@@ -1828,7 +1828,8 @@ button:focus-visible, a:focus-visible {
 @media (min-width: 1200px) {
   .screen { max-width: 1140px; }
 
-  #dashboard {
+  /* IMPORTANT: use .active-screen so display:none from .screen is not overridden */
+  #dashboard.active-screen {
     display: grid;
     grid-template-columns: 1fr 340px;
     column-gap: 20px;
@@ -1836,13 +1837,13 @@ button:focus-visible, a:focus-visible {
     align-items: start;
   }
   /* Default: all go to col 1 */
-  #dashboard > * { grid-column: 1; min-width: 0; }
-  /* Sidebar cards → col 2 */
-  #dashboard .currency-card,
-  #dashboard .velocity-card,
-  #dashboard #topRecipientsCard,
-  #dashboard #sparklineCard { grid-column: 2; min-width: 0; overflow: hidden; }
+  #dashboard.active-screen > * { grid-column: 1; min-width: 0; }
+  /* Sidebar widgets → col 2 */
+  #dashboard.active-screen .currency-card,
+  #dashboard.active-screen .velocity-card,
+  #dashboard.active-screen #topRecipientsCard,
+  #dashboard.active-screen #sparklineCard { grid-column: 2; min-width: 0; overflow: hidden; }
   /* Full-width items */
-  #dashboard .section-title,
-  #dashboard .month-strip { grid-column: 1 / -1; }
+  #dashboard.active-screen .section-title,
+  #dashboard.active-screen .month-strip { grid-column: 1 / -1; }
 }
