@@ -100,7 +100,7 @@ class FeatureRepository(BaseRepository):
     def list_payment_templates(self, user_id: int):
         with self.connection() as conn:
             return conn.execute(
-                'SELECT * FROM payment_templates WHERE user_id = %s OR is_system = 1 ORDER BY name',
+                'SELECT * FROM payment_templates WHERE user_id = %s OR is_system = TRUE ORDER BY name',
                 (user_id,),
             ).fetchall()
 

@@ -1,8 +1,10 @@
-// Базовий клієнт для роботи з REST API Армійського Банку.
+// Army Bank — REST API клієнт
 // При розміщенні на сайті під /bank (наприклад munister.com.ua/bank) використовується window.ARMY_BANK_BASE.
 const BASE = (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
 
 const api = {
+  // ── Token ──────────────────────────────────────────────────────────────────
+  // Читаємо з localStorage — зберігається назавжди до явного виходу
   token: localStorage.getItem('army_bank_token') || '',
 
   setToken(token) {
@@ -14,6 +16,7 @@ const api = {
     }
   },
 
+  // ── HTTP ───────────────────────────────────────────────────────────────────
   async request(url, options = {}) {
     const fullUrl = (url.startsWith('http') || url.startsWith('//')) ? url : BASE + url;
     const headers = {
@@ -25,6 +28,13 @@ const api = {
     }
 
     const response = await fetch(fullUrl, { ...options, headers });
+
+    // Автооновлення токену — якщо сервер повернув X-Refresh-Token
+    const refreshed = response.headers.get('X-Refresh-Token');
+    if (refreshed && refreshed !== this.token) {
+      this.setToken(refreshed);
+    }
+
     let payload;
     try {
       const text = await response.text();
@@ -32,9 +42,101 @@ const api = {
     } catch {
       throw new Error(response.ok ? 'Помилка читання відповіді.' : 'Помилка сервера. Спробуйте пізніше.');
     }
+
     if (!response.ok || payload.ok === false) {
+      // При 401 — очищаємо токен щоб не ходити з невалідним
+      if (response.status === 401) {
+        this.setToken('');
+      }
       throw new Error(payload.error || 'Помилка запиту до сервера.');
     }
+
     return payload.data ?? payload;
+  },
+
+  // ── Web Push ───────────────────────────────────────────────────────────────
+
+  _urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64);
+    return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+  },
+
+  async _getVapidKey() {
+    // Fetch actual VAPID key from server so it always matches backend config
+    try {
+      const data = await this.request('/api/push/vapid-public-key');
+      return typeof data === 'string' ? data : data.key || data;
+    } catch (_) {
+      return 'BBkDBdD-nffWa34kkN60vFPKbsiUhz4htDfdAQUp7eVrlLIiaAveTB_qd5xGxGaUrTOXsSk50GmdYnmOARV9wJs';
+    }
+  },
+
+  async subscribePush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const vapidKey = await this._getVapidKey();
+
+      // Unsubscribe stale subscription if key changed
+      let sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        // Check if key still matches (iOS creates new sub per install)
+        const existingKey = sub.options?.applicationServerKey;
+        if (existingKey) {
+          const existingB64 = btoa(String.fromCharCode(...new Uint8Array(existingKey)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+          if (existingB64 !== vapidKey.replace(/=/g, '')) {
+            await sub.unsubscribe();
+            sub = null;
+          }
+        }
+      }
+
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: this._urlBase64ToUint8Array(vapidKey),
+        });
+      }
+
+      const key  = sub.getKey('p256dh');
+      const auth = sub.getKey('auth');
+      await this.request('/api/push/subscribe', {
+        method: 'POST',
+        body: JSON.stringify({
+          endpoint: sub.endpoint,
+          p256dh: btoa(String.fromCharCode(...new Uint8Array(key))),
+          auth:   btoa(String.fromCharCode(...new Uint8Array(auth))),
+        }),
+      });
+      return true;
+    } catch (err) {
+      console.warn('[push] subscribePush failed:', err);
+      return false;
+    }
+  },
+
+  async requestPushPermission() {
+    if (!('Notification' in window)) return false;
+    if (Notification.permission === 'granted') return this.subscribePush();
+    if (Notification.permission === 'denied') return false;
+    // requestPermission must be called synchronously from a user gesture
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') return this.subscribePush();
+    return false;
+  },
+
+  async pushStatus() {
+    try {
+      return await this.request('/api/push/status');
+    } catch (_) {
+      return null;
+    }
+  },
+
+  async testPush() {
+    return this.request('/api/push/test', { method: 'POST' });
   },
 };

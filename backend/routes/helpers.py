@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 from functools import wraps
-from flask import jsonify, request, g
+from flask import jsonify, request, g, after_this_request
 
 from ..services.auth_service import AuthService
+from ..utils.security import should_refresh_session
 
 auth_service = AuthService()
 
@@ -14,7 +15,12 @@ def api_error(message: str, status: int = 400):
 
 
 def auth_required(func):
-    """Перевіряє Bearer-токен і передає користувача в g.current_user."""
+    """Перевіряє Bearer-токен.
+
+    - Записує g.current_user і g.current_token.
+    - Якщо до закінчення сесії < 7 днів — автоматично продовжує токен
+      і повертає новий у заголовку X-Refresh-Token.
+    """
     @wraps(func)
     def wrapper(*args, **kwargs):
         header = request.headers.get('Authorization', '')
@@ -24,8 +30,20 @@ def auth_required(func):
         user = auth_service.get_user_by_token(token)
         if not user:
             return api_error('Недійсна або прострочена сесія.', 401)
+
         g.current_user = user
         g.current_token = token
+
+        # Автооновлення сесії якщо залишилось < 7 днів
+        if should_refresh_session(user.get('expires_at', '')):
+            new_token = auth_service.refresh_session(token, user['id'])
+            if new_token:
+                @after_this_request
+                def add_refresh_header(response):
+                    response.headers['X-Refresh-Token'] = new_token
+                    response.headers['Access-Control-Expose-Headers'] = 'X-Refresh-Token'
+                    return response
+
         return func(*args, **kwargs)
     return wrapper
 

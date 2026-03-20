@@ -6,7 +6,10 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
-from .config import DATABASE_PATH, DATABASE_URL, SCHEMA_PATH, SCHEMA_PG_PATH, USE_PG
+from .config import (
+    DATABASE_PATH, DATABASE_URL, SCHEMA_PATH, SCHEMA_PG_PATH, USE_PG,
+    ADMIN_EMAIL, ADMIN_PHONE, ADMIN_NAME, ADMIN_PASSWORD,
+)
 
 if USE_PG:
     import psycopg2
@@ -92,6 +95,55 @@ def init_db() -> None:
         schema_sql = Path(SCHEMA_PATH).read_text(encoding='utf-8')
         with get_connection_sqlite() as conn:
             conn.executescript(schema_sql)
+
+
+def init_admin() -> None:
+    """Якщо задано ADMIN_EMAIL + ADMIN_PASSWORD і ще немає platform_admin — сідає seed-адмін."""
+    if not ADMIN_EMAIL or not ADMIN_PASSWORD:
+        return
+    try:
+        import bcrypt as _bcrypt
+
+        def _hash(pw: str) -> str:
+            return _bcrypt.hashpw(pw.encode(), _bcrypt.gensalt()).decode()
+    except ImportError:
+        import hashlib as _hashlib
+
+        def _hash(pw: str) -> str:
+            return _hashlib.sha256(pw.encode()).hexdigest()
+
+    with get_connection() as conn:
+        admin_cnt = conn.execute(
+            "SELECT COUNT(*) as n FROM users WHERE role IN ('admin','platform_admin')"
+        ).fetchone()
+        if admin_cnt and admin_cnt['n'] > 0:
+            return  # already seeded
+
+        # Check if user exists, update role; otherwise create
+        existing = conn.execute(
+            'SELECT id FROM users WHERE email = %s OR phone = %s',
+            (ADMIN_EMAIL, ADMIN_PHONE)
+        ).fetchone()
+
+        if existing:
+            conn.execute(
+                "UPDATE users SET role = 'platform_admin' WHERE id = %s",
+                (existing['id'],)
+            )
+        else:
+            pw_hash = _hash(ADMIN_PASSWORD)
+            suffix = get_returning_id_suffix()
+            cur = conn.execute(
+                'INSERT INTO users (full_name, phone, email, password_hash, role) '
+                "VALUES (%s, %s, %s, %s, 'platform_admin')" + suffix,
+                (ADMIN_NAME, ADMIN_PHONE, ADMIN_EMAIL, pw_hash)
+            )
+            uid = insert_last_id(cur)
+            acc_num = f'AB-{100000 + uid}'
+            conn.execute(
+                'INSERT INTO accounts (user_id, account_number) VALUES (%s, %s)',
+                (uid, acc_num)
+            )
 
 
 def get_returning_id_suffix() -> str:

@@ -1,0 +1,26 @@
+{
+  "name": "Army Bank",
+  "short_name": "Army Bank",
+  "description": "Цифровий банкінг для захисників України",
+  "theme_color": "#07090f",
+  "background_color": "#07090f",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "start_url": "/",
+  "lang": "uk",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%2307090f'/><path d='M96 28L36 60v52c0 42 26 80 60 96 34-16 60-54 60-96V60z' fill='%23161c10' stroke='%23c8a84b' stroke-width='4'/><path d='M96 44L48 68v44c0 32 20 62 48 76 28-14 48-44 48-76V68z' fill='rgba(200,168,75,.1)' stroke='%23c8a84b' stroke-width='2'/><path d='M78 96l14 14 28-28' stroke='%23c8a84b' stroke-width='9' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='110' fill='%2307090f'/><path d='M256 72L96 160v140c0 114 70 216 160 258 90-42 160-144 160-258V160z' fill='%23161c10' stroke='%23c8a84b' stroke-width='10'/><path d='M256 116L128 188v112c0 86 54 164 128 198 74-34 128-112 128-198V188z' fill='rgba(200,168,75,.1)' stroke='%23c8a84b' stroke-width='6'/><path d='M204 256l40 40 76-76' stroke='%23c8a84b' stroke-width='26' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["finance"],
+  "screenshots": []
+}
