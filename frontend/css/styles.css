@@ -403,7 +403,7 @@ button { font-family: inherit; cursor: pointer; }
 .btn-ghost:hover { background: rgba(255,255,255,.06); }
 
 /* Legacy button override for forms that use bare <button> */
-.card button:not(.btn-accent):not(.btn-ghost):not(.icon-btn) {
+.card button:not(.btn-accent):not(.btn-ghost):not(.icon-btn):not(.qa-chip):not(.pin-key):not(.tag-chip):not(.btn-icon-danger):not(.btn-icon-transfer):not(.btn-icon-history):not(.menu-btn) {
   display: block; width: 100%;
   padding: 12px 18px;
   border-radius: 100px;
@@ -413,8 +413,8 @@ button { font-family: inherit; cursor: pointer; }
   font-size: 14px; font-weight: 700;
   transition: opacity .2s, transform .1s;
 }
-.card button:not(.btn-accent):not(.btn-ghost):not(.icon-btn):hover { opacity: .88; }
-.card button:not(.btn-accent):not(.btn-ghost):not(.icon-btn):active { transform: scale(.98); }
+.card button:not(.btn-accent):not(.btn-ghost):not(.icon-btn):not(.qa-chip):not(.pin-key):not(.tag-chip):not(.btn-icon-danger):not(.btn-icon-transfer):not(.btn-icon-history):not(.menu-btn):hover { opacity: .88; }
+.card button:not(.btn-accent):not(.btn-ghost):not(.icon-btn):not(.qa-chip):not(.pin-key):not(.tag-chip):not(.btn-icon-danger):not(.btn-icon-transfer):not(.btn-icon-history):not(.menu-btn):active { transform: scale(.98); }
 
 /* ── BOTTOM NAV ─────────────────────────────────────────── */
 .bottom-nav {
@@ -1696,4 +1696,159 @@ button:focus-visible, a:focus-visible {
 @keyframes slideUp {
   from { transform: translateY(30px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DESKTOP LAYOUT OVERHAUL (≥ 768px)
+   ═══════════════════════════════════════════════════════════ */
+
+@media (min-width: 768px) {
+
+  /* ── Content max-width + centering ────────────────────── */
+  .app-content {
+    padding: 28px 40px 40px;
+  }
+
+  /* Inner screen wrapper — prevent over-stretching */
+  .screen {
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  /* ── Currency converter — horizontal row ─────────────── */
+  .currency-converter { border-top: 1px solid var(--border); padding-top: 12px; }
+  .conv-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+  .conv-input {
+    width: 90px;
+    flex-shrink: 0;
+  }
+  .conv-select {
+    flex: 1;
+    min-width: 0;
+  }
+  .conv-arrow { flex-shrink: 0; }
+
+  /* ── Quick amount chips — proper inline chips ─────────── */
+  .quick-amounts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .qa-chip {
+    display: inline-flex !important;
+    width: auto !important;
+    padding: 5px 14px;
+    border-radius: 100px;
+    background: transparent;
+    color: var(--text-2);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    transition: all .15s;
+  }
+
+  /* ── Sidebar nav — style .menu-btn same as .nav-item ─── */
+  .menu-btn {
+    flex-direction: row;
+    gap: 10px;
+    justify-content: flex-start;
+    padding: 10px 12px;
+    font-size: 13px;
+    width: 100%;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: none;
+    color: var(--text-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background .15s, color .15s;
+    text-decoration: none;
+    letter-spacing: -.01em;
+  }
+  .menu-btn svg { width: 18px; height: 18px; }
+  .menu-btn:hover { background: rgba(255,255,255,.06); color: var(--text); }
+  .menu-btn.active { background: rgba(255,255,255,.08); color: #ffffff; }
+  [data-theme="light"] .menu-btn:hover { background: rgba(0,0,0,.05); color: var(--text); }
+  [data-theme="light"] .menu-btn.active { background: rgba(0,0,0,.08); color: var(--text); }
+
+  /* ── Cards row — 2 columns on desktop ────────────────── */
+  .cards-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* ── Section titles spacing ───────────────────────────── */
+  .section-title { font-size: 22px; margin-bottom: 20px; }
+  .card-title { font-size: 14px; font-weight: 800; margin-bottom: 12px; }
+
+  /* ── Form improvements ───────────────────────────────── */
+  .form-compact input,
+  .form-compact select { padding: 10px 14px; font-size: 14px; }
+
+  /* ── Analytics 2-col bottom row ──────────────────────── */
+  .analytics-bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* ── Drawer wider on desktop ──────────────────────────── */
+  .drawer {
+    width: 440px !important;
+    max-width: 440px !important;
+  }
+
+  /* ── Velocity card inner ──────────────────────────────── */
+  .velocity-amount, .velocity-days { font-size: 22px; }
+
+  /* ── Month strip ──────────────────────────────────────── */
+  .month-strip { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+
+  /* ── Profile sections ─────────────────────────────────── */
+  #profile { max-width: 760px; }
+
+  /* ── Recurring / Debts ───────────────────────────────── */
+  #recurring, #debts { max-width: 760px; }
+}
+
+/* ── Large desktop (≥ 1100px): sidebar wider ──────────── */
+@media (min-width: 1100px) {
+  .app-header { width: 280px; padding: 24px 20px 28px; }
+  .app-content { padding: 32px 48px 48px; }
+}
+
+/* ── XL screens (≥ 1400px) ────────────────────────────── */
+@media (min-width: 1400px) {
+  .app-header { width: 300px; }
+}
+
+/* ── Wide dashboard 2-col (sidebar + 1200px total) ─────── */
+@media (min-width: 1200px) {
+  .screen { max-width: 1140px; }
+
+  #dashboard {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    column-gap: 20px;
+    row-gap: 0;
+    align-items: start;
+  }
+  /* Default: all go to col 1 */
+  #dashboard > * { grid-column: 1; }
+  /* Sidebar cards → col 2 */
+  #dashboard .currency-card,
+  #dashboard .velocity-card,
+  #dashboard #topRecipientsCard,
+  #dashboard #sparklineCard { grid-column: 2; }
+  /* Full-width items */
+  #dashboard .section-title,
+  #dashboard .month-strip { grid-column: 1 / -1; }
 }
