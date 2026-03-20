@@ -1011,7 +1011,7 @@ button:focus-visible, a:focus-visible {
 }
 .profile-info-row:last-child { border-bottom: 0; }
 .profile-info-row dt { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; flex-shrink: 0; }
-.profile-info-row dd { font-size: 14px; font-weight: 500; text-align: right; word-break: break-all; }
+.profile-info-row dd { font-size: 14px; font-weight: 500; text-align: right; overflow-wrap: break-word; min-width: 0; flex: 1; }
 
 .profile-links-grid {
   display: grid;
