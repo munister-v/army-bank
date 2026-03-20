@@ -1272,7 +1272,8 @@ button:focus-visible, a:focus-visible {
 
 /* ══ ACCOUNT QR ════════════════════════════════════════ */
 .account-row { align-items: center; }
-.account-row dd { display: flex; align-items: center; gap: 8px; }
+.account-row dd { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+#piAccount { white-space: nowrap; }
 .copy-btn {
   width: 24px; height: 24px;
   border-radius: 6px;
