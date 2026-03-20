@@ -138,6 +138,45 @@ class AccountRepository(BaseRepository):
                 'monthly': [dict(r) for r in monthly],
             }
 
+    def get_balance_history(self, account_id: int, days: int = 14) -> list:
+        from datetime import date, timedelta
+        with self.connection() as conn:
+            rows = conn.execute(
+                '''
+                SELECT DATE(created_at) AS day,
+                  COALESCE(SUM(CASE WHEN direction='in' THEN amount ELSE 0 END),0) AS total_in,
+                  COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END),0) AS total_out
+                FROM transactions WHERE account_id=%s
+                  AND created_at >= CURRENT_DATE - (%s || ' days')::INTERVAL
+                GROUP BY DATE(created_at) ORDER BY day ASC
+                ''',
+                (account_id, str(days)),
+            ).fetchall()
+
+            account = conn.execute('SELECT balance FROM accounts WHERE id = %s', (account_id,)).fetchone()
+            current_balance = float(account['balance']) if account else 0.0
+
+            period_in = sum(float(r['total_in']) for r in rows)
+            period_out = sum(float(r['total_out']) for r in rows)
+            start_balance = current_balance - period_in + period_out
+
+            daily_map = {}
+            for r in rows:
+                day_key = str(r['day'])[:10]
+                daily_map[day_key] = {'total_in': float(r['total_in']), 'total_out': float(r['total_out'])}
+
+            result = []
+            running = start_balance
+            today = date.today()
+            start_date = today - timedelta(days=days - 1)
+            for i in range(days):
+                d = start_date + timedelta(days=i)
+                day_str = d.isoformat()
+                if day_str in daily_map:
+                    running += daily_map[day_str]['total_in'] - daily_map[day_str]['total_out']
+                result.append({'day': day_str, 'balance': round(running, 2)})
+            return result
+
     def export_transactions_csv(self, account_id: int, from_date: str | None = None, to_date: str | None = None) -> str:
         transactions = self.list_transactions(account_id, from_date=from_date, to_date=to_date)
         output = io.StringIO()

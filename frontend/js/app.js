@@ -100,22 +100,54 @@ const TX_TYPE_LABELS = {
 };
 
 function renderTransactions(list, container = '#transactionsList') {
-  renderList(container, list, (tx) => `
-    <div class="item item-clickable" data-tx-id="${tx.id}">
-      <div class="tx-dir-dot ${tx.direction}"></div>
-      <div class="item-body">
-        <div class="item-header">
-          <strong>${tx.description}</strong>
-          <span class="amount ${tx.direction}">${tx.direction === 'in' ? '+' : '−'}${formatMoney(tx.amount)}</span>
-        </div>
-        <div class="muted">${TX_TYPE_LABELS[tx.tx_type] || tx.tx_type} · ${formatDate(tx.created_at)}</div>
-      </div>
-    </div>
-  `, 'Транзакцій поки немає.');
+  const el = $(container);
+  if (!el) return;
+  el.classList.remove('loading');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state"><strong>Нічого немає</strong>Транзакцій поки немає.</div>';
+    return;
+  }
 
-  // bind click → drawer
-  $$(container + ' .item-clickable').forEach((el) => {
-    el.addEventListener('click', () => openTxDrawer(Number(el.dataset.txId)));
+  // Group by date
+  const groups = {};
+  list.forEach(tx => {
+    const day = (tx.created_at || '').slice(0, 10);
+    if (!groups[day]) groups[day] = [];
+    groups[day].push(tx);
+  });
+
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+  function dayLabel(day) {
+    if (day === today) return 'Сьогодні';
+    if (day === yesterday) return 'Вчора';
+    try {
+      return new Date(day).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', weekday: 'short' });
+    } catch(_) { return day; }
+  }
+
+  el.innerHTML = Object.keys(groups).sort((a,b) => b.localeCompare(a)).map(day => `
+    <div class="tx-date-group">
+      <div class="tx-date-label">${dayLabel(day)}</div>
+      ${groups[day].map(tx => `
+        <div class="item item-clickable" data-tx-id="${tx.id}">
+          <div class="tx-dir-dot ${tx.direction}"></div>
+          <div class="item-body">
+            <div class="item-header">
+              <strong>${tx.description}</strong>
+              <span class="amount ${tx.direction}">${tx.direction === 'in' ? '+' : '−'}${formatMoney(tx.amount)}</span>
+            </div>
+            <div class="muted">${TX_TYPE_LABELS[tx.tx_type] || tx.tx_type}${tx.related_account ? ` · ${tx.related_account}` : ''}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  // Bind click → drawer
+  el.querySelectorAll('.item-clickable').forEach(item => {
+    item.addEventListener('click', () => openTxDrawer(Number(item.dataset.txId)));
   });
 }
 
@@ -241,6 +273,12 @@ async function loadAnalytics() {
     const prev = data.prev_month || {};
     const byType = data.by_type || [];
     const monthly = data.monthly || [];
+
+    // Update dashboard strip
+    const setDash = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+    setDash('#dashMonthIn',    formatMoney(cur.total_in  || 0));
+    setDash('#dashMonthOut',   formatMoney(cur.total_out || 0));
+    setDash('#dashMonthCount', cur.tx_count || cur.count || 0);
 
     // Summary cards
     const setEl = (id, v) => { const el = $(id); if (el) el.textContent = v; };
@@ -508,20 +546,25 @@ async function refreshAllData() {
       </div>
     `, 'Донатів поки немає.');
 
-    // Goals with progress bars + delete
+    // Goals with progress bars + delete + estimated completion
     renderSimpleList('#goalsList', goals, (row) => {
       const pct = row.target_amount > 0 ? Math.min(100, Math.round(row.current_amount / row.target_amount * 100)) : 0;
+      const remaining = row.target_amount - row.current_amount;
+      let estText = '';
+      if (pct < 100 && remaining > 0) {
+        estText = `· залишилось ${formatMoney(remaining)}`;
+      }
       return `
         <div class="item item-with-actions">
           <div class="item-main">
             <div class="item-header">
               <strong>${row.title}</strong>
-              <span>${formatMoney(row.current_amount)} / ${formatMoney(row.target_amount)}</span>
+              <span class="pct-badge ${pct >= 100 ? 'done' : ''}">${pct}%</span>
             </div>
             <div class="progress-bar-wrap">
               <div class="progress-bar" style="width:${pct}%"></div>
             </div>
-            <div class="muted">${row.status}${row.deadline ? ` · до ${row.deadline}` : ''} · ${pct}%</div>
+            <div class="muted">${formatMoney(row.current_amount)} / ${formatMoney(row.target_amount)} ${estText}${row.deadline ? ` · до ${row.deadline}` : ''}</div>
           </div>
           <button class="btn-icon-danger" data-delete-goal="${row.id}" title="Видалити ціль" aria-label="Видалити">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
@@ -591,6 +634,10 @@ async function refreshAllData() {
         });
       });
     });
+
+    // Load analytics data for dashboard strip + sparkline
+    loadAnalytics().catch(() => {});
+    loadSparkline().catch(() => {});
 
   } finally {
     ['#recentTransactions','#transactionsList','#payoutsList','#donationsList','#goalsList','#contactsList']
@@ -899,4 +946,272 @@ if ('serviceWorker' in navigator) {
     setAuthenticated(false);
     showToast('Сесію завершено. Увійдіть повторно.');
   }
+})();
+
+// ── THEME ──────────────────────────────────────────────
+function initTheme() {
+  const saved = localStorage.getItem('ab_theme') || 'dark';
+  applyTheme(saved);
+  const toggle = $('#themeToggle');
+  if (toggle) toggle.checked = saved === 'light';
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem('ab_theme', theme);
+}
+
+$('#themeToggle')?.addEventListener('change', function() {
+  applyTheme(this.checked ? 'light' : 'dark');
+});
+
+// Compact mode
+function initCompact() {
+  const saved = localStorage.getItem('ab_compact') === 'true';
+  document.documentElement.classList.toggle('compact', saved);
+  const toggle = $('#compactToggle');
+  if (toggle) toggle.checked = saved;
+}
+
+$('#compactToggle')?.addEventListener('change', function() {
+  document.documentElement.classList.toggle('compact', this.checked);
+  localStorage.setItem('ab_compact', this.checked);
+});
+
+// Animations toggle
+function initAnimations() {
+  const disabled = localStorage.getItem('ab_animations') === 'false';
+  document.documentElement.classList.toggle('no-animations', disabled);
+  const toggle = $('#animationsToggle');
+  if (toggle) toggle.checked = !disabled;
+}
+
+$('#animationsToggle')?.addEventListener('change', function() {
+  document.documentElement.classList.toggle('no-animations', !this.checked);
+  localStorage.setItem('ab_animations', this.checked ? 'true' : 'false');
+});
+
+initTheme();
+initCompact();
+initAnimations();
+
+// ── NETWORK STATUS ──────────────────────────────────────
+function updateNetworkBanner() {
+  const banner = $('#networkBanner');
+  if (!banner) return;
+  if (navigator.onLine) {
+    banner.classList.add('hidden');
+  } else {
+    banner.classList.remove('hidden');
+  }
+}
+window.addEventListener('online',  updateNetworkBanner);
+window.addEventListener('offline', updateNetworkBanner);
+updateNetworkBanner();
+
+// ── SPARKLINE ────────────────────────────────────────────
+async function loadSparkline() {
+  const container = $('#sparklineContainer');
+  if (!container) return;
+  try {
+    const history = await api.request('/api/analytics/balance-history?days=14');
+    if (!history || !history.length) {
+      container.innerHTML = '<div class="empty-state">Недостатньо даних.</div>';
+      return;
+    }
+
+    const values = history.map(h => Number(h.balance));
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1;
+    const W = 300, H = 60, PAD = 4;
+
+    const points = values.map((v, i) => {
+      const x = PAD + (i / (values.length - 1)) * (W - PAD * 2);
+      const y = H - PAD - ((v - min) / range) * (H - PAD * 2);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+
+    // Area fill path
+    const firstX = PAD;
+    const lastX = W - PAD;
+    const bottomY = H - PAD;
+    const areaPoints = `${firstX},${bottomY} ${points} ${lastX},${bottomY}`;
+
+    const trend = values[values.length - 1] - values[0];
+    const trendEl = $('#sparklineTrend');
+    if (trendEl) {
+      const trendClass = trend >= 0 ? 'trend-up' : 'trend-down';
+      trendEl.className = `trend-badge ${trendClass}`;
+      trendEl.textContent = `${trend >= 0 ? '+' : ''}${formatMoney(trend)}`;
+    }
+
+    const lastValY = (H - PAD - ((values[values.length-1] - min) / range) * (H - PAD * 2)).toFixed(1);
+
+    container.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${trend >= 0 ? '#4ade80' : '#f87171'}" stop-opacity="0.18"/>
+            <stop offset="100%" stop-color="${trend >= 0 ? '#4ade80' : '#f87171'}" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <polygon points="${areaPoints}" fill="url(#sparkGrad)"/>
+        <polyline points="${points}" fill="none" stroke="${trend >= 0 ? '#4ade80' : '#f87171'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="${lastX}" cy="${lastValY}" r="3" fill="${trend >= 0 ? '#4ade80' : '#f87171'}"/>
+      </svg>
+      <div class="sparkline-labels">
+        <span>${history[0]?.day?.slice(5) || ''}</span>
+        <span>${history[history.length-1]?.day?.slice(5) || ''}</span>
+      </div>
+    `;
+  } catch (_) {
+    if (container) container.innerHTML = '';
+  }
+}
+
+// ── QUICK AMOUNTS ─────────────────────────────────────────
+function initQuickAmounts() {
+  $$('.quick-amounts').forEach(wrap => {
+    const form = wrap.closest('form');
+    const amountInput = form?.querySelector('input[name="amount"]');
+    if (!amountInput) return;
+    wrap.querySelectorAll('.qa-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        amountInput.value = chip.dataset.amount;
+        amountInput.dispatchEvent(new Event('input'));
+        wrap.querySelectorAll('.qa-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+      });
+    });
+    amountInput.addEventListener('input', () => {
+      wrap.querySelectorAll('.qa-chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.amount === amountInput.value);
+      });
+    });
+  });
+}
+initQuickAmounts();
+
+// ── SECURITY LOG ──────────────────────────────────────────
+let _secLogLoaded = false;
+const SEC_ACTION_ICONS = {
+  login: '🔐', logout: '🚪', register: '✅', change_password: '🔑',
+  topup: '💰', transfer: '💸', donation: '❤️', goal_contribution: '🎯',
+  create_goal: '🎯', delete_goal: '🗑', add_family_contact: '👤',
+  delete_family_contact: '🗑', demo_payout: '🛡', delete_template: '🗑',
+  default: '📋'
+};
+
+$('#secLogHead')?.addEventListener('click', async () => {
+  const list = $('#securityLogList');
+  const chevron = $('#secLogChevron');
+  if (!list) return;
+  const isOpen = list.style.display !== 'none';
+  list.style.display = isOpen ? 'none' : 'block';
+  if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+  if (!isOpen && !_secLogLoaded) {
+    _secLogLoaded = true;
+    list.innerHTML = '<div class="sec-log-loading">Завантаження…</div>';
+    try {
+      const logs = await api.request('/api/audit-logs');
+      if (!logs.length) {
+        list.innerHTML = '<div class="empty-state">Журнал порожній.</div>';
+        return;
+      }
+      list.innerHTML = logs.map(log => {
+        const icon = SEC_ACTION_ICONS[log.action] || SEC_ACTION_ICONS.default;
+        return `
+          <div class="sec-log-item">
+            <span class="sec-log-icon">${icon}</span>
+            <div class="sec-log-body">
+              <div class="sec-log-action">${log.details || log.action}</div>
+              <div class="sec-log-date muted">${formatDate(log.created_at)}</div>
+            </div>
+          </div>`;
+      }).join('');
+    } catch(e) {
+      list.innerHTML = `<div class="sec-log-error">${e.message}</div>`;
+    }
+  }
+});
+
+// ── ACCOUNT QR + COPY ─────────────────────────────────────
+$('#copyAccountBtn')?.addEventListener('click', () => {
+  const acc = state.account?.account_number;
+  if (!acc) return;
+  navigator.clipboard.writeText(acc).then(() => {
+    showToast('Номер рахунку скопійовано.', 'success');
+  }).catch(() => {
+    showToast('Не вдалося скопіювати.');
+  });
+});
+
+let _qrVisible = false;
+$('#showQrBtn')?.addEventListener('click', () => {
+  const wrap = $('#accountQrWrap');
+  const img = $('#accountQrImg');
+  if (!wrap || !img) return;
+  _qrVisible = !_qrVisible;
+  wrap.classList.toggle('hidden', !_qrVisible);
+  if (_qrVisible && state.account?.account_number) {
+    const text = encodeURIComponent(state.account.account_number);
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${text}&color=ffffff&bgcolor=111111`;
+  }
+  const qrBtn = $('#showQrBtn');
+  if (qrBtn) qrBtn.textContent = _qrVisible ? 'Сховати QR' : 'QR-код рахунку';
+});
+
+// ── SWIPE TO CLOSE DRAWER ─────────────────────────────────
+(function initSwipeDrawer() {
+  const drawer = $('#txDrawer');
+  if (!drawer) return;
+  let startY = 0, startX = 0;
+  drawer.addEventListener('touchstart', e => {
+    startY = e.touches[0].clientY;
+    startX = e.touches[0].clientX;
+  }, { passive: true });
+  drawer.addEventListener('touchend', e => {
+    const dy = e.changedTouches[0].clientY - startY;
+    const dx = e.changedTouches[0].clientX - startX;
+    // Swipe down (mobile) or right (desktop side drawer)
+    if (dy > 60 || dx > 80) closeDrawer();
+  }, { passive: true });
+})();
+
+// ── PULL TO REFRESH ───────────────────────────────────────
+(function initPullToRefresh() {
+  const content = $('.app-content');
+  if (!content) return;
+  let startY = 0, pulling = false;
+  const indicator = document.createElement('div');
+  indicator.className = 'ptr-indicator hidden';
+  indicator.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="ptr-spin"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
+  content.parentNode.insertBefore(indicator, content);
+
+  content.addEventListener('touchstart', e => {
+    if (content.scrollTop === 0) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }
+  }, { passive: true });
+
+  content.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy > 10) indicator.classList.remove('hidden');
+  }, { passive: true });
+
+  content.addEventListener('touchend', async e => {
+    if (!pulling) return;
+    const dy = e.changedTouches[0].clientY - startY;
+    pulling = false;
+    if (dy > 60) {
+      indicator.classList.add('spinning');
+      try { await refreshAllData(); showToast('Оновлено', 'success'); }
+      catch(_) {}
+      indicator.classList.remove('spinning');
+    }
+    indicator.classList.add('hidden');
+  }, { passive: true });
 })();

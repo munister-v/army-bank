@@ -63,6 +63,10 @@ class AccountService:
         account = self.get_main_account(user_id)
         return self.accounts.get_analytics(account['id'])
 
+    def get_balance_history(self, user_id: int, days: int = 14) -> list:
+        account = self.get_main_account(user_id)
+        return self.accounts.get_balance_history(account['id'], days=days)
+
     def export_csv(self, user_id: int, from_date: str | None = None, to_date: str | None = None) -> str:
         account = self.get_main_account(user_id)
         return self.accounts.export_transactions_csv(account['id'], from_date=from_date, to_date=to_date)

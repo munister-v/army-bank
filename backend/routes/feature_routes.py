@@ -123,6 +123,12 @@ def delete_payment_template(template_id: int):
         return api_error(str(exc), 404)
 
 
+@feature_bp.get('/audit-logs')
+@auth_required
+def list_my_audit_logs():
+    return jsonify({'ok': True, 'data': service.list_audit_logs(g.current_user['id'])})
+
+
 @feature_bp.get('/payment-templates/<int:template_id>')
 @auth_required
 def get_payment_template(template_id: int):

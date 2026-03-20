@@ -86,6 +86,17 @@ def analytics():
         return api_error(str(exc))
 
 
+@account_bp.get('/analytics/balance-history')
+@auth_required
+def balance_history():
+    try:
+        days = min(int(request.args.get('days', 14)), 90)
+        data = service.get_balance_history(g.current_user['id'], days=days)
+        return jsonify({'ok': True, 'data': data})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
 @account_bp.get('/transactions/export')
 @auth_required
 def export_csv():

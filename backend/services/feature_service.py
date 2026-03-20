@@ -130,3 +130,6 @@ class FeatureService:
 
     def get_payment_template(self, template_id: int, user_id: int):
         return self.repo.get_payment_template(template_id, user_id)
+
+    def list_audit_logs(self, user_id: int):
+        return self.repo.list_audit_logs(user_id, limit=50)

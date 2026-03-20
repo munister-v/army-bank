@@ -17,6 +17,11 @@
 </head>
 <body>
 
+  <div id="networkBanner" class="network-banner hidden" role="alert" aria-live="assertive">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+    Немає з'єднання з мережею
+  </div>
+
   <!-- ══ AUTH ══════════════════════════════════════════════ -->
   <div id="authScreen" class="auth-screen">
     <div class="auth-glow"></div>
@@ -189,6 +194,34 @@
       <!-- DASHBOARD -->
       <section id="dashboard" class="screen active-screen">
         <h2 class="section-title">Огляд</h2>
+
+        <!-- Month overview strip -->
+        <div class="month-strip" id="dashMonthStrip">
+          <div class="ms-item green">
+            <div class="ms-label">↓ Прихід</div>
+            <div class="ms-value" id="dashMonthIn">—</div>
+          </div>
+          <div class="ms-item red">
+            <div class="ms-label">↑ Витрати</div>
+            <div class="ms-value" id="dashMonthOut">—</div>
+          </div>
+          <div class="ms-item">
+            <div class="ms-label">Операцій</div>
+            <div class="ms-value" id="dashMonthCount">—</div>
+          </div>
+        </div>
+
+        <!-- Balance sparkline -->
+        <div class="card sparkline-card" id="sparklineCard">
+          <div class="card-head">
+            <h3>Баланс за 14 днів</h3>
+            <span id="sparklineTrend" class="trend-badge"></span>
+          </div>
+          <div id="sparklineContainer" class="sparkline-wrap">
+            <div class="skel skel-sparkline"></div>
+          </div>
+        </div>
+
         <div class="cards-row">
           <form id="topupForm" class="card" id="topupCard">
             <div class="card-head">
@@ -200,6 +233,12 @@
               <h3>Поповнення</h3>
             </div>
             <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
+            <div class="quick-amounts">
+              <button type="button" class="qa-chip" data-amount="500">₴500</button>
+              <button type="button" class="qa-chip" data-amount="1000">₴1 000</button>
+              <button type="button" class="qa-chip" data-amount="3000">₴3 000</button>
+              <button type="button" class="qa-chip" data-amount="5000">₴5 000</button>
+            </div>
             <label class="lbl">Опис<input name="description" value="Поповнення рахунку"></label>
             <button type="submit" class="btn-accent">Поповнити</button>
           </form>
@@ -220,6 +259,12 @@
             </label>
             <label class="lbl">Рахунок отримувача<input name="recipient_account_number" placeholder="AB-100001" required></label>
             <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
+            <div class="quick-amounts">
+              <button type="button" class="qa-chip" data-amount="500">₴500</button>
+              <button type="button" class="qa-chip" data-amount="1000">₴1 000</button>
+              <button type="button" class="qa-chip" data-amount="3000">₴3 000</button>
+              <button type="button" class="qa-chip" data-amount="5000">₴5 000</button>
+            </div>
             <label class="lbl">Опис<input name="description" value="Переказ родині"></label>
             <button type="submit" class="btn-accent">Переказати</button>
           </form>
@@ -438,12 +483,12 @@
       <!-- PROFILE -->
       <section id="profile" class="screen">
         <h2 class="section-title">Профіль</h2>
+
+        <!-- Account info card -->
         <div class="card">
           <div class="card-head">
             <div class="card-icon-wrap blue">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-              </svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
             <h3>Дані акаунту</h3>
           </div>
@@ -451,17 +496,75 @@
             <div class="profile-info-row"><dt>ПІБ</dt><dd id="piName">—</dd></div>
             <div class="profile-info-row"><dt>Телефон</dt><dd id="piPhone">—</dd></div>
             <div class="profile-info-row"><dt>Email</dt><dd id="piEmail">—</dd></div>
-            <div class="profile-info-row"><dt>Рахунок</dt><dd id="piAccount">—</dd></div>
+            <div class="profile-info-row account-row">
+              <dt>Рахунок</dt>
+              <dd>
+                <span id="piAccount">—</span>
+                <button id="copyAccountBtn" class="copy-btn" title="Копіювати номер рахунку" aria-label="Копіювати">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+              </dd>
+            </div>
             <div class="profile-info-row"><dt>Роль</dt><dd id="piRole">—</dd></div>
           </dl>
+          <!-- QR code for account number -->
+          <div id="accountQrWrap" class="qr-wrap hidden">
+            <img id="accountQrImg" class="qr-img" alt="QR код рахунку" src="">
+            <div class="qr-caption">Скануйте для переказу</div>
+          </div>
+          <button id="showQrBtn" class="btn-ghost btn-sm" style="margin-top:12px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h1v1h-1z"/><path d="M17 14h1v1h-1z"/><path d="M14 17h1v1h-1z"/><path d="M17 17h1v1h-1z"/><path d="M20 14v4"/><path d="M14 20h4"/></svg>
+            QR-код рахунку
+          </button>
         </div>
 
+        <!-- Settings card -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-icon-wrap purple">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 0 4.93 19.07M4.93 4.93A10 10 0 0 0 19.07 19.07"/></svg>
+            </div>
+            <h3>Налаштування</h3>
+          </div>
+          <div class="settings-list">
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-label">Світла тема</div>
+                <div class="setting-desc">Перемкнути між темним та світлим режимом</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="themeToggle">
+                <span class="toggle-knob"></span>
+              </label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-label">Компактний вигляд</div>
+                <div class="setting-desc">Зменшити відступи для більшого вмісту</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="compactToggle">
+                <span class="toggle-knob"></span>
+              </label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-label">Анімації</div>
+                <div class="setting-desc">Вимкнути для кращої продуктивності</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="animationsToggle" checked>
+                <span class="toggle-knob"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Change password card -->
         <div class="card">
           <div class="card-head">
             <div class="card-icon-wrap orange">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </div>
             <h3>Зміна паролю</h3>
           </div>
@@ -473,6 +576,19 @@
           </form>
         </div>
 
+        <!-- Security log card -->
+        <div class="card">
+          <div class="card-head" id="secLogHead" style="cursor:pointer">
+            <div class="card-icon-wrap green">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <h3>Журнал безпеки</h3>
+            <svg id="secLogChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-left:auto;transition:transform .2s"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div id="securityLogList" class="list" style="display:none"></div>
+        </div>
+
+        <!-- Quick links -->
         <div class="card">
           <div class="card-head"><h3>Швидкі посилання</h3></div>
           <div class="profile-links-grid">
