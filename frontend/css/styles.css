@@ -1715,25 +1715,17 @@ button:focus-visible, a:focus-visible {
     margin: 0 auto;
   }
 
-  /* ── Currency converter — horizontal row ─────────────── */
+  /* ── Currency converter — grid layout (avoids width:100% conflict) ── */
   .currency-converter { border-top: 1px solid var(--border); padding-top: 12px; }
   .conv-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: 80px 1fr 22px 1fr;
     align-items: center;
-    gap: 8px;
-    flex-wrap: nowrap;
+    gap: 6px;
   }
-  /* Override global width:100% for converter inputs/selects */
-  .conv-input {
-    width: 90px !important;
-    flex-shrink: 0;
-  }
-  .conv-select {
-    width: auto !important;
-    flex: 1;
-    min-width: 60px;
-  }
-  .conv-arrow { flex-shrink: 0; }
+  .conv-input  { width: 100%; }
+  .conv-select { width: 100%; }
+  .conv-arrow  { text-align: center; }
 
   /* ── Quick amount chips — proper inline chips ─────────── */
   .quick-amounts {
@@ -1838,18 +1830,18 @@ button:focus-visible, a:focus-visible {
 
   #dashboard {
     display: grid;
-    grid-template-columns: 1fr 360px;
+    grid-template-columns: 1fr 340px;
     column-gap: 20px;
     row-gap: 0;
     align-items: start;
   }
   /* Default: all go to col 1 */
-  #dashboard > * { grid-column: 1; }
+  #dashboard > * { grid-column: 1; min-width: 0; }
   /* Sidebar cards → col 2 */
   #dashboard .currency-card,
   #dashboard .velocity-card,
   #dashboard #topRecipientsCard,
-  #dashboard #sparklineCard { grid-column: 2; }
+  #dashboard #sparklineCard { grid-column: 2; min-width: 0; overflow: hidden; }
   /* Full-width items */
   #dashboard .section-title,
   #dashboard .month-strip { grid-column: 1 / -1; }
