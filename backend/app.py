@@ -135,7 +135,8 @@ def create_app() -> Flask:
     def index():
         return send_index()
 
-    for path in ('/dashboard', '/transactions', '/payouts', '/donations', '/savings', '/contacts'):
+    for path in ('/dashboard', '/transactions', '/payouts', '/donations', '/savings',
+                 '/contacts', '/analytics', '/profile', '/calendar', '/recurring', '/debts'):
         @app.get(prefix + path, endpoint=f'app_page_{path.strip("/")}')
         def _page():
             return send_index()
