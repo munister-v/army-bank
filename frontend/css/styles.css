@@ -610,7 +610,7 @@ button:focus-visible, a:focus-visible {
   .app-header {
     width: 260px;
     flex-shrink: 0;
-    padding: 24px 16px;
+    padding: 20px 16px 24px;
     display: flex;
     flex-direction: column;
     position: sticky;
@@ -620,9 +620,20 @@ button:focus-visible, a:focus-visible {
     border-right: 1px solid var(--border);
     background: #080808;
   }
+  .app-header::before {
+    content: 'ArmyBank';
+    display: block;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -.03em;
+    color: #ffffff;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
 
-  .balance-block { margin-top: 28px; margin-bottom: 6px; }
-  .balance-amount { font-size: 28px; }
+  .balance-block { margin-top: 16px; margin-bottom: 6px; }
+  .balance-amount { font-size: 34px; }
   .quick-actions {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
