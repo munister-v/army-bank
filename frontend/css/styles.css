@@ -1723,13 +1723,15 @@ button:focus-visible, a:focus-visible {
     gap: 8px;
     flex-wrap: nowrap;
   }
+  /* Override global width:100% for converter inputs/selects */
   .conv-input {
-    width: 90px;
+    width: 90px !important;
     flex-shrink: 0;
   }
   .conv-select {
+    width: auto !important;
     flex: 1;
-    min-width: 0;
+    min-width: 60px;
   }
   .conv-arrow { flex-shrink: 0; }
 
