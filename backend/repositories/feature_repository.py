@@ -23,6 +23,14 @@ class FeatureRepository(BaseRepository):
                 'SELECT * FROM family_contacts WHERE user_id = %s ORDER BY id DESC', (user_id,)
             ).fetchall()
 
+    def delete_family_contact(self, contact_id: int, user_id: int) -> bool:
+        with self.connection() as conn:
+            result = conn.execute(
+                'DELETE FROM family_contacts WHERE id = %s AND user_id = %s',
+                (contact_id, user_id),
+            )
+            return (result.rowcount or 0) > 0
+
     def create_savings_goal(self, user_id: int, title: str, target_amount: float, deadline: str | None):
         with self.connection() as conn:
             cursor = conn.execute(
@@ -49,6 +57,14 @@ class FeatureRepository(BaseRepository):
     def update_goal_amount(self, goal_id: int, amount: float):
         with self.connection() as conn:
             conn.execute('UPDATE savings_goals SET current_amount = %s WHERE id = %s', (amount, goal_id))
+
+    def delete_savings_goal(self, goal_id: int, user_id: int) -> bool:
+        with self.connection() as conn:
+            result = conn.execute(
+                'DELETE FROM savings_goals WHERE id = %s AND user_id = %s',
+                (goal_id, user_id),
+            )
+            return (result.rowcount or 0) > 0
 
     def create_donation(self, user_id: int, fund_name: str, amount: float, comment: str | None):
         with self.connection() as conn:
@@ -107,6 +123,14 @@ class FeatureRepository(BaseRepository):
                     (template_id, user_id),
                 ).fetchone()
             return conn.execute('SELECT * FROM payment_templates WHERE id = %s', (template_id,)).fetchone()
+
+    def delete_payment_template(self, template_id: int, user_id: int) -> bool:
+        with self.connection() as conn:
+            result = conn.execute(
+                'DELETE FROM payment_templates WHERE id = %s AND user_id = %s AND is_system = 0',
+                (template_id, user_id),
+            )
+            return (result.rowcount or 0) > 0
 
     def list_audit_logs(self, user_id: int | None = None, limit: int = 200):
         with self.connection() as conn:

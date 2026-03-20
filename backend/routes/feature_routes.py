@@ -25,6 +25,15 @@ def add_contact():
         return api_error(str(exc))
 
 
+@feature_bp.delete('/family-contacts/<int:contact_id>')
+@auth_required
+def delete_contact(contact_id: int):
+    try:
+        return jsonify({'ok': True, 'data': service.delete_contact(g.current_user['id'], contact_id)})
+    except Exception as exc:
+        return api_error(str(exc), 404)
+
+
 @feature_bp.get('/savings-goals')
 @auth_required
 def list_goals():
@@ -49,6 +58,15 @@ def contribute_goal(goal_id: int):
         return jsonify({'ok': True, 'data': service.contribute_goal(g.current_user['id'], goal_id, amount)})
     except Exception as exc:
         return api_error(str(exc))
+
+
+@feature_bp.delete('/savings-goals/<int:goal_id>')
+@auth_required
+def delete_goal(goal_id: int):
+    try:
+        return jsonify({'ok': True, 'data': service.delete_goal(g.current_user['id'], goal_id)})
+    except Exception as exc:
+        return api_error(str(exc), 404)
 
 
 @feature_bp.get('/donations')
@@ -94,6 +112,15 @@ def create_payment_template():
         return jsonify({'ok': True, 'data': service.create_payment_template(g.current_user['id'], request.get_json(force=True))})
     except Exception as exc:
         return api_error(str(exc))
+
+
+@feature_bp.delete('/payment-templates/<int:template_id>')
+@auth_required
+def delete_payment_template(template_id: int):
+    try:
+        return jsonify({'ok': True, 'data': service.delete_payment_template(g.current_user['id'], template_id)})
+    except Exception as exc:
+        return api_error(str(exc), 404)
 
 
 @feature_bp.get('/payment-templates/<int:template_id>')

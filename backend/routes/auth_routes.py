@@ -47,3 +47,18 @@ def me():
         'role': user['role'],
         'military_status': user['military_status'],
     }})
+
+
+@auth_bp.put('/password')
+@auth_required
+def change_password():
+    try:
+        data = request.get_json(force=True)
+        old_password = (data.get('old_password') or '').strip()
+        new_password = (data.get('new_password') or '').strip()
+        if not old_password or not new_password:
+            return api_error('Потрібно вказати поточний та новий пароль.')
+        auth_service.change_password(g.current_user['id'], old_password, new_password)
+        return jsonify({'ok': True, 'message': 'Пароль успішно змінено.'})
+    except Exception as exc:
+        return api_error(str(exc))

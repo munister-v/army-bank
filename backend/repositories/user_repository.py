@@ -66,3 +66,7 @@ class UserRepository(BaseRepository):
     def update_role(self, user_id: int, role: str) -> None:
         with self.connection() as conn:
             conn.execute('UPDATE users SET role = %s WHERE id = %s', (role, user_id))
+
+    def update_password(self, user_id: int, password_hash: str) -> None:
+        with self.connection() as conn:
+            conn.execute('UPDATE users SET password_hash = %s WHERE id = %s', (password_hash, user_id))

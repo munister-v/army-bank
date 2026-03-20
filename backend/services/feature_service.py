@@ -25,6 +25,13 @@ class FeatureService:
         self.repo.add_audit_log(user_id, 'add_family_contact', f'Додано контакт {contact_name}.')
         return self.repo.list_family_contacts(user_id)
 
+    def delete_contact(self, user_id: int, contact_id: int):
+        deleted = self.repo.delete_family_contact(contact_id, user_id)
+        if not deleted:
+            raise ValueError('Контакт не знайдено або немає прав для видалення.')
+        self.repo.add_audit_log(user_id, 'delete_family_contact', f'Видалено контакт #{contact_id}.')
+        return self.repo.list_family_contacts(user_id)
+
     def list_goals(self, user_id: int):
         return self.repo.list_savings_goals(user_id)
 
@@ -54,6 +61,13 @@ class FeatureService:
         self.account_repo.add_transaction(account['id'], 'savings', 'out', amount, f"Внесок у накопичення: {goal['title']}")
         self.repo.update_goal_amount(goal_id, new_goal_amount)
         self.repo.add_audit_log(user_id, 'goal_contribution', f"Поповнення цілі '{goal['title']}' на {amount:.2f} грн.")
+        return self.repo.list_savings_goals(user_id)
+
+    def delete_goal(self, user_id: int, goal_id: int):
+        deleted = self.repo.delete_savings_goal(goal_id, user_id)
+        if not deleted:
+            raise ValueError('Ціль не знайдено або немає прав для видалення.')
+        self.repo.add_audit_log(user_id, 'delete_goal', f'Видалено ціль #{goal_id}.')
         return self.repo.list_savings_goals(user_id)
 
     def list_donations(self, user_id: int):
@@ -105,6 +119,13 @@ class FeatureService:
         if not name or not recipient_account:
             raise ValueError('Потрібно вказати назву та рахунок отримувача.')
         self.repo.create_payment_template(user_id, name, recipient_account, amount, description, is_system=False)
+        return self.repo.list_payment_templates(user_id)
+
+    def delete_payment_template(self, user_id: int, template_id: int):
+        deleted = self.repo.delete_payment_template(template_id, user_id)
+        if not deleted:
+            raise ValueError('Шаблон не знайдено або немає прав для видалення.')
+        self.repo.add_audit_log(user_id, 'delete_template', f'Видалено шаблон #{template_id}.')
         return self.repo.list_payment_templates(user_id)
 
     def get_payment_template(self, template_id: int, user_id: int):

@@ -68,3 +68,14 @@ class AuthService:
 
     def logout(self, token: str) -> None:
         self.users.delete_session(token)
+
+    def change_password(self, user_id: int, old_password: str, new_password: str) -> None:
+        validate_password(new_password)
+        user = self.users.get_by_id(user_id)
+        if not user:
+            raise ValueError('Користувача не знайдено.')
+        if not verify_password(old_password, user['password_hash']):
+            raise ValueError('Поточний пароль невірний.')
+        new_hash = hash_password(new_password)
+        self.users.update_password(user_id, new_hash)
+        self.features.add_audit_log(user_id, 'change_password', 'Пароль змінено.')
