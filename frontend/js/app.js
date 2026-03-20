@@ -729,6 +729,10 @@ async function refreshAllData() {
     // Load analytics data for dashboard strip + sparkline
     loadAnalytics().catch(() => {});
     loadSparkline().catch(() => {});
+    if (typeof loadVelocity === 'function') loadVelocity().catch(() => {});
+    if (typeof loadTopRecipients === 'function') loadTopRecipients().catch(() => {});
+    if (typeof loadTagsCloud === 'function') loadTagsCloud().catch(() => {});
+    if (typeof checkPinStatus === 'function') checkPinStatus().catch(() => {});
 
   } finally {
     ['#recentTransactions','#transactionsList','#payoutsList','#donationsList','#goalsList','#contactsList']
