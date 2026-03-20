@@ -119,7 +119,7 @@ class FeatureRepository(BaseRepository):
         with self.connection() as conn:
             if user_id is not None:
                 return conn.execute(
-                    'SELECT * FROM payment_templates WHERE id = %s AND (user_id = %s OR is_system = 1)',
+                    'SELECT * FROM payment_templates WHERE id = %s AND (user_id = %s OR is_system = TRUE)',
                     (template_id, user_id),
                 ).fetchone()
             return conn.execute('SELECT * FROM payment_templates WHERE id = %s', (template_id,)).fetchone()
@@ -127,7 +127,7 @@ class FeatureRepository(BaseRepository):
     def delete_payment_template(self, template_id: int, user_id: int) -> bool:
         with self.connection() as conn:
             result = conn.execute(
-                'DELETE FROM payment_templates WHERE id = %s AND user_id = %s AND is_system = 0',
+                'DELETE FROM payment_templates WHERE id = %s AND user_id = %s AND is_system = FALSE',
                 (template_id, user_id),
             )
             return (result.rowcount or 0) > 0
