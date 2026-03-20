@@ -1543,3 +1543,157 @@ button:focus-visible, a:focus-visible {
 .forecast-balance.down { color: var(--red); }
 .forecast-change { font-size: 11px; margin-top: 3px; }
 @media (max-width: 480px) { .forecast-grid { grid-template-columns: 1fr; } }
+
+/* ═══════════════════════════════════════════════════════════
+   WAVE 5 — PIN Lock, Velocity, Debts, Tags, Onboarding, Forms
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── PIN Lock Overlay ──────────────────────────────────── */
+.pin-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+}
+.pin-overlay.hidden { display: none !important; }
+.pin-overlay-inner {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px; padding: 36px 28px; max-width: 340px; width: 100%;
+}
+.pin-logo { font-size: 52px; line-height: 1; }
+.pin-title { font-size: 26px; font-weight: 900; color: var(--text); }
+.pin-subtitle { font-size: 14px; color: var(--text-muted); text-align: center; }
+.pin-dots { display: flex; gap: 18px; margin: 10px 0; }
+.pin-dot {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--green); background: transparent;
+  transition: background 0.15s, transform 0.15s;
+}
+.pin-dot.filled { background: var(--green); transform: scale(1.1); }
+.pin-error {
+  color: var(--red); font-size: 13px; font-weight: 600;
+  min-height: 20px; text-align: center;
+}
+.pin-keypad {
+  display: grid; grid-template-columns: repeat(3, 76px);
+  gap: 12px; margin-top: 8px;
+}
+.pin-key {
+  width: 76px; height: 76px; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 24px; font-weight: 700; color: var(--text);
+  cursor: pointer; transition: background 0.12s, transform 0.1s;
+  display: flex; align-items: center; justify-content: center;
+  user-select: none;
+}
+.pin-key:hover { background: var(--green-bg); }
+.pin-key:active { transform: scale(0.92); background: var(--green-bg); }
+.pin-key-empty { background: transparent !important; border-color: transparent !important; cursor: default; pointer-events: none; }
+.pin-key-back { font-size: 20px; color: var(--text-muted); }
+.pin-logout-btn { margin-top: 4px; font-size: 12px; opacity: 0.6; }
+
+/* ── Velocity Card ─────────────────────────────────────── */
+.velocity-card {
+  background: linear-gradient(135deg, var(--green-bg) 0%, var(--surface) 100%);
+  border: 1px solid rgba(34,197,94,.25);
+}
+.velocity-inner {
+  display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center;
+}
+.velocity-label {
+  font-size: 11px; color: var(--text-muted);
+  font-weight: 600; text-transform: uppercase; margin-bottom: 4px; letter-spacing: .04em;
+}
+.velocity-amount { font-size: 20px; font-weight: 900; color: var(--green); }
+.velocity-days { font-size: 20px; font-weight: 900; }
+.velocity-divider { width: 1px; height: 52px; background: var(--border); margin: 0 auto; }
+
+/* ── Debt Tracker ──────────────────────────────────────── */
+.debt-item { transition: opacity 0.3s; }
+.debt-settled { opacity: 0.45; }
+.debt-settled .item-header strong { text-decoration: line-through; }
+
+/* ── Transaction Tags ──────────────────────────────────── */
+.drawer-tags {
+  display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0;
+}
+.tag-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  background: var(--green-bg); color: var(--green);
+  font-size: 12px; font-weight: 600; border: 1px solid var(--green);
+}
+.tag-chip {
+  display: inline-block; padding: 4px 12px; border-radius: 20px;
+  background: var(--surface); color: var(--text);
+  font-size: 12px; font-weight: 600; border: 1px solid var(--border);
+  cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.tag-chip:hover { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+#tagsCloud {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding: 0 4px;
+}
+
+/* ── Onboarding Tour ──────────────────────────────────── */
+.onboarding-overlay {
+  position: fixed; inset: 0; z-index: 8888;
+  background: rgba(0,0,0,.72); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.onboarding-overlay.hidden { display: none !important; }
+.onboarding-card {
+  background: var(--surface); border-radius: 22px;
+  padding: 36px 28px; max-width: 400px; width: 100%;
+  text-align: center; animation: slideUp 0.35s ease;
+  box-shadow: 0 24px 80px rgba(0,0,0,.4);
+}
+.onboarding-step-indicator {
+  display: flex; justify-content: center; gap: 8px; margin-bottom: 28px;
+}
+.ob-dot {
+  width: 8px; height: 8px; border-radius: 4px;
+  background: var(--border); transition: all 0.25s;
+}
+.ob-dot.active { background: var(--green); width: 28px; border-radius: 4px; }
+.ob-icon { font-size: 60px; line-height: 1; margin-bottom: 14px; }
+.ob-title { font-size: 22px; font-weight: 900; color: var(--text); margin-bottom: 10px; }
+.ob-text { font-size: 14px; color: var(--text-muted); line-height: 1.7; margin-bottom: 0; }
+.onboarding-content { min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.onboarding-actions {
+  display: flex; gap: 12px; justify-content: space-between; margin-top: 28px;
+}
+
+/* ── Shake Animation ──────────────────────────────────── */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-8px); }
+  30% { transform: translateX(7px); }
+  45% { transform: translateX(-5px); }
+  60% { transform: translateX(5px); }
+  75% { transform: translateX(-2px); }
+  90% { transform: translateX(2px); }
+}
+.shake { animation: shake 0.5s ease; }
+
+/* ── Form Compact ─────────────────────────────────────── */
+.form-compact { display: flex; flex-direction: column; gap: 10px; }
+.form-compact input, .form-compact select, .form-compact textarea {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px; font-size: 14px;
+  color: var(--text); width: 100%; font-family: inherit; box-sizing: border-box;
+}
+.form-compact input:focus, .form-compact select:focus, .form-compact textarea:focus {
+  outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-bg);
+}
+.form-compact .btn-primary { margin-top: 4px; }
+
+/* ── PIN Status Badge ─────────────────────────────────── */
+.pin-status-badge { display: block; margin-bottom: 12px; font-weight: 600; font-size: 13px; }
+
+/* ── Top Recipients Card ──────────────────────────────── */
+#topRecipientsCard { display: none; }
+
+/* ── Slide Up animation ───────────────────────────────── */
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}

@@ -420,7 +420,7 @@ $('#profileLogoutBtn')?.addEventListener('click', async () => {
 });
 
 // ── NAVIGATION ──────────────────────────────────────────
-const ALLOWED_SCREENS = ['dashboard', 'transactions', 'payouts', 'donations', 'savings', 'contacts', 'analytics', 'profile', 'calendar'];
+const ALLOWED_SCREENS = ['dashboard', 'transactions', 'payouts', 'donations', 'savings', 'contacts', 'analytics', 'profile', 'calendar', 'recurring', 'debts'];
 
 function getBasePath() {
   return (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
@@ -452,6 +452,8 @@ function switchScreen(screenId) {
   if (id === 'analytics') loadAnalytics();
   if (id === 'profile') renderProfileScreen();
   if (id === 'calendar') loadCalendar();
+  if (id === 'recurring') { if (typeof loadRecurring === 'function') loadRecurring(); }
+  if (id === 'debts') { if (typeof loadDebts === 'function') loadDebts(); }
 }
 
 async function refreshProfile() {
@@ -2134,3 +2136,558 @@ async function loadForecast() {
     });
   }
 })();
+
+// ═══════════════════════════════════════════════════════════
+// WAVE 5 — PIN, Recurring, Debts, Tags, Velocity, Onboarding
+// ═══════════════════════════════════════════════════════════
+
+// ── CountUp Balance Animation ────────────────────────────
+function animateCounter(el, from, to, duration) {
+  if (!el) return;
+  duration = duration || 700;
+  const start = performance.now();
+  const diff = to - from;
+  function step(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    el.textContent = formatMoney(from + diff * ease);
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ── Shake Animation ──────────────────────────────────────
+function shakeElement(el) {
+  if (!el) return;
+  el.classList.remove('shake');
+  void el.offsetWidth;
+  el.classList.add('shake');
+  setTimeout(() => el.classList.remove('shake'), 600);
+}
+
+// ── PIN Lock ─────────────────────────────────────────────
+const PIN_TIMEOUT_MS = 3 * 60 * 1000;
+let _pinBuffer = '';
+let _pinLocked = false;
+let _pinInactivityTimer = null;
+let _hasPinEnabled = false;
+
+function resetInactivityTimer() {
+  clearTimeout(_pinInactivityTimer);
+  if (_hasPinEnabled && api.token && !_pinLocked) {
+    _pinInactivityTimer = setTimeout(showPinLock, PIN_TIMEOUT_MS);
+  }
+}
+
+['click', 'keydown', 'touchstart', 'mousemove'].forEach(function(evt) {
+  document.addEventListener(evt, resetInactivityTimer, { passive: true });
+});
+
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('pd' + i);
+    if (dot) dot.classList.toggle('filled', i < _pinBuffer.length);
+  }
+}
+
+function showPinLock() {
+  if (!api.token) return;
+  _pinLocked = true;
+  _pinBuffer = '';
+  updatePinDots();
+  const overlay = $('#pinLockOverlay');
+  if (overlay) overlay.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function hidePinLock() {
+  _pinLocked = false;
+  _pinBuffer = '';
+  updatePinDots();
+  const overlay = $('#pinLockOverlay');
+  if (overlay) overlay.classList.add('hidden');
+  document.body.style.overflow = '';
+  resetInactivityTimer();
+}
+
+async function submitPinAttempt() {
+  const pin = _pinBuffer;
+  _pinBuffer = '';
+  updatePinDots();
+  const errEl = $('#pinError');
+  try {
+    await api.request('/api/auth/pin/verify', { method: 'POST', body: JSON.stringify({ pin: pin }) });
+    hidePinLock();
+    if (errEl) errEl.textContent = '';
+  } catch (_e) {
+    if (errEl) {
+      errEl.textContent = 'Невірний PIN. Спробуйте ще раз.';
+      shakeElement($('#pinDots'));
+      setTimeout(function() { if (errEl) errEl.textContent = ''; }, 2500);
+    }
+  }
+}
+
+$$('.pin-key[data-digit]').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    if (_pinBuffer.length >= 4) return;
+    _pinBuffer += btn.dataset.digit;
+    updatePinDots();
+    if (_pinBuffer.length === 4) setTimeout(submitPinAttempt, 150);
+  });
+});
+
+$('#pinBackBtn')?.addEventListener('click', function() {
+  _pinBuffer = _pinBuffer.slice(0, -1);
+  updatePinDots();
+});
+
+$('#pinLogoutBtn')?.addEventListener('click', async function() {
+  hidePinLock();
+  stopPolling();
+  try { await api.request('/api/auth/logout', { method: 'POST' }); } catch (_e) {}
+  api.setToken('');
+  setAuthenticated(false);
+  showToast('Ви вийшли з системи.');
+});
+
+async function checkPinStatus() {
+  try {
+    const data = await api.request('/api/auth/pin/status');
+    _hasPinEnabled = !!(data && data.has_pin);
+    const badge = $('#pinStatusBadge');
+    if (badge) {
+      badge.textContent = _hasPinEnabled ? '🔒 PIN встановлено' : '🔓 PIN не встановлено';
+      badge.style.cssText = 'font-size:13px;font-weight:600;margin-bottom:10px;color:' + (_hasPinEnabled ? 'var(--green)' : 'var(--text-muted)') + ';display:block;';
+    }
+    if (_hasPinEnabled) showPinLock();
+    else resetInactivityTimer();
+  } catch (_e) {}
+}
+
+$('#setPinForm')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const pin = ($('#pinInput') || {}).value || '';
+  const btn = $('#setPinBtn');
+  if (!/^\d{4}$/.test(pin)) { showToast('PIN повинен містити 4 цифри.'); shakeElement($('#setPinForm')); return; }
+  try {
+    setButtonLoading(btn, true);
+    await api.request('/api/auth/pin', { method: 'PUT', body: JSON.stringify({ pin: pin }) });
+    _hasPinEnabled = true;
+    showToast('PIN встановлено.', 'success');
+    if ($('#pinInput')) $('#pinInput').value = '';
+    const badge = $('#pinStatusBadge');
+    if (badge) { badge.textContent = '🔒 PIN встановлено'; badge.style.color = 'var(--green)'; }
+    resetInactivityTimer();
+  } catch (e) { showToast(e.message); } finally { setButtonLoading(btn, false); }
+});
+
+$('#clearPinBtn')?.addEventListener('click', async function() {
+  try {
+    await api.request('/api/auth/pin', { method: 'DELETE' });
+    _hasPinEnabled = false;
+    clearTimeout(_pinInactivityTimer);
+    showToast('PIN видалено.', 'success');
+    const badge = $('#pinStatusBadge');
+    if (badge) { badge.textContent = '🔓 PIN не встановлено'; badge.style.color = 'var(--text-muted)'; }
+  } catch (e) { showToast(e.message); }
+});
+
+// ── Spending Velocity ────────────────────────────────────
+async function loadVelocity() {
+  try {
+    const data = await api.request('/api/analytics/velocity');
+    const card = $('#velocityCard');
+    if (card) card.style.display = '';
+    const dailyEl = $('#velocityDailySpend');
+    const daysEl = $('#velocityDaysLeft');
+    if (dailyEl) dailyEl.textContent = formatMoney(data.avg_daily_spend || 0);
+    if (daysEl) {
+      if (data.days_until_zero === null || data.days_until_zero === undefined) {
+        daysEl.textContent = '∞ (без витрат)';
+        daysEl.style.color = 'var(--green)';
+      } else if (data.days_until_zero < 7) {
+        daysEl.textContent = '\u26a0\ufe0f ' + data.days_until_zero + ' днів';
+        daysEl.style.color = 'var(--red)';
+      } else if (data.days_until_zero < 30) {
+        daysEl.textContent = data.days_until_zero + ' днів';
+        daysEl.style.color = '#f59e0b';
+      } else {
+        daysEl.textContent = data.days_until_zero + ' днів';
+        daysEl.style.color = 'var(--green)';
+      }
+    }
+  } catch (_e) {}
+}
+
+// ── Top Recipients ───────────────────────────────────────
+async function loadTopRecipients() {
+  try {
+    const list = await api.request('/api/analytics/top-recipients');
+    const el = $('#topRecipientsCard');
+    if (!el || !list.length) return;
+    el.style.display = '';
+    el.innerHTML = '<h3 class="card-title" style="margin-bottom:12px">Топ отримувачів</h3>' +
+      list.map(function(r, i) {
+        return '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">' +
+          '<div style="width:24px;height:24px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:var(--green)">' + (i+1) + '</div>' +
+          '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + r.related_account + '</div>' +
+          '<div class="muted">' + r.tx_count + ' переказів</div></div>' +
+          '<div style="font-weight:900;color:var(--red)">\u2212' + formatMoney(r.total_sent) + '</div></div>';
+      }).join('');
+  } catch (_e) {}
+}
+
+// ── Recurring Transactions ───────────────────────────────
+async function loadRecurring() {
+  const listEl = $('#recurringList');
+  if (listEl) { listEl.classList.add('loading'); listEl.innerHTML = ''; }
+  try {
+    const items = await api.request('/api/recurring-transactions');
+    if (!listEl) return;
+    listEl.classList.remove('loading');
+    if (!items.length) {
+      listEl.innerHTML = '<div class="empty-state"><strong>Немає платежів</strong>Додайте перший регулярний платіж.</div>';
+      return;
+    }
+    const FREQ = { daily: 'Щодня', weekly: 'Щотижня', monthly: 'Щомісяця', yearly: 'Щороку' };
+    listEl.innerHTML = items.map(function(r) {
+      return '<div class="item item-with-actions" style="' + (r.is_active ? '' : 'opacity:.5') + '">' +
+        '<div class="item-main">' +
+          '<div class="item-header"><strong>' + r.title + '</strong><span class="amount out">\u2212' + formatMoney(r.amount) + '</span></div>' +
+          '<div class="muted">' + (FREQ[r.frequency] || r.frequency) + ' \xb7 наступний: ' + (r.next_run_date || '—') + '</div>' +
+          (r.recipient_account ? '<div class="muted">\u2192 ' + r.recipient_account + '</div>' : '') +
+        '</div>' +
+        '<div class="item-btns">' +
+          '<button class="btn-icon-transfer" data-toggle-recurring="' + r.id + '" data-active="' + (r.is_active ? '1' : '0') + '" title="' + (r.is_active ? 'Зупинити' : 'Запустити') + '">' +
+            (r.is_active
+              ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
+              : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>') +
+          '</button>' +
+          '<button class="btn-icon-danger" data-delete-recurring="' + r.id + '" title="Видалити">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>' +
+          '</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    $$('#recurringList [data-delete-recurring]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const id = Number(btn.dataset.deleteRecurring);
+        confirmAction('Видалити регулярний платіж?', 'Платіж буде видалено. Минулі транзакції залишаться.', async function() {
+          try {
+            await api.request('/api/recurring-transactions/' + id, { method: 'DELETE' });
+            await loadRecurring();
+            showToast('Платіж видалено.', 'success');
+          } catch (e) { showToast(e.message); }
+        });
+      });
+    });
+
+    $$('#recurringList [data-toggle-recurring]').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        const id = Number(btn.dataset.toggleRecurring);
+        const isActive = btn.dataset.active === '1';
+        try {
+          await api.request('/api/recurring-transactions/' + id + '/toggle', {
+            method: 'PATCH', body: JSON.stringify({ is_active: !isActive })
+          });
+          await loadRecurring();
+        } catch (e) { showToast(e.message); }
+      });
+    });
+  } catch (e) {
+    if (listEl) { listEl.classList.remove('loading'); listEl.innerHTML = '<div class="drawer-error">' + e.message + '</div>'; }
+  }
+}
+
+$('#recurringForm')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const btn = form.querySelector('button[type="submit"]');
+  const data = Object.fromEntries(new FormData(form).entries());
+  try {
+    setButtonLoading(btn, true);
+    await api.request('/api/recurring-transactions', { method: 'POST', body: JSON.stringify(data) });
+    form.reset();
+    await loadRecurring();
+    showToast('Регулярний платіж додано.', 'success');
+  } catch (e) { showToast(e.message); shakeElement(form); } finally { setButtonLoading(btn, false); }
+});
+
+// ── Debt Tracker ─────────────────────────────────────────
+async function loadDebts() {
+  const listEl = $('#debtsList');
+  if (listEl) { listEl.classList.add('loading'); listEl.innerHTML = ''; }
+  try {
+    const items = await api.request('/api/debts');
+    if (!listEl) return;
+    listEl.classList.remove('loading');
+
+    let sumOwedToMe = 0, sumIOwe = 0;
+    items.forEach(function(d) {
+      if (!d.is_settled) {
+        if (d.direction === 'owed_to_me') sumOwedToMe += Number(d.amount);
+        else sumIOwe += Number(d.amount);
+      }
+    });
+    const s1 = $('#debtSumOwedToMe');
+    const s2 = $('#debtSumIOwe');
+    if (s1) s1.textContent = formatMoney(sumOwedToMe);
+    if (s2) s2.textContent = formatMoney(sumIOwe);
+
+    if (!items.length) {
+      listEl.innerHTML = '<div class="empty-state"><strong>Боргів немає</strong>Додайте перший борг або позику нижче.</div>';
+      return;
+    }
+
+    listEl.innerHTML = items.map(function(d) {
+      const isIn = d.direction === 'owed_to_me';
+      return '<div class="item item-with-actions' + (d.is_settled ? ' debt-settled' : '') + '">' +
+        '<div class="item-main">' +
+          '<div class="item-header">' +
+            '<strong>' + d.contact_name + '</strong>' +
+            '<span class="amount ' + (isIn ? 'in' : 'out') + '">' + (isIn ? '+' : '\u2212') + formatMoney(d.amount) + '</span>' +
+          '</div>' +
+          '<div class="muted">' + (isIn ? 'Мені винні' : 'Я винен') +
+            (d.description ? ' \xb7 ' + d.description : '') +
+            (d.is_settled ? ' \xb7 \u2705 Закрито' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="item-btns">' +
+          (!d.is_settled
+            ? '<button class="btn-icon-transfer" data-settle-debt="' + d.id + '" title="Закрити борг"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></button>'
+            : '') +
+          '<button class="btn-icon-danger" data-delete-debt="' + d.id + '" title="Видалити"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    $$('#debtsList [data-settle-debt]').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        const id = Number(btn.dataset.settleDebt);
+        try {
+          await api.request('/api/debts/' + id + '/settle', { method: 'POST' });
+          await loadDebts();
+          showToast('Борг закрито! \u2705', 'success');
+        } catch (e) { showToast(e.message); }
+      });
+    });
+
+    $$('#debtsList [data-delete-debt]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const id = Number(btn.dataset.deleteDebt);
+        confirmAction('Видалити борг?', 'Запис про борг буде видалено безповоротно.', async function() {
+          try {
+            await api.request('/api/debts/' + id, { method: 'DELETE' });
+            await loadDebts();
+            showToast('Видалено.', 'success');
+          } catch (e) { showToast(e.message); }
+        });
+      });
+    });
+  } catch (e) {
+    if (listEl) { listEl.classList.remove('loading'); listEl.innerHTML = '<div class="drawer-error">' + e.message + '</div>'; }
+  }
+}
+
+$('#debtForm')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const btn = form.querySelector('button[type="submit"]');
+  const data = Object.fromEntries(new FormData(form).entries());
+  try {
+    setButtonLoading(btn, true);
+    await api.request('/api/debts', { method: 'POST', body: JSON.stringify(data) });
+    form.reset();
+    await loadDebts();
+    showToast('Борг додано.', 'success');
+  } catch (e) { showToast(e.message); shakeElement(form); } finally { setButtonLoading(btn, false); }
+});
+
+// ── Transaction Tags ─────────────────────────────────────
+async function loadTagsCloud() {
+  try {
+    const tags = await api.request('/api/transactions/tags');
+    const el = $('#tagsCloud');
+    if (!el || !tags.length) return;
+    el.innerHTML = tags.map(function(t) {
+      return '<button class="tag-chip" data-tag="' + t + '">' + t + '</button>';
+    }).join('');
+    $$('#tagsCloud .tag-chip').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const searchInput = $('#txSearchInput');
+        if (searchInput) {
+          searchInput.value = btn.dataset.tag;
+          loadTransactionsWithFilters();
+          switchScreen('transactions');
+        }
+      });
+    });
+  } catch (_e) {}
+}
+
+// Patch openTxDrawer to include tags section
+const _origOpenTxDrawer = openTxDrawer;
+window.openTxDrawer = async function(txId) {
+  if (!txId) return;
+  openDrawer();
+  const body = $('#drawerBody');
+  if (body) body.innerHTML = '<div class="drawer-loading">Завантаження\u2026</div>';
+  try {
+    const tx = await api.request('/api/transactions/' + txId);
+    if (!body) return;
+    const tagBadges = tx.tags
+      ? tx.tags.split(',').map(function(t) { return t.trim(); }).filter(Boolean)
+          .map(function(t) { return '<span class="tag-badge">' + t + '</span>'; }).join('')
+      : '';
+    body.innerHTML =
+      '<div class="drawer-amount ' + tx.direction + '">' +
+        (tx.direction === 'in' ? '+' : '\u2212') + formatMoney(tx.amount) +
+      '</div>' +
+      '<dl class="drawer-info-list">' +
+        '<div class="drawer-info-row"><dt>Опис</dt><dd>' + tx.description + '</dd></div>' +
+        '<div class="drawer-info-row"><dt>Тип</dt><dd>' + (TX_TYPE_LABELS[tx.tx_type] || tx.tx_type) + '</dd></div>' +
+        '<div class="drawer-info-row"><dt>Напрям</dt><dd>' + (tx.direction === 'in' ? '\u2193 Прихід' : '\u2191 Відхід') + '</dd></div>' +
+        (tx.related_account ? '<div class="drawer-info-row"><dt>Контрагент</dt><dd>' + tx.related_account + '</dd></div>' : '') +
+        '<div class="drawer-info-row"><dt>Дата</dt><dd>' + formatDate(tx.created_at) + '</dd></div>' +
+        '<div class="drawer-info-row"><dt>ID</dt><dd>#' + tx.id + '</dd></div>' +
+      '</dl>' +
+      (tagBadges ? '<div class="drawer-tags">' + tagBadges + '</div>' : '') +
+      '<button class="btn-ghost" id="shareTxBtn" style="width:100%;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>' +
+        'Поділитися' +
+      '</button>' +
+      '<div class="drawer-note-section">' +
+        '<label class="drawer-note-label">Нотатка</label>' +
+        '<textarea id="drawerNoteInput" class="drawer-note-input" placeholder="Додайте особисту нотатку\u2026" rows="2">' + (tx.note || '') + '</textarea>' +
+        '<button id="saveNoteBtn" class="btn-ghost btn-sm" style="margin-top:6px">Зберегти нотатку</button>' +
+      '</div>' +
+      '<div class="drawer-note-section">' +
+        '<label class="drawer-note-label">Теги (через кому)</label>' +
+        '<input id="drawerTagsInput" type="text" class="drawer-note-input" placeholder="наприклад: їжа, магазин, особисте" value="' + (tx.tags || '') + '">' +
+        '<button id="saveTagsBtn" class="btn-ghost btn-sm" style="margin-top:6px">Зберегти теги</button>' +
+      '</div>';
+
+    $('#shareTxBtn')?.addEventListener('click', function() {
+      if (typeof shareTransaction === 'function') shareTransaction(tx);
+    });
+    $('#saveNoteBtn')?.addEventListener('click', async function() {
+      const note = ($('#drawerNoteInput') || {}).value || '';
+      try {
+        await api.request('/api/transactions/' + tx.id + '/note', { method: 'PATCH', body: JSON.stringify({ note: note }) });
+        showToast('Нотатку збережено.', 'success');
+      } catch (e) { showToast(e.message); }
+    });
+    $('#saveTagsBtn')?.addEventListener('click', async function() {
+      const tags = ($('#drawerTagsInput') || {}).value || '';
+      try {
+        await api.request('/api/transactions/' + tx.id + '/tags', { method: 'PATCH', body: JSON.stringify({ tags: tags }) });
+        showToast('Теги збережено.', 'success');
+        loadTagsCloud().catch(function() {});
+      } catch (e) { showToast(e.message); }
+    });
+  } catch (e) {
+    if (body) body.innerHTML = '<div class="drawer-error">' + e.message + '</div>';
+  }
+};
+
+// ── Onboarding Tour ──────────────────────────────────────
+var ONBOARDING_STEPS = [
+  { icon: '\ud83c\udfe6', title: 'Ласкаво просимо до Army Bank!', text: 'Ваш персональний фінансовий помічник. Ми допоможемо вам керувати фінансами легко та зручно.' },
+  { icon: '\ud83d\udcb8', title: 'Перекази та поповнення', text: 'Поповнюйте рахунок та надсилайте кошти рідним одним дотиком. Всі операції відображаються миттєво.' },
+  { icon: '\ud83c\udfaf', title: 'Цілі накопичення', text: 'Встановлюйте фінансові цілі та відстежуйте прогрес. Система покаже, коли ви близькі до мети.' },
+  { icon: '\ud83d\udcca', title: 'Аналітика та захист', text: 'Детальна аналітика, бюджетні ліміти, PIN-захист і звіти. Контролюйте фінанси повністю.' },
+];
+var _obStep = 0;
+
+function showOnboarding() {
+  var overlay = $('#onboardingOverlay');
+  if (!overlay) return;
+  _obStep = 0;
+  renderOnboardingStep();
+  overlay.classList.remove('hidden');
+}
+
+function renderOnboardingStep() {
+  var step = ONBOARDING_STEPS[_obStep];
+  if (!step) return;
+  var content = $('#obContent');
+  if (content) {
+    content.innerHTML = '<div class="ob-icon">' + step.icon + '</div>' +
+      '<h2 class="ob-title">' + step.title + '</h2>' +
+      '<p class="ob-text">' + step.text + '</p>';
+  }
+  $$('.ob-dot').forEach(function(dot, i) { dot.classList.toggle('active', i === _obStep); });
+  var nextBtn = $('#obNextBtn');
+  if (nextBtn) nextBtn.textContent = _obStep === ONBOARDING_STEPS.length - 1 ? '\ud83d\ude80 Почати!' : 'Далі \u2192';
+}
+
+$('#obNextBtn')?.addEventListener('click', function() {
+  _obStep++;
+  if (_obStep >= ONBOARDING_STEPS.length) {
+    var overlay = $('#onboardingOverlay');
+    if (overlay) overlay.classList.add('hidden');
+    localStorage.setItem('army_bank_onboarded', '1');
+  } else {
+    renderOnboardingStep();
+  }
+});
+
+$('#obSkipBtn')?.addEventListener('click', function() {
+  var overlay = $('#onboardingOverlay');
+  if (overlay) overlay.classList.add('hidden');
+  localStorage.setItem('army_bank_onboarded', '1');
+});
+
+// ── Balance CountUp on refresh ───────────────────────────
+var _wave5_origRefreshProfile = window.refreshProfile || refreshProfile;
+window.refreshProfile = async function() {
+  var prevBalance = state.account ? parseFloat(state.account.balance || 0) : null;
+  await _wave5_origRefreshProfile();
+  var newBalance = state.account ? parseFloat(state.account.balance || 0) : null;
+  if (prevBalance !== null && newBalance !== null && prevBalance !== newBalance) {
+    var heroBalEl = $('#heroBalance');
+    var balVal = $('#balanceValue');
+    if (heroBalEl) animateCounter(heroBalEl, prevBalance, newBalance, 800);
+    if (balVal) animateCounter(balVal, prevBalance, newBalance, 800);
+  }
+};
+
+// ── Extra data on refreshAllData ─────────────────────────
+var _wave5_origRefreshAll = window.refreshAllData || refreshAllData;
+window.refreshAllData = async function() {
+  await _wave5_origRefreshAll();
+  checkPinStatus().catch(function() {});
+  loadVelocity().catch(function() {});
+  loadTagsCloud().catch(function() {});
+  loadTopRecipients().catch(function() {});
+};
+
+// ── Onboarding check after auth ──────────────────────────
+var _wave5_origHandleAuth = window.handleAuth || handleAuth;
+window.handleAuth = async function(form, endpoint) {
+  await _wave5_origHandleAuth(form, endpoint);
+  if (!localStorage.getItem('army_bank_onboarded')) {
+    setTimeout(showOnboarding, 2000);
+  }
+};
+
+// ── Keyboard shortcuts G+D / G+R ─────────────────────────
+(function() {
+  var _gPressedTime = 0;
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    if (!api.token) return;
+    var key = e.key.toLowerCase();
+    var now = Date.now();
+    if (key === 'g') { _gPressedTime = now; return; }
+    if (now - _gPressedTime < 1000) {
+      if (key === 'd') { switchScreen('debts'); _gPressedTime = 0; }
+      if (key === 'r') { switchScreen('recurring'); _gPressedTime = 0; }
+    }
+  });
+})();
+
+console.log('[Army Bank] Wave 5 loaded \u2014 PIN, Recurring, Debts, Tags, Velocity, Onboarding');

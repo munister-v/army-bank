@@ -156,3 +156,109 @@ class FeatureService:
     def delete_budget_limit(self, user_id, tx_type):
         self.repo.delete_budget_limit(user_id, tx_type)
         return self.list_budget_limits(user_id)
+
+    # ── Recurring ──────────────────────────────────────────
+    def list_recurring(self, user_id: int) -> list:
+        return self.repo.list_recurring(user_id)
+
+    def create_recurring(self, user_id: int, data: dict) -> int:
+        title = (data.get('title') or '').strip()
+        if not title:
+            raise ValueError('Назва обов\'язкова.')
+        amount = float(data.get('amount') or 0)
+        validate_positive_amount(amount)
+        tx_type = (data.get('tx_type') or 'transfer').strip()
+        recipient = (data.get('recipient_account') or '').strip() or None
+        description = (data.get('description') or '').strip()
+        frequency = (data.get('frequency') or 'monthly').strip()
+        next_run = (data.get('next_run_date') or '').strip()
+        if not next_run:
+            raise ValueError('Дата наступного виконання обов\'язкова.')
+        return self.repo.create_recurring(user_id, title, amount, tx_type, recipient, description, frequency, next_run)
+
+    def delete_recurring(self, user_id: int, recurring_id: int) -> bool:
+        ok = self.repo.delete_recurring(recurring_id, user_id)
+        if not ok:
+            raise ValueError('Запис не знайдено.')
+        return True
+
+    def toggle_recurring(self, user_id: int, recurring_id: int, is_active: bool) -> bool:
+        return self.repo.toggle_recurring(recurring_id, user_id, is_active)
+
+    # ── Debts ──────────────────────────────────────────────
+    def list_debts(self, user_id: int) -> list:
+        return self.repo.list_debts(user_id)
+
+    def create_debt(self, user_id: int, data: dict) -> int:
+        contact_name = (data.get('contact_name') or '').strip()
+        if not contact_name:
+            raise ValueError('Ім\'я контакту обов\'язкове.')
+        amount = float(data.get('amount') or 0)
+        if amount <= 0:
+            raise ValueError('Сума повинна бути більше 0.')
+        direction = (data.get('direction') or 'owed_to_me').strip()
+        if direction not in ('owed_to_me', 'i_owe'):
+            raise ValueError('Недійсний напрям боргу.')
+        description = (data.get('description') or '').strip() or None
+        return self.repo.create_debt(user_id, contact_name, amount, direction, description)
+
+    def settle_debt(self, user_id: int, debt_id: int) -> bool:
+        ok = self.repo.settle_debt(debt_id, user_id)
+        if not ok:
+            raise ValueError('Борг не знайдено або вже закрито.')
+        return True
+
+    def delete_debt(self, user_id: int, debt_id: int) -> bool:
+        ok = self.repo.delete_debt(debt_id, user_id)
+        if not ok:
+            raise ValueError('Борг не знайдено.')
+        return True
+
+    # ── PIN ────────────────────────────────────────────────
+    def set_pin(self, user_id: int, pin: str) -> bool:
+        if not pin or len(pin) != 4 or not pin.isdigit():
+            raise ValueError('PIN повинен містити рівно 4 цифри.')
+        try:
+            import bcrypt
+            pin_hash = bcrypt.hashpw(pin.encode(), bcrypt.gensalt()).decode()
+        except ImportError:
+            import hashlib
+            pin_hash = hashlib.sha256(pin.encode()).hexdigest()
+        self.repo.set_pin_hash(user_id, pin_hash)
+        return True
+
+    def verify_pin(self, user_id: int, pin: str) -> bool:
+        pin_hash = self.repo.get_pin_hash(user_id)
+        if not pin_hash:
+            return True
+        if not pin or not pin.isdigit():
+            return False
+        try:
+            import bcrypt
+            return bcrypt.checkpw(pin.encode(), pin_hash.encode())
+        except ImportError:
+            import hashlib
+            return hashlib.sha256(pin.encode()).hexdigest() == pin_hash
+
+    def clear_pin(self, user_id: int) -> bool:
+        self.repo.clear_pin(user_id)
+        return True
+
+    def has_pin(self, user_id: int) -> bool:
+        return bool(self.repo.get_pin_hash(user_id))
+
+    # ── Tags ───────────────────────────────────────────────
+    def update_tags(self, account_id: int, transaction_id: int, tags: str) -> bool:
+        tags_clean = ','.join(t.strip() for t in (tags or '').split(',') if t.strip())
+        return self.repo.update_transaction_tags(transaction_id, account_id, tags_clean)
+
+    def list_tags(self, account_id: int) -> list:
+        return self.repo.get_all_tags(account_id)
+
+    # ── Spending Velocity ──────────────────────────────────
+    def get_velocity(self, account_id: int) -> dict:
+        return self.repo.get_spending_velocity(account_id)
+
+    # ── Top Recipients ─────────────────────────────────────
+    def get_top_recipients(self, account_id: int) -> list:
+        return self.repo.get_top_recipients(account_id)

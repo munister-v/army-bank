@@ -166,3 +166,174 @@ def delete_budget_limit(tx_type: str):
         return jsonify({'ok': True, 'data': service.delete_budget_limit(g.current_user['id'], tx_type)})
     except Exception as exc:
         return api_error(str(exc))
+
+
+# ── Recurring Transactions ─────────────────────────────────
+
+@feature_bp.get('/recurring-transactions')
+@auth_required
+def list_recurring():
+    return jsonify({'ok': True, 'data': service.list_recurring(g.current_user['id'])})
+
+
+@feature_bp.post('/recurring-transactions')
+@auth_required
+def create_recurring():
+    try:
+        rec_id = service.create_recurring(g.current_user['id'], request.get_json(force=True))
+        return jsonify({'ok': True, 'data': {'id': rec_id}})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@feature_bp.delete('/recurring-transactions/<int:recurring_id>')
+@auth_required
+def delete_recurring(recurring_id: int):
+    try:
+        return jsonify({'ok': True, 'data': service.delete_recurring(g.current_user['id'], recurring_id)})
+    except Exception as exc:
+        return api_error(str(exc), 404)
+
+
+@feature_bp.patch('/recurring-transactions/<int:recurring_id>/toggle')
+@auth_required
+def toggle_recurring(recurring_id: int):
+    try:
+        data = request.get_json(force=True)
+        is_active = bool(data.get('is_active', True))
+        ok = service.toggle_recurring(g.current_user['id'], recurring_id, is_active)
+        return jsonify({'ok': True, 'data': ok})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+# ── Debts ──────────────────────────────────────────────────
+
+@feature_bp.get('/debts')
+@auth_required
+def list_debts():
+    return jsonify({'ok': True, 'data': service.list_debts(g.current_user['id'])})
+
+
+@feature_bp.post('/debts')
+@auth_required
+def create_debt():
+    try:
+        debt_id = service.create_debt(g.current_user['id'], request.get_json(force=True))
+        return jsonify({'ok': True, 'data': {'id': debt_id}})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@feature_bp.post('/debts/<int:debt_id>/settle')
+@auth_required
+def settle_debt(debt_id: int):
+    try:
+        return jsonify({'ok': True, 'data': service.settle_debt(g.current_user['id'], debt_id)})
+    except Exception as exc:
+        return api_error(str(exc), 404)
+
+
+@feature_bp.delete('/debts/<int:debt_id>')
+@auth_required
+def delete_debt(debt_id: int):
+    try:
+        return jsonify({'ok': True, 'data': service.delete_debt(g.current_user['id'], debt_id)})
+    except Exception as exc:
+        return api_error(str(exc), 404)
+
+
+# ── PIN ────────────────────────────────────────────────────
+
+@feature_bp.put('/auth/pin')
+@auth_required
+def set_pin():
+    try:
+        data = request.get_json(force=True)
+        pin = str(data.get('pin') or '')
+        return jsonify({'ok': True, 'data': service.set_pin(g.current_user['id'], pin)})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@feature_bp.post('/auth/pin/verify')
+@auth_required
+def verify_pin():
+    try:
+        data = request.get_json(force=True)
+        pin = str(data.get('pin') or '')
+        ok = service.verify_pin(g.current_user['id'], pin)
+        if not ok:
+            return api_error('Невірний PIN.', 401)
+        return jsonify({'ok': True, 'data': True})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@feature_bp.delete('/auth/pin')
+@auth_required
+def clear_pin():
+    try:
+        return jsonify({'ok': True, 'data': service.clear_pin(g.current_user['id'])})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@feature_bp.get('/auth/pin/status')
+@auth_required
+def pin_status():
+    return jsonify({'ok': True, 'data': {'has_pin': service.has_pin(g.current_user['id'])}})
+
+
+# ── Tags ───────────────────────────────────────────────────
+
+@feature_bp.get('/transactions/tags')
+@auth_required
+def list_tags():
+    try:
+        from ..services.account_service import AccountService
+        account = AccountService().get_main_account(g.current_user['id'])
+        tags = service.list_tags(account['id'])
+        return jsonify({'ok': True, 'data': tags})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@feature_bp.patch('/transactions/<int:transaction_id>/tags')
+@auth_required
+def update_tags(transaction_id: int):
+    try:
+        from ..services.account_service import AccountService
+        account = AccountService().get_main_account(g.current_user['id'])
+        data = request.get_json(force=True)
+        tags = str(data.get('tags') or '')
+        ok = service.update_tags(account['id'], transaction_id, tags)
+        return jsonify({'ok': True, 'data': ok})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+# ── Velocity & Top Recipients ───────────────────────────────
+
+@feature_bp.get('/analytics/velocity')
+@auth_required
+def spending_velocity():
+    try:
+        from ..services.account_service import AccountService
+        account = AccountService().get_main_account(g.current_user['id'])
+        data = service.get_velocity(account['id'])
+        return jsonify({'ok': True, 'data': data})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@feature_bp.get('/analytics/top-recipients')
+@auth_required
+def top_recipients():
+    try:
+        from ..services.account_service import AccountService
+        account = AccountService().get_main_account(g.current_user['id'])
+        data = service.get_top_recipients(account['id'])
+        return jsonify({'ok': True, 'data': data})
+    except Exception as exc:
+        return api_error(str(exc))

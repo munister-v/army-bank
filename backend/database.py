@@ -84,6 +84,66 @@ def get_connection() -> Iterator:
             yield _SqliteConnWrapper(conn)
 
 
+RECURRING_TX_DDL = """
+CREATE TABLE IF NOT EXISTS recurring_transactions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(200) NOT NULL,
+    amount NUMERIC(14,2) NOT NULL CHECK (amount > 0),
+    tx_type VARCHAR(30) NOT NULL DEFAULT 'transfer',
+    recipient_account VARCHAR(50),
+    description TEXT NOT NULL DEFAULT '',
+    frequency VARCHAR(20) NOT NULL DEFAULT 'monthly',
+    next_run_date DATE NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+RECURRING_TX_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS recurring_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    amount REAL NOT NULL CHECK (amount > 0),
+    tx_type TEXT NOT NULL DEFAULT 'transfer',
+    recipient_account TEXT,
+    description TEXT NOT NULL DEFAULT '',
+    frequency TEXT NOT NULL DEFAULT 'monthly',
+    next_run_date TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
+DEBTS_DDL = """
+CREATE TABLE IF NOT EXISTS debts (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    contact_name VARCHAR(150) NOT NULL,
+    amount NUMERIC(14,2) NOT NULL,
+    direction VARCHAR(20) NOT NULL DEFAULT 'owed_to_me',
+    description TEXT,
+    is_settled BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    settled_at TIMESTAMPTZ
+);
+"""
+
+DEBTS_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS debts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    contact_name TEXT NOT NULL,
+    amount REAL NOT NULL,
+    direction TEXT NOT NULL DEFAULT 'owed_to_me',
+    description TEXT,
+    is_settled INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    settled_at TEXT
+);
+"""
+
 BUDGET_LIMITS_DDL = """
 CREATE TABLE IF NOT EXISTS budget_limits (
     id SERIAL PRIMARY KEY,
@@ -115,8 +175,18 @@ def init_db() -> None:
             with conn.cursor() as cur:
                 cur.execute(schema_sql)
                 cur.execute(BUDGET_LIMITS_DDL)
+                cur.execute(RECURRING_TX_DDL)
+                cur.execute(DEBTS_DDL)
                 try:
                     cur.execute('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS note TEXT;')
+                except Exception:
+                    pass
+                try:
+                    cur.execute('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS tags TEXT;')
+                except Exception:
+                    pass
+                try:
+                    cur.execute('ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash TEXT;')
                 except Exception:
                     pass
     else:
@@ -124,8 +194,18 @@ def init_db() -> None:
         with get_connection_sqlite() as conn:
             conn.executescript(schema_sql)
             conn.executescript(BUDGET_LIMITS_DDL_SQLITE)
+            conn.executescript(RECURRING_TX_DDL_SQLITE)
+            conn.executescript(DEBTS_DDL_SQLITE)
             try:
                 conn.execute('ALTER TABLE transactions ADD COLUMN note TEXT;')
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE transactions ADD COLUMN tags TEXT;')
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE users ADD COLUMN pin_hash TEXT;')
             except Exception:
                 pass
 
