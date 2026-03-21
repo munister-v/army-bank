@@ -527,10 +527,12 @@ async function loadTransactionsWithFilters() {
   const params = new URLSearchParams();
   if (form) {
     const fd = new FormData(form);
-    if (fd.get('from_date')) params.set('from_date', fd.get('from_date'));
-    if (fd.get('to_date'))   params.set('to_date',   fd.get('to_date'));
-    if (fd.get('tx_type'))   params.set('tx_type',   fd.get('tx_type'));
-    if (fd.get('direction')) params.set('direction', fd.get('direction'));
+    if (fd.get('from_date'))  params.set('from_date',  fd.get('from_date'));
+    if (fd.get('to_date'))    params.set('to_date',    fd.get('to_date'));
+    if (fd.get('tx_type'))    params.set('tx_type',    fd.get('tx_type'));
+    if (fd.get('direction'))  params.set('direction',  fd.get('direction'));
+    if (fd.get('min_amount')) params.set('min_amount', fd.get('min_amount'));
+    if (fd.get('max_amount')) params.set('max_amount', fd.get('max_amount'));
   }
   const searchVal = $('#txSearchInput')?.value?.trim();
   if (searchVal) params.set('search', searchVal);
@@ -733,6 +735,7 @@ async function refreshAllData() {
     if (typeof loadTopRecipients === 'function') loadTopRecipients().catch(() => {});
     if (typeof loadTagsCloud === 'function') loadTagsCloud().catch(() => {});
     if (typeof checkPinStatus === 'function') checkPinStatus().catch(() => {});
+    if (typeof loadBudgetProgress === 'function') loadBudgetProgress().catch(() => {});
 
   } finally {
     ['#recentTransactions','#transactionsList','#payoutsList','#donationsList','#goalsList','#contactsList']
@@ -754,6 +757,8 @@ async function handleAuth(form, endpoint) {
   showToast('Успішна авторизація.');
   startPolling();
   updatePushDot();
+  if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
+  if (typeof window._startPinLock === 'function') window._startPinLock();
   if (Notification?.permission === 'granted') {
     api.subscribePush().catch(() => {});
   }
@@ -1035,6 +1040,8 @@ if ('serviceWorker' in navigator) {
     switchScreen(getScreenIdFromPath());
     startPolling();
     updatePushDot();
+    if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
+    if (typeof window._startPinLock === 'function') window._startPinLock();
     if (Notification?.permission === 'granted') api.subscribePush().catch(() => {});
   } catch (error) {
     api.setToken('');
@@ -2864,4 +2871,261 @@ console.log('[Army Bank] Wave 5 loaded \u2014 PIN, Recurring, Debts, Tags, Veloc
       if (typeof navigator.vibrate === 'function') navigator.vibrate(10);
     }
   }, { passive: true });
+})();
+
+// ── NOTIFICATION CENTER ────────────────────────────────────────
+(function() {
+  var notifBtn    = document.getElementById('notifBtn');
+  var notifPanel  = document.getElementById('notifPanel');
+  var notifOverlay = document.getElementById('notifOverlay');
+  var notifList   = document.getElementById('notifList');
+  var notifBadge  = document.getElementById('notifBadge');
+  var notifCloseBtn   = document.getElementById('notifCloseBtn');
+  var notifMarkAllBtn = document.getElementById('notifMarkAllBtn');
+
+  if (!notifBtn || !notifPanel) return;
+
+  var ICON_MAP = {
+    transfer_received: '💸',
+    budget_exceeded:   '🚨',
+    budget_warning:    '⚠️',
+    goal_reached:      '🏆',
+    recurring_done:    '🔄',
+    info:              '🔔',
+  };
+
+  function relTime(dateStr) {
+    var d   = new Date(dateStr);
+    var now = Date.now();
+    var s   = Math.floor((now - d.getTime()) / 1000);
+    if (s < 60)  return 'щойно';
+    if (s < 3600) return Math.floor(s/60) + ' хв. тому';
+    if (s < 86400) return Math.floor(s/3600) + ' год. тому';
+    return Math.floor(s/86400) + ' дн. тому';
+  }
+
+  function openNotifPanel() {
+    notifPanel.classList.add('open');
+    notifOverlay.style.display = 'block';
+    loadNotifications();
+  }
+
+  function closeNotifPanel() {
+    notifPanel.classList.remove('open');
+    notifOverlay.style.display = 'none';
+  }
+
+  notifBtn.addEventListener('click', openNotifPanel);
+  notifCloseBtn.addEventListener('click', closeNotifPanel);
+  notifOverlay.addEventListener('click', closeNotifPanel);
+
+  notifMarkAllBtn.addEventListener('click', async function() {
+    try {
+      await api.request('/api/notifications/read-all', { method: 'POST' });
+      await loadNotifications();
+      updateBadge(0);
+    } catch(e) {}
+  });
+
+  async function loadNotifications() {
+    if (!notifList) return;
+    try {
+      var items = await api.request('/api/notifications');
+      if (!items || !items.length) {
+        notifList.innerHTML = '<div class="notif-empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>Сповіщень немає</span></div>';
+        return;
+      }
+      notifList.innerHTML = items.map(function(n) {
+        var icon = n.icon || ICON_MAP[n.type] || '🔔';
+        return '<div class="notif-item' + (n.is_read ? '' : ' unread') + '" data-id="' + n.id + '">' +
+          '<div class="notif-icon">' + icon + '</div>' +
+          '<div class="notif-body">' +
+            '<div class="notif-title">' + escHtml(n.title) + '</div>' +
+            (n.body ? '<div class="notif-text">' + escHtml(n.body) + '</div>' : '') +
+            '<div class="notif-time">' + relTime(n.created_at) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      notifList.querySelectorAll('.notif-item.unread').forEach(function(el) {
+        el.addEventListener('click', async function() {
+          var id = this.dataset.id;
+          try {
+            await api.request('/api/notifications/' + id + '/read', { method: 'POST' });
+            this.classList.remove('unread');
+            refreshBadge();
+          } catch(e) {}
+        });
+      });
+    } catch(e) {}
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function updateBadge(count) {
+    if (!notifBadge) return;
+    if (count > 0) {
+      notifBadge.textContent = count > 99 ? '99+' : count;
+      notifBadge.style.display = 'flex';
+    } else {
+      notifBadge.style.display = 'none';
+    }
+  }
+
+  async function refreshBadge() {
+    try {
+      var res = await api.request('/api/notifications/unread-count');
+      updateBadge(res && res.count ? res.count : 0);
+    } catch(e) {}
+  }
+
+  // Poll badge every 60 seconds once logged in
+  window._startNotifPolling = function() {
+    refreshBadge();
+    setInterval(refreshBadge, 60000);
+  };
+})();
+
+// ── BUDGET PROGRESS WIDGET ──────────────────────────────────────
+async function loadBudgetProgress() {
+  var card = document.getElementById('budgetProgressCard');
+  var list = document.getElementById('budgetProgressList');
+  if (!card || !list) return;
+  try {
+    var limits = await api.request('/api/budget-limits');
+    if (!limits || !limits.length) { card.style.display = 'none'; return; }
+    var analytics = await api.request('/api/analytics');
+    var byType = {};
+    (analytics.by_type || []).forEach(function(r) {
+      if (r.direction === 'out') byType[r.tx_type] = parseFloat(r.total) || 0;
+    });
+    var TYPE_LABELS = { transfer: 'Перекази', donation: 'Донати', savings: 'Накопичення', topup: 'Поповнення' };
+    list.innerHTML = limits.map(function(l) {
+      var spent = byType[l.tx_type] || 0;
+      var limit = parseFloat(l.monthly_limit) || 0;
+      var pct = limit > 0 ? Math.min(100, Math.round(spent / limit * 100)) : 0;
+      var cls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : '';
+      var label = TYPE_LABELS[l.tx_type] || l.tx_type;
+      return '<div class="budget-progress-item">' +
+        '<div class="bpi-row">' +
+          '<span class="bpi-label">' + label + '</span>' +
+          '<span class="bpi-amounts ' + cls + '">' +
+            formatMoney(spent) + ' / ' + formatMoney(limit) +
+          '</span>' +
+        '</div>' +
+        '<div class="bpi-bar"><div class="bpi-fill ' + cls + '" style="width:' + pct + '%"></div></div>' +
+      '</div>';
+    }).join('');
+    card.style.display = '';
+  } catch(e) {
+    card.style.display = 'none';
+  }
+}
+
+// ── PIN LOCK OVERLAY ───────────────────────────────────────────
+(function() {
+  var overlay   = document.getElementById('pinLockOverlay');
+  var dotsEl    = document.getElementById('pinLockDots');
+  var errorEl   = document.getElementById('pinLockError');
+  var delBtn    = document.getElementById('pinLockDel');
+  var logoutBtn = document.getElementById('pinLockLogout');
+  if (!overlay) return;
+
+  var buf = '';
+  var TIMEOUT = 3 * 60 * 1000; // 3 minutes
+  var lockTimer = null;
+  var isLocked  = false;
+
+  function getDots() { return dotsEl ? dotsEl.querySelectorAll('span') : []; }
+
+  function updateDots() {
+    getDots().forEach(function(s, i) {
+      s.classList.toggle('filled', i < buf.length);
+    });
+  }
+
+  function showLock() {
+    if (isLocked) return;
+    isLocked = true;
+    buf = '';
+    updateDots();
+    if (errorEl) errorEl.textContent = '';
+    overlay.classList.remove('hidden');
+  }
+
+  function hideLock() {
+    isLocked = false;
+    overlay.classList.add('hidden');
+    resetTimer();
+  }
+
+  function resetTimer() {
+    clearTimeout(lockTimer);
+    lockTimer = setTimeout(function() {
+      // Only lock if PIN is set
+      if (typeof checkPinStatus === 'function') {
+        api.request('/api/auth/pin/status').then(function(r) {
+          if (r && r.has_pin) showLock();
+        }).catch(function() {});
+      }
+    }, TIMEOUT);
+  }
+
+  // Digit buttons
+  overlay.querySelectorAll('.pin-pad-btn[data-digit]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (buf.length >= 4) return;
+      buf += this.dataset.digit;
+      updateDots();
+      if (buf.length === 4) verifyPin();
+    });
+  });
+
+  if (delBtn) {
+    delBtn.addEventListener('click', function() {
+      buf = buf.slice(0, -1);
+      updateDots();
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function() {
+      hideLock();
+      var logoutBtnMain = document.getElementById('logoutBtn');
+      if (logoutBtnMain) logoutBtnMain.click();
+    });
+  }
+
+  async function verifyPin() {
+    try {
+      var ok = await api.request('/api/auth/pin/verify', { method: 'POST', body: JSON.stringify({ pin: buf }) });
+      if (ok) {
+        hideLock();
+      } else {
+        wrongPin();
+      }
+    } catch(e) {
+      wrongPin();
+    }
+  }
+
+  function wrongPin() {
+    buf = '';
+    updateDots();
+    if (errorEl) errorEl.textContent = 'Невірний PIN-код';
+    if (dotsEl) {
+      dotsEl.classList.add('shake');
+      setTimeout(function() { dotsEl.classList.remove('shake'); }, 450);
+    }
+  }
+
+  // Start activity tracking after login
+  window._startPinLock = function() {
+    ['click','touchstart','keydown','scroll'].forEach(function(ev) {
+      document.addEventListener(ev, resetTimer, { passive: true });
+    });
+    resetTimer();
+  };
 })();

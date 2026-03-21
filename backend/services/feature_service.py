@@ -262,3 +262,26 @@ class FeatureService:
     # ── Top Recipients ─────────────────────────────────────
     def get_top_recipients(self, account_id: int) -> list:
         return self.repo.get_top_recipients(account_id)
+
+    # ── Notifications ──────────────────────────────────────
+    def create_notification(self, user_id: int, type: str, title: str, body: str = '', icon: str = '🔔') -> int:
+        return self.repo.create_notification(user_id, type, title, body, icon)
+
+    def list_notifications(self, user_id: int) -> list:
+        rows = self.repo.list_notifications(user_id)
+        result = []
+        for r in rows:
+            d = dict(r)
+            # Normalize boolean is_read for SQLite (0/1) and PG (True/False)
+            d['is_read'] = bool(d.get('is_read'))
+            result.append(d)
+        return result
+
+    def count_unread(self, user_id: int) -> int:
+        return self.repo.count_unread(user_id)
+
+    def mark_all_read(self, user_id: int) -> None:
+        self.repo.mark_all_read(user_id)
+
+    def mark_one_read(self, notification_id: int, user_id: int) -> None:
+        self.repo.mark_one_read(notification_id, user_id)

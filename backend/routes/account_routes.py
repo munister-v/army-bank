@@ -53,6 +53,8 @@ def history():
         tx_type = request.args.get('tx_type') or None
         direction = request.args.get('direction') or None
         search = request.args.get('search') or None
+        min_amount = float(request.args['min_amount']) if request.args.get('min_amount') else None
+        max_amount = float(request.args['max_amount']) if request.args.get('max_amount') else None
         data = service.list_transactions(
             g.current_user['id'],
             from_date=from_date,
@@ -60,6 +62,8 @@ def history():
             tx_type=tx_type,
             direction=direction,
             search=search,
+            min_amount=min_amount,
+            max_amount=max_amount,
         )
         return jsonify({'ok': True, 'data': data})
     except Exception as exc:

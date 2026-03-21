@@ -337,3 +337,31 @@ def top_recipients():
         return jsonify({'ok': True, 'data': data})
     except Exception as exc:
         return api_error(str(exc))
+
+
+# ── Notifications ──────────────────────────────────────────
+
+@feature_bp.get('/notifications')
+@auth_required
+def list_notifications():
+    return jsonify({'ok': True, 'data': service.list_notifications(g.current_user['id'])})
+
+
+@feature_bp.get('/notifications/unread-count')
+@auth_required
+def unread_count():
+    return jsonify({'ok': True, 'data': {'count': service.count_unread(g.current_user['id'])}})
+
+
+@feature_bp.post('/notifications/read-all')
+@auth_required
+def mark_all_read():
+    service.mark_all_read(g.current_user['id'])
+    return jsonify({'ok': True, 'data': True})
+
+
+@feature_bp.post('/notifications/<int:notification_id>/read')
+@auth_required
+def mark_one_read(notification_id: int):
+    service.mark_one_read(notification_id, g.current_user['id'])
+    return jsonify({'ok': True, 'data': True})

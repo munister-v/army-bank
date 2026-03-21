@@ -144,6 +144,32 @@ CREATE TABLE IF NOT EXISTS debts (
 );
 """
 
+NOTIFICATIONS_DDL = """
+CREATE TABLE IF NOT EXISTS notifications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL DEFAULT 'info',
+    title VARCHAR(200) NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    icon VARCHAR(10) NOT NULL DEFAULT '🔔',
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+NOTIFICATIONS_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL DEFAULT 'info',
+    title TEXT NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    icon TEXT NOT NULL DEFAULT '🔔',
+    is_read INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
 BUDGET_LIMITS_DDL = """
 CREATE TABLE IF NOT EXISTS budget_limits (
     id SERIAL PRIMARY KEY,
@@ -174,6 +200,7 @@ def init_db() -> None:
         with get_connection_pg() as conn:
             with conn.cursor() as cur:
                 cur.execute(schema_sql)
+                cur.execute(NOTIFICATIONS_DDL)
                 cur.execute(BUDGET_LIMITS_DDL)
                 cur.execute(RECURRING_TX_DDL)
                 cur.execute(DEBTS_DDL)
@@ -193,6 +220,7 @@ def init_db() -> None:
         schema_sql = Path(SCHEMA_PATH).read_text(encoding='utf-8')
         with get_connection_sqlite() as conn:
             conn.executescript(schema_sql)
+            conn.executescript(NOTIFICATIONS_DDL_SQLITE)
             conn.executescript(BUDGET_LIMITS_DDL_SQLITE)
             conn.executescript(RECURRING_TX_DDL_SQLITE)
             conn.executescript(DEBTS_DDL_SQLITE)

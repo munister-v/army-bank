@@ -46,11 +46,52 @@ class AccountService:
         self.accounts.add_transaction(sender['id'], 'transfer', 'out', amount, description, recipient['account_number'])
         self.accounts.add_transaction(recipient['id'], 'transfer', 'in', amount, f'Надходження: {description}', sender['account_number'])
         self.features.add_audit_log(user_id, 'transfer', f'Переказ {amount:.2f} грн на {recipient_account_number}.')
+        # Notify recipient
+        try:
+            self.features.create_notification(
+                recipient['user_id'], 'transfer_received',
+                f'Надходження ₴{amount:,.0f}'.replace(',', ' '),
+                f'Від {sender["account_number"]}: {description}',
+                '💸',
+            )
+        except Exception:
+            pass
+        # Check budget limit for sender
+        try:
+            self._check_budget_alert(user_id, sender['id'], 'transfer')
+        except Exception:
+            pass
         return self.get_main_account(user_id)
 
-    def list_transactions(self, user_id: int, from_date: str | None = None, to_date: str | None = None, tx_type: str | None = None, direction: str | None = None, search: str | None = None) -> list[dict]:
+    def _check_budget_alert(self, user_id: int, account_id: int, tx_type: str) -> None:
+        """Fire a notification if a budget limit is exceeded this month."""
+        limits = self.features.list_budget_limits(user_id)
+        limit_map = {l['tx_type']: float(l['monthly_limit']) for l in limits}
+        if tx_type not in limit_map:
+            return
+        monthly_limit = limit_map[tx_type]
+        analytics = self.accounts.get_analytics(account_id)
+        by_type = {r['tx_type']: float(r.get('total_out', 0)) for r in analytics.get('by_type', [])}
+        spent = by_type.get(tx_type, 0)
+        pct = int(spent / monthly_limit * 100) if monthly_limit > 0 else 0
+        if pct >= 100:
+            self.features.create_notification(
+                user_id, 'budget_exceeded',
+                f'Бюджет перевищено ({tx_type})',
+                f'Витрачено ₴{spent:,.0f} з ₴{monthly_limit:,.0f} ліміту цього місяця'.replace(',', ' '),
+                '🚨',
+            )
+        elif pct >= 80:
+            self.features.create_notification(
+                user_id, 'budget_warning',
+                f'Бюджет майже вичерпано ({tx_type})',
+                f'Витрачено {pct}% від ₴{monthly_limit:,.0f} ліміту'.replace(',', ' '),
+                '⚠️',
+            )
+
+    def list_transactions(self, user_id: int, from_date: str | None = None, to_date: str | None = None, tx_type: str | None = None, direction: str | None = None, search: str | None = None, min_amount: float | None = None, max_amount: float | None = None) -> list[dict]:
         account = self.get_main_account(user_id)
-        return self.accounts.list_transactions(account['id'], from_date=from_date, to_date=to_date, tx_type=tx_type, direction=direction, search=search)
+        return self.accounts.list_transactions(account['id'], from_date=from_date, to_date=to_date, tx_type=tx_type, direction=direction, search=search, min_amount=min_amount, max_amount=max_amount)
 
     def get_transaction(self, user_id: int, transaction_id: int) -> dict:
         account = self.get_main_account(user_id)

@@ -49,7 +49,7 @@ class AccountRepository(BaseRepository):
                 (transaction_id, account_id),
             ).fetchone()
 
-    def list_transactions(self, account_id: int, from_date: str | None = None, to_date: str | None = None, tx_type: str | None = None, direction: str | None = None, search: str | None = None):
+    def list_transactions(self, account_id: int, from_date: str | None = None, to_date: str | None = None, tx_type: str | None = None, direction: str | None = None, search: str | None = None, min_amount: float | None = None, max_amount: float | None = None):
         with self.connection() as conn:
             sql = 'SELECT * FROM transactions WHERE account_id = %s'
             params = [account_id]
@@ -68,6 +68,12 @@ class AccountRepository(BaseRepository):
             if search:
                 sql += ' AND LOWER(description) LIKE %s'
                 params.append(f'%{search.lower()}%')
+            if min_amount is not None:
+                sql += ' AND amount >= %s'
+                params.append(min_amount)
+            if max_amount is not None:
+                sql += ' AND amount <= %s'
+                params.append(max_amount)
             sql += ' ORDER BY created_at DESC, id DESC'
             return conn.execute(sql, tuple(params)).fetchall()
 

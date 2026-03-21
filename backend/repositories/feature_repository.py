@@ -338,3 +338,35 @@ class FeatureRepository(BaseRepository):
                 ORDER BY total_sent DESC
                 LIMIT %s
             ''', (account_id, limit)).fetchall()
+
+    # ── Notifications ──────────────────────────────────────
+    def create_notification(self, user_id: int, type: str, title: str, body: str = '', icon: str = '🔔') -> int:
+        with self.connection() as conn:
+            cursor = conn.execute(
+                'INSERT INTO notifications(user_id, type, title, body, icon) VALUES(%s, %s, %s, %s, %s)' + get_returning_id_suffix(),
+                (user_id, type, title, body, icon),
+            )
+            return insert_last_id(cursor)
+
+    def list_notifications(self, user_id: int, limit: int = 50) -> list:
+        with self.connection() as conn:
+            return conn.execute(
+                'SELECT * FROM notifications WHERE user_id = %s ORDER BY is_read ASC, created_at DESC LIMIT %s',
+                (user_id, limit),
+            ).fetchall()
+
+    def count_unread(self, user_id: int) -> int:
+        with self.connection() as conn:
+            row = conn.execute(
+                'SELECT COUNT(*) AS n FROM notifications WHERE user_id = %s AND is_read = %s',
+                (user_id, False),
+            ).fetchone()
+            return int(row['n']) if row else 0
+
+    def mark_all_read(self, user_id: int) -> None:
+        with self.connection() as conn:
+            conn.execute('UPDATE notifications SET is_read = %s WHERE user_id = %s', (True, user_id))
+
+    def mark_one_read(self, notification_id: int, user_id: int) -> None:
+        with self.connection() as conn:
+            conn.execute('UPDATE notifications SET is_read = %s WHERE id = %s AND user_id = %s', (True, notification_id, user_id))
