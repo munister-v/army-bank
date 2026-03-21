@@ -1,47 +1,63 @@
-/* Army Bank — PWA UI, premium black & white design */
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap');
+/* Army Bank — PWA UI v2, visual harmony with ArmyBank landing */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 /* ── TOKENS ────────────────────────────────────────────── */
 :root {
-  --bg:          #080808;
-  --surface:     #111111;
-  --surface2:    #1a1a1a;
-  --bg-card:     #111111;
-  --bg-card-2:   #1a1a1a;
-  --header-1:    #080808;
-  --header-2:    #0d0d0d;
-  --text:        #ffffff;
-  --text-2:      rgba(255,255,255,.65);
-  --muted:       rgba(255,255,255,.35);
-  --border:      rgba(255,255,255,.08);
-  --border-2:    rgba(255,255,255,.16);
-  --border-hover: rgba(255,255,255,.16);
-  --accent:      #ffffff;
-  --accent-glow: rgba(255,255,255,.08);
-  --green:       #4ade80;
-  --green-bg:    rgba(74,222,128,.1);
-  --red:         #f87171;
-  --red-bg:      rgba(248,113,113,.1);
-  --orange:      #fb923c;
-  --orange-bg:   rgba(251,146,60,.1);
-  --yellow:      #facc15;
+  /* Backgrounds — aligned with landing's dark palette */
+  --bg:          #0D0F12;
+  --surface:     #151820;
+  --surface2:    #1E2230;
+  --bg-card:     #151820;
+  --bg-card-2:   #1E2230;
+  --header-1:    #0D0F12;
+  --header-2:    #111420;
+
+  /* Text */
+  --text:        #FFFFFF;
+  --text-2:      rgba(255,255,255,.62);
+  --muted:       rgba(255,255,255,.32);
+
+  /* Borders */
+  --border:      rgba(255,255,255,.07);
+  --border-2:    rgba(255,255,255,.14);
+  --border-hover: rgba(255,255,255,.18);
+
+  /* Accent — BLUE, matching landing's --accent: #1B65F5 */
+  --accent:      #1B65F5;
+  --accent-dim:  rgba(27,101,245,.18);
+  --accent-glow: rgba(27,101,245,.12);
+
+  /* Semantic colors */
+  --green:       #00B87A;
+  --green-bg:    rgba(0,184,122,.1);
+  --red:         #EF4444;
+  --red-bg:      rgba(239,68,68,.1);
+  --orange:      #F59E0B;
+  --orange-bg:   rgba(245,158,11,.1);
+  --yellow:      #FACC15;
   --yellow-bg:   rgba(250,204,21,.1);
-  --purple:      #c084fc;
-  --purple-bg:   rgba(192,132,252,.1);
-  --blue-bg:     rgba(148,163,184,.1);
+  --purple:      #A78BFA;
+  --purple-bg:   rgba(167,139,250,.1);
+  --blue-bg:     rgba(27,101,245,.1);
+
+  /* Shape */
   --radius:      18px;
   --radius-sm:   12px;
   --radius-xs:   9px;
   --nav-h:       68px;
   --ease:        cubic-bezier(.25,.46,.45,.94);
   --shadow:      0 4px 24px rgba(0,0,0,.5);
+
+  /* Font — matching landing */
+  --font-ui: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
 }
 
 /* ── BASE ───────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { height: 100%; -webkit-tap-highlight-color: transparent; }
 body {
-  font-family: 'Manrope', -apple-system, system-ui, sans-serif;
+  font-family: var(--font-ui);
   background: var(--bg);
   color: var(--text);
   min-height: 100%;
@@ -91,19 +107,20 @@ a { color: inherit; text-decoration: none; }
   width: 64px;
   height: 64px;
   border-radius: 20px;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.15);
+  background: var(--accent);
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px var(--accent-glow);
 }
 .auth-logo h1 {
-  font-size: 28px;
-  font-weight: 900;
-  letter-spacing: -.05em;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -.03em;
   color: #fff;
 }
+.auth-logo h1 strong { font-weight: 800; }
 .auth-logo p {
   color: var(--muted);
   font-size: 14px;
@@ -139,7 +156,7 @@ a { color: inherit; text-decoration: none; }
   transition: all .2s var(--ease);
 }
 .auth-tab:hover { color: var(--text-2); }
-.auth-tab.active { color: var(--text); border-bottom-color: #ffffff; }
+.auth-tab.active { color: var(--text); border-bottom-color: var(--accent); }
 
 .auth-form { display: none; flex-direction: column; gap: 14px; }
 .auth-form.active { display: flex; animation: slideUp .3s var(--ease); }
@@ -156,7 +173,7 @@ a { color: inherit; text-decoration: none; }
   font-family: inherit;
   transition: border-color .2s, box-shadow .2s;
 }
-.field input:focus { outline: none; border-color: #ffffff; box-shadow: 0 0 0 3px rgba(255,255,255,.06); }
+.field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
 .field input::placeholder { color: transparent; }
 .field label {
   position: absolute;
@@ -179,16 +196,16 @@ a { color: inherit; text-decoration: none; }
   font-size: 15px;
   font-weight: 700;
   border-radius: 100px;
-  background: #ffffff;
-  color: #000000;
+  background: var(--accent);
+  color: #ffffff;
   border: 0;
   cursor: pointer;
   font-family: inherit;
   width: 100%;
   letter-spacing: -.01em;
-  transition: opacity .2s, transform .1s;
+  transition: opacity .2s, transform .1s, box-shadow .2s;
 }
-.auth-submit:hover { opacity: .88; }
+.auth-submit:hover { opacity: .9; box-shadow: 0 4px 20px var(--accent-glow); }
 .auth-submit:active { transform: scale(.98); }
 
 /* ── APP SHELL ──────────────────────────────────────────── */
@@ -381,14 +398,14 @@ button { font-family: inherit; cursor: pointer; }
   display: block; width: 100%;
   padding: 12px 18px;
   border-radius: 100px;
-  background: #ffffff;
-  color: #000000;
+  background: var(--accent);
+  color: #ffffff;
   border: 0;
   font-size: 14px; font-weight: 700;
   letter-spacing: -.01em;
-  transition: opacity .2s, transform .1s;
+  transition: opacity .2s, transform .1s, box-shadow .2s;
 }
-.btn-accent:hover { opacity: .88; }
+.btn-accent:hover { opacity: .9; box-shadow: 0 4px 20px var(--accent-glow); }
 .btn-accent:active { transform: scale(.98); }
 
 .btn-ghost {
@@ -449,8 +466,8 @@ button { font-family: inherit; cursor: pointer; }
 }
 .nav-item svg { transition: stroke .2s; }
 .nav-item:hover { color: var(--text-2); }
-.nav-item.active { color: #ffffff; }
-.nav-item.active svg { stroke: #ffffff; }
+.nav-item.active { color: var(--accent); }
+.nav-item.active svg { stroke: var(--accent); }
 
 /* ── SCREENS ────────────────────────────────────────────── */
 .screen { display: none; }
@@ -675,7 +692,7 @@ button:focus-visible, a:focus-visible {
     letter-spacing: -.01em;
   }
   .nav-item svg { width: 18px; height: 18px; }
-  .nav-item.active { background: rgba(255,255,255,.08); color: #ffffff; }
+  .nav-item.active { background: var(--accent-dim); color: var(--accent); }
 
   /* Main content — fills remaining space */
   .app-content {
