@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from flask import Flask, Response, jsonify, send_from_directory
+from flask import Flask, Response, abort, jsonify, redirect, send_from_directory
 
 from .config import BASE_PATH, DEBUG
 from .database import init_db, init_admin
@@ -17,6 +17,9 @@ from .routes.push_routes import push_bp
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / 'frontend'
+MARKETING_DIR = Path(__file__).resolve().parent.parent / 'marketing'
+ARMY_ADMIN_MARKETING = MARKETING_DIR / 'munister-army-admin'
+ARMY_BANK_MARKETING = MARKETING_DIR / 'munister-army-bank'
 
 
 def create_app() -> Flask:
@@ -168,6 +171,46 @@ def create_app() -> Flask:
     @app.get(prefix + '/health')
     def health():
         return {'ok': True, 'service': 'WeeGo Army Bank'}
+
+    # ── Статичні маркетингові сайти (munister.com.ua/army-admin/, /army-bank/) ──
+    # Шляхи без BASE_PATH: Nginx проксує сюди окремо від /bank. Один git pull + restart — усе оновлено.
+    def _send_marketing(root: Path, filepath: str | None):
+        if not root.is_dir():
+            abort(404)
+        if not filepath or filepath.endswith('/'):
+            return send_from_directory(root, 'index.html')
+        target = (root / filepath).resolve()
+        try:
+            target.relative_to(root.resolve())
+        except ValueError:
+            abort(404)
+        if target.is_file():
+            return send_from_directory(root, filepath)
+        abort(404)
+
+    @app.get('/army-admin')
+    def marketing_army_admin_slash():
+        return redirect('/army-admin/', 308)
+
+    @app.get('/army-admin/')
+    def marketing_army_admin_index():
+        return _send_marketing(ARMY_ADMIN_MARKETING, None)
+
+    @app.get('/army-admin/<path:filepath>')
+    def marketing_army_admin_file(filepath: str):
+        return _send_marketing(ARMY_ADMIN_MARKETING, filepath)
+
+    @app.get('/army-bank')
+    def marketing_army_bank_slash():
+        return redirect('/army-bank/', 308)
+
+    @app.get('/army-bank/')
+    def marketing_army_bank_index():
+        return _send_marketing(ARMY_BANK_MARKETING, None)
+
+    @app.get('/army-bank/<path:filepath>')
+    def marketing_army_bank_file(filepath: str):
+        return _send_marketing(ARMY_BANK_MARKETING, filepath)
 
     return app
 
