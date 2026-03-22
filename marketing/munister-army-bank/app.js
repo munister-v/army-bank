@@ -6,6 +6,15 @@
 (function () {
   'use strict';
 
+  /* На Render / localhost — «Відкрити додаток» веде на цей же хост /app */
+  if (/onrender\.com$/i.test(location.hostname) || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    document.querySelectorAll('a[href="https://army-bank.onrender.com"]').forEach(function (a) {
+      a.setAttribute('href', '/app');
+      a.removeAttribute('target');
+      a.removeAttribute('rel');
+    });
+  }
+
   /* ════════════════════════════════════════════
      SMOOTH SCROLL
   ════════════════════════════════════════════ */

@@ -144,7 +144,19 @@ def create_app() -> Flask:
 
     @app.get(prefix + '/' if prefix else '/')
     def index():
+        # Без BASE_PATH (Render): головна = портфоліо як на munister.com.ua/army-bank/
+        if not prefix:
+            return _send_marketing(ARMY_BANK_MARKETING, None)
         return send_html('landing.html')
+
+    if not prefix:
+        @app.get('/styles.css')
+        def portfolio_root_css():
+            return send_from_directory(ARMY_BANK_MARKETING, 'styles.css')
+
+        @app.get('/app.js')
+        def portfolio_root_js():
+            return send_from_directory(ARMY_BANK_MARKETING, 'app.js')
 
     @app.get(prefix + '/app' if prefix else '/app')
     def app_root():
