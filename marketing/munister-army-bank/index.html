@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://army-bank.onrender.com">
   <link rel="dns-prefetch" href="https://army-bank.onrender.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=17">
+  <link rel="stylesheet" href="styles.css?v=18">
 </head>
 <body>
 
@@ -585,6 +585,51 @@ curl -X POST army-bank.onrender.com/api/transactions/transfer \
   </div>
 </section>
 
+<!-- FAQ -->
+<section class="section-faq" id="faq" aria-labelledby="faq-heading">
+  <div class="container">
+    <h2 id="faq-heading">Часті питання</h2>
+    <div class="faq-list">
+      <div class="faq-item">
+        <button type="button" class="faq-trigger" aria-expanded="false" id="faq-q1" aria-controls="faq-a1">
+          <span>Як підключити Android SDK?</span>
+          <span class="faq-icon" aria-hidden="true"></span>
+        </button>
+        <div class="faq-body" id="faq-a1" role="region" aria-labelledby="faq-q1">
+          <p>Додай Retrofit2 та OkHttp3 у <code>build.gradle</code>, створи <code>ApiService</code> з анотаціями <code>@GET</code>/<code>@POST</code>, налаштуй <code>AuthInterceptor</code> для Bearer токена. Базовий URL: <code>https://army-bank.onrender.com/api/</code>.</p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button type="button" class="faq-trigger" aria-expanded="false" id="faq-q2" aria-controls="faq-a2">
+          <span>Як влаштовані Web Push?</span>
+          <span class="faq-icon" aria-hidden="true"></span>
+        </button>
+        <div class="faq-body" id="faq-a2" role="region" aria-labelledby="faq-q2">
+          <p>PWA отримує VAPID ключ через <code>GET /api/push/vapid-public-key</code>, підписується через <code>PushManager.subscribe()</code>, відправляє PushSubscription на <code>POST /api/push/subscribe</code>. Після транзакції — автоматичний push через pywebpush.</p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button type="button" class="faq-trigger" aria-expanded="false" id="faq-q3" aria-controls="faq-a3">
+          <span>Як захищені операції з балансом?</span>
+          <span class="faq-icon" aria-hidden="true"></span>
+        </button>
+        <div class="faq-body" id="faq-a3" role="region" aria-labelledby="faq-q3">
+          <p>Кожна балансова операція — PostgreSQL-транзакція з SERIALIZABLE ізоляцією. Race condition виключений. Перед переказом: перевірка балансу, існування одержувача, валідності токена.</p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button type="button" class="faq-trigger" aria-expanded="false" id="faq-q4" aria-controls="faq-a4">
+          <span>Хто розробив?</span>
+          <span class="faq-icon" aria-hidden="true"></span>
+        </button>
+        <div class="faq-body" id="faq-a4" role="region" aria-labelledby="faq-q4">
+          <p>Viacheslav Munister — full-stack розробник. Backend: Python/Flask, БД: PostgreSQL, фронт: PWA, мобільний: Kotlin. Повний опис реалізації — на <a href="https://munister.com.ua/army-bank/">сторінці проєкту</a>. <a href="https://github.com/munister-v" target="_blank" rel="noopener">GitHub</a> · <a href="https://t.me/vyanetto1" target="_blank" rel="noopener">Telegram</a> · <a href="mailto:munister@outlook.com">munister@outlook.com</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- FOOTER -->
 </main>
 <footer class="footer" role="contentinfo">
@@ -604,8 +649,8 @@ curl -X POST army-bank.onrender.com/api/transactions/transfer \
     </div>
     <div class="footer-links">
       <a href="https://github.com/munister-v" target="_blank">GitHub</a>
-      <a href="https://t.me/munister_v" target="_blank">Telegram</a>
-      <a href="mailto:munister.v@gmail.com">Email</a>
+      <a href="https://t.me/vyanetto1" target="_blank" rel="noopener">Telegram</a>
+      <a href="mailto:munister@outlook.com">Email</a>
     </div>
   </div>
   <div class="footer-bottom container">
@@ -613,6 +658,6 @@ curl -X POST army-bank.onrender.com/api/transactions/transfer \
   </div>
 </footer>
 
-<script src="app.js?v=17" defer></script>
+<script src="app.js?v=18" defer></script>
 </body>
 </html>

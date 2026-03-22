@@ -181,5 +181,23 @@
     }).catch(function () { /* silent — cold start in progress */ });
   }, 800); // slight delay so it doesn't compete with page render
 
+  /* ════════ FAQ ACCORDION ════════ */
+  document.querySelectorAll('.faq-trigger').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var item = btn.closest('.faq-item');
+      if (!item) return;
+      var open = !item.classList.contains('open');
+      document.querySelectorAll('.faq-item.open').forEach(function (other) {
+        if (other !== item) {
+          other.classList.remove('open');
+          var b = other.querySelector('.faq-trigger');
+          if (b) b.setAttribute('aria-expanded', 'false');
+        }
+      });
+      item.classList.toggle('open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  });
+
   console.log('ArmyBank v1.6.0 — portfolio project by Viacheslav Munister');
 })();
