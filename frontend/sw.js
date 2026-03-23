@@ -1,5 +1,5 @@
-/* Army Bank — Service Worker v11 — fix black screen: critical CSS matched .hidden / .active-screen */
-const CACHE = 'army-bank-v11';
+/* Army Bank — Service Worker v12 — PWA typography + responsive polish */
+const CACHE = 'army-bank-v12';
 
 /* Assets to pre-cache on install */
 const PRECACHE = [

@@ -15,13 +15,13 @@
   <link rel="dns-prefetch" href="https://army-bank.onrender.com">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Fonts: trimmed to only used weights — async, non-render-blocking -->
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:wght@300;400&display=swap" as="style" onload="this.rel='stylesheet'">
-  <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:wght@300;400&display=swap" rel="stylesheet"></noscript>
+  <!-- Manrope: кирилиця + латиниця; Cormorant — лише акценти; JetBrains Mono — мітки -->
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400&display=swap" as="style" onload="this.rel='stylesheet'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400&display=swap" rel="stylesheet"></noscript>
   <!-- Critical inline CSS: body bg + auth shell to prevent FOUC before styles.css loads -->
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%;background:#050505;color:#e5e5e5;font-family:Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+    html,body{height:100%;background:#050505;color:#e5e5e5;font-family:Manrope,system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;text-size-adjust:100%}
     .hidden{display:none!important}
     .screen{display:none;flex-direction:column;height:100%}
     /* Must match app.js + styles.css: .active-screen, not .active */
