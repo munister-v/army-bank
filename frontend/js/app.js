@@ -460,8 +460,11 @@ function switchScreen(screenId) {
 }
 
 async function refreshProfile() {
-  state.user = await api.request('/api/auth/me');
-  state.account = await api.request('/api/accounts/main');
+  // Fetch user + account in parallel (saves one round-trip latency)
+  [state.user, state.account] = await Promise.all([
+    api.request('/api/auth/me'),
+    api.request('/api/accounts/main'),
+  ]);
 
   const nameEl = $('#userName');
   if (nameEl) nameEl.textContent = state.user.full_name;
@@ -558,17 +561,36 @@ async function refreshAllData() {
   ['#recentTransactions','#transactionsList','#payoutsList','#donationsList','#goalsList','#contactsList']
     .forEach((s) => setListLoading(s, true));
 
-  await refreshProfile();
-  await loadPaymentTemplates();
-
   try {
-    const [transactions, payouts, donations, goals, contacts] = await Promise.all([
-      api.request('/api/transactions/history'),
-      api.request('/api/payouts'),
-      api.request('/api/donations'),
-      api.request('/api/savings-goals'),
-      api.request('/api/family-contacts'),
-    ]);
+    // Single batch request replaces 8 parallel calls — one round-trip, one DB connection
+    const d = await api.request('/api/dashboard');
+
+    // Apply profile state (same as refreshProfile but from batch data)
+    state.user    = d.user;
+    state.account = d.account;
+    state.paymentTemplates = d.templates || [];
+
+    const roleLabels = { soldier: 'Клієнт', operator: 'Оператор', admin: 'Адміністратор', platform_admin: 'Платформа' };
+    const nameEl = $('#userName');    if (nameEl) nameEl.textContent = state.user.full_name;
+    const metaEl = $('#userMeta');    if (metaEl) metaEl.textContent = `${roleLabels[state.user.role] || state.user.role} · ${state.user.email}`;
+    const avatarEl = $('#userAvatar');
+    if (avatarEl && state.user.full_name) {
+      const parts = state.user.full_name.trim().split(' ');
+      avatarEl.textContent = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
+    }
+    const balance = formatMoney(state.account.balance);
+    const heroBalEl = $('#heroBalance');  if (heroBalEl) heroBalEl.textContent = balance;
+    const heroAccEl = $('#heroAccount');  if (heroAccEl) heroAccEl.textContent = `Рахунок: ${state.account.account_number || '—'}`;
+    const balVal = $('#balanceValue');    if (balVal) balVal.textContent = balance;
+    const accNum = $('#accountNumber');   if (accNum) accNum.textContent = `Рахунок: ${state.account.account_number}`;
+    const adminLink    = $('.nav-admin');
+    const operatorLink = $('.nav-operator');
+    const platformLink = $('.nav-platform');
+    if (adminLink)    adminLink.classList.toggle('hidden', state.user.role !== 'admin' && state.user.role !== 'platform_admin');
+    if (operatorLink) operatorLink.classList.toggle('hidden', !['operator','admin','platform_admin'].includes(state.user.role));
+    if (platformLink) platformLink.classList.toggle('hidden', state.user.role !== 'platform_admin');
+
+    const { transactions, payouts, donations, goals, contacts } = d;
 
     renderTransactions(transactions.slice(0, 5), '#recentTransactions');
     renderTransactions(transactions, '#transactionsList');

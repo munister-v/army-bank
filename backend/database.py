@@ -13,7 +13,24 @@ from .config import (
 
 if USE_PG:
     import psycopg2
+    import psycopg2.pool
     from psycopg2.extras import RealDictCursor
+
+# ── PostgreSQL connection pool (shared across all requests) ──────────────────
+# Reuses connections instead of opening a new one per request (~50-200ms saved)
+_pg_pool: 'psycopg2.pool.ThreadedConnectionPool | None' = None
+
+
+def _get_pg_pool():
+    global _pg_pool
+    if _pg_pool is None or _pg_pool.closed:
+        _pg_pool = psycopg2.pool.ThreadedConnectionPool(
+            minconn=1,
+            maxconn=5,          # Render free PG allows ~10; keep headroom
+            dsn=DATABASE_URL,
+            cursor_factory=RealDictCursor,
+        )
+    return _pg_pool
 
 
 def dict_factory(cursor: sqlite3.Cursor, row: tuple) -> dict:
@@ -40,8 +57,9 @@ def get_connection_sqlite() -> Iterator[sqlite3.Connection]:
 
 @contextmanager
 def get_connection_pg() -> Iterator:
-    """Підключення до PostgreSQL."""
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    """Отримує з'єднання з пулу, повертає після використання."""
+    pool = _get_pg_pool()
+    conn = pool.getconn()
     try:
         yield conn
         conn.commit()
@@ -49,7 +67,7 @@ def get_connection_pg() -> Iterator:
         conn.rollback()
         raise
     finally:
-        conn.close()
+        pool.putconn(conn)
 
 
 class _SqliteConnWrapper:

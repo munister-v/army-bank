@@ -1,8 +1,15 @@
-/* Army Bank — Service Worker v9 */
-const CACHE = 'army-bank-v9';
+/* Army Bank — Service Worker v10 */
+const CACHE = 'army-bank-v10';
 
 /* Assets to pre-cache on install */
-const PRECACHE = ['/css/styles.css', '/manifest.json', '/js/api.js', '/js/app.js'];
+const PRECACHE = [
+  '/',
+  '/css/styles.css',
+  '/manifest.json',
+  '/js/api.js',
+  '/js/app.js',
+  '/icons/icon-192.png',
+];
 
 /* ── Install: pre-cache assets, skip waiting immediately ── */
 self.addEventListener('install', e => {

@@ -15,9 +15,36 @@
   <link rel="dns-prefetch" href="https://army-bank.onrender.com">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap" as="style" onload="this.rel='stylesheet'">
-  <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet"></noscript>
-  <link rel="stylesheet" href="/css/styles.css">
+  <!-- Fonts: trimmed to only used weights — async, non-render-blocking -->
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:wght@300;400&display=swap" as="style" onload="this.rel='stylesheet'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:wght@300;400&display=swap" rel="stylesheet"></noscript>
+  <!-- Critical inline CSS: body bg + auth shell to prevent FOUC before styles.css loads -->
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;background:#050505;color:#e5e5e5;font-family:Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+    .hidden{display:none!important}
+    .screen{display:none;flex-direction:column;height:100%}
+    .screen.active{display:flex}
+    /* Prevent white flash on auth/loading screens */
+    #authScreen{display:none;align-items:center;justify-content:center;min-height:100vh;background:#050505}
+    #authScreen.active{display:flex}
+  </style>
+  <!-- Main stylesheet: async load (non-blocking), display:none swap triggers once loaded -->
+  <link rel="stylesheet" href="/css/styles.css" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/styles.css"></noscript>
+  <!-- Preload scripts so browser fetches them in parallel with parsing -->
+  <link rel="preload" href="/js/api.js" as="script">
+  <link rel="preload" href="/js/app.js" as="script">
+  <!-- Early server wake-up: ping /health if session token exists (mitigates Render cold-start) -->
+  <script>
+    (function(){
+      try {
+        if (localStorage.getItem('army_bank_token')) {
+          fetch('/health', { method: 'GET', cache: 'no-store', keepalive: true }).catch(function(){});
+        }
+      } catch(_) {}
+    })();
+  </script>
 </head>
 <body>
 

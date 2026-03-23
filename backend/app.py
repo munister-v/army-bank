@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from flask import Flask, Response, abort, jsonify, redirect, send_from_directory
+from flask_compress import Compress
 
 from .config import BASE_PATH, DEBUG
 from .database import init_db, init_admin
@@ -27,6 +28,16 @@ def create_app() -> Flask:
     init_db()
     init_admin()
     app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path=BASE_PATH or '')
+
+    # ── Gzip compression for all text responses (JSON, HTML, CSS, JS) ──
+    app.config['COMPRESS_REGISTER'] = False   # manual init below
+    app.config['COMPRESS_MIMETYPES'] = [
+        'application/json', 'text/html', 'text/css',
+        'application/javascript', 'text/javascript', 'image/svg+xml',
+    ]
+    app.config['COMPRESS_MIN_SIZE'] = 500     # don't compress tiny responses
+    app.config['COMPRESS_LEVEL'] = 6          # balanced speed/ratio
+    Compress(app)
     prefix = BASE_PATH or ''
 
     _ALLOWED_ORIGINS = {
