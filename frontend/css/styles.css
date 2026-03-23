@@ -763,7 +763,7 @@ button:focus-visible, a:focus-visible {
   .cards-row { grid-template-columns: 1fr; }
   .balance-amount { font-size: 36px; }
   .quick-actions { gap: 8px; }
-  .qa-icon { width: 46px; height: 46px; border-radius: 14px; }
+  .qa-icon { width: 46px; height: 46px; border-radius: 0; }
 }
 
 /* ═══════════════════════════════════════════════════════

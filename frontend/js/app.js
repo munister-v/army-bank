@@ -666,17 +666,17 @@ async function refreshAllData() {
           const totalOut = txs.filter(t=>t.direction==='out').reduce((s,t)=>s+Number(t.amount),0);
           if (body) body.innerHTML = `
             <div style="margin-bottom:16px">
-              <div class="drawer-title" style="font-size:18px;font-weight:900;margin-bottom:4px">${name}</div>
+              <div class="drawer-title" style="font-size:18px;font-weight:300;font-family:var(--font-serif);margin-bottom:4px">${name}</div>
               <div class="muted">${acc}</div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-              <div style="background:var(--green-bg);border-radius:10px;padding:12px;text-align:center">
-                <div style="font-size:11px;color:var(--green);font-weight:700;text-transform:uppercase;margin-bottom:4px">Отримано</div>
-                <div style="font-size:16px;font-weight:900;color:var(--green)">+${formatMoney(totalIn)}</div>
+              <div style="background:var(--green-bg);border-radius:var(--radius);padding:12px;text-align:center;border:1px solid rgba(74,222,128,.15)">
+                <div style="font-size:9px;color:var(--green);font-family:var(--font-mono);letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px">Отримано</div>
+                <div style="font-size:16px;font-weight:400;color:var(--green)">+${formatMoney(totalIn)}</div>
               </div>
-              <div style="background:var(--red-bg);border-radius:10px;padding:12px;text-align:center">
-                <div style="font-size:11px;color:var(--red);font-weight:700;text-transform:uppercase;margin-bottom:4px">Відправлено</div>
-                <div style="font-size:16px;font-weight:900;color:var(--red)">-${formatMoney(totalOut)}</div>
+              <div style="background:var(--red-bg);border-radius:var(--radius);padding:12px;text-align:center;border:1px solid rgba(239,68,68,.15)">
+                <div style="font-size:9px;color:var(--red);font-family:var(--font-mono);letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px">Відправлено</div>
+                <div style="font-size:16px;font-weight:400;color:var(--red)">-${formatMoney(totalOut)}</div>
               </div>
             </div>
             <div class="drawer-title" style="margin-bottom:10px">${txs.length} операцій</div>
@@ -1044,9 +1044,18 @@ if ('serviceWorker' in navigator) {
     if (typeof window._startPinLock === 'function') window._startPinLock();
     if (Notification?.permission === 'granted') api.subscribePush().catch(() => {});
   } catch (error) {
-    api.setToken('');
-    setAuthenticated(false);
-    showToast('Сесію завершено. Увійдіть повторно.');
+    // Очищуємо токен тільки при помилці авторизації (401/403).
+    // Мережеві помилки або 503 (Render sleeping) — не виходимо з акаунту.
+    const msg = error?.message || '';
+    const isAuthError = msg.includes('авторизац') || msg.includes('сесію') || msg.includes('Недійсна');
+    if (isAuthError) {
+      api.setToken('');
+      setAuthenticated(false);
+      showToast('Сесію завершено. Увійдіть повторно.');
+    } else {
+      showToast('Сервер тимчасово недоступний. Спробуємо знову…');
+      setTimeout(() => location.reload(), 10000);
+    }
   }
 })();
 

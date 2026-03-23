@@ -60,10 +60,17 @@ def token_expiration_iso() -> str:
     return expires_at.isoformat()
 
 
-def should_refresh_session(expires_at_iso: str) -> bool:
-    """True якщо до закінчення сесії залишилось менше REFRESH_THRESHOLD_HOURS."""
+def should_refresh_session(expires_at_raw) -> bool:
+    """True якщо до закінчення сесії залишилось менше REFRESH_THRESHOLD_HOURS.
+    Приймає як ISO-рядок (SQLite), так і datetime об'єкт (PostgreSQL).
+    """
     try:
-        expires_at = datetime.fromisoformat(expires_at_iso)
+        if isinstance(expires_at_raw, datetime):
+            expires_at = expires_at_raw
+        else:
+            expires_at = datetime.fromisoformat(str(expires_at_raw))
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
         remaining = expires_at - datetime.now(timezone.utc)
         return remaining.total_seconds() < _REFRESH_THRESHOLD_HOURS * 3600
     except Exception:

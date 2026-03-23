@@ -50,8 +50,10 @@ def create_app() -> Flask:
             resp.headers['Access-Control-Expose-Headers'] = 'X-Refresh-Token'
         # Cache-Control for static assets (CSS, JS, fonts, images)
         path = _req.path
-        if path.endswith(('.css', '.js', '.woff2', '.woff', '.ttf', '.png', '.jpg', '.svg', '.ico', '.webp')):
+        if path.endswith(('.woff2', '.woff', '.ttf', '.png', '.jpg', '.ico', '.webp')):
             resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        elif path.endswith(('.css', '.js', '.svg')):
+            resp.headers['Cache-Control'] = 'public, max-age=3600, must-revalidate'
         elif path == '/manifest.json':
             resp.headers['Cache-Control'] = 'public, max-age=86400'
         elif path.startswith('/api/'):
