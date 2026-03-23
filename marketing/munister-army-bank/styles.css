@@ -296,6 +296,31 @@ strong { font-weight: 600; }
 }
 .trust-item strong { color: var(--sand); font-weight: 500; }
 
+.sync-hint {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 14px 24px 22px;
+  text-align: center;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.sync-hint code {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  color: var(--sand);
+  background: var(--sand-bg);
+  padding: 2px 6px;
+}
+.sync-hint a {
+  color: var(--sand);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sync-hint a:hover { color: #fff; }
+
 /* ─── FEATURE SECTIONS ─── */
 .feature-section { padding: 100px 0; border-top: 1px solid var(--border); }
 .feat-dark  { background: var(--bg-dark);  }

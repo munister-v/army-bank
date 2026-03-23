@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
   <title>ArmyBank — Банківська платформа</title>
   <meta name="description" content="Army Bank — програмний комплекс: Flask REST API, PostgreSQL, PWA, ролі soldier/operator/admin/platform_admin, Army Admin, технічна документація.">
   <meta name="theme-color" content="#050505">
@@ -11,7 +13,7 @@
   <link rel="preconnect" href="https://army-bank.onrender.com">
   <link rel="dns-prefetch" href="https://army-bank.onrender.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=21">
+  <link rel="stylesheet" href="styles.css?v=22">
 </head>
 <body>
 
@@ -139,6 +141,8 @@
     <div class="trust-item"><strong>SW</strong> offline PWA</div>
   </div>
 </div>
+
+<p class="sync-hint"><strong>munister.com.ua</strong> часто показує <em>старі файли</em>, якщо після <code>git pull</code> їх не скопійовано на сервер. Актуальна збірка з репозиторію: <a href="https://army-bank.onrender.com/army-bank/" target="_blank" rel="noopener">army-bank.onrender.com/army-bank/</a> — або жорстке оновлення сторінки (Ctrl+Shift+R).</p>
 
 <!-- FEATURES -->
 <section id="features">
@@ -975,6 +979,6 @@ curl -X POST army-bank.onrender.com/api/transactions/transfer \
   </div>
 </footer>
 
-<script src="app.js?v=21" defer></script>
+<script src="app.js?v=22" defer></script>
 </body>
 </html>

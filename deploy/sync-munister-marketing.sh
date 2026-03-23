@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 # Синхронізація статики marketing/ → каталоги на сервері (munister.com.ua).
+#
+# ВАЖЛИВО: push у GitHub НЕ оновлює munister.com.ua сам по собі.
+# Якщо nginx віддає файли з /var/www/... — обов'язково запустіть цей скрипт після git pull.
+# Перевірити «живу» копію з останнього Render deploy: https://army-bank.onrender.com/army-bank/
+#
 # Запуск: з кореня репозиторію після git pull, з заданими шляхами.
 #
 # Приклад:

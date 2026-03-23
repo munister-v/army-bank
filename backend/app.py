@@ -195,14 +195,22 @@ def create_app() -> Flask:
         if not root.is_dir():
             abort(404)
         if not filepath or filepath.endswith('/'):
-            return send_from_directory(root, 'index.html')
+            resp = send_from_directory(root, 'index.html')
+            resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
+            return resp
         target = (root / filepath).resolve()
         try:
             target.relative_to(root.resolve())
         except ValueError:
             abort(404)
         if target.is_file():
-            return send_from_directory(root, filepath)
+            resp = send_from_directory(root, filepath)
+            # HTML лендінгу часто кешують CDN/браузер — без цього не видно оновлень після git pull
+            if filepath.lower().endswith('.html'):
+                resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
+            elif filepath.lower().endswith(('.css', '.js')):
+                resp.headers['Cache-Control'] = 'public, max-age=3600'
+            return resp
         abort(404)
 
     @app.get('/army-admin')
