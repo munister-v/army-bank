@@ -24,10 +24,11 @@
     html,body{height:100%;background:#050505;color:#e5e5e5;font-family:Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
     .hidden{display:none!important}
     .screen{display:none;flex-direction:column;height:100%}
-    .screen.active{display:flex}
-    /* Prevent white flash on auth/loading screens */
-    #authScreen{display:none;align-items:center;justify-content:center;min-height:100vh;background:#050505}
-    #authScreen.active{display:flex}
+    /* Must match app.js + styles.css: .active-screen, not .active */
+    .screen.active-screen{display:block}
+    /* Must match setAuthenticated(): toggles .hidden, not .active */
+    #authScreen.auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#050505}
+    #authScreen.hidden{display:none!important}
   </style>
   <!-- Main stylesheet: async load (non-blocking), display:none swap triggers once loaded -->
   <link rel="stylesheet" href="/css/styles.css" media="print" onload="this.media='all'">
