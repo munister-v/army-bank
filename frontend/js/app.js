@@ -1251,8 +1251,15 @@ $('#secLogHead')?.addEventListener('click', async () => {
 $('#copyAccountBtn')?.addEventListener('click', () => {
   const acc = state.account?.account_number;
   if (!acc) return;
+  const btn = $('#copyAccountBtn');
   navigator.clipboard.writeText(acc).then(() => {
     showToast('Номер рахунку скопійовано.', 'success');
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = 'Скопійовано ✓';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+    }
   }).catch(() => {
     showToast('Не вдалося скопіювати.');
   });
@@ -3138,3 +3145,91 @@ async function loadBudgetProgress() {
     resetTimer();
   };
 })();
+
+// ══════════════════════════════════════════════════════
+// POLISH v3 — UX improvements
+// ══════════════════════════════════════════════════════
+
+// ── Balance animation on first login ─────────────────
+(function() {
+  var _origHandleAuth = window.handleAuth || handleAuth;
+  window.handleAuth = async function(form, endpoint) {
+    await _origHandleAuth(form, endpoint);
+    // Animate balance from 0 after successful login
+    setTimeout(function() {
+      var bal = state.account ? parseFloat(state.account.balance || 0) : 0;
+      var heroEl = document.getElementById('heroBalance');
+      if (heroEl && bal > 0) animateCounter(heroEl, 0, bal, 1200);
+    }, 400);
+  };
+})();
+
+// ── Auto-save note/tags with debounce (1.5s) ─────────
+(function() {
+  var _noteTimer = null;
+  var _tagsTimer = null;
+
+  document.addEventListener('input', function(e) {
+    if (e.target.id === 'drawerNoteInput') {
+      clearTimeout(_noteTimer);
+      _noteTimer = setTimeout(async function() {
+        var txId = document.getElementById('drawerBody')?.dataset?.txId;
+        if (!txId) return;
+        var note = e.target.value || '';
+        try {
+          await api.request('/api/transactions/' + txId + '/note', { method: 'PATCH', body: JSON.stringify({ note: note }) });
+          var btn = document.getElementById('saveNoteBtn');
+          if (btn) {
+            var orig = btn.textContent;
+            btn.textContent = 'Збережено ✓';
+            setTimeout(function() { if (btn) btn.textContent = orig; }, 1500);
+          }
+        } catch(_e) {}
+      }, 1500);
+    }
+    if (e.target.id === 'drawerTagsInput') {
+      clearTimeout(_tagsTimer);
+      _tagsTimer = setTimeout(async function() {
+        var txId = document.getElementById('drawerBody')?.dataset?.txId;
+        if (!txId) return;
+        var tags = e.target.value || '';
+        try {
+          await api.request('/api/transactions/' + txId + '/tags', { method: 'PATCH', body: JSON.stringify({ tags: tags }) });
+        } catch(_e) {}
+      }, 1500);
+    }
+  });
+
+  // Store txId on drawer open so auto-save knows which transaction
+  var _origOpenTxDrawerV3 = window.openTxDrawer;
+  window.openTxDrawer = async function(txId) {
+    var body = document.getElementById('drawerBody');
+    if (body) body.dataset.txId = txId;
+    if (_origOpenTxDrawerV3) return _origOpenTxDrawerV3(txId);
+  };
+})();
+
+// ── Keyboard shortcut: Ctrl+K hint in footer ─────────
+(function() {
+  var hint = document.querySelector('.kb-hint');
+  if (hint) hint.addEventListener('click', function() {
+    if (typeof openCmdPalette === 'function') openCmdPalette();
+  });
+})();
+
+// ── Refresh button (R) visual feedback ───────────────
+(function() {
+  var _origKbR = null;
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if ((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey) {
+      var logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.style.color = 'var(--accent)';
+        setTimeout(function() { logoutBtn.style.color = ''; }, 300);
+      }
+    }
+  }, true);
+})();
+
+console.log('[Army Bank] Polish v3 loaded — UX improvements');
