@@ -9,27 +9,33 @@ on:
   workflow_dispatch:
 
 jobs:
-  rsync:
-    if: ${{ secrets.MUNISTER_SSH_HOST != '' }}
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Rsync static sites to munister.com.ua
+      - name: Deploy to munister-v.github.io
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.MUNISTER_SSH_PRIVATE_KEY }}
-          HOST: ${{ secrets.MUNISTER_SSH_HOST }}
-          USER: ${{ secrets.MUNISTER_SSH_USER }}
-          PATH_ADMIN: ${{ secrets.MUNISTER_REMOTE_ARMY_ADMIN }}
-          PATH_BANK: ${{ secrets.MUNISTER_REMOTE_ARMY_BANK }}
+          GH_TOKEN: ${{ secrets.PAGES_DEPLOY_TOKEN }}
         run: |
           set -euo pipefail
-          mkdir -p ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-          SSH_OPTS="-i ~/.ssh/id_deploy -o StrictHostKeyChecking=accept-new"
-          rsync -avz --delete -e "ssh $SSH_OPTS" \
-            marketing/munister-army-admin/ "${USER}@${HOST}:${PATH_ADMIN}"
-          rsync -avz --delete -e "ssh $SSH_OPTS" \
-            marketing/munister-army-bank/  "${USER}@${HOST}:${PATH_BANK}"
+
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git clone https://x-access-token:${GH_TOKEN}@github.com/munister-v/munister-v.github.io.git pages
+
+          # Sync army-bank landing
+          rsync -av --delete marketing/munister-army-bank/ pages/army-bank/
+
+          # Sync army-admin landing
+          rsync -av --delete marketing/munister-army-admin/ pages/army-admin/
+
+          cd pages
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to deploy"
+          else
+            git commit -m "deploy: update army-bank & army-admin landing [skip ci]"
+            git push
+          fi
