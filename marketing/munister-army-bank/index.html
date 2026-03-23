@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://army-bank.onrender.com">
   <link rel="dns-prefetch" href="https://army-bank.onrender.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=19">
+  <link rel="stylesheet" href="styles.css?v=20">
 </head>
 <body>
 
@@ -712,7 +712,7 @@ curl -X POST army-bank.onrender.com/api/transactions/transfer \
           <span class="faq-icon" aria-hidden="true"></span>
         </button>
         <div class="faq-body" id="faq-a7" role="region" aria-labelledby="faq-q7">
-          <p>Service Worker v10 використовує стратегію stale-while-revalidate для CSS/JS (миттєве завантаження з кешу + фонове оновлення), cache-first для шрифтів і network-first для HTML-навігації. При відсутності мережі застосунок відкривається з кешу — видно останній стан балансу та транзакцій. Кеш автоматично інвалідується при кожному деплої.</p>
+          <p>Service Worker використовує стратегію stale-while-revalidate для CSS/JS (миттєве завантаження з кешу + фонове оновлення), cache-first для шрифтів і network-first для HTML-навігації. При відсутності мережі застосунок відкривається з кешу — видно останній стан балансу та транзакцій. Версія кешу змінюється при деплої, щоб клієнти підтягували свіжі файли.</p>
         </div>
       </div>
       <div class="faq-item">
@@ -721,7 +721,7 @@ curl -X POST army-bank.onrender.com/api/transactions/transfer \
           <span class="faq-icon" aria-hidden="true"></span>
         </button>
         <div class="faq-body" id="faq-a8" role="region" aria-labelledby="faq-q8">
-          <p>Декілька рівнів оптимізації: CSS завантажується асинхронно (non-blocking), критичні стилі вбудовані inline; шрифти — тільки потрібні ваги (Inter 400–700, JetBrains Mono 400/500, Cormorant Garamond 300/400); Flask-Compress стискає всі відповіді gzip; PostgreSQL connection pool (ThreadedConnectionPool) усуває 50–200ms накладні витрати на кожне з'єднання; замість 8 паралельних API-запитів при завантаженні — один batch-ендпоінт <code>GET /api/dashboard</code>.</p>
+          <p>Декілька рівнів оптимізації: CSS завантажується асинхронно (non-blocking), критичні стилі вбудовані inline; шрифти — обмежений набір ваг; Flask-Compress стискає відповіді gzip; пул з'єднань PostgreSQL зменшує накладні витрати на кожен запит; замість кількох паралельних викликів при відкритті кабінету — один batch-ендпоінт <code>GET /api/dashboard</code>.</p>
         </div>
       </div>
       <div class="faq-item">
@@ -740,6 +740,33 @@ curl -X POST army-bank.onrender.com/api/transactions/transfer \
         </button>
         <div class="faq-body" id="faq-a10" role="region" aria-labelledby="faq-q10">
           <p>Через Web <code>BroadcastChannel</code>. Коли одна вкладка виконує операцію (переказ, донат, видалення), вона публікує подію <code>DATA_UPDATED</code> — всі інші вкладки автоматично викликають <code>refreshAllData()</code> і відображають актуальні дані без перезавантаження сторінки.</p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button type="button" class="faq-trigger" aria-expanded="false" id="faq-q11" aria-controls="faq-a11">
+          <span>Як експортувати виписку в CSV?</span>
+          <span class="faq-icon" aria-hidden="true"></span>
+        </button>
+        <div class="faq-body" id="faq-a11" role="region" aria-labelledby="faq-q11">
+          <p>Після входу викличте <code>GET /api/transactions/export</code> з заголовком <code>Authorization: Bearer …</code>. Параметри <code>from</code> та <code>to</code> (дати) за потреби обмежують період. У відповіді — CSV з BOM для коректного відкриття в Excel.</p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button type="button" class="faq-trigger" aria-expanded="false" id="faq-q12" aria-controls="faq-a12">
+          <span>Які обмеження на суми операцій?</span>
+          <span class="faq-icon" aria-hidden="true"></span>
+        </button>
+        <div class="faq-body" id="faq-a12" role="region" aria-labelledby="faq-q12">
+          <p>Сума має бути додатною й не перевищувати верхню межу, яку перевіряє бекенд (порядку 99&nbsp;999&nbsp;999,99&nbsp;₴ на одну операцію). У PWA можна додатково задати <strong>місячні бюджетні ліміти</strong> за типами витрат — вони допомагають контролювати витрати без зміни правил на сервері.</p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button type="button" class="faq-trigger" aria-expanded="false" id="faq-q13" aria-controls="faq-a13">
+          <span>Який базовий URL API для власного клієнта?</span>
+          <span class="faq-icon" aria-hidden="true"></span>
+        </button>
+        <div class="faq-body" id="faq-a13" role="region" aria-labelledby="faq-q13">
+          <p>Для продакшн-деплою на Render: <code>https://army-bank.onrender.com/api/</code>. Спочатку <code>POST /api/auth/login</code> (тіло з телефоном/email і паролем), далі всі захищені маршрути — з <code>Authorization: Bearer &lt;token&gt;</code>. Якщо застосунок працює під префіксом шляху, додайте його перед <code>/api</code>.</p>
         </div>
       </div>
     </div>
@@ -761,7 +788,7 @@ curl -X POST army-bank.onrender.com/api/transactions/transfer \
         </div>
         <span>Army<strong>Bank</strong></span>
       </a>
-      <p class="footer-sub">Flask · PostgreSQL · Bearer Auth · PWA SW v10 · Kotlin</p>
+      <p class="footer-sub">Flask · PostgreSQL · Bearer Auth · PWA · Kotlin</p>
     </div>
     <div class="footer-links">
       <a href="https://github.com/munister-v" target="_blank">GitHub</a>
@@ -774,6 +801,6 @@ curl -X POST army-bank.onrender.com/api/transactions/transfer \
   </div>
 </footer>
 
-<script src="app.js?v=19" defer></script>
+<script src="app.js?v=20" defer></script>
 </body>
 </html>
