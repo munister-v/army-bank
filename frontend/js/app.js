@@ -578,16 +578,22 @@ async function _updateBankCards() {
   }
 
   // Render real cards
-  var SCHEMES = [
-    { cls: 'bank-card-gold', chipColors: ['#e8c848','#d4a830','#c89820'],
-      network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(255,90,50,.8)"/><circle cx="27" cy="13" r="12" fill="rgba(255,180,50,.7)"/></svg>' },
-    { cls: 'bank-card-dark', chipColors: ['#b8b8b8','#a0a0a0','#888888'],
-      network: '<svg width="38" height="24" viewBox="0 0 38 24" fill="none"><rect x="1" y="1" width="36" height="22" rx="3" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/><text x="19" y="15" text-anchor="middle" fill="rgba(255,255,255,.55)" font-size="8" font-family="monospace" font-weight="700">VISA</text></svg>' },
-  ];
+  var DESIGN_MAP = {
+    gold:   { cls: 'bank-card-gold',   chipColors: ['#e8c848','#d4a830','#c89820'],
+      network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(255,90,50,.85)"/><circle cx="27" cy="13" r="12" fill="rgba(255,180,50,.75)"/></svg>' },
+    navy:   { cls: 'bank-card-navy',   chipColors: ['#b8b8b8','#a0a0a0','#888888'],
+      network: '<svg width="44" height="14" viewBox="0 0 44 14"><text x="0" y="11" fill="rgba(255,255,255,.6)" font-size="13" font-family="Arial,sans-serif" font-weight="800" letter-spacing="2">VISA</text></svg>' },
+    forest: { cls: 'bank-card-forest', chipColors: ['#6ee7b7','#34d399','#10b981'],
+      network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(52,211,153,.75)"/><circle cx="27" cy="13" r="12" fill="rgba(16,185,129,.6)"/></svg>' },
+    rose:   { cls: 'bank-card-rose',   chipColors: ['#fda4af','#fb7185','#f43f5e'],
+      network: '<svg width="44" height="14" viewBox="0 0 44 14"><text x="0" y="11" fill="rgba(255,255,255,.6)" font-size="13" font-family="Arial,sans-serif" font-weight="800" letter-spacing="2">VISA</text></svg>' },
+    slate:  { cls: 'bank-card-slate',  chipColors: ['#94a3b8','#64748b','#475569'],
+      network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(148,163,184,.6)"/><circle cx="27" cy="13" r="12" fill="rgba(100,116,139,.5)"/></svg>' },
+  };
 
   track._bankCardsInit = false; // allow re-init
   track.innerHTML = cards.map(function(card, i) {
-    var s = SCHEMES[i % SCHEMES.length];
+    var s = DESIGN_MAP[card.design] || DESIGN_MAP.gold;
     var cid = 'chip_' + card.id;
     var blocked = card.status === 'blocked';
     var statusBadge = blocked
@@ -1033,7 +1039,7 @@ $('#transferTemplateSelect')?.addEventListener('change', function () {
     if (btn) applyMode(btn.dataset.mode);
   });
 
-  // Card number auto-format: insert space every 4 digits
+  // Card number auto-format + status indicator
   document.addEventListener('input', (e) => {
     if (e.target.name !== 'recipient_card_number') return;
     const inp = e.target;
@@ -1042,8 +1048,100 @@ $('#transferTemplateSelect')?.addEventListener('change', function () {
     if (inp.value !== formatted) {
       const pos = inp.selectionStart;
       inp.value = formatted;
-      // keep cursor roughly in right place
       inp.setSelectionRange(Math.min(pos, formatted.length), Math.min(pos, formatted.length));
+    }
+    const status = $('#cardLookupStatus');
+    if (status) {
+      if (raw.length === 16) {
+        status.textContent = '✓';
+        status.className = 'card-lookup-status ok';
+      } else if (raw.length > 0) {
+        status.textContent = raw.length + '/16';
+        status.className = 'card-lookup-status pending';
+      } else {
+        status.textContent = '';
+        status.className = 'card-lookup-status';
+      }
+    }
+  });
+})();
+
+// ── Design picker (card issue form) ─────────────────────────
+(function() {
+  document.addEventListener('click', function(e) {
+    const opt = e.target.closest('#designOptions .design-opt');
+    if (!opt) return;
+    document.querySelectorAll('#designOptions .design-opt').forEach(function(o) {
+      o.classList.remove('selected');
+    });
+    opt.classList.add('selected');
+    const hidden = document.getElementById('selectedDesign');
+    if (hidden) hidden.value = opt.dataset.design || 'gold';
+  });
+})();
+
+// ── Transfer confirmation bottom sheet ──────────────────────
+(function() {
+  const overlay   = document.getElementById('transferConfirmOverlay');
+  const confirmBtn = document.getElementById('tcConfirmBtn');
+  const cancelBtn  = document.getElementById('tcCancelBtn');
+  const previewBtn = document.getElementById('transferPreviewBtn');
+  if (!overlay || !previewBtn) return;
+
+  function formatMoney(n) {
+    return '₴\u202f' + Number(n).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  previewBtn.addEventListener('click', function() {
+    const form = document.getElementById('transferForm');
+    if (!form) return;
+
+    const mode = (document.querySelector('#transferModeToggle .tmt-btn.active') || {}).dataset?.mode || 'account';
+    const amount = parseFloat(form.amount?.value || '0');
+    const desc = form.description?.value || '';
+
+    let toVal = '';
+    if (mode === 'card') {
+      const raw = (form.recipient_card_number?.value || '').replace(/\D/g,'');
+      if (raw.length !== 16) { showToast('Введіть повний номер картки (16 цифр)'); return; }
+      toVal = form.recipient_card_number.value;
+    } else {
+      toVal = form.recipient_account_number?.value || '';
+      if (!toVal) { showToast('Введіть номер рахунку'); return; }
+    }
+
+    if (!amount || amount <= 0) { showToast('Введіть суму переказу'); return; }
+
+    document.getElementById('tcTo').textContent = toVal;
+    document.getElementById('tcAmount').textContent = formatMoney(amount);
+    document.getElementById('tcDesc').textContent = desc || '—';
+
+    overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  });
+
+  function closeOverlay() {
+    overlay.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  cancelBtn.addEventListener('click', closeOverlay);
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeOverlay();
+  });
+
+  confirmBtn.addEventListener('click', async function() {
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Виконуємо…';
+    try {
+      const form = document.getElementById('transferForm');
+      const realSubmit = document.getElementById('transferSubmitReal');
+      closeOverlay();
+      if (realSubmit) realSubmit.click();
+    } catch(err) {
+      showToast(err.message || 'Помилка переказу');
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = 'Підтвердити';
     }
   });
 })();
@@ -3578,7 +3676,7 @@ function bindCardActions() {
       const data = Object.fromEntries(new FormData(form));
       await api.request('/api/cards', {
         method: 'POST',
-        body: JSON.stringify({ card_type: data.card_type || 'virtual' }),
+        body: JSON.stringify({ card_type: data.card_type || 'virtual', design: data.design || 'gold' }),
       });
       showToast('Картку випущено!', 'success');
       form.reset();

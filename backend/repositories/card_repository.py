@@ -7,14 +7,14 @@ from .base import BaseRepository
 
 class CardRepository(BaseRepository):
     def issue_card(self, account_id: int, card_number: str, holder_name: str,
-                   expires_at: str, card_type: str = 'virtual') -> int:
+                   expires_at: str, card_type: str = 'virtual', design: str = 'gold') -> int:
         with self.connection() as conn:
             cursor = conn.execute(
                 '''
-                INSERT INTO cards(account_id, card_number, card_type, holder_name, expires_at)
-                VALUES(%s, %s, %s, %s, %s)
+                INSERT INTO cards(account_id, card_number, card_type, design, holder_name, expires_at)
+                VALUES(%s, %s, %s, %s, %s, %s)
                 ''' + get_returning_id_suffix(),
-                (account_id, card_number, card_type, holder_name, expires_at),
+                (account_id, card_number, card_type, design, holder_name, expires_at),
             )
             return insert_last_id(cursor)
 

@@ -4855,3 +4855,376 @@ h3.section-title,
 
 /* ── FIX 5: balance label visible ──────────────────────────── */
 .balance-label { font-size: 10px !important; }
+
+/* ══════════════════════════════════════════════════════════════
+   FINAL DESIGN SYSTEM — v6
+   One palette · Clear hierarchy · No glow wars
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 1. Foundation ─────────────────────────────────────────── */
+body { background: #0a0a10 !important; }
+
+.app-header {
+  background: rgba(10,10,16,.97) !important;
+  border-bottom: 1px solid rgba(255,255,255,.07) !important;
+  box-shadow: none !important;
+}
+.icon-btn {
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  box-shadow: none !important;
+}
+.avatar {
+  background: linear-gradient(145deg,#4c1d95,#7c3aed) !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,.5) !important;
+  border-radius: 14px !important;
+}
+.user-name { color: #f0f0ff !important; font-weight: 700 !important; }
+.user-meta { color: rgba(255,255,255,.35) !important; font-size: 11px !important; }
+
+/* ── 2. Balance — dominant hero ────────────────────────────── */
+.balance-block {
+  background: #131320 !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 22px !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 2px 24px rgba(0,0,0,.5) !important;
+}
+.balance-block::before { display: none !important; }
+.balance-block::after  { display: none !important; }
+.balance-label {
+  font-size: 10px !important; font-weight: 600 !important;
+  letter-spacing: .16em !important; color: rgba(255,255,255,.38) !important;
+}
+.balance-amount {
+  font-size: clamp(2.6rem,11vw,4rem) !important; font-weight: 800 !important;
+  background: none !important; -webkit-background-clip: unset !important;
+  background-clip: unset !important; -webkit-text-fill-color: #ffffff !important;
+  color: #ffffff !important; filter: none !important;
+  letter-spacing: -.02em !important; line-height: 1.1 !important;
+}
+.balance-account {
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.09) !important;
+  border-radius: 100px !important; color: rgba(255,255,255,.42) !important;
+  font-size: 11px !important; letter-spacing: .05em !important;
+}
+
+/* ── 3. Quick actions — colored, clean, no glow ────────────── */
+.qa-icon {
+  width: 58px !important; height: 58px !important;
+  border-radius: 18px !important; font-size: 21px !important;
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1) !important;
+}
+.qa-btn:active .qa-icon { transform: scale(.88) !important; }
+.qa-label {
+  font-size: 9px !important; font-weight: 600 !important;
+  letter-spacing: .08em !important; color: rgba(255,255,255,.42) !important;
+}
+
+/* Поповнити — emerald */
+.qa-btn:nth-child(1) .qa-icon {
+  background: rgba(16,185,129,.13) !important;
+  border: 1px solid rgba(16,185,129,.22) !important;
+  color: #34d399 !important; box-shadow: none !important;
+}
+/* Переказ — sky */
+.qa-btn:nth-child(2) .qa-icon {
+  background: rgba(14,165,233,.13) !important;
+  border: 1px solid rgba(14,165,233,.22) !important;
+  color: #38bdf8 !important; box-shadow: none !important;
+}
+/* Операції — violet */
+.qa-btn:nth-child(3) .qa-icon {
+  background: rgba(139,92,246,.15) !important;
+  border: 1px solid rgba(139,92,246,.25) !important;
+  color: #a78bfa !important; box-shadow: none !important;
+}
+/* Картки — amber */
+.qa-btn:nth-child(4) .qa-icon {
+  background: rgba(245,158,11,.13) !important;
+  border: 1px solid rgba(245,158,11,.22) !important;
+  color: #fbbf24 !important; box-shadow: none !important;
+}
+
+/* ── 4. Section titles ─────────────────────────────────────── */
+h2.section-title, h3.section-title, .section-title {
+  font-size: 11px !important; font-weight: 700 !important;
+  letter-spacing: .13em !important; text-transform: uppercase !important;
+  color: rgba(255,255,255,.38) !important; background: none !important;
+  -webkit-text-fill-color: rgba(255,255,255,.38) !important;
+  margin-bottom: 14px !important; line-height: 1.4 !important;
+}
+.section-see-all { color: #7c5af6 !important; font-size: 12px !important; font-weight: 600 !important; }
+
+/* ── 5. Transaction list — clean dividers ──────────────────── */
+.item {
+  background: transparent !important; border: none !important;
+  border-bottom: 1px solid rgba(255,255,255,.05) !important;
+  border-radius: 0 !important; padding: 14px 0 !important;
+  box-shadow: none !important; transition: none !important;
+}
+.item:last-child { border-bottom: none !important; }
+.item:active { background: rgba(255,255,255,.03) !important; border-radius: 8px !important; transform: none !important; }
+.item-icon { border-radius: 13px !important; background: rgba(255,255,255,.07) !important; border: none !important; }
+
+/* ── 6. Generic surface cards — safe, excludes bank-card-* ─── */
+.card:not([class*="bank-card"]):not(.bank-card),
+.stats-card, .analytics-card, .info-card {
+  background: #131320 !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 2px 16px rgba(0,0,0,.4) !important;
+}
+.card h3, .card-head h3 {
+  font-size: 13px !important; font-weight: 600 !important;
+  color: rgba(255,255,255,.65) !important;
+  -webkit-text-fill-color: rgba(255,255,255,.65) !important;
+  letter-spacing: normal !important; text-transform: none !important;
+}
+
+/* ── 7. Input fields ────────────────────────────────────────── */
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+select, textarea {
+  background: rgba(255,255,255,.06) !important;
+  border: 1.5px solid rgba(255,255,255,.1) !important;
+  border-radius: 12px !important; color: #f0f0ff !important;
+  font-size: 15px !important; padding: 13px 15px !important;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: rgba(124,90,246,.65) !important;
+  background: rgba(124,90,246,.05) !important;
+  box-shadow: 0 0 0 3px rgba(124,90,246,.12) !important;
+  outline: none !important;
+}
+input::placeholder, textarea::placeholder { color: rgba(255,255,255,.22) !important; }
+
+/* ── 8. Bottom nav ─────────────────────────────────────────── */
+.bottom-nav {
+  margin: 0 !important; border-radius: 20px 20px 0 0 !important;
+  background: rgba(10,10,16,.97) !important;
+  border: none !important; border-top: 1px solid rgba(255,255,255,.07) !important;
+  backdrop-filter: blur(32px) !important; -webkit-backdrop-filter: blur(32px) !important;
+  box-shadow: none !important;
+}
+.nav-item { color: rgba(255,255,255,.32) !important; }
+.nav-item.active { color: #a78bfa !important; }
+.nav-item.active::after {
+  width: 22px !important; height: 2px !important; background: #7c5af6 !important;
+  box-shadow: 0 0 8px rgba(124,90,246,.7) !important;
+  border-radius: 0 0 4px 4px !important;
+}
+
+/* ── 9. Primary button ─────────────────────────────────────── */
+.btn-accent:not(.tmt-btn) {
+  background: #7c5af6 !important;
+  box-shadow: 0 3px 16px rgba(124,90,246,.3) !important;
+  border-radius: 14px !important; font-weight: 700 !important;
+}
+.btn-accent:not(.tmt-btn):active { background: #6d4ee0 !important; transform: scale(.98) !important; }
+
+/* ── 10. Dot indicators ────────────────────────────────────── */
+.bc-dot {
+  width: 5px !important; height: 5px !important; border-radius: 50% !important;
+  background: rgba(255,255,255,.18) !important;
+  transition: width .3s cubic-bezier(.34,1.4,.64,1), background .3s !important;
+  box-shadow: none !important;
+}
+.bc-dot.active {
+  width: 18px !important; border-radius: 4px !important;
+  background: rgba(255,255,255,.6) !important; box-shadow: none !important;
+}
+
+/* ── 11. Bank card V6 — restore all internals ──────────────── */
+.bank-card, .bank-card * { border: none !important; box-shadow: none !important; }
+
+.bank-card-gold {
+  background: linear-gradient(135deg,#1a1200 0%,#2d2000 30%,#3a2a06 60%,#2d2000 100%) !important;
+  border-radius: 20px !important;
+}
+.bank-card-gold .bank-card-bg {
+  background:
+    radial-gradient(ellipse 90% 70% at 80% 20%, rgba(212,168,48,.22) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 50% at 15% 80%, rgba(180,120,20,.12) 0%, transparent 60%) !important;
+}
+.bank-card-navy {
+  background: linear-gradient(135deg,#050d1e 0%,#0a1830 35%,#102040 65%,#0a1830 100%) !important;
+  border-radius: 20px !important;
+}
+.bank-card-navy .bank-card-bg {
+  background:
+    radial-gradient(ellipse 80% 60% at 75% 25%, rgba(96,165,250,.18) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 40% at 20% 75%, rgba(59,130,246,.1) 0%, transparent 55%) !important;
+}
+/* Forest */
+.bank-card-forest {
+  background: linear-gradient(135deg,#071a0e 0%,#0e2818 35%,#153520 65%,#0e2818 100%) !important;
+  border-radius: 20px !important;
+}
+.bank-card-forest .bank-card-bg {
+  background:
+    radial-gradient(ellipse 80% 60% at 75% 25%, rgba(52,211,153,.2) 0%, transparent 65%),
+    radial-gradient(ellipse 55% 40% at 20% 75%, rgba(16,185,129,.1) 0%, transparent 55%) !important;
+}
+/* Rose */
+.bank-card-rose {
+  background: linear-gradient(135deg,#1a0509 0%,#280a12 35%,#35101a 65%,#280a12 100%) !important;
+  border-radius: 20px !important;
+}
+.bank-card-rose .bank-card-bg {
+  background:
+    radial-gradient(ellipse 80% 60% at 75% 25%, rgba(251,113,133,.2) 0%, transparent 65%),
+    radial-gradient(ellipse 55% 40% at 20% 75%, rgba(244,63,94,.1) 0%, transparent 55%) !important;
+}
+/* Slate */
+.bank-card-slate {
+  background: linear-gradient(135deg,#0d1117 0%,#151d2a 35%,#1c2638 65%,#151d2a 100%) !important;
+  border-radius: 20px !important;
+}
+.bank-card-slate .bank-card-bg {
+  background:
+    radial-gradient(ellipse 80% 60% at 75% 25%, rgba(148,163,184,.18) 0%, transparent 65%),
+    radial-gradient(ellipse 55% 40% at 20% 75%, rgba(100,116,139,.1) 0%, transparent 55%) !important;
+}
+/* Shared card text styles */
+.bank-card-label {
+  background: none !important; font-size: 8px !important; font-weight: 500 !important;
+  letter-spacing: .1em !important; opacity: .6 !important; color: inherit !important;
+}
+.bank-card-number {
+  background: none !important; letter-spacing: .22em !important;
+  font-size: 15px !important; font-weight: 400 !important;
+}
+.bank-card-name, .bank-card-date {
+  background: none !important; font-size: 13px !important; font-weight: 600 !important;
+}
+.bank-card-logo-letter {
+  background: rgba(255,255,255,.15) !important; border-radius: 8px !important;
+}
+
+/* ── 12. Card amount in list ───────────────────────────────── */
+.item-amount { color: rgba(255,255,255,.8) !important; }
+.item-amount.income, .item-amount.credit, [class*="item-amount"][class*="pos"] { color: #22c55e !important; }
+
+/* ── 13. Design picker ─────────────────────────────────────── */
+.design-picker { margin: 14px 0 16px; }
+.design-picker-label {
+  display: block; font-size: 10px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: rgba(255,255,255,.38); margin-bottom: 10px;
+}
+.design-options { display: flex; gap: 10px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+.design-opt {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; cursor: pointer; background: none; border: none;
+  padding: 0; flex-shrink: 0;
+}
+.design-swatch {
+  width: 54px; height: 34px; border-radius: 9px;
+  border: 2px solid rgba(255,255,255,.1);
+  transition: border-color .2s, transform .15s;
+}
+.design-opt.selected .design-swatch {
+  border-color: #7c5af6;
+  box-shadow: 0 0 0 3px rgba(124,90,246,.22);
+  transform: scale(1.08);
+}
+.design-opt span { font-size: 10px; color: rgba(255,255,255,.38); font-weight: 600; transition: color .2s; }
+.design-opt.selected span { color: #a78bfa; }
+.swatch-gold   { background: linear-gradient(135deg,#2d2000,#3a2a06); }
+.swatch-navy   { background: linear-gradient(135deg,#050d1e,#102040); }
+.swatch-forest { background: linear-gradient(135deg,#071a0e,#153520); }
+.swatch-rose   { background: linear-gradient(135deg,#1a0509,#35101a); }
+.swatch-slate  { background: linear-gradient(135deg,#0d1117,#1c2638); }
+
+/* ── 14. Card number input UX ──────────────────────────────── */
+.lbl-row { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.card-lookup-status {
+  font-size: 11px; font-weight: 700;
+  transition: color .2s; letter-spacing: .02em;
+}
+.card-lookup-status.ok { color: #22c55e; }
+.card-lookup-status.pending { color: rgba(255,255,255,.35); }
+.card-num-input { letter-spacing: .12em !important; font-family: monospace !important; font-size: 16px !important; }
+
+.amount-input-wrap { position: relative; }
+.amount-currency {
+  position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+  color: rgba(255,255,255,.4); font-size: 15px; pointer-events: none;
+}
+.amount-input { padding-left: 28px !important; }
+
+/* ── 15. Transfer confirm bottom sheet ─────────────────────── */
+.tc-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,.65); backdrop-filter: blur(6px);
+  display: flex; align-items: flex-end; justify-content: center;
+  transition: opacity .25s;
+}
+.tc-overlay.hidden { display: none !important; }
+.tc-sheet {
+  background: #18182a; border-radius: 24px 24px 0 0;
+  padding: 12px 24px 36px; width: 100%; max-width: 480px;
+  border-top: 1px solid rgba(255,255,255,.1);
+  animation: slideUp .28s cubic-bezier(.25,.46,.45,.94);
+}
+.tc-handle {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: rgba(255,255,255,.15); margin: 0 auto 20px;
+}
+.tc-icon {
+  width: 52px; height: 52px; border-radius: 16px;
+  background: rgba(124,90,246,.15); border: 1px solid rgba(124,90,246,.25);
+  display: flex; align-items: center; justify-content: center;
+  color: #a78bfa; margin: 0 auto 16px;
+}
+.tc-title {
+  text-align: center; font-size: 18px; font-weight: 700;
+  color: #f0f0ff; margin-bottom: 22px;
+}
+.tc-rows { background: rgba(255,255,255,.04); border-radius: 14px; overflow: hidden; margin-bottom: 16px; }
+.tc-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,.05);
+}
+.tc-row:last-child { border-bottom: none; }
+.tc-label { font-size: 13px; color: rgba(255,255,255,.42); font-weight: 500; }
+.tc-val { font-size: 14px; color: #f0f0ff; font-weight: 600; text-align: right; max-width: 60%; word-break: break-all; }
+.tc-amount { color: #ffffff; font-size: 18px; font-weight: 800; }
+.tc-note { text-align: center; font-size: 12px; color: rgba(255,255,255,.28); margin-bottom: 20px; }
+.tc-confirm-btn { width: 100%; margin-bottom: 10px; }
+.tc-cancel-btn { width: 100%; }
+
+/* ── 16. Quick amount chips ────────────────────────────────── */
+.qa-chip {
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.09) !important;
+  color: rgba(255,255,255,.7) !important;
+  border-radius: 10px !important; padding: 7px 14px !important;
+  font-size: 13px !important; font-weight: 600 !important;
+  transition: background .15s, color .15s !important;
+}
+.qa-chip:active {
+  background: rgba(124,90,246,.18) !important;
+  border-color: rgba(124,90,246,.35) !important;
+  color: #c4b5fd !important;
+}
+
+/* ── 17. Transfer mode toggle ──────────────────────────────── */
+.transfer-mode-toggle {
+  background: rgba(255,255,255,.05) !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 12px !important; padding: 4px !important;
+}
+.tmt-btn { border-radius: 9px !important; font-size: 13px !important; font-weight: 600 !important; transition: all .2s !important; }
+.tmt-btn.active {
+  background: #7c5af6 !important; color: #fff !important;
+  box-shadow: 0 2px 10px rgba(124,90,246,.3) !important;
+}
+.tmt-btn:not(.active) { color: rgba(255,255,255,.45) !important; background: transparent !important; }
+
+/* ── 18. Notification items ────────────────────────────────── */
+.notif-item { background: transparent !important; border-bottom: 1px solid rgba(255,255,255,.05) !important; }
+.notif-item.unread { border-left: 2px solid #7c5af6 !important; }
+.notif-time { color: rgba(255,255,255,.3) !important; font-size: 11px !important; }

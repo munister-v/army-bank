@@ -61,9 +61,13 @@ class CardService:
             c['expiry_display'] = self._expiry_display(c['expires_at'])
         return cards
 
-    def issue_card(self, user_id: int, card_type: str = 'virtual') -> dict:
+    _VALID_DESIGNS = {'gold', 'navy', 'forest', 'rose', 'slate'}
+
+    def issue_card(self, user_id: int, card_type: str = 'virtual', design: str = 'gold') -> dict:
         if card_type not in ('virtual', 'physical'):
             raise ValueError('Невідомий тип картки.')
+        if design not in self._VALID_DESIGNS:
+            design = 'gold'
         account = self._get_account(user_id)
 
         active_count = self.cards.count_active(account['id'])
@@ -80,7 +84,7 @@ class CardService:
 
         holder = self._format_holder(account.get('holder_name') or '')
         expires_at = _card_expires_at()
-        card_id = self.cards.issue_card(account['id'], number, holder, expires_at, card_type)
+        card_id = self.cards.issue_card(account['id'], number, holder, expires_at, card_type, design)
 
         self.features.add_audit_log(
             user_id, 'card_issued',

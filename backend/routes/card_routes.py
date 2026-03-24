@@ -25,7 +25,8 @@ def issue_card():
     try:
         data = request.get_json(force=True) or {}
         card_type = (data.get('card_type') or 'virtual').strip()
-        return jsonify({'ok': True, 'data': service.issue_card(g.current_user['id'], card_type)}), 201
+        design = (data.get('design') or 'gold').strip()
+        return jsonify({'ok': True, 'data': service.issue_card(g.current_user['id'], card_type, design)}), 201
     except Exception as exc:
         return api_error(str(exc))
 

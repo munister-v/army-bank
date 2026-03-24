@@ -216,6 +216,7 @@ CREATE TABLE IF NOT EXISTS cards (
     account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     card_number TEXT NOT NULL UNIQUE,
     card_type TEXT NOT NULL DEFAULT 'virtual',
+    design VARCHAR(20) NOT NULL DEFAULT 'gold',
     status TEXT NOT NULL DEFAULT 'active',
     holder_name TEXT,
     issued_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -231,6 +232,7 @@ CREATE TABLE IF NOT EXISTS cards (
     account_id INTEGER NOT NULL,
     card_number TEXT NOT NULL UNIQUE,
     card_type TEXT NOT NULL DEFAULT 'virtual',
+    design TEXT NOT NULL DEFAULT 'gold',
     status TEXT NOT NULL DEFAULT 'active',
     holder_name TEXT,
     issued_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -266,6 +268,10 @@ def init_db() -> None:
                     cur.execute('ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash TEXT;')
                 except Exception:
                     pass
+                try:
+                    cur.execute("ALTER TABLE cards ADD COLUMN IF NOT EXISTS design VARCHAR(20) NOT NULL DEFAULT 'gold';")
+                except Exception:
+                    pass
     else:
         schema_sql = Path(SCHEMA_PATH).read_text(encoding='utf-8')
         with get_connection_sqlite() as conn:
@@ -285,6 +291,10 @@ def init_db() -> None:
                 pass
             try:
                 conn.execute('ALTER TABLE users ADD COLUMN pin_hash TEXT;')
+            except Exception:
+                pass
+            try:
+                conn.execute("ALTER TABLE cards ADD COLUMN design TEXT NOT NULL DEFAULT 'gold';")
             except Exception:
                 pass
 
