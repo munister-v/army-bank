@@ -917,7 +917,6 @@ async function handleAuth(form, endpoint) {
   startPolling();
   updatePushDot();
   if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
-  if (typeof window._startPinLock === 'function') window._startPinLock();
   if (Notification?.permission === 'granted') {
     api.subscribePush().catch(() => {});
   }
@@ -1346,7 +1345,6 @@ if ('serviceWorker' in navigator) {
     startPolling();
     updatePushDot();
     if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
-    if (typeof window._startPinLock === 'function') window._startPinLock();
     if (Notification?.permission === 'granted') api.subscribePush().catch(() => {});
   } catch (error) {
     // Очищуємо токен тільки при помилці авторизації (401/403).
@@ -3344,112 +3342,6 @@ async function loadBudgetProgress() {
     card.style.display = 'none';
   }
 }
-
-// ── PIN LOCK OVERLAY ───────────────────────────────────────────
-(function() {
-  var overlay   = document.getElementById('pinLockOverlay');
-  var dotsEl    = document.getElementById('pinLockDots');
-  var errorEl   = document.getElementById('pinLockError');
-  var delBtn    = document.getElementById('pinLockDel');
-  var logoutBtn = document.getElementById('pinLockLogout');
-  if (!overlay) return;
-
-  var buf = '';
-  var TIMEOUT = 3 * 60 * 1000; // 3 minutes
-  var lockTimer = null;
-  var isLocked  = false;
-
-  function getDots() { return dotsEl ? dotsEl.querySelectorAll('span') : []; }
-
-  function updateDots() {
-    getDots().forEach(function(s, i) {
-      s.classList.toggle('filled', i < buf.length);
-    });
-  }
-
-  function showLock() {
-    if (isLocked) return;
-    isLocked = true;
-    buf = '';
-    updateDots();
-    if (errorEl) errorEl.textContent = '';
-    overlay.classList.remove('hidden');
-  }
-
-  function hideLock() {
-    isLocked = false;
-    overlay.classList.add('hidden');
-    resetTimer();
-  }
-
-  function resetTimer() {
-    clearTimeout(lockTimer);
-    lockTimer = setTimeout(function() {
-      // Only lock if PIN is set
-      if (typeof checkPinStatus === 'function') {
-        api.request('/api/auth/pin/status').then(function(r) {
-          if (r && r.has_pin) showLock();
-        }).catch(function() {});
-      }
-    }, TIMEOUT);
-  }
-
-  // Digit buttons
-  overlay.querySelectorAll('.pin-pad-btn[data-digit]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      if (buf.length >= 4) return;
-      buf += this.dataset.digit;
-      updateDots();
-      if (buf.length === 4) verifyPin();
-    });
-  });
-
-  if (delBtn) {
-    delBtn.addEventListener('click', function() {
-      buf = buf.slice(0, -1);
-      updateDots();
-    });
-  }
-
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', function() {
-      hideLock();
-      var logoutBtnMain = document.getElementById('logoutBtn');
-      if (logoutBtnMain) logoutBtnMain.click();
-    });
-  }
-
-  async function verifyPin() {
-    try {
-      var ok = await api.request('/api/auth/pin/verify', { method: 'POST', body: JSON.stringify({ pin: buf }) });
-      if (ok) {
-        hideLock();
-      } else {
-        wrongPin();
-      }
-    } catch(e) {
-      wrongPin();
-    }
-  }
-
-  function wrongPin() {
-    buf = '';
-    updateDots();
-    if (errorEl) errorEl.textContent = 'Невірний PIN-код';
-    if (dotsEl) {
-      dotsEl.classList.add('shake');
-      setTimeout(function() { dotsEl.classList.remove('shake'); }, 450);
-    }
-  }
-
-  // Start activity tracking after login
-  window._startPinLock = function() {
-    ['click','touchstart','keydown','scroll'].forEach(function(ev) {
-      document.addEventListener(ev, resetTimer, { passive: true });
-    });
-    resetTimer();
-  };
-})();
 
 // ══════════════════════════════════════════════════════
 // POLISH v3 — UX improvements
