@@ -6792,3 +6792,431 @@ html body .bottom-nav .nav-link.active {
     padding: 9px 10px !important;
   }
 }
+
+/* =========================================================
+   ARMY BANK PWA — REVOLUT CORE POLISH v12
+   Less clutter: 1 card, 2 quick actions, transactions first.
+   ========================================================= */
+
+/* Compact top of dashboard */
+html body #dashboard .section-title {
+  margin-bottom: 10px !important;
+  font-size: 18px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: uppercase !important;
+}
+
+html body .bank-card {
+  min-height: 186px !important;
+}
+
+html body .bank-card-content {
+  padding: 12px !important;
+}
+
+html body .bank-card .bank-card-number {
+  margin-top: 12px !important;
+  font-size: 17px !important;
+}
+
+/* Keep only one main card in carousel */
+html body .bank-cards-track .bank-card:not(:first-child) {
+  display: none !important;
+}
+
+html body .bank-cards-dots {
+  display: none !important;
+}
+
+/* Keep only key actions like in real mobile banks */
+html body .quick-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+html body .quick-actions .qa-btn:nth-child(n+3) {
+  display: none !important;
+}
+
+/* Make recent transactions block visually primary */
+html body #recentTransactionsCard {
+  border-color: rgba(124, 155, 255, 0.3) !important;
+  background: linear-gradient(180deg, #141c2c, #131b29) !important;
+}
+
+html body #recentTransactionsCard .card-head h3 {
+  font-size: 15px !important;
+  color: #d7e3ff !important;
+}
+
+html body #recentTransactions .item {
+  padding: 12px 2px !important;
+}
+
+html body #dashboard .cards-row {
+  margin-top: 8px !important;
+}
+
+@media (min-width: 1120px) {
+  html body .bank-card {
+    min-height: 174px !important;
+  }
+
+  html body #recentTransactionsCard {
+    margin-bottom: 10px !important;
+  }
+}
+
+/* =========================================================
+   ARMY BANK PWA — REVOLUT HARD TUNE v14
+   Less chrome, cleaner card, lighter navigation.
+   ========================================================= */
+
+:root {
+  --bg: #0a0d14 !important;
+  --surface: #111827 !important;
+  --surface2: #131d2e !important;
+  --bg-card: #121b2b !important;
+  --bg-card-2: #162239 !important;
+  --header-1: #0d1320 !important;
+  --header-2: #111a2c !important;
+  --text: #f3f7ff !important;
+  --text-2: #a9b6d2 !important;
+  --muted: #7e8fab !important;
+  --border: rgba(168, 186, 220, 0.16) !important;
+  --border-2: rgba(168, 186, 220, 0.26) !important;
+  --accent: #2f82ff !important;
+  --accent-dim: rgba(47, 130, 255, 0.16) !important;
+  --accent-glow: rgba(47, 130, 255, 0.3) !important;
+}
+
+html body {
+  background: radial-gradient(100% 70% at 10% -20%, rgba(62, 118, 255, 0.1), transparent 70%), #0a0d14 !important;
+}
+
+html body .app-header::before,
+html body .app-header::after,
+html body .bank-card::before,
+html body .bank-card-bg,
+html body .bank-card-noise {
+  display: none !important;
+}
+
+html body .app-header {
+  background: linear-gradient(180deg, #0f1625 0%, #111a2b 100%) !important;
+  padding-bottom: 14px !important;
+}
+
+html body .header-top {
+  padding: 16px 0 14px !important;
+}
+
+html body .header-user {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+html body .avatar {
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  background: linear-gradient(155deg, #2e4dc3 0%, #3f71ff 100%) !important;
+  color: #ecf2ff !important;
+}
+
+html body .header-name {
+  font-size: clamp(20px, 5.1vw, 24px) !important;
+  line-height: 1.05 !important;
+}
+
+html body .header-role {
+  color: #93a2c2 !important;
+  letter-spacing: 0.12em !important;
+}
+
+html body .icon-btn {
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(167, 186, 223, 0.2) !important;
+  color: #cad7ef !important;
+}
+
+html body .balance-block {
+  margin-bottom: 14px !important;
+  padding: 18px !important;
+  border-radius: 22px !important;
+  background: linear-gradient(160deg, #16233a 0%, #132034 100%) !important;
+  border: 1px solid rgba(167, 186, 223, 0.2) !important;
+}
+
+html body .balance-label {
+  margin-bottom: 8px !important;
+  color: #93a2c2 !important;
+  letter-spacing: 0.14em !important;
+}
+
+html body .balance-amount {
+  font-size: clamp(2rem, 9vw, 3.25rem) !important;
+  line-height: 1.02 !important;
+}
+
+html body .balance-account {
+  margin-top: 10px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(167, 186, 223, 0.2) !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  color: #b0bfdc !important;
+}
+
+html body .bank-card {
+  min-height: 174px !important;
+  border-radius: 22px !important;
+  border: 1px solid rgba(167, 186, 223, 0.2) !important;
+  background: linear-gradient(145deg, #1a355f 0%, #21487c 58%, #1a3963 100%) !important;
+  box-shadow: 0 14px 34px rgba(6, 11, 19, 0.42) !important;
+}
+
+html body .bank-card-content {
+  padding: 16px !important;
+}
+
+html body .bank-card-top {
+  margin-bottom: 12px !important;
+}
+
+html body .bank-card-logo-letter {
+  border-radius: 8px !important;
+  border: none !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+}
+
+html body .bank-card-logo-text {
+  font-size: 14px !important;
+  letter-spacing: -0.01em !important;
+}
+
+html body .bank-card-type {
+  border: none !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  padding: 4px 10px !important;
+  font-size: 9px !important;
+  letter-spacing: 0.14em !important;
+}
+
+html body .bank-card-chip {
+  margin-bottom: 12px !important;
+}
+
+html body .bank-card-chip svg rect {
+  fill: rgba(255, 255, 255, 0.2) !important;
+  stroke: rgba(255, 255, 255, 0.26) !important;
+}
+
+html body .bank-card-chip svg line {
+  stroke: rgba(255, 255, 255, 0.15) !important;
+}
+
+html body .bank-card .bank-card-number {
+  margin-top: 0 !important;
+  font-size: 17px !important;
+  letter-spacing: 0.14em !important;
+}
+
+html body .bank-card .bank-card-bottom,
+html body .bank-card .bank-card-holder,
+html body .bank-card .bank-card-expiry,
+html body .bank-card .bank-card-network {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+html body .bank-card .bank-card-label {
+  font-size: 8px !important;
+  letter-spacing: 0.16em !important;
+  opacity: 0.66 !important;
+}
+
+html body .bank-card .bank-card-name,
+html body .bank-card .bank-card-date {
+  font-size: 15px !important;
+}
+
+html body .bank-cards-track .bank-card:not(:first-child),
+html body .bank-cards-dots {
+  display: none !important;
+}
+
+html body .quick-actions {
+  margin-top: 10px !important;
+  margin-bottom: 8px !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+
+html body .qa-btn {
+  min-height: 72px !important;
+  border-radius: 18px !important;
+  background: #121b2a !important;
+  border: 1px solid rgba(168, 186, 220, 0.18) !important;
+}
+
+html body .qa-icon {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 11px !important;
+  background: rgba(47, 130, 255, 0.16) !important;
+  border: 1px solid rgba(115, 158, 245, 0.42) !important;
+  color: #d4e4ff !important;
+}
+
+html body .qa-label {
+  font-size: 11px !important;
+  letter-spacing: 0.11em !important;
+  color: #c0cde5 !important;
+}
+
+html body #dashboard {
+  padding-top: 6px !important;
+}
+
+html body #dashboard .section-title {
+  display: none !important;
+}
+
+html body #recentTransactionsCard {
+  margin-top: 0 !important;
+  border-radius: 18px !important;
+  background: linear-gradient(180deg, #131d2d 0%, #121a28 100%) !important;
+  border: 1px solid rgba(168, 186, 220, 0.22) !important;
+}
+
+html body #recentTransactionsCard .card-head {
+  margin-bottom: 8px !important;
+}
+
+html body #recentTransactionsCard .card-head h3 {
+  font-size: 12px !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+  color: #9eb2d8 !important;
+}
+
+html body #recentTransactions .item {
+  padding: 12px 0 !important;
+  border-bottom: 1px solid rgba(168, 186, 220, 0.14) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+html body #recentTransactions .item:last-child {
+  border-bottom: none !important;
+}
+
+html body #velocityCard {
+  display: none !important;
+}
+
+html body #dashboardActionForms {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+  margin-top: 0 !important;
+  pointer-events: none !important;
+  transition: max-height 0.36s ease, opacity 0.22s ease, margin-top 0.22s ease !important;
+}
+
+html body #dashboardActionForms.open {
+  max-height: 1600px !important;
+  opacity: 1 !important;
+  margin-top: 10px !important;
+  pointer-events: auto !important;
+}
+
+html body #dashboard #topupForm,
+html body #dashboard #transferForm {
+  border-radius: 18px !important;
+  background: linear-gradient(180deg, #121b2a 0%, #111927 100%) !important;
+  border: 1px solid rgba(168, 186, 220, 0.18) !important;
+}
+
+html body #dashboard #demoPayoutForm,
+html body #dashboard #templateForm {
+  display: none !important;
+}
+
+html body .bottom-nav {
+  background: rgba(9, 13, 20, 0.95) !important;
+  border-top: 1px solid rgba(168, 186, 220, 0.22) !important;
+  padding: 6px 8px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  gap: 6px !important;
+}
+
+html body .bottom-nav .nav-item,
+html body .bottom-nav .menu-btn {
+  min-height: 56px !important;
+  border-radius: 14px !important;
+  border: none !important;
+  background: transparent !important;
+  color: #8393b2 !important;
+}
+
+html body .bottom-nav .nav-item svg,
+html body .bottom-nav .menu-btn svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+html body .bottom-nav .nav-item span,
+html body .bottom-nav .menu-btn span {
+  font-size: 10px !important;
+  letter-spacing: 0.11em !important;
+  text-transform: uppercase !important;
+}
+
+html body .bottom-nav .nav-item.active,
+html body .bottom-nav .nav-link.active,
+html body .bottom-nav .menu-btn.active {
+  background: rgba(47, 130, 255, 0.2) !important;
+  color: #dce8ff !important;
+}
+
+html body .bottom-nav .nav-item.active svg,
+html body .bottom-nav .nav-link.active svg,
+html body .bottom-nav .menu-btn.active svg {
+  stroke: #afc8ff !important;
+}
+
+@media (min-width: 1120px) {
+  html body .app-shell {
+    grid-template-columns: minmax(300px, 340px) minmax(0, 1fr) !important;
+  }
+
+  html body .app-header {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
+
+  html body .bottom-nav {
+    position: static !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  html body .bottom-nav .nav-item,
+  html body .bottom-nav .menu-btn {
+    min-height: 42px !important;
+    padding: 10px 12px !important;
+    justify-content: flex-start !important;
+  }
+
+  html body #dashboard.active-screen {
+    display: block !important;
+  }
+}

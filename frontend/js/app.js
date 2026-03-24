@@ -423,7 +423,7 @@ $('#profileLogoutBtn')?.addEventListener('click', async () => {
 });
 
 // ── NAVIGATION ──────────────────────────────────────────
-const ALLOWED_SCREENS = ['dashboard', 'transactions', 'savings', 'cards', 'profile'];
+const ALLOWED_SCREENS = ['dashboard', 'transactions', 'cards', 'profile'];
 
 function getBasePath() {
   return (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
@@ -454,6 +454,13 @@ function switchScreen(screenId) {
   if (id === 'transactions') loadTransactionsWithFilters();
   if (id === 'profile') renderProfileScreen();
   if (id === 'cards') { if (typeof loadCards === 'function') loadCards(); }
+  if (id !== 'dashboard') setDashboardActionFormsOpen(false);
+}
+
+function setDashboardActionFormsOpen(open) {
+  const formsWrap = $('#dashboardActionForms');
+  if (!formsWrap) return;
+  formsWrap.classList.toggle('open', !!open);
 }
 
 async function refreshProfile() {
@@ -1224,6 +1231,13 @@ $$('[data-jump]').forEach((btn) => {
     const formMap = { topup: '#topupForm', transfer: '#transferForm' };
     const target = formMap[id];
     if (target) {
+      const activeScreen = document.querySelector('.screen.active-screen')?.id;
+      if (activeScreen !== 'dashboard') {
+        const base = getBasePath();
+        window.history.pushState(null, '', base ? base + '/dashboard' : '/dashboard');
+        switchScreen('dashboard');
+      }
+      setDashboardActionFormsOpen(true);
       $(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   });
@@ -1887,7 +1901,6 @@ let _cmdIdx = 0;
 const NAV_CMDS = [
   { type: 'nav', label: 'Огляд', screen: 'dashboard', icon: '🏠' },
   { type: 'nav', label: 'Операції', screen: 'transactions', icon: '📊' },
-  { type: 'nav', label: 'Цілі накопичення', screen: 'savings', icon: '🎯' },
   { type: 'nav', label: 'Картки', screen: 'cards', icon: '💳' },
   { type: 'nav', label: 'Профіль', screen: 'profile', icon: '👤' },
 ];
@@ -2011,7 +2024,7 @@ document.addEventListener('keydown', (e) => {
   clearTimeout(_kbTimer);
   _kbTimer = setTimeout(() => { _kbBuffer = ''; }, 800);
 
-  const navMap = { 'GD': 'dashboard', 'GT': 'transactions', 'GS': 'savings', 'GC': 'cards', 'GP': 'profile' };
+  const navMap = { 'GD': 'dashboard', 'GT': 'transactions', 'GC': 'cards', 'GP': 'profile' };
   if (navMap[_kbBuffer]) {
     const screen = navMap[_kbBuffer];
     const base = getBasePath();
@@ -3148,7 +3161,7 @@ console.log('[Army Bank] Wave 5 loaded \u2014 PIN, Recurring, Debts, Tags, Veloc
 
 // ── Swipe between screens ─────────────────────────────────
 (function() {
-  var SCREENS_ORDER = ['dashboard', 'transactions', 'savings', 'cards', 'profile'];
+  var SCREENS_ORDER = ['dashboard', 'transactions', 'cards', 'profile'];
   var content = document.querySelector('.app-content');
   if (!content) return;
   var startX = 0, startY = 0;
