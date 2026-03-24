@@ -29,12 +29,12 @@
     #authScreen.hidden{display:none!important}
   </style>
   <!-- Main stylesheet: async load (non-blocking), display:none swap triggers once loaded -->
-  <link rel="stylesheet" href="/css/styles.css?v=17" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/styles.css?v=17"></noscript>
-  <link rel="stylesheet" href="/css/overrides.css?v=2">
+  <link rel="stylesheet" href="/css/styles.css?v=19" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/styles.css?v=19"></noscript>
+  <link rel="stylesheet" href="/css/overrides.css?v=3">
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js" as="script">
-  <link rel="preload" href="/js/app.js?v=16" as="script">
+  <link rel="preload" href="/js/app.js?v=17" as="script">
   <!-- Early server wake-up: ping /health if session token exists (mitigates Render cold-start) -->
   <script>
     (function(){
@@ -306,7 +306,23 @@
               <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
             </svg>
           </span>
-          <span class="qa-label">Переказ</span>
+          <span class="qa-label">На картку</span>
+        </button>
+        <button type="button" class="qa-btn" data-jump="history">
+          <span class="qa-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+              <path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>
+            </svg>
+          </span>
+          <span class="qa-label">IBAN</span>
+        </button>
+        <button type="button" class="qa-btn" data-jump="history">
+          <span class="qa-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+              <circle cx="12" cy="12" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+            </svg>
+          </span>
+          <span class="qa-label">Інші</span>
         </button>
       </div>
 
@@ -353,7 +369,8 @@
 
         <div class="card" id="recentTransactionsCard">
           <div class="card-head">
-            <h3>Останні транзакції</h3>
+            <h3>Операції</h3>
+            <button type="button" class="section-see-all nav-link" data-screen="transactions">Усі</button>
           </div>
           <div id="recentTransactions" class="list"></div>
         </div>
@@ -1264,7 +1281,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js" defer></script>
-  <script src="/js/app.js?v=16" defer></script>
+  <script src="/js/app.js?v=17" defer></script>
   <script>
     /* ── Service Worker ── */
     if ('serviceWorker' in navigator) {
