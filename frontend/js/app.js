@@ -451,6 +451,12 @@ function switchScreen(screenId) {
     btn.classList.toggle('active', btn.dataset.screen === id);
   });
 
+  const appShell = $('#appScreen');
+  if (appShell) {
+    appShell.classList.toggle('screen-dashboard', id === 'dashboard');
+    appShell.dataset.screen = id;
+  }
+
   if (id === 'transactions') loadTransactionsWithFilters();
   if (id === 'profile') renderProfileScreen();
   if (id === 'cards') { if (typeof loadCards === 'function') loadCards(); }
@@ -1220,7 +1226,12 @@ window.addEventListener('popstate', () => {
 $$('[data-jump]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.jump;
-    const screenMap = { history: 'transactions', savings: 'savings', cards: 'cards' };
+    const screenMap = {
+      history: 'transactions',
+      transactions: 'transactions',
+      cards: 'cards',
+      profile: 'profile',
+    };
     if (screenMap[id]) {
       const target = screenMap[id];
       const base = getBasePath();
@@ -1228,6 +1239,28 @@ $$('[data-jump]').forEach((btn) => {
       switchScreen(target);
       return;
     }
+
+    if (id === 'iban') {
+      const activeScreen = document.querySelector('.screen.active-screen')?.id;
+      if (activeScreen !== 'dashboard') {
+        const base = getBasePath();
+        window.history.pushState(null, '', base ? base + '/dashboard' : '/dashboard');
+        switchScreen('dashboard');
+      }
+      setDashboardActionFormsOpen(true);
+      const transferForm = $('#transferForm');
+      transferForm?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(() => {
+        const accountModeBtn = document.querySelector('#transferModeToggle [data-mode="account"]');
+        if (accountModeBtn && !accountModeBtn.classList.contains('active')) {
+          accountModeBtn.click();
+        }
+        const accountInput = document.querySelector('#transferAccountLabel input[name="recipient_account_number"]');
+        accountInput?.focus();
+      }, 180);
+      return;
+    }
+
     const formMap = { topup: '#topupForm', transfer: '#transferForm' };
     const target = formMap[id];
     if (target) {
@@ -1906,18 +1939,24 @@ const NAV_CMDS = [
 ];
 
 function openCmdPalette() {
+  const palette = $('#cmdPalette');
+  const backdrop = $('#cmdBackdrop');
+  if (!palette || !backdrop) return;
   _cmdOpen = true;
-  $('#cmdPalette')?.classList.remove('hidden');
-  $('#cmdBackdrop')?.classList.remove('hidden');
+  palette.classList.remove('hidden');
+  backdrop.classList.remove('hidden');
   const input = $('#cmdInput');
   if (input) { input.value = ''; input.focus(); }
   renderCmdResults('');
 }
 
 function closeCmdPalette() {
+  const palette = $('#cmdPalette');
+  const backdrop = $('#cmdBackdrop');
+  if (!palette || !backdrop) return;
   _cmdOpen = false;
-  $('#cmdPalette')?.classList.add('hidden');
-  $('#cmdBackdrop')?.classList.add('hidden');
+  palette.classList.add('hidden');
+  backdrop.classList.add('hidden');
 }
 
 function renderCmdResults(query) {
@@ -1996,6 +2035,7 @@ document.addEventListener('keydown', (e) => {
   }
 
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    if (!$('#cmdPalette') || !$('#cmdBackdrop')) return;
     e.preventDefault();
     _cmdOpen ? closeCmdPalette() : openCmdPalette();
     return;
@@ -3013,23 +3053,7 @@ window.handleAuth = async function(form, endpoint) {
   }
 };
 
-// ── Keyboard shortcuts G+D / G+R ─────────────────────────
-(function() {
-  var _gPressedTime = 0;
-  document.addEventListener('keydown', function(e) {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-    if (!api.token) return;
-    var key = e.key.toLowerCase();
-    var now = Date.now();
-    if (key === 'g') { _gPressedTime = now; return; }
-    if (now - _gPressedTime < 1000) {
-      if (key === 'd') { switchScreen('debts'); _gPressedTime = 0; }
-      if (key === 'r') { switchScreen('recurring'); _gPressedTime = 0; }
-    }
-  });
-})();
-
-console.log('[Army Bank] Wave 5 loaded \u2014 PIN, Recurring, Debts, Tags, Velocity, Onboarding');
+console.log('[Army Bank] UX core modules loaded');
 
 // ── More Sheet ────────────────────────────────────────────
 (function() {

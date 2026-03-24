@@ -141,8 +141,8 @@ body {
 
 .header-role {
   color: rgba(255, 255, 255, 0.7) !important;
-  letter-spacing: 0.08em !important;
-  font-size: 10px !important;
+  letter-spacing: 0.02em !important;
+  font-size: 12px !important;
 }
 
 .avatar {
@@ -173,8 +173,8 @@ body {
 
 .balance-label {
   color: rgba(255, 255, 255, 0.72) !important;
-  font-size: 10px !important;
-  letter-spacing: 0.11em !important;
+  font-size: 11px !important;
+  letter-spacing: 0.08em !important;
 }
 
 .balance-amount {
@@ -191,7 +191,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
   color: rgba(255, 255, 255, 0.88) !important;
   border-radius: 999px !important;
-  font-size: 10px !important;
+  font-size: 12px !important;
 }
 
 /* ── Card Carousel ───────────────────────────────── */
@@ -201,14 +201,19 @@ body {
 }
 
 .bank-cards-track {
+  display: flex !important;
+  overflow-x: auto !important;
+  scroll-snap-type: x mandatory !important;
+  -webkit-overflow-scrolling: touch !important;
   gap: 14px !important;
-}
-
-.bank-cards-track .bank-card:not(:first-child) {
-  display: none !important;
+  padding: 0 1px 10px !important;
 }
 
 .bank-card {
+  flex: 0 0 calc(100% - 2px) !important;
+  width: calc(100% - 2px) !important;
+  scroll-snap-align: start !important;
+  margin-right: 0 !important;
   min-height: 156px !important;
   border-radius: 20px !important;
   border: none !important;
@@ -311,7 +316,7 @@ body {
 
 .qa-label {
   color: #11141b !important;
-  font-size: 10px !important;
+  font-size: 12px !important;
   font-weight: 600 !important;
   letter-spacing: 0 !important;
 }
@@ -351,6 +356,20 @@ body {
   display: none !important;
 }
 
+#appScreen:not(.screen-dashboard) .app-header {
+  padding-bottom: 8px !important;
+}
+
+#appScreen:not(.screen-dashboard) .balance-block,
+#appScreen:not(.screen-dashboard) .bank-cards-carousel,
+#appScreen:not(.screen-dashboard) .quick-actions {
+  display: none !important;
+}
+
+#appScreen:not(.screen-dashboard) .app-content {
+  padding-top: 8px !important;
+}
+
 #recentTransactionsCard {
   background: var(--mono-surface) !important;
   border: none !important;
@@ -367,7 +386,7 @@ body {
 }
 
 #recentTransactionsCard .card-head h3 {
-  font-size: 26px !important;
+  font-size: 22px !important;
   line-height: 1 !important;
   letter-spacing: -0.03em !important;
   text-transform: none !important;
@@ -514,6 +533,296 @@ textarea:focus,
   border-radius: 12px !important;
 }
 
+/* Keep UX focused: core tabs only */
+#appScreen #payouts,
+#appScreen #donations,
+#appScreen #savings,
+#appScreen #contacts,
+#appScreen #analytics,
+#appScreen #calendar,
+#appScreen #recurring,
+#appScreen #debts {
+  display: none !important;
+}
+
+#transactions .section-header-row,
+#cards .section-header-row,
+#profile .section-header-row {
+  margin-bottom: 10px !important;
+}
+
+#transactions .section-title,
+#cards .section-title,
+#profile .section-title {
+  margin-bottom: 0 !important;
+  font-size: 40px !important;
+  line-height: 1 !important;
+  letter-spacing: -0.03em !important;
+}
+
+#transactions .card {
+  border-radius: var(--mono-radius-xl) !important;
+}
+
+#transactions .tx-search-wrap input[type="search"],
+#transactionsFilters input,
+#transactionsFilters select {
+  min-height: 46px !important;
+}
+
+#transactions .btn-ghost.btn-sm {
+  min-height: 40px !important;
+  border-radius: 999px !important;
+  padding: 8px 14px !important;
+  font-size: 12px !important;
+}
+
+/* Cards screen: full styling for dynamic card list + controls */
+.btn-accent-sm {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 8px 12px !important;
+  border-radius: 12px !important;
+  border: 1px solid #d1d9e7 !important;
+  background: #f2f5fa !important;
+  color: #1e2533 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+
+.cards-manage-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.card-manage-item {
+  display: flex !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  background: var(--mono-surface) !important;
+  border-radius: var(--mono-radius-lg) !important;
+  box-shadow: var(--mono-shadow) !important;
+  border: 1px solid #e8edf6 !important;
+  padding: 14px !important;
+}
+
+.cmi-visual {
+  min-width: 0 !important;
+}
+
+.cmi-chip {
+  width: 26px !important;
+  height: 20px !important;
+  margin-bottom: 10px !important;
+}
+
+.cmi-number {
+  color: #171c28 !important;
+  font-size: 24px !important;
+  line-height: 1 !important;
+  letter-spacing: 0.04em !important;
+  margin-bottom: 6px !important;
+}
+
+.cmi-meta {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  color: #77839a !important;
+  font-size: 13px !important;
+}
+
+.cmi-right {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  gap: 10px !important;
+}
+
+.cmi-status {
+  border-radius: 999px !important;
+  padding: 4px 10px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.card-status-active {
+  background: #e7f7ee !important;
+  color: #1a8b4c !important;
+}
+
+.card-status-blocked {
+  background: #fff4e7 !important;
+  color: #b7791f !important;
+}
+
+.card-status-closed {
+  background: #f2f4f8 !important;
+  color: #7f8aa1 !important;
+}
+
+.cmi-actions {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.btn-card-action {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  min-height: 34px !important;
+  border-radius: 999px !important;
+  border: 1px solid #d3dced !important;
+  background: #f3f6fb !important;
+  color: #253045 !important;
+  padding: 6px 11px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.btn-card-action.btn-block {
+  background: #fff7eb !important;
+  border-color: #f2d9b4 !important;
+  color: #9a6323 !important;
+}
+
+.btn-card-action.btn-unblock {
+  background: #e9f8f0 !important;
+  border-color: #c2ead4 !important;
+  color: #1b8751 !important;
+}
+
+.btn-close-card {
+  border-color: #f2c4ca !important;
+  background: #fff2f4 !important;
+  color: #b73f4d !important;
+}
+
+.loading-spinner-sm {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 999px !important;
+  border: 3px solid #dfe5f0 !important;
+  border-top-color: #3b63c8 !important;
+  margin: 16px auto !important;
+  animation: spin 0.9s linear infinite !important;
+}
+
+.design-picker {
+  margin-bottom: 12px !important;
+}
+
+.design-picker-label {
+  display: block !important;
+  margin-bottom: 8px !important;
+  color: #6f7c95 !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.design-options {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+.design-opt {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 6px !important;
+  border: 1px solid #d8e0ee !important;
+  border-radius: 12px !important;
+  background: #f8faff !important;
+  color: #44506a !important;
+  padding: 8px 6px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.design-opt.selected {
+  border-color: #2f63d8 !important;
+  box-shadow: 0 0 0 2px rgba(47, 99, 216, 0.14) !important;
+  color: #1d2e58 !important;
+}
+
+.design-swatch {
+  width: 100% !important;
+  height: 24px !important;
+  border-radius: 8px !important;
+}
+
+.swatch-gold {
+  background: linear-gradient(120deg, #6d5418 0%, #a78b39 100%) !important;
+}
+
+.swatch-navy {
+  background: linear-gradient(120deg, #1a2b55 0%, #223f80 100%) !important;
+}
+
+.swatch-forest {
+  background: linear-gradient(120deg, #18362b 0%, #2f6a53 100%) !important;
+}
+
+.swatch-rose {
+  background: linear-gradient(120deg, #4a1f36 0%, #82385d 100%) !important;
+}
+
+.swatch-slate {
+  background: linear-gradient(120deg, #303745 0%, #4c5a70 100%) !important;
+}
+
+.modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 700 !important;
+  background: rgba(12, 18, 30, 0.46) !important;
+  backdrop-filter: blur(3px) !important;
+  -webkit-backdrop-filter: blur(3px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+}
+
+.modal-overlay.hidden {
+  display: none !important;
+}
+
+.modal-box {
+  width: min(420px, 100%) !important;
+  background: #ffffff !important;
+  border-radius: var(--mono-radius-lg) !important;
+  box-shadow: 0 18px 46px rgba(16, 24, 38, 0.22) !important;
+  padding: 18px !important;
+}
+
+.modal-title {
+  color: #111623 !important;
+  font-size: 22px !important;
+  line-height: 1.1 !important;
+  margin-bottom: 8px !important;
+}
+
+.modal-text {
+  color: #6d7890 !important;
+  font-size: 14px !important;
+  margin-bottom: 14px !important;
+}
+
+.modal-actions {
+  display: flex !important;
+  gap: 8px !important;
+}
+
+.modal-actions .btn-danger,
+.modal-actions .btn-ghost {
+  flex: 1 !important;
+}
+
 /* ── Bottom Tab Bar ───────────────────────────────── */
 .bottom-nav {
   position: fixed !important;
@@ -622,10 +931,17 @@ textarea:focus,
   display: none !important;
 }
 
+#cmdPalette,
+#cmdBackdrop,
+#kbHelp,
+#kbBackdrop {
+  display: none !important;
+}
+
 /* ── Desktop: centered app frame ─────────────────── */
 @media (min-width: 960px) {
   #appScreen.app-shell {
-    width: min(430px, calc(100vw - 24px)) !important;
+    width: min(460px, calc(100vw - 24px)) !important;
     margin: 14px auto 20px !important;
     border-radius: 32px !important;
     overflow: hidden !important;
@@ -654,7 +970,7 @@ textarea:focus,
   .bottom-nav {
     left: 50% !important;
     right: auto !important;
-    width: min(410px, calc(100vw - 34px)) !important;
+    width: min(440px, calc(100vw - 34px)) !important;
     transform: translateX(-50%) !important;
   }
 

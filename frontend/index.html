@@ -29,12 +29,12 @@
     #authScreen.hidden{display:none!important}
   </style>
   <!-- Main stylesheet: async load (non-blocking), display:none swap triggers once loaded -->
-  <link rel="stylesheet" href="/css/styles.css?v=19" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/styles.css?v=19"></noscript>
-  <link rel="stylesheet" href="/css/overrides.css?v=4">
+  <link rel="stylesheet" href="/css/styles.css?v=20" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/styles.css?v=20"></noscript>
+  <link rel="stylesheet" href="/css/overrides.css?v=5">
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js" as="script">
-  <link rel="preload" href="/js/app.js?v=17" as="script">
+  <link rel="preload" href="/js/app.js?v=18" as="script">
   <!-- Early server wake-up: ping /health if session token exists (mitigates Render cold-start) -->
   <script>
     (function(){
@@ -162,7 +162,7 @@
   </div>
 
   <!-- ══ APP SHELL ══════════════════════════════════════════ -->
-  <div id="appScreen" class="app-shell hidden">
+  <div id="appScreen" class="app-shell hidden screen-dashboard">
 
     <!-- Header / Balance card -->
     <header class="app-header">
@@ -308,21 +308,21 @@
           </span>
           <span class="qa-label">На картку</span>
         </button>
-        <button type="button" class="qa-btn" data-jump="history">
+        <button type="button" class="qa-btn" data-jump="iban">
           <span class="qa-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
               <path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>
             </svg>
           </span>
-          <span class="qa-label">IBAN</span>
+          <span class="qa-label">За IBAN</span>
         </button>
-        <button type="button" class="qa-btn" data-jump="history">
+        <button type="button" class="qa-btn" data-jump="transactions">
           <span class="qa-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
               <circle cx="12" cy="12" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
             </svg>
           </span>
-          <span class="qa-label">Інші</span>
+          <span class="qa-label">Виписка</span>
         </button>
       </div>
 
@@ -1211,59 +1211,6 @@
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-  <!-- Install Banner -->
-  <div id="installBanner" class="install-banner hidden">
-    <div class="install-banner-icon">
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-        <path d="M16 2L4 8v8c0 7.2 5.2 13.9 12 15.6C23.8 29.9 28 23.2 28 16V8L16 2z" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-        <path d="M11 16l3 3 7-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
-    <div class="install-banner-text">
-      <strong>Army Bank</strong>
-      <span>Встановити на головний екран</span>
-    </div>
-    <button id="installBtn" class="install-btn">Встановити</button>
-    <button id="installDismiss" class="install-dismiss">✕</button>
-  </div>
-
-  <!-- Command palette (Ctrl+K) -->
-  <div id="cmdBackdrop" class="cmd-backdrop hidden"></div>
-  <div id="cmdPalette" class="cmd-palette hidden" role="dialog" aria-label="Пошук">
-    <div class="cmd-input-wrap">
-      <svg class="cmd-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input id="cmdInput" type="text" placeholder="Пошук транзакцій, цілей, контактів, розділів…" autocomplete="off" spellcheck="false">
-      <kbd class="cmd-esc">Esc</kbd>
-    </div>
-    <div id="cmdResults" class="cmd-results"></div>
-    <div class="cmd-footer">
-      <span><kbd>↑↓</kbd> навігація</span>
-      <span><kbd>↵</kbd> відкрити</span>
-      <span><kbd>Esc</kbd> закрити</span>
-    </div>
-  </div>
-
-  <!-- Keyboard shortcuts help (?+key) -->
-  <div id="kbBackdrop" class="cmd-backdrop hidden"></div>
-  <div id="kbHelp" class="kb-help hidden" role="dialog" aria-label="Клавіатурні скорочення">
-    <div class="kb-header">
-      <h3>Клавіатурні скорочення</h3>
-      <button id="kbClose" class="icon-btn">✕</button>
-    </div>
-    <div class="kb-list">
-      <div class="kb-item"><kbd>Ctrl</kbd><kbd>K</kbd><span>Відкрити пошук</span></div>
-      <div class="kb-item"><kbd>?</kbd><span>Показати скорочення</span></div>
-      <div class="kb-item"><kbd>G</kbd><kbd>D</kbd><span>Перейти: Огляд</span></div>
-      <div class="kb-item"><kbd>G</kbd><kbd>T</kbd><span>Перейти: Операції</span></div>
-      <div class="kb-item"><kbd>G</kbd><kbd>S</kbd><span>Перейти: Цілі</span></div>
-      <div class="kb-item"><kbd>G</kbd><kbd>C</kbd><span>Перейти: Родина</span></div>
-      <div class="kb-item"><kbd>G</kbd><kbd>A</kbd><span>Перейти: Аналітика</span></div>
-      <div class="kb-item"><kbd>G</kbd><kbd>P</kbd><span>Перейти: Профіль</span></div>
-      <div class="kb-item"><kbd>Esc</kbd><span>Закрити панель / діалог</span></div>
-      <div class="kb-item"><kbd>R</kbd><span>Оновити дані</span></div>
-    </div>
-  </div>
-
   <!-- Notification Panel -->
   <div id="notifOverlay" style="display:none;position:fixed;inset:0;z-index:390;background:rgba(0,0,0,.5);backdrop-filter:blur(4px)"></div>
   <div id="notifPanel" class="notif-panel">
@@ -1281,7 +1228,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js" defer></script>
-  <script src="/js/app.js?v=17" defer></script>
+  <script src="/js/app.js?v=18" defer></script>
   <script>
     /* ── Service Worker ── */
     if ('serviceWorker' in navigator) {
