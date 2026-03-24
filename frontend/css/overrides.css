@@ -318,7 +318,7 @@ body {
 
 /* ── Main Content / Surfaces ─────────────────────── */
 .app-content {
-  padding: 10px 14px calc(var(--nav-h) + 28px + env(safe-area-inset-bottom, 0px)) !important;
+  padding: 10px 14px calc(var(--nav-h) + 20px + env(safe-area-inset-bottom, 0px)) !important;
   background: transparent !important;
   height: auto !important;
   overflow-y: auto !important;
@@ -367,9 +367,10 @@ body {
 }
 
 #recentTransactionsCard .card-head h3 {
-  font-size: 32px !important;
+  font-size: 26px !important;
   line-height: 1 !important;
   letter-spacing: -0.03em !important;
+  text-transform: none !important;
   color: var(--mono-text) !important;
 }
 
@@ -518,16 +519,16 @@ textarea:focus,
   position: fixed !important;
   left: 10px !important;
   right: 10px !important;
-  bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
-  height: 68px !important;
-  min-height: 68px !important;
+  bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
+  height: 64px !important;
+  min-height: 64px !important;
   border-radius: 36px !important;
   background: rgba(255, 255, 255, 0.96) !important;
   border: 1px solid rgba(17, 23, 36, 0.08) !important;
   box-shadow: 0 14px 30px rgba(16, 24, 38, 0.14) !important;
   backdrop-filter: blur(14px) !important;
   -webkit-backdrop-filter: blur(14px) !important;
-  padding: 0 8px calc(env(safe-area-inset-bottom, 0px)) !important;
+  padding: 0 8px 0 !important;
   z-index: 500 !important;
   gap: 0 !important;
 }
@@ -596,7 +597,7 @@ textarea:focus,
   font-size: 11px !important;
   letter-spacing: 0 !important;
   text-transform: none !important;
-  padding: 8px 4px 10px !important;
+  padding: 7px 4px 8px !important;
 }
 
 .nav-item svg,
@@ -615,6 +616,10 @@ textarea:focus,
 .nav-link.active svg,
 .menu-btn.active svg {
   stroke: var(--mono-danger) !important;
+}
+
+#installBanner {
+  display: none !important;
 }
 
 /* ── Desktop: centered app frame ─────────────────── */
