@@ -7241,3 +7241,141 @@ html body #dashboardActionForms.open {
   margin-top: 10px !important;
   pointer-events: auto !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   DEFINITIVE v15 — appended last, always wins cascade
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 1. Avatar — purple, no teal/blue override */
+html body .app-header .avatar,
+html body .header-user .avatar,
+html body #appScreen .avatar {
+  background: linear-gradient(145deg,#3b1f8c 0%,#6d28d9 100%) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 4px 16px rgba(109,40,217,.28) !important;
+  color: rgba(255,255,255,.9) !important;
+  font-weight: 700 !important; font-size: 14px !important;
+  width: 44px !important; height: 44px !important;
+  animation: none !important;
+}
+
+/* 2. Bottom nav active — NO coloured box, just accent text */
+html body .bottom-nav .nav-item.active,
+html body .bottom-nav .nav-link.active,
+html body .bottom-nav .menu-btn.active {
+  background: transparent !important;
+  color: #7c5af6 !important;
+  border-color: transparent !important;
+}
+html body .bottom-nav .nav-item.active svg,
+html body .bottom-nav .nav-link.active svg,
+html body .bottom-nav .menu-btn.active svg {
+  stroke: #7c5af6 !important;
+}
+
+/* 3. Quick actions — visible coloured fills */
+html body .quick-actions .qa-btn:nth-child(1) .qa-icon,
+html body .qa-grid   .qa-btn:nth-child(1) .qa-icon,
+html body            .qa-btn:nth-child(1) .qa-icon {
+  background: rgba(16,185,129,.18) !important;
+  border: 1px solid rgba(16,185,129,.3) !important;
+  color: #34d399 !important;
+}
+html body .quick-actions .qa-btn:nth-child(2) .qa-icon,
+html body .qa-grid   .qa-btn:nth-child(2) .qa-icon,
+html body            .qa-btn:nth-child(2) .qa-icon {
+  background: rgba(14,165,233,.18) !important;
+  border: 1px solid rgba(14,165,233,.3) !important;
+  color: #38bdf8 !important;
+}
+html body .quick-actions .qa-btn:nth-child(3) .qa-icon,
+html body .qa-grid   .qa-btn:nth-child(3) .qa-icon,
+html body            .qa-btn:nth-child(3) .qa-icon {
+  background: rgba(124,90,246,.2) !important;
+  border: 1px solid rgba(124,90,246,.3) !important;
+  color: #a78bfa !important;
+}
+html body .quick-actions .qa-btn:nth-child(4) .qa-icon,
+html body .qa-grid   .qa-btn:nth-child(4) .qa-icon,
+html body            .qa-btn:nth-child(4) .qa-icon {
+  background: rgba(245,158,11,.18) !important;
+  border: 1px solid rgba(245,158,11,.3) !important;
+  color: #fbbf24 !important;
+}
+
+/* 4. Transaction items — clean list, NO card boxes */
+html body .item,
+html body .tx-item,
+html body .transaction-item {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(255,255,255,.055) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+html body .item:last-child,
+html body .tx-item:last-child { border-bottom: none !important; }
+html body .item:active,
+html body .tx-item:active { background: rgba(255,255,255,.025) !important; }
+
+/* 5. Bank cards — restore correct gradients, kill pill borders */
+html body .bank-card * { border: none !important; background: none !important; }
+html body .bank-card-gold {
+  background: linear-gradient(145deg,#1e1600 0%,#2a1e04 30%,#3c2c08 55%,#2a1e04 100%) !important;
+  box-shadow: 0 16px 48px rgba(0,0,0,.6),
+    0 0 0 1px rgba(210,160,40,.32),
+    inset 0 1px 0 rgba(255,255,255,.1) !important;
+  border-radius: 20px !important;
+}
+html body .bank-card-gold .bank-card-bg {
+  background: linear-gradient(145deg,#1e1600 0%,#2a1e04 30%,#3c2c08 55%,#2a1e04 100%) !important;
+  position: absolute !important; inset: 0 !important;
+}
+html body .bank-card-navy,
+html body .bank-card-dark {
+  background: linear-gradient(145deg,#060c1e 0%,#0c1830 35%,#112040 65%,#0c1830 100%) !important;
+  box-shadow: 0 16px 48px rgba(0,0,0,.65),
+    0 0 0 1px rgba(96,165,250,.26),
+    inset 0 1px 0 rgba(255,255,255,.07) !important;
+  border-radius: 20px !important;
+}
+html body .bank-card-label  { color: rgba(255,255,255,.42) !important; font-size: 7px !important; }
+html body .bank-card-number { color: rgba(255,255,255,.82) !important; letter-spacing: .18em !important; }
+html body .bank-card-name,
+html body .bank-card-date   { color: rgba(255,255,255,.8) !important; }
+html body .bank-card-logo-letter {
+  background: rgba(255,255,255,.13) !important;
+  border-radius: 7px !important;
+}
+
+/* 6. Balance amount — pure white, no gradient text */
+html body .balance-amount {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  -webkit-text-fill-color: #fff !important;
+  color: #fff !important;
+  filter: none !important;
+  font-weight: 800 !important;
+}
+
+/* 7. Carousel — one card at a time */
+html body .bank-card {
+  max-width: none !important;
+  flex-shrink: 0 !important;
+}
+
+/* 8. Section titles — small caps, not h2-giant */
+html body h2.section-title,
+html body h3.section-title,
+html body .section-title {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: .14em !important;
+  text-transform: uppercase !important;
+  color: rgba(255,255,255,.38) !important;
+  background: none !important;
+  -webkit-text-fill-color: rgba(255,255,255,.38) !important;
+}
