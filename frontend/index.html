@@ -31,11 +31,11 @@
     #authScreen.hidden{display:none!important}
   </style>
   <!-- Main stylesheet: async load (non-blocking), display:none swap triggers once loaded -->
-  <link rel="stylesheet" href="/css/styles.css?v=8" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/styles.css?v=8"></noscript>
+  <link rel="stylesheet" href="/css/styles.css?v=9" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/styles.css?v=9"></noscript>
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js" as="script">
-  <link rel="preload" href="/js/app.js?v=8" as="script">
+  <link rel="preload" href="/js/app.js?v=9" as="script">
   <!-- Early server wake-up: ping /health if session token exists (mitigates Render cold-start) -->
   <script>
     (function(){
@@ -1362,7 +1362,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js" defer></script>
-  <script src="/js/app.js?v=8" defer></script>
+  <script src="/js/app.js?v=9" defer></script>
   <script>
     /* ── Service Worker ── */
     if ('serviceWorker' in navigator) {
