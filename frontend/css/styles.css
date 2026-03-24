@@ -4258,3 +4258,228 @@ input:focus, select:focus, textarea:focus {
 #notifBadge[style*="flex"] {
   box-shadow: 0 0 8px rgba(167,139,250,.7) !important;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   PREMIUM VISUAL V3 — Ambient glows, floating nav, organic depth
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Deep ambient background ────────────────────────────────── */
+body {
+  background:
+    radial-gradient(ellipse 70% 45% at 50% -5%,  rgba(109,40,217,.22)   0%, transparent 65%),
+    radial-gradient(ellipse 50% 30% at 90% 40%,  rgba(212,168,48,.07)   0%, transparent 60%),
+    radial-gradient(ellipse 40% 25% at 10% 70%,  rgba(14,165,233,.06)   0%, transparent 60%),
+    #060411 !important;
+}
+
+/* ── Header V3 ──────────────────────────────────────────────── */
+.app-header {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(139,92,246,.1) !important;
+  box-shadow: none !important;
+}
+
+/* ── Avatar — deeper glow ring ──────────────────────────────── */
+.avatar {
+  background: linear-gradient(145deg, #4c1d95 0%, #6d28d9 50%, #9333ea 100%) !important;
+  box-shadow:
+    0 0 0 2px rgba(139,92,246,.3),
+    0 0 0 5px rgba(139,92,246,.08),
+    0 8px 24px rgba(109,40,217,.45) !important;
+  border-radius: 16px !important;
+}
+
+/* ── Balance block V3 ───────────────────────────────────────── */
+.balance-block {
+  background: linear-gradient(135deg,
+    rgba(255,255,255,.08)  0%,
+    rgba(109,40,217,.09) 40%,
+    rgba(139,92,246,.05) 65%,
+    rgba(255,255,255,.02) 100%) !important;
+  border: 1px solid rgba(139,92,246,.22) !important;
+  border-radius: 24px !important;
+  backdrop-filter: blur(48px) saturate(2.2) !important;
+  -webkit-backdrop-filter: blur(48px) saturate(2.2) !important;
+  box-shadow:
+    0 0 0 0.5px rgba(255,255,255,.06) inset,
+    0 0 80px rgba(109,40,217,.12),
+    0 12px 48px rgba(0,0,0,.6),
+    0 1px 0 rgba(255,255,255,.12) inset !important;
+}
+.balance-block::before {
+  background: linear-gradient(90deg, transparent 0%, rgba(167,139,250,.55) 50%, transparent 100%) !important;
+}
+
+.balance-label {
+  color: rgba(167,139,250,.7) !important;
+  letter-spacing: .18em !important;
+}
+
+.balance-amount {
+  font-size: clamp(2.4rem, 11vw, 4rem) !important;
+  background: linear-gradient(118deg,
+    #ffffff 0%, #f0eeff 25%,
+    #d8b4fe 55%, #a78bfa 80%, #818cf8 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  filter: drop-shadow(0 2px 24px rgba(167,139,250,.3)) !important;
+}
+
+.balance-account {
+  background: rgba(109,40,217,.12) !important;
+  border-color: rgba(139,92,246,.22) !important;
+  color: rgba(196,181,253,.8) !important;
+}
+
+/* ── Bank card — ambient gold bloom ────────────────────────── */
+.bank-cards-section, .bank-cards-carousel {
+  position: relative !important;
+}
+.bank-cards-section::after {
+  content: '';
+  position: absolute;
+  bottom: -20px; left: 50%; transform: translateX(-50%);
+  width: 260px; height: 120px;
+  background: radial-gradient(ellipse, rgba(212,168,48,.12) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Dot indicators V3 — pill style ─────────────────────────── */
+.bc-dot {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 6px !important;
+  background: rgba(255,255,255,.18) !important;
+  transition: width .35s cubic-bezier(.34,1.56,.64,1), background .35s !important;
+}
+.bc-dot.active {
+  width: 22px !important;
+  background: linear-gradient(90deg, #a78bfa 0%, #d4a830 100%) !important;
+  box-shadow: 0 0 10px rgba(167,139,250,.5), 0 0 20px rgba(212,168,48,.2) !important;
+}
+
+/* ── Quick actions V3 ───────────────────────────────────────── */
+.quick-actions { gap: 10px !important; }
+.qa-icon {
+  width: 60px !important;
+  height: 60px !important;
+  border-radius: 20px !important;
+  font-size: 22px !important;
+  transition: transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s !important;
+}
+.qa-btn:active .qa-icon {
+  transform: scale(.88) !important;
+}
+
+/* Emerald — топ */
+.qa-btn:nth-child(1) .qa-icon {
+  background: linear-gradient(145deg, rgba(16,185,129,.22) 0%, rgba(5,150,105,.07) 100%) !important;
+  border: 1px solid rgba(16,185,129,.32) !important;
+  color: #34d399 !important;
+  box-shadow:
+    0 0 28px rgba(16,185,129,.18),
+    0 4px 18px rgba(0,0,0,.35),
+    0 1px 0 rgba(255,255,255,.09) inset !important;
+}
+/* Sky — переказ */
+.qa-btn:nth-child(2) .qa-icon {
+  background: linear-gradient(145deg, rgba(14,165,233,.22) 0%, rgba(2,132,199,.07) 100%) !important;
+  border: 1px solid rgba(14,165,233,.32) !important;
+  color: #38bdf8 !important;
+  box-shadow:
+    0 0 28px rgba(14,165,233,.18),
+    0 4px 18px rgba(0,0,0,.35),
+    0 1px 0 rgba(255,255,255,.09) inset !important;
+}
+/* Violet — операції */
+.qa-btn:nth-child(3) .qa-icon {
+  background: linear-gradient(145deg, rgba(139,92,246,.24) 0%, rgba(109,40,217,.1) 100%) !important;
+  border: 1px solid rgba(139,92,246,.35) !important;
+  color: #c4b5fd !important;
+  box-shadow:
+    0 0 28px rgba(139,92,246,.2),
+    0 4px 18px rgba(0,0,0,.35),
+    0 1px 0 rgba(255,255,255,.09) inset !important;
+}
+/* Amber — картки */
+.qa-btn:nth-child(4) .qa-icon {
+  background: linear-gradient(145deg, rgba(245,158,11,.22) 0%, rgba(180,83,9,.07) 100%) !important;
+  border: 1px solid rgba(245,158,11,.34) !important;
+  color: #fbbf24 !important;
+  box-shadow:
+    0 0 28px rgba(245,158,11,.18),
+    0 4px 18px rgba(0,0,0,.35),
+    0 1px 0 rgba(255,255,255,.09) inset !important;
+}
+
+.qa-btn:nth-child(1):active .qa-icon { box-shadow: 0 0 40px rgba(16,185,129,.35) !important; }
+.qa-btn:nth-child(2):active .qa-icon { box-shadow: 0 0 40px rgba(14,165,233,.35) !important; }
+.qa-btn:nth-child(3):active .qa-icon { box-shadow: 0 0 40px rgba(139,92,246,.35) !important; }
+.qa-btn:nth-child(4):active .qa-icon { box-shadow: 0 0 40px rgba(245,158,11,.35) !important; }
+
+.qa-label {
+  font-size: 9.5px !important;
+  letter-spacing: .06em !important;
+  color: rgba(255,255,255,.5) !important;
+  font-weight: 600 !important;
+}
+
+/* ── Bottom nav V3 — floating pill ──────────────────────────── */
+.bottom-nav {
+  margin: 0 14px calc(env(safe-area-inset-bottom, 0px) + 10px) !important;
+  border-radius: 28px !important;
+  border: 1px solid rgba(255,255,255,.07) !important;
+  background: rgba(9,5,22,.88) !important;
+  backdrop-filter: blur(48px) saturate(2) !important;
+  -webkit-backdrop-filter: blur(48px) saturate(2) !important;
+  box-shadow:
+    0 0 0 0.5px rgba(255,255,255,.05) inset,
+    0 -2px 0 rgba(139,92,246,.06) inset,
+    0 8px 48px rgba(0,0,0,.75),
+    0 2px 24px rgba(109,40,217,.08) !important;
+}
+
+.nav-item.active::after {
+  width: 28px !important;
+  height: 3px !important;
+  background: linear-gradient(90deg, #818cf8, #a78bfa, #c084fc) !important;
+  box-shadow: 0 0 14px rgba(167,139,250,.8), 0 0 32px rgba(167,139,250,.35) !important;
+  border-radius: 0 0 6px 6px !important;
+}
+.nav-item.active {
+  color: #c4b5fd !important;
+}
+
+/* ── Transaction items V3 ───────────────────────────────────── */
+.item {
+  border-radius: 16px !important;
+  background: rgba(255,255,255,.025) !important;
+  border: 1px solid rgba(255,255,255,.05) !important;
+  transition: background .18s, border-color .18s, transform .15s !important;
+}
+.item:active {
+  background: rgba(139,92,246,.06) !important;
+  border-color: rgba(139,92,246,.18) !important;
+  transform: scale(.99) !important;
+}
+
+/* ── Primary button V3 ──────────────────────────────────────── */
+.btn-accent:not(.tmt-btn) {
+  background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 45%, #a78bfa 100%) !important;
+  box-shadow:
+    0 4px 24px rgba(109,40,217,.45),
+    0 1px 0 rgba(255,255,255,.25) inset !important;
+}
+.btn-accent:not(.tmt-btn):hover {
+  box-shadow:
+    0 8px 36px rgba(109,40,217,.6),
+    0 1px 0 rgba(255,255,255,.25) inset !important;
+  transform: translateY(-2px) !important;
+}
+
+/* ── Notification badge ─────────────────────────────────────── */
+#notifBadge {
+  box-shadow: 0 0 12px rgba(167,139,250,.85) !important;
+}
