@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Army Bank</title>
   <meta name="description" content="Цифровий банкінг для захисників України">
-  <meta name="theme-color" content="#080808">
+  <meta name="theme-color" content="#162c5c">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -21,19 +21,17 @@
   <!-- Critical inline CSS: body bg + auth shell to prevent FOUC before styles.css loads -->
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%;background:#050505;color:#e5e5e5;font-family:Manrope,system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;text-size-adjust:100%}
+    html,body{height:100%;background:#0d1f3c;color:#eeeeff;font-family:Manrope,system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;text-size-adjust:100%}
     .hidden{display:none!important}
     .screen{display:none;flex-direction:column;height:100%}
-    /* Must match app.js + styles.css: .active-screen, not .active */
     .screen.active-screen{display:block}
-    /* Must match setAuthenticated(): toggles .hidden, not .active */
     #authScreen.auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#050505}
     #authScreen.hidden{display:none!important}
   </style>
   <!-- Main stylesheet: async load (non-blocking), display:none swap triggers once loaded -->
-  <link rel="stylesheet" href="/css/styles.css?v=16" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/styles.css?v=16"></noscript>
-  <link rel="stylesheet" href="/css/overrides.css?v=1">
+  <link rel="stylesheet" href="/css/styles.css?v=17" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/styles.css?v=17"></noscript>
+  <link rel="stylesheet" href="/css/overrides.css?v=2">
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js" as="script">
   <link rel="preload" href="/js/app.js?v=16" as="script">
