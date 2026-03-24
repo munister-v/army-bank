@@ -3133,13 +3133,17 @@ button:focus-visible, a:focus-visible {
   text-transform: uppercase !important;
 }
 .qa-icon {
-  background: rgba(255,255,255,.04) !important;
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 16px !important;
+  background: rgba(255,255,255,.05) !important;
   border: 1px solid rgba(255,255,255,.09) !important;
-  box-shadow: 0 1px 0 rgba(255,255,255,.05) inset !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 4px 12px rgba(0,0,0,.25) !important;
 }
 .qa-btn:hover .qa-icon {
   background: rgba(167,139,250,.1) !important;
   border-color: rgba(167,139,250,.3) !important;
+  box-shadow: 0 0 16px rgba(167,139,250,.1) !important;
 }
 
 /* ── Drawer ───────────────────────────────────────────── */
@@ -3389,7 +3393,7 @@ button:focus-visible, a:focus-visible {
 
 /* ── BANK CARDS CAROUSEL ──────────────────────────────────── */
 .bank-cards-carousel {
-  margin: 0 -max(16px, env(safe-area-inset-left,0px)) 20px;
+  margin: 0 -max(16px, env(safe-area-inset-left,0px)) 24px;
   /* overflow: hidden removed — it blocks iOS Safari scroll on child */
 }
 .bank-cards-track {
