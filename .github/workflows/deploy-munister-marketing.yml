@@ -1,0 +1,41 @@
+name: Deploy munister marketing (army-bank)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'marketing/**'
+      - '.github/workflows/deploy-munister-marketing.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to munister-v.github.io
+        env:
+          GH_TOKEN: ${{ secrets.PAGES_DEPLOY_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git clone https://x-access-token:${GH_TOKEN}@github.com/munister-v/munister-v.github.io.git pages
+
+          # Sync army-bank landing
+          rsync -av --delete marketing/munister-army-bank/ pages/army-bank/
+
+          # Sync army-admin landing
+          rsync -av --delete marketing/munister-army-admin/ pages/army-admin/
+
+          cd pages
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to deploy"
+          else
+            git commit -m "deploy: update army-bank & army-admin landing [skip ci]"
+            git push
+          fi

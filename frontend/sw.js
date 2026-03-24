@@ -1,8 +1,15 @@
-/* Army Bank — Service Worker v12 — PWA typography + responsive polish */
+/* Army Bank — Service Worker v12 — modern redesign, Plus Jakarta Sans */
 const CACHE = 'army-bank-v12';
 
 /* Assets to pre-cache on install */
 const PRECACHE = [
+  '/',
+  '/css/styles.css',
+  '/manifest.json',
+  '/js/api.js',
+  '/js/app.js',
+  '/icons/icon-192.png',
+];
   '/',
   '/css/styles.css',
   '/manifest.json',
