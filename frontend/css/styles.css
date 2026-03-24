@@ -4765,3 +4765,93 @@ input::placeholder, textarea::placeholder { color: rgba(255,255,255,.25) !import
 
 /* ── 17. Accessibility — no blue focus rings on non-inputs ─── */
 button:focus-visible { outline: 2px solid rgba(124,90,246,.5) !important; outline-offset: 2px !important; }
+
+/* ══════════════════════════════════════════════════════════════
+   V5 FIXES — precise targeted corrections
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── FIX 1: Bank card internals — undo damage from [class*="-card"] ── */
+.bank-card,
+.bank-card *,
+.bank-card-gold, .bank-card-dark,
+.bank-card-bg, .bank-card-noise,
+.bank-card-content, .bank-card-top, .bank-card-bottom,
+.bank-card-chip, .bank-card-number,
+.bank-card-label, .bank-card-name, .bank-card-date,
+.bank-card-network, .bank-card-logo,
+.bank-card-logo-letter, .bank-card-logo-text,
+.bank-card-type, .bank-card-header {
+  border: none !important;
+  box-shadow: none !important;
+}
+/* Card backgrounds come from gold/dark gradient — restore */
+.bank-card-gold {
+  background: linear-gradient(135deg, #2a1f06 0%, #3d2d09 40%, #2a1f06 100%) !important;
+  border-radius: 20px !important;
+}
+.bank-card-dark {
+  background: linear-gradient(135deg, #0d1b35 0%, #162444 40%, #0d1b35 100%) !important;
+  border-radius: 20px !important;
+}
+.bank-card-label {
+  background: none !important;
+  font-size: 8px !important;
+  letter-spacing: .1em !important;
+  opacity: .65 !important;
+  color: inherit !important;
+}
+.bank-card-number {
+  background: none !important;
+  letter-spacing: .22em !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+}
+.bank-card-name, .bank-card-date {
+  background: none !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+.bank-card-logo-letter {
+  background: rgba(255,255,255,.15) !important;
+  border-radius: 8px !important;
+}
+
+/* ── FIX 2: Section title — needs h2 specificity + correct size ── */
+h2.section-title,
+h3.section-title,
+.section-title {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: .12em !important;
+  color: rgba(255,255,255,.38) !important;
+  background: none !important;
+  -webkit-text-fill-color: rgba(255,255,255,.38) !important;
+  text-transform: uppercase !important;
+  margin-bottom: 14px !important;
+  line-height: 1.4 !important;
+}
+/* Special: h2 on home screen (Огляд heading) should be visible section label */
+#home h2.section-title { font-size: 11px !important; }
+
+/* ── FIX 3: Generic surface cards — exclude ALL bank-card-* ── */
+.card:not([class*="bank-card"]),
+.stats-card, .rates-card, .currency-card,
+.analytics-card, .info-card {
+  background: rgba(255,255,255,.04) !important;
+  border: 1px solid rgba(255,255,255,.07) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 2px 16px rgba(0,0,0,.4) !important;
+}
+
+/* ── FIX 4: h3 inside cards — keep readable ───────────────── */
+.card h3, .card-head h3 {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: rgba(255,255,255,.65) !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  -webkit-text-fill-color: rgba(255,255,255,.65) !important;
+}
+
+/* ── FIX 5: balance label visible ──────────────────────────── */
+.balance-label { font-size: 10px !important; }
