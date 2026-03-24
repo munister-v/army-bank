@@ -423,7 +423,7 @@ $('#profileLogoutBtn')?.addEventListener('click', async () => {
 });
 
 // ── NAVIGATION ──────────────────────────────────────────
-const ALLOWED_SCREENS = ['dashboard', 'transactions', 'payouts', 'donations', 'savings', 'contacts', 'analytics', 'profile', 'calendar', 'recurring', 'debts', 'cards'];
+const ALLOWED_SCREENS = ['dashboard', 'transactions', 'savings', 'cards', 'profile'];
 
 function getBasePath() {
   return (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
@@ -452,11 +452,7 @@ function switchScreen(screenId) {
   });
 
   if (id === 'transactions') loadTransactionsWithFilters();
-  if (id === 'analytics') loadAnalytics();
   if (id === 'profile') renderProfileScreen();
-  if (id === 'calendar') loadCalendar();
-  if (id === 'recurring') { if (typeof loadRecurring === 'function') loadRecurring(); }
-  if (id === 'debts') { if (typeof loadDebts === 'function') loadDebts(); }
   if (id === 'cards') { if (typeof loadCards === 'function') loadCards(); }
 }
 
@@ -1217,7 +1213,7 @@ window.addEventListener('popstate', () => {
 $$('[data-jump]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.jump;
-    const screenMap = { history: 'transactions', 'donations-screen': 'donations', payouts: 'payouts', savings: 'savings', contacts: 'contacts', calendar: 'calendar', cards: 'cards' };
+    const screenMap = { history: 'transactions', savings: 'savings', cards: 'cards' };
     if (screenMap[id]) {
       const target = screenMap[id];
       const base = getBasePath();
@@ -1892,11 +1888,8 @@ const NAV_CMDS = [
   { type: 'nav', label: 'Огляд', screen: 'dashboard', icon: '🏠' },
   { type: 'nav', label: 'Операції', screen: 'transactions', icon: '📊' },
   { type: 'nav', label: 'Цілі накопичення', screen: 'savings', icon: '🎯' },
-  { type: 'nav', label: 'Родина', screen: 'contacts', icon: '👨‍👩‍👧' },
-  { type: 'nav', label: 'Аналітика', screen: 'analytics', icon: '📈' },
+  { type: 'nav', label: 'Картки', screen: 'cards', icon: '💳' },
   { type: 'nav', label: 'Профіль', screen: 'profile', icon: '👤' },
-  { type: 'nav', label: 'Виплати', screen: 'payouts', icon: '🛡' },
-  { type: 'nav', label: 'Донати', screen: 'donations', icon: '❤️' },
 ];
 
 function openCmdPalette() {
@@ -2018,7 +2011,7 @@ document.addEventListener('keydown', (e) => {
   clearTimeout(_kbTimer);
   _kbTimer = setTimeout(() => { _kbBuffer = ''; }, 800);
 
-  const navMap = { 'GD': 'dashboard', 'GT': 'transactions', 'GS': 'savings', 'GC': 'contacts', 'GA': 'analytics', 'GP': 'profile' };
+  const navMap = { 'GD': 'dashboard', 'GT': 'transactions', 'GS': 'savings', 'GC': 'cards', 'GP': 'profile' };
   if (navMap[_kbBuffer]) {
     const screen = navMap[_kbBuffer];
     const base = getBasePath();
@@ -3155,7 +3148,7 @@ console.log('[Army Bank] Wave 5 loaded \u2014 PIN, Recurring, Debts, Tags, Veloc
 
 // ── Swipe between screens ─────────────────────────────────
 (function() {
-  var SCREENS_ORDER = ['dashboard', 'transactions', 'savings', 'contacts', 'profile', 'recurring', 'debts'];
+  var SCREENS_ORDER = ['dashboard', 'transactions', 'savings', 'cards', 'profile'];
   var content = document.querySelector('.app-content');
   if (!content) return;
   var startX = 0, startY = 0;
