@@ -150,12 +150,23 @@ body {
   color: #ffffff !important;
   font-size: 18px !important;
   font-weight: 700 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 .header-role {
   color: rgba(255, 255, 255, 0.7) !important;
   letter-spacing: 0.02em !important;
-  font-size: 12px !important;
+  font-size: 13px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.header-info {
+  min-width: 0 !important;
+  max-width: calc(100vw - 168px) !important;
 }
 
 .avatar {
@@ -186,8 +197,8 @@ body {
 
 .balance-label {
   color: rgba(255, 255, 255, 0.72) !important;
-  font-size: 11px !important;
-  letter-spacing: 0.08em !important;
+  font-size: 12px !important;
+  letter-spacing: 0.06em !important;
 }
 
 .balance-amount {
@@ -275,7 +286,7 @@ body {
   border-radius: 999px !important;
   background: rgba(255, 255, 255, 0.12) !important;
   padding: 4px 10px !important;
-  font-size: 11px !important;
+  font-size: 12px !important;
   letter-spacing: 0.08em !important;
   font-weight: 700 !important;
 }
@@ -287,7 +298,7 @@ body {
 }
 
 .bank-card-label {
-  font-size: 11px !important;
+  font-size: 12px !important;
   opacity: 0.72 !important;
   letter-spacing: 0.08em !important;
   white-space: nowrap !important;
@@ -415,7 +426,7 @@ body {
   border-radius: 999px !important;
   padding: 6px 12px !important;
   color: #5f6f88 !important;
-  font-size: 13px !important;
+  font-size: 14px !important;
   font-weight: 700 !important;
 }
 
@@ -507,13 +518,13 @@ h3.section-title {
 }
 
 .card-head h3 {
-  font-size: 13px !important;
+  font-size: 14px !important;
   letter-spacing: 0.02em !important;
   text-transform: none !important;
 }
 
 .lbl {
-  font-size: 11px !important;
+  font-size: 12px !important;
   letter-spacing: 0.03em !important;
   text-transform: none !important;
 }
@@ -583,7 +594,7 @@ textarea:focus,
 #cards .section-title,
 #profile .section-title {
   margin-bottom: 0 !important;
-  font-size: 40px !important;
+  font-size: 34px !important;
   line-height: 1 !important;
   letter-spacing: -0.03em !important;
 }
@@ -659,7 +670,7 @@ textarea:focus,
   align-items: center !important;
   gap: 6px !important;
   color: #77839a !important;
-  font-size: 13px !important;
+  font-size: 14px !important;
 }
 
 .cmi-right {
@@ -672,7 +683,7 @@ textarea:focus,
 .cmi-status {
   border-radius: 999px !important;
   padding: 4px 10px !important;
-  font-size: 12px !important;
+  font-size: 13px !important;
   font-weight: 700 !important;
 }
 
@@ -907,7 +918,7 @@ textarea:focus,
 }
 
 .notif-panel-title {
-  font-size: 15px !important;
+  font-size: 16px !important;
   font-weight: 700 !important;
   color: #151922 !important;
   margin-right: auto !important;
@@ -931,7 +942,8 @@ textarea:focus,
   border: none !important;
   background: transparent !important;
   border-radius: 16px !important;
-  font-size: 11px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
   letter-spacing: 0 !important;
   text-transform: none !important;
   padding: 7px 4px 8px !important;
