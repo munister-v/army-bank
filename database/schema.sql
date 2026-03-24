@@ -117,3 +117,18 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS cards (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    card_number TEXT NOT NULL UNIQUE,
+    card_type TEXT NOT NULL DEFAULT 'virtual',
+    status TEXT NOT NULL DEFAULT 'active',
+    holder_name TEXT,
+    issued_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TEXT NOT NULL,
+    FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_cards_account_id ON cards(account_id);
+CREATE INDEX IF NOT EXISTS idx_cards_card_number ON cards(card_number);

@@ -11,6 +11,7 @@ from .database import init_db, init_admin
 from .routes.account_routes import account_bp
 from .routes.admin_routes import admin_bp
 from .routes.auth_routes import auth_bp
+from .routes.card_routes import card_bp
 from .routes.feature_routes import feature_bp
 from .routes.operator_routes import operator_bp
 from .routes.platform_routes import platform_bp
@@ -99,6 +100,7 @@ def create_app() -> Flask:
 
     app.register_blueprint(auth_bp, url_prefix=prefix + '/api/auth')
     app.register_blueprint(account_bp, url_prefix=prefix + '/api')
+    app.register_blueprint(card_bp,    url_prefix=prefix + '/api')
     app.register_blueprint(feature_bp, url_prefix=prefix + '/api')
     app.register_blueprint(admin_bp, url_prefix=prefix + '/api/admin')
     app.register_blueprint(operator_bp, url_prefix=prefix + '/api/operator')

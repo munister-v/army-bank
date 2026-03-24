@@ -210,6 +210,37 @@ CREATE TABLE IF NOT EXISTS budget_limits (
 );
 """
 
+CARDS_DDL = """
+CREATE TABLE IF NOT EXISTS cards (
+    id SERIAL PRIMARY KEY,
+    account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    card_number TEXT NOT NULL UNIQUE,
+    card_type TEXT NOT NULL DEFAULT 'virtual',
+    status TEXT NOT NULL DEFAULT 'active',
+    holder_name TEXT,
+    issued_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATE NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cards_account_id ON cards(account_id);
+CREATE INDEX IF NOT EXISTS idx_cards_card_number ON cards(card_number);
+"""
+
+CARDS_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS cards (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    card_number TEXT NOT NULL UNIQUE,
+    card_type TEXT NOT NULL DEFAULT 'virtual',
+    status TEXT NOT NULL DEFAULT 'active',
+    holder_name TEXT,
+    issued_at TEXT NOT NULL DEFAULT (datetime('now')),
+    expires_at TEXT NOT NULL,
+    FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_cards_account_id ON cards(account_id);
+CREATE INDEX IF NOT EXISTS idx_cards_card_number ON cards(card_number);
+"""
+
 
 def init_db() -> None:
     """Ініціалізує схему БД."""
@@ -222,6 +253,7 @@ def init_db() -> None:
                 cur.execute(BUDGET_LIMITS_DDL)
                 cur.execute(RECURRING_TX_DDL)
                 cur.execute(DEBTS_DDL)
+                cur.execute(CARDS_DDL)
                 try:
                     cur.execute('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS note TEXT;')
                 except Exception:
@@ -242,6 +274,7 @@ def init_db() -> None:
             conn.executescript(BUDGET_LIMITS_DDL_SQLITE)
             conn.executescript(RECURRING_TX_DDL_SQLITE)
             conn.executescript(DEBTS_DDL_SQLITE)
+            conn.executescript(CARDS_DDL_SQLITE)
             try:
                 conn.execute('ALTER TABLE transactions ADD COLUMN note TEXT;')
             except Exception:

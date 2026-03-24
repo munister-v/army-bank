@@ -519,12 +519,22 @@
               </div>
               <h3>Переказ</h3>
             </div>
+            <!-- Transfer mode toggle -->
+            <div class="transfer-mode-toggle" id="transferModeToggle">
+              <button type="button" class="tmt-btn active" data-mode="account">По рахунку</button>
+              <button type="button" class="tmt-btn" data-mode="card">По картці</button>
+            </div>
             <label class="lbl">Шаблон
               <select name="template_id" id="transferTemplateSelect">
                 <option value="">— Обрати шаблон —</option>
               </select>
             </label>
-            <label class="lbl">Рахунок отримувача<input name="recipient_account_number" placeholder="AB-100001" required></label>
+            <!-- Account number input (default) -->
+            <label class="lbl" id="transferAccountLabel">Рахунок отримувача<input name="recipient_account_number" placeholder="AB-100001"></label>
+            <!-- Card number input (hidden by default) -->
+            <label class="lbl hidden" id="transferCardLabel">Номер картки отримувача
+              <input name="recipient_card_number" placeholder="4721 XXXX XXXX XXXX" maxlength="19" inputmode="numeric" autocomplete="cc-number">
+            </label>
             <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
             <div class="quick-amounts">
               <button type="button" class="qa-chip" data-amount="500">₴500</button>
@@ -1104,6 +1114,57 @@
         </div>
       </section>
 
+      <!-- ── CARDS SCREEN ──────────────────────────────────── -->
+      <section id="cards" class="screen">
+        <div class="section-header-row">
+          <h2 class="section-title">Мої картки</h2>
+          <button id="issueCardBtn" class="btn-accent-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Випустити
+          </button>
+        </div>
+
+        <!-- Issue card form -->
+        <div class="card hidden" id="issueCardPanel">
+          <h3 class="card-title">Нова картка</h3>
+          <form id="issueCardForm">
+            <label class="lbl">Тип картки
+              <select name="card_type">
+                <option value="virtual">Віртуальна</option>
+                <option value="physical">Фізична</option>
+              </select>
+            </label>
+            <p style="font-size:12px;color:var(--text-2);margin-bottom:12px">
+              Картку буде прив'язано до вашого рахунку. Можна мати до 3 активних карток.
+            </p>
+            <button type="submit" class="btn-accent">Випустити картку</button>
+            <button type="button" id="issueCardCancelBtn" class="btn-ghost" style="margin-top:8px;width:100%">Скасувати</button>
+          </form>
+        </div>
+
+        <!-- Cards list -->
+        <div id="cardsListContainer">
+          <div id="cardsList" class="cards-manage-list"></div>
+          <div id="cardsEmpty" class="empty-state hidden">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".3"><rect x="1" y="4" width="22" height="16" rx="3"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            <strong>Карток немає</strong>
+            Натисніть «Випустити» щоб отримати першу картку.
+          </div>
+        </div>
+
+        <!-- Close card confirm modal -->
+        <div id="closeCardModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+          <div class="modal-box">
+            <h3 class="modal-title">Закрити картку?</h3>
+            <p class="modal-text">Картку буде закрито назавжди. Цю дію неможливо скасувати.</p>
+            <div class="modal-actions">
+              <button id="closeCardConfirmBtn" class="btn-danger">Закрити картку</button>
+              <button id="closeCardCancelBtn" class="btn-ghost">Скасувати</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </main>
 
     <!-- ── TX DETAIL DRAWER ─────────────────────────────────── -->
@@ -1237,6 +1298,12 @@
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         </div>
         <span>Календар</span>
+      </button>
+      <button class="more-sheet-item nav-link menu-btn" data-screen="cards">
+        <div class="msi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="3"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        </div>
+        <span>Картки</span>
       </button>
     </div>
   </div>

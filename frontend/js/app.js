@@ -423,7 +423,7 @@ $('#profileLogoutBtn')?.addEventListener('click', async () => {
 });
 
 // ── NAVIGATION ──────────────────────────────────────────
-const ALLOWED_SCREENS = ['dashboard', 'transactions', 'payouts', 'donations', 'savings', 'contacts', 'analytics', 'profile', 'calendar', 'recurring', 'debts'];
+const ALLOWED_SCREENS = ['dashboard', 'transactions', 'payouts', 'donations', 'savings', 'contacts', 'analytics', 'profile', 'calendar', 'recurring', 'debts', 'cards'];
 
 function getBasePath() {
   return (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
@@ -457,6 +457,7 @@ function switchScreen(screenId) {
   if (id === 'calendar') loadCalendar();
   if (id === 'recurring') { if (typeof loadRecurring === 'function') loadRecurring(); }
   if (id === 'debts') { if (typeof loadDebts === 'function') loadDebts(); }
+  if (id === 'cards') { if (typeof loadCards === 'function') loadCards(); }
 }
 
 async function refreshProfile() {
@@ -496,6 +497,42 @@ async function refreshProfile() {
   if (adminLink) adminLink.classList.toggle('hidden', state.user.role !== 'admin' && state.user.role !== 'platform_admin');
   if (operatorLink) operatorLink.classList.toggle('hidden', !['operator','admin','platform_admin'].includes(state.user.role));
   if (platformLink) platformLink.classList.toggle('hidden', state.user.role !== 'platform_admin');
+
+  /* ── Bank Cards ── */
+  _updateBankCards();
+}
+
+function _updateBankCards() {
+  var acct = state.account && state.account.account_number ? state.account.account_number : '0000';
+  var digits = acct.replace(/\D/g, '').padStart(16, '0').slice(-16);
+  var formatted = digits.replace(/(.{4})/g, '$1 ').trim();
+
+  var nameText = (state.user && state.user.full_name) ? state.user.full_name.toUpperCase() : 'ARMY BANK';
+
+  var el1 = document.getElementById('bankCardNumber');
+  if (el1) el1.textContent = formatted;
+  var el2 = document.getElementById('bankCardName');
+  if (el2) el2.textContent = nameText;
+  var el3 = document.getElementById('bankCardSavingsNumber');
+  if (el3) el3.textContent = formatted.substring(0, 14) + (parseInt(digits.slice(-2)) + 1).toString().padStart(2, '0').slice(-2) + ' ';
+  var el4 = document.getElementById('bankCardSavingsName');
+  if (el4) el4.textContent = nameText;
+
+  /* Carousel swipe */
+  var track = document.getElementById('bankCardsTrack');
+  var dots = document.querySelectorAll('.bc-dot');
+  if (track && dots.length && !track._bankCardsInit) {
+    track._bankCardsInit = true;
+    track.addEventListener('scroll', function() {
+      var idx = Math.round(track.scrollLeft / track.offsetWidth);
+      dots.forEach(function(d, i) { d.classList.toggle('active', i === idx); });
+    }, { passive: true });
+    dots.forEach(function(d, i) {
+      d.addEventListener('click', function() {
+        track.scrollTo({ left: i * track.offsetWidth, behavior: 'smooth' });
+      });
+    });
+  }
 }
 
 async function loadPaymentTemplates() {
@@ -846,12 +883,25 @@ bindJsonForm('#topupForm', () => '/api/transactions/topup', {
   afterReset: (form) => { form.description.value = 'Поповнення рахунку'; },
 });
 
-bindJsonForm('#transferForm', () => '/api/transactions/transfer', {
-  transform: (v) => ({
-    recipient_account_number: v.recipient_account_number,
-    amount: Number(v.amount),
-    description: v.description || 'Переказ',
-  }),
+bindJsonForm('#transferForm', () => {
+  const activeMode = ($('#transferModeToggle .tmt-btn.active') || {}).dataset?.mode || 'account';
+  return activeMode === 'card' ? '/api/transactions/transfer-by-card' : '/api/transactions/transfer';
+}, {
+  transform: (v) => {
+    const activeMode = ($('#transferModeToggle .tmt-btn.active') || {}).dataset?.mode || 'account';
+    if (activeMode === 'card') {
+      return {
+        card_number: (v.recipient_card_number || '').replace(/\s/g, ''),
+        amount: Number(v.amount),
+        description: v.description || 'Переказ по картці',
+      };
+    }
+    return {
+      recipient_account_number: v.recipient_account_number,
+      amount: Number(v.amount),
+      description: v.description || 'Переказ',
+    };
+  },
   successMessage: 'Переказ виконано.',
   afterReset: (form) => {
     form.description.value = 'Переказ родині';
@@ -870,6 +920,39 @@ $('#transferTemplateSelect')?.addEventListener('change', function () {
     form.description.value = (opt.dataset.desc || '').replace(/&quot;/g, '"');
   }
 });
+
+// ── Transfer mode toggle (account ↔ card) ────────────
+(function () {
+  const toggle = $('#transferModeToggle');
+  if (!toggle) return;
+
+  function applyMode(mode) {
+    $$('#transferModeToggle .tmt-btn').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+    const accLabel = $('#transferAccountLabel');
+    const cardLabel = $('#transferCardLabel');
+    if (accLabel) accLabel.classList.toggle('hidden', mode === 'card');
+    if (cardLabel) cardLabel.classList.toggle('hidden', mode !== 'card');
+  }
+
+  toggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.tmt-btn');
+    if (btn) applyMode(btn.dataset.mode);
+  });
+
+  // Card number auto-format: insert space every 4 digits
+  document.addEventListener('input', (e) => {
+    if (e.target.name !== 'recipient_card_number') return;
+    const inp = e.target;
+    const raw = inp.value.replace(/\D/g, '').slice(0, 16);
+    const formatted = raw.replace(/(.{4})(?=.)/g, '$1 ');
+    if (inp.value !== formatted) {
+      const pos = inp.selectionStart;
+      inp.value = formatted;
+      // keep cursor roughly in right place
+      inp.setSelectionRange(Math.min(pos, formatted.length), Math.min(pos, formatted.length));
+    }
+  });
+})();
 
 bindJsonForm('#demoPayoutForm', () => '/api/payouts/demo-accrual', {
   transform: (v) => ({ ...v, amount: Number(v.amount) }),
@@ -3255,3 +3338,162 @@ async function loadBudgetProgress() {
 })();
 
 console.log('[Army Bank] Polish v3 loaded — UX improvements');
+
+// ══════════════════════════════════════════════════════════════
+// ── CARDS MODULE ─────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+const CARD_STATUS_LABELS = { active: 'Активна', blocked: 'Заблокована', closed: 'Закрита' };
+const CARD_TYPE_LABELS = { virtual: 'Віртуальна', physical: 'Фізична' };
+
+function _cardStatusClass(status) {
+  return status === 'active' ? 'card-status-active' : status === 'blocked' ? 'card-status-blocked' : 'card-status-closed';
+}
+
+function renderCardItem(card) {
+  const statusLabel = CARD_STATUS_LABELS[card.status] || card.status;
+  const typeLabel = CARD_TYPE_LABELS[card.card_type] || card.card_type;
+  const isActive = card.status === 'active';
+  const isClosed = card.status === 'closed';
+
+  return `
+    <div class="card-manage-item ${card.status}" data-card-id="${card.id}">
+      <div class="cmi-visual">
+        <div class="cmi-chip">
+          <svg width="22" height="16" viewBox="0 0 22 16"><rect x="1" y="1" width="20" height="14" rx="3" fill="none" stroke="rgba(255,200,80,.6)" stroke-width="1.2"/>
+            <line x1="1" y1="6" x2="21" y2="6" stroke="rgba(255,200,80,.4)" stroke-width="1"/>
+            <line x1="1" y1="10" x2="21" y2="10" stroke="rgba(255,200,80,.4)" stroke-width="1"/>
+            <line x1="8" y1="1" x2="8" y2="15" stroke="rgba(255,200,80,.4)" stroke-width="1"/>
+            <line x1="14" y1="1" x2="14" y2="15" stroke="rgba(255,200,80,.4)" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="cmi-number">${card.masked_number || card.card_number || '•••• •••• •••• ••••'}</div>
+        <div class="cmi-meta">
+          <span>${typeLabel}</span>
+          <span>•</span>
+          <span>дійсна до ${card.expiry_display || card.expires_at || '—'}</span>
+        </div>
+      </div>
+      <div class="cmi-right">
+        <span class="cmi-status ${_cardStatusClass(card.status)}">${statusLabel}</span>
+        <div class="cmi-actions">
+          ${!isClosed ? `
+            <button class="btn-card-action ${isActive ? 'btn-block' : 'btn-unblock'}" data-block-card="${card.id}" title="${isActive ? 'Заблокувати' : 'Розблокувати'}">
+              ${isActive
+                ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+                : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'
+              }
+              ${isActive ? 'Заблокувати' : 'Розблокувати'}
+            </button>
+            <button class="btn-card-action btn-close-card" data-close-card="${card.id}" title="Закрити картку">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Закрити
+            </button>
+          ` : '<span class="muted" style="font-size:11px">Картка закрита</span>'}
+        </div>
+      </div>
+    </div>`;
+}
+
+async function loadCards() {
+  const list = $('#cardsList');
+  const emptyEl = $('#cardsEmpty');
+  if (!list) return;
+  list.innerHTML = '<div class="loading-spinner-sm"></div>';
+  if (emptyEl) emptyEl.classList.add('hidden');
+  try {
+    const cards = await api.request('/api/cards');
+    const active = cards.filter(c => c.status !== 'closed');
+    if (!cards.length) {
+      list.innerHTML = '';
+      if (emptyEl) emptyEl.classList.remove('hidden');
+    } else {
+      list.innerHTML = cards.map(renderCardItem).join('');
+      bindCardActions();
+    }
+  } catch (e) {
+    list.innerHTML = `<div class="empty-state">${e.message}</div>`;
+  }
+}
+
+function bindCardActions() {
+  // Block / unblock
+  $$('#cardsList [data-block-card]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const cardId = Number(btn.dataset.blockCard);
+      const orig = btn.textContent.trim();
+      btn.disabled = true;
+      btn.textContent = '…';
+      try {
+        const result = await api.request(`/api/cards/${cardId}/block`, { method: 'PATCH' });
+        const newStatus = result.status;
+        showToast(newStatus === 'active' ? 'Картку розблоковано.' : 'Картку заблоковано.', newStatus === 'active' ? 'success' : '');
+        loadCards();
+      } catch (e) {
+        showToast(e.message);
+        btn.disabled = false;
+        btn.textContent = orig;
+      }
+    });
+  });
+
+  // Close card
+  $$('#cardsList [data-close-card]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const cardId = Number(btn.dataset.closeCard);
+      confirmAction(
+        'Закрити картку?',
+        'Цю дію неможливо скасувати. Картка буде назавжди закрита.',
+        async () => {
+          try {
+            await api.request(`/api/cards/${cardId}/close`, { method: 'PATCH' });
+            showToast('Картку закрито.', '');
+            loadCards();
+          } catch (e) {
+            showToast(e.message);
+          }
+        }
+      );
+    });
+  });
+}
+
+// Issue card panel toggle
+(function () {
+  const issueBtn = $('#issueCardBtn');
+  const panel = $('#issueCardPanel');
+  const cancelBtn = $('#issueCardCancelBtn');
+  if (issueBtn && panel) {
+    issueBtn.addEventListener('click', () => panel.classList.toggle('hidden'));
+  }
+  if (cancelBtn && panel) {
+    cancelBtn.addEventListener('click', () => panel.classList.add('hidden'));
+  }
+})();
+
+// Issue card form submit
+(function () {
+  const form = $('#issueCardForm');
+  if (!form) return;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector('[type=submit]');
+    setButtonLoading(btn, true);
+    try {
+      const data = Object.fromEntries(new FormData(form));
+      await api.request('/api/cards', {
+        method: 'POST',
+        body: JSON.stringify({ card_type: data.card_type || 'virtual' }),
+      });
+      showToast('Картку випущено!', 'success');
+      form.reset();
+      $('#issueCardPanel')?.classList.add('hidden');
+      loadCards();
+    } catch (e) {
+      showToast(e.message);
+    } finally {
+      setButtonLoading(btn, false);
+    }
+  });
+})();

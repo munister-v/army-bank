@@ -4,11 +4,13 @@ from __future__ import annotations
 from flask import Blueprint, Response, jsonify, request, g
 
 from ..services.account_service import AccountService
+from ..services.card_service import CardService
 from ..services.feature_service import FeatureService
 from .helpers import api_error, auth_required
 
 account_bp = Blueprint('account', __name__, url_prefix='/api')
 service = AccountService()
+card_service = CardService()
 feature_service = FeatureService()
 
 
@@ -84,6 +86,23 @@ def transfer():
         recipient = (data.get('recipient_account_number') or '').strip()
         description = (data.get('description') or 'Швидкий переказ').strip()
         return jsonify({'ok': True, 'data': service.transfer(g.current_user['id'], recipient, amount, description)})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@account_bp.post('/transactions/transfer-by-card')
+@auth_required
+def transfer_by_card():
+    """Transfer to another user by their card number."""
+    try:
+        data = request.get_json(force=True)
+        amount = float(data.get('amount') or 0)
+        card_number = (data.get('card_number') or '').strip()
+        description = (data.get('description') or 'Переказ по картці').strip()
+        # Resolve account number from card, then use standard transfer
+        card = card_service.get_account_by_card(card_number)
+        recipient_account = card['account_number']
+        return jsonify({'ok': True, 'data': service.transfer(g.current_user['id'], recipient_account, amount, description)})
     except Exception as exc:
         return api_error(str(exc))
 

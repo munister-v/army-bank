@@ -116,3 +116,17 @@ CREATE TABLE IF NOT EXISTS budget_limits (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (user_id, tx_type)
 );
+
+CREATE TABLE IF NOT EXISTS cards (
+    id SERIAL PRIMARY KEY,
+    account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    card_number TEXT NOT NULL UNIQUE,
+    card_type TEXT NOT NULL DEFAULT 'virtual',
+    status TEXT NOT NULL DEFAULT 'active',
+    holder_name TEXT,
+    issued_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATE NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_cards_account_id ON cards(account_id);
+CREATE INDEX IF NOT EXISTS idx_cards_card_number ON cards(card_number);

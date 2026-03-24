@@ -3738,3 +3738,200 @@ button:focus-visible, a:focus-visible {
   .balance-amount, .auth-logo-mark, .avatar, .auth-submit { animation: none !important; }
   .bank-card-gold::after, .bank-card-dark::after { animation: none !important; }
 }
+
+/* ══════════════════════════════════════════════════════════
+   CARDS MANAGEMENT SCREEN
+   ══════════════════════════════════════════════════════════ */
+
+/* Transfer mode toggle */
+.transfer-mode-toggle {
+  display: flex;
+  gap: 4px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(167,139,250,.1);
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 14px;
+}
+.tmt-btn {
+  flex: 1;
+  padding: 7px 12px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background .18s, color .18s, box-shadow .18s;
+}
+.tmt-btn.active {
+  background: rgba(167,139,250,.16);
+  color: var(--accent);
+  box-shadow: 0 0 14px rgba(167,139,250,.15);
+}
+
+/* Section header row */
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.section-header-row h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* Button variants */
+.btn-accent-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(167,139,250,.15);
+  border: 1px solid rgba(167,139,250,.25);
+  color: var(--accent);
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .18s, box-shadow .18s;
+}
+.btn-accent-sm:hover {
+  background: rgba(167,139,250,.25);
+  box-shadow: 0 0 18px rgba(167,139,250,.2);
+}
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(239,68,68,.1);
+  border: 1px solid rgba(239,68,68,.2);
+  color: var(--red);
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .18s;
+}
+.btn-danger:hover { background: rgba(239,68,68,.18); }
+
+/* Card manage item */
+.card-manage-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(255,255,255,.04) 0%, rgba(167,139,250,.04) 100%);
+  border: 1px solid rgba(167,139,250,.1);
+  border-radius: 16px;
+  margin-bottom: 10px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.card-manage-item:hover {
+  border-color: rgba(167,139,250,.2);
+  box-shadow: 0 4px 24px rgba(167,139,250,.06);
+}
+.card-manage-item.blocked {
+  opacity: .7;
+  border-color: rgba(239,68,68,.12);
+}
+.card-manage-item.closed {
+  opacity: .45;
+  filter: grayscale(.5);
+}
+
+.cmi-visual { flex: 1; min-width: 0; }
+.cmi-chip { margin-bottom: 6px; }
+.cmi-number {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: .08em;
+  margin-bottom: 4px;
+}
+.cmi-meta {
+  display: flex;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.cmi-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.cmi-status {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  padding: 3px 8px;
+  border-radius: 20px;
+}
+.card-status-active { background: rgba(74,222,128,.12); color: var(--green); border: 1px solid rgba(74,222,128,.2); }
+.card-status-blocked { background: rgba(239,68,68,.1); color: var(--red); border: 1px solid rgba(239,68,68,.18); }
+.card-status-closed { background: rgba(100,100,120,.1); color: var(--muted); border: 1px solid rgba(100,100,120,.2); }
+
+.cmi-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+.btn-card-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  font-size: 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  background: rgba(255,255,255,.05);
+  color: var(--text);
+}
+.btn-block { border-color: rgba(239,68,68,.2); color: var(--red); }
+.btn-block:hover { background: rgba(239,68,68,.1); }
+.btn-unblock { border-color: rgba(74,222,128,.2); color: var(--green); }
+.btn-unblock:hover { background: rgba(74,222,128,.1); }
+.btn-close-card { border-color: rgba(100,100,120,.2); color: var(--muted); }
+.btn-close-card:hover { background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.15); color: var(--red); }
+
+/* Issue card form */
+#issueCardForm .lbl {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+#issueCardForm select {
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(167,139,250,.14);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  width: 100%;
+}
+#issueCardForm select:focus {
+  border-color: rgba(167,139,250,.35);
+  box-shadow: 0 0 0 3px rgba(167,139,250,.08);
+}
+
+/* Loading spinner small */
+.loading-spinner-sm {
+  width: 28px; height: 28px;
+  border: 2.5px solid rgba(167,139,250,.15);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spinSm .75s linear infinite;
+  margin: 24px auto;
+}
+@keyframes spinSm { to { transform: rotate(360deg); } }
