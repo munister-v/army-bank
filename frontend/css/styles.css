@@ -6616,3 +6616,179 @@ html body .bottom-nav .menu-btn.active {
     gap: 8px !important;
   }
 }
+
+/* =========================================================
+   ARMY BANK PWA — REVOLUT INSPIRED CORE v11
+   Calm palette, flat hierarchy, core banking focus.
+   ========================================================= */
+
+:root {
+  --bg: #0b0e14 !important;
+  --surface: #131824 !important;
+  --surface2: #1a2130 !important;
+  --bg-card: #151c2a !important;
+  --bg-card-2: #192234 !important;
+  --header-1: #0f1420 !important;
+  --header-2: #141b29 !important;
+
+  --text: #f2f5fb !important;
+  --text-2: #a8b2c8 !important;
+  --muted: #808ca6 !important;
+  --border: rgba(180, 193, 220, 0.16) !important;
+  --border-2: rgba(180, 193, 220, 0.22) !important;
+  --border-hover: rgba(180, 193, 220, 0.34) !important;
+
+  --accent: #4e7bff !important;
+  --accent-dim: rgba(78, 123, 255, 0.16) !important;
+  --accent-glow: rgba(78, 123, 255, 0.28) !important;
+}
+
+html body::before,
+html body::after {
+  display: none !important;
+}
+
+html body {
+  background: #0b0e14 !important;
+}
+
+html body .app-header {
+  background: linear-gradient(180deg, #101621, #11192a) !important;
+  border-bottom: 1px solid rgba(180, 193, 220, 0.14) !important;
+}
+
+html body .header-user,
+html body .balance-block,
+html body .card {
+  background: linear-gradient(180deg, #141b28, #121926) !important;
+  border: 1px solid rgba(180, 193, 220, 0.14) !important;
+  box-shadow: none !important;
+}
+
+html body .section-title {
+  font-size: clamp(24px, 3.2vw, 30px) !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* Focus dashboard on core blocks only */
+html body #dashboard .month-strip,
+html body #dashboard #sparklineCard,
+html body #dashboard #topRecipientsCard,
+html body #dashboard #budgetProgressCard,
+html body #dashboard .currency-card,
+html body #dashboard #demoPayoutForm,
+html body #dashboard #templateForm {
+  display: none !important;
+}
+
+/* Revolut-like card treatment */
+html body .bank-card {
+  border-radius: 18px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+html body .bank-card-gold,
+html body .bank-card-dark,
+html body .bank-card-navy {
+  background: linear-gradient(145deg, #1f2f53 0%, #2f4f85 58%, #20355d 100%) !important;
+}
+
+html body .bank-card-bg,
+html body .bank-card-noise {
+  opacity: 0.05 !important;
+}
+
+html body .bank-card-logo-letter {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+html body .bank-card .bank-card-number {
+  font-size: 19px !important;
+  letter-spacing: 0.12em !important;
+}
+
+/* Buttons and toggles */
+html body .btn-accent,
+html body .btn-accent:not(.tmt-btn),
+html body .btn-primary,
+html body .auth-submit {
+  background: linear-gradient(135deg, #3f6dff 0%, #5b86ff 100%) !important;
+  color: #f4f7ff !important;
+  border: 1px solid rgba(124, 155, 255, 0.38) !important;
+  box-shadow: none !important;
+}
+
+html body .tmt-btn.active {
+  background: rgba(78, 123, 255, 0.22) !important;
+  border-color: rgba(124, 155, 255, 0.5) !important;
+  color: #c7d7ff !important;
+}
+
+/* Inputs */
+html body .lbl input,
+html body .lbl select,
+html body .lbl textarea,
+html body .conv-input,
+html body .conv-select {
+  background: #1a2232 !important;
+  border: 1px solid rgba(180, 193, 220, 0.18) !important;
+}
+
+html body .lbl input:focus,
+html body .lbl select:focus,
+html body .lbl textarea:focus,
+html body .conv-input:focus,
+html body .conv-select:focus {
+  border-color: rgba(124, 155, 255, 0.7) !important;
+  box-shadow: 0 0 0 3px rgba(78, 123, 255, 0.16) !important;
+}
+
+/* Quiet quick actions */
+html body .qa-btn {
+  background: #121a28 !important;
+  border: 1px solid rgba(180, 193, 220, 0.14) !important;
+}
+
+html body .qa-icon {
+  border: 1px solid rgba(180, 193, 220, 0.2) !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  color: #aeb8cf !important;
+}
+
+/* Bottom nav */
+html body .bottom-nav {
+  background: rgba(10, 14, 22, 0.95) !important;
+  border-top: 1px solid rgba(180, 193, 220, 0.16) !important;
+}
+
+html body .bottom-nav .nav-item {
+  color: #8f9ab3 !important;
+}
+
+html body .bottom-nav .nav-item.active,
+html body .bottom-nav .nav-link.active {
+  color: #9eb6ff !important;
+  background: rgba(78, 123, 255, 0.14) !important;
+  border-color: rgba(124, 155, 255, 0.3) !important;
+}
+
+@media (min-width: 1120px) {
+  html body .app-shell {
+    grid-template-columns: minmax(270px, 300px) minmax(0, 1fr) !important;
+  }
+
+  html body .quick-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  html body .bottom-nav {
+    gap: 4px !important;
+  }
+
+  html body .bottom-nav .nav-item {
+    min-height: 40px !important;
+    padding: 9px 10px !important;
+  }
+}
