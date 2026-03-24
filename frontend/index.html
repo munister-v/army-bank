@@ -31,11 +31,11 @@
     #authScreen.hidden{display:none!important}
   </style>
   <!-- Main stylesheet: async load (non-blocking), display:none swap triggers once loaded -->
-  <link rel="stylesheet" href="/css/styles.css?v=11" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/styles.css?v=11"></noscript>
+  <link rel="stylesheet" href="/css/styles.css?v=12" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/styles.css?v=12"></noscript>
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js" as="script">
-  <link rel="preload" href="/js/app.js?v=11" as="script">
+  <link rel="preload" href="/js/app.js?v=12" as="script">
   <!-- Early server wake-up: ping /health if session token exists (mitigates Render cold-start) -->
   <script>
     (function(){
@@ -372,6 +372,13 @@
       <section id="dashboard" class="screen active-screen">
         <h2 class="section-title">Огляд</h2>
 
+        <div class="card">
+          <div class="card-head">
+            <h3>Останні транзакції</h3>
+          </div>
+          <div id="recentTransactions" class="list"></div>
+        </div>
+
         <!-- Month overview strip -->
         <div class="month-strip" id="dashMonthStrip">
           <div class="ms-item green">
@@ -542,13 +549,6 @@
             <button type="button" id="transferPreviewBtn" class="btn-accent">Переказати →</button>
             <button type="submit" id="transferSubmitReal" style="display:none">submit</button>
           </form>
-        </div>
-
-        <div class="card">
-          <div class="card-head">
-            <h3>Останні транзакції</h3>
-          </div>
-          <div id="recentTransactions" class="list"></div>
         </div>
 
         <div class="cards-row">
@@ -1289,7 +1289,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js" defer></script>
-  <script src="/js/app.js?v=11" defer></script>
+  <script src="/js/app.js?v=12" defer></script>
   <script>
     /* ── Service Worker ── */
     if ('serviceWorker' in navigator) {
