@@ -1,4 +1,4 @@
-"""Головний Flask-застосунок WeeGo Army Bank."""
+"""Головний Flask-застосунок Army Bank — v7."""
 from __future__ import annotations
 
 import re

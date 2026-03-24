@@ -5228,3 +5228,208 @@ input::placeholder, textarea::placeholder { color: rgba(255,255,255,.22) !import
 .notif-item { background: transparent !important; border-bottom: 1px solid rgba(255,255,255,.05) !important; }
 .notif-item.unread { border-left: 2px solid #7c5af6 !important; }
 .notif-time { color: rgba(255,255,255,.3) !important; font-size: 11px !important; }
+
+/* ══════════════════════════════════════════════════════════════
+   AUDIT FIXES v7 — definitive, maximum specificity
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Carousel: remove max-width cap that shows 2 cards ──────── */
+.bank-card {
+  max-width: none !important;
+  flex: 0 0 calc(100vw - 32px) !important;
+  width: calc(100vw - 32px) !important;
+}
+
+/* ── Quick actions: stronger opacity, proper colors ─────────── */
+html body .qa-btn:nth-child(1) .qa-icon {
+  background: rgba(16,185,129,.2) !important;
+  border: 1px solid rgba(16,185,129,.3) !important;
+  color: #34d399 !important; box-shadow: none !important;
+}
+html body .qa-btn:nth-child(2) .qa-icon {
+  background: rgba(14,165,233,.2) !important;
+  border: 1px solid rgba(14,165,233,.3) !important;
+  color: #38bdf8 !important; box-shadow: none !important;
+}
+html body .qa-btn:nth-child(3) .qa-icon {
+  background: rgba(139,92,246,.22) !important;
+  border: 1px solid rgba(139,92,246,.32) !important;
+  color: #a78bfa !important; box-shadow: none !important;
+}
+html body .qa-btn:nth-child(4) .qa-icon {
+  background: rgba(245,158,11,.2) !important;
+  border: 1px solid rgba(245,158,11,.3) !important;
+  color: #fbbf24 !important; box-shadow: none !important;
+}
+/* Reset compound override */
+html body .qa-btn:nth-child(1) .qa-icon,
+html body .qa-btn:nth-child(2) .qa-icon,
+html body .qa-btn:nth-child(3) .qa-icon,
+html body .qa-btn:nth-child(4) .qa-icon {
+  width: 58px !important; height: 58px !important;
+  border-radius: 18px !important; font-size: 21px !important;
+}
+
+/* ── Bank card: absolute protection of all internals ────────── */
+html body .bank-card,
+html body .bank-card * {
+  border: none !important;
+}
+html body .bank-card-gold {
+  background: linear-gradient(135deg,#1a1200 0%,#2d2000 30%,#3a2a06 60%,#2d2000 100%) !important;
+  box-shadow: 0 16px 48px rgba(0,0,0,.65), 0 0 0 1px rgba(212,168,48,.35), inset 0 1px 0 rgba(255,255,255,.12) !important;
+  border-radius: 20px !important;
+}
+html body .bank-card-navy {
+  background: linear-gradient(135deg,#050d1e 0%,#0a1830 35%,#102040 65%,#0a1830 100%) !important;
+  box-shadow: 0 16px 48px rgba(0,0,0,.65), 0 0 0 1px rgba(96,165,250,.3), inset 0 1px 0 rgba(255,255,255,.08) !important;
+  border-radius: 20px !important;
+}
+html body .bank-card-forest {
+  background: linear-gradient(135deg,#071a0e 0%,#0e2818 35%,#153520 65%,#0e2818 100%) !important;
+  box-shadow: 0 16px 48px rgba(0,0,0,.65), 0 0 0 1px rgba(52,211,153,.28), inset 0 1px 0 rgba(255,255,255,.08) !important;
+  border-radius: 20px !important;
+}
+html body .bank-card-rose {
+  background: linear-gradient(135deg,#1a0509 0%,#280a12 35%,#35101a 65%,#280a12 100%) !important;
+  box-shadow: 0 16px 48px rgba(0,0,0,.65), 0 0 0 1px rgba(251,113,133,.28), inset 0 1px 0 rgba(255,255,255,.08) !important;
+  border-radius: 20px !important;
+}
+html body .bank-card-slate {
+  background: linear-gradient(135deg,#0d1117 0%,#151d2a 35%,#1c2638 65%,#151d2a 100%) !important;
+  box-shadow: 0 16px 48px rgba(0,0,0,.65), 0 0 0 1px rgba(148,163,184,.25), inset 0 1px 0 rgba(255,255,255,.08) !important;
+  border-radius: 20px !important;
+}
+html body .bank-card-label  { background: none !important; font-size: 7px !important; opacity: .6 !important; }
+html body .bank-card-number { background: none !important; letter-spacing: .2em !important; }
+html body .bank-card-name   { background: none !important; }
+html body .bank-card-date   { background: none !important; }
+html body .bank-card-logo-letter { background: rgba(255,255,255,.14) !important; border-radius: 8px !important; }
+
+/* ── Auth screen: subtle glow, not aggressive ───────────────── */
+.auth-screen {
+  background: #0a0a10 !important;
+}
+.auth-glow {
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(124,90,246,.15) 0%, transparent 65%) !important;
+  opacity: 1 !important;
+}
+.auth-logo h1 {
+  font-size: 28px !important; font-weight: 700 !important;
+  color: #f0f0ff !important; letter-spacing: -.01em !important;
+}
+.auth-logo h1 strong { color: #a78bfa !important; font-weight: 800 !important; }
+.auth-logo p { color: rgba(255,255,255,.35) !important; font-size: 12px !important; letter-spacing: .1em !important; }
+
+/* Auth card container */
+.auth-card {
+  background: #131320 !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 4px 40px rgba(0,0,0,.5) !important;
+}
+
+/* Auth tabs */
+.auth-tabs {
+  background: rgba(255,255,255,.05) !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(255,255,255,.07) !important;
+  padding: 4px !important;
+}
+.auth-tab {
+  border-radius: 9px !important; font-weight: 600 !important;
+  font-size: 14px !important; transition: all .2s !important;
+}
+.auth-tab.active {
+  background: #7c5af6 !important; color: #fff !important;
+  box-shadow: 0 2px 10px rgba(124,90,246,.3) !important;
+}
+.auth-tab:not(.active) { color: rgba(255,255,255,.45) !important; background: transparent !important; }
+
+/* Auth inputs: floating label */
+.auth-form .field input {
+  background: rgba(255,255,255,.06) !important;
+  border: 1.5px solid rgba(255,255,255,.1) !important;
+  border-radius: 12px !important;
+  color: #f0f0ff !important; font-size: 15px !important;
+  height: 54px !important; padding: 18px 14px 6px !important;
+}
+.auth-form .field input:focus {
+  border-color: rgba(124,90,246,.7) !important;
+  background: rgba(124,90,246,.05) !important;
+  box-shadow: 0 0 0 3px rgba(124,90,246,.12) !important;
+  outline: none !important;
+}
+.auth-form .field label {
+  color: rgba(255,255,255,.38) !important;
+  font-size: 13px !important; font-weight: 500 !important;
+}
+.auth-form .field input:focus ~ label,
+.auth-form .field input:not(:placeholder-shown) ~ label {
+  color: rgba(167,139,250,.9) !important;
+  font-size: 10px !important;
+}
+
+/* Auth submit button */
+.auth-submit {
+  background: #7c5af6 !important;
+  border-radius: 14px !important; height: 52px !important;
+  font-size: 16px !important; font-weight: 700 !important;
+  letter-spacing: .02em !important;
+  box-shadow: 0 4px 20px rgba(124,90,246,.35) !important;
+  transition: all .2s !important;
+}
+.auth-submit:active {
+  transform: scale(.98) !important;
+  box-shadow: 0 2px 10px rgba(124,90,246,.2) !important;
+}
+
+/* Error inline */
+.auth-error {
+  display: flex !important; align-items: center !important; gap: 8px !important;
+  background: rgba(239,68,68,.1) !important;
+  border: 1px solid rgba(239,68,68,.25) !important;
+  border-radius: 10px !important; padding: 10px 14px !important;
+  color: #fca5a5 !important; font-size: 13px !important; font-weight: 500 !important;
+  margin-bottom: 12px !important;
+}
+.auth-error.hidden { display: none !important; }
+.auth-error svg { flex-shrink: 0 !important; color: #f87171 !important; }
+
+/* Forgot password */
+.auth-forgot { text-align: right !important; margin: -4px 0 8px !important; }
+.auth-forgot button {
+  background: none !important; border: none !important;
+  color: rgba(167,139,250,.75) !important; font-size: 12px !important;
+  font-weight: 500 !important; cursor: pointer !important;
+}
+.auth-forgot button:hover { color: #a78bfa !important; }
+
+/* Shake animation for wrong password */
+@keyframes authShake {
+  0%,100% { transform: translateX(0); }
+  20%      { transform: translateX(-6px); }
+  40%      { transform: translateX(6px); }
+  60%      { transform: translateX(-4px); }
+  80%      { transform: translateX(4px); }
+}
+.auth-shake { animation: authShake .45s ease !important; }
+
+/* ── Balance block: clean, readable ─────────────────────────── */
+html body .balance-block {
+  background: #131320 !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 2px 20px rgba(0,0,0,.5) !important;
+}
+html body .balance-block::before,
+html body .balance-block::after { display: none !important; }
+
+/* ── Bottom nav: clean standard pill-top ────────────────────── */
+html body .bottom-nav {
+  margin: 0 !important; border-radius: 20px 20px 0 0 !important;
+  background: rgba(10,10,16,.97) !important;
+  border: none !important; border-top: 1px solid rgba(255,255,255,.07) !important;
+  box-shadow: none !important;
+}

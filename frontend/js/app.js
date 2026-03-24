@@ -952,11 +952,19 @@ $('#loginForm')?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   const btn = form.querySelector('button[type="submit"]');
+  const errBox = document.getElementById('loginError');
+  const errTxt = document.getElementById('loginErrorText');
+  if (errBox) errBox.classList.add('hidden');
   try {
     setButtonLoading(btn, true);
     await handleAuth(form, '/api/auth/login');
   } catch (error) {
-    showToast(error.message);
+    if (errBox && errTxt) {
+      errTxt.textContent = error.message || 'Невірні облікові дані';
+      errBox.classList.remove('hidden');
+      form.classList.add('auth-shake');
+      setTimeout(() => form.classList.remove('auth-shake'), 500);
+    }
   } finally {
     setButtonLoading(btn, false);
   }
