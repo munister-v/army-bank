@@ -4483,3 +4483,285 @@ body {
 #notifBadge {
   box-shadow: 0 0 12px rgba(167,139,250,.85) !important;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   PREMIUM V4 — Sophisticated Restraint
+   One accent · Hierarchy via type & space · No competing glows
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 1. Clean foundation — strip ambient soup ──────────────── */
+body {
+  background: #0c0c14 !important;
+}
+
+/* ── 2. Header — transparent, blends with bg ───────────────── */
+.app-header {
+  background: rgba(12,12,20,.98) !important;
+  border-bottom: 1px solid rgba(255,255,255,.06) !important;
+  box-shadow: none !important;
+}
+.user-name  { color: #f4f4ff !important; font-weight: 700 !important; }
+.user-meta  { color: rgba(255,255,255,.32) !important; font-size: 11px !important; }
+
+/* Icon buttons in header */
+.icon-btn {
+  background: rgba(255,255,255,.05) !important;
+  border: 1px solid rgba(255,255,255,.07) !important;
+  box-shadow: none !important;
+}
+
+/* ── 3. Avatar — clean, no ring circus ─────────────────────── */
+.avatar {
+  background: linear-gradient(145deg, #4c1d95 0%, #7c3aed 100%) !important;
+  box-shadow: 0 2px 14px rgba(0,0,0,.55) !important;
+  border-radius: 14px !important;
+}
+
+/* ── 4. Balance block — THE hero, nothing competes ─────────── */
+.balance-block {
+  background: rgba(255,255,255,.038) !important;
+  border: 1px solid rgba(255,255,255,.07) !important;
+  border-radius: 20px !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 2px 24px rgba(0,0,0,.5) !important;
+}
+.balance-block::before { display: none !important; }
+.balance-block::after  { display: none !important; }
+
+.balance-label {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: .16em !important;
+  color: rgba(255,255,255,.38) !important;
+}
+
+/* Plain white — hierarchy through SIZE, not gradient */
+.balance-amount {
+  font-size: clamp(2.4rem, 11vw, 3.8rem) !important;
+  font-weight: 800 !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  color: #ffffff !important;
+  filter: none !important;
+  letter-spacing: -.02em !important;
+  line-height: 1.1 !important;
+}
+
+.balance-account {
+  background: rgba(255,255,255,.05) !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 100px !important;
+  color: rgba(255,255,255,.4) !important;
+  font-size: 11px !important;
+  letter-spacing: .05em !important;
+}
+
+/* ── 5. Quick actions — uniform surfaces, one accent ────────── */
+/* Remove ALL V1/V2/V3 coloured variants */
+.qa-btn:nth-child(1) .qa-icon,
+.qa-btn:nth-child(2) .qa-icon,
+.qa-btn:nth-child(3) .qa-icon,
+.qa-btn:nth-child(4) .qa-icon {
+  background: rgba(255,255,255,.07) !important;
+  border: 1px solid rgba(255,255,255,.09) !important;
+  color: rgba(255,255,255,.72) !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,.35) !important;
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 18px !important;
+  font-size: 20px !important;
+}
+
+/* Only primary action gets the accent */
+.qa-btn:nth-child(1) .qa-icon {
+  background: rgba(124,90,246,.16) !important;
+  border-color: rgba(124,90,246,.24) !important;
+  color: #a78bfa !important;
+}
+
+.qa-btn:nth-child(1):active .qa-icon,
+.qa-btn:nth-child(2):active .qa-icon,
+.qa-btn:nth-child(3):active .qa-icon,
+.qa-btn:nth-child(4):active .qa-icon {
+  box-shadow: none !important;
+  transform: scale(.9) !important;
+}
+
+.qa-label {
+  font-size: 9px !important;
+  font-weight: 600 !important;
+  letter-spacing: .08em !important;
+  color: rgba(255,255,255,.38) !important;
+}
+
+/* ── 6. Dot indicators — subtle pill ───────────────────────── */
+.bc-dot {
+  width: 5px !important; height: 5px !important;
+  border-radius: 50% !important;
+  background: rgba(255,255,255,.2) !important;
+  transition: width .3s cubic-bezier(.34,1.4,.64,1), background .3s !important;
+  box-shadow: none !important;
+}
+.bc-dot.active {
+  width: 16px !important;
+  border-radius: 4px !important;
+  background: rgba(255,255,255,.65) !important;
+  box-shadow: none !important;
+}
+
+/* ── 7. Section titles — small caps label ──────────────────── */
+.section-title {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: .12em !important;
+  color: rgba(255,255,255,.38) !important;
+  background: none !important;
+  -webkit-text-fill-color: rgba(255,255,255,.38) !important;
+  text-transform: uppercase !important;
+}
+.section-see-all {
+  font-size: 12px !important;
+  color: #7c5af6 !important;
+  font-weight: 600 !important;
+}
+
+/* ── 8. Transaction list — clean dividers, no card soup ────── */
+.item {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(255,255,255,.05) !important;
+  border-radius: 0 !important;
+  padding: 14px 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.item:last-child { border-bottom: none !important; }
+.item:active {
+  background: rgba(255,255,255,.03) !important;
+  border-radius: 8px !important;
+  transform: none !important;
+}
+.item-amount { color: rgba(255,255,255,.8) !important; }
+.item-amount.income, .item-amount.positive,
+.item-amount[class*="green"] { color: #4ade80 !important; }
+.item-icon {
+  border-radius: 14px !important;
+  background: rgba(255,255,255,.07) !important;
+  border: none !important;
+}
+
+/* ── 9. Bottom nav — standard, clean ───────────────────────── */
+.bottom-nav {
+  margin: 0 !important;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+  background: rgba(12,12,20,.97) !important;
+  border: none !important;
+  border-top: 1px solid rgba(255,255,255,.07) !important;
+  backdrop-filter: blur(32px) !important;
+  -webkit-backdrop-filter: blur(32px) !important;
+  box-shadow: none !important;
+}
+.nav-item { color: rgba(255,255,255,.35) !important; }
+.nav-item.active { color: #a78bfa !important; }
+.nav-item.active::after {
+  width: 20px !important;
+  height: 2px !important;
+  background: #7c5af6 !important;
+  box-shadow: 0 0 8px rgba(124,90,246,.7) !important;
+  border-radius: 0 0 4px 4px !important;
+}
+
+/* ── 10. Real input fields ──────────────────────────────────── */
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+select, textarea {
+  background: rgba(255,255,255,.05) !important;
+  border: 1.5px solid rgba(255,255,255,.1) !important;
+  border-radius: 12px !important;
+  color: #f4f4ff !important;
+  font-size: 15px !important;
+  padding: 14px 16px !important;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: rgba(124,90,246,.7) !important;
+  background: rgba(124,90,246,.05) !important;
+  box-shadow: 0 0 0 3px rgba(124,90,246,.12) !important;
+  outline: none !important;
+}
+input::placeholder, textarea::placeholder { color: rgba(255,255,255,.25) !important; }
+
+/* ── 11. Cards / panels — one consistent surface ───────────── */
+.card, .stats-card, .rates-card, .currency-card,
+[class*="-card"]:not(.bank-card) {
+  background: rgba(255,255,255,.04) !important;
+  border: 1px solid rgba(255,255,255,.07) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 2px 16px rgba(0,0,0,.4) !important;
+}
+
+/* ── 12. Primary button — single accent, no glow drama ─────── */
+.btn-accent:not(.tmt-btn) {
+  background: #7c5af6 !important;
+  box-shadow: 0 3px 16px rgba(124,90,246,.28) !important;
+  border-radius: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: .015em !important;
+}
+.btn-accent:not(.tmt-btn):hover {
+  background: #6d4ee0 !important;
+  box-shadow: 0 2px 10px rgba(124,90,246,.2) !important;
+  transform: none !important;
+}
+
+/* ── 13. Notification panel ─────────────────────────────────── */
+.notifications-panel {
+  background: #141420 !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 20px 20px 0 0 !important;
+}
+.notif-item {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255,255,255,.05) !important;
+  border-left: none !important;
+}
+.notif-item.unread {
+  border-left: 2px solid #7c5af6 !important;
+}
+.notif-time { color: rgba(255,255,255,.3) !important; font-size: 11px !important; }
+
+/* ── 14. Achievement / profile items ────────────────────────── */
+.achievement-item, [class*="achievement"] {
+  background: rgba(255,255,255,.03) !important;
+  border: 1px solid rgba(255,255,255,.06) !important;
+  border-radius: 14px !important;
+}
+.achievement-item.unlocked, [class*="achievement"][class*="unlock"] {
+  border-color: rgba(74,222,128,.18) !important;
+}
+
+/* ── 15. Exchange / analytics surfaces ──────────────────────── */
+.analytics-stat, .stat-block, .exchange-card {
+  background: rgba(255,255,255,.04) !important;
+  border: 1px solid rgba(255,255,255,.07) !important;
+  border-radius: 16px !important;
+}
+.stat-value, .analytics-value {
+  font-weight: 700 !important;
+  color: #ffffff !important;
+}
+.analytics-highlight, .stat-highlight { color: #4ade80 !important; }
+
+/* ── 16. Modal / bottom-sheet ───────────────────────────────── */
+.modal, .bottom-sheet, .sheet {
+  background: #141420 !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+}
+.modal-title, .sheet-title {
+  font-weight: 700 !important;
+  color: #f4f4ff !important;
+}
+
+/* ── 17. Accessibility — no blue focus rings on non-inputs ─── */
+button:focus-visible { outline: 2px solid rgba(124,90,246,.5) !important; outline-offset: 2px !important; }
