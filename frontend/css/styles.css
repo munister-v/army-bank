@@ -3390,47 +3390,55 @@ button:focus-visible, a:focus-visible {
 /* ── BANK CARDS CAROUSEL ──────────────────────────────────── */
 .bank-cards-carousel {
   margin: 0 -max(16px, env(safe-area-inset-left,0px)) 20px;
-  padding: 0 max(16px, env(safe-area-inset-left,0px));
-  overflow: hidden;
+  /* overflow: hidden removed — it blocks iOS Safari scroll on child */
 }
 .bank-cards-track {
   display: flex;
-  gap: 14px;
-  overflow-x: auto;
+  gap: 0;
+  overflow-x: scroll;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  padding: 6px 2px 10px;
+  padding: 6px max(16px, env(safe-area-inset-left,0px)) 14px;
+  scroll-padding-left: max(16px, env(safe-area-inset-left,0px));
 }
 .bank-cards-track::-webkit-scrollbar { display: none; }
 
 .bank-card {
-  flex: 0 0 100%;
-  max-width: 100%;
-  aspect-ratio: 1.586;
-  max-height: 210px;
-  border-radius: 18px;
+  flex: 0 0 calc(100vw - max(32px, env(safe-area-inset-left,0px) * 2));
+  width: calc(100vw - max(32px, env(safe-area-inset-left,0px) * 2));
+  max-width: 420px;
+  aspect-ratio: 1.586 / 1;
+  height: auto;
+  min-height: 180px;
+  max-height: 220px;
+  border-radius: 20px;
   position: relative;
   overflow: hidden;
-  scroll-snap-align: center;
+  scroll-snap-align: start;
   cursor: pointer;
   transition: transform .35s cubic-bezier(.25,.46,.45,.94);
+  margin-right: 14px;
 }
+.bank-card:last-child { margin-right: max(16px, env(safe-area-inset-left,0px)); }
 .bank-card:active { transform: scale(.97); }
 
 /* ── GOLD CARD ────────────────────────────────────────────── */
 .bank-card-gold {
+  background: linear-gradient(135deg,
+    #2a1f06 0%, #3d2d09 25%, #2e220a 50%,
+    #3a2b0c 75%, #251c07 100%);
   box-shadow:
-    0 24px 80px rgba(0,0,0,.65),
-    0  0  0 1px rgba(212,173,60,.35),
-    0  0  55px rgba(212,173,60,.10),
+    0 20px 60px rgba(0,0,0,.7),
+    0  0  0 1px rgba(212,173,60,.5),
+    0  0  40px rgba(212,173,60,.15),
     inset 0 1px 0 rgba(255,255,255,.18);
 }
 .bank-card-gold .bank-card-bg {
   position: absolute; inset: 0;
   background: linear-gradient(135deg,
-    #161309 0%, #241d0b 22%, #1c1809 45%,
-    #221c0d 68%, #181408 85%, #201a0c 100%);
+    #2a1f06 0%, #3d2d09 25%, #2e220a 50%,
+    #3a2b0c 75%, #251c07 100%);
 }
 .bank-card-gold::before {
   content: '';
@@ -3462,17 +3470,20 @@ button:focus-visible, a:focus-visible {
 
 /* ── DARK CARD ────────────────────────────────────────────── */
 .bank-card-dark {
+  background: linear-gradient(135deg,
+    #0d1b35 0%, #162444 25%, #112038 50%,
+    #1a2a4a 75%, #0e1c3a 100%);
   box-shadow:
-    0 24px 80px rgba(0,0,0,.65),
-    0  0  0 1px rgba(96,165,250,.22),
-    0  0  45px rgba(96,165,250,.08),
+    0 20px 60px rgba(0,0,0,.7),
+    0  0  0 1px rgba(96,165,250,.4),
+    0  0  35px rgba(96,165,250,.12),
     inset 0 1px 0 rgba(255,255,255,.10);
 }
 .bank-card-dark .bank-card-bg {
   position: absolute; inset: 0;
   background: linear-gradient(135deg,
-    #07101f 0%, #0e1830 25%,
-    #0b1226 50%, #121c38 75%, #08102a 100%);
+    #0d1b35 0%, #162444 25%, #112038 50%,
+    #1a2a4a 75%, #0e1c3a 100%);
 }
 .bank-card-dark::before {
   content: '';
