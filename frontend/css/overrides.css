@@ -551,6 +551,8 @@ body {
 
 /* Action forms opened by quick buttons */
 #dashboardActionForms {
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
   max-height: 0 !important;
   opacity: 0 !important;
   overflow: hidden !important;
@@ -569,8 +571,165 @@ body {
 #dashboardActionForms .card {
   background: var(--mono-surface) !important;
   border: none !important;
-  border-radius: var(--mono-radius-lg) !important;
+  border-radius: var(--mono-radius-xl) !important;
   box-shadow: var(--mono-shadow) !important;
+  padding: 16px !important;
+}
+
+#dashboardActionForms .card-head {
+  margin-bottom: 12px !important;
+  align-items: center !important;
+}
+
+#dashboardActionForms .card-head h3 {
+  font-size: 18px !important;
+  letter-spacing: -0.01em !important;
+  color: #141a26 !important;
+}
+
+#dashboardActionForms .card-icon-wrap {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 10px !important;
+}
+
+#dashboardActionForms .lbl {
+  margin-bottom: 12px !important;
+  font-size: 12px !important;
+  letter-spacing: 0.02em !important;
+}
+
+#dashboardActionForms .lbl:last-of-type {
+  margin-bottom: 14px !important;
+}
+
+#dashboardActionForms .lbl input,
+#dashboardActionForms .lbl select,
+#dashboardActionForms .lbl textarea {
+  min-height: 46px !important;
+}
+
+#dashboardActionForms .quick-amounts {
+  gap: 8px !important;
+  margin-bottom: 12px !important;
+}
+
+#dashboardActionForms .qa-chip {
+  min-height: 32px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  background: #f3f6fb !important;
+  color: #5f6f89 !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  transition: transform var(--mono-motion-fast) ease, background var(--mono-motion-fast) ease, border-color var(--mono-motion-fast) ease, color var(--mono-motion-fast) ease !important;
+}
+
+#dashboardActionForms .qa-chip:hover {
+  background: #e9eff9 !important;
+  border-color: #ccd8ec !important;
+  color: #2d3a50 !important;
+}
+
+#dashboardActionForms .qa-chip.active {
+  background: #dfe9fb !important;
+  border-color: #bccde8 !important;
+  color: #20324f !important;
+}
+
+#dashboardActionForms .qa-chip:active {
+  transform: scale(0.97) !important;
+}
+
+#dashboardActionForms .btn-accent {
+  width: 100% !important;
+}
+
+.transfer-mode-toggle {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 4px !important;
+  background: #edf2f9 !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  border-radius: 12px !important;
+  padding: 4px !important;
+  margin: 2px 0 12px !important;
+}
+
+.tmt-btn {
+  appearance: none !important;
+  border: none !important;
+  background: transparent !important;
+  color: #63718b !important;
+  min-height: 34px !important;
+  border-radius: 9px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  transition: background var(--mono-motion-fast) ease, color var(--mono-motion-fast) ease, transform var(--mono-motion-fast) ease, box-shadow var(--mono-motion-fast) ease !important;
+}
+
+.tmt-btn.active {
+  background: #ffffff !important;
+  color: #202b3f !important;
+  box-shadow: 0 1px 6px rgba(16, 24, 38, 0.13) !important;
+}
+
+.tmt-btn:active {
+  transform: scale(0.98) !important;
+}
+
+.tmt-btn:focus-visible {
+  outline: none !important;
+  box-shadow: var(--mono-focus-ring) !important;
+}
+
+.lbl-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+
+.card-lookup-status {
+  min-width: 32px !important;
+  text-align: right !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #8e98ab !important;
+}
+
+.card-lookup-status.ok {
+  color: #1ea15a !important;
+}
+
+.card-lookup-status.pending {
+  color: #5f6f89 !important;
+}
+
+.amount-input-wrap {
+  position: relative !important;
+}
+
+.amount-input-wrap .amount-currency {
+  position: absolute !important;
+  left: 13px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: #7d899f !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  pointer-events: none !important;
+}
+
+.amount-input-wrap .amount-input {
+  padding-left: 34px !important;
+}
+
+.card-num-input {
+  letter-spacing: 0.05em !important;
 }
 
 /* ── Global Cards/Inputs ─────────────────────────── */
