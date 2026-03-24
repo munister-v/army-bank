@@ -499,40 +499,134 @@ async function refreshProfile() {
   if (platformLink) platformLink.classList.toggle('hidden', state.user.role !== 'platform_admin');
 
   /* ── Bank Cards ── */
-  _updateBankCards();
+  _updateBankCards().catch(function() {});
 }
 
-function _updateBankCards() {
-  var acct = state.account && state.account.account_number ? state.account.account_number : '0000';
-  var digits = acct.replace(/\D/g, '').padStart(16, '0').slice(-16);
-  var formatted = digits.replace(/(.{4})/g, '$1 ').trim();
+function _initCarouselInteraction(track) {
+  if (!track || track._bankCardsInit) return;
+  track._bankCardsInit = true;
 
-  var nameText = (state.user && state.user.full_name) ? state.user.full_name.toUpperCase() : 'ARMY BANK';
-
-  var el1 = document.getElementById('bankCardNumber');
-  if (el1) el1.textContent = formatted;
-  var el2 = document.getElementById('bankCardName');
-  if (el2) el2.textContent = nameText;
-  var el3 = document.getElementById('bankCardSavingsNumber');
-  if (el3) el3.textContent = formatted.substring(0, 14) + (parseInt(digits.slice(-2)) + 1).toString().padStart(2, '0').slice(-2) + ' ';
-  var el4 = document.getElementById('bankCardSavingsName');
-  if (el4) el4.textContent = nameText;
-
-  /* Carousel swipe */
-  var track = document.getElementById('bankCardsTrack');
-  var dots = document.querySelectorAll('.bc-dot');
-  if (track && dots.length && !track._bankCardsInit) {
-    track._bankCardsInit = true;
-    track.addEventListener('scroll', function() {
-      var idx = Math.round(track.scrollLeft / track.offsetWidth);
-      dots.forEach(function(d, i) { d.classList.toggle('active', i === idx); });
-    }, { passive: true });
-    dots.forEach(function(d, i) {
-      d.addEventListener('click', function() {
-        track.scrollTo({ left: i * track.offsetWidth, behavior: 'smooth' });
-      });
-    });
+  function getCardWidth() {
+    var first = track.querySelector('.bank-card');
+    return first ? first.offsetWidth + 14 : track.clientWidth;
   }
+
+  function updateDots() {
+    var dots = document.querySelectorAll('.bc-dot');
+    if (!dots.length) return;
+    var cw = getCardWidth();
+    var idx = cw > 0 ? Math.round(track.scrollLeft / cw) : 0;
+    idx = Math.max(0, Math.min(idx, dots.length - 1));
+    dots.forEach(function(d, i) { d.classList.toggle('active', i === idx); });
+  }
+
+  track.addEventListener('scroll', updateDots, { passive: true });
+
+  document.getElementById('bankCardsDots')?.addEventListener('click', function(e) {
+    var dot = e.target.closest('.bc-dot');
+    if (!dot) return;
+    var dots = Array.from(document.querySelectorAll('.bc-dot'));
+    var i = dots.indexOf(dot);
+    if (i >= 0) track.scrollTo({ left: i * getCardWidth(), behavior: 'smooth' });
+  });
+}
+
+async function _updateBankCards() {
+  var holderName = (state.user && state.user.full_name)
+    ? state.user.full_name.toUpperCase() : 'ARMY BANK';
+
+  var track = document.getElementById('bankCardsTrack');
+  var dotsEl = document.getElementById('bankCardsDots');
+  if (!track) return;
+
+  // Try to load real issued cards
+  var cards = [];
+  try { cards = (await api.request('/api/cards')).filter(function(c){ return c.status !== 'closed'; }); }
+  catch(_) {}
+
+  if (!cards.length) {
+    // No real cards — update placeholder fields and keep static HTML
+    var el1 = document.getElementById('bankCardNumber');
+    var acct = state.account && state.account.account_number ? state.account.account_number : '';
+    var digits = acct.replace(/\D/g, '').padStart(16, '0').slice(-16);
+    if (el1) el1.textContent = digits.replace(/(.{4})/g, '$1 ').trim();
+    var el2 = document.getElementById('bankCardName');
+    if (el2) el2.textContent = holderName;
+    var el3 = document.getElementById('bankCardSavingsNumber');
+    if (el3) el3.textContent = '•••• •••• •••• ••••';
+    var el4 = document.getElementById('bankCardSavingsName');
+    if (el4) el4.textContent = holderName;
+
+    // Add CTA card "Issue your first card"
+    if (!track.querySelector('.bank-card-cta')) {
+      var ctaCard = document.createElement('div');
+      ctaCard.className = 'bank-card bank-card-cta';
+      ctaCard.innerHTML = '<div class="bank-card-content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center">'
+        + '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="3"/><line x1="1" y1="10" x2="23" y2="10"/></svg>'
+        + '<div style="font-size:13px;color:rgba(255,255,255,.5);line-height:1.4">Картки ще не випущені<br><span style="font-size:11px;color:rgba(167,139,250,.6)">Перейдіть до розділу «Картки»</span></div>'
+        + '</div>';
+      ctaCard.style.cssText = 'background:rgba(255,255,255,.03);border:1px dashed rgba(167,139,250,.2);cursor:pointer';
+      ctaCard.addEventListener('click', function() {
+        window.history.pushState(null, '', (getBasePath()||'') + '/cards');
+        switchScreen('cards');
+      });
+      track.appendChild(ctaCard);
+      if (dotsEl) dotsEl.innerHTML += '<span class="bc-dot"></span>';
+    }
+    _initCarouselInteraction(track);
+    return;
+  }
+
+  // Render real cards
+  var SCHEMES = [
+    { cls: 'bank-card-gold', chipColors: ['#e8c848','#d4a830','#c89820'],
+      network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(255,90,50,.8)"/><circle cx="27" cy="13" r="12" fill="rgba(255,180,50,.7)"/></svg>' },
+    { cls: 'bank-card-dark', chipColors: ['#b8b8b8','#a0a0a0','#888888'],
+      network: '<svg width="38" height="24" viewBox="0 0 38 24" fill="none"><rect x="1" y="1" width="36" height="22" rx="3" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/><text x="19" y="15" text-anchor="middle" fill="rgba(255,255,255,.55)" font-size="8" font-family="monospace" font-weight="700">VISA</text></svg>' },
+  ];
+
+  track._bankCardsInit = false; // allow re-init
+  track.innerHTML = cards.map(function(card, i) {
+    var s = SCHEMES[i % SCHEMES.length];
+    var cid = 'chip_' + card.id;
+    var blocked = card.status === 'blocked';
+    var statusBadge = blocked
+      ? '<span style="font-size:9px;color:rgba(239,68,68,.85);font-family:var(--font-mono);letter-spacing:.08em;background:rgba(239,68,68,.12);padding:2px 8px;border-radius:20px;border:1px solid rgba(239,68,68,.2)">ЗАБЛОК.</span>'
+      : '<span style="font-size:9px;color:rgba(255,255,255,.4);font-family:var(--font-mono);letter-spacing:.1em;text-transform:uppercase">' + (card.card_type||'VIRTUAL').toUpperCase() + '</span>';
+    return '<div class="bank-card ' + s.cls + (blocked?' bank-card-blocked':'') + '">'
+      + '<div class="bank-card-bg"></div>'
+      + '<div class="bank-card-noise"></div>'
+      + '<div class="bank-card-content">'
+      +   '<div class="bank-card-top">'
+      +     '<div class="bank-card-logo"><span class="bank-card-logo-letter">A</span><span class="bank-card-logo-text">Army<strong>Bank</strong></span></div>'
+      +     statusBadge
+      +   '</div>'
+      +   '<div class="bank-card-chip"><svg width="36" height="28" viewBox="0 0 36 28" fill="none">'
+      +     '<rect x="0.5" y="0.5" width="35" height="27" rx="4" fill="url(#'+cid+')" stroke="rgba(255,255,255,.18)"/>'
+      +     '<line x1="0" y1="10" x2="36" y2="10" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>'
+      +     '<line x1="0" y1="18" x2="36" y2="18" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>'
+      +     '<line x1="12" y1="0" x2="12" y2="28" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>'
+      +     '<line x1="24" y1="0" x2="24" y2="28" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>'
+      +     '<defs><linearGradient id="'+cid+'" x1="0" y1="0" x2="36" y2="28">'
+      +       '<stop stop-color="'+s.chipColors[0]+'"/><stop offset="0.5" stop-color="'+s.chipColors[1]+'"/><stop offset="1" stop-color="'+s.chipColors[2]+'"/>'
+      +     '</linearGradient></defs></svg></div>'
+      +   '<div class="bank-card-number">' + (card.masked_number||'•••• •••• •••• ••••') + '</div>'
+      +   '<div class="bank-card-bottom">'
+      +     '<div class="bank-card-holder"><div class="bank-card-label">Власник</div><div class="bank-card-name">' + holderName + '</div></div>'
+      +     '<div class="bank-card-expiry"><div class="bank-card-label">До</div><div class="bank-card-date">' + (card.expiry_display||'—') + '</div></div>'
+      +     '<div class="bank-card-network">' + s.network + '</div>'
+      +   '</div>'
+      + '</div></div>';
+  }).join('');
+
+  // Sync dots
+  if (dotsEl) {
+    dotsEl.innerHTML = cards.map(function(_, i) {
+      return '<span class="bc-dot' + (i===0?' active':'') + '"></span>';
+    }).join('');
+  }
+
+  _initCarouselInteraction(track);
 }
 
 async function loadPaymentTemplates() {
@@ -1018,7 +1112,7 @@ window.addEventListener('popstate', () => {
 $$('[data-jump]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.jump;
-    const screenMap = { history: 'transactions', 'donations-screen': 'donations', payouts: 'payouts', savings: 'savings', contacts: 'contacts', calendar: 'calendar' };
+    const screenMap = { history: 'transactions', 'donations-screen': 'donations', payouts: 'payouts', savings: 'savings', contacts: 'contacts', calendar: 'calendar', cards: 'cards' };
     if (screenMap[id]) {
       const target = screenMap[id];
       const base = getBasePath();
@@ -3490,6 +3584,7 @@ function bindCardActions() {
       form.reset();
       $('#issueCardPanel')?.classList.add('hidden');
       loadCards();
+      _updateBankCards().catch(function() {});
     } catch (e) {
       showToast(e.message);
     } finally {

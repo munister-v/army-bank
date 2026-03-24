@@ -3612,12 +3612,20 @@ button:focus-visible, a:focus-visible {
   box-shadow: 0 0 10px rgba(212,168,48,.45);
 }
 
+/* CTA card (no real cards yet) */
+.bank-card-cta {
+  background: rgba(167,139,250,.04) !important;
+  border: 1px dashed rgba(167,139,250,.2) !important;
+}
+
+/* Blocked card visual dim */
+.bank-card-blocked { opacity: .7; filter: saturate(.5); }
+
 @media (min-width: 768px) {
-  .bank-cards-track { gap: 18px; }
   .bank-card {
-    flex: 0 0 calc(50% - 9px);
-    max-width: calc(50% - 9px);
-    max-height: 230px;
+    flex: 0 0 380px;
+    width: 380px;
+    max-height: 240px;
   }
 }
 
