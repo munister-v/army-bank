@@ -590,11 +590,13 @@ async function _updateBankCards() {
   // Render real cards
   var DESIGN_MAP = {
     gold:   { cls: 'bank-card-gold',   chipColors: ['#e8c848','#d4a830','#c89820'],
-      network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(255,90,50,.85)"/><circle cx="27" cy="13" r="12" fill="rgba(255,180,50,.75)"/></svg>' },
+      network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(255,92,53,.92)"/><circle cx="27" cy="13" r="12" fill="rgba(247,178,56,.82)"/></svg>' },
     navy:   { cls: 'bank-card-navy',   chipColors: ['#b8b8b8','#a0a0a0','#888888'],
-      network: '<svg width="44" height="14" viewBox="0 0 44 14"><text x="0" y="11" fill="rgba(255,255,255,.6)" font-size="13" font-family="Arial,sans-serif" font-weight="800" letter-spacing="2">VISA</text></svg>' },
-    forest: { cls: 'bank-card-forest', chipColors: ['#6ee7b7','#34d399','#10b981'],
-      network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(52,211,153,.75)"/><circle cx="27" cy="13" r="12" fill="rgba(16,185,129,.6)"/></svg>' },
+      network: '<svg width="44" height="14" viewBox="0 0 44 14"><text x="0" y="11" fill="rgba(255,255,255,.72)" font-size="13" font-family="Arial,sans-serif" font-weight="800" letter-spacing="2">VISA</text></svg>' },
+    forest: { cls: 'bank-card-forest', chipColors: ['#a4c18f','#7f9e6e','#55724e'],
+      network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(126,171,109,.76)"/><circle cx="27" cy="13" r="12" fill="rgba(90,133,74,.64)"/></svg>' },
+    camo:   { cls: 'bank-card-camo',   chipColors: ['#c4bd88','#8f9266','#5a633f'],
+      network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(201,177,106,.76)"/><circle cx="27" cy="13" r="12" fill="rgba(134,122,68,.62)"/></svg>' },
     rose:   { cls: 'bank-card-rose',   chipColors: ['#fda4af','#fb7185','#f43f5e'],
       network: '<svg width="44" height="14" viewBox="0 0 44 14"><text x="0" y="11" fill="rgba(255,255,255,.6)" font-size="13" font-family="Arial,sans-serif" font-weight="800" letter-spacing="2">VISA</text></svg>' },
     slate:  { cls: 'bank-card-slate',  chipColors: ['#94a3b8','#64748b','#475569'],
@@ -603,13 +605,14 @@ async function _updateBankCards() {
 
   track._bankCardsInit = false; // allow re-init
   track.innerHTML = cards.map(function(card, i) {
-    var s = DESIGN_MAP[card.design] || DESIGN_MAP.gold;
+    var selectedDesign = _getEffectiveCardDesign(card);
+    var s = DESIGN_MAP[selectedDesign] || DESIGN_MAP.gold;
     var cid = 'chip_' + card.id;
     var blocked = card.status === 'blocked';
     var statusBadge = blocked
       ? '<span style="font-size:9px;color:rgba(239,68,68,.85);font-family:var(--font-mono);letter-spacing:.08em;background:rgba(239,68,68,.12);padding:2px 8px;border-radius:20px;border:1px solid rgba(239,68,68,.2)">ЗАБЛОК.</span>'
       : '<span style="font-size:9px;color:rgba(255,255,255,.4);font-family:var(--font-mono);letter-spacing:.1em;text-transform:uppercase">' + (card.card_type||'VIRTUAL').toUpperCase() + '</span>';
-    return '<div class="bank-card ' + s.cls + (blocked?' bank-card-blocked':'') + '">'
+    return '<div class="bank-card ' + s.cls + (blocked?' bank-card-blocked':'') + '" data-design="' + selectedDesign + '">'
       + '<div class="bank-card-bg"></div>'
       + '<div class="bank-card-noise"></div>'
       + '<div class="bank-card-content">'
@@ -3486,8 +3489,75 @@ console.log('[Army Bank] Polish v3 loaded — UX improvements');
 const CARD_STATUS_LABELS = { active: 'Активна', blocked: 'Заблокована', closed: 'Закрита' };
 const CARD_TYPE_LABELS = { virtual: 'Віртуальна', physical: 'Фізична' };
 
+function _cardDesignOptions() {
+  return [
+    { id: 'gold', label: 'Gold' },
+    { id: 'navy', label: 'Navy' },
+    { id: 'forest', label: 'Forest' },
+    { id: 'camo', label: 'Military' },
+    { id: 'rose', label: 'Rose' },
+    { id: 'slate', label: 'Slate' },
+  ];
+}
+
+function _cardDesignStorageKey() {
+  return 'ab_card_design_overrides_v1';
+}
+
 function _cardStatusClass(status) {
   return status === 'active' ? 'card-status-active' : status === 'blocked' ? 'card-status-blocked' : 'card-status-closed';
+}
+
+function _readCardDesignOverrides() {
+  try {
+    const raw = localStorage.getItem(_cardDesignStorageKey());
+    const parsed = raw ? JSON.parse(raw) : {};
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function _writeCardDesignOverrides(map) {
+  try { localStorage.setItem(_cardDesignStorageKey(), JSON.stringify(map || {})); }
+  catch (_) {}
+}
+
+function _isSupportedCardDesign(design) {
+  return _cardDesignOptions().some((d) => d.id === design);
+}
+
+function _getEffectiveCardDesign(card) {
+  const overrides = _readCardDesignOverrides();
+  const fromStorage = overrides[String(card.id)];
+  const resolved = fromStorage || card.design || 'gold';
+  return _isSupportedCardDesign(resolved) ? resolved : 'gold';
+}
+
+function _setCardDesignOverride(cardId, design) {
+  if (!_isSupportedCardDesign(design)) return;
+  const map = _readCardDesignOverrides();
+  map[String(cardId)] = design;
+  _writeCardDesignOverrides(map);
+}
+
+function _getCardDesignLabel(design) {
+  const m = _cardDesignOptions().find((d) => d.id === design);
+  return m ? m.label : 'Gold';
+}
+
+function _renderCardDesignPalette(cardId, activeDesign, disabled) {
+  return _cardDesignOptions().map((opt) => `
+    <button
+      type="button"
+      class="cmi-design-dot design-${opt.id} ${opt.id === activeDesign ? 'active' : ''}"
+      data-set-design="${cardId}"
+      data-design="${opt.id}"
+      aria-label="Стиль ${opt.label}"
+      title="${opt.label}"
+      ${disabled ? 'disabled' : ''}
+    ></button>
+  `).join('');
 }
 
 function renderCardItem(card) {
@@ -3495,6 +3565,8 @@ function renderCardItem(card) {
   const typeLabel = CARD_TYPE_LABELS[card.card_type] || card.card_type;
   const isActive = card.status === 'active';
   const isClosed = card.status === 'closed';
+  const activeDesign = _getEffectiveCardDesign(card);
+  const designLabel = _getCardDesignLabel(activeDesign);
 
   return `
     <div class="card-manage-item ${card.status}" data-card-id="${card.id}">
@@ -3512,6 +3584,14 @@ function renderCardItem(card) {
           <span>${typeLabel}</span>
           <span>•</span>
           <span>дійсна до ${card.expiry_display || card.expires_at || '—'}</span>
+        </div>
+        <div class="cmi-design">
+          <div class="cmi-design-head">
+            <span class="cmi-design-label">Стиль: ${designLabel}</span>
+          </div>
+          <div class="cmi-design-palette">
+            ${_renderCardDesignPalette(card.id, activeDesign, isClosed)}
+          </div>
         </div>
       </div>
       <div class="cmi-right">
@@ -3569,6 +3649,7 @@ function bindCardActions() {
         const newStatus = result.status;
         showToast(newStatus === 'active' ? 'Картку розблоковано.' : 'Картку заблоковано.', newStatus === 'active' ? 'success' : '');
         loadCards();
+        _updateBankCards().catch(function() {});
       } catch (e) {
         showToast(e.message);
         btn.disabled = false;
@@ -3589,11 +3670,45 @@ function bindCardActions() {
             await api.request(`/api/cards/${cardId}/close`, { method: 'PATCH' });
             showToast('Картку закрито.', '');
             loadCards();
+            _updateBankCards().catch(function() {});
           } catch (e) {
             showToast(e.message);
           }
         }
       );
+    });
+  });
+
+  // Design customization
+  $$('#cardsList [data-set-design][data-design]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const cardId = Number(btn.dataset.setDesign);
+      const design = (btn.dataset.design || '').trim();
+      if (!cardId || !design || !_isSupportedCardDesign(design)) return;
+      if (btn.classList.contains('active')) return;
+
+      _setCardDesignOverride(cardId, design);
+      _updateBankCards().catch(function() {});
+
+      let savedOnServer = false;
+      try {
+        await api.request(`/api/cards/${cardId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ design: design }),
+        });
+        savedOnServer = true;
+      } catch (_) {
+        try {
+          await api.request(`/api/cards/${cardId}/design`, {
+            method: 'PATCH',
+            body: JSON.stringify({ design: design }),
+          });
+          savedOnServer = true;
+        } catch (_) {}
+      }
+
+      showToast(savedOnServer ? 'Дизайн картки оновлено.' : 'Дизайн застосовано локально.', 'success');
+      loadCards();
     });
   });
 }

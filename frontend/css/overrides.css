@@ -4,18 +4,18 @@
  */
 
 :root {
-  --mono-bg: #eef1f6;
-  --mono-surface: #ffffff;
-  --mono-surface-soft: #f6f7fb;
-  --mono-blue-top: #1948bf;
-  --mono-blue-mid: #2f63d8;
-  --mono-blue-low: #a7c3f0;
-  --mono-text: #10131a;
-  --mono-muted: #8c94a5;
-  --mono-muted-2: #b3b9c6;
+  --mono-bg: #e7ebe2;
+  --mono-surface: #f7f9f4;
+  --mono-surface-soft: #edf2e8;
+  --mono-blue-top: #2f4a37;
+  --mono-blue-mid: #46664a;
+  --mono-blue-low: #a7b8a0;
+  --mono-text: #141a15;
+  --mono-muted: #7f8b80;
+  --mono-muted-2: #a2ada2;
   --mono-danger: #f25461;
   --mono-success: #1fa055;
-  --mono-ink: #171d29;
+  --mono-ink: #1f2b22;
   --mono-shadow: 0 12px 30px rgba(17, 25, 40, 0.12);
   --mono-card-shadow: 0 14px 28px rgba(17, 25, 40, 0.16);
   --mono-radius-xl: 28px;
@@ -27,9 +27,9 @@
   --mono-space-4: 20px;
   --mono-motion-fast: 180ms;
   --mono-motion-base: 260ms;
-  --mono-border-soft: #e5ebf5;
-  --mono-border-strong: #d6dfec;
-  --mono-focus-ring: 0 0 0 3px rgba(47, 99, 216, 0.2);
+  --mono-border-soft: #dce4d8;
+  --mono-border-strong: #ccd6c8;
+  --mono-focus-ring: 0 0 0 3px rgba(70, 102, 74, 0.22);
 }
 
 html,
@@ -269,6 +269,7 @@ body {
   scroll-snap-type: x mandatory !important;
   -webkit-overflow-scrolling: touch !important;
   gap: 14px !important;
+  perspective: 1200px !important;
   padding: 0 1px 10px !important;
 }
 
@@ -277,23 +278,64 @@ body {
   width: calc(100% - 2px) !important;
   scroll-snap-align: start !important;
   margin-right: 0 !important;
-  min-height: 156px !important;
-  border-radius: 20px !important;
-  border: none !important;
-  box-shadow: var(--mono-card-shadow) !important;
-  background: linear-gradient(168deg, #0b1322 0%, #16243f 60%, #1b2e52 100%) !important;
+  min-height: 164px !important;
+  border-radius: 22px !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 18px 34px rgba(10, 16, 26, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  background: #1d2634 !important;
+  transform-style: preserve-3d !important;
   overflow: hidden !important;
 }
 
-.bank-card-bg,
-.bank-card-noise,
 .bank-card::before,
 .bank-card::after {
-  display: none !important;
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+}
+
+.bank-card::before {
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 38%),
+    linear-gradient(300deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 52%) !important;
+  mix-blend-mode: soft-light !important;
+}
+
+.bank-card::after {
+  background:
+    radial-gradient(130% 100% at 8% 8%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 48%),
+    radial-gradient(120% 96% at 90% 95%, rgba(0, 0, 0, 0.34) 0%, rgba(0, 0, 0, 0) 58%) !important;
+}
+
+.bank-card-bg {
+  display: block !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+}
+
+.bank-card-noise {
+  display: block !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  background-image:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.032) 0 2px, rgba(255, 255, 255, 0) 2px 6px),
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.04) 0 1px, rgba(0, 0, 0, 0) 1px 4px) !important;
+  mix-blend-mode: overlay !important;
+  opacity: 0.34 !important;
 }
 
 .bank-card-content {
-  padding: 14px !important;
+  position: relative !important;
+  z-index: 3 !important;
+  height: 100% !important;
+  padding: 15px 16px 14px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
 }
 
 .bank-card .bank-card-top,
@@ -323,24 +365,79 @@ body {
 
 .bank-card-type {
   border-radius: 999px !important;
-  background: rgba(255, 255, 255, 0.12) !important;
-  padding: 4px 10px !important;
-  font-size: 12px !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  padding: 3px 9px !important;
+  font-size: 11px !important;
   letter-spacing: 0.08em !important;
   font-weight: 700 !important;
 }
 
 .bank-card-number {
-  margin-top: 12px !important;
-  letter-spacing: 0.16em !important;
-  font-size: 18px !important;
+  margin-top: 8px !important;
+  letter-spacing: 0.14em !important;
+  font-size: 17px !important;
+  font-weight: 650 !important;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25) !important;
 }
 
 .bank-card-label {
-  font-size: 12px !important;
+  font-size: 11px !important;
   opacity: 0.72 !important;
   letter-spacing: 0.08em !important;
   white-space: nowrap !important;
+}
+
+.bank-card-gold .bank-card-bg {
+  background:
+    linear-gradient(140deg, #3a2a10 0%, #5a441b 34%, #7a5f24 58%, #4d3715 100%),
+    radial-gradient(120% 90% at 0% 0%, rgba(244, 209, 118, 0.35) 0%, rgba(244, 209, 118, 0) 58%) !important;
+}
+
+.bank-card-navy .bank-card-bg {
+  background:
+    linear-gradient(145deg, #152232 0%, #24384f 42%, #1d2f45 66%, #121f2e 100%),
+    radial-gradient(120% 90% at 0% 0%, rgba(110, 147, 214, 0.24) 0%, rgba(110, 147, 214, 0) 58%) !important;
+}
+
+.bank-card-forest .bank-card-bg {
+  background:
+    linear-gradient(150deg, #263625 0%, #39513a 35%, #4c6848 66%, #2c3f2d 100%),
+    radial-gradient(130% 90% at 0% 0%, rgba(174, 198, 142, 0.26) 0%, rgba(174, 198, 142, 0) 58%) !important;
+}
+
+.bank-card-camo .bank-card-bg {
+  background:
+    radial-gradient(120% 100% at 15% 25%, rgba(119, 123, 84, 0.7) 0%, rgba(119, 123, 84, 0) 42%),
+    radial-gradient(120% 100% at 70% 70%, rgba(62, 76, 52, 0.78) 0%, rgba(62, 76, 52, 0) 45%),
+    linear-gradient(145deg, #2c3a26 0%, #49593e 34%, #394933 58%, #222f1f 100%) !important;
+}
+
+.bank-card-rose .bank-card-bg {
+  background:
+    linear-gradient(145deg, #3a2234 0%, #5f3556 44%, #7a4a6f 68%, #33202f 100%),
+    radial-gradient(120% 90% at 0% 0%, rgba(250, 171, 201, 0.24) 0%, rgba(250, 171, 201, 0) 58%) !important;
+}
+
+.bank-card-slate .bank-card-bg {
+  background:
+    linear-gradient(145deg, #2a313a 0%, #465260 42%, #37434f 68%, #242d35 100%),
+    radial-gradient(120% 90% at 0% 0%, rgba(176, 191, 208, 0.2) 0%, rgba(176, 191, 208, 0) 58%) !important;
+}
+
+.bank-card-cta {
+  background: #f2f6ee !important;
+  border: 1px dashed #c8d4c2 !important;
+  box-shadow: none !important;
+}
+
+.bank-card-cta::before,
+.bank-card-cta::after {
+  display: none !important;
+}
+
+.bank-card-blocked {
+  filter: saturate(0.52) brightness(0.8) !important;
 }
 
 .bank-cards-dots {
@@ -377,15 +474,15 @@ body {
   width: 50px !important;
   height: 50px !important;
   border-radius: 50% !important;
-  background: #121725 !important;
+  background: #202c24 !important;
   border: none !important;
-  color: #f5f7ff !important;
-  box-shadow: 0 8px 20px rgba(8, 14, 27, 0.2) !important;
+  color: #eef4e7 !important;
+  box-shadow: 0 8px 20px rgba(16, 24, 20, 0.24) !important;
   transition: transform var(--mono-motion-fast) ease, background var(--mono-motion-fast) ease !important;
 }
 
 .qa-btn:hover .qa-icon {
-  background: #0f1624 !important;
+  background: #1a241d !important;
 }
 
 .qa-btn:active .qa-icon {
@@ -500,10 +597,10 @@ body {
 
 .section-see-all {
   border: none !important;
-  background: #edf1f8 !important;
+  background: #e7ede4 !important;
   border-radius: 999px !important;
   padding: 6px 12px !important;
-  color: #5f6f88 !important;
+  color: #5e6f60 !important;
   font-size: 14px !important;
   font-weight: 700 !important;
 }
@@ -797,7 +894,7 @@ textarea:focus,
 .btn-accent,
 .btn-primary,
 .auth-submit {
-  background: #171d29 !important;
+  background: #253428 !important;
   color: #ffffff !important;
   border: none !important;
   border-radius: 14px !important;
@@ -821,7 +918,7 @@ textarea:focus,
 .btn-accent:hover,
 .btn-primary:hover,
 .auth-submit:hover {
-  background: #1f2736 !important;
+  background: #314438 !important;
 }
 
 .btn-accent:active,
@@ -1675,6 +1772,82 @@ textarea:focus,
   font-size: 13px !important;
 }
 
+.cmi-design {
+  margin-top: 10px !important;
+}
+
+.cmi-design-head {
+  display: flex !important;
+  align-items: center !important;
+  margin-bottom: 6px !important;
+}
+
+.cmi-design-label {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #67758c !important;
+}
+
+.cmi-design-palette {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 7px !important;
+}
+
+.cmi-design-dot {
+  width: 19px !important;
+  height: 19px !important;
+  border-radius: 50% !important;
+  border: 2px solid #d5ded0 !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  box-shadow: 0 1px 4px rgba(18, 26, 20, 0.2) !important;
+  transition: transform var(--mono-motion-fast) ease, border-color var(--mono-motion-fast) ease, box-shadow var(--mono-motion-fast) ease !important;
+}
+
+.cmi-design-dot:hover {
+  transform: scale(1.06) !important;
+}
+
+.cmi-design-dot.active {
+  transform: scale(1.12) !important;
+  border-color: #2f4b36 !important;
+  box-shadow: 0 0 0 2px rgba(47, 75, 54, 0.18) !important;
+}
+
+.cmi-design-dot:disabled {
+  opacity: 0.45 !important;
+  cursor: default !important;
+}
+
+.cmi-design-dot.design-gold {
+  background: linear-gradient(135deg, #7e611f 0%, #b58f34 100%) !important;
+}
+
+.cmi-design-dot.design-navy {
+  background: linear-gradient(135deg, #24384f 0%, #4c647f 100%) !important;
+}
+
+.cmi-design-dot.design-forest {
+  background: linear-gradient(135deg, #314332 0%, #5a7757 100%) !important;
+}
+
+.cmi-design-dot.design-camo {
+  background:
+    radial-gradient(85% 70% at 30% 30%, #7b8758 0%, #7b8758 35%, transparent 36%),
+    radial-gradient(95% 75% at 65% 68%, #4d5b3b 0%, #4d5b3b 40%, transparent 41%),
+    linear-gradient(135deg, #2f3f2a 0%, #596846 100%) !important;
+}
+
+.cmi-design-dot.design-rose {
+  background: linear-gradient(135deg, #62394f 0%, #9b5f84 100%) !important;
+}
+
+.cmi-design-dot.design-slate {
+  background: linear-gradient(135deg, #33404d 0%, #5f7285 100%) !important;
+}
+
 .cmi-right {
   display: flex !important;
   align-items: center !important;
@@ -1894,9 +2067,9 @@ textarea:focus,
   height: 64px !important;
   min-height: 64px !important;
   border-radius: 36px !important;
-  background: rgba(255, 255, 255, 0.96) !important;
-  border: 1px solid rgba(17, 23, 36, 0.08) !important;
-  box-shadow: 0 14px 30px rgba(16, 24, 38, 0.14) !important;
+  background: rgba(246, 249, 241, 0.96) !important;
+  border: 1px solid rgba(32, 44, 35, 0.12) !important;
+  box-shadow: 0 14px 30px rgba(18, 28, 20, 0.16) !important;
   backdrop-filter: blur(14px) !important;
   -webkit-backdrop-filter: blur(14px) !important;
   padding: 0 8px 0 !important;
