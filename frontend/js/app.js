@@ -456,6 +456,7 @@ function switchScreen(screenId) {
     appShell.classList.toggle('screen-dashboard', id === 'dashboard');
     appShell.dataset.screen = id;
   }
+  $('.bottom-nav')?.classList.remove('nav-hidden');
 
   if (id === 'transactions') loadTransactionsWithFilters();
   if (id === 'profile') renderProfileScreen();
@@ -1640,43 +1641,6 @@ $('#showQrBtn')?.addEventListener('click', () => {
     const dx = e.changedTouches[0].clientX - startX;
     // Swipe down (mobile) or right (desktop side drawer)
     if (dy > 60 || dx > 80) closeDrawer();
-  }, { passive: true });
-})();
-
-// ── PULL TO REFRESH ───────────────────────────────────────
-(function initPullToRefresh() {
-  const content = $('.app-content');
-  if (!content) return;
-  let startY = 0, pulling = false;
-  const indicator = document.createElement('div');
-  indicator.className = 'ptr-indicator hidden';
-  indicator.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="ptr-spin"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
-  content.parentNode.insertBefore(indicator, content);
-
-  content.addEventListener('touchstart', e => {
-    if (content.scrollTop === 0) {
-      startY = e.touches[0].clientY;
-      pulling = true;
-    }
-  }, { passive: true });
-
-  content.addEventListener('touchmove', e => {
-    if (!pulling) return;
-    const dy = e.touches[0].clientY - startY;
-    if (dy > 10) indicator.classList.remove('hidden');
-  }, { passive: true });
-
-  content.addEventListener('touchend', async e => {
-    if (!pulling) return;
-    const dy = e.changedTouches[0].clientY - startY;
-    pulling = false;
-    if (dy > 60) {
-      indicator.classList.add('spinning');
-      try { await refreshAllData(); showToast('Оновлено', 'success'); }
-      catch(_) {}
-      indicator.classList.remove('spinning');
-    }
-    indicator.classList.add('hidden');
   }, { passive: true });
 })();
 
@@ -3220,6 +3184,60 @@ console.log('[Army Bank] UX core modules loaded');
       if (typeof navigator.vibrate === 'function') navigator.vibrate(10);
     }
   }, { passive: true });
+})();
+
+// ── Auto-hide bottom nav on scroll (mobile) ──────────────
+(function() {
+  var content = document.querySelector('.app-content');
+  var nav = document.querySelector('.bottom-nav');
+  if (!content || !nav) return;
+
+  var lastY = 0;
+  var ticking = false;
+
+  function isMobileLayout() {
+    return window.matchMedia('(max-width: 959px)').matches;
+  }
+
+  function showNav() {
+    nav.classList.remove('nav-hidden');
+  }
+
+  function updateNav() {
+    ticking = false;
+    if (!isMobileLayout()) {
+      showNav();
+      return;
+    }
+    var y = content.scrollTop || 0;
+    var dy = y - lastY;
+    var notifOpen = document.getElementById('notifPanel')?.classList.contains('open');
+    if (notifOpen) {
+      showNav();
+      lastY = y;
+      return;
+    }
+    if (y < 20 || dy < -6) {
+      showNav();
+    } else if (dy > 8) {
+      nav.classList.add('nav-hidden');
+    }
+    lastY = y < 0 ? 0 : y;
+  }
+
+  content.addEventListener('scroll', function() {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(updateNav);
+  }, { passive: true });
+
+  content.addEventListener('touchend', function() {
+    if ((content.scrollTop || 0) < 20) showNav();
+  }, { passive: true });
+
+  window.addEventListener('resize', showNav, { passive: true });
+  window.addEventListener('orientationchange', showNav, { passive: true });
+  window.addEventListener('popstate', showNav);
 })();
 
 // ── NOTIFICATION CENTER ────────────────────────────────────────

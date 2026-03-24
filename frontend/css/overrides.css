@@ -21,6 +21,12 @@
   --mono-radius-xl: 28px;
   --mono-radius-lg: 22px;
   --mono-radius-md: 16px;
+  --mono-space-1: 8px;
+  --mono-space-2: 12px;
+  --mono-space-3: 16px;
+  --mono-space-4: 20px;
+  --mono-motion-fast: 180ms;
+  --mono-motion-base: 260ms;
 }
 
 html,
@@ -350,10 +356,11 @@ body {
 
 /* ── Main Content / Surfaces ─────────────────────── */
 .app-content {
-  padding: 10px 14px calc(var(--nav-h) + 20px + env(safe-area-inset-bottom, 0px)) !important;
+  padding: 12px 16px calc(var(--nav-h) + 24px + env(safe-area-inset-bottom, 0px)) !important;
   background: transparent !important;
   height: auto !important;
   overflow-y: auto !important;
+  scroll-padding-bottom: calc(var(--nav-h) + 28px + env(safe-area-inset-bottom, 0px)) !important;
 }
 
 #pullRefreshIndicator {
@@ -394,7 +401,27 @@ body {
 }
 
 #appScreen:not(.screen-dashboard) .app-content {
-  padding-top: 8px !important;
+  padding-top: 10px !important;
+}
+
+.screen > .section-header-row,
+.screen > .section-title,
+.screen > .cards-row,
+.screen > .card {
+  margin-bottom: var(--mono-space-3) !important;
+}
+
+.screen > .cards-row:last-child,
+.screen > .card:last-child {
+  margin-bottom: 0 !important;
+}
+
+.cards-row {
+  gap: var(--mono-space-3) !important;
+}
+
+#dashboardActionForms.open {
+  margin-top: var(--mono-space-3) !important;
 }
 
 #recentTransactionsCard {
@@ -506,6 +533,7 @@ body {
   border: none !important;
   border-radius: var(--mono-radius-lg) !important;
   box-shadow: var(--mono-shadow) !important;
+  padding: 18px !important;
 }
 
 .lbl,
@@ -601,6 +629,7 @@ textarea:focus,
 
 #transactions .card {
   border-radius: var(--mono-radius-xl) !important;
+  padding: 20px !important;
 }
 
 #transactions .tx-search-wrap input[type="search"],
@@ -879,6 +908,16 @@ textarea:focus,
   padding: 0 8px 0 !important;
   z-index: 500 !important;
   gap: 0 !important;
+  transition: transform var(--mono-motion-base) ease, opacity var(--mono-motion-fast) ease !important;
+  will-change: transform, opacity !important;
+}
+
+@media (max-width: 959px) {
+  .bottom-nav.nav-hidden {
+    transform: translateY(calc(120% + env(safe-area-inset-bottom, 0px))) !important;
+    opacity: 0.01 !important;
+    pointer-events: none !important;
+  }
 }
 
 /* ── Notification panel (closed by default) ───────── */
@@ -978,6 +1017,23 @@ textarea:focus,
   display: none !important;
 }
 
+.screen.active-screen > .section-header-row,
+.screen.active-screen > .card,
+.screen.active-screen > .cards-row {
+  animation: monoRise var(--mono-motion-base) cubic-bezier(0.2, 0.7, 0.2, 1) both !important;
+}
+
+@keyframes monoRise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ── Desktop: centered app frame ─────────────────── */
 @media (min-width: 960px) {
   #appScreen.app-shell {
@@ -1003,7 +1059,7 @@ textarea:focus,
 
   .app-content {
     max-width: none !important;
-    padding: 10px 14px calc(var(--nav-h) + 28px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 12px 16px calc(var(--nav-h) + 30px + env(safe-area-inset-bottom, 0px)) !important;
     height: auto !important;
   }
 
