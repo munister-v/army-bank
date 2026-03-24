@@ -1,0 +1,21 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # every 5 minutes, 24/7
+  workflow_dispatch:          # manual trigger if needed
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping Army Bank
+        run: |
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 25 https://army-bank.onrender.com/)
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+            echo "✅ Army Bank is alive (${STATUS})"
+          else
+            echo "⚠️ Unexpected status: ${STATUS}"
+          fi
