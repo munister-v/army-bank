@@ -31,10 +31,10 @@
   <!-- Main stylesheet: async load (non-blocking), display:none swap triggers once loaded -->
   <link rel="stylesheet" href="/css/styles.css?v=27" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="/css/styles.css?v=27"></noscript>
-  <link rel="stylesheet" href="/css/overrides.css?v=12">
+  <link rel="stylesheet" href="/css/overrides.css?v=13">
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js" as="script">
-  <link rel="preload" href="/js/app.js?v=25" as="script">
+  <link rel="preload" href="/js/app.js?v=26" as="script">
   <!-- Early server wake-up: ping /health if session token exists (mitigates Render cold-start) -->
   <script>
     (function(){
@@ -518,6 +518,7 @@
                 <option value="">— Обрати шаблон —</option>
               </select>
             </label>
+            <div id="transferQuickRecipients" class="transfer-quick-recipients hidden"></div>
             <!-- Account number input (default) -->
             <label class="lbl" id="transferAccountLabel">Рахунок отримувача<input name="recipient_account_number" placeholder="AB-100001"></label>
             <!-- Card number input (hidden by default) -->
@@ -596,6 +597,13 @@
               <svg class="tx-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               <input id="txSearchInput" type="search" placeholder="Пошук за описом…" autocomplete="off">
             </div>
+          </div>
+          <div class="tx-quick-filters" id="txQuickFilters">
+            <button type="button" class="tx-qf-chip" data-range="today">Сьогодні</button>
+            <button type="button" class="tx-qf-chip" data-days="7">7 днів</button>
+            <button type="button" class="tx-qf-chip" data-days="30">30 днів</button>
+            <button type="button" class="tx-qf-chip" data-range="month">Місяць</button>
+            <button type="button" class="tx-qf-chip tx-qf-clear" data-range="clear">Скинути</button>
           </div>
           <form id="transactionsFilters" class="filters-row">
             <label class="lbl">З дати<input type="date" name="from_date"></label>
@@ -1228,7 +1236,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js" defer></script>
-  <script src="/js/app.js?v=25" defer></script>
+  <script src="/js/app.js?v=26" defer></script>
   <script>
     /* ── Service Worker ── */
     if ('serviceWorker' in navigator) {

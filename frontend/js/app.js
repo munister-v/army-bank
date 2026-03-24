@@ -99,6 +99,279 @@ const TX_TYPE_LABELS = {
   payout: 'Виплата', donation: 'Донат', savings: 'Накопичення',
 };
 
+const TRANSFER_DRAFT_KEY = 'ab_transfer_draft_v1';
+const TX_QUICK_FILTER_KEY = 'ab_tx_quick_filter_v1';
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatLocalDateISO(date) {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function normalizeAccountNumber(value) {
+  let v = String(value || '').toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '');
+  if (v.startsWith('AB') && !v.startsWith('AB-')) {
+    v = v.replace(/^AB-?/, 'AB-');
+  }
+  return v;
+}
+
+function isLikelyAccountNumber(value) {
+  return /^AB-\d{4,}$/.test(normalizeAccountNumber(value));
+}
+
+function getTransferMode() {
+  return ($('#transferModeToggle .tmt-btn.active') || {}).dataset?.mode || 'account';
+}
+
+function setTransferMode(mode) {
+  const nextMode = mode === 'card' ? 'card' : 'account';
+  const btn = document.querySelector(`#transferModeToggle .tmt-btn[data-mode="${nextMode}"]`);
+  if (!btn) return;
+  if (!btn.classList.contains('active')) btn.click();
+}
+
+function readTransferDraft() {
+  try {
+    const raw = localStorage.getItem(TRANSFER_DRAFT_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return (parsed && typeof parsed === 'object') ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function writeTransferDraft(draft) {
+  try { localStorage.setItem(TRANSFER_DRAFT_KEY, JSON.stringify(draft)); }
+  catch (_) {}
+}
+
+function clearTransferDraft() {
+  try { localStorage.removeItem(TRANSFER_DRAFT_KEY); }
+  catch (_) {}
+}
+
+function saveTransferDraftFromForm() {
+  const form = $('#transferForm');
+  if (!form) return;
+  const mode = getTransferMode();
+  const account = normalizeAccountNumber(form.recipient_account_number?.value || '');
+  const card = (form.recipient_card_number?.value || '').replace(/[^\d\s]/g, '').trim();
+  const amount = form.amount?.value || '';
+  const description = form.description?.value || '';
+  const templateId = form.template_id?.value || '';
+  const hasData = account || card || amount || description || templateId;
+  if (!hasData) {
+    clearTransferDraft();
+    return;
+  }
+  writeTransferDraft({ mode, account, card, amount, description, template_id: templateId, ts: Date.now() });
+}
+
+function restoreTransferDraft() {
+  const form = $('#transferForm');
+  if (!form) return;
+  const draft = readTransferDraft();
+  if (!draft) return;
+
+  setTransferMode(draft.mode || 'account');
+  if (form.recipient_account_number && draft.account) form.recipient_account_number.value = draft.account;
+  if (form.recipient_card_number && draft.card) form.recipient_card_number.value = draft.card;
+  if (form.amount && draft.amount) form.amount.value = draft.amount;
+  if (form.description && draft.description) form.description.value = draft.description;
+  if (form.template_id && draft.template_id) form.template_id.value = draft.template_id;
+}
+
+function initTransferDraftAutosave() {
+  const form = $('#transferForm');
+  if (!form) return;
+  ['input', 'change'].forEach((evt) => {
+    form.addEventListener(evt, saveTransferDraftFromForm);
+  });
+  restoreTransferDraft();
+}
+
+function goToDashboardTransferForm() {
+  const activeScreen = document.querySelector('.screen.active-screen')?.id;
+  if (activeScreen !== 'dashboard') {
+    const base = getBasePath();
+    window.history.pushState(null, '', base ? base + '/dashboard' : '/dashboard');
+    switchScreen('dashboard');
+  }
+  setDashboardActionFormsOpen(true);
+  const form = $('#transferForm');
+  form?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function prefillTransferForm(options = {}) {
+  const form = $('#transferForm');
+  if (!form) return false;
+  const mode = options.mode === 'card' ? 'card' : 'account';
+  setTransferMode(mode);
+  if (mode === 'card') {
+    if (form.recipient_card_number) form.recipient_card_number.value = options.card || '';
+    if (form.recipient_account_number) form.recipient_account_number.value = '';
+  } else {
+    if (form.recipient_account_number) form.recipient_account_number.value = normalizeAccountNumber(options.account || '');
+    if (form.recipient_card_number) form.recipient_card_number.value = '';
+  }
+  if (form.amount && options.amount !== undefined && options.amount !== null && options.amount !== '') {
+    const num = Number(options.amount);
+    form.amount.value = Number.isFinite(num) ? num.toFixed(2) : String(options.amount);
+  }
+  if (form.description && options.description) form.description.value = options.description;
+  saveTransferDraftFromForm();
+  return true;
+}
+
+function buildQuickRecipients(contacts = [], transactions = []) {
+  const map = new Map();
+
+  contacts.forEach((row, idx) => {
+    const acc = normalizeAccountNumber(row.account_number || '');
+    if (!isLikelyAccountNumber(acc)) return;
+    map.set(acc, {
+      account: acc,
+      title: row.contact_name || `Контакт ${idx + 1}`,
+      score: 300 - idx * 3,
+    });
+  });
+
+  transactions.forEach((tx, idx) => {
+    if (tx.tx_type !== 'transfer' || tx.direction !== 'out') return;
+    const acc = normalizeAccountNumber(tx.related_account || '');
+    if (!isLikelyAccountNumber(acc)) return;
+    const score = Math.max(1, 120 - idx);
+    const existing = map.get(acc);
+    if (existing) {
+      existing.score += score;
+      return;
+    }
+    map.set(acc, {
+      account: acc,
+      title: 'Швидкий переказ',
+      score: score,
+    });
+  });
+
+  return Array.from(map.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+}
+
+function renderTransferQuickRecipients(items = []) {
+  const wrap = $('#transferQuickRecipients');
+  if (!wrap) return;
+
+  if (!items.length) {
+    wrap.classList.add('hidden');
+    wrap.innerHTML = '';
+    return;
+  }
+
+  wrap.innerHTML = items.map((item) => {
+    const shortAcc = item.account.length > 10 ? `${item.account.slice(0, 7)}…${item.account.slice(-2)}` : item.account;
+    return `<button type="button" class="tqr-chip" data-quick-account="${escapeHtml(item.account)}" title="${escapeHtml(item.account)}">${escapeHtml(item.title)} · ${escapeHtml(shortAcc)}</button>`;
+  }).join('');
+
+  wrap.classList.remove('hidden');
+  wrap.querySelectorAll('[data-quick-account]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const account = normalizeAccountNumber(btn.dataset.quickAccount || '');
+      if (!account) return;
+      goToDashboardTransferForm();
+      prefillTransferForm({ mode: 'account', account: account });
+      showToast(`Отримувач ${account} підставлено.`, 'success');
+    });
+  });
+}
+
+function setTxQuickFilterActive(key) {
+  $$('#txQuickFilters .tx-qf-chip').forEach((btn) => {
+    const btnKey = btn.dataset.days ? `days${btn.dataset.days}` : (btn.dataset.range || '');
+    btn.classList.toggle('active', !!key && key !== 'clear' && btnKey === key);
+  });
+}
+
+function applyTxQuickFilter(key, options = {}) {
+  const opts = { reload: true, persist: true, ...options };
+  const form = $('#transactionsFilters');
+  if (!form) return;
+
+  const fromInput = form.querySelector('[name="from_date"]');
+  const toInput = form.querySelector('[name="to_date"]');
+  if (!fromInput || !toInput) return;
+
+  const now = new Date();
+  const today = formatLocalDateISO(now);
+  let nextKey = key;
+
+  if (key === 'today') {
+    fromInput.value = today;
+    toInput.value = today;
+  } else if (key === 'month') {
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    fromInput.value = formatLocalDateISO(monthStart);
+    toInput.value = today;
+  } else if (key === 'days7' || key === 'days30') {
+    const days = key === 'days7' ? 7 : 30;
+    const from = new Date(now);
+    from.setDate(now.getDate() - (days - 1));
+    fromInput.value = formatLocalDateISO(from);
+    toInput.value = today;
+  } else {
+    nextKey = 'clear';
+    fromInput.value = '';
+    toInput.value = '';
+  }
+
+  setTxQuickFilterActive(nextKey);
+  if (opts.persist) {
+    if (nextKey === 'clear') localStorage.removeItem(TX_QUICK_FILTER_KEY);
+    else localStorage.setItem(TX_QUICK_FILTER_KEY, nextKey);
+  }
+  if (opts.reload) loadTransactionsWithFilters();
+}
+
+function initTxQuickFilters() {
+  const wrap = $('#txQuickFilters');
+  if (!wrap) return;
+  wrap.addEventListener('click', (event) => {
+    const btn = event.target.closest('.tx-qf-chip');
+    if (!btn) return;
+    if (btn.dataset.range === 'today') return applyTxQuickFilter('today');
+    if (btn.dataset.range === 'month') return applyTxQuickFilter('month');
+    if (btn.dataset.range === 'clear') return applyTxQuickFilter('clear');
+    if (btn.dataset.days === '7') return applyTxQuickFilter('days7');
+    if (btn.dataset.days === '30') return applyTxQuickFilter('days30');
+  });
+
+  const form = $('#transactionsFilters');
+  if (form) {
+    ['from_date', 'to_date'].forEach((name) => {
+      form.querySelector(`[name="${name}"]`)?.addEventListener('change', () => {
+        localStorage.removeItem(TX_QUICK_FILTER_KEY);
+        setTxQuickFilterActive('');
+      });
+    });
+  }
+
+  const savedKey = localStorage.getItem(TX_QUICK_FILTER_KEY);
+  if (savedKey) applyTxQuickFilter(savedKey, { reload: false, persist: false });
+}
+
 function renderTransactions(list, container = '#transactionsList') {
   const el = $(container);
   if (!el) return;
@@ -150,7 +423,10 @@ function renderTransactions(list, container = '#transactionsList') {
 
   // Bind click → drawer
   el.querySelectorAll('.item-clickable').forEach(item => {
-    item.addEventListener('click', () => openTxDrawer(Number(item.dataset.txId)));
+    item.addEventListener('click', () => {
+      const fn = (typeof window !== 'undefined' && window.openTxDrawer) ? window.openTxDrawer : openTxDrawer;
+      fn(Number(item.dataset.txId));
+    });
   });
 }
 
@@ -744,6 +1020,7 @@ async function refreshAllData() {
 
     renderTransactions(transactions.slice(0, 5), '#recentTransactions');
     renderTransactions(transactions, '#transactionsList');
+    renderTransferQuickRecipients(buildQuickRecipients(contacts, transactions));
 
     renderSimpleList('#payoutsList', payouts, (row) => `
       <div class="item">
@@ -874,15 +1151,10 @@ async function refreshAllData() {
     $$('#contactsList [data-transfer-account]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const acc = btn.dataset.transferAccount;
-        const form = $('#transferForm');
-        if (form) {
-          form.recipient_account_number.value = acc;
-          const base = getBasePath();
-          window.history.pushState(null, '', base ? base + '/dashboard' : '/dashboard');
-          switchScreen('dashboard');
-          form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          showToast(`Рахунок ${acc} підставлено у форму переказу.`);
-        }
+        if (!acc) return;
+        goToDashboardTransferForm();
+        prefillTransferForm({ mode: 'account', account: acc });
+        showToast(`Рахунок ${acc} підставлено у форму переказу.`);
       });
     });
 
@@ -1017,7 +1289,7 @@ bindJsonForm('#transferForm', () => {
       };
     }
     return {
-      recipient_account_number: v.recipient_account_number,
+      recipient_account_number: normalizeAccountNumber(v.recipient_account_number),
       amount: Number(v.amount),
       description: v.description || 'Переказ',
     };
@@ -1027,6 +1299,7 @@ bindJsonForm('#transferForm', () => {
     form.description.value = 'Переказ родині';
     const sel = $('#transferTemplateSelect');
     if (sel) sel.value = '';
+    clearTransferDraft();
   },
 });
 
@@ -1035,9 +1308,11 @@ $('#transferTemplateSelect')?.addEventListener('change', function () {
   if (!opt || !opt.value) return;
   const form = $('#transferForm');
   if (form) {
+    setTransferMode('account');
     form.recipient_account_number.value = opt.dataset.account || '';
     form.amount.value = opt.dataset.amount || '';
     form.description.value = (opt.dataset.desc || '').replace(/&quot;/g, '"');
+    saveTransferDraftFromForm();
   }
 });
 
@@ -1056,33 +1331,53 @@ $('#transferTemplateSelect')?.addEventListener('change', function () {
 
   toggle.addEventListener('click', (e) => {
     const btn = e.target.closest('.tmt-btn');
-    if (btn) applyMode(btn.dataset.mode);
+    if (btn) {
+      applyMode(btn.dataset.mode);
+      saveTransferDraftFromForm();
+    }
   });
 
   // Card number auto-format + status indicator
   document.addEventListener('input', (e) => {
-    if (e.target.name !== 'recipient_card_number') return;
-    const inp = e.target;
-    const raw = inp.value.replace(/\D/g, '').slice(0, 16);
-    const formatted = raw.replace(/(.{4})(?=.)/g, '$1 ');
-    if (inp.value !== formatted) {
-      const pos = inp.selectionStart;
-      inp.value = formatted;
-      inp.setSelectionRange(Math.min(pos, formatted.length), Math.min(pos, formatted.length));
-    }
-    const status = $('#cardLookupStatus');
-    if (status) {
-      if (raw.length === 16) {
-        status.textContent = '✓';
-        status.className = 'card-lookup-status ok';
-      } else if (raw.length > 0) {
-        status.textContent = raw.length + '/16';
-        status.className = 'card-lookup-status pending';
-      } else {
-        status.textContent = '';
-        status.className = 'card-lookup-status';
+    if (e.target.name === 'recipient_card_number') {
+      const inp = e.target;
+      const raw = inp.value.replace(/\D/g, '').slice(0, 16);
+      const formatted = raw.replace(/(.{4})(?=.)/g, '$1 ');
+      if (inp.value !== formatted) {
+        const pos = inp.selectionStart;
+        inp.value = formatted;
+        inp.setSelectionRange(Math.min(pos, formatted.length), Math.min(pos, formatted.length));
       }
+      const status = $('#cardLookupStatus');
+      if (status) {
+        if (raw.length === 16) {
+          status.textContent = '✓';
+          status.className = 'card-lookup-status ok';
+        } else if (raw.length > 0) {
+          status.textContent = raw.length + '/16';
+          status.className = 'card-lookup-status pending';
+        } else {
+          status.textContent = '';
+          status.className = 'card-lookup-status';
+        }
+      }
+      saveTransferDraftFromForm();
+      return;
     }
+
+    if (e.target.name === 'recipient_account_number') {
+      const inp = e.target;
+      const normalized = normalizeAccountNumber(inp.value);
+      if (inp.value !== normalized) {
+        const pos = inp.selectionStart;
+        inp.value = normalized;
+        inp.setSelectionRange(Math.min(pos, normalized.length), Math.min(pos, normalized.length));
+      }
+      saveTransferDraftFromForm();
+      return;
+    }
+
+    if (e.target.closest('#transferForm')) saveTransferDraftFromForm();
   });
 })();
 
@@ -1126,8 +1421,13 @@ $('#transferTemplateSelect')?.addEventListener('change', function () {
       if (raw.length !== 16) { showToast('Введіть повний номер картки (16 цифр)'); return; }
       toVal = form.recipient_card_number.value;
     } else {
-      toVal = form.recipient_account_number?.value || '';
+      toVal = normalizeAccountNumber(form.recipient_account_number?.value || '');
       if (!toVal) { showToast('Введіть номер рахунку'); return; }
+      if (!isLikelyAccountNumber(toVal)) {
+        showToast('Формат рахунку: AB-100001');
+        return;
+      }
+      if (form.recipient_account_number) form.recipient_account_number.value = toVal;
     }
 
     if (!amount || amount <= 0) { showToast('Введіть суму переказу'); return; }
@@ -1205,6 +1505,8 @@ bindJsonForm('#templateForm', () => '/api/payment-templates', {
 
 $('#transactionsFilters')?.addEventListener('submit', (event) => {
   event.preventDefault();
+  localStorage.removeItem(TX_QUICK_FILTER_KEY);
+  setTxQuickFilterActive('');
   loadTransactionsWithFilters();
   showToast('Фільтри застосовано.');
 });
@@ -1553,6 +1855,8 @@ function initQuickAmounts() {
   });
 }
 initQuickAmounts();
+initTransferDraftAutosave();
+initTxQuickFilters();
 
 // ── SECURITY LOG ──────────────────────────────────────────
 let _secLogLoaded = false;
@@ -2676,12 +2980,21 @@ async function loadTopRecipients() {
     el.style.display = '';
     el.innerHTML = '<h3 class="card-title" style="margin-bottom:12px">Топ отримувачів</h3>' +
       list.map(function(r, i) {
-        return '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">' +
+        return '<button type="button" class="top-recipient-row" data-top-account="' + escapeHtml(r.related_account || '') + '" style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);width:100%;background:transparent;border-left:none;border-right:none;border-top:none;text-align:left">' +
           '<div style="width:24px;height:24px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:var(--green)">' + (i+1) + '</div>' +
-          '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + r.related_account + '</div>' +
+          '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(r.related_account || '—') + '</div>' +
           '<div class="muted">' + r.tx_count + ' переказів</div></div>' +
-          '<div style="font-weight:900;color:var(--red)">\u2212' + formatMoney(r.total_sent) + '</div></div>';
+          '<div style="font-weight:900;color:var(--red)">\u2212' + formatMoney(r.total_sent) + '</div></button>';
       }).join('');
+    el.querySelectorAll('[data-top-account]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const account = normalizeAccountNumber(btn.dataset.topAccount || '');
+        if (!isLikelyAccountNumber(account)) return;
+        goToDashboardTransferForm();
+        prefillTransferForm({ mode: 'account', account: account });
+        showToast(`Переказ на ${account} підготовлено.`, 'success');
+      });
+    });
   } catch (_e) {}
 }
 
@@ -2876,6 +3189,19 @@ async function loadTagsCloud() {
 
 // Patch openTxDrawer to include tags section
 const _origOpenTxDrawer = openTxDrawer;
+
+function getRepeatTransferTarget(tx) {
+  if (!tx || tx.tx_type !== 'transfer' || tx.direction !== 'out' || !tx.related_account) return null;
+  const related = String(tx.related_account || '').trim();
+  const digits = related.replace(/\D/g, '');
+  if (digits.length === 16) {
+    return { mode: 'card', card: digits.replace(/(.{4})(?=.)/g, '$1 ') };
+  }
+  const normalized = normalizeAccountNumber(related);
+  if (!isLikelyAccountNumber(normalized)) return null;
+  return { mode: 'account', account: normalized };
+}
+
 window.openTxDrawer = async function(txId) {
   if (!txId) return;
   openDrawer();
@@ -2887,6 +3213,10 @@ window.openTxDrawer = async function(txId) {
     const tagBadges = tx.tags
       ? tx.tags.split(',').map(function(t) { return t.trim(); }).filter(Boolean)
           .map(function(t) { return '<span class="tag-badge">' + t + '</span>'; }).join('')
+      : '';
+    const repeatTarget = getRepeatTransferTarget(tx);
+    const repeatButtonHtml = repeatTarget
+      ? '<button class="btn-accent" id="repeatTransferBtn" style="width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px">Повторити переказ</button>'
       : '';
     body.innerHTML =
       '<div class="drawer-amount ' + tx.direction + '">' +
@@ -2905,6 +3235,7 @@ window.openTxDrawer = async function(txId) {
         '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>' +
         'Поділитися' +
       '</button>' +
+      repeatButtonHtml +
       '<div class="drawer-note-section">' +
         '<label class="drawer-note-label">Нотатка</label>' +
         '<textarea id="drawerNoteInput" class="drawer-note-input" placeholder="Додайте особисту нотатку\u2026" rows="2">' + (tx.note || '') + '</textarea>' +
@@ -2918,6 +3249,19 @@ window.openTxDrawer = async function(txId) {
 
     $('#shareTxBtn')?.addEventListener('click', function() {
       if (typeof shareTransaction === 'function') shareTransaction(tx);
+    });
+    $('#repeatTransferBtn')?.addEventListener('click', function() {
+      if (!repeatTarget) return;
+      goToDashboardTransferForm();
+      prefillTransferForm({
+        mode: repeatTarget.mode,
+        account: repeatTarget.account,
+        card: repeatTarget.card,
+        amount: tx.amount,
+        description: tx.description || 'Переказ',
+      });
+      closeDrawer();
+      showToast('Переказ підготовлено до повтору.', 'success');
     });
     $('#saveNoteBtn')?.addEventListener('click', async function() {
       const note = ($('#drawerNoteInput') || {}).value || '';

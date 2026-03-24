@@ -745,6 +745,98 @@ body {
   width: 100% !important;
 }
 
+.transfer-quick-recipients {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  margin: -2px 0 12px !important;
+}
+
+.transfer-quick-recipients.hidden {
+  display: none !important;
+}
+
+.tqr-chip {
+  appearance: none !important;
+  border: 1px solid #d3ddcf !important;
+  background: #f3f7ef !important;
+  color: #2f4834 !important;
+  border-radius: 999px !important;
+  padding: 6px 10px !important;
+  min-height: 30px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  transition: transform var(--mono-motion-fast) ease, background var(--mono-motion-fast) ease, border-color var(--mono-motion-fast) ease, color var(--mono-motion-fast) ease !important;
+}
+
+.tqr-chip:hover {
+  background: #e8f1e2 !important;
+  border-color: #b9c9b3 !important;
+  color: #1d3522 !important;
+}
+
+.tqr-chip:active {
+  transform: scale(0.98) !important;
+}
+
+.tqr-chip:focus-visible {
+  outline: none !important;
+  box-shadow: var(--mono-focus-ring) !important;
+}
+
+.tx-quick-filters {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  margin: 8px 0 10px !important;
+}
+
+.tx-qf-chip {
+  appearance: none !important;
+  border: 1px solid #d6deea !important;
+  background: #f5f8fd !important;
+  color: #52627d !important;
+  border-radius: 999px !important;
+  min-height: 30px !important;
+  padding: 6px 11px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  transition: background var(--mono-motion-fast) ease, border-color var(--mono-motion-fast) ease, color var(--mono-motion-fast) ease, transform var(--mono-motion-fast) ease !important;
+}
+
+.tx-qf-chip:hover {
+  background: #ecf2fb !important;
+  border-color: #c6d3ea !important;
+  color: #30415f !important;
+}
+
+.tx-qf-chip.active {
+  background: #dde9fb !important;
+  border-color: #bbcee9 !important;
+  color: #1f3352 !important;
+}
+
+.tx-qf-chip:active {
+  transform: scale(0.98) !important;
+}
+
+.tx-qf-chip:focus-visible {
+  outline: none !important;
+  box-shadow: var(--mono-focus-ring) !important;
+}
+
+.tx-qf-chip.tx-qf-clear {
+  color: #7a889f !important;
+}
+
 .transfer-mode-toggle {
   display: grid !important;
   grid-template-columns: 1fr 1fr !important;
