@@ -467,6 +467,7 @@ body {
 }
 
 .cards-row {
+  grid-template-columns: 1fr !important;
   gap: var(--mono-space-3) !important;
 }
 
@@ -1071,6 +1072,530 @@ textarea:focus,
 #profile .list .item,
 #profile .list .item-with-actions {
   border-bottom-color: var(--mono-border-soft) !important;
+}
+
+/* App blocks: one coherent visual system */
+.card-head {
+  margin-bottom: 12px !important;
+}
+
+.card-head h3 {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+  color: #151b27 !important;
+}
+
+.card-icon-wrap {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 10px !important;
+}
+
+.empty-state {
+  border-radius: 14px !important;
+  border: 1px dashed var(--mono-border-strong) !important;
+  background: #f7f9fd !important;
+  color: #738097 !important;
+  padding: 16px 14px !important;
+  font-size: 13px !important;
+}
+
+.empty-state strong {
+  color: #2a3447 !important;
+  font-size: 14px !important;
+}
+
+/* Achievements */
+#achieveCount {
+  background: #edf2fa !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  border-radius: 999px !important;
+  padding: 4px 9px !important;
+  color: #5f708a !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+
+.achievements-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.achieve-item {
+  display: grid !important;
+  grid-template-columns: auto 1fr auto !important;
+  align-items: center !important;
+  gap: 10px !important;
+  border-radius: 14px !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  background: #f8faff !important;
+  padding: 10px 12px !important;
+}
+
+.achieve-item.done {
+  background: #eef8f2 !important;
+  border-color: #cfe9da !important;
+}
+
+.achieve-item.locked {
+  opacity: 0.9 !important;
+}
+
+.achieve-icon {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  border: 1px solid #dfe7f3 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 16px !important;
+}
+
+.achieve-body {
+  min-width: 0 !important;
+}
+
+.achieve-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #1b2435 !important;
+}
+
+.achieve-desc {
+  margin-top: 2px !important;
+  font-size: 12px !important;
+  color: #7e8aa1 !important;
+  line-height: 1.35 !important;
+}
+
+.achieve-check {
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 50% !important;
+  background: #1ea15a !important;
+  color: #ffffff !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+}
+
+/* Insights + forecast */
+.insights-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.insight-item {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
+  border-radius: 12px !important;
+  background: #f6f9ff !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  padding: 10px 12px !important;
+}
+
+.insight-icon {
+  font-size: 15px !important;
+  line-height: 1.2 !important;
+}
+
+.insight-text {
+  font-size: 13px !important;
+  color: #2a3449 !important;
+  line-height: 1.35 !important;
+}
+
+.forecast-trend {
+  padding: 8px 10px !important;
+  border-radius: 12px !important;
+  background: #f4f7fc !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  font-size: 13px !important;
+  margin-bottom: 10px !important;
+}
+
+.forecast-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+.forecast-item {
+  background: #f8faff !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  border-radius: 12px !important;
+  padding: 10px 8px !important;
+  text-align: center !important;
+}
+
+.forecast-period {
+  font-size: 12px !important;
+  color: #6f7e95 !important;
+  margin-bottom: 4px !important;
+}
+
+.forecast-balance {
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.forecast-balance.up {
+  color: #1ea15a !important;
+}
+
+.forecast-balance.down {
+  color: #d14a58 !important;
+}
+
+.forecast-change {
+  margin-top: 3px !important;
+  font-size: 11px !important;
+}
+
+/* Currency block */
+.currency-rates {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  margin-bottom: 10px !important;
+}
+
+.rate-item {
+  background: #f7f9fd !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  border-radius: 12px !important;
+  padding: 10px !important;
+  display: grid !important;
+  grid-template-columns: auto 1fr auto !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.rate-flag {
+  font-size: 16px !important;
+}
+
+.rate-code {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #6f7e96 !important;
+}
+
+.rate-val {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #1d2a3f !important;
+}
+
+.currency-converter {
+  border-top: 1px solid var(--mono-border-soft) !important;
+  padding-top: 10px !important;
+}
+
+.conv-row {
+  display: grid !important;
+  grid-template-columns: 1fr 96px auto 96px !important;
+  gap: 6px !important;
+  align-items: center !important;
+}
+
+.conv-arrow {
+  color: #7a879d !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+
+.conv-result {
+  margin-top: 8px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #20314f !important;
+  text-align: center !important;
+}
+
+/* Savings calculator */
+.calc-grid {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 8px !important;
+}
+
+.calc-result {
+  margin-top: 10px !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  background: #f5f8fe !important;
+  border-radius: 14px !important;
+  padding: 12px !important;
+}
+
+.calc-main {
+  font-size: 24px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em !important;
+  color: #151d2f !important;
+}
+
+/* Goal / donation / contacts list blocks */
+#donationsList .item,
+#goalsList .item-with-actions,
+#contactsList .item-with-actions {
+  border: 1px solid var(--mono-border-soft) !important;
+  border-radius: 14px !important;
+  background: #f8faff !important;
+  padding: 11px 12px !important;
+  margin-bottom: 8px !important;
+  border-bottom: 1px solid var(--mono-border-soft) !important;
+}
+
+#donationsList .item:last-child,
+#goalsList .item-with-actions:last-child,
+#contactsList .item-with-actions:last-child {
+  margin-bottom: 0 !important;
+}
+
+.pct-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 46px !important;
+  min-height: 24px !important;
+  padding: 0 8px !important;
+  border-radius: 999px !important;
+  background: #e9eff9 !important;
+  color: #2a4062 !important;
+  border: 1px solid #cfdaeb !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+
+.pct-badge.done {
+  background: #e8f7ef !important;
+  border-color: #c2e7d0 !important;
+  color: #1c8a50 !important;
+}
+
+.item-btns {
+  gap: 7px !important;
+}
+
+.btn-icon-danger,
+.btn-icon-transfer,
+.btn-icon-history {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  background: #f3f6fb !important;
+  color: #64758f !important;
+  transition: transform var(--mono-motion-fast) ease, background var(--mono-motion-fast) ease !important;
+}
+
+.btn-icon-transfer {
+  background: #edf4ff !important;
+  border-color: #d4e1f8 !important;
+  color: #2e63c8 !important;
+}
+
+.btn-icon-danger {
+  background: #fff2f4 !important;
+  border-color: #f4d0d6 !important;
+  color: #bb4b59 !important;
+}
+
+.btn-icon-danger:hover,
+.btn-icon-transfer:hover,
+.btn-icon-history:hover {
+  transform: scale(1.03) !important;
+}
+
+/* Sessions and security */
+#securityLogList,
+#sessionsList {
+  margin-top: 8px !important;
+}
+
+.session-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  border-radius: 12px !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  background: #f8faff !important;
+  padding: 10px 12px !important;
+  margin-bottom: 8px !important;
+}
+
+.session-item:last-child {
+  margin-bottom: 0 !important;
+}
+
+.session-label {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #1f2b41 !important;
+}
+
+.session-current {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 2px 7px !important;
+  border-radius: 999px !important;
+  background: #e8f7ef !important;
+  color: #1b8a50 !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  margin-right: 4px !important;
+}
+
+.session-dates {
+  font-size: 12px !important;
+  color: #7f8ba0 !important;
+  margin-top: 2px !important;
+}
+
+/* Security log + budget cards */
+.sec-log-loading,
+.sec-log-error {
+  border-radius: 12px !important;
+  border: 1px dashed var(--mono-border-strong) !important;
+  background: #f8faff !important;
+  padding: 12px !important;
+  font-size: 13px !important;
+  color: #718198 !important;
+}
+
+.sec-log-error {
+  color: #b24a58 !important;
+}
+
+.sec-log-item {
+  display: grid !important;
+  grid-template-columns: auto 1fr !important;
+  gap: 10px !important;
+  align-items: center !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  background: #f8faff !important;
+  border-radius: 12px !important;
+  padding: 10px 12px !important;
+  margin-bottom: 8px !important;
+}
+
+.sec-log-item:last-child {
+  margin-bottom: 0 !important;
+}
+
+.sec-log-icon {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 50% !important;
+  background: #eef3fb !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 14px !important;
+}
+
+.sec-log-action {
+  font-size: 13px !important;
+  color: #1e2a3f !important;
+  font-weight: 700 !important;
+}
+
+.sec-log-date {
+  margin-top: 2px !important;
+  font-size: 12px !important;
+}
+
+.budget-limits-list,
+.budget-progress-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.budget-limit-item,
+.budget-progress-item {
+  border-radius: 12px !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  background: #f8faff !important;
+  padding: 10px 12px !important;
+}
+
+.bl-header,
+.bpi-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-bottom: 7px !important;
+}
+
+.bl-type,
+.bpi-label {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #253249 !important;
+}
+
+.bl-pct,
+.bpi-amounts {
+  margin-left: auto !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+
+.bl-amounts {
+  margin-top: 6px !important;
+  font-size: 12px !important;
+  color: #7a879e !important;
+}
+
+.bpi-bar {
+  height: 8px !important;
+  border-radius: 999px !important;
+  background: #e9eef7 !important;
+  overflow: hidden !important;
+}
+
+.bpi-fill {
+  height: 100% !important;
+  border-radius: inherit !important;
+  background: #2f63d8 !important;
+}
+
+.bpi-fill.warn {
+  background: #d68f37 !important;
+}
+
+.bpi-fill.over {
+  background: #d14f5e !important;
+}
+
+@media (max-width: 420px) {
+  .forecast-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .currency-rates {
+    grid-template-columns: 1fr !important;
+  }
+
+  .conv-row {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .conv-arrow {
+    display: none !important;
+  }
 }
 
 /* Cards screen: full styling for dynamic card list + controls */
