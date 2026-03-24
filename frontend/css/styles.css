@@ -7220,3 +7220,24 @@ html body .bottom-nav .menu-btn.active svg {
     display: block !important;
   }
 }
+
+/* v14.1: keep home minimal, open action forms only on demand */
+html body #velocityCard {
+  display: none !important;
+}
+
+html body #dashboardActionForms {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+  margin-top: 0 !important;
+  pointer-events: none !important;
+  transition: max-height 0.36s ease, opacity 0.22s ease, margin-top 0.22s ease !important;
+}
+
+html body #dashboardActionForms.open {
+  max-height: 1600px !important;
+  opacity: 1 !important;
+  margin-top: 10px !important;
+  pointer-events: auto !important;
+}
