@@ -1,0 +1,281 @@
+/*
+ * ARMY BANK — MONOBANK LAYOUT
+ * Цей файл завантажується ПІСЛЯ styles.css і перевизначає ВСЕ
+ * Один чистий шар без конфліктів
+ */
+
+/* ─────────────────────────────────────────
+   1. ФОН — синій градієнт як у monobank
+───────────────────────────────────────── */
+html, body { background: #162c5c !important; }
+
+.app-shell,
+#appScreen {
+  background: linear-gradient(175deg, #162c5c 0%, #1a3470 40%, #1d3a7d 100%) !important;
+  min-height: 100vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* ─────────────────────────────────────────
+   2. ХЕДЕР — прозорий, на синьому фоні
+───────────────────────────────────────── */
+.app-header {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 16px 20px 8px !important;
+}
+.header-name { color: #fff !important; font-size: 15px !important; font-weight: 600 !important; }
+.header-role { color: rgba(255,255,255,.5) !important; font-size: 11px !important; }
+.icon-btn {
+  background: rgba(255,255,255,.12) !important;
+  border: none !important; color: #fff !important;
+  border-radius: 12px !important;
+  width: 38px !important; height: 38px !important;
+}
+.avatar {
+  background: rgba(255,255,255,.18) !important;
+  border: 1.5px solid rgba(255,255,255,.25) !important;
+  border-radius: 14px !important; color: #fff !important;
+  font-weight: 700 !important; font-size: 14px !important;
+  width: 44px !important; height: 44px !important;
+  box-shadow: none !important; animation: none !important;
+}
+
+/* ─────────────────────────────────────────
+   3. БАЛАНС — великий, білий
+───────────────────────────────────────── */
+.balance-block {
+  background: transparent !important;
+  border: none !important; box-shadow: none !important;
+  backdrop-filter: none !important;
+  padding: 4px 20px 16px !important;
+}
+.balance-block::before,
+.balance-block::after { display: none !important; }
+.balance-label {
+  font-size: 11px !important; letter-spacing: .14em !important;
+  color: rgba(255,255,255,.5) !important; text-transform: uppercase !important;
+}
+.balance-amount {
+  font-size: clamp(3rem, 13.5vw, 5rem) !important;
+  font-weight: 800 !important; letter-spacing: -.03em !important;
+  color: #fff !important; line-height: 1.05 !important;
+  background: none !important;
+  -webkit-text-fill-color: #fff !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  filter: none !important;
+}
+.balance-account {
+  background: rgba(255,255,255,.13) !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  border-radius: 100px !important; padding: 5px 14px !important;
+  color: rgba(255,255,255,.65) !important;
+  font-size: 11px !important; letter-spacing: .05em !important;
+}
+
+/* ─────────────────────────────────────────
+   4. КАРТКА — тінь на синьому фоні
+───────────────────────────────────────── */
+.bank-cards-carousel {
+  padding: 0 16px !important;
+}
+.bank-card {
+  border-radius: 22px !important;
+  max-width: none !important;
+  box-shadow: 0 24px 64px rgba(0,0,0,.55), 0 8px 24px rgba(0,0,0,.35) !important;
+}
+.bank-card * { border: none !important; background: none !important; }
+.bank-card-gold {
+  background: linear-gradient(145deg,#1e1600 0%,#2a1e04 30%,#3c2c08 55%,#2a1e04 100%) !important;
+  box-shadow: 0 24px 64px rgba(0,0,0,.55), 0 0 0 1px rgba(210,160,40,.3), inset 0 1px 0 rgba(255,255,255,.1) !important;
+}
+.bank-card-gold .bank-card-bg {
+  background: linear-gradient(145deg,#1e1600 0%,#2a1e04 30%,#3c2c08 55%,#2a1e04 100%) !important;
+  position: absolute !important; inset: 0 !important;
+}
+.bank-card-navy, .bank-card-dark {
+  background: linear-gradient(145deg,#060c1e 0%,#0c1830 35%,#112040 65%,#0c1830 100%) !important;
+  box-shadow: 0 24px 64px rgba(0,0,0,.55), 0 0 0 1px rgba(96,165,250,.22), inset 0 1px 0 rgba(255,255,255,.07) !important;
+}
+.bank-card-navy .bank-card-bg,
+.bank-card-dark .bank-card-bg {
+  background: linear-gradient(145deg,#060c1e 0%,#0c1830 35%,#112040 65%,#0c1830 100%) !important;
+  position: absolute !important; inset: 0 !important;
+}
+.bank-card-label  { color: rgba(255,255,255,.42) !important; font-size: 7px !important; }
+.bank-card-number { color: rgba(255,255,255,.82) !important; letter-spacing: .18em !important; }
+.bank-card-name, .bank-card-date { color: rgba(255,255,255,.8) !important; }
+.bank-card-logo-letter { background: rgba(255,255,255,.14) !important; border-radius: 7px !important; }
+.bank-card-noise { opacity: .038 !important; }
+.bc-dot {
+  width: 5px !important; height: 5px !important;
+  border-radius: 50% !important; background: rgba(255,255,255,.25) !important;
+  transition: width .3s, background .3s !important;
+}
+.bc-dot.active {
+  width: 18px !important; border-radius: 3px !important;
+  background: rgba(255,255,255,.7) !important;
+}
+
+/* ─────────────────────────────────────────
+   5. КНОПКИ ДІЙ — кола як у monobank
+───────────────────────────────────────── */
+.quick-actions { gap: 8px !important; padding: 0 4px !important; }
+.qa-btn { gap: 8px !important; }
+.qa-icon {
+  border-radius: 50% !important;
+  width: 62px !important; height: 62px !important;
+  font-size: 22px !important;
+  transition: transform .15s, opacity .15s !important;
+}
+.qa-btn:nth-child(1) .qa-icon,
+.qa-btn:nth-child(2) .qa-icon,
+.qa-btn:nth-child(3) .qa-icon,
+.qa-btn:nth-child(4) .qa-icon {
+  background: rgba(0,0,0,.3) !important;
+  border: none !important;
+  color: #fff !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,.25) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+.qa-btn:active .qa-icon,
+.qa-btn:nth-child(1):active .qa-icon,
+.qa-btn:nth-child(2):active .qa-icon,
+.qa-btn:nth-child(3):active .qa-icon,
+.qa-btn:nth-child(4):active .qa-icon {
+  transform: scale(.88) !important;
+  opacity: .75 !important;
+  box-shadow: none !important;
+}
+.qa-label {
+  color: rgba(255,255,255,.75) !important;
+  font-size: 10px !important; font-weight: 500 !important;
+  letter-spacing: .02em !important;
+}
+
+/* ─────────────────────────────────────────
+   6. ДАШБОРД — elevated surface знизу
+      як біла картка в monobank
+───────────────────────────────────────── */
+section#dashboard,
+#dashboard.screen,
+#dashboard.screen.active-screen {
+  background: #0f1b2d !important;
+  border-radius: 28px 28px 0 0 !important;
+  margin-top: 4px !important;
+  padding: 24px 16px 16px !important;
+  box-shadow: 0 -2px 0 rgba(255,255,255,.06) !important;
+  flex: 1 !important;
+}
+
+/* ─────────────────────────────────────────
+   7. ТРАНЗАКЦІЇ — чистий список
+───────────────────────────────────────── */
+#recentTransactionsCard {
+  background: transparent !important; border: none !important;
+  box-shadow: none !important; padding: 0 !important;
+  border-radius: 0 !important;
+}
+#recentTransactionsCard .card-head { padding: 0 0 16px !important; background: none !important; border: none !important; }
+#recentTransactionsCard .card-head h3 {
+  font-size: 18px !important; font-weight: 700 !important;
+  color: #fff !important; letter-spacing: -.01em !important;
+  text-transform: none !important; background: none !important;
+  -webkit-text-fill-color: #fff !important;
+}
+.item, #recentTransactions .item {
+  background: transparent !important; border: none !important;
+  border-bottom: 1px solid rgba(255,255,255,.07) !important;
+  border-radius: 0 !important; box-shadow: none !important;
+  padding: 13px 0 !important;
+}
+.item:last-child { border-bottom: none !important; }
+.item:active { background: rgba(255,255,255,.03) !important; border-radius: 10px !important; }
+.item-title  { font-size: 15px !important; font-weight: 600 !important; color: #fff !important; }
+.item-desc   { font-size: 12px !important; color: rgba(255,255,255,.45) !important; }
+.item-amount { font-size: 15px !important; font-weight: 700 !important; }
+
+/* ─────────────────────────────────────────
+   8. ІНШІ ЕКРАНИ — на темному фоні
+───────────────────────────────────────── */
+.screen:not(#dashboard) {
+  background: #0f1b2d !important;
+}
+.card {
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.09) !important;
+  border-radius: 18px !important; box-shadow: none !important;
+}
+/* Protect bank cards */
+.bank-card { background: inherit !important; border: inherit !important; }
+
+/* ─────────────────────────────────────────
+   9. НИЖНЯ НАВІГАЦІЯ
+───────────────────────────────────────── */
+.bottom-nav {
+  background: #0f1b2d !important;
+  border-top: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 0 !important; margin: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+.nav-item, .menu-btn {
+  color: rgba(255,255,255,.4) !important;
+  background: transparent !important;
+  border: none !important; border-radius: 0 !important;
+}
+.nav-item svg, .menu-btn svg { stroke: rgba(255,255,255,.4) !important; }
+.nav-item.active, .nav-link.active, .menu-btn.active {
+  color: #fff !important; background: transparent !important;
+  border: none !important;
+}
+.nav-item.active svg, .nav-link.active svg, .menu-btn.active svg {
+  stroke: #fff !important;
+}
+.nav-item.active::after {
+  display: none !important;
+}
+
+/* ─────────────────────────────────────────
+   10. ЗАГОЛОВКИ СЕКЦІЙ
+───────────────────────────────────────── */
+.section-title, h2.section-title, h3.section-title {
+  font-size: 11px !important; font-weight: 700 !important;
+  letter-spacing: .14em !important; text-transform: uppercase !important;
+  color: rgba(255,255,255,.4) !important;
+  background: none !important;
+  -webkit-text-fill-color: rgba(255,255,255,.4) !important;
+}
+.section-see-all { color: rgba(255,255,255,.5) !important; font-size: 12px !important; }
+
+/* ─────────────────────────────────────────
+   11. ІНПУТИ
+───────────────────────────────────────── */
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+select, textarea {
+  background: rgba(255,255,255,.08) !important;
+  border: 1.5px solid rgba(255,255,255,.12) !important;
+  border-radius: 12px !important; color: #fff !important;
+  font-size: 15px !important;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: rgba(255,255,255,.5) !important;
+  background: rgba(255,255,255,.1) !important;
+  box-shadow: none !important; outline: none !important;
+}
+input::placeholder { color: rgba(255,255,255,.3) !important; }
+
+/* ─────────────────────────────────────────
+   12. КНОПКА ДІЇ
+───────────────────────────────────────── */
+.btn-accent:not(.tmt-btn) {
+  background: #fff !important; color: #0f1b2d !important;
+  border-radius: 14px !important; border: none !important;
+  font-weight: 700 !important; font-size: 15px !important;
+  box-shadow: none !important;
+}
+.btn-accent:not(.tmt-btn):active { opacity: .85 !important; transform: scale(.98) !important; }
