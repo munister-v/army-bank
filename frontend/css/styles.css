@@ -7379,3 +7379,189 @@ html body .section-title {
   background: none !important;
   -webkit-text-fill-color: rgba(255,255,255,.38) !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   MONOBANK LAYOUT — v16
+   Blue hero · Circular actions · Elevated content surface
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 1. Hero — rich military blue gradient */
+html body .app-shell,
+html body #appScreen {
+  background: linear-gradient(180deg, #0e2249 0%, #122c5c 40%, #152f62 70%) !important;
+}
+
+/* 2. App header — transparent, blends with hero */
+html body .app-header {
+  background: transparent !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+html body .header-name { color: rgba(255,255,255,.95) !important; }
+html body .header-role { color: rgba(255,255,255,.45) !important; }
+html body .icon-btn {
+  background: rgba(255,255,255,.1) !important;
+  border: none !important;
+  color: #fff !important;
+}
+html body #notifBadge {
+  background: #4ade80 !important;
+  color: #000 !important;
+}
+
+/* 3. Avatar on hero */
+html body .app-header .avatar,
+html body .header-user .avatar {
+  background: rgba(255,255,255,.15) !important;
+  border: 1.5px solid rgba(255,255,255,.2) !important;
+  box-shadow: none !important;
+  animation: none !important;
+}
+
+/* 4. Balance — big, white, monobank-style */
+html body .balance-block {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 4px 18px 12px !important;
+}
+html body .balance-label { color: rgba(255,255,255,.5) !important; }
+html body .balance-amount {
+  font-size: clamp(3rem, 13.5vw, 4.8rem) !important;
+  font-weight: 800 !important;
+  color: #fff !important;
+  letter-spacing: -.03em !important;
+  background: none !important;
+  -webkit-text-fill-color: #fff !important;
+  filter: none !important;
+}
+html body .balance-account {
+  background: rgba(255,255,255,.12) !important;
+  border-color: rgba(255,255,255,.15) !important;
+  color: rgba(255,255,255,.6) !important;
+}
+
+/* 5. Bank card — lift shadow on blue bg */
+html body .bank-card-gold {
+  box-shadow:
+    0 20px 60px rgba(0,0,0,.55),
+    0 8px 24px rgba(0,0,0,.3),
+    0 0 0 1px rgba(210,160,40,.28),
+    inset 0 1px 0 rgba(255,255,255,.12) !important;
+}
+html body .bank-card-navy,
+html body .bank-card-dark {
+  box-shadow:
+    0 20px 60px rgba(0,0,0,.55),
+    0 8px 24px rgba(0,0,0,.3),
+    0 0 0 1px rgba(96,165,250,.2),
+    inset 0 1px 0 rgba(255,255,255,.07) !important;
+}
+
+/* 6. CIRCULAR quick-action buttons — monobank dark circles */
+html body .qa-btn:nth-child(1) .qa-icon,
+html body .qa-btn:nth-child(2) .qa-icon,
+html body .qa-btn:nth-child(3) .qa-icon,
+html body .qa-btn:nth-child(4) .qa-icon {
+  border-radius: 50% !important;
+  width: 60px !important; height: 60px !important;
+  font-size: 22px !important;
+  background: rgba(0,0,0,.28) !important;
+  border: none !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+html body .qa-btn:active .qa-icon,
+html body .qa-btn:nth-child(1):active .qa-icon,
+html body .qa-btn:nth-child(2):active .qa-icon,
+html body .qa-btn:nth-child(3):active .qa-icon,
+html body .qa-btn:nth-child(4):active .qa-icon {
+  background: rgba(0,0,0,.45) !important;
+  transform: scale(.88) !important;
+}
+html body .qa-label { color: rgba(255,255,255,.7) !important; font-size: 10px !important; font-weight: 500 !important; letter-spacing: .02em !important; }
+
+/* 7. Dashboard elevated surface — rises from bottom like monobank */
+html body section#dashboard,
+html body #dashboard.screen {
+  background: #0d1825 !important;
+  border-radius: 28px 28px 0 0 !important;
+  padding-top: 24px !important;
+  margin-top: 0 !important;
+  /* subtle separator from hero */
+  box-shadow: 0 -8px 32px rgba(0,0,0,.35) !important;
+}
+
+/* 8. Transaction section inside dashboard */
+html body #recentTransactionsCard {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-bottom: 0 !important;
+}
+html body #recentTransactionsCard .card-head {
+  padding: 0 0 14px !important;
+  border: none !important;
+  background: none !important;
+}
+html body #recentTransactionsCard .card-head h3 {
+  font-size: 18px !important; font-weight: 700 !important;
+  color: rgba(255,255,255,.9) !important;
+  letter-spacing: -.01em !important;
+  text-transform: none !important;
+}
+
+/* 9. Dashboard section title */
+html body #dashboard h2.section-title,
+html body #dashboard .section-title {
+  font-size: 18px !important; font-weight: 700 !important;
+  letter-spacing: -.01em !important; text-transform: none !important;
+  color: rgba(255,255,255,.9) !important;
+  -webkit-text-fill-color: rgba(255,255,255,.9) !important;
+}
+
+/* 10. Transaction items — clean list on dark surface */
+html body #dashboard .item,
+html body #recentTransactions .item {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(255,255,255,.055) !important;
+  border-radius: 0 !important;
+  padding: 14px 0 !important;
+  box-shadow: none !important;
+}
+html body #dashboard .item:last-child,
+html body #recentTransactions .item:last-child { border-bottom: none !important; }
+
+/* 11. Bottom nav — matches elevated surface */
+html body .bottom-nav {
+  background: rgba(13,24,37,.97) !important;
+  border-top: 1px solid rgba(255,255,255,.06) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+}
+
+/* 12. Other screens on blue background */
+html body .screen:not(#dashboard) {
+  background: #0d1825 !important;
+}
+
+/* 13. Sparkline / currency / other cards on dashboard */
+html body #dashboard .card,
+html body #dashboard .sparkline-card,
+html body #dashboard .currency-card {
+  background: rgba(255,255,255,.05) !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 18px !important;
+  box-shadow: none !important;
+}
+
+/* 14. Section see-all link */
+html body .section-see-all,
+html body .card-head a { color: rgba(255,255,255,.55) !important; font-size: 13px !important; }
+
