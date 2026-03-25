@@ -203,7 +203,7 @@ class PaymentCore:
         # Record integrity hashes (non-atomic, best-effort)
         try:
             import datetime
-            now_str = datetime.datetime.utcnow().isoformat()
+            now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
             self._integrity.record(tx_out_id, sender['id'], amount, 'out', now_str)
             self._integrity.record(tx_in_id, recipient['id'], amount, 'in', now_str)
         except Exception:

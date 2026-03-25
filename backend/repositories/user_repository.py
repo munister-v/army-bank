@@ -20,7 +20,7 @@ class UserRepository(BaseRepository):
     def get_by_phone_or_email(self, identity: str):
         with self.connection() as conn:
             return conn.execute(
-                'SELECT * FROM users WHERE phone = %s OR email = %s',
+                'SELECT * FROM users WHERE phone = %s OR LOWER(email) = LOWER(%s)',
                 (identity, identity),
             ).fetchone()
 

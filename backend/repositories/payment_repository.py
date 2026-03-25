@@ -50,7 +50,7 @@ class PaymentRepository:
             conn.execute(
                 """UPDATE payment_orders
                    SET status = %s, tx_id_out = %s, tx_id_in = %s,
-                       failure_reason = %s, updated_at = NOW()
+                       failure_reason = %s, updated_at = CURRENT_TIMESTAMP
                    WHERE id = %s""",
                 (status, tx_id_out, tx_id_in, failure_reason, order_id)
             )
@@ -145,7 +145,7 @@ class PaymentRepository:
         with get_connection() as conn:
             result = conn.execute(
                 """UPDATE risk_events
-                   SET resolved_at = NOW(), resolved_by = %s
+                   SET resolved_at = CURRENT_TIMESTAMP, resolved_by = %s
                    WHERE id = %s AND resolved_at IS NULL""",
                 (resolved_by, event_id)
             )

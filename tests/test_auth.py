@@ -46,6 +46,26 @@ def test_login_invalid_credentials(client):
     assert data.get('error')
 
 
+def test_login_email_case_insensitive(client):
+    """Вхід по email має працювати незалежно від регістру."""
+    client.post('/api/auth/register', json={
+        'full_name': 'Case User',
+        'phone': '+380991111111',
+        'email': 'Case@Test.UA',
+        'password': 'secret123',
+    }, headers={'Content-Type': 'application/json'})
+
+    r = client.post('/api/auth/login', json={
+        'identity': 'CASE@test.ua',
+        'password': 'secret123',
+    }, headers={'Content-Type': 'application/json'})
+
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data.get('ok') is True
+    assert data['data']['user']['email'] == 'case@test.ua'
+
+
 def test_me_requires_auth(client):
     """GET /api/auth/me без токена повертає 401."""
     r = client.get('/api/auth/me')
