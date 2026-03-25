@@ -2,6 +2,18 @@
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 
+/** Like api.request but returns the full payload (no data unwrap). */
+async function apiRaw(url, options = {}) {
+  const base = (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
+  const res = await fetch(base + url, {
+    ...options,
+    headers: { Authorization: `Bearer ${api.token}`, 'Content-Type': 'application/json', ...(options.headers || {}) },
+  });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok || payload.ok === false) throw new Error(payload.error || 'Помилка запиту');
+  return payload;
+}
+
 function showToast(msg) {
   const t = $('#toast');
   t.textContent = msg;
@@ -248,11 +260,26 @@ async function loadRegistry(reset) {
 
   $('#regTableBody').innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr>';
   try {
-    const res = await api.request('/api/admin/transactions?' + params.toString());
-    const rows = Array.isArray(res) ? res : (res.data || []);
-    _regTotal = res.total ?? rows.length;
+    // Use apiRaw to preserve total + summary (api.request unwraps .data and loses them)
+    const payload = await apiRaw('/api/admin/transactions?' + params.toString());
+    const rows = payload.data || [];
+    _regTotal = payload.total ?? rows.length;
+    const sum  = payload.summary || {};
 
-    $('#regTotal').textContent = `Знайдено: ${_regTotal} транзакцій`;
+    // Summary strip
+    const totalEl = $('#regTotal');
+    if (totalEl) {
+      if (_regTotal > 0 && (sum.total_in || sum.total_out)) {
+        totalEl.innerHTML =
+          `<span>Знайдено: <strong>${_regTotal}</strong></span>` +
+          `<span style="margin-left:16px;color:#34d399">▲ ${fmtMoney(sum.total_in)}</span>` +
+          `<span style="margin-left:10px;color:#f87171">▼ ${fmtMoney(sum.total_out)}</span>` +
+          (sum.avg_amount ? `<span style="margin-left:10px;opacity:.5">⌀ ${fmtMoney(sum.avg_amount)}</span>` : '');
+      } else {
+        totalEl.textContent = `Знайдено: ${_regTotal} транзакцій`;
+      }
+    }
+
     $('#regPrev').disabled = _regPage === 0;
     $('#regNext').disabled = (_regPage + 1) * _regLimit >= _regTotal;
     $('#regPageInfo').textContent = `Сторінка ${_regPage + 1} / ${Math.max(1, Math.ceil(_regTotal / _regLimit))}`;
