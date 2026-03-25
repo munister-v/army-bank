@@ -44,13 +44,17 @@ class PaymentRepository:
                           sa.account_number AS sender_number,
                           ra.account_number AS recipient_number,
                           aa.full_name AS assigned_admin_name,
-                          du.full_name AS decision_by_name
+                          du.full_name AS decision_by_name,
+                          aru.full_name AS approval_requested_by_name,
+                          adu.full_name AS approval_decided_by_name
                    FROM payment_orders po
                    LEFT JOIN users u ON u.id = po.initiator_user_id
                    LEFT JOIN accounts sa ON sa.id = po.sender_account_id
                    LEFT JOIN accounts ra ON ra.id = po.recipient_account_id
                    LEFT JOIN users aa ON aa.id = po.assigned_admin_id
                    LEFT JOIN users du ON du.id = po.decision_by
+                   LEFT JOIN users aru ON aru.id = po.approval_requested_by
+                   LEFT JOIN users adu ON adu.id = po.approval_decided_by
                    WHERE po.id = %s""",
                 (order_id,)
             ).fetchone()
@@ -102,6 +106,7 @@ class PaymentRepository:
                     risk_level: str | None = None,
                     user_id: int | None = None,
                     review_state: str | None = None,
+                    approval_state: str | None = None,
                     assigned_admin_id: int | None = None,
                     assigned_mode: str | None = None,
                     search: str | None = None) -> list:
@@ -112,13 +117,17 @@ class PaymentRepository:
                        sa.account_number AS sender_number,
                        ra.account_number AS recipient_number,
                        aa.full_name AS assigned_admin_name,
-                       du.full_name AS decision_by_name
+                       du.full_name AS decision_by_name,
+                       aru.full_name AS approval_requested_by_name,
+                       adu.full_name AS approval_decided_by_name
                 FROM payment_orders po
                 LEFT JOIN users u ON u.id = po.initiator_user_id
                 LEFT JOIN accounts sa ON sa.id = po.sender_account_id
                 LEFT JOIN accounts ra ON ra.id = po.recipient_account_id
                 LEFT JOIN users aa ON aa.id = po.assigned_admin_id
                 LEFT JOIN users du ON du.id = po.decision_by
+                LEFT JOIN users aru ON aru.id = po.approval_requested_by
+                LEFT JOIN users adu ON adu.id = po.approval_decided_by
                 WHERE 1=1
             """
             params: list = []
@@ -130,6 +139,8 @@ class PaymentRepository:
                 sql += " AND po.initiator_user_id = %s"; params.append(user_id)
             if review_state:
                 sql += " AND po.review_state = %s"; params.append(review_state)
+            if approval_state:
+                sql += " AND po.approval_state = %s"; params.append(approval_state)
             if assigned_admin_id:
                 sql += " AND po.assigned_admin_id = %s"; params.append(assigned_admin_id)
             elif assigned_mode == 'unassigned':
@@ -147,6 +158,7 @@ class PaymentRepository:
                      risk_level: str | None = None,
                      user_id: int | None = None,
                      review_state: str | None = None,
+                     approval_state: str | None = None,
                      assigned_admin_id: int | None = None,
                      assigned_mode: str | None = None,
                      search: str | None = None) -> int:
@@ -168,6 +180,8 @@ class PaymentRepository:
                 sql += " AND po.initiator_user_id = %s"; params.append(user_id)
             if review_state:
                 sql += " AND po.review_state = %s"; params.append(review_state)
+            if approval_state:
+                sql += " AND po.approval_state = %s"; params.append(approval_state)
             if assigned_admin_id:
                 sql += " AND po.assigned_admin_id = %s"; params.append(assigned_admin_id)
             elif assigned_mode == 'unassigned':
@@ -249,6 +263,13 @@ class PaymentRepository:
                            decision_by = NULL,
                            decision_note = NULL,
                            decided_at = NULL,
+                           approval_state = 'none',
+                           approval_requested_action = NULL,
+                           approval_requested_by = NULL,
+                           approval_requested_at = NULL,
+                           approval_decided_by = NULL,
+                           approval_decided_at = NULL,
+                           approval_note = NULL,
                            updated_at = CURRENT_TIMESTAMP
                        WHERE id = %s""",
                     (order_id,)
@@ -263,6 +284,13 @@ class PaymentRepository:
                            decision_note = %s,
                            decided_at = CURRENT_TIMESTAMP,
                            escalation_level = COALESCE(escalation_level, 0) + 1,
+                           approval_state = 'none',
+                           approval_requested_action = NULL,
+                           approval_requested_by = NULL,
+                           approval_requested_at = NULL,
+                           approval_decided_by = NULL,
+                           approval_decided_at = NULL,
+                           approval_note = NULL,
                            updated_at = CURRENT_TIMESTAMP
                        WHERE id = %s""",
                     (actor_user_id, note[:500], order_id)
@@ -277,6 +305,13 @@ class PaymentRepository:
                            decision_by = %s,
                            decision_note = %s,
                            decided_at = CURRENT_TIMESTAMP,
+                           approval_state = 'none',
+                           approval_requested_action = NULL,
+                           approval_requested_by = NULL,
+                           approval_requested_at = NULL,
+                           approval_decided_by = NULL,
+                           approval_decided_at = NULL,
+                           approval_note = NULL,
                            updated_at = CURRENT_TIMESTAMP
                        WHERE id = %s""",
                     (review_state, actor_user_id, note[:500], order_id)
@@ -317,6 +352,93 @@ class PaymentRepository:
                 (order_id,)
             )
         return True
+
+    def request_approval(self, order_id: int, requested_action: str,
+                         requested_by: int, note: str = '') -> dict | None:
+        action = (requested_action or '').strip().lower()
+        if action not in {'approve', 'reject'}:
+            return None
+        safe_note = (note or '').strip()[:500]
+        with get_connection() as conn:
+            updated = conn.execute(
+                """UPDATE payment_orders
+                   SET approval_state = 'requested',
+                       approval_requested_action = %s,
+                       approval_requested_by = %s,
+                       approval_requested_at = CURRENT_TIMESTAMP,
+                       approval_decided_by = NULL,
+                       approval_decided_at = NULL,
+                       approval_note = %s,
+                       review_state = 'pending',
+                       decision_by = %s,
+                       decision_note = %s,
+                       decided_at = CURRENT_TIMESTAMP,
+                       updated_at = CURRENT_TIMESTAMP
+                   WHERE id = %s""",
+                (action, requested_by, safe_note, requested_by, safe_note, order_id)
+            )
+            if (updated.rowcount or 0) == 0:
+                return None
+            conn.execute(
+                """INSERT INTO payment_order_events
+                   (payment_order_id, actor_user_id, event_type, details)
+                   VALUES (%s,%s,'approval_requested',%s)""",
+                (order_id, requested_by, f'action={action}; note={safe_note}')
+            )
+        return self.get_order(order_id)
+
+    def finalize_approval(self, order_id: int, approver_id: int,
+                          approve_request: bool, note: str = '') -> dict | None:
+        safe_note = (note or '').strip()[:500]
+        with get_connection() as conn:
+            row = conn.execute(
+                """SELECT approval_state, approval_requested_action, approval_requested_by
+                   FROM payment_orders
+                   WHERE id = %s""",
+                (order_id,)
+            ).fetchone()
+            if not row:
+                return None
+            approval_state = str(row.get('approval_state') or '').lower()
+            requested_action = str(row.get('approval_requested_action') or '').lower()
+            requested_by = row.get('approval_requested_by')
+            if approval_state != 'requested' or requested_action not in {'approve', 'reject'}:
+                return None
+            if requested_by and int(requested_by) == int(approver_id):
+                return None
+
+            if approve_request:
+                review_state = 'approved' if requested_action == 'approve' else 'rejected'
+                approval_state_next = 'approved'
+            else:
+                review_state = 'escalated'
+                approval_state_next = 'declined'
+
+            updated = conn.execute(
+                """UPDATE payment_orders
+                   SET review_state = %s,
+                       approval_state = %s,
+                       approval_decided_by = %s,
+                       approval_decided_at = CURRENT_TIMESTAMP,
+                       approval_note = %s,
+                       decision_by = %s,
+                       decision_note = %s,
+                       decided_at = CURRENT_TIMESTAMP,
+                       updated_at = CURRENT_TIMESTAMP
+                   WHERE id = %s""",
+                (review_state, approval_state_next, approver_id, safe_note,
+                 approver_id, safe_note, order_id)
+            )
+            if (updated.rowcount or 0) == 0:
+                return None
+            conn.execute(
+                """INSERT INTO payment_order_events
+                   (payment_order_id, actor_user_id, event_type, details)
+                   VALUES (%s,%s,'approval_finalized',%s)""",
+                (order_id, approver_id,
+                 f'approved={approve_request}; requested_action={requested_action}; note={safe_note}')
+            )
+        return self.get_order(order_id)
 
     # ── Risk Events ───────────────────────────────────────────────────────────
 
@@ -390,6 +512,10 @@ class PaymentRepository:
                 """SELECT review_state, COUNT(*) AS cnt
                    FROM payment_orders GROUP BY review_state"""
             ).fetchall()
+            by_approval_state = conn.execute(
+                """SELECT approval_state, COUNT(*) AS cnt
+                   FROM payment_orders GROUP BY approval_state"""
+            ).fetchall()
             blocked = conn.execute(
                 """SELECT COUNT(*) AS n FROM payment_orders
                    WHERE status = 'blocked'"""
@@ -401,6 +527,10 @@ class PaymentRepository:
             review_pending = conn.execute(
                 """SELECT COUNT(*) AS n FROM payment_orders
                    WHERE review_state IN ('pending', 'escalated')"""
+            ).fetchone()
+            awaiting_approval = conn.execute(
+                """SELECT COUNT(*) AS n FROM payment_orders
+                   WHERE approval_state = 'requested'"""
             ).fetchone()
             unresolved_events = conn.execute(
                 """SELECT severity, COUNT(*) AS cnt
@@ -420,9 +550,11 @@ class PaymentRepository:
             'by_level': [dict(r) for r in by_level],
             'by_status': [dict(r) for r in by_status],
             'by_review_state': [dict(r) for r in by_review_state],
+            'by_approval_state': [dict(r) for r in by_approval_state],
             'blocked_total': int(blocked['n']) if blocked else 0,
             'assigned_total': int(assigned_total['n']) if assigned_total else 0,
             'review_pending_total': int(review_pending['n']) if review_pending else 0,
+            'awaiting_approval_total': int(awaiting_approval['n']) if awaiting_approval else 0,
             'unresolved_events': [dict(r) for r in unresolved_events],
             'recent_critical': [dict(r) for r in recent_critical],
         }

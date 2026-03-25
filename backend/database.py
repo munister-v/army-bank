@@ -264,6 +264,13 @@ CREATE TABLE IF NOT EXISTS payment_orders (
     decision_note TEXT,
     decided_at TIMESTAMPTZ,
     escalation_level INTEGER NOT NULL DEFAULT 0,
+    approval_state VARCHAR(20) NOT NULL DEFAULT 'none',
+    approval_requested_action VARCHAR(20),
+    approval_requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    approval_requested_at TIMESTAMPTZ,
+    approval_decided_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    approval_decided_at TIMESTAMPTZ,
+    approval_note TEXT,
     tx_id_out INTEGER,
     tx_id_in INTEGER,
     failure_reason TEXT,
@@ -275,6 +282,7 @@ CREATE INDEX IF NOT EXISTS idx_payment_orders_risk_level ON payment_orders(risk_
 CREATE INDEX IF NOT EXISTS idx_payment_orders_user ON payment_orders(initiator_user_id);
 CREATE INDEX IF NOT EXISTS idx_payment_orders_assigned_admin ON payment_orders(assigned_admin_id);
 CREATE INDEX IF NOT EXISTS idx_payment_orders_review_state ON payment_orders(review_state);
+CREATE INDEX IF NOT EXISTS idx_payment_orders_approval_state ON payment_orders(approval_state);
 
 CREATE TABLE IF NOT EXISTS risk_events (
     id SERIAL PRIMARY KEY,
@@ -335,6 +343,13 @@ CREATE TABLE IF NOT EXISTS payment_orders (
     decision_note TEXT,
     decided_at TEXT,
     escalation_level INTEGER NOT NULL DEFAULT 0,
+    approval_state TEXT NOT NULL DEFAULT 'none',
+    approval_requested_action TEXT,
+    approval_requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    approval_requested_at TEXT,
+    approval_decided_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    approval_decided_at TEXT,
+    approval_note TEXT,
     tx_id_out INTEGER,
     tx_id_in INTEGER,
     failure_reason TEXT,
@@ -435,6 +450,38 @@ def init_db() -> None:
                 except Exception:
                     pass
                 try:
+                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_state VARCHAR(20) NOT NULL DEFAULT 'none';")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_requested_action VARCHAR(20);")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL;")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_requested_at TIMESTAMPTZ;")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_decided_by INTEGER REFERENCES users(id) ON DELETE SET NULL;")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_decided_at TIMESTAMPTZ;")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_note TEXT;")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("CREATE INDEX IF NOT EXISTS idx_payment_orders_approval_state ON payment_orders(approval_state);")
+                except Exception:
+                    pass
+                try:
                     cur.execute(
                         """CREATE TABLE IF NOT EXISTS payment_order_events (
                             id SERIAL PRIMARY KEY,
@@ -505,6 +552,38 @@ def init_db() -> None:
                 pass
             try:
                 conn.execute("ALTER TABLE payment_orders ADD COLUMN escalation_level INTEGER NOT NULL DEFAULT 0;")
+            except Exception:
+                pass
+            try:
+                conn.execute("ALTER TABLE payment_orders ADD COLUMN approval_state TEXT NOT NULL DEFAULT 'none';")
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE payment_orders ADD COLUMN approval_requested_action TEXT;')
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE payment_orders ADD COLUMN approval_requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL;')
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE payment_orders ADD COLUMN approval_requested_at TEXT;')
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE payment_orders ADD COLUMN approval_decided_by INTEGER REFERENCES users(id) ON DELETE SET NULL;')
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE payment_orders ADD COLUMN approval_decided_at TEXT;')
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE payment_orders ADD COLUMN approval_note TEXT;')
+            except Exception:
+                pass
+            try:
+                conn.execute('CREATE INDEX IF NOT EXISTS idx_payment_orders_approval_state ON payment_orders(approval_state);')
             except Exception:
                 pass
             try:

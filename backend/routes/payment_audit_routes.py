@@ -63,6 +63,7 @@ def _apply_sla(order: dict, now_utc: datetime | None = None) -> dict:
     now = now_utc or datetime.now(timezone.utc)
     created_at = _parse_dt(order.get('created_at')) or _parse_dt(order.get('updated_at'))
     risk_level = str(order.get('risk_level') or 'low').lower()
+    approval_state = str(order.get('approval_state') or 'none').lower()
     sla_minutes = int(_SLA_MINUTES_BY_RISK.get(risk_level, _SLA_MINUTES_BY_RISK['low']))
 
     age_minutes = 0
@@ -97,6 +98,8 @@ def _apply_sla(order: dict, now_utc: datetime | None = None) -> dict:
     order['sla_overdue'] = overdue
     order['sla_due_soon'] = due_soon
     order['sla_priority'] = priority
+    order['approval_required'] = risk_level in {'high', 'critical'}
+    order['awaiting_approval'] = approval_state == 'requested'
     return order
 
 
@@ -151,7 +154,7 @@ def _validate_assignee_user(user_id_raw) -> tuple[int | None, str | None]:
 
 @payment_audit_bp.get('/orders')
 @auth_required
-@role_required('admin', 'platform_admin')
+@role_required('operator', 'admin', 'platform_admin')
 def list_orders():
     limit             = min(request.args.get('limit',  default=50, type=int), 200)
     offset            = request.args.get('offset', default=0,  type=int)
@@ -159,6 +162,7 @@ def list_orders():
     risk_level        = request.args.get('risk_level')
     user_id           = request.args.get('user_id', type=int)
     review_state      = request.args.get('review_state')
+    approval_state    = request.args.get('approval_state')
     assigned_admin_id = request.args.get('assigned_admin_id', type=int)
     assigned_mode     = request.args.get('assigned_mode')
     overdue_param     = (request.args.get('overdue') or '').strip().lower()
@@ -174,12 +178,14 @@ def list_orders():
                                status=status, risk_level=risk_level,
                                user_id=user_id,
                                review_state=review_state,
+                               approval_state=approval_state,
                                assigned_admin_id=assigned_admin_id,
                                assigned_mode=assigned_mode,
                                search=search or None)
     total = _repo.count_orders(status=status, risk_level=risk_level,
                                user_id=user_id,
                                review_state=review_state,
+                               approval_state=approval_state,
                                assigned_admin_id=assigned_admin_id,
                                assigned_mode=assigned_mode,
                                search=search or None)
@@ -194,7 +200,7 @@ def list_orders():
 
 @payment_audit_bp.get('/orders/<int:order_id>')
 @auth_required
-@role_required('admin', 'platform_admin')
+@role_required('operator', 'admin', 'platform_admin')
 def get_order(order_id: int):
     order = _repo.get_order(order_id)
     if not order:
@@ -207,7 +213,7 @@ def get_order(order_id: int):
 
 @payment_audit_bp.patch('/orders/<int:order_id>/assign')
 @auth_required
-@role_required('admin', 'platform_admin')
+@role_required('operator', 'admin', 'platform_admin')
 def assign_order(order_id: int):
     data = request.get_json(silent=True) or {}
     admin_user_id = data.get('admin_user_id')
@@ -217,6 +223,8 @@ def assign_order(order_id: int):
     assignee_id, err = _validate_assignee_user(admin_user_id)
     if err:
         return api_error(err, 404 if 'не знайдено' in err else 400)
+    if str(g.current_user.get('role') or '') == 'operator' and int(assignee_id) != int(g.current_user['id']):
+        return api_error('Оператор може призначати кейс лише на себе.', 403)
 
     order = _repo.assign_order(
         order_id=order_id,
@@ -230,39 +238,147 @@ def assign_order(order_id: int):
         order['risk_flags'] = json.loads(order.get('risk_flags') or '[]')
     except Exception:
         order['risk_flags'] = []
+    order = _apply_sla(dict(order))
     return jsonify({'ok': True, 'data': order})
 
 
 @payment_audit_bp.patch('/orders/<int:order_id>/decision')
 @auth_required
-@role_required('admin', 'platform_admin')
+@role_required('operator', 'admin', 'platform_admin')
 def decide_order(order_id: int):
     data = request.get_json(silent=True) or {}
     decision = (data.get('decision') or '').strip().lower()
     note = (data.get('note') or '').strip()
     if decision not in {'approve', 'reject', 'escalate', 'clear'}:
         return api_error('Недійсне рішення. Дозволено: approve, reject, escalate, clear.')
+    actor_role = str(g.current_user.get('role') or '')
+    if actor_role == 'operator' and decision in {'approve', 'reject', 'clear'}:
+        return api_error('Оператору дозволено лише escalate.', 403)
     if decision in {'reject', 'escalate'} and len(note) < 5:
         return api_error('Для reject/escalate потрібен коментар (мінімум 5 символів).')
 
-    order = _repo.set_manual_decision(
-        order_id=order_id,
-        decision=decision,
-        actor_user_id=g.current_user['id'],
-        note=note,
-    )
+    current = _repo.get_order(order_id)
+    if not current:
+        return api_error('Платіжний ордер не знайдено.', 404)
+    risk_level = str(current.get('risk_level') or '').lower()
+    approval_state = str(current.get('approval_state') or 'none').lower()
+
+    mode = 'direct'
+    if decision in {'approve', 'reject'} and risk_level in {'high', 'critical'}:
+        if actor_role not in {'admin', 'platform_admin'}:
+            return api_error('Approve/reject high/critical доступні лише admin/platform_admin.', 403)
+        requested_action = str(current.get('approval_requested_action') or '').lower()
+        requested_by = current.get('approval_requested_by')
+        if approval_state == 'requested':
+            if requested_by and int(requested_by) == int(g.current_user['id']):
+                return api_error('Maker-checker: не можна фіналізувати власний approval request.', 403)
+            if requested_action and requested_action != decision:
+                return api_error(f'Очікується фіналізація дії "{requested_action}".', 400)
+            order = _repo.finalize_approval(
+                order_id=order_id,
+                approver_id=int(g.current_user['id']),
+                approve_request=True,
+                note=note,
+            )
+            mode = 'approval_finalized'
+        else:
+            order = _repo.request_approval(
+                order_id=order_id,
+                requested_action=decision,
+                requested_by=int(g.current_user['id']),
+                note=note,
+            )
+            mode = 'approval_requested'
+    else:
+        order = _repo.set_manual_decision(
+            order_id=order_id,
+            decision=decision,
+            actor_user_id=g.current_user['id'],
+            note=note,
+        )
+
     if not order:
         return api_error('Платіжний ордер не знайдено.', 404)
     try:
         order['risk_flags'] = json.loads(order.get('risk_flags') or '[]')
     except Exception:
         order['risk_flags'] = []
-    return jsonify({'ok': True, 'data': order})
+    order = _apply_sla(dict(order))
+    return jsonify({'ok': True, 'data': order, 'meta': {'mode': mode}})
+
+
+@payment_audit_bp.post('/orders/<int:order_id>/approval/request')
+@auth_required
+@role_required('admin', 'platform_admin')
+def request_order_approval(order_id: int):
+    data = request.get_json(silent=True) or {}
+    action = (data.get('action') or '').strip().lower()
+    note = (data.get('note') or '').strip()
+    if action not in {'approve', 'reject'}:
+        return api_error('Недійсний action. Дозволено: approve, reject.')
+    if action == 'reject' and len(note) < 5:
+        return api_error('Для reject approval request потрібен коментар (мінімум 5 символів).')
+
+    current = _repo.get_order(order_id)
+    if not current:
+        return api_error('Платіжний ордер не знайдено.', 404)
+    if str(current.get('risk_level') or '').lower() not in {'high', 'critical'}:
+        return api_error('Approval request потрібен лише для high/critical ордерів.')
+
+    order = _repo.request_approval(
+        order_id=order_id,
+        requested_action=action,
+        requested_by=int(g.current_user['id']),
+        note=note,
+    )
+    if not order:
+        return api_error('Не вдалося створити approval request.', 400)
+    order = _apply_sla(dict(order))
+    try:
+        order['risk_flags'] = json.loads(order.get('risk_flags') or '[]')
+    except Exception:
+        order['risk_flags'] = []
+    return jsonify({'ok': True, 'data': order, 'meta': {'mode': 'approval_requested'}})
+
+
+@payment_audit_bp.post('/orders/<int:order_id>/approval/finalize')
+@auth_required
+@role_required('admin', 'platform_admin')
+def finalize_order_approval(order_id: int):
+    data = request.get_json(silent=True) or {}
+    approve = _as_bool(data.get('approve'), default=True)
+    note = (data.get('note') or '').strip()
+
+    current = _repo.get_order(order_id)
+    if not current:
+        return api_error('Платіжний ордер не знайдено.', 404)
+    if str(current.get('approval_state') or '').lower() != 'requested':
+        return api_error('Для цього ордера немає активного approval request.', 400)
+    requested_by = current.get('approval_requested_by')
+    if requested_by and int(requested_by) == int(g.current_user['id']):
+        return api_error('Maker-checker: не можна фіналізувати власний approval request.', 403)
+    if (not approve) and len(note) < 5:
+        return api_error('Для deny потрібен коментар (мінімум 5 символів).')
+
+    order = _repo.finalize_approval(
+        order_id=order_id,
+        approver_id=int(g.current_user['id']),
+        approve_request=approve,
+        note=note,
+    )
+    if not order:
+        return api_error('Не вдалося фіналізувати approval request.', 400)
+    order = _apply_sla(dict(order))
+    try:
+        order['risk_flags'] = json.loads(order.get('risk_flags') or '[]')
+    except Exception:
+        order['risk_flags'] = []
+    return jsonify({'ok': True, 'data': order, 'meta': {'mode': 'approval_finalized', 'approve': approve}})
 
 
 @payment_audit_bp.post('/orders/<int:order_id>/notes')
 @auth_required
-@role_required('admin', 'platform_admin')
+@role_required('operator', 'admin', 'platform_admin')
 def add_order_note(order_id: int):
     data = request.get_json(silent=True) or {}
     note = (data.get('note') or '').strip()
@@ -276,7 +392,7 @@ def add_order_note(order_id: int):
 
 @payment_audit_bp.get('/orders/<int:order_id>/timeline')
 @auth_required
-@role_required('admin', 'platform_admin')
+@role_required('operator', 'admin', 'platform_admin')
 def order_timeline(order_id: int):
     limit = min(request.args.get('limit', default=200, type=int), 500)
     order = _repo.get_order(order_id)
@@ -288,13 +404,14 @@ def order_timeline(order_id: int):
 
 @payment_audit_bp.get('/sla-queue')
 @auth_required
-@role_required('admin', 'platform_admin')
+@role_required('operator', 'admin', 'platform_admin')
 def sla_queue():
     limit             = min(request.args.get('limit', default=30, type=int), 200)
     offset            = max(request.args.get('offset', default=0, type=int), 0)
     status            = request.args.get('status')
     risk_level        = request.args.get('risk_level')
     review_state      = request.args.get('review_state')
+    approval_state    = request.args.get('approval_state')
     user_id           = request.args.get('user_id', type=int)
     assigned_admin_id = request.args.get('assigned_admin_id', type=int)
     assigned_mode     = request.args.get('assigned_mode')
@@ -322,6 +439,7 @@ def sla_queue():
         risk_level=risk_level,
         user_id=user_id,
         review_state=review_state,
+        approval_state=approval_state,
         assigned_admin_id=assigned_admin_id,
         assigned_mode=assigned_mode,
         search=search or None,
@@ -344,6 +462,7 @@ def sla_queue():
     due_soon_total = sum(1 for row in rows if row.get('sla_due_soon'))
     unassigned_total = sum(1 for row in rows if not row.get('assigned_admin_id'))
     escalated_total = sum(1 for row in rows if str(row.get('review_state') or '').lower() == 'escalated')
+    awaiting_approval_total = sum(1 for row in rows if str(row.get('approval_state') or '').lower() == 'requested')
     avg_age = int(sum(int(row.get('sla_age_minutes') or 0) for row in rows) / max(1, len(rows)))
     by_priority = {'critical': 0, 'high': 0, 'medium': 0, 'normal': 0}
     for row in rows:
@@ -360,6 +479,7 @@ def sla_queue():
             'due_soon_total': due_soon_total,
             'unassigned_total': unassigned_total,
             'escalated_total': escalated_total,
+            'awaiting_approval_total': awaiting_approval_total,
             'avg_age_minutes': avg_age,
             'by_priority': by_priority,
         },
@@ -418,7 +538,7 @@ def sla_auto_escalate():
 
 @payment_audit_bp.get('/workload')
 @auth_required
-@role_required('admin', 'platform_admin')
+@role_required('operator', 'admin', 'platform_admin')
 def workload():
     scan_limit = min(max(request.args.get('scan_limit', default=1500, type=int), 200), 6000)
     open_only = _as_bool(request.args.get('open_only'), default=True)
@@ -441,6 +561,7 @@ def workload():
                 'overdue': 0,
                 'critical': 0,
                 'escalated': 0,
+                'awaiting_approval': 0,
                 'age_sum': 0,
                 'avg_age_minutes': 0,
                 'by_priority': {'critical': 0, 'high': 0, 'medium': 0, 'normal': 0},
@@ -454,6 +575,8 @@ def workload():
             slot['critical'] += 1
         if str(row.get('review_state') or '').lower() == 'escalated':
             slot['escalated'] += 1
+        if str(row.get('approval_state') or '').lower() == 'requested':
+            slot['awaiting_approval'] += 1
         priority = str(row.get('sla_priority') or 'normal').lower()
         slot['by_priority'][priority] = slot['by_priority'].get(priority, 0) + 1
 
@@ -478,13 +601,14 @@ def workload():
         'unassigned_total': sum(1 for r in rows if not r.get('assigned_admin_id')),
         'overdue_total': sum(1 for r in rows if r.get('sla_overdue')),
         'critical_total': sum(1 for r in rows if str(r.get('risk_level') or '').lower() == 'critical'),
+        'awaiting_approval_total': sum(1 for r in rows if str(r.get('approval_state') or '').lower() == 'requested'),
     }
     return jsonify({'ok': True, 'data': workload_rows, 'summary': summary})
 
 
 @payment_audit_bp.post('/sla-bulk-action')
 @auth_required
-@role_required('admin', 'platform_admin')
+@role_required('operator', 'admin', 'platform_admin')
 def sla_bulk_action():
     data = request.get_json(silent=True) or {}
     ids_raw = data.get('ids') or []
@@ -513,6 +637,9 @@ def sla_bulk_action():
     allowed_actions = {'assign', 'escalate', 'approve', 'reject', 'clear_review', 'note'}
     if action not in allowed_actions:
         return api_error('Недійсний action. Дозволено: assign, escalate, approve, reject, clear_review, note.')
+    actor_role = str(g.current_user.get('role') or '')
+    if actor_role == 'operator' and action not in {'assign', 'escalate', 'note'}:
+        return api_error('Оператору доступні лише bulk-дії: assign, escalate, note.', 403)
 
     assignee_id = None
     if action == 'assign':
@@ -521,6 +648,8 @@ def sla_bulk_action():
         assignee_id, err = _validate_assignee_user(admin_user_id)
         if err:
             return api_error(err, 404 if 'не знайдено' in err else 400)
+        if actor_role == 'operator' and int(assignee_id) != int(g.current_user['id']):
+            return api_error('Оператор може призначати bulk-кейси лише на себе.', 403)
 
     if action in {'reject', 'escalate'} and len(note) < 5:
         return api_error('Для reject/escalate потрібен коментар (мінімум 5 символів).')
@@ -558,7 +687,33 @@ def sla_bulk_action():
                     'clear_review': 'clear',
                 }
                 decision = decision_map[action]
-                ok = bool(_repo.set_manual_decision(order_id, decision, g.current_user['id'], note))
+                risk_level = str(order.get('risk_level') or '').lower()
+                if decision in {'approve', 'reject'} and risk_level in {'high', 'critical'}:
+                    approval_state = str(order.get('approval_state') or 'none').lower()
+                    requested_action = str(order.get('approval_requested_action') or '').lower()
+                    requested_by = order.get('approval_requested_by')
+                    if approval_state == 'requested':
+                        if requested_by and int(requested_by) == int(g.current_user['id']):
+                            failed.append({'id': order_id, 'error': 'maker_checker_self_approval'})
+                            continue
+                        if requested_action and requested_action != decision:
+                            failed.append({'id': order_id, 'error': 'approval_action_mismatch'})
+                            continue
+                        ok = bool(_repo.finalize_approval(
+                            order_id=order_id,
+                            approver_id=int(g.current_user['id']),
+                            approve_request=True,
+                            note=note,
+                        ))
+                    else:
+                        ok = bool(_repo.request_approval(
+                            order_id=order_id,
+                            requested_action=decision,
+                            requested_by=int(g.current_user['id']),
+                            note=note,
+                        ))
+                else:
+                    ok = bool(_repo.set_manual_decision(order_id, decision, g.current_user['id'], note))
 
             if ok:
                 success_ids.append(order_id)
