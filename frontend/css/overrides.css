@@ -175,7 +175,7 @@ body {
 
 .header-info {
   min-width: 0 !important;
-  max-width: calc(100vw - 168px) !important;
+  max-width: calc(100vw - 212px) !important;
 }
 
 .avatar {
@@ -523,17 +523,6 @@ body {
 }
 
 #dashboard .section-title {
-  display: none !important;
-}
-
-#dashboard .month-strip,
-#dashboard #sparklineCard,
-#dashboard #topRecipientsCard,
-#dashboard #budgetProgressCard,
-#dashboard .currency-card,
-#dashboard #velocityCard,
-#dashboard #demoPayoutForm,
-#dashboard #templateForm {
   display: none !important;
 }
 
@@ -2302,13 +2291,6 @@ textarea:focus,
 .nav-link.active svg,
 .menu-btn.active svg {
   stroke: var(--mono-danger) !important;
-}
-
-#cmdPalette,
-#cmdBackdrop,
-#kbHelp,
-#kbBackdrop {
-  display: none !important;
 }
 
 .screen.active-screen > .section-header-row,

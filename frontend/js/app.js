@@ -2239,6 +2239,8 @@ async function loadCurrencyRates() {
       const el = $(`#rate${code}`);
       if (el) el.textContent = `₴${_ratesCache[code].toFixed(2)}`;
     });
+    const updated = $('#ratesUpdated');
+    if (updated) updated.textContent = 'Резервні курси · офлайн';
     updateConverter();
   }
 }
@@ -2268,109 +2270,6 @@ function updateConverter() {
 
 loadCurrencyRates();
 
-// ── COMMAND PALETTE (Ctrl+K) ──────────────────────────
-let _cmdOpen = false;
-let _cmdItems = [];
-let _cmdIdx = 0;
-
-const NAV_CMDS = [
-  { type: 'nav', label: 'Огляд',           screen: 'dashboard',    icon: '🏠' },
-  { type: 'nav', label: 'Операції',        screen: 'transactions', icon: '📊' },
-  { type: 'nav', label: 'Картки',          screen: 'cards',        icon: '💳' },
-  { type: 'nav', label: 'Профіль',         screen: 'profile',      icon: '👤' },
-  { type: 'nav', label: 'Виплати',         screen: 'payouts',      icon: '💰' },
-  { type: 'nav', label: 'Донати',          screen: 'donations',    icon: '🤝' },
-  { type: 'nav', label: 'Накопичення',     screen: 'savings',      icon: '🎯' },
-  { type: 'nav', label: 'Аналітика',       screen: 'analytics',    icon: '📈' },
-  { type: 'nav', label: 'Контакти',        screen: 'contacts',     icon: '👥' },
-  { type: 'nav', label: 'Календар',        screen: 'calendar',     icon: '📅' },
-  { type: 'nav', label: 'Автоплатежі',     screen: 'recurring',    icon: '🔄' },
-  { type: 'nav', label: 'Борги',           screen: 'debts',        icon: '📋' },
-  { type: 'nav', label: 'Податковий консультант', screen: 'tax',   icon: '⚖️' },
-];
-
-function openCmdPalette() {
-  const palette = $('#cmdPalette');
-  const backdrop = $('#cmdBackdrop');
-  if (!palette || !backdrop) return;
-  _cmdOpen = true;
-  palette.classList.remove('hidden');
-  backdrop.classList.remove('hidden');
-  const input = $('#cmdInput');
-  if (input) { input.value = ''; input.focus(); }
-  renderCmdResults('');
-}
-
-function closeCmdPalette() {
-  const palette = $('#cmdPalette');
-  const backdrop = $('#cmdBackdrop');
-  if (!palette || !backdrop) return;
-  _cmdOpen = false;
-  palette.classList.add('hidden');
-  backdrop.classList.add('hidden');
-}
-
-function renderCmdResults(query) {
-  const el = $('#cmdResults');
-  if (!el) return;
-
-  const q = query.toLowerCase().trim();
-  let items = [...NAV_CMDS];
-
-  _cmdItems = q ? items.filter(it =>
-    it.label.toLowerCase().includes(q)
-  ) : items;
-
-  _cmdIdx = 0;
-  if (!_cmdItems.length) {
-    el.innerHTML = '<div class="cmd-empty">Нічого не знайдено</div>';
-    return;
-  }
-  renderCmdList();
-}
-
-function renderCmdList() {
-  const el = $('#cmdResults');
-  if (!el) return;
-  el.innerHTML = _cmdItems.map((item, i) => `
-    <div class="cmd-item ${i === _cmdIdx ? 'active' : ''}" data-idx="${i}">
-      <span class="cmd-item-icon">${item.icon}</span>
-      <span class="cmd-item-label">${item.label}</span>
-      ${item.type === 'nav' ? '<span class="cmd-item-type">Розділ</span>' : ''}
-    </div>
-  `).join('');
-  el.querySelectorAll('.cmd-item').forEach(row => {
-    row.addEventListener('click', () => {
-      _cmdIdx = Number(row.dataset.idx);
-      executeCmdItem();
-    });
-    row.addEventListener('mouseenter', () => {
-      _cmdIdx = Number(row.dataset.idx);
-      el.querySelectorAll('.cmd-item').forEach((r,i) => r.classList.toggle('active', i === _cmdIdx));
-    });
-  });
-}
-
-function executeCmdItem() {
-  const item = _cmdItems[_cmdIdx];
-  if (!item) return;
-  closeCmdPalette();
-  if (item.type === 'nav') {
-    const base = getBasePath();
-    window.history.pushState(null, '', base ? base + '/' + item.screen : '/' + item.screen);
-    switchScreen(item.screen);
-  }
-}
-
-$('#cmdInput')?.addEventListener('input', e => renderCmdResults(e.target.value));
-$('#cmdInput')?.addEventListener('keydown', e => {
-  if (e.key === 'ArrowDown') { _cmdIdx = Math.min(_cmdIdx + 1, _cmdItems.length - 1); renderCmdList(); e.preventDefault(); }
-  if (e.key === 'ArrowUp')   { _cmdIdx = Math.max(_cmdIdx - 1, 0); renderCmdList(); e.preventDefault(); }
-  if (e.key === 'Enter')     { executeCmdItem(); e.preventDefault(); }
-  if (e.key === 'Escape')    { closeCmdPalette(); }
-});
-$('#cmdBackdrop')?.addEventListener('click', closeCmdPalette);
-
 // ── KEYBOARD SHORTCUTS ────────────────────────────────
 let _kbBuffer = '';
 let _kbTimer = null;
@@ -2379,29 +2278,15 @@ document.addEventListener('keydown', (e) => {
   if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) {
     if (e.key === 'Escape') {
       document.activeElement.blur();
-      closeCmdPalette();
       closeDrawer();
+      closeConfirm();
     }
     return;
   }
 
-  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-    if (!$('#cmdPalette') || !$('#cmdBackdrop')) return;
-    e.preventDefault();
-    _cmdOpen ? closeCmdPalette() : openCmdPalette();
-    return;
-  }
-
   if (e.key === 'Escape') {
-    closeCmdPalette();
     closeDrawer();
     closeConfirm();
-    return;
-  }
-
-  if (e.key === '?') {
-    $('#kbHelp')?.classList.toggle('hidden');
-    $('#kbBackdrop')?.classList.toggle('hidden');
     return;
   }
 
@@ -2427,15 +2312,6 @@ document.addEventListener('keydown', (e) => {
     switchScreen(screen);
     _kbBuffer = '';
   }
-});
-
-$('#kbClose')?.addEventListener('click', () => {
-  $('#kbHelp')?.classList.add('hidden');
-  $('#kbBackdrop')?.classList.add('hidden');
-});
-$('#kbBackdrop')?.addEventListener('click', () => {
-  $('#kbHelp')?.classList.add('hidden');
-  $('#kbBackdrop')?.classList.add('hidden');
 });
 
 // ── CONFETTI CELEBRATION ──────────────────────────────
@@ -3449,43 +3325,6 @@ window.handleAuth = async function(form, endpoint) {
 
 console.log('[Army Bank] UX core modules loaded');
 
-// ── More Sheet ────────────────────────────────────────────
-(function() {
-  var btn = document.getElementById('navMoreBtn');
-  var sheet = document.getElementById('moreSheet');
-  var overlay = document.getElementById('moreSheetOverlay');
-  if (!btn || !sheet || !overlay) return;
-
-  function openSheet() {
-    sheet.classList.add('open');
-    overlay.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-  }
-  function closeSheet() {
-    sheet.classList.remove('open');
-    overlay.classList.add('hidden');
-    document.body.style.overflow = '';
-  }
-
-  btn.addEventListener('click', openSheet);
-  overlay.addEventListener('click', closeSheet);
-
-  // Items in sheet close the sheet and navigate
-  sheet.querySelectorAll('.nav-link').forEach(function(el) {
-    el.addEventListener('click', function() {
-      closeSheet();
-    });
-  });
-
-  // Swipe down to close
-  var startY = 0;
-  sheet.addEventListener('touchstart', function(e) { startY = e.touches[0].clientY; }, { passive: true });
-  sheet.addEventListener('touchend', function(e) {
-    var dy = e.changedTouches[0].clientY - startY;
-    if (dy > 60) closeSheet();
-  }, { passive: true });
-})();
-
 // ── A2HS Install Banner ───────────────────────────────────
 (function() {
   var deferredPrompt = null;
@@ -3929,14 +3768,6 @@ async function loadBudgetProgress() {
     if (body) body.dataset.txId = txId;
     if (_origOpenTxDrawerV3) return _origOpenTxDrawerV3(txId);
   };
-})();
-
-// ── Keyboard shortcut: Ctrl+K hint in footer ─────────
-(function() {
-  var hint = document.querySelector('.kb-hint');
-  if (hint) hint.addEventListener('click', function() {
-    if (typeof openCmdPalette === 'function') openCmdPalette();
-  });
 })();
 
 // ── Refresh button (R) visual feedback ───────────────
