@@ -841,7 +841,10 @@ async function refreshProfile() {
 
   const balance = formatMoney(state.account.balance);
   const heroBalEl = $('#heroBalance');
-  if (heroBalEl) heroBalEl.textContent = balance;
+  if (heroBalEl) {
+    heroBalEl.textContent = balance;
+    heroBalEl.dataset.raw = state.account.balance;  // raw numeric for overlay balance check
+  }
   const heroAccEl = $('#heroAccount');
   if (heroAccEl) heroAccEl.textContent = `Рахунок: ${state.account.account_number || '—'}`;
 
@@ -1078,7 +1081,8 @@ async function refreshAllData() {
       avatarEl.textContent = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
     }
     const balance = formatMoney(state.account.balance);
-    const heroBalEl = $('#heroBalance');  if (heroBalEl) heroBalEl.textContent = balance;
+    const heroBalEl = $('#heroBalance');
+    if (heroBalEl) { heroBalEl.textContent = balance; heroBalEl.dataset.raw = state.account.balance; }
     const heroAccEl = $('#heroAccount');  if (heroAccEl) heroAccEl.textContent = `Рахунок: ${state.account.account_number || '—'}`;
     const balVal = $('#balanceValue');    if (balVal) balVal.textContent = balance;
     const accNum = $('#accountNumber');   if (accNum) accNum.textContent = `Рахунок: ${state.account.account_number}`;
@@ -1361,17 +1365,21 @@ bindJsonForm('#transferForm', () => {
 }, {
   transform: (v) => {
     const activeMode = ($('#transferModeToggle .tmt-btn.active') || {}).dataset?.mode || 'account';
+    // Include idempotency key so server deduplicates retries/double-taps
+    const ikey = _transferIdempotencyKey || _genIdempotencyKey();
     if (activeMode === 'card') {
       return {
         card_number: (v.recipient_card_number || '').replace(/\s/g, ''),
         amount: Number(v.amount),
         description: v.description || 'Переказ по картці',
+        idempotency_key: ikey,
       };
     }
     return {
       recipient_account_number: normalizeAccountNumber(v.recipient_account_number),
       amount: Number(v.amount),
       description: v.description || 'Переказ',
+      idempotency_key: ikey,
     };
   },
   successMessage: 'Переказ виконано.',
@@ -1380,6 +1388,7 @@ bindJsonForm('#transferForm', () => {
     const sel = $('#transferTemplateSelect');
     if (sel) sel.value = '';
     clearTransferDraft();
+    _transferIdempotencyKey = null;  // clear key so next transfer gets a fresh one
   },
 });
 
@@ -1476,21 +1485,38 @@ $('#transferTemplateSelect')?.addEventListener('change', function () {
 })();
 
 // ── Transfer confirmation bottom sheet ──────────────────────
+// Shared idempotency key: generated when overlay opens, sent with the request.
+// Cleared after form reset to prevent re-use on next transfer.
+let _transferIdempotencyKey = null;
+
+function _genIdempotencyKey() {
+  try { return crypto.randomUUID(); } catch (_) {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  }
+}
+
 (function() {
-  const overlay   = document.getElementById('transferConfirmOverlay');
+  const overlay    = document.getElementById('transferConfirmOverlay');
   const confirmBtn = document.getElementById('tcConfirmBtn');
   const cancelBtn  = document.getElementById('tcCancelBtn');
   const previewBtn = document.getElementById('transferPreviewBtn');
-  if (!overlay || !previewBtn) return;
+  const form       = document.getElementById('transferForm');
+  if (!overlay || !previewBtn || !form) return;
 
-  function formatMoney(n) {
+  function fmtMoney(n) {
     return '₴\u202f' + Number(n).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  previewBtn.addEventListener('click', function() {
-    const form = document.getElementById('transferForm');
-    if (!form) return;
+  // ── Fix: intercept form submit so Enter key can't bypass overlay ──────────
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    // Only allow submission when triggered by confirmBtn (sets _transferConfirmed flag)
+    if (!form._transferConfirmed) {
+      previewBtn.click();
+    }
+  });
 
+  function openOverlay() {
     const mode = (document.querySelector('#transferModeToggle .tmt-btn.active') || {}).dataset?.mode || 'account';
     const amount = parseFloat(form.amount?.value || '0');
     const desc = form.description?.value || '';
@@ -1503,47 +1529,73 @@ $('#transferTemplateSelect')?.addEventListener('change', function () {
     } else {
       toVal = normalizeAccountNumber(form.recipient_account_number?.value || '');
       if (!toVal) { showToast('Введіть номер рахунку'); return; }
-      if (!isLikelyAccountNumber(toVal)) {
-        showToast('Формат рахунку: AB-100001');
-        return;
-      }
+      if (!isLikelyAccountNumber(toVal)) { showToast('Формат рахунку: AB-100001'); return; }
       if (form.recipient_account_number) form.recipient_account_number.value = toVal;
     }
 
     if (!amount || amount <= 0) { showToast('Введіть суму переказу'); return; }
 
+    // ── Fix: client-side balance check ────────────────────────────────────
+    const currentBalance = parseFloat(
+      document.getElementById('balanceAmount')?.dataset?.raw ||
+      document.getElementById('heroBalance')?.dataset?.raw || 'Infinity'
+    );
+    if (Number.isFinite(currentBalance) && amount > currentBalance) {
+      showToast('Недостатньо коштів на рахунку.'); return;
+    }
+
+    // ── Fix: generate idempotency key per transfer attempt ────────────────
+    _transferIdempotencyKey = _genIdempotencyKey();
+
     document.getElementById('tcTo').textContent = toVal;
-    document.getElementById('tcAmount').textContent = formatMoney(amount);
+    document.getElementById('tcAmount').textContent = fmtMoney(amount);
     document.getElementById('tcDesc').textContent = desc || '—';
+
+    const afterEl = document.getElementById('tcAfterBalance');
+    if (afterEl) {
+      if (Number.isFinite(currentBalance)) {
+        const after = currentBalance - amount;
+        afterEl.textContent = fmtMoney(after);
+        afterEl.style.color = after < 0 ? '#f87171' : '';
+      } else {
+        afterEl.textContent = '—';
+      }
+    }
 
     overlay.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-  });
+    confirmBtn.focus();
+  }
+
+  previewBtn.addEventListener('click', openOverlay);
 
   function closeOverlay() {
     overlay.classList.add('hidden');
     document.body.style.overflow = '';
     confirmBtn.disabled = false;
     confirmBtn.textContent = 'Підтвердити';
+    form._transferConfirmed = false;
   }
 
   cancelBtn.addEventListener('click', closeOverlay);
-  overlay.addEventListener('click', function(e) {
-    if (e.target === overlay) closeOverlay();
-  });
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeOverlay(); });
+  overlay.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeOverlay(); });
 
   confirmBtn.addEventListener('click', async function() {
     confirmBtn.disabled = true;
     confirmBtn.textContent = 'Виконуємо…';
     try {
-      const form = document.getElementById('transferForm');
-      const realSubmit = document.getElementById('transferSubmitReal');
+      // Signal to form submit handler that this is a confirmed submission
+      form._transferConfirmed = true;
       closeOverlay();
+      // Trigger the real form submit (goes through bindJsonForm handler)
+      const realSubmit = document.getElementById('transferSubmitReal');
       if (realSubmit) realSubmit.click();
     } catch(err) {
       showToast(err.message || 'Помилка переказу');
       confirmBtn.disabled = false;
       confirmBtn.textContent = 'Підтвердити';
+      form._transferConfirmed = false;
     }
   });
 })();

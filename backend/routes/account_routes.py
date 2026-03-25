@@ -85,7 +85,11 @@ def transfer():
         amount = float(data.get('amount') or 0)
         recipient = (data.get('recipient_account_number') or '').strip()
         description = (data.get('description') or 'Швидкий переказ').strip()
-        return jsonify({'ok': True, 'data': service.transfer(g.current_user['id'], recipient, amount, description)})
+        idempotency_key = (data.get('idempotency_key') or '').strip() or None
+        return jsonify({'ok': True, 'data': service.transfer(
+            g.current_user['id'], recipient, amount, description,
+            idempotency_key=idempotency_key,
+        )})
     except Exception as exc:
         return api_error(str(exc))
 
@@ -99,10 +103,14 @@ def transfer_by_card():
         amount = float(data.get('amount') or 0)
         card_number = (data.get('card_number') or '').strip()
         description = (data.get('description') or 'Переказ по картці').strip()
+        idempotency_key = (data.get('idempotency_key') or '').strip() or None
         # Resolve account number from card, then use standard transfer
         card = card_service.get_account_by_card(card_number)
         recipient_account = card['account_number']
-        return jsonify({'ok': True, 'data': service.transfer(g.current_user['id'], recipient_account, amount, description)})
+        return jsonify({'ok': True, 'data': service.transfer(
+            g.current_user['id'], recipient_account, amount, description,
+            idempotency_key=idempotency_key,
+        )})
     except Exception as exc:
         return api_error(str(exc))
 

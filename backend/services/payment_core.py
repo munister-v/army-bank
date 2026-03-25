@@ -158,21 +158,26 @@ class PaymentCore:
         order_id: int,
     ) -> tuple[int, int]:
         """Атомарне подвійне списання/зарахування в одній транзакції БД.
+        Баланс перевіряється ВСЕРЕДИНІ транзакції щоб унеможливити race condition.
         Повертає (tx_out_id, tx_in_id)."""
 
-        sender_new = round(float(sender['balance']) - amount, 2)
-        recipient_new = round(float(recipient['balance']) + amount, 2)
         suffix = get_returning_id_suffix()
 
         with get_connection() as conn:
-            # Update balances
-            conn.execute(
-                'UPDATE accounts SET balance = %s WHERE id = %s',
-                (sender_new, sender['id'])
+            # Атомарне списання: арифметика виконується в БД щоб уникнути race condition.
+            # WHERE balance >= amount — якщо інший запит вже зняв кошти, rowcount=0 → rollback.
+            cur_debit = conn.execute(
+                'UPDATE accounts SET balance = balance - %s'
+                ' WHERE id = %s AND balance >= %s',
+                (amount, sender['id'], amount)
             )
+            if cur_debit.rowcount == 0:
+                raise ValueError('Недостатньо коштів — баланс змінився, спробуйте ще раз.')
+
+            # Зарахування отримувачу (завжди успішно — баланс не може стати від'ємним)
             conn.execute(
-                'UPDATE accounts SET balance = %s WHERE id = %s',
-                (recipient_new, recipient['id'])
+                'UPDATE accounts SET balance = balance + %s WHERE id = %s',
+                (amount, recipient['id'])
             )
 
             # Record outgoing transaction
