@@ -387,6 +387,40 @@ CREATE TABLE IF NOT EXISTS integrity_hashes (
 );
 """
 
+IDEMPOTENCY_DDL = """
+CREATE TABLE IF NOT EXISTS api_idempotency (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    action VARCHAR(80) NOT NULL,
+    idempotency_key VARCHAR(128) NOT NULL,
+    request_hash VARCHAR(64) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'processing',
+    response_code INTEGER,
+    response_payload TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, action, idempotency_key)
+);
+CREATE INDEX IF NOT EXISTS idx_api_idempotency_created ON api_idempotency(created_at);
+"""
+
+IDEMPOTENCY_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS api_idempotency (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    action TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    request_hash TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'processing',
+    response_code INTEGER,
+    response_payload TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (user_id, action, idempotency_key)
+);
+CREATE INDEX IF NOT EXISTS idx_api_idempotency_created ON api_idempotency(created_at);
+"""
+
 
 def init_db() -> None:
     """Ініціалізує схему БД."""
@@ -535,6 +569,7 @@ def init_db() -> None:
                 optional=True,
                 label='payment_order_events.idx_type',
             )
+            _pg_exec(IDEMPOTENCY_DDL, optional=True, label='api_idempotency')
     else:
         schema_sql = Path(SCHEMA_PATH).read_text(encoding='utf-8')
         with get_connection_sqlite() as conn:
@@ -545,6 +580,7 @@ def init_db() -> None:
             conn.executescript(DEBTS_DDL_SQLITE)
             conn.executescript(CARDS_DDL_SQLITE)
             conn.executescript(PAYMENT_CORE_DDL_SQLITE)
+            conn.executescript(IDEMPOTENCY_DDL_SQLITE)
             try:
                 conn.execute('ALTER TABLE transactions ADD COLUMN payment_order_id INTEGER;')
             except Exception:

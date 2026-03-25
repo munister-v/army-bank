@@ -29,6 +29,14 @@
     {
       "key": "userId",
       "value": "1"
+    },
+    {
+      "key": "idempotencyKey",
+      "value": "demo-payout-001"
+    },
+    {
+      "key": "requestId",
+      "value": "req-demo-001"
     }
   ],
   "item": [
@@ -156,6 +164,14 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
               }
             ],
             "body": {

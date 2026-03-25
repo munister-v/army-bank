@@ -5,17 +5,30 @@ import math
 
 from flask import Blueprint, jsonify, request, g
 
+from ..config import (
+    CRITICAL_ADMIN_MUTATION_RATE_LIMIT,
+    CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+)
 from ..repositories.account_repository import AccountRepository
 from ..repositories.feature_repository import FeatureRepository
 from ..repositories.user_repository import UserRepository
+from ..services.idempotency_service import IdempotencyService
 from ..database import get_connection
-from .helpers import api_error, auth_required, role_required
+from .helpers import (
+    api_error,
+    auth_required,
+    role_required,
+    actor_rate_key,
+    rate_limit,
+    require_idempotency_key,
+)
 from .push_routes import send_push
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 user_repo = UserRepository()
 account_repo = AccountRepository()
 feature_repo = FeatureRepository()
+idempotency_service = IdempotencyService()
 
 _ALLOWED_ROLES = ('soldier', 'operator', 'admin', 'platform_admin')
 
@@ -376,10 +389,19 @@ def list_all_transactions():
 @admin_bp.post('/payouts')
 @auth_required
 @role_required('admin', 'platform_admin', 'operator')
+@rate_limit(
+    CRITICAL_ADMIN_MUTATION_RATE_LIMIT,
+    CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+    key_func=lambda: actor_rate_key('admin:payouts'),
+)
 def create_payout():
     """Адмін/оператор: нарахування виплати користувачу."""
+    idempotency_key = None
     try:
         data = request.get_json(force=True) or {}
+        idempotency_key, err = require_idempotency_key(payload=data)
+        if err:
+            return err
         user_id = int(data.get('user_id') or 0)
         amount  = float(data.get('amount') or 0)
         title   = (data.get('title') or 'Бойова виплата').strip()
@@ -396,6 +418,27 @@ def create_payout():
         account = account_repo.get_account_by_user_id(user_id)
         if not account:
             return api_error('Рахунок користувача не знайдено.', 404)
+
+        actor_id = int(g.current_user['id'])
+        if idempotency_key:
+            reservation = idempotency_service.reserve(
+                user_id=actor_id,
+                action='admin_payout',
+                key=idempotency_key,
+                payload={
+                    'target_user_id': user_id,
+                    'amount': amount,
+                    'title': title,
+                    'payout_type': payout_type,
+                },
+            )
+            state = reservation.get('state')
+            if state == 'conflict':
+                return api_error('Idempotency-Key уже використано з іншим payload.', 409)
+            if state == 'replay':
+                return jsonify(reservation.get('payload') or {'ok': False}), int(reservation.get('response_code') or 200)
+            if state == 'processing':
+                return api_error('Операція вже виконується. Спробуйте пізніше.', 409)
 
         new_balance = round(account['balance'] + amount, 2)
         account_repo.update_balance(account['id'], new_balance)
@@ -417,10 +460,25 @@ def create_payout():
             url='/dashboard',
             push_type='payout',
         )
-        return jsonify({'ok': True, 'data': {
+        payload = {'ok': True, 'data': {
             'user_id': user_id, 'amount': amount, 'new_balance': new_balance
-        }})
+        }}
+        if idempotency_key:
+            idempotency_service.complete(
+                user_id=actor_id,
+                action='admin_payout',
+                key=idempotency_key,
+                response_payload=payload,
+                response_code=200,
+            )
+        return jsonify(payload)
     except Exception as exc:
+        if idempotency_key:
+            idempotency_service.release_processing(
+                user_id=int(g.current_user['id']),
+                action='admin_payout',
+                key=idempotency_key,
+            )
         return api_error(str(exc))
 
 
@@ -485,10 +543,19 @@ def get_chart_stats():
 @admin_bp.post('/users/<int:user_id>/balance-adjust')
 @auth_required
 @role_required('admin', 'platform_admin')
+@rate_limit(
+    CRITICAL_ADMIN_MUTATION_RATE_LIMIT,
+    CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+    key_func=lambda: actor_rate_key('admin:balance_adjust'),
+)
 def balance_adjust(user_id: int):
     """Адмін: ручне коригування балансу (дебет або кредит)."""
+    idempotency_key = None
     try:
         data    = request.get_json(force=True) or {}
+        idempotency_key, err = require_idempotency_key(payload=data)
+        if err:
+            return err
         amount  = float(data.get('amount') or 0)
         reason  = (data.get('reason') or 'Ручне коригування').strip()
         op_type = (data.get('type') or 'credit').strip()   # 'credit' | 'debit'
@@ -501,6 +568,27 @@ def balance_adjust(user_id: int):
         account = account_repo.get_account_by_user_id(user_id)
         if not account:
             return api_error('Рахунок не знайдено.', 404)
+
+        actor_id = int(g.current_user['id'])
+        if idempotency_key:
+            reservation = idempotency_service.reserve(
+                user_id=actor_id,
+                action='admin_balance_adjust',
+                key=idempotency_key,
+                payload={
+                    'target_user_id': user_id,
+                    'amount': amount,
+                    'reason': reason,
+                    'type': op_type,
+                },
+            )
+            state = reservation.get('state')
+            if state == 'conflict':
+                return api_error('Idempotency-Key уже використано з іншим payload.', 409)
+            if state == 'replay':
+                return jsonify(reservation.get('payload') or {'ok': False}), int(reservation.get('response_code') or 200)
+            if state == 'processing':
+                return api_error('Операція вже виконується. Спробуйте пізніше.', 409)
 
         current = float(account['balance'])
         if op_type == 'debit' and current < amount:
@@ -515,8 +603,23 @@ def balance_adjust(user_id: int):
             g.current_user['id'], 'admin_balance_adjust',
             f'{op_type.upper()} {amount:.2f} грн · user_id={user_id} · причина: {reason}.'
         )
-        return jsonify({'ok': True, 'data': {'new_balance': new_balance}})
+        payload = {'ok': True, 'data': {'new_balance': new_balance}}
+        if idempotency_key:
+            idempotency_service.complete(
+                user_id=actor_id,
+                action='admin_balance_adjust',
+                key=idempotency_key,
+                response_payload=payload,
+                response_code=200,
+            )
+        return jsonify(payload)
     except Exception as exc:
+        if idempotency_key:
+            idempotency_service.release_processing(
+                user_id=int(g.current_user['id']),
+                action='admin_balance_adjust',
+                key=idempotency_key,
+            )
         return api_error(str(exc))
 
 

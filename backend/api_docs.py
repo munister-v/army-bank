@@ -55,6 +55,8 @@ def build_api_catalog(prefix: str = '') -> dict:
             'type': 'Bearer JWT token',
             'header': 'Authorization: Bearer <token>',
             'refresh_header': 'X-Refresh-Token',
+            'request_id_header': 'X-Request-Id',
+            'idempotency_header': 'Idempotency-Key (required for monetary mutations)',
             'roles': ['soldier', 'operator', 'admin', 'platform_admin'],
         },
         'response_format': {
@@ -259,6 +261,10 @@ def build_openapi_schema(prefix: str = '') -> dict:
                 'post': {
                     'tags': ['Account'],
                     'summary': 'Top up account',
+                    'parameters': [
+                        {'$ref': '#/components/parameters/RequestIdHeader'},
+                        {'$ref': '#/components/parameters/IdempotencyKeyHeader'},
+                    ],
                     'requestBody': {
                         'required': True,
                         'content': {
@@ -274,6 +280,10 @@ def build_openapi_schema(prefix: str = '') -> dict:
                 'post': {
                     'tags': ['Account'],
                     'summary': 'Transfer by account number',
+                    'parameters': [
+                        {'$ref': '#/components/parameters/RequestIdHeader'},
+                        {'$ref': '#/components/parameters/IdempotencyKeyHeader'},
+                    ],
                     'requestBody': {
                         'required': True,
                         'content': {
@@ -343,6 +353,10 @@ def build_openapi_schema(prefix: str = '') -> dict:
                 'post': {
                     'tags': ['Admin'],
                     'summary': 'Create payout for user',
+                    'parameters': [
+                        {'$ref': '#/components/parameters/RequestIdHeader'},
+                        {'$ref': '#/components/parameters/IdempotencyKeyHeader'},
+                    ],
                     'requestBody': {
                         'required': True,
                         'content': {
@@ -485,6 +499,20 @@ def build_openapi_schema(prefix: str = '') -> dict:
                     'in': 'query',
                     'schema': {'type': 'integer', 'minimum': 0, 'default': 0},
                 },
+                'RequestIdHeader': {
+                    'name': 'X-Request-Id',
+                    'in': 'header',
+                    'required': False,
+                    'schema': {'type': 'string', 'maxLength': 120},
+                    'description': 'Client-provided correlation id. Echoed in response header.',
+                },
+                'IdempotencyKeyHeader': {
+                    'name': 'Idempotency-Key',
+                    'in': 'header',
+                    'required': True,
+                    'schema': {'type': 'string', 'maxLength': 128},
+                    'description': 'Required for monetary mutations to prevent duplicate execution.',
+                },
             },
             'responses': {
                 'ErrorResponse': {
@@ -531,11 +559,11 @@ def build_openapi_schema(prefix: str = '') -> dict:
                 'TransferRequest': {
                     'type': 'object',
                     'properties': {
-                        'to_account_number': {'type': 'string'},
+                        'recipient_account_number': {'type': 'string'},
                         'amount': {'type': 'number', 'minimum': 0.01},
                         'description': {'type': 'string'},
                     },
-                    'required': ['to_account_number', 'amount'],
+                    'required': ['recipient_account_number', 'amount'],
                 },
                 'PayoutRequest': {
                     'type': 'object',
@@ -591,6 +619,8 @@ def build_postman_collection(prefix: str = '') -> dict:
             {'key': 'identity', 'value': 'admin@army-bank.ua'},
             {'key': 'password', 'value': ''},
             {'key': 'userId', 'value': '1'},
+            {'key': 'idempotencyKey', 'value': 'demo-payout-001'},
+            {'key': 'requestId', 'value': 'req-demo-001'},
         ],
         'item': [
             {
@@ -681,6 +711,8 @@ def build_postman_collection(prefix: str = '') -> dict:
                             'header': [
                                 {'key': 'Authorization', 'value': 'Bearer {{token}}'},
                                 {'key': 'Content-Type', 'value': 'application/json'},
+                                {'key': 'Idempotency-Key', 'value': '{{idempotencyKey}}'},
+                                {'key': 'X-Request-Id', 'value': '{{requestId}}'},
                             ],
                             'body': {
                                 'mode': 'raw',
@@ -738,6 +770,8 @@ def build_postman_environment(prefix: str = '') -> dict:
             {'key': 'password', 'value': '', 'enabled': True},
             {'key': 'token', 'value': '', 'enabled': True},
             {'key': 'userId', 'value': '1', 'enabled': True},
+            {'key': 'idempotencyKey', 'value': 'demo-payout-001', 'enabled': True},
+            {'key': 'requestId', 'value': 'req-demo-001', 'enabled': True},
         ],
         '_postman_variable_scope': 'environment',
         '_postman_exported_at': datetime.now(timezone.utc).isoformat(),

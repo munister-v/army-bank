@@ -99,6 +99,8 @@ pytest tests/ -v
 - Postman collection: `GET /api/postman/collection`
 - Postman environment: `GET /api/postman/environment`
 - Healthcheck: `GET /health`
+- Correlation header: `X-Request-Id` (опційно, повертається у відповіді)
+- Monetary safety header: `Idempotency-Key` (обов'язково для грошових mutation endpoint'ів)
 
 Локальні файли в репозиторії:
 

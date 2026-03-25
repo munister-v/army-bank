@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from ..database import get_returning_id_suffix, insert_last_id
+from ..utils.request_context import append_request_id
 from .base import BaseRepository
 
 
@@ -91,6 +92,7 @@ class FeatureRepository(BaseRepository):
             return conn.execute('SELECT * FROM payouts WHERE user_id = %s ORDER BY id DESC', (user_id,)).fetchall()
 
     def add_audit_log(self, user_id: int | None, action: str, details: str | None = None):
+        details = append_request_id(details)
         with self.connection() as conn:
             conn.execute(
                 'INSERT INTO audit_logs(user_id, action, details) VALUES(%s, %s, %s)',

@@ -32,6 +32,11 @@ Header:
 Authorization: Bearer <token>
 ```
 
+### Correlation + monetary safety headers
+
+- `X-Request-Id: <client-correlation-id>` — optional, echoed back in response headers.
+- `Idempotency-Key: <unique-operation-key>` — required for monetary mutations (`topup`, `transfer`, `payout`, balance adjustments).
+
 ### Login flow
 
 1. `POST /api/auth/login` with credentials.
@@ -151,6 +156,17 @@ curl https://army-bank.onrender.com/api/auth/me \
 ```bash
 curl "https://army-bank.onrender.com/api/admin/transactions?limit=50&offset=0&sort_by=newest" \
   -H "Authorization: Bearer <admin_token>"
+```
+
+### Topup with mandatory idempotency
+
+```bash
+curl -X POST https://army-bank.onrender.com/api/transactions/topup \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: topup-2026-03-25-001" \
+  -H "X-Request-Id: req-topup-001" \
+  -d '{"amount": 500}'
 ```
 
 ### Processing SLA queue

@@ -5,11 +5,12 @@ import json
 from datetime import datetime, timedelta, timezone
 from flask import Blueprint, jsonify, request, g
 
+from ..config import CRITICAL_PROCESSING_RATE_LIMIT, CRITICAL_RATE_LIMIT_WINDOW_SECONDS
 from ..repositories.payment_repository import PaymentRepository
 from ..repositories.feature_repository import FeatureRepository
 from ..repositories.user_repository import UserRepository
 from ..services.integrity_service import IntegrityService
-from .helpers import api_error, auth_required, role_required
+from .helpers import api_error, auth_required, role_required, actor_rate_key, rate_limit
 
 payment_audit_bp = Blueprint('payment_audit', __name__)
 
@@ -217,6 +218,11 @@ def get_order(order_id: int):
 @payment_audit_bp.patch('/orders/<int:order_id>/assign')
 @auth_required
 @role_required('operator', 'admin', 'platform_admin')
+@rate_limit(
+    CRITICAL_PROCESSING_RATE_LIMIT,
+    CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+    key_func=lambda: actor_rate_key('processing:assign'),
+)
 def assign_order(order_id: int):
     data = request.get_json(silent=True) or {}
     admin_user_id = data.get('admin_user_id')
@@ -248,6 +254,11 @@ def assign_order(order_id: int):
 @payment_audit_bp.patch('/orders/<int:order_id>/decision')
 @auth_required
 @role_required('operator', 'admin', 'platform_admin')
+@rate_limit(
+    CRITICAL_PROCESSING_RATE_LIMIT,
+    CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+    key_func=lambda: actor_rate_key('processing:decision'),
+)
 def decide_order(order_id: int):
     data = request.get_json(silent=True) or {}
     decision = (data.get('decision') or '').strip().lower()
@@ -313,6 +324,11 @@ def decide_order(order_id: int):
 @payment_audit_bp.post('/orders/<int:order_id>/approval/request')
 @auth_required
 @role_required('admin', 'platform_admin')
+@rate_limit(
+    CRITICAL_PROCESSING_RATE_LIMIT,
+    CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+    key_func=lambda: actor_rate_key('processing:approval_request'),
+)
 def request_order_approval(order_id: int):
     data = request.get_json(silent=True) or {}
     action = (data.get('action') or '').strip().lower()
@@ -347,6 +363,11 @@ def request_order_approval(order_id: int):
 @payment_audit_bp.post('/orders/<int:order_id>/approval/finalize')
 @auth_required
 @role_required('admin', 'platform_admin')
+@rate_limit(
+    CRITICAL_PROCESSING_RATE_LIMIT,
+    CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+    key_func=lambda: actor_rate_key('processing:approval_finalize'),
+)
 def finalize_order_approval(order_id: int):
     data = request.get_json(silent=True) or {}
     approve = _as_bool(data.get('approve'), default=True)
@@ -382,6 +403,11 @@ def finalize_order_approval(order_id: int):
 @payment_audit_bp.post('/orders/<int:order_id>/notes')
 @auth_required
 @role_required('operator', 'admin', 'platform_admin')
+@rate_limit(
+    CRITICAL_PROCESSING_RATE_LIMIT,
+    CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+    key_func=lambda: actor_rate_key('processing:notes'),
+)
 def add_order_note(order_id: int):
     data = request.get_json(silent=True) or {}
     note = (data.get('note') or '').strip()
@@ -570,6 +596,11 @@ def approval_inbox():
 @payment_audit_bp.post('/sla-auto-escalate')
 @auth_required
 @role_required('admin', 'platform_admin')
+@rate_limit(
+    CRITICAL_PROCESSING_RATE_LIMIT,
+    CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+    key_func=lambda: actor_rate_key('processing:sla_auto_escalate'),
+)
 def sla_auto_escalate():
     data = request.get_json(silent=True) or {}
     dry_run = _as_bool(data.get('dry_run'), default=False)
@@ -701,6 +732,11 @@ def workload():
 @payment_audit_bp.post('/sla-bulk-action')
 @auth_required
 @role_required('operator', 'admin', 'platform_admin')
+@rate_limit(
+    CRITICAL_PROCESSING_RATE_LIMIT,
+    CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+    key_func=lambda: actor_rate_key('processing:sla_bulk_action'),
+)
 def sla_bulk_action():
     data = request.get_json(silent=True) or {}
     ids_raw = data.get('ids') or []
@@ -860,6 +896,11 @@ def list_risk_events():
 @payment_audit_bp.post('/risk-events/<int:event_id>/resolve')
 @auth_required
 @role_required('operator', 'admin', 'platform_admin')
+@rate_limit(
+    CRITICAL_PROCESSING_RATE_LIMIT,
+    CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+    key_func=lambda: actor_rate_key('processing:risk_resolve'),
+)
 def resolve_event(event_id: int):
     ok = _repo.resolve_risk_event(event_id, g.current_user['id'])
     if not ok:

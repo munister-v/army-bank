@@ -3,15 +3,24 @@ from __future__ import annotations
 
 from flask import Blueprint, Response, jsonify, request, g
 
+from ..config import CRITICAL_MONEY_RATE_LIMIT, CRITICAL_RATE_LIMIT_WINDOW_SECONDS
 from ..services.account_service import AccountService
 from ..services.card_service import CardService
 from ..services.feature_service import FeatureService
-from .helpers import api_error, auth_required
+from ..services.idempotency_service import IdempotencyService
+from .helpers import (
+    api_error,
+    auth_required,
+    actor_rate_key,
+    rate_limit,
+    require_idempotency_key,
+)
 
 account_bp = Blueprint('account', __name__, url_prefix='/api')
 service = AccountService()
 card_service = CardService()
 feature_service = FeatureService()
+idempotency_service = IdempotencyService()
 
 
 @account_bp.get('/dashboard')
@@ -67,25 +76,76 @@ def main_account():
 
 @account_bp.post('/transactions/topup')
 @auth_required
+@rate_limit(
+    CRITICAL_MONEY_RATE_LIMIT,
+    CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+    key_func=lambda: actor_rate_key('money:topup'),
+)
 def topup():
+    idempotency_key = None
     try:
-        data = request.get_json(force=True)
+        data = request.get_json(force=True) or {}
+        idempotency_key, err = require_idempotency_key(payload=data)
+        if err:
+            return err
+
         amount = float(data.get('amount') or 0)
         description = (data.get('description') or 'Поповнення рахунку').strip()
-        return jsonify({'ok': True, 'data': service.topup(g.current_user['id'], amount, description)})
+        user_id = int(g.current_user['id'])
+
+        if idempotency_key:
+            reservation = idempotency_service.reserve(
+                user_id=user_id,
+                action='topup',
+                key=idempotency_key,
+                payload={'amount': amount, 'description': description},
+            )
+            state = reservation.get('state')
+            if state == 'conflict':
+                return api_error('Idempotency-Key уже використано з іншим payload.', 409)
+            if state == 'replay':
+                return jsonify(reservation.get('payload') or {'ok': False}), int(reservation.get('response_code') or 200)
+            if state == 'processing':
+                return api_error('Операція вже виконується. Спробуйте пізніше.', 409)
+
+        result = service.topup(user_id, amount, description)
+        payload = {'ok': True, 'data': result}
+        if idempotency_key:
+            idempotency_service.complete(
+                user_id=user_id,
+                action='topup',
+                key=idempotency_key,
+                response_payload=payload,
+                response_code=200,
+            )
+        return jsonify(payload)
     except Exception as exc:
+        if idempotency_key:
+            idempotency_service.release_processing(
+                user_id=int(g.current_user['id']),
+                action='topup',
+                key=idempotency_key,
+            )
         return api_error(str(exc))
 
 
 @account_bp.post('/transactions/transfer')
 @auth_required
+@rate_limit(
+    CRITICAL_MONEY_RATE_LIMIT,
+    CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+    key_func=lambda: actor_rate_key('money:transfer'),
+)
 def transfer():
     try:
-        data = request.get_json(force=True)
+        data = request.get_json(force=True) or {}
+        idempotency_key, err = require_idempotency_key(payload=data, allow_body_fallback=True)
+        if err:
+            return err
+
         amount = float(data.get('amount') or 0)
         recipient = (data.get('recipient_account_number') or '').strip()
         description = (data.get('description') or 'Швидкий переказ').strip()
-        idempotency_key = (data.get('idempotency_key') or '').strip() or None
         return jsonify({'ok': True, 'data': service.transfer(
             g.current_user['id'], recipient, amount, description,
             idempotency_key=idempotency_key,
@@ -96,14 +156,22 @@ def transfer():
 
 @account_bp.post('/transactions/transfer-by-card')
 @auth_required
+@rate_limit(
+    CRITICAL_MONEY_RATE_LIMIT,
+    CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+    key_func=lambda: actor_rate_key('money:transfer_by_card'),
+)
 def transfer_by_card():
     """Transfer to another user by their card number."""
     try:
-        data = request.get_json(force=True)
+        data = request.get_json(force=True) or {}
+        idempotency_key, err = require_idempotency_key(payload=data, allow_body_fallback=True)
+        if err:
+            return err
+
         amount = float(data.get('amount') or 0)
         card_number = (data.get('card_number') or '').strip()
         description = (data.get('description') or 'Переказ по картці').strip()
-        idempotency_key = (data.get('idempotency_key') or '').strip() or None
         # Resolve account number from card, then use standard transfer
         card = card_service.get_account_by_card(card_number)
         recipient_account = card['account_number']

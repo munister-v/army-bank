@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import hmac
 import re
+import uuid
 from pathlib import Path
-from flask import Flask, Response, abort, jsonify, redirect, send_from_directory
+from flask import Flask, Response, abort, jsonify, redirect, send_from_directory, g
 from flask_compress import Compress
 
 from .api_docs import (
@@ -15,7 +16,14 @@ from .api_docs import (
     build_postman_collection,
     build_postman_environment,
 )
-from .config import BASE_PATH, BOOTSTRAP_TOKEN, DEBUG
+from .config import (
+    BASE_PATH,
+    BOOTSTRAP_TOKEN,
+    DEBUG,
+    ENABLE_RATE_LIMIT_IN_TESTS,
+    ENFORCE_IDEMPOTENCY_HEADERS,
+    ENFORCE_IDEMPOTENCY_IN_TESTS,
+)
 from .database import init_db, init_admin
 from .routes.account_routes import account_bp
 from .routes.admin_routes import admin_bp
@@ -45,6 +53,9 @@ def create_app() -> Flask:
         print(f'[Army Bank] DB bootstrap warning: {exc}')
     app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path=BASE_PATH or '')
     app.config['DB_BOOT_OK'] = db_boot_ok
+    app.config.setdefault('ENABLE_RATE_LIMIT_IN_TESTS', ENABLE_RATE_LIMIT_IN_TESTS)
+    app.config.setdefault('ENFORCE_IDEMPOTENCY_HEADERS', ENFORCE_IDEMPOTENCY_HEADERS)
+    app.config.setdefault('ENFORCE_IDEMPOTENCY_IN_TESTS', ENFORCE_IDEMPOTENCY_IN_TESTS)
 
     # ── Gzip compression for all text responses (JSON, HTML, CSS, JS) ──
     app.config['COMPRESS_REGISTER'] = False   # manual init below
@@ -75,6 +86,24 @@ def create_app() -> Flask:
             parts.append(value)
             resp.headers['Vary'] = ', '.join(parts)
 
+    def _append_expose_header(resp, *header_names: str):
+        existing = (resp.headers.get('Access-Control-Expose-Headers') or '').strip()
+        parts = [p.strip() for p in existing.split(',') if p.strip()]
+        for name in header_names:
+            if name and name not in parts:
+                parts.append(name)
+        if parts:
+            resp.headers['Access-Control-Expose-Headers'] = ', '.join(parts)
+
+    @app.before_request
+    def set_request_id():
+        from flask import request as _req
+
+        incoming = (_req.headers.get('X-Request-Id') or '').strip()
+        if incoming:
+            incoming = re.sub(r'[^a-zA-Z0-9._:-]', '', incoming)[:120]
+        g.request_id = incoming or uuid.uuid4().hex
+
     @app.after_request
     def add_headers(resp):
         resp.headers['X-Content-Type-Options'] = 'nosniff'
@@ -83,15 +112,22 @@ def create_app() -> Flask:
         resp.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
         resp.headers.setdefault('Cross-Origin-Opener-Policy', 'same-origin')
         resp.headers.setdefault('Cross-Origin-Resource-Policy', 'same-origin')
+        req_id = str(getattr(g, 'request_id', '') or '').strip()
+        if req_id:
+            resp.headers['X-Request-Id'] = req_id
         from flask import request as _req
         origin = _req.headers.get('Origin', '')
         if origin in _ALLOWED_ORIGINS:
             resp.headers['Access-Control-Allow-Origin'] = origin
             resp.headers['Access-Control-Allow-Credentials'] = 'true'
             resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PATCH, PUT, DELETE, OPTIONS'
-            resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Bootstrap-Token'
-            resp.headers['Access-Control-Expose-Headers'] = 'X-Refresh-Token'
+            resp.headers['Access-Control-Allow-Headers'] = (
+                'Content-Type, Authorization, X-Bootstrap-Token, Idempotency-Key, X-Request-Id'
+            )
+            _append_expose_header(resp, 'X-Refresh-Token', 'X-Request-Id')
             _append_vary(resp, 'Origin')
+        else:
+            _append_expose_header(resp, 'X-Request-Id')
         if _req.is_secure:
             resp.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
         # Cache-Control for static assets (CSS, JS, fonts, images)
@@ -116,7 +152,9 @@ def create_app() -> Flask:
             r.headers['Access-Control-Allow-Origin'] = origin
             r.headers['Access-Control-Allow-Credentials'] = 'true'
             r.headers['Access-Control-Allow-Methods'] = 'GET, POST, PATCH, PUT, DELETE, OPTIONS'
-            r.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Bootstrap-Token'
+            r.headers['Access-Control-Allow-Headers'] = (
+                'Content-Type, Authorization, X-Bootstrap-Token, Idempotency-Key, X-Request-Id'
+            )
             r.headers['Access-Control-Max-Age'] = '86400'
             _append_vary(r, 'Origin')
         return r

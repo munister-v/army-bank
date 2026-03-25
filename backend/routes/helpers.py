@@ -9,7 +9,12 @@ from flask import jsonify, request, g, after_this_request, current_app
 
 from ..services.auth_service import AuthService
 from ..utils.security import should_refresh_session
-from ..config import AUTH_RATE_LIMIT_ENABLED
+from ..config import (
+    AUTH_RATE_LIMIT_ENABLED,
+    ENABLE_RATE_LIMIT_IN_TESTS,
+    ENFORCE_IDEMPOTENCY_HEADERS,
+    ENFORCE_IDEMPOTENCY_IN_TESTS,
+)
 
 auth_service = AuthService()
 
@@ -48,7 +53,12 @@ def auth_required(func):
                 @after_this_request
                 def add_refresh_header(response):
                     response.headers['X-Refresh-Token'] = new_token
-                    response.headers['Access-Control-Expose-Headers'] = 'X-Refresh-Token'
+                    existing = (response.headers.get('Access-Control-Expose-Headers') or '').strip()
+                    parts = [p.strip() for p in existing.split(',') if p.strip()]
+                    for header_name in ('X-Refresh-Token', 'X-Request-Id'):
+                        if header_name not in parts:
+                            parts.append(header_name)
+                    response.headers['Access-Control-Expose-Headers'] = ', '.join(parts)
                     return response
 
         return func(*args, **kwargs)
@@ -62,6 +72,57 @@ def _client_ip() -> str:
     return (request.remote_addr or 'unknown')[:80]
 
 
+def _cfg_bool(name: str, default: bool) -> bool:
+    value = current_app.config.get(name, default)
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _idempotency_enforced() -> bool:
+    if not _cfg_bool('ENFORCE_IDEMPOTENCY_HEADERS', ENFORCE_IDEMPOTENCY_HEADERS):
+        return False
+    if current_app.testing:
+        return _cfg_bool('ENFORCE_IDEMPOTENCY_IN_TESTS', ENFORCE_IDEMPOTENCY_IN_TESTS)
+    return True
+
+
+def require_idempotency_key(payload: dict | None = None, allow_body_fallback: bool = False):
+    """Повертає (key, None) або (None, error_response)."""
+    header_key = (request.headers.get('Idempotency-Key') or '').strip()
+    if header_key:
+        if len(header_key) > 128:
+            return None, api_error('Idempotency-Key занадто довгий (максимум 128 символів).')
+        return header_key, None
+
+    if allow_body_fallback and isinstance(payload, dict):
+        body_key = (payload.get('idempotency_key') or '').strip()
+        if body_key and not _idempotency_enforced():
+            if len(body_key) > 128:
+                return None, api_error('idempotency_key занадто довгий (максимум 128 символів).')
+            return body_key, None
+
+    if _idempotency_enforced():
+        return None, api_error('Потрібний заголовок Idempotency-Key.', 400)
+    return None, None
+
+
+def actor_rate_key(scope: str = 'api') -> str:
+    user = getattr(g, 'current_user', None) or {}
+    user_id = user.get('id')
+    if user_id:
+        return f'rl:{scope}:user:{int(user_id)}'
+    return f'rl:{scope}:ip:{_client_ip()}'
+
+
+def user_or_ip_rate_key(scope: str = 'api') -> str:
+    user = getattr(g, 'current_user', None) or {}
+    user_id = user.get('id')
+    if user_id:
+        return f'rl:{scope}:user:{int(user_id)}'
+    return f'rl:{scope}:ip:{_client_ip()}'
+
+
 def rate_limit(limit: int, window_seconds: int, key_func=None):
     """Простий in-memory rate limiter.
 
@@ -71,7 +132,7 @@ def rate_limit(limit: int, window_seconds: int, key_func=None):
         @wraps(func)
         def wrapper(*args, **kwargs):
             if (
-                current_app.testing
+                (current_app.testing and not _cfg_bool('ENABLE_RATE_LIMIT_IN_TESTS', ENABLE_RATE_LIMIT_IN_TESTS))
                 or not AUTH_RATE_LIMIT_ENABLED
                 or limit <= 0
                 or window_seconds <= 0
