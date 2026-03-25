@@ -90,6 +90,22 @@ pytest tests/ -v
 
 Див. **RENDER.md** — покрокова інструкція для https://army-bank.onrender.com.
 
+## API для сторонніх розробників
+
+- API catalog: `GET /api`
+- Людинозрозумілі docs: `GET /api/docs`
+- OpenAPI schema (3.0.3): `GET /api/openapi.json`
+- Healthcheck: `GET /health`
+
+Продакшн-приклади:
+
+- https://army-bank.onrender.com/api
+- https://army-bank.onrender.com/api/docs
+- https://army-bank.onrender.com/api/openapi.json
+- https://army-bank.onrender.com/health
+
+Детальний handoff-док для інтеграцій: **API_HANDOFF.md**.
+
 ## Покращення (останні зміни)
 
 - **Валідація:** мінімум 6 символів для пароля; верхня межа суми операцій; обмеження довжини телефону/email.

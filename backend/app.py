@@ -7,6 +7,7 @@ from pathlib import Path
 from flask import Flask, Response, abort, jsonify, redirect, send_from_directory
 from flask_compress import Compress
 
+from .api_docs import build_api_catalog, build_docs_html, build_openapi_schema
 from .config import BASE_PATH, BOOTSTRAP_TOKEN, DEBUG
 from .database import init_db, init_admin
 from .routes.account_routes import account_bp
@@ -134,6 +135,19 @@ def create_app() -> Flask:
     app.register_blueprint(platform_bp, url_prefix=prefix + '/api/platform')
     app.register_blueprint(push_bp,     url_prefix=prefix + '/api/push')
     app.register_blueprint(payment_audit_bp, url_prefix=prefix + '/api/admin/payments')
+
+    @app.get(prefix + '/api' if prefix else '/api')
+    @app.get(prefix + '/api/' if prefix else '/api/')
+    def api_catalog():
+        return jsonify(build_api_catalog(prefix))
+
+    @app.get(prefix + '/api/openapi.json' if prefix else '/api/openapi.json')
+    def api_openapi():
+        return jsonify(build_openapi_schema(prefix))
+
+    @app.get(prefix + '/api/docs' if prefix else '/api/docs')
+    def api_docs():
+        return Response(build_docs_html(prefix), mimetype='text/html')
 
     # ── Bootstrap: одноразове підняття першого користувача до platform_admin ──
     @app.route('/api/bootstrap', methods=['POST'])
