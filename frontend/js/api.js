@@ -2,6 +2,16 @@
 // При розміщенні на сайті під /bank (наприклад munister.com.ua/bank) використовується window.ARMY_BANK_BASE.
 const BASE = (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
 
+function buildApiError(message, status, payload) {
+  const error = new Error(message || 'Помилка запиту до сервера.');
+  if (typeof status === 'number') error.status = status;
+  if (payload && typeof payload === 'object') {
+    if (payload.code) error.code = payload.code;
+    if (payload.error) error.serverMessage = payload.error;
+  }
+  return error;
+}
+
 const api = {
   // ── Token ──────────────────────────────────────────────────────────────────
   // Читаємо з localStorage — зберігається назавжди до явного виходу
@@ -40,7 +50,10 @@ const api = {
       const text = await response.text();
       payload = text ? JSON.parse(text) : {};
     } catch {
-      throw new Error(response.ok ? 'Помилка читання відповіді.' : 'Помилка сервера. Спробуйте пізніше.');
+      throw buildApiError(
+        response.ok ? 'Помилка читання відповіді.' : 'Помилка сервера. Спробуйте пізніше.',
+        response.status
+      );
     }
 
     if (!response.ok || payload.ok === false) {
@@ -48,7 +61,7 @@ const api = {
       if (response.status === 401) {
         this.setToken('');
       }
-      throw new Error(payload.error || 'Помилка запиту до сервера.');
+      throw buildApiError(payload.error || 'Помилка запиту до сервера.', response.status, payload);
     }
 
     return payload.data ?? payload;

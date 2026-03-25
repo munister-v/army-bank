@@ -2,7 +2,7 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Army Bank</title>
   <meta name="description" content="Цифровий банкінг для захисників України">
   <meta name="theme-color" content="#162c5c">
@@ -31,10 +31,10 @@
   <!-- Main stylesheet: async load (non-blocking), display:none swap triggers once loaded -->
   <link rel="stylesheet" href="/css/styles.css?v=27" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="/css/styles.css?v=27"></noscript>
-  <link rel="stylesheet" href="/css/overrides.css?v=13">
+  <link rel="stylesheet" href="/css/overrides.css?v=14">
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js" as="script">
-  <link rel="preload" href="/js/app.js?v=29" as="script">
+  <link rel="preload" href="/js/app.js?v=30" as="script">
   <!-- Early server wake-up: ping /health if session token exists (mitigates Render cold-start) -->
   <script>
     (function(){
@@ -1454,6 +1454,15 @@
   </div>
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <div id="installBanner" class="install-banner hidden" role="status" aria-live="polite">
+    <div class="install-banner-icon" aria-hidden="true">📲</div>
+    <div class="install-banner-text">
+      <b>Встановіть Army Bank</b>
+      <span>Швидкий доступ і робота як застосунок</span>
+    </div>
+    <button id="installBtn" type="button" class="install-banner-btn">Встановити</button>
+    <button id="installDismiss" type="button" class="install-banner-close" aria-label="Закрити">×</button>
+  </div>
 
   <!-- Notification Panel -->
   <div id="notifOverlay" style="display:none;position:fixed;inset:0;z-index:390;background:rgba(0,0,0,.5);backdrop-filter:blur(4px)"></div>
@@ -1472,46 +1481,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js" defer></script>
-  <script src="/js/app.js?v=29" defer></script>
-  <script>
-    /* ── Service Worker ── */
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
-      });
-    }
-
-    /* ── PWA Install prompt ── */
-    let deferredPrompt = null;
-    const banner = document.getElementById('installBanner');
-    const installBtn = document.getElementById('installBtn');
-    const installDismiss = document.getElementById('installDismiss');
-
-    window.addEventListener('beforeinstallprompt', e => {
-      e.preventDefault();
-      deferredPrompt = e;
-      /* Show banner 3s after load */
-      setTimeout(() => banner?.classList.remove('hidden'), 3000);
-    });
-
-    installBtn?.addEventListener('click', async () => {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      deferredPrompt = null;
-      banner?.classList.add('hidden');
-    });
-
-    installDismiss?.addEventListener('click', () => {
-      banner?.classList.add('hidden');
-      localStorage.setItem('ab_install_dismissed', '1');
-    });
-
-    window.addEventListener('appinstalled', () => {
-      banner?.classList.add('hidden');
-      deferredPrompt = null;
-    });
-  </script>
+  <script src="/js/app.js?v=30" defer></script>
 
   <!-- Transfer confirmation bottom sheet -->
   <div id="transferConfirmOverlay" class="tc-overlay hidden" role="dialog" aria-modal="true">

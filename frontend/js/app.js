@@ -82,6 +82,13 @@ async function performLogout(options = {}) {
   if (showMessage) showToast('Ви вийшли з системи.');
 }
 
+function isAuthErrorResponse(error) {
+  const status = Number(error?.status || 0);
+  if (status === 401 || status === 403) return true;
+  const msg = String(error?.message || '');
+  return msg.includes('авторизац') || msg.includes('сесію') || msg.includes('Недійсна');
+}
+
 function setAuthenticated(authenticated) {
   $('#authScreen').classList.toggle('hidden', authenticated);
   $('#appScreen').classList.toggle('hidden', !authenticated);
@@ -1221,21 +1228,24 @@ async function handleAuth(form, endpoint) {
   const formData = Object.fromEntries(new FormData(form).entries());
   const result = await api.request(endpoint, { method: 'POST', body: JSON.stringify(formData) });
   api.setToken(result.token);
-  setAuthenticated(true);
   clearBootstrapRetryTimer();
-  await refreshAllData();
+  try {
+    await hydrateAuthenticatedApp();
+  } catch (error) {
+    if (!isAuthErrorResponse(error)) {
+      scheduleBootstrapRetry();
+    } else {
+      api.setToken('');
+      setAuthenticated(false);
+    }
+    error.postAuthInit = true;
+    throw error;
+  }
   const screen = getScreenIdFromPath();
-  switchScreen(screen);
   const base = getBasePath();
   const targetPath = base ? base + '/' + screen : '/' + screen;
   if (window.location.pathname !== targetPath) window.history.replaceState(null, '', targetPath);
   showToast('Успішна авторизація.');
-  startPolling();
-  updatePushDot();
-  if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
-  if (Notification?.permission === 'granted') {
-    api.subscribePush().catch(() => {});
-  }
 }
 
 function bindJsonForm(selector, endpoint, options = {}) {
@@ -1274,11 +1284,14 @@ $('#loginForm')?.addEventListener('submit', async (event) => {
     setButtonLoading(btn, true);
     await handleAuth(form, '/api/auth/login');
   } catch (error) {
-    if (errBox && errTxt) {
+    const isCredentialsError = !error?.postAuthInit && isAuthErrorResponse(error);
+    if (isCredentialsError && errBox && errTxt) {
       errTxt.textContent = error.message || 'Невірні облікові дані';
       errBox.classList.remove('hidden');
       form.classList.add('auth-shake');
       setTimeout(() => form.classList.remove('auth-shake'), 500);
+    } else {
+      showToast(error?.message || 'Сервер тимчасово недоступний. Спробуйте знову.');
     }
   } finally {
     setButtonLoading(btn, false);
@@ -1710,8 +1723,8 @@ if ('serviceWorker' in navigator) {
 
 // ── BOOTSTRAP ────────────────────────────────────────────
 async function hydrateAuthenticatedApp() {
-  setAuthenticated(true);
   await refreshAllData();
+  setAuthenticated(true);
   switchScreen(getScreenIdFromPath());
   clearBootstrapRetryTimer();
   startPolling();
@@ -1742,11 +1755,7 @@ function scheduleBootstrapRetry() {
   try {
     await hydrateAuthenticatedApp();
   } catch (error) {
-    // Очищуємо токен тільки при помилці авторизації (401/403).
-    // Мережеві помилки або 503 (Render sleeping) — не виходимо з акаунту.
-    const msg = error?.message || '';
-    const isAuthError = msg.includes('авторизац') || msg.includes('сесію') || msg.includes('Недійсна');
-    if (isAuthError) {
+    if (isAuthErrorResponse(error)) {
       stopPolling();
       stopNotifPolling();
       clearBootstrapRetryTimer();

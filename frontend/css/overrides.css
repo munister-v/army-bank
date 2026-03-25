@@ -2304,10 +2304,6 @@ textarea:focus,
   stroke: var(--mono-danger) !important;
 }
 
-#installBanner {
-  display: none !important;
-}
-
 #cmdPalette,
 #cmdBackdrop,
 #kbHelp,
