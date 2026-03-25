@@ -3,14 +3,33 @@ from __future__ import annotations
 
 from flask import Blueprint, jsonify, request, g
 
+from ..config import AUTH_LOGIN_RATE_LIMIT, AUTH_RATE_WINDOW_SECONDS, AUTH_REGISTER_RATE_LIMIT
 from ..services.auth_service import AuthService
-from .helpers import api_error, auth_required
+from .helpers import api_error, auth_required, rate_limit
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 auth_service = AuthService()
 
 
+def _auth_client_ip() -> str:
+    xff = (request.headers.get('X-Forwarded-For') or '').strip()
+    if xff:
+        return xff.split(',')[0].strip()[:80]
+    return (request.remote_addr or 'unknown')[:80]
+
+
+def _login_rate_key() -> str:
+    data = request.get_json(silent=True) or {}
+    identity = (data.get('identity') or '').strip().lower()[:80]
+    return f'auth:login:{_auth_client_ip()}:{identity}'
+
+
+def _register_rate_key() -> str:
+    return f'auth:register:{_auth_client_ip()}'
+
+
 @auth_bp.post('/register')
+@rate_limit(AUTH_REGISTER_RATE_LIMIT, AUTH_RATE_WINDOW_SECONDS, key_func=_register_rate_key)
 def register():
     try:
         payload = auth_service.register(request.get_json(force=True))
@@ -20,6 +39,7 @@ def register():
 
 
 @auth_bp.post('/login')
+@rate_limit(AUTH_LOGIN_RATE_LIMIT, AUTH_RATE_WINDOW_SECONDS, key_func=_login_rate_key)
 def login():
     try:
         payload = auth_service.login(request.get_json(force=True))

@@ -1,12 +1,13 @@
 """Головний Flask-застосунок Army Bank — v7."""
 from __future__ import annotations
 
+import hmac
 import re
 from pathlib import Path
 from flask import Flask, Response, abort, jsonify, redirect, send_from_directory
 from flask_compress import Compress
 
-from .config import BASE_PATH, DEBUG
+from .config import BASE_PATH, BOOTSTRAP_TOKEN, DEBUG
 from .database import init_db, init_admin
 from .routes.account_routes import account_bp
 from .routes.admin_routes import admin_bp
@@ -50,17 +51,35 @@ def create_app() -> Flask:
         'http://127.0.0.1:5500',
     }
 
+    def _append_vary(resp, value: str):
+        existing = (resp.headers.get('Vary') or '').strip()
+        if not existing:
+            resp.headers['Vary'] = value
+            return
+        parts = [p.strip() for p in existing.split(',') if p.strip()]
+        if value not in parts:
+            parts.append(value)
+            resp.headers['Vary'] = ', '.join(parts)
+
     @app.after_request
     def add_headers(resp):
         resp.headers['X-Content-Type-Options'] = 'nosniff'
+        resp.headers.setdefault('X-Frame-Options', 'DENY')
+        resp.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+        resp.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
+        resp.headers.setdefault('Cross-Origin-Opener-Policy', 'same-origin')
+        resp.headers.setdefault('Cross-Origin-Resource-Policy', 'same-origin')
         from flask import request as _req
         origin = _req.headers.get('Origin', '')
         if origin in _ALLOWED_ORIGINS:
             resp.headers['Access-Control-Allow-Origin'] = origin
             resp.headers['Access-Control-Allow-Credentials'] = 'true'
             resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PATCH, PUT, DELETE, OPTIONS'
-            resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Bootstrap-Token'
             resp.headers['Access-Control-Expose-Headers'] = 'X-Refresh-Token'
+            _append_vary(resp, 'Origin')
+        if _req.is_secure:
+            resp.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
         # Cache-Control for static assets (CSS, JS, fonts, images)
         path = _req.path
         if path.endswith(('.woff2', '.woff', '.ttf', '.png', '.jpg', '.ico', '.webp')):
@@ -83,8 +102,9 @@ def create_app() -> Flask:
             r.headers['Access-Control-Allow-Origin'] = origin
             r.headers['Access-Control-Allow-Credentials'] = 'true'
             r.headers['Access-Control-Allow-Methods'] = 'GET, POST, PATCH, PUT, DELETE, OPTIONS'
-            r.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            r.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Bootstrap-Token'
             r.headers['Access-Control-Max-Age'] = '86400'
+            _append_vary(r, 'Origin')
         return r
 
     @app.errorhandler(400)
@@ -119,6 +139,13 @@ def create_app() -> Flask:
         from flask import request as _req
         from .database import get_connection
         from .services.auth_service import AuthService as _AS
+
+        if not DEBUG and not BOOTSTRAP_TOKEN:
+            return jsonify({'ok': False, 'error': 'Bootstrap endpoint вимкнено на цьому середовищі.'}), 403
+        if BOOTSTRAP_TOKEN:
+            provided = (_req.headers.get('X-Bootstrap-Token') or '').strip()
+            if not provided or not hmac.compare_digest(provided, BOOTSTRAP_TOKEN):
+                return jsonify({'ok': False, 'error': 'Невірний bootstrap token.'}), 403
 
         header = _req.headers.get('Authorization', '')
         if not header.startswith('Bearer '):

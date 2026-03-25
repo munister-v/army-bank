@@ -1,13 +1,20 @@
 """Допоміжні функції для маршрутів Flask."""
 from __future__ import annotations
 
+import threading
+import time
+from collections import defaultdict, deque
 from functools import wraps
-from flask import jsonify, request, g, after_this_request
+from flask import jsonify, request, g, after_this_request, current_app
 
 from ..services.auth_service import AuthService
 from ..utils.security import should_refresh_session
+from ..config import AUTH_RATE_LIMIT_ENABLED
 
 auth_service = AuthService()
+
+_RATE_LOCK = threading.Lock()
+_RATE_BUCKETS: dict[str, deque[float]] = defaultdict(deque)
 
 
 def api_error(message: str, status: int = 400):
@@ -46,6 +53,55 @@ def auth_required(func):
 
         return func(*args, **kwargs)
     return wrapper
+
+
+def _client_ip() -> str:
+    xff = (request.headers.get('X-Forwarded-For') or '').strip()
+    if xff:
+        return xff.split(',')[0].strip()[:80]
+    return (request.remote_addr or 'unknown')[:80]
+
+
+def rate_limit(limit: int, window_seconds: int, key_func=None):
+    """Простий in-memory rate limiter.
+
+    У TESTING режимі вимкнений, щоб не ламати unit/integration тести.
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if (
+                current_app.testing
+                or not AUTH_RATE_LIMIT_ENABLED
+                or limit <= 0
+                or window_seconds <= 0
+            ):
+                return func(*args, **kwargs)
+
+            key = key_func() if key_func else f'{_client_ip()}:{request.path}'
+            now = time.time()
+            cutoff = now - window_seconds
+
+            with _RATE_LOCK:
+                bucket = _RATE_BUCKETS[key]
+                while bucket and bucket[0] <= cutoff:
+                    bucket.popleft()
+
+                if len(bucket) >= limit:
+                    retry_after = max(1, int(window_seconds - (now - bucket[0])))
+                    resp = jsonify({
+                        'ok': False,
+                        'error': 'Забагато запитів. Спробуйте трохи пізніше.',
+                    })
+                    resp.status_code = 429
+                    resp.headers['Retry-After'] = str(retry_after)
+                    return resp
+
+                bucket.append(now)
+
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 def role_required(*allowed_roles: str):

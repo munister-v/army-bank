@@ -51,6 +51,14 @@ class UserRepository(BaseRepository):
         with self.connection() as conn:
             conn.execute('DELETE FROM sessions WHERE token = %s', (token,))
 
+    def update_session_expiry(self, token: str, expires_at: str) -> bool:
+        with self.connection() as conn:
+            result = conn.execute(
+                'UPDATE sessions SET expires_at = %s WHERE token = %s',
+                (expires_at, token),
+            )
+            return (result.rowcount or 0) > 0
+
     def delete_expired_sessions(self, user_id: int) -> None:
         """Видаляє прострочені сесії конкретного користувача."""
         with self.connection() as conn:

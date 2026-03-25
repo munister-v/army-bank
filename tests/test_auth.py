@@ -1,7 +1,11 @@
 """Тести автентифікації та реєстрації."""
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
+
+from backend.database import get_connection
 
 
 def test_register_and_login(client):
@@ -90,3 +94,36 @@ def test_me_with_token(client):
     assert data['ok'] is True
     assert data['data']['full_name'] == 'Іван Петренко'
     assert data['data']['role'] == 'soldier'
+
+
+def test_refresh_does_not_invalidate_current_token(client):
+    """Після soft-refresh той самий токен лишається валідним."""
+    reg = client.post('/api/auth/register', json={
+        'full_name': 'Refresh User',
+        'phone': '+380971234321',
+        'email': 'refresh@test.ua',
+        'password': 'pass123',
+    }, headers={'Content-Type': 'application/json'})
+    token = reg.get_json()['data']['token']
+
+    # Форсуємо майже прострочену сесію, щоб спрацював refresh_session.
+    near_expiry = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    with get_connection() as conn:
+        conn.execute('UPDATE sessions SET expires_at = %s WHERE token = %s', (near_expiry, token))
+
+    h = {'Authorization': f'Bearer {token}'}
+    r1 = client.get('/api/auth/me', headers=h)
+    r2 = client.get('/api/auth/me', headers=h)
+
+    assert r1.status_code == 200
+    assert r2.status_code == 200
+
+
+def test_security_headers_and_cors(client):
+    r = client.get('/health', headers={'Origin': 'https://munister.com.ua'})
+    assert r.status_code == 200
+    assert r.headers.get('X-Content-Type-Options') == 'nosniff'
+    assert r.headers.get('X-Frame-Options') == 'DENY'
+    assert r.headers.get('Referrer-Policy') == 'strict-origin-when-cross-origin'
+    assert r.headers.get('Access-Control-Allow-Origin') == 'https://munister.com.ua'
+    assert 'Origin' in (r.headers.get('Vary') or '')

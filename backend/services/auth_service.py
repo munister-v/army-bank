@@ -93,14 +93,15 @@ class AuthService:
 
     # ── Автооновлення сесії ───────────────────────────────────────────────────
     def refresh_session(self, old_token: str, user_id: int) -> str | None:
-        """Видаляє стару сесію і видає новий токен з повним TTL.
-        Повертає новий токен або None при помилці.
+        """Продовжує поточну сесію без ротації токена.
+
+        Це прибирає race-condition для паралельних запитів одним токеном:
+        один запит не інвалідує токен для іншого запиту в цей же момент.
         """
         try:
-            new_token = generate_token()
-            self.users.create_session(user_id, new_token, token_expiration_iso())
-            self.users.delete_session(old_token)
-            return new_token
+            expires_at = token_expiration_iso()
+            ok = self.users.update_session_expiry(old_token, expires_at)
+            return old_token if ok else None
         except Exception:
             return None
 
