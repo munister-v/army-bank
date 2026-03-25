@@ -54,6 +54,34 @@ function stopPolling() {
   state._lastBalance = null;
 }
 
+let _bootstrapRetryTimer = null;
+
+function clearBootstrapRetryTimer() {
+  if (_bootstrapRetryTimer) {
+    clearTimeout(_bootstrapRetryTimer);
+    _bootstrapRetryTimer = null;
+  }
+}
+
+function stopNotifPolling() {
+  if (typeof window._stopNotifPolling === 'function') {
+    window._stopNotifPolling();
+  }
+}
+
+async function performLogout(options = {}) {
+  const showMessage = options.showMessage !== false;
+  stopPolling();
+  stopNotifPolling();
+  clearBootstrapRetryTimer();
+  try { await api.request('/api/auth/logout', { method: 'POST' }); } catch (_) {}
+  api.setToken('');
+  setAuthenticated(false);
+  const base = getBasePath();
+  window.history.replaceState(null, '', base || '/');
+  if (showMessage) showToast('Ви вийшли з системи.');
+}
+
 function setAuthenticated(authenticated) {
   $('#authScreen').classList.toggle('hidden', authenticated);
   $('#appScreen').classList.toggle('hidden', !authenticated);
@@ -689,13 +717,7 @@ $('#changePasswordForm')?.addEventListener('submit', async (e) => {
 
 // Profile logout button
 $('#profileLogoutBtn')?.addEventListener('click', async () => {
-  stopPolling();
-  try { await api.request('/api/auth/logout', { method: 'POST' }); } catch (_) {}
-  api.setToken('');
-  setAuthenticated(false);
-  const base = (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
-  window.history.replaceState(null, '', base || '/');
-  showToast('Ви вийшли з системи.');
+  await performLogout();
 });
 
 // ── NAVIGATION ──────────────────────────────────────────
@@ -1200,6 +1222,7 @@ async function handleAuth(form, endpoint) {
   const result = await api.request(endpoint, { method: 'POST', body: JSON.stringify(formData) });
   api.setToken(result.token);
   setAuthenticated(true);
+  clearBootstrapRetryTimer();
   await refreshAllData();
   const screen = getScreenIdFromPath();
   switchScreen(screen);
@@ -1605,13 +1628,7 @@ $$('.auth-tab').forEach((tab) => {
 
 // Logout (header button)
 $('#logoutBtn')?.addEventListener('click', async () => {
-  stopPolling();
-  try { await api.request('/api/auth/logout', { method: 'POST' }); } catch (_) {}
-  api.setToken('');
-  setAuthenticated(false);
-  const base = getBasePath();
-  window.history.replaceState(null, '', base || '/');
-  showToast('Ви вийшли з системи.');
+  await performLogout();
 });
 
 // ── Push notification bell button ─────────────────────────
@@ -1692,31 +1709,53 @@ if ('serviceWorker' in navigator) {
 }
 
 // ── BOOTSTRAP ────────────────────────────────────────────
+async function hydrateAuthenticatedApp() {
+  setAuthenticated(true);
+  await refreshAllData();
+  switchScreen(getScreenIdFromPath());
+  clearBootstrapRetryTimer();
+  startPolling();
+  updatePushDot();
+  if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
+  if (Notification?.permission === 'granted') api.subscribePush().catch(() => {});
+}
+
+function scheduleBootstrapRetry() {
+  if (_bootstrapRetryTimer || !api.token) return;
+  _bootstrapRetryTimer = setTimeout(async () => {
+    _bootstrapRetryTimer = null;
+    if (!api.token) return;
+    try {
+      await hydrateAuthenticatedApp();
+      showToast('Зʼєднання відновлено.', 'success');
+    } catch (_) {
+      scheduleBootstrapRetry();
+    }
+  }, 10000);
+}
+
 (async function bootstrap() {
   if (!api.token) {
     setAuthenticated(false);
     return;
   }
   try {
-    setAuthenticated(true);
-    await refreshAllData();
-    switchScreen(getScreenIdFromPath());
-    startPolling();
-    updatePushDot();
-    if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
-    if (Notification?.permission === 'granted') api.subscribePush().catch(() => {});
+    await hydrateAuthenticatedApp();
   } catch (error) {
     // Очищуємо токен тільки при помилці авторизації (401/403).
     // Мережеві помилки або 503 (Render sleeping) — не виходимо з акаунту.
     const msg = error?.message || '';
     const isAuthError = msg.includes('авторизац') || msg.includes('сесію') || msg.includes('Недійсна');
     if (isAuthError) {
+      stopPolling();
+      stopNotifPolling();
+      clearBootstrapRetryTimer();
       api.setToken('');
       setAuthenticated(false);
       showToast('Сесію завершено. Увійдіть повторно.');
     } else {
       showToast('Сервер тимчасово недоступний. Спробуємо знову…');
-      setTimeout(() => location.reload(), 10000);
+      scheduleBootstrapRetry();
     }
   }
 })();
@@ -1949,15 +1988,28 @@ $('#showQrBtn')?.addEventListener('click', () => {
   const drawer = $('#txDrawer');
   if (!drawer) return;
   let startY = 0, startX = 0;
+  let canSwipeClose = false;
   drawer.addEventListener('touchstart', e => {
+    const target = e.target;
+    if (target && target.closest('input, textarea, select, button, [contenteditable="true"]')) {
+      canSwipeClose = false;
+      return;
+    }
+    const body = $('#drawerBody');
+    const startsInHeader = !!(target && target.closest('.drawer-header'));
+    const bodyAtTop = !body || body.scrollTop <= 2;
+    canSwipeClose = startsInHeader || bodyAtTop;
     startY = e.touches[0].clientY;
     startX = e.touches[0].clientX;
   }, { passive: true });
   drawer.addEventListener('touchend', e => {
+    if (!canSwipeClose) return;
     const dy = e.changedTouches[0].clientY - startY;
     const dx = e.changedTouches[0].clientX - startX;
-    // Swipe down (mobile) or right (desktop side drawer)
-    if (dy > 60 || dx > 80) closeDrawer();
+    const verticalSwipe = dy > 90 && Math.abs(dy) > Math.abs(dx) * 1.2;
+    const horizontalSwipe = dx > 120 && Math.abs(dx) > Math.abs(dy) * 1.2;
+    if (verticalSwipe || horizontalSwipe) closeDrawer();
+    canSwipeClose = false;
   }, { passive: true });
 })();
 
@@ -2790,6 +2842,9 @@ async function loadForecast() {
       refreshAllData().catch(() => {});
     }
     if (e.data?.type === 'LOGOUT') {
+      stopPolling();
+      stopNotifPolling();
+      clearBootstrapRetryTimer();
       api.setToken('');
       setAuthenticated(false);
       showToast('Вийшли в іншій вкладці.');
@@ -2918,11 +2973,7 @@ $('#pinBackBtn')?.addEventListener('click', function() {
 
 $('#pinLogoutBtn')?.addEventListener('click', async function() {
   hidePinLock();
-  stopPolling();
-  try { await api.request('/api/auth/logout', { method: 'POST' }); } catch (_e) {}
-  api.setToken('');
-  setAuthenticated(false);
-  showToast('Ви вийшли з системи.');
+  await performLogout();
 });
 
 async function checkPinStatus() {
@@ -3490,29 +3541,39 @@ console.log('[Army Bank] UX core modules loaded');
   var content = document.querySelector('.app-content');
   var indicator = document.getElementById('pullRefreshIndicator');
   if (!content || !indicator) return;
-  var startY = 0, pulling = false, threshold = 70;
+  var startY = 0, pulling = false, pullDistance = 0, threshold = 70;
 
   content.addEventListener('touchstart', function(e) {
-    if (content.scrollTop === 0) startY = e.touches[0].clientY;
-    else startY = 0;
+    if (content.scrollTop <= 0) {
+      startY = e.touches[0].clientY;
+      pullDistance = 0;
+      return;
+    }
+    startY = 0;
+    pullDistance = 0;
   }, { passive: true });
 
   content.addEventListener('touchmove', function(e) {
     if (!startY) return;
     var dy = e.touches[0].clientY - startY;
-    if (dy > 20 && !pulling) {
+    if (dy <= 0) return;
+    pullDistance = dy;
+    if (dy > 24 && !pulling) {
       pulling = true;
       indicator.classList.add('visible');
     }
   }, { passive: true });
 
   content.addEventListener('touchend', function() {
-    if (pulling) {
-      pulling = false;
+    if (pulling && pullDistance >= threshold) {
       refreshAllData().finally(function() {
         indicator.classList.remove('visible');
       });
+    } else {
+      indicator.classList.remove('visible');
     }
+    pulling = false;
+    pullDistance = 0;
     startY = 0;
   }, { passive: true });
 })();
@@ -3522,14 +3583,35 @@ console.log('[Army Bank] UX core modules loaded');
   var SCREENS_ORDER = ['dashboard', 'transactions', 'cards', 'profile'];
   var content = document.querySelector('.app-content');
   if (!content) return;
-  var startX = 0, startY = 0;
+  var startX = 0, startY = 0, swipeEligible = false;
+  var EDGE_GUTTER = 28;
+
+  function isInteractiveTarget(target) {
+    if (!target || !target.closest) return false;
+    return !!target.closest(
+      'input, textarea, select, button, a, [data-no-screen-swipe], ' +
+      '.bank-cards-track, .bank-card, .quick-actions, .transfer-mode-toggle, ' +
+      '#dashboardActionForms, .drawer, .notif-panel'
+    );
+  }
+
+  function hasOpenOverlay() {
+    return !document.getElementById('txDrawer')?.classList.contains('hidden') ||
+      !document.getElementById('transferConfirmOverlay')?.classList.contains('hidden') ||
+      !document.getElementById('confirmDialog')?.classList.contains('hidden') ||
+      document.getElementById('notifPanel')?.classList.contains('open');
+  }
 
   content.addEventListener('touchstart', function(e) {
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
+    var fromEdge = startX <= EDGE_GUTTER || startX >= (window.innerWidth - EDGE_GUTTER);
+    swipeEligible = fromEdge && !isInteractiveTarget(e.target) && !hasOpenOverlay();
   }, { passive: true });
 
   content.addEventListener('touchend', function(e) {
+    if (!swipeEligible) return;
+    swipeEligible = false;
     var dx = e.changedTouches[0].clientX - startX;
     var dy = e.changedTouches[0].clientY - startY;
     if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
@@ -3718,10 +3800,26 @@ console.log('[Army Bank] UX core modules loaded');
     } catch(e) {}
   }
 
+  var notifPollTimer = null;
+
   // Poll badge every 60 seconds once logged in
   window._startNotifPolling = function() {
+    if (!api.token) return;
     refreshBadge();
-    setInterval(refreshBadge, 60000);
+    if (notifPollTimer) return;
+    notifPollTimer = setInterval(function() {
+      if (!api.token) {
+        window._stopNotifPolling();
+        return;
+      }
+      refreshBadge();
+    }, 60000);
+  };
+
+  window._stopNotifPolling = function() {
+    if (!notifPollTimer) return;
+    clearInterval(notifPollTimer);
+    notifPollTimer = null;
   };
 })();
 
