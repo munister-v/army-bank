@@ -134,6 +134,21 @@ def _as_bool(value, default: bool = False) -> bool:
     return default
 
 
+def _validate_assignee_user(user_id_raw) -> tuple[int | None, str | None]:
+    try:
+        assignee_id = int(user_id_raw)
+    except Exception:
+        return None, 'Некоректний admin_user_id.'
+    if assignee_id <= 0:
+        return None, 'Некоректний admin_user_id.'
+    assignee = _users.get_by_id(assignee_id)
+    if not assignee:
+        return None, 'Адміністратора не знайдено.'
+    if assignee.get('role') not in {'operator', 'admin', 'platform_admin'}:
+        return None, 'Призначати можна лише користувачам з роллю operator/admin/platform_admin.'
+    return assignee_id, None
+
+
 @payment_audit_bp.get('/orders')
 @auth_required
 @role_required('admin', 'platform_admin')
@@ -199,21 +214,13 @@ def assign_order(order_id: int):
     note = (data.get('note') or '').strip()
     if admin_user_id is None:
         admin_user_id = int(g.current_user['id'])
-    try:
-        admin_user_id = int(admin_user_id)
-    except Exception:
-        return api_error('Некоректний admin_user_id.')
-    if admin_user_id <= 0:
-        return api_error('Некоректний admin_user_id.')
-    assignee = _users.get_by_id(admin_user_id)
-    if not assignee:
-        return api_error('Адміністратора не знайдено.', 404)
-    if assignee.get('role') not in {'operator', 'admin', 'platform_admin'}:
-        return api_error('Призначати можна лише користувачам з роллю operator/admin/platform_admin.')
+    assignee_id, err = _validate_assignee_user(admin_user_id)
+    if err:
+        return api_error(err, 404 if 'не знайдено' in err else 400)
 
     order = _repo.assign_order(
         order_id=order_id,
-        assigned_admin_id=admin_user_id,
+        assigned_admin_id=assignee_id,
         actor_user_id=g.current_user['id'],
         note=note,
     )
@@ -235,6 +242,8 @@ def decide_order(order_id: int):
     note = (data.get('note') or '').strip()
     if decision not in {'approve', 'reject', 'escalate', 'clear'}:
         return api_error('Недійсне рішення. Дозволено: approve, reject, escalate, clear.')
+    if decision in {'reject', 'escalate'} and len(note) < 5:
+        return api_error('Для reject/escalate потрібен коментар (мінімум 5 символів).')
 
     order = _repo.set_manual_decision(
         order_id=order_id,
@@ -403,6 +412,170 @@ def sla_auto_escalate():
             'eligible': len(eligible),
             'escalated_count': len(escalated_ids) if not dry_run else len(eligible),
             'ids': escalated_ids if not dry_run else [int(r['id']) for r in eligible],
+        }
+    })
+
+
+@payment_audit_bp.get('/workload')
+@auth_required
+@role_required('admin', 'platform_admin')
+def workload():
+    scan_limit = min(max(request.args.get('scan_limit', default=1500, type=int), 200), 6000)
+    open_only = _as_bool(request.args.get('open_only'), default=True)
+
+    candidates = _repo.list_orders(limit=scan_limit, offset=0)
+    now = datetime.now(timezone.utc)
+    rows = [_decorate_order(dict(row), now_utc=now) for row in candidates]
+    if open_only:
+        rows = [row for row in rows if _order_is_open(row)]
+
+    buckets: dict[str, dict] = {}
+    for row in rows:
+        assigned_id = row.get('assigned_admin_id')
+        key = str(assigned_id) if assigned_id else 'unassigned'
+        if key not in buckets:
+            buckets[key] = {
+                'admin_user_id': assigned_id,
+                'admin_name': row.get('assigned_admin_name') if assigned_id else 'Unassigned',
+                'total': 0,
+                'overdue': 0,
+                'critical': 0,
+                'escalated': 0,
+                'age_sum': 0,
+                'avg_age_minutes': 0,
+                'by_priority': {'critical': 0, 'high': 0, 'medium': 0, 'normal': 0},
+            }
+        slot = buckets[key]
+        slot['total'] += 1
+        slot['age_sum'] += int(row.get('sla_age_minutes') or 0)
+        if row.get('sla_overdue'):
+            slot['overdue'] += 1
+        if str(row.get('risk_level') or '').lower() == 'critical':
+            slot['critical'] += 1
+        if str(row.get('review_state') or '').lower() == 'escalated':
+            slot['escalated'] += 1
+        priority = str(row.get('sla_priority') or 'normal').lower()
+        slot['by_priority'][priority] = slot['by_priority'].get(priority, 0) + 1
+
+    workload_rows = []
+    for entry in buckets.values():
+        entry['avg_age_minutes'] = int(entry['age_sum'] / max(1, entry['total']))
+        entry.pop('age_sum', None)
+        workload_rows.append(entry)
+
+    workload_rows.sort(
+        key=lambda x: (
+            0 if x['admin_user_id'] is None else 1,
+            -int(x['overdue']),
+            -int(x['total']),
+            str(x.get('admin_name') or ''),
+        )
+    )
+
+    summary = {
+        'open_total': len(rows),
+        'assignees_total': len([r for r in workload_rows if r['admin_user_id'] is not None]),
+        'unassigned_total': sum(1 for r in rows if not r.get('assigned_admin_id')),
+        'overdue_total': sum(1 for r in rows if r.get('sla_overdue')),
+        'critical_total': sum(1 for r in rows if str(r.get('risk_level') or '').lower() == 'critical'),
+    }
+    return jsonify({'ok': True, 'data': workload_rows, 'summary': summary})
+
+
+@payment_audit_bp.post('/sla-bulk-action')
+@auth_required
+@role_required('admin', 'platform_admin')
+def sla_bulk_action():
+    data = request.get_json(silent=True) or {}
+    ids_raw = data.get('ids') or []
+    action = (data.get('action') or '').strip().lower()
+    note = (data.get('note') or '').strip()
+    admin_user_id = data.get('admin_user_id')
+    only_overdue = _as_bool(data.get('only_overdue'), default=False)
+
+    if not isinstance(ids_raw, list):
+        return api_error('Поле ids має бути масивом.')
+    if len(ids_raw) > 300:
+        return api_error('За один bulk-запит дозволено до 300 ордерів.')
+
+    ids: list[int] = []
+    for raw in ids_raw:
+        try:
+            oid = int(raw)
+            if oid > 0:
+                ids.append(oid)
+        except Exception:
+            continue
+    ids = list(dict.fromkeys(ids))
+    if not ids:
+        return api_error('Не вказано жодного ордера для bulk-операції.')
+
+    allowed_actions = {'assign', 'escalate', 'approve', 'reject', 'clear_review', 'note'}
+    if action not in allowed_actions:
+        return api_error('Недійсний action. Дозволено: assign, escalate, approve, reject, clear_review, note.')
+
+    assignee_id = None
+    if action == 'assign':
+        if admin_user_id is None:
+            admin_user_id = g.current_user['id']
+        assignee_id, err = _validate_assignee_user(admin_user_id)
+        if err:
+            return api_error(err, 404 if 'не знайдено' in err else 400)
+
+    if action in {'reject', 'escalate'} and len(note) < 5:
+        return api_error('Для reject/escalate потрібен коментар (мінімум 5 символів).')
+    if action == 'note' and len(note) < 2:
+        return api_error('Для note потрібен текст нотатки.')
+
+    now = datetime.now(timezone.utc)
+    success_ids: list[int] = []
+    failed: list[dict] = []
+
+    for order_id in ids:
+        order = _repo.get_order(order_id)
+        if not order:
+            failed.append({'id': order_id, 'error': 'order_not_found'})
+            continue
+        order = _decorate_order(dict(order), now_utc=now)
+        if only_overdue and not order.get('sla_overdue'):
+            failed.append({'id': order_id, 'error': 'not_overdue'})
+            continue
+
+        try:
+            ok = False
+            if action == 'assign':
+                ok = bool(_repo.assign_order(order_id, assignee_id, g.current_user['id'], note))
+            elif action == 'note':
+                ok = _repo.add_order_note(order_id, g.current_user['id'], note)
+            else:
+                if action == 'escalate' and str(order.get('review_state') or '').lower() == 'escalated':
+                    failed.append({'id': order_id, 'error': 'already_escalated'})
+                    continue
+                decision_map = {
+                    'escalate': 'escalate',
+                    'approve': 'approve',
+                    'reject': 'reject',
+                    'clear_review': 'clear',
+                }
+                decision = decision_map[action]
+                ok = bool(_repo.set_manual_decision(order_id, decision, g.current_user['id'], note))
+
+            if ok:
+                success_ids.append(order_id)
+            else:
+                failed.append({'id': order_id, 'error': 'action_failed'})
+        except Exception as exc:
+            failed.append({'id': order_id, 'error': str(exc)})
+
+    return jsonify({
+        'ok': True,
+        'data': {
+            'action': action,
+            'requested': len(ids),
+            'success_count': len(success_ids),
+            'failed_count': len(failed),
+            'success_ids': success_ids,
+            'failed': failed,
         }
     })
 
