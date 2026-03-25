@@ -409,129 +409,162 @@ def order_timeline(order_id: int):
 @auth_required
 @role_required('operator', 'admin', 'platform_admin')
 def sla_queue():
-    limit             = min(request.args.get('limit', default=30, type=int), 200)
-    offset            = max(request.args.get('offset', default=0, type=int), 0)
-    status            = request.args.get('status')
-    risk_level        = request.args.get('risk_level')
-    review_state      = request.args.get('review_state')
-    approval_state    = request.args.get('approval_state')
-    user_id           = request.args.get('user_id', type=int)
-    assigned_admin_id = request.args.get('assigned_admin_id', type=int)
-    assigned_mode     = request.args.get('assigned_mode')
-    search            = (request.args.get('search') or '').strip()
-    open_only         = _as_bool(request.args.get('open_only'), default=True)
-    overdue_param     = (request.args.get('overdue') or '').strip().lower()
-    due_soon_param    = (request.args.get('due_soon') or '').strip().lower()
-    scan_limit        = min(max(request.args.get('scan_limit', default=1000, type=int), 100), 5000)
+    try:
+        limit = min(max(request.args.get('limit', default=30, type=int), 1), 200)
+        offset = max(request.args.get('offset', default=0, type=int), 0)
+        status = request.args.get('status')
+        risk_level = request.args.get('risk_level')
+        review_state = request.args.get('review_state')
+        approval_state = request.args.get('approval_state')
+        user_id = request.args.get('user_id', type=int)
+        assigned_admin_id = request.args.get('assigned_admin_id', type=int)
+        assigned_mode = request.args.get('assigned_mode')
+        search = (request.args.get('search') or '').strip()
+        open_only = _as_bool(request.args.get('open_only'), default=True)
+        overdue_param = (request.args.get('overdue') or '').strip().lower()
+        due_soon_param = (request.args.get('due_soon') or '').strip().lower()
+        priority = (request.args.get('priority') or '').strip().lower()
+        scan_limit = min(max(request.args.get('scan_limit', default=1000, type=int), 100), 5000)
 
-    overdue_filter: bool | None = None
-    due_soon_filter: bool | None = None
-    if overdue_param == 'true':
-        overdue_filter = True
-    elif overdue_param == 'false':
-        overdue_filter = False
-    if due_soon_param == 'true':
-        due_soon_filter = True
-    elif due_soon_param == 'false':
-        due_soon_filter = False
+        overdue_filter: bool | None = None
+        due_soon_filter: bool | None = None
+        if overdue_param == 'true':
+            overdue_filter = True
+        elif overdue_param == 'false':
+            overdue_filter = False
+        if due_soon_param == 'true':
+            due_soon_filter = True
+        elif due_soon_param == 'false':
+            due_soon_filter = False
 
-    candidates = _repo.list_orders(
-        limit=scan_limit,
-        offset=0,
-        status=status,
-        risk_level=risk_level,
-        user_id=user_id,
-        review_state=review_state,
-        approval_state=approval_state,
-        assigned_admin_id=assigned_admin_id,
-        assigned_mode=assigned_mode,
-        search=search or None,
-        open_only=open_only,
-    )
-    now = datetime.now(timezone.utc)
-    rows = [_decorate_order(dict(row), now_utc=now) for row in candidates]
+        candidates = _repo.list_orders(
+            limit=scan_limit,
+            offset=0,
+            status=status,
+            risk_level=risk_level,
+            user_id=user_id,
+            review_state=review_state,
+            approval_state=approval_state,
+            assigned_admin_id=assigned_admin_id,
+            assigned_mode=assigned_mode,
+            search=search or None,
+            open_only=open_only,
+        )
+        now = datetime.now(timezone.utc)
+        rows = [_decorate_order(dict(row), now_utc=now) for row in candidates]
 
-    if overdue_filter is not None:
-        rows = [row for row in rows if bool(row.get('sla_overdue')) is overdue_filter]
-    if due_soon_filter is not None:
-        rows = [row for row in rows if bool(row.get('sla_due_soon')) is due_soon_filter]
+        if overdue_filter is not None:
+            rows = [row for row in rows if bool(row.get('sla_overdue')) is overdue_filter]
+        if due_soon_filter is not None:
+            rows = [row for row in rows if bool(row.get('sla_due_soon')) is due_soon_filter]
+        if priority in {'critical', 'high', 'medium', 'normal'}:
+            rows = [row for row in rows if str(row.get('sla_priority') or '').lower() == priority]
 
-    rows.sort(key=_queue_sort_key)
-    total = len(rows)
-    page = rows[offset: offset + limit]
+        rows.sort(key=_queue_sort_key)
+        total = len(rows)
+        page = rows[offset: offset + limit]
 
-    overdue_total = sum(1 for row in rows if row.get('sla_overdue'))
-    due_soon_total = sum(1 for row in rows if row.get('sla_due_soon'))
-    unassigned_total = sum(1 for row in rows if not row.get('assigned_admin_id'))
-    escalated_total = sum(1 for row in rows if str(row.get('review_state') or '').lower() == 'escalated')
-    awaiting_approval_total = sum(1 for row in rows if str(row.get('approval_state') or '').lower() == 'requested')
-    avg_age = int(sum(int(row.get('sla_age_minutes') or 0) for row in rows) / max(1, len(rows)))
-    by_priority = {'critical': 0, 'high': 0, 'medium': 0, 'normal': 0}
-    for row in rows:
-        key = str(row.get('sla_priority') or 'normal').lower()
-        by_priority[key] = by_priority.get(key, 0) + 1
+        overdue_total = sum(1 for row in rows if row.get('sla_overdue'))
+        due_soon_total = sum(1 for row in rows if row.get('sla_due_soon'))
+        unassigned_total = sum(1 for row in rows if not row.get('assigned_admin_id'))
+        escalated_total = sum(1 for row in rows if str(row.get('review_state') or '').lower() == 'escalated')
+        awaiting_approval_total = sum(1 for row in rows if str(row.get('approval_state') or '').lower() == 'requested')
+        avg_age = int(sum(int(row.get('sla_age_minutes') or 0) for row in rows) / max(1, len(rows)))
+        by_priority = {'critical': 0, 'high': 0, 'medium': 0, 'normal': 0}
+        for row in rows:
+            key = str(row.get('sla_priority') or 'normal').lower()
+            by_priority[key] = by_priority.get(key, 0) + 1
 
-    return jsonify({
-        'ok': True,
-        'data': page,
-        'total': total,
-        'summary': {
+        return jsonify({
+            'ok': True,
+            'data': page,
             'total': total,
-            'overdue_total': overdue_total,
-            'due_soon_total': due_soon_total,
-            'unassigned_total': unassigned_total,
-            'escalated_total': escalated_total,
-            'awaiting_approval_total': awaiting_approval_total,
-            'avg_age_minutes': avg_age,
-            'by_priority': by_priority,
-        },
-    })
+            'summary': {
+                'total': total,
+                'overdue_total': overdue_total,
+                'due_soon_total': due_soon_total,
+                'unassigned_total': unassigned_total,
+                'escalated_total': escalated_total,
+                'awaiting_approval_total': awaiting_approval_total,
+                'avg_age_minutes': avg_age,
+                'by_priority': by_priority,
+            },
+        })
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @payment_audit_bp.get('/approval-inbox')
 @auth_required
 @role_required('operator', 'admin', 'platform_admin')
 def approval_inbox():
-    limit             = min(request.args.get('limit', default=20, type=int), 100)
-    offset            = max(request.args.get('offset', default=0, type=int), 0)
-    risk_level        = request.args.get('risk_level')
-    user_id           = request.args.get('user_id', type=int)
-    assigned_admin_id = request.args.get('assigned_admin_id', type=int)
-    assigned_mode     = request.args.get('assigned_mode')
-    search            = (request.args.get('search') or '').strip()
-    open_only         = _as_bool(request.args.get('open_only'), default=True)
+    try:
+        limit = min(max(request.args.get('limit', default=20, type=int), 1), 100)
+        offset = max(request.args.get('offset', default=0, type=int), 0)
+        risk_level = request.args.get('risk_level')
+        user_id = request.args.get('user_id', type=int)
+        assigned_admin_id = request.args.get('assigned_admin_id', type=int)
+        assigned_mode = request.args.get('assigned_mode')
+        search = (request.args.get('search') or '').strip()
+        open_only = _as_bool(request.args.get('open_only'), default=True)
+        overdue_param = (request.args.get('overdue') or '').strip().lower()
+        due_soon_param = (request.args.get('due_soon') or '').strip().lower()
+        priority = (request.args.get('priority') or '').strip().lower()
+        approval_action = (request.args.get('approval_action') or '').strip().lower()
+        scan_limit = min(max(request.args.get('scan_limit', default=1200, type=int), 100), 5000)
 
-    rows = _repo.list_orders(
-        limit=limit,
-        offset=offset,
-        risk_level=risk_level,
-        user_id=user_id,
-        approval_state='requested',
-        assigned_admin_id=assigned_admin_id,
-        assigned_mode=assigned_mode,
-        search=search or None,
-        open_only=open_only,
-    )
-    total = _repo.count_orders(
-        risk_level=risk_level,
-        user_id=user_id,
-        approval_state='requested',
-        assigned_admin_id=assigned_admin_id,
-        assigned_mode=assigned_mode,
-        search=search or None,
-        open_only=open_only,
-    )
-    now = datetime.now(timezone.utc)
-    data = [_decorate_order(dict(row), now_utc=now) for row in rows]
+        overdue_filter: bool | None = None
+        due_soon_filter: bool | None = None
+        if overdue_param == 'true':
+            overdue_filter = True
+        elif overdue_param == 'false':
+            overdue_filter = False
+        if due_soon_param == 'true':
+            due_soon_filter = True
+        elif due_soon_param == 'false':
+            due_soon_filter = False
 
-    return jsonify({
-        'ok': True,
-        'data': data,
-        'total': total,
-        'summary': {
-            'awaiting_approval_total': total,
-        },
-    })
+        candidates = _repo.list_orders(
+            limit=scan_limit,
+            offset=0,
+            risk_level=risk_level,
+            user_id=user_id,
+            approval_state='requested',
+            assigned_admin_id=assigned_admin_id,
+            assigned_mode=assigned_mode,
+            search=search or None,
+            open_only=open_only,
+        )
+        now = datetime.now(timezone.utc)
+        rows = [_decorate_order(dict(row), now_utc=now) for row in candidates]
+
+        if approval_action in {'approve', 'reject'}:
+            rows = [row for row in rows if str(row.get('approval_requested_action') or '').lower() == approval_action]
+        if priority in {'critical', 'high', 'medium', 'normal'}:
+            rows = [row for row in rows if str(row.get('sla_priority') or '').lower() == priority]
+        if overdue_filter is not None:
+            rows = [row for row in rows if bool(row.get('sla_overdue')) is overdue_filter]
+        if due_soon_filter is not None:
+            rows = [row for row in rows if bool(row.get('sla_due_soon')) is due_soon_filter]
+
+        rows.sort(key=_queue_sort_key)
+        total = len(rows)
+        page = rows[offset: offset + limit]
+        overdue_total = sum(1 for row in rows if row.get('sla_overdue'))
+        due_soon_total = sum(1 for row in rows if row.get('sla_due_soon'))
+
+        return jsonify({
+            'ok': True,
+            'data': page,
+            'total': total,
+            'summary': {
+                'awaiting_approval_total': total,
+                'overdue_total': overdue_total,
+                'due_soon_total': due_soon_total,
+            },
+        })
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @payment_audit_bp.post('/sla-auto-escalate')
@@ -589,70 +622,80 @@ def sla_auto_escalate():
 @auth_required
 @role_required('operator', 'admin', 'platform_admin')
 def workload():
-    scan_limit = min(max(request.args.get('scan_limit', default=1500, type=int), 200), 6000)
-    open_only = _as_bool(request.args.get('open_only'), default=True)
+    try:
+        scan_limit = min(max(request.args.get('scan_limit', default=1500, type=int), 200), 6000)
+        open_only = _as_bool(request.args.get('open_only'), default=True)
+        risk_level = (request.args.get('risk_level') or '').strip().lower()
+        if risk_level not in {'', 'low', 'medium', 'high', 'critical'}:
+            risk_level = ''
 
-    candidates = _repo.list_orders(limit=scan_limit, offset=0)
-    now = datetime.now(timezone.utc)
-    rows = [_decorate_order(dict(row), now_utc=now) for row in candidates]
-    if open_only:
-        rows = [row for row in rows if _order_is_open(row)]
-
-    buckets: dict[str, dict] = {}
-    for row in rows:
-        assigned_id = row.get('assigned_admin_id')
-        key = str(assigned_id) if assigned_id else 'unassigned'
-        if key not in buckets:
-            buckets[key] = {
-                'admin_user_id': assigned_id,
-                'admin_name': row.get('assigned_admin_name') if assigned_id else 'Unassigned',
-                'total': 0,
-                'overdue': 0,
-                'critical': 0,
-                'escalated': 0,
-                'awaiting_approval': 0,
-                'age_sum': 0,
-                'avg_age_minutes': 0,
-                'by_priority': {'critical': 0, 'high': 0, 'medium': 0, 'normal': 0},
-            }
-        slot = buckets[key]
-        slot['total'] += 1
-        slot['age_sum'] += int(row.get('sla_age_minutes') or 0)
-        if row.get('sla_overdue'):
-            slot['overdue'] += 1
-        if str(row.get('risk_level') or '').lower() == 'critical':
-            slot['critical'] += 1
-        if str(row.get('review_state') or '').lower() == 'escalated':
-            slot['escalated'] += 1
-        if str(row.get('approval_state') or '').lower() == 'requested':
-            slot['awaiting_approval'] += 1
-        priority = str(row.get('sla_priority') or 'normal').lower()
-        slot['by_priority'][priority] = slot['by_priority'].get(priority, 0) + 1
-
-    workload_rows = []
-    for entry in buckets.values():
-        entry['avg_age_minutes'] = int(entry['age_sum'] / max(1, entry['total']))
-        entry.pop('age_sum', None)
-        workload_rows.append(entry)
-
-    workload_rows.sort(
-        key=lambda x: (
-            0 if x['admin_user_id'] is None else 1,
-            -int(x['overdue']),
-            -int(x['total']),
-            str(x.get('admin_name') or ''),
+        candidates = _repo.list_orders(
+            limit=scan_limit,
+            offset=0,
+            risk_level=risk_level or None,
         )
-    )
+        now = datetime.now(timezone.utc)
+        rows = [_decorate_order(dict(row), now_utc=now) for row in candidates]
+        if open_only:
+            rows = [row for row in rows if _order_is_open(row)]
 
-    summary = {
-        'open_total': len(rows),
-        'assignees_total': len([r for r in workload_rows if r['admin_user_id'] is not None]),
-        'unassigned_total': sum(1 for r in rows if not r.get('assigned_admin_id')),
-        'overdue_total': sum(1 for r in rows if r.get('sla_overdue')),
-        'critical_total': sum(1 for r in rows if str(r.get('risk_level') or '').lower() == 'critical'),
-        'awaiting_approval_total': sum(1 for r in rows if str(r.get('approval_state') or '').lower() == 'requested'),
-    }
-    return jsonify({'ok': True, 'data': workload_rows, 'summary': summary})
+        buckets: dict[str, dict] = {}
+        for row in rows:
+            assigned_id = row.get('assigned_admin_id')
+            key = str(assigned_id) if assigned_id else 'unassigned'
+            if key not in buckets:
+                buckets[key] = {
+                    'admin_user_id': assigned_id,
+                    'admin_name': row.get('assigned_admin_name') if assigned_id else 'Unassigned',
+                    'total': 0,
+                    'overdue': 0,
+                    'critical': 0,
+                    'escalated': 0,
+                    'awaiting_approval': 0,
+                    'age_sum': 0,
+                    'avg_age_minutes': 0,
+                    'by_priority': {'critical': 0, 'high': 0, 'medium': 0, 'normal': 0},
+                }
+            slot = buckets[key]
+            slot['total'] += 1
+            slot['age_sum'] += int(row.get('sla_age_minutes') or 0)
+            if row.get('sla_overdue'):
+                slot['overdue'] += 1
+            if str(row.get('risk_level') or '').lower() == 'critical':
+                slot['critical'] += 1
+            if str(row.get('review_state') or '').lower() == 'escalated':
+                slot['escalated'] += 1
+            if str(row.get('approval_state') or '').lower() == 'requested':
+                slot['awaiting_approval'] += 1
+            priority = str(row.get('sla_priority') or 'normal').lower()
+            slot['by_priority'][priority] = slot['by_priority'].get(priority, 0) + 1
+
+        workload_rows = []
+        for entry in buckets.values():
+            entry['avg_age_minutes'] = int(entry['age_sum'] / max(1, entry['total']))
+            entry.pop('age_sum', None)
+            workload_rows.append(entry)
+
+        workload_rows.sort(
+            key=lambda x: (
+                0 if x['admin_user_id'] is None else 1,
+                -int(x['overdue']),
+                -int(x['total']),
+                str(x.get('admin_name') or ''),
+            )
+        )
+
+        summary = {
+            'open_total': len(rows),
+            'assignees_total': len([r for r in workload_rows if r['admin_user_id'] is not None]),
+            'unassigned_total': sum(1 for r in rows if not r.get('assigned_admin_id')),
+            'overdue_total': sum(1 for r in rows if r.get('sla_overdue')),
+            'critical_total': sum(1 for r in rows if str(r.get('risk_level') or '').lower() == 'critical'),
+            'awaiting_approval_total': sum(1 for r in rows if str(r.get('approval_state') or '').lower() == 'requested'),
+        }
+        return jsonify({'ok': True, 'data': workload_rows, 'summary': summary})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @payment_audit_bp.post('/sla-bulk-action')

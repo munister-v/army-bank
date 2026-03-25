@@ -255,6 +255,35 @@ def test_admin_list_transactions_filter_type(client, admin_headers, soldier):
         assert tx['tx_type'] == 'payout'
 
 
+def test_admin_list_transactions_extended_summary(client, admin_headers):
+    r = client.get('/api/admin/transactions', headers=admin_headers)
+    assert r.status_code == 200
+    payload = r.get_json()
+    summary = payload.get('summary') or {}
+    assert 'median_amount' in summary
+    assert 'p90_amount' in summary
+    assert 'count_high_value' in summary
+    assert isinstance(summary.get('top_users', []), list)
+    assert isinstance(summary.get('by_type', []), list)
+
+
+def test_admin_list_transactions_high_value_filter(client, admin_headers, soldier):
+    user_id, _ = soldier
+    client.post('/api/admin/payouts', json={
+        'user_id': user_id, 'amount': 12345, 'title': 'High value', 'payout_type': 'combat',
+    }, headers=admin_headers)
+    client.post('/api/admin/payouts', json={
+        'user_id': user_id, 'amount': 555, 'title': 'Low value', 'payout_type': 'combat',
+    }, headers=admin_headers)
+
+    r = client.get('/api/admin/transactions?high_value_only=true&high_value_min=10000', headers=admin_headers)
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data['ok'] is True
+    for tx in data['data']:
+        assert float(tx['amount']) >= 10000
+
+
 def test_admin_user_transactions_ok(client, admin_headers, soldier):
     user_id, _ = soldier
     client.post('/api/admin/payouts', json={

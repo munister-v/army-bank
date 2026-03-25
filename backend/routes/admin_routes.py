@@ -1,6 +1,8 @@
 """Маршрути для ролі адміністратора."""
 from __future__ import annotations
 
+import math
+
 from flask import Blueprint, jsonify, request, g
 
 from ..repositories.account_repository import AccountRepository
@@ -16,6 +18,19 @@ account_repo = AccountRepository()
 feature_repo = FeatureRepository()
 
 _ALLOWED_ROLES = ('soldier', 'operator', 'admin', 'platform_admin')
+
+
+def _as_bool(value, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in {'1', 'true', 'yes', 'on'}:
+        return True
+    if text in {'0', 'false', 'no', 'off'}:
+        return False
+    return default
 
 
 @admin_bp.get('/users')
@@ -118,17 +133,21 @@ def get_stats():
 def list_all_transactions():
     """Усі транзакції платформи з пагінацією та фільтрами."""
     try:
-        limit      = min(request.args.get('limit',  default=100, type=int), 500)
-        offset     = request.args.get('offset',     default=0,   type=int)
-        tx_type    = request.args.get('tx_type')
-        direction  = request.args.get('direction')
-        from_date  = request.args.get('from_date')
-        to_date    = request.args.get('to_date')
-        user_id    = request.args.get('user_id',    type=int)
+        limit = min(max(request.args.get('limit', default=100, type=int), 1), 500)
+        offset = max(request.args.get('offset', default=0, type=int), 0)
+        tx_type = request.args.get('tx_type')
+        direction = request.args.get('direction')
+        from_date = request.args.get('from_date')
+        to_date = request.args.get('to_date')
+        user_id = request.args.get('user_id', type=int)
         min_amount = request.args.get('min_amount', type=float)
         max_amount = request.args.get('max_amount', type=float)
-        search     = (request.args.get('search') or '').strip()
-        sort_by    = (request.args.get('sort_by') or 'newest').strip()
+        search = (request.args.get('search') or '').strip()
+        sort_by = (request.args.get('sort_by') or 'newest').strip()
+        high_value_only = _as_bool(request.args.get('high_value_only'), default=False)
+        high_value_min = request.args.get('high_value_min', type=float)
+        if high_value_min is not None and float(high_value_min) <= 0:
+            high_value_min = None
 
         with get_connection() as conn:
             base_sql = '''
@@ -145,45 +164,60 @@ def list_all_transactions():
                 WHERE 1=1
             '''
             params: list = []
+            def append_filter(sql_part: str, *values):
+                nonlocal base_sql, select_sql, params
+                base_sql += sql_part
+                select_sql += sql_part
+                params.extend(values)
+
             if tx_type:
-                base_sql += ' AND t.tx_type = %s'
-                select_sql += ' AND t.tx_type = %s'
-                params.append(tx_type)
+                append_filter(' AND t.tx_type = %s', tx_type)
             if direction:
-                base_sql += ' AND t.direction = %s'
-                select_sql += ' AND t.direction = %s'
-                params.append(direction)
+                append_filter(' AND t.direction = %s', direction)
             if from_date:
-                base_sql += ' AND t.created_at >= %s'
-                select_sql += ' AND t.created_at >= %s'
-                params.append(from_date)
+                append_filter(' AND t.created_at >= %s', from_date)
             if to_date:
                 end_of_day = to_date + 'T23:59:59'
-                base_sql += ' AND t.created_at <= %s'
-                select_sql += ' AND t.created_at <= %s'
-                params.append(end_of_day)
+                append_filter(' AND t.created_at <= %s', end_of_day)
             if user_id:
-                base_sql += ' AND u.id = %s'
-                select_sql += ' AND u.id = %s'
-                params.append(user_id)
+                append_filter(' AND u.id = %s', user_id)
             if min_amount is not None:
-                base_sql += ' AND t.amount >= %s'
-                select_sql += ' AND t.amount >= %s'
-                params.append(min_amount)
+                append_filter(' AND t.amount >= %s', min_amount)
             if max_amount is not None:
-                base_sql += ' AND t.amount <= %s'
-                select_sql += ' AND t.amount <= %s'
-                params.append(max_amount)
+                append_filter(' AND t.amount <= %s', max_amount)
             if search:
-                base_sql += ' AND (LOWER(t.description) LIKE %s OR a.account_number LIKE %s OR LOWER(u.full_name) LIKE %s)'
-                select_sql += ' AND (LOWER(t.description) LIKE %s OR a.account_number LIKE %s OR LOWER(u.full_name) LIKE %s)'
                 like = f'%{search.lower()}%'
-                params += [like, f'%{search}%', like]
+                append_filter(
+                    ' AND (LOWER(t.description) LIKE %s OR a.account_number LIKE %s OR LOWER(u.full_name) LIKE %s)',
+                    like, f'%{search}%', like
+                )
 
-            count_row = conn.execute(
-                f'SELECT COUNT(*) as n {base_sql}', tuple(params)
+            base_sql_no_hv = base_sql
+            params_no_hv = list(params)
+
+            base_summary_row = conn.execute(
+                f'''
+                SELECT
+                    COALESCE(AVG(t.amount),0) AS avg_amount,
+                    COALESCE(MAX(t.amount),0) AS max_amount
+                {base_sql_no_hv}
+                ''',
+                tuple(params_no_hv)
             ).fetchone()
-            total = count_row['n'] if count_row else 0
+            base_avg = float(base_summary_row['avg_amount']) if base_summary_row else 0.0
+            base_max = float(base_summary_row['max_amount']) if base_summary_row else 0.0
+            derived_high_value_min = round(max(base_avg * 3, base_max * 0.65), 2) if base_max > 0 else 0.0
+            applied_high_value_min = (
+                round(float(high_value_min), 2)
+                if high_value_min is not None
+                else derived_high_value_min
+            )
+
+            if high_value_only and applied_high_value_min > 0:
+                append_filter(' AND t.amount >= %s', applied_high_value_min)
+
+            count_row = conn.execute(f'SELECT COUNT(*) as n {base_sql}', tuple(params)).fetchone()
+            total = int(count_row['n']) if count_row else 0
 
             summary_row = conn.execute(
                 f'''
@@ -200,10 +234,7 @@ def list_all_transactions():
                 tuple(params)
             ).fetchone()
             unique_users_row = conn.execute(
-                f'''
-                SELECT COUNT(DISTINCT u.id) AS unique_users
-                {base_sql}
-                ''',
+                f'SELECT COUNT(DISTINCT u.id) AS unique_users {base_sql}',
                 tuple(params)
             ).fetchone()
             by_type_rows = conn.execute(
@@ -214,6 +245,21 @@ def list_all_transactions():
                 GROUP BY t.tx_type
                 ORDER BY cnt DESC, total_amount DESC
                 LIMIT 6
+                ''',
+                tuple(params)
+            ).fetchall()
+            top_users_rows = conn.execute(
+                f'''
+                SELECT u.id AS user_id,
+                       u.full_name AS full_name,
+                       COUNT(*) AS tx_count,
+                       COALESCE(SUM(t.amount),0) AS turnover,
+                       COALESCE(SUM(CASE WHEN t.direction='in' THEN t.amount ELSE 0 END),0) AS total_in,
+                       COALESCE(SUM(CASE WHEN t.direction='out' THEN t.amount ELSE 0 END),0) AS total_out
+                {base_sql}
+                GROUP BY u.id, u.full_name
+                ORDER BY turnover DESC, tx_count DESC
+                LIMIT 5
                 ''',
                 tuple(params)
             ).fetchall()
@@ -232,6 +278,38 @@ def list_all_transactions():
                 tuple(data_params)
             ).fetchall()
 
+            median_amount = 0.0
+            p90_amount = 0.0
+            if total > 0:
+                mid_low_idx = (total - 1) // 2
+                mid_high_idx = total // 2
+                low_row = conn.execute(
+                    f'SELECT t.amount {base_sql} ORDER BY t.amount ASC LIMIT 1 OFFSET %s',
+                    tuple(list(params) + [mid_low_idx])
+                ).fetchone()
+                high_row = conn.execute(
+                    f'SELECT t.amount {base_sql} ORDER BY t.amount ASC LIMIT 1 OFFSET %s',
+                    tuple(list(params) + [mid_high_idx])
+                ).fetchone()
+                low_amount = float(low_row['amount']) if low_row else 0.0
+                high_amount = float(high_row['amount']) if high_row else 0.0
+                median_amount = round((low_amount + high_amount) / 2, 2)
+
+                p90_idx = max(0, int(math.ceil(total * 0.9) - 1))
+                p90_row = conn.execute(
+                    f'SELECT t.amount {base_sql} ORDER BY t.amount ASC LIMIT 1 OFFSET %s',
+                    tuple(list(params) + [p90_idx])
+                ).fetchone()
+                p90_amount = round(float(p90_row['amount']) if p90_row else 0.0, 2)
+
+            high_value_count = 0
+            if applied_high_value_min > 0:
+                high_value_count_row = conn.execute(
+                    f'SELECT COUNT(*) AS n {base_sql_no_hv} AND t.amount >= %s',
+                    tuple(list(params_no_hv) + [applied_high_value_min])
+                ).fetchone()
+                high_value_count = int(high_value_count_row['n']) if high_value_count_row else 0
+
         total_in = float(summary_row['total_in']) if summary_row else 0.0
         total_out = float(summary_row['total_out']) if summary_row else 0.0
         avg_amount = float(summary_row['avg_amount']) if summary_row else 0.0
@@ -240,11 +318,37 @@ def list_all_transactions():
         count_in = int(summary_row['count_in']) if summary_row else 0
         count_out = int(summary_row['count_out']) if summary_row else 0
         unique_users = int(unique_users_row['unique_users']) if unique_users_row else 0
-        by_type = [dict(r) for r in by_type_rows]
-        top_type = by_type[0]['tx_type'] if by_type else None
-        high_value_threshold = round(max(avg_amount * 3, max_a * 0.65), 2) if max_a > 0 else 0.0
+        by_type = []
+        for raw in by_type_rows:
+            row = dict(raw)
+            by_type.append({
+                'tx_type': row.get('tx_type'),
+                'cnt': int(row.get('cnt') or 0),
+                'total_amount': round(float(row.get('total_amount') or 0), 2),
+            })
 
-        return jsonify({'ok': True, 'data': rows, 'total': total, 'summary': {
+        top_users = []
+        for raw in top_users_rows:
+            row = dict(raw)
+            total_in_u = float(row.get('total_in') or 0)
+            total_out_u = float(row.get('total_out') or 0)
+            top_users.append({
+                'user_id': int(row.get('user_id') or 0),
+                'full_name': row.get('full_name') or '—',
+                'tx_count': int(row.get('tx_count') or 0),
+                'turnover': round(float(row.get('turnover') or 0), 2),
+                'total_in': round(total_in_u, 2),
+                'total_out': round(total_out_u, 2),
+                'net': round(total_in_u - total_out_u, 2),
+            })
+        top_type = by_type[0]['tx_type'] if by_type else None
+        high_value_threshold = (
+            round(applied_high_value_min, 2)
+            if high_value_only and applied_high_value_min > 0
+            else (round(max(avg_amount * 3, max_a * 0.65), 2) if max_a > 0 else 0.0)
+        )
+
+        return jsonify({'ok': True, 'data': [dict(r) for r in rows], 'total': total, 'summary': {
             'count': int(total),
             'total_in': round(total_in, 2),
             'total_out': round(total_out, 2),
@@ -252,12 +356,18 @@ def list_all_transactions():
             'avg_amount': round(avg_amount, 2),
             'min_amount': round(min_a, 2),
             'max_amount': round(max_a, 2),
+            'median_amount': round(median_amount, 2),
+            'p90_amount': round(p90_amount, 2),
             'count_in': count_in,
             'count_out': count_out,
             'unique_users': unique_users,
             'top_tx_type': top_type,
             'high_value_threshold': high_value_threshold,
+            'high_value_only': high_value_only,
+            'high_value_min': round(applied_high_value_min, 2) if applied_high_value_min > 0 else 0.0,
+            'count_high_value': high_value_count,
             'by_type': by_type,
+            'top_users': top_users,
         }})
     except Exception as exc:
         return api_error(str(exc))
