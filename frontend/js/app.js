@@ -714,7 +714,8 @@ const receipt = (() => {
     _txId = data.tx_id || null;
     const dir = data.direction || 'out';
 
-    $('#receiptAmount').innerHTML  = fmtAmt(data.amount, dir);
+    const amtEl = $('#receiptAmount');
+    if (amtEl) { amtEl.innerHTML = fmtAmt(data.amount, dir); amtEl.dataset.dir = dir; }
     $('#receiptTitle').textContent = data.title || (dir === 'in' ? 'Надходження' : 'Переказ виконано');
     $('#receiptTxId').textContent  = _txId ? `#${_txId}` : '—';
     $('#receiptDate').textContent  = fmtDt(data.created_at || new Date().toISOString());
@@ -750,7 +751,10 @@ const receipt = (() => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `receipt-${_txId}.pdf`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(a.href), 10000);
       showToast('Чек PDF завантажено', 'success');
     } catch (e) {
@@ -769,6 +773,19 @@ const receipt = (() => {
   document.addEventListener('DOMContentLoaded', () => {
     $('#receiptDownloadBtn')?.addEventListener('click', download);
     $('#receiptCloseBtn')?.addEventListener('click', close);
+    $('#receiptShareBtn')?.addEventListener('click', () => {
+      if (typeof shareTransaction === 'function') {
+        shareTransaction({
+          id:              _txId,
+          description:     $('#receiptDesc')?.textContent || '—',
+          amount:          ($('#receiptAmount')?.textContent || '').replace(/[^0-9.,]/g, '').replace(',', '.'),
+          direction:       ($('#receiptAmount')?.dataset?.dir) || 'out',
+          tx_type:         'transfer',
+          created_at:      $('#receiptDate')?.textContent || new Date().toISOString(),
+          related_account: $('#receiptTo')?.textContent || '',
+        });
+      }
+    });
     $('#receiptOverlay')?.addEventListener('click', e => { if (e.target === $('#receiptOverlay')) close(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#receiptOverlay')?.classList.contains('hidden')) close(); });
   });
@@ -886,7 +903,10 @@ const receipt = (() => {
       link.href = URL.createObjectURL(blob);
       const suffix = (_from && _to) ? `${_from}_${_to}` : new Date().toISOString().slice(0, 10);
       link.download = `army-bank-statement-${suffix}.pdf`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(link.href), 15000);
       showToast('Виписку PDF завантажено.', 'success');
       closeStatementModal();
@@ -2844,13 +2864,57 @@ function shareTransaction(tx) {
     `🔑 ID: #${tx.id}`,
   ].filter(Boolean).join('\n');
 
-  if (navigator.share) {
-    navigator.share({ title: 'Army Bank — Виписка', text }).catch(() => {});
-  } else {
-    navigator.clipboard.writeText(text).then(() =>
-      showToast('Деталі скопійовано в буфер обміну.', 'success')
-    ).catch(() => showToast('Не вдалося скопіювати.'));
+  function _copyFallback() {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, 99999);
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) { showToast('Деталі скопійовано в буфер обміну.', 'success'); return; }
+    } catch (_) {}
+    // Last resort — show a modal with the text
+    _showShareModal(text);
   }
+
+  if (navigator.share) {
+    navigator.share({ title: 'Army Bank — Виписка', text }).catch(() => _copyFallback());
+  } else if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => showToast('Деталі скопійовано в буфер обміну.', 'success'))
+      .catch(() => _copyFallback());
+  } else {
+    _copyFallback();
+  }
+}
+
+function _showShareModal(text) {
+  const existing = document.getElementById('_shareModal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = '_shareModal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:var(--card-bg,#1a2444);border-radius:16px;padding:24px;max-width:380px;width:100%;position:relative">
+      <div style="font-weight:700;font-size:15px;margin-bottom:12px">Поділитися операцією</div>
+      <textarea id="_shareText" readonly style="width:100%;height:160px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:12px;font-size:12px;font-family:monospace;color:inherit;resize:none;margin-bottom:12px">${text}</textarea>
+      <div style="display:flex;gap:10px">
+        <button id="_shareCopyBtn" class="btn-accent" style="flex:1">Скопіювати</button>
+        <button id="_shareCloseBtn" class="btn-ghost">Закрити</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('_shareCopyBtn')?.addEventListener('click', () => {
+    const ta = document.getElementById('_shareText');
+    ta.select(); ta.setSelectionRange(0, 99999);
+    try { document.execCommand('copy'); showToast('Скопійовано!', 'success'); } catch(_) {}
+    modal.remove();
+  });
+  document.getElementById('_shareCloseBtn')?.addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 }
 
 // ── SESSION MANAGEMENT ─────────────────────────────────
