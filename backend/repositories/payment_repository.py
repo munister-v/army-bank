@@ -27,7 +27,14 @@ class PaymentRepository:
                  recipient_account_id, amount, description,
                  risk_score, risk_level, flags_json)
             )
-            return insert_last_id(cur)
+            order_id = insert_last_id(cur)
+            conn.execute(
+                """INSERT INTO payment_order_events
+                   (payment_order_id, actor_user_id, event_type, details)
+                   VALUES (%s,%s,'created',%s)""",
+                (order_id, initiator_user_id, f'risk={risk_level}:{risk_score}')
+            )
+            return order_id
 
     def get_order(self, order_id: int) -> dict | None:
         with get_connection() as conn:
@@ -60,6 +67,10 @@ class PaymentRepository:
                    tx_id_out: int | None = None, tx_id_in: int | None = None,
                    failure_reason: str | None = None) -> None:
         with get_connection() as conn:
+            prev = conn.execute(
+                'SELECT status FROM payment_orders WHERE id = %s',
+                (order_id,)
+            ).fetchone()
             if status == 'blocked':
                 conn.execute(
                     """UPDATE payment_orders
@@ -69,6 +80,13 @@ class PaymentRepository:
                            updated_at = CURRENT_TIMESTAMP
                        WHERE id = %s""",
                     (status, tx_id_out, tx_id_in, failure_reason, order_id)
+                )
+            if prev and str(prev.get('status') or '') != str(status):
+                conn.execute(
+                    """INSERT INTO payment_order_events
+                       (payment_order_id, actor_user_id, event_type, details)
+                       VALUES (%s,NULL,'status_changed',%s)""",
+                    (order_id, f'{prev.get("status")}->{status}')
                 )
             else:
                 conn.execute(
