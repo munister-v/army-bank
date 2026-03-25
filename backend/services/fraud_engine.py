@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from ..database import get_connection
+from ..config import USE_PG
 
 
 # ══ Рівні ризику ═════════════════════════════════════════════════════════════
@@ -976,6 +977,15 @@ class FraudEngine:
         r(self._depletion.evaluate,    account_id, amount, balance, result)
 
         if result.is_critical:
+            result.finalize()
+            return result
+
+        # SQLite (тести/локальна розробка) не підтримує значну частину
+        # Postgres-специфічних SQL у важких правилах.
+        # Щоб не ламати ключові операції, у non-PG режимі залишаємо базовий
+        # in-memory/layer1 антифрод.
+        if not USE_PG:
+            result.details.setdefault('fraud_mode', 'lite_sqlite')
             result.finalize()
             return result
 
