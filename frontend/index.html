@@ -34,7 +34,7 @@
   <link rel="stylesheet" href="/css/overrides.css?v=13">
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js" as="script">
-  <link rel="preload" href="/js/app.js?v=28" as="script">
+  <link rel="preload" href="/js/app.js?v=29" as="script">
   <!-- Early server wake-up: ping /health if session token exists (mitigates Render cold-start) -->
   <script>
     (function(){
@@ -1047,6 +1047,10 @@
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               Контакти
             </button>
+            <button type="button" class="profile-link-btn nav-link" data-screen="tax">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Податки
+            </button>
             <button type="button" class="profile-link-btn" id="profileLogoutBtn">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
               Вийти
@@ -1221,6 +1225,206 @@
         </div>
       </section>
 
+      <!-- ══ TAX CONSULTANT ══════════════════════════════════════ -->
+      <section id="tax" class="screen">
+        <div class="tax-hero">
+          <div class="tax-hero-icon">⚖️</div>
+          <h2 class="tax-hero-title">Податковий консультант</h2>
+          <p class="tax-hero-sub">Актуальна інформація для військовослужбовців ЗСУ · 2024–2025</p>
+        </div>
+
+        <!-- ── Грошове забезпечення ───────────────────────── -->
+        <details class="tax-card" open>
+          <summary class="tax-card-head">
+            <span class="tax-card-icon">💰</span>
+            <span class="tax-card-title">Грошове забезпечення ЗСУ</span>
+            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="tax-card-body">
+            <div class="tax-badge green">Звільнено від оподаткування</div>
+            <p>Відповідно до <strong>Закону №2484-IX</strong> та наступних змін, грошове забезпечення військовослужбовців ЗСУ, НГУ, ДПСУ, СБУ та інших силових структур <strong>повністю звільнено від ПДФО та військового збору</strong> на весь період воєнного стану.</p>
+            <div class="tax-row"><span>ПДФО (18%)</span><span class="tax-val green">✓ Не нараховується</span></div>
+            <div class="tax-row"><span>Військовий збір</span><span class="tax-val green">✓ Не нараховується</span></div>
+            <div class="tax-row"><span>ЄСВ (22%)</span><span class="tax-val green">✓ Не нараховується</span></div>
+            <div class="tax-note">📌 Звільнення поширюється на весь період дії воєнного стану та 6 місяців після його скасування.</div>
+          </div>
+        </details>
+
+        <!-- ── Військовий збір ────────────────────────────── -->
+        <details class="tax-card">
+          <summary class="tax-card-head">
+            <span class="tax-card-icon">🛡️</span>
+            <span class="tax-card-title">Військовий збір (ВЗ)</span>
+            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="tax-card-body">
+            <div class="tax-badge orange">З 1 жовтня 2024 — нові ставки</div>
+            <div class="tax-row"><span>Фізичні особи (зарплата, оренда тощо)</span><span class="tax-val orange">5%</span></div>
+            <div class="tax-row"><span>ФОП 1–3 групи (до 01.10.2024)</span><span class="tax-val">1,5%</span></div>
+            <div class="tax-row"><span>ФОП 1–3 групи (з 01.10.2024)</span><span class="tax-val orange">5%</span></div>
+            <div class="tax-row"><span>Пасивні доходи (дивіденди, відсотки)</span><span class="tax-val">5%</span></div>
+            <div class="tax-row"><span>Продаж нерухомості (перший продаж/рік)</span><span class="tax-val">5%</span></div>
+            <div class="tax-row"><span>Виграші в лотереях</span><span class="tax-val">5%</span></div>
+            <p>ВЗ нараховується <strong>понад</strong> ПДФО (не замість). Базою є дохід до вирахування ПДФО.</p>
+            <div class="tax-note">⚠️ Грошове забезпечення військових — <strong>звільнено від ВЗ</strong> на час воєнного стану.</div>
+          </div>
+        </details>
+
+        <!-- ── ПДФО ───────────────────────────────────────── -->
+        <details class="tax-card">
+          <summary class="tax-card-head">
+            <span class="tax-card-icon">📊</span>
+            <span class="tax-card-title">ПДФО — Податок на доходи фізичних осіб</span>
+            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="tax-card-body">
+            <div class="tax-row"><span>Основна ставка (зарплата, оренда)</span><span class="tax-val">18%</span></div>
+            <div class="tax-row"><span>Пасивні доходи (дивіденди ФО)</span><span class="tax-val">5%</span></div>
+            <div class="tax-row"><span>Продаж нерухомості (перший/рік)</span><span class="tax-val green">0%</span></div>
+            <div class="tax-row"><span>Продаж нерухомості (другий і більше)</span><span class="tax-val">5%</span></div>
+            <div class="tax-row"><span>Спадщина (1–2 черга)</span><span class="tax-val green">0%</span></div>
+            <div class="tax-row"><span>Спадщина (3 черга)</span><span class="tax-val">5%</span></div>
+            <div class="tax-row"><span>Доходи нерезидентів</span><span class="tax-val red">18%</span></div>
+            <div class="tax-note">📌 Учасники бойових дій (УБД) мають право на <strong>податкову соціальну пільгу</strong> у розмірі 150% від стандартної (у 2024 р. — ₴3 028,5/міс).</div>
+          </div>
+        </details>
+
+        <!-- ── Пільги УБД ──────────────────────────────────── -->
+        <details class="tax-card">
+          <summary class="tax-card-head">
+            <span class="tax-card-icon">🎖️</span>
+            <span class="tax-card-title">Пільги учасників бойових дій (УБД)</span>
+            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="tax-card-body">
+            <div class="tax-badge green">Статус УБД — значні переваги</div>
+            <div class="tax-row"><span>Податкова соціальна пільга</span><span class="tax-val green">150% (≈₴3 028/міс)</span></div>
+            <div class="tax-row"><span>Земельний податок</span><span class="tax-val green">Звільнено</span></div>
+            <div class="tax-row"><span>Транспортний податок</span><span class="tax-val green">Звільнено (1 авто)</span></div>
+            <div class="tax-row"><span>Плата за держ. реєстрацію авто</span><span class="tax-val green">Знижка 50%</span></div>
+            <div class="tax-row"><span>Єдиний податок (ФОП)</span><span class="tax-val green">Звільнено під час служби</span></div>
+            <p>Для отримання пільг УБД потрібно отримати <strong>посвідчення учасника бойових дій</strong> через ТЦК або УСЗН за місцем реєстрації.</p>
+            <div class="tax-note">📌 Родини загиблих захисників також мають право на пільги (п. 20.2 ПКУ).</div>
+          </div>
+        </details>
+
+        <!-- ── ФОП під час служби ─────────────────────────── -->
+        <details class="tax-card">
+          <summary class="tax-card-head">
+            <span class="tax-card-icon">🏢</span>
+            <span class="tax-card-title">ФОП під час військової служби</span>
+            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="tax-card-body">
+            <div class="tax-badge green">Особливий режим під час воєнного стану</div>
+            <p>Мобілізовані ФОП мають право <strong>не сплачувати єдиний податок та ЄСВ</strong> за себе на весь час служби.</p>
+            <div class="tax-row"><span>Єдиний податок (ЄП)</span><span class="tax-val green">Звільнено на час служби</span></div>
+            <div class="tax-row"><span>ЄСВ «за себе»</span><span class="tax-val green">Звільнено (не обов'язково)</span></div>
+            <div class="tax-row"><span>ЄСВ «за найманих»</span><span class="tax-val orange">Обов'язково (22%)</span></div>
+            <div class="tax-row"><span>Подача звітності</span><span class="tax-val green">Можна не подавати</span></div>
+            <p>Для призупинення ФОП потрібно подати заяву через <strong>Дія</strong> або до ДПС. Діяльність можна відновити протягом 10 днів після демобілізації без штрафів.</p>
+            <div class="tax-note">⚠️ Якщо ФОП не подав заяву про призупинення, він зобов'язаний сплачувати мінімальний ЄСВ (₴1 760/міс у 2024 р.).</div>
+          </div>
+        </details>
+
+        <!-- ── Одноразові виплати ──────────────────────────── -->
+        <details class="tax-card">
+          <summary class="tax-card-head">
+            <span class="tax-card-icon">🎁</span>
+            <span class="tax-card-title">Одноразові виплати та компенсації</span>
+            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="tax-card-body">
+            <div class="tax-row"><span>Одноразова допомога при пораненні</span><span class="tax-val green">Не оподатковується</span></div>
+            <div class="tax-row"><span>Страхова виплата при загибелі</span><span class="tax-val green">Не оподатковується</span></div>
+            <div class="tax-row"><span>Компенсація за знищене майно</span><span class="tax-val green">Не оподатковується</span></div>
+            <div class="tax-row"><span>Виплата родинам загиблих (≈1 200 прожит. мін.)</span><span class="tax-val green">Не оподатковується</span></div>
+            <div class="tax-row"><span>Матеріальна допомога від роботодавця</span><span class="tax-val">До ₴6 960 — без ПДФО</span></div>
+            <div class="tax-row"><span>Добові (Україна)</span><span class="tax-val">До ₴700/день — без ПДФО</span></div>
+            <div class="tax-row"><span>Добові (за кордоном)</span><span class="tax-val">До 80 €/день — без ПДФО</span></div>
+            <div class="tax-note">📌 Підстава — пп. 165.1.1, 165.1.8, 165.1.56, 165.1.57 ПКУ.</div>
+          </div>
+        </details>
+
+        <!-- ── Майновий/земельний ─────────────────────────── -->
+        <details class="tax-card">
+          <summary class="tax-card-head">
+            <span class="tax-card-icon">🏠</span>
+            <span class="tax-card-title">Майновий та земельний податок</span>
+            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="tax-card-body">
+            <div class="tax-badge green">Пільги під час воєнного стану</div>
+            <div class="tax-row"><span>Земельний податок (УБД)</span><span class="tax-val green">Звільнено повністю</span></div>
+            <div class="tax-row"><span>Земля на окупованих/бойових тер.</span><span class="tax-val green">Не нараховується</span></div>
+            <div class="tax-row"><span>Нерухомість (квартира до 60 м², УБД)</span><span class="tax-val green">Пільга від ради</span></div>
+            <div class="tax-row"><span>Транспортний збір (авто до 2 500 куб. см)</span><span class="tax-val green">Звільнено (УБД)</span></div>
+            <div class="tax-row"><span>Штрафи за несплату під час служби</span><span class="tax-val green">Не нараховуються</span></div>
+            <p>Виплати призупинено до кінця воєнного стану. Після завершення ВС — <strong>180-денний пільговий строк</strong> для погашення без штрафів.</p>
+          </div>
+        </details>
+
+        <!-- ── Декларування ───────────────────────────────── -->
+        <details class="tax-card">
+          <summary class="tax-card-head">
+            <span class="tax-card-icon">📋</span>
+            <span class="tax-card-title">Декларування доходів</span>
+            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="tax-card-body">
+            <div class="tax-row"><span>Термін подачі декларації (стандарт)</span><span class="tax-val">До 1 травня</span></div>
+            <div class="tax-row"><span>Термін сплати за декларацією</span><span class="tax-val">До 1 серпня</span></div>
+            <div class="tax-row"><span>Штраф за несвоєчасну подачу</span><span class="tax-val red">₴340 (170 мін. зарплат)</span></div>
+            <div class="tax-row"><span>Хто зобов'язаний декларувати</span><span class="tax-val">Доходи ≠ з одного місця роботи</span></div>
+            <p>Військовослужбовці <strong>звільнені від обов'язкового декларування</strong> на час воєнного стану, якщо всі доходи — грошове забезпечення ЗСУ. Декларація може знадобитись при:</p>
+            <ul class="tax-list">
+              <li>Продажу нерухомості або авто</li>
+              <li>Отриманні доходів з-за кордону</li>
+              <li>Оренді майна (якщо орендар — фіз. особа)</li>
+              <li>Отриманні спадщини від осіб 3-ї черги</li>
+            </ul>
+            <div class="tax-note">📌 Подача — через <strong>Електронний кабінет платника</strong> на cabinet.tax.gov.ua або застосунок «Дія».</div>
+          </div>
+        </details>
+
+        <!-- ── Міжнародне оподаткування ───────────────────── -->
+        <details class="tax-card">
+          <summary class="tax-card-head">
+            <span class="tax-card-icon">🌍</span>
+            <span class="tax-card-title">Міжнародне оподаткування та статус резидента</span>
+            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="tax-card-body">
+            <div class="tax-row"><span>Резидент України</span><span class="tax-val">≥183 днів/рік в Україні</span></div>
+            <div class="tax-row"><span>Оподаткування резидента</span><span class="tax-val">Worldwide доходи</span></div>
+            <div class="tax-row"><span>Доходи з ЄС (за угодами про уникнення)</span><span class="tax-val green">Зараховуються</span></div>
+            <div class="tax-row"><span>Виплати від іноземних держав (донорська допомога)</span><span class="tax-val green">Не оподатковуються</span></div>
+            <p>Якщо ви отримуєте доходи за кордоном (оренда, робота), сплачений там податок <strong>зараховується проти українського ПДФО</strong> за умови наявності угоди про уникнення подвійного оподаткування.</p>
+            <div class="tax-note">📌 Україна має угоди з 70+ країнами. Повний перелік — на сайті ДПС: tax.gov.ua.</div>
+          </div>
+        </details>
+
+        <!-- ── Корисні посилання ───────────────────────────── -->
+        <div class="tax-links-card">
+          <h3 class="tax-links-title">📎 Корисні ресурси</h3>
+          <div class="tax-links-grid">
+            <a href="https://cabinet.tax.gov.ua" target="_blank" rel="noopener" class="tax-link-btn">
+              <span>🖥️</span> Кабінет платника ДПС
+            </a>
+            <a href="https://tax.gov.ua" target="_blank" rel="noopener" class="tax-link-btn">
+              <span>📖</span> Сайт ДПС України
+            </a>
+            <a href="https://diia.gov.ua" target="_blank" rel="noopener" class="tax-link-btn">
+              <span>📱</span> Застосунок «Дія»
+            </a>
+            <a href="https://zakon.rada.gov.ua/laws/show/2755-17" target="_blank" rel="noopener" class="tax-link-btn">
+              <span>📜</span> Податковий кодекс
+            </a>
+          </div>
+          <p class="tax-disclaimer">⚠️ Інформація носить консультативний характер та актуальна станом на початок 2025 р. Для конкретних ситуацій рекомендуємо звертатися до ліцензованого податкового консультанта.</p>
+        </div>
+      </section>
+
     </main>
 
     <!-- ── TX DETAIL DRAWER ─────────────────────────────────── -->
@@ -1268,7 +1472,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js" defer></script>
-  <script src="/js/app.js?v=28" defer></script>
+  <script src="/js/app.js?v=29" defer></script>
   <script>
     /* ── Service Worker ── */
     if ('serviceWorker' in navigator) {

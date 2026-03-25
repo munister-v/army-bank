@@ -702,7 +702,7 @@ $('#profileLogoutBtn')?.addEventListener('click', async () => {
 const ALLOWED_SCREENS = [
   'dashboard', 'transactions', 'cards', 'profile',
   'payouts', 'donations', 'savings', 'analytics',
-  'contacts', 'calendar', 'recurring', 'debts',
+  'contacts', 'calendar', 'recurring', 'debts', 'tax',
 ];
 
 function getBasePath() {
@@ -2225,6 +2225,7 @@ const NAV_CMDS = [
   { type: 'nav', label: 'Календар',        screen: 'calendar',     icon: '📅' },
   { type: 'nav', label: 'Автоплатежі',     screen: 'recurring',    icon: '🔄' },
   { type: 'nav', label: 'Борги',           screen: 'debts',        icon: '📋' },
+  { type: 'nav', label: 'Податковий консультант', screen: 'tax',   icon: '⚖️' },
 ];
 
 function openCmdPalette() {
