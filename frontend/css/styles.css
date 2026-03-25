@@ -1122,3 +1122,27 @@ button:focus-visible, a:focus-visible { outline: 2px solid rgba(255,255,255,.5);
   .cards-row { grid-template-columns: 1fr 1fr; }
   .bank-card { flex: 0 0 360px; width: 360px; max-height: 240px; }
 }
+
+/* ── Template chips ──────────────────────────────────────────────────────── */
+.template-chips {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+}
+.template-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 20px; padding: 5px 10px; font-size: 11px; font-weight: 600;
+  color: var(--text-1); cursor: pointer; transition: background .15s, border-color .15s;
+  white-space: nowrap;
+}
+.template-chip:hover { background: rgba(26,86,219,.18); border-color: var(--blue,.75); }
+.template-chip.active { background: rgba(26,86,219,.28); border-color: var(--blue); color: var(--blue); }
+.template-chip .tc-amt { font-family: var(--font-mono); color: var(--text-2); font-size: 10px; margin-left: 2px; }
+
+/* ── Goal item improvements ──────────────────────────────────────────────── */
+.pct-badge {
+  font-size: 10px; font-weight: 700; font-family: var(--font-mono);
+  color: var(--text-2); background: rgba(255,255,255,.06);
+  border-radius: 6px; padding: 2px 6px; letter-spacing: .04em;
+}
+.pct-badge.done { background: rgba(74,222,128,.15); color: var(--green); }
+.progress-bar.done { background: var(--green) !important; }

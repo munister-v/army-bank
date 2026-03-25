@@ -532,6 +532,7 @@
               <button type="button" class="tmt-btn active" data-mode="account">По рахунку</button>
               <button type="button" class="tmt-btn" data-mode="card">По картці</button>
             </div>
+            <div id="templateChips" class="template-chips hidden"></div>
             <label class="lbl">Шаблон
               <select name="template_id" id="transferTemplateSelect">
                 <option value="">— Обрати шаблон —</option>
@@ -736,7 +737,11 @@
               </div>
               <h3>Внесок</h3>
             </div>
-            <label class="lbl">ID цілі<input name="goal_id" type="number" required placeholder="1"></label>
+            <label class="lbl">Ціль
+              <select name="goal_id" id="goalIdSelect" required>
+                <option value="">— Оберіть ціль —</option>
+              </select>
+            </label>
             <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
             <button type="submit" class="btn-accent">Поповнити</button>
           </form>
@@ -1505,7 +1510,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js" defer></script>
-  <script src="/js/app.js?v=31" defer></script>
+  <script src="/js/app.js?v=32" defer></script>
 
   <!-- Transfer confirmation bottom sheet -->
   <div id="transferConfirmOverlay" class="tc-overlay hidden" role="dialog" aria-modal="true">

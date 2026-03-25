@@ -1297,11 +1297,55 @@ async function loadPaymentTemplates() {
     state.paymentTemplates = [];
   }
   const sel = $('#transferTemplateSelect');
+  if (sel) {
+    sel.innerHTML = '<option value="">— Обрати шаблон —</option>' +
+      state.paymentTemplates.map((t) =>
+        `<option value="${t.id}" data-account="${t.recipient_account || ''}" data-amount="${t.amount || ''}" data-desc="${(t.description || '').replace(/"/g, '&quot;')}">${t.name}</option>`
+      ).join('');
+  }
+  _renderTemplateChips();
+}
+
+function _populateGoalSelect(goals) {
+  const sel = $('#goalIdSelect');
   if (!sel) return;
-  sel.innerHTML = '<option value="">— Обрати шаблон —</option>' +
-    state.paymentTemplates.map((t) =>
-      `<option value="${t.id}" data-account="${t.recipient_account || ''}" data-amount="${t.amount || ''}" data-desc="${(t.description || '').replace(/"/g, '&quot;')}">${t.name}</option>`
-    ).join('');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Оберіть ціль —</option>' +
+    (goals || [])
+      .filter((g) => g.current_amount < g.target_amount)
+      .map((g) => {
+        const pct = g.target_amount > 0 ? Math.round(g.current_amount / g.target_amount * 100) : 0;
+        return `<option value="${g.id}"${String(g.id) === cur ? ' selected' : ''}>${escapeHtml(g.title)} (${pct}%)</option>`;
+      }).join('');
+}
+
+function _renderTemplateChips() {
+  const chips = $('#templateChips');
+  if (!chips) return;
+  if (!state.paymentTemplates.length) {
+    chips.classList.add('hidden');
+    return;
+  }
+  chips.classList.remove('hidden');
+  chips.innerHTML = state.paymentTemplates.map((t) =>
+    `<button type="button" class="template-chip" data-tpl-account="${escapeHtml(t.recipient_account || '')}" data-tpl-amount="${t.amount || ''}" data-tpl-desc="${escapeHtml(t.description || '')}" data-tpl-id="${t.id}" title="${escapeHtml(t.name)}">` +
+    `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>` +
+    `${escapeHtml(t.name)}` +
+    (t.amount ? `<span class="tc-amt">₴${Number(t.amount).toLocaleString('uk-UA')}</span>` : '') +
+    `</button>`
+  ).join('');
+  chips.querySelectorAll('.template-chip').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const account = btn.dataset.tplAccount;
+      const amount  = btn.dataset.tplAmount;
+      const desc    = btn.dataset.tplDesc;
+      const tplId   = btn.dataset.tplId;
+      prefillTransferForm({ mode: 'account', account, amount, description: desc, template_id: tplId });
+      chips.querySelectorAll('.template-chip').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      showToast(`Шаблон «${btn.title}» підставлено.`, 'success');
+    });
+  });
 }
 
 async function deletePaymentTemplate(templateId) {
@@ -1406,31 +1450,51 @@ async function refreshAllData() {
     // Check goal completions for confetti celebrations
     if (typeof checkGoalCompletion === 'function') checkGoalCompletion(goals);
 
-    // Goals with progress bars + delete + estimated completion
+    // Goals with progress bars + contribute + delete
     renderSimpleList('#goalsList', goals, (row) => {
       const pct = row.target_amount > 0 ? Math.min(100, Math.round(row.current_amount / row.target_amount * 100)) : 0;
-      const remaining = row.target_amount - row.current_amount;
-      let estText = '';
-      if (pct < 100 && remaining > 0) {
-        estText = `· залишилось ${formatMoney(remaining)}`;
-      }
+      const remaining = Math.max(0, row.target_amount - row.current_amount);
+      const done = pct >= 100;
       return `
-        <div class="item item-with-actions">
+        <div class="item item-with-actions goal-item">
           <div class="item-main">
             <div class="item-header">
-              <strong>${row.title}</strong>
-              <span class="pct-badge ${pct >= 100 ? 'done' : ''}">${pct}%</span>
+              <strong>${escapeHtml(row.title)}</strong>
+              <span class="pct-badge ${done ? 'done' : ''}">${done ? '✓' : pct + '%'}</span>
             </div>
             <div class="progress-bar-wrap">
-              <div class="progress-bar" style="width:${pct}%"></div>
+              <div class="progress-bar ${done ? 'done' : ''}" style="width:${pct}%"></div>
             </div>
-            <div class="muted">${formatMoney(row.current_amount)} / ${formatMoney(row.target_amount)} ${estText}${row.deadline ? ` · до ${row.deadline}` : ''}</div>
+            <div class="muted" style="font-size:11px;margin-top:3px">${formatMoney(row.current_amount)} / ${formatMoney(row.target_amount)}${!done && remaining > 0 ? ` · ще ${formatMoney(remaining)}` : ''}${row.deadline ? ` · до ${row.deadline}` : ''}</div>
           </div>
-          <button class="btn-icon-danger" data-delete-goal="${row.id}" title="Видалити ціль" aria-label="Видалити">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-          </button>
+          <div class="item-btns">
+            ${!done ? `<button class="btn-icon-transfer" data-contribute-goal="${row.id}" data-goal-title="${escapeHtml(row.title)}" title="Поповнити ціль" aria-label="Поповнити">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            </button>` : ''}
+            <button class="btn-icon-danger" data-delete-goal="${row.id}" title="Видалити ціль" aria-label="Видалити">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </button>
+          </div>
         </div>`;
     }, 'Цілей накопичення поки немає.');
+
+    // Populate goal dropdown in contribution form
+    _populateGoalSelect(goals);
+
+    // Bind goal contribute button — pre-fills form and scrolls to it
+    $$('#goalsList [data-contribute-goal]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const goalId = Number(btn.dataset.contributeGoal);
+        const sel = $('#goalIdSelect');
+        if (sel) sel.value = String(goalId);
+        const form = document.getElementById('goalContributionForm');
+        if (form) {
+          form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const amtInput = form.querySelector('[name="amount"]');
+          if (amtInput) amtInput.focus();
+        }
+      });
+    });
 
     // Bind goal delete
     $$('#goalsList [data-delete-goal]').forEach((btn) => {
