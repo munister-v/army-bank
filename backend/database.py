@@ -257,6 +257,13 @@ CREATE TABLE IF NOT EXISTS payment_orders (
     risk_score INTEGER NOT NULL DEFAULT 0,
     risk_level VARCHAR(20) NOT NULL DEFAULT 'low',
     risk_flags TEXT NOT NULL DEFAULT '[]',
+    review_state VARCHAR(20) NOT NULL DEFAULT 'none',
+    assigned_admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    assigned_at TIMESTAMPTZ,
+    decision_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    decision_note TEXT,
+    decided_at TIMESTAMPTZ,
+    escalation_level INTEGER NOT NULL DEFAULT 0,
     tx_id_out INTEGER,
     tx_id_in INTEGER,
     failure_reason TEXT,
@@ -266,6 +273,8 @@ CREATE TABLE IF NOT EXISTS payment_orders (
 CREATE INDEX IF NOT EXISTS idx_payment_orders_status ON payment_orders(status);
 CREATE INDEX IF NOT EXISTS idx_payment_orders_risk_level ON payment_orders(risk_level);
 CREATE INDEX IF NOT EXISTS idx_payment_orders_user ON payment_orders(initiator_user_id);
+CREATE INDEX IF NOT EXISTS idx_payment_orders_assigned_admin ON payment_orders(assigned_admin_id);
+CREATE INDEX IF NOT EXISTS idx_payment_orders_review_state ON payment_orders(review_state);
 
 CREATE TABLE IF NOT EXISTS risk_events (
     id SERIAL PRIMARY KEY,
@@ -281,6 +290,17 @@ CREATE TABLE IF NOT EXISTS risk_events (
 );
 CREATE INDEX IF NOT EXISTS idx_risk_events_severity ON risk_events(severity);
 CREATE INDEX IF NOT EXISTS idx_risk_events_resolved ON risk_events(resolved_at);
+
+CREATE TABLE IF NOT EXISTS payment_order_events (
+    id SERIAL PRIMARY KEY,
+    payment_order_id INTEGER NOT NULL REFERENCES payment_orders(id) ON DELETE CASCADE,
+    actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    event_type VARCHAR(40) NOT NULL,
+    details TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_payment_order_events_order ON payment_order_events(payment_order_id);
+CREATE INDEX IF NOT EXISTS idx_payment_order_events_type ON payment_order_events(event_type);
 
 CREATE TABLE IF NOT EXISTS integrity_hashes (
     id SERIAL PRIMARY KEY,
@@ -308,6 +328,13 @@ CREATE TABLE IF NOT EXISTS payment_orders (
     risk_score INTEGER NOT NULL DEFAULT 0,
     risk_level TEXT NOT NULL DEFAULT 'low',
     risk_flags TEXT NOT NULL DEFAULT '[]',
+    review_state TEXT NOT NULL DEFAULT 'none',
+    assigned_admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    assigned_at TEXT,
+    decision_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    decision_note TEXT,
+    decided_at TEXT,
+    escalation_level INTEGER NOT NULL DEFAULT 0,
     tx_id_out INTEGER,
     tx_id_in INTEGER,
     failure_reason TEXT,
@@ -325,6 +352,14 @@ CREATE TABLE IF NOT EXISTS risk_events (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     resolved_at TEXT,
     resolved_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE TABLE IF NOT EXISTS payment_order_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    payment_order_id INTEGER NOT NULL REFERENCES payment_orders(id) ON DELETE CASCADE,
+    actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    event_type TEXT NOT NULL,
+    details TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS integrity_hashes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -371,6 +406,49 @@ def init_db() -> None:
                     cur.execute("ALTER TABLE cards ADD COLUMN IF NOT EXISTS design VARCHAR(20) NOT NULL DEFAULT 'gold';")
                 except Exception:
                     pass
+                try:
+                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS review_state VARCHAR(20) NOT NULL DEFAULT 'none';")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS assigned_admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL;")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMPTZ;")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS decision_by INTEGER REFERENCES users(id) ON DELETE SET NULL;")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS decision_note TEXT;")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS decided_at TIMESTAMPTZ;")
+                except Exception:
+                    pass
+                try:
+                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS escalation_level INTEGER NOT NULL DEFAULT 0;")
+                except Exception:
+                    pass
+                try:
+                    cur.execute(
+                        """CREATE TABLE IF NOT EXISTS payment_order_events (
+                            id SERIAL PRIMARY KEY,
+                            payment_order_id INTEGER NOT NULL REFERENCES payment_orders(id) ON DELETE CASCADE,
+                            actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                            event_type VARCHAR(40) NOT NULL,
+                            details TEXT NOT NULL DEFAULT '',
+                            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                        );"""
+                    )
+                    cur.execute('CREATE INDEX IF NOT EXISTS idx_payment_order_events_order ON payment_order_events(payment_order_id);')
+                    cur.execute('CREATE INDEX IF NOT EXISTS idx_payment_order_events_type ON payment_order_events(event_type);')
+                except Exception:
+                    pass
     else:
         schema_sql = Path(SCHEMA_PATH).read_text(encoding='utf-8')
         with get_connection_sqlite() as conn:
@@ -399,6 +477,49 @@ def init_db() -> None:
                 pass
             try:
                 conn.execute("ALTER TABLE cards ADD COLUMN design TEXT NOT NULL DEFAULT 'gold';")
+            except Exception:
+                pass
+            try:
+                conn.execute("ALTER TABLE payment_orders ADD COLUMN review_state TEXT NOT NULL DEFAULT 'none';")
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE payment_orders ADD COLUMN assigned_admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL;')
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE payment_orders ADD COLUMN assigned_at TEXT;')
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE payment_orders ADD COLUMN decision_by INTEGER REFERENCES users(id) ON DELETE SET NULL;')
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE payment_orders ADD COLUMN decision_note TEXT;')
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE payment_orders ADD COLUMN decided_at TEXT;')
+            except Exception:
+                pass
+            try:
+                conn.execute("ALTER TABLE payment_orders ADD COLUMN escalation_level INTEGER NOT NULL DEFAULT 0;")
+            except Exception:
+                pass
+            try:
+                conn.execute(
+                    """CREATE TABLE IF NOT EXISTS payment_order_events (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        payment_order_id INTEGER NOT NULL REFERENCES payment_orders(id) ON DELETE CASCADE,
+                        actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                        event_type TEXT NOT NULL,
+                        details TEXT NOT NULL DEFAULT '',
+                        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                    );"""
+                )
+                conn.execute('CREATE INDEX IF NOT EXISTS idx_payment_order_events_order ON payment_order_events(payment_order_id);')
+                conn.execute('CREATE INDEX IF NOT EXISTS idx_payment_order_events_type ON payment_order_events(event_type);')
             except Exception:
                 pass
 
