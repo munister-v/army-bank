@@ -190,6 +190,8 @@ def list_all_transactions():
                 SELECT
                     COALESCE(SUM(CASE WHEN t.direction='in'  THEN t.amount ELSE 0 END),0) AS total_in,
                     COALESCE(SUM(CASE WHEN t.direction='out' THEN t.amount ELSE 0 END),0) AS total_out,
+                    COALESCE(SUM(CASE WHEN t.direction='in'  THEN 1 ELSE 0 END),0) AS count_in,
+                    COALESCE(SUM(CASE WHEN t.direction='out' THEN 1 ELSE 0 END),0) AS count_out,
                     COALESCE(AVG(t.amount),0) AS avg_amount,
                     COALESCE(MIN(t.amount),0) AS min_amount,
                     COALESCE(MAX(t.amount),0) AS max_amount
@@ -197,6 +199,24 @@ def list_all_transactions():
                 ''',
                 tuple(params)
             ).fetchone()
+            unique_users_row = conn.execute(
+                f'''
+                SELECT COUNT(DISTINCT u.id) AS unique_users
+                {base_sql}
+                ''',
+                tuple(params)
+            ).fetchone()
+            by_type_rows = conn.execute(
+                f'''
+                SELECT t.tx_type, COUNT(*) AS cnt,
+                       COALESCE(SUM(t.amount),0) AS total_amount
+                {base_sql}
+                GROUP BY t.tx_type
+                ORDER BY cnt DESC, total_amount DESC
+                LIMIT 6
+                ''',
+                tuple(params)
+            ).fetchall()
 
             order_clause = ' ORDER BY t.created_at DESC, t.id DESC'
             if sort_by == 'oldest':
@@ -217,6 +237,12 @@ def list_all_transactions():
         avg_amount = float(summary_row['avg_amount']) if summary_row else 0.0
         min_a = float(summary_row['min_amount']) if summary_row else 0.0
         max_a = float(summary_row['max_amount']) if summary_row else 0.0
+        count_in = int(summary_row['count_in']) if summary_row else 0
+        count_out = int(summary_row['count_out']) if summary_row else 0
+        unique_users = int(unique_users_row['unique_users']) if unique_users_row else 0
+        by_type = [dict(r) for r in by_type_rows]
+        top_type = by_type[0]['tx_type'] if by_type else None
+        high_value_threshold = round(max(avg_amount * 3, max_a * 0.65), 2) if max_a > 0 else 0.0
 
         return jsonify({'ok': True, 'data': rows, 'total': total, 'summary': {
             'count': int(total),
@@ -226,6 +252,12 @@ def list_all_transactions():
             'avg_amount': round(avg_amount, 2),
             'min_amount': round(min_a, 2),
             'max_amount': round(max_a, 2),
+            'count_in': count_in,
+            'count_out': count_out,
+            'unique_users': unique_users,
+            'top_tx_type': top_type,
+            'high_value_threshold': high_value_threshold,
+            'by_type': by_type,
         }})
     except Exception as exc:
         return api_error(str(exc))

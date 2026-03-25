@@ -134,7 +134,8 @@ class PaymentRepository:
                     approval_state: str | None = None,
                     assigned_admin_id: int | None = None,
                     assigned_mode: str | None = None,
-                    search: str | None = None) -> list:
+                    search: str | None = None,
+                    open_only: bool = False) -> list:
         with get_connection() as conn:
             sql = """
                 SELECT po.*,
@@ -170,6 +171,9 @@ class PaymentRepository:
                 sql += " AND po.assigned_admin_id = %s"; params.append(assigned_admin_id)
             elif assigned_mode == 'unassigned':
                 sql += " AND po.assigned_admin_id IS NULL"
+            if open_only:
+                sql += " AND po.status IN ('pending','processing','blocked')"
+                sql += " AND po.review_state IN ('none','pending','escalated')"
             if search:
                 term = f"%{search.lower()}%"
                 sql += " AND (LOWER(po.description) LIKE %s OR LOWER(u.full_name) LIKE %s OR sa.account_number LIKE %s OR ra.account_number LIKE %s)"
@@ -186,7 +190,8 @@ class PaymentRepository:
                      approval_state: str | None = None,
                      assigned_admin_id: int | None = None,
                      assigned_mode: str | None = None,
-                     search: str | None = None) -> int:
+                     search: str | None = None,
+                     open_only: bool = False) -> int:
         with get_connection() as conn:
             sql = """
                 SELECT COUNT(*) AS n
@@ -211,6 +216,9 @@ class PaymentRepository:
                 sql += " AND po.assigned_admin_id = %s"; params.append(assigned_admin_id)
             elif assigned_mode == 'unassigned':
                 sql += " AND po.assigned_admin_id IS NULL"
+            if open_only:
+                sql += " AND po.status IN ('pending','processing','blocked')"
+                sql += " AND po.review_state IN ('none','pending','escalated')"
             if search:
                 term = f"%{search.lower()}%"
                 sql += " AND (LOWER(po.description) LIKE %s OR LOWER(u.full_name) LIKE %s OR sa.account_number LIKE %s OR ra.account_number LIKE %s)"

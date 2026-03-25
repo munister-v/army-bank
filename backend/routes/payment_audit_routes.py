@@ -167,6 +167,7 @@ def list_orders():
     assigned_mode     = request.args.get('assigned_mode')
     overdue_param     = (request.args.get('overdue') or '').strip().lower()
     search            = (request.args.get('search') or '').strip()
+    open_only         = _as_bool(request.args.get('open_only'), default=False)
 
     overdue_filter: bool | None = None
     if overdue_param == 'true':
@@ -181,14 +182,16 @@ def list_orders():
                                approval_state=approval_state,
                                assigned_admin_id=assigned_admin_id,
                                assigned_mode=assigned_mode,
-                               search=search or None)
+                               search=search or None,
+                               open_only=open_only)
     total = _repo.count_orders(status=status, risk_level=risk_level,
                                user_id=user_id,
                                review_state=review_state,
                                approval_state=approval_state,
                                assigned_admin_id=assigned_admin_id,
                                assigned_mode=assigned_mode,
-                               search=search or None)
+                               search=search or None,
+                               open_only=open_only)
 
     now = datetime.now(timezone.utc)
     orders = [_decorate_order(dict(o), now_utc=now) for o in orders]
@@ -443,12 +446,11 @@ def sla_queue():
         assigned_admin_id=assigned_admin_id,
         assigned_mode=assigned_mode,
         search=search or None,
+        open_only=open_only,
     )
     now = datetime.now(timezone.utc)
     rows = [_decorate_order(dict(row), now_utc=now) for row in candidates]
 
-    if open_only:
-        rows = [row for row in rows if _order_is_open(row)]
     if overdue_filter is not None:
         rows = [row for row in rows if bool(row.get('sla_overdue')) is overdue_filter]
     if due_soon_filter is not None:
@@ -482,6 +484,52 @@ def sla_queue():
             'awaiting_approval_total': awaiting_approval_total,
             'avg_age_minutes': avg_age,
             'by_priority': by_priority,
+        },
+    })
+
+
+@payment_audit_bp.get('/approval-inbox')
+@auth_required
+@role_required('operator', 'admin', 'platform_admin')
+def approval_inbox():
+    limit             = min(request.args.get('limit', default=20, type=int), 100)
+    offset            = max(request.args.get('offset', default=0, type=int), 0)
+    risk_level        = request.args.get('risk_level')
+    user_id           = request.args.get('user_id', type=int)
+    assigned_admin_id = request.args.get('assigned_admin_id', type=int)
+    assigned_mode     = request.args.get('assigned_mode')
+    search            = (request.args.get('search') or '').strip()
+    open_only         = _as_bool(request.args.get('open_only'), default=True)
+
+    rows = _repo.list_orders(
+        limit=limit,
+        offset=offset,
+        risk_level=risk_level,
+        user_id=user_id,
+        approval_state='requested',
+        assigned_admin_id=assigned_admin_id,
+        assigned_mode=assigned_mode,
+        search=search or None,
+        open_only=open_only,
+    )
+    total = _repo.count_orders(
+        risk_level=risk_level,
+        user_id=user_id,
+        approval_state='requested',
+        assigned_admin_id=assigned_admin_id,
+        assigned_mode=assigned_mode,
+        search=search or None,
+        open_only=open_only,
+    )
+    now = datetime.now(timezone.utc)
+    data = [_decorate_order(dict(row), now_utc=now) for row in rows]
+
+    return jsonify({
+        'ok': True,
+        'data': data,
+        'total': total,
+        'summary': {
+            'awaiting_approval_total': total,
         },
     })
 
