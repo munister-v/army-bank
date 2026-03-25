@@ -47,7 +47,7 @@ class StatementService:
         account = self._accounts.get_account_by_user_id(user_id)
         if not account:
             raise ValueError('Рахунок не знайдено.')
-        user = self._users.get_user_by_id(user_id)
+        user = self._users.get_by_id(user_id)
         if not user:
             raise ValueError('Користувача не знайдено.')
 
