@@ -313,6 +313,25 @@ def export_statement_pdf():
         return api_error(str(exc))
 
 
+@account_bp.get('/transactions/<int:tx_id>/receipt')
+@auth_required
+def export_receipt_pdf(tx_id: int):
+    """Генерує PDF-чек для конкретної транзакції поточного користувача."""
+    try:
+        from ..services.statement_service import StatementService
+        pdf_bytes = StatementService().generate_receipt(g.current_user['id'], tx_id)
+        return Response(
+            pdf_bytes,
+            mimetype='application/pdf',
+            headers={
+                'Content-Disposition': f'attachment; filename="receipt_{tx_id}.pdf"',
+                'Cache-Control': 'no-store',
+            },
+        )
+    except Exception as exc:
+        return api_error(str(exc))
+
+
 @account_bp.get('/transactions/export')
 @auth_required
 def export_csv():

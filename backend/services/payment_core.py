@@ -143,6 +143,7 @@ class PaymentCore:
         return {
             'account': dict(updated_account),
             'order_id': order_id,
+            'tx_id': tx_out_id,
             'idempotent': False,
             'risk': risk.to_dict(),
         }

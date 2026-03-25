@@ -69,6 +69,108 @@ class StatementService:
         return self._build_pdf(account, user, txs, from_date, to_date)
 
     # ──────────────────────────────────────────────────────────────────────
+    def generate_receipt(self, user_id: int, tx_id: int) -> bytes:
+        """Повертає байти PDF-чека для одної транзакції."""
+        account = self._accounts.get_account_by_user_id(user_id)
+        if not account:
+            raise ValueError('Рахунок не знайдено.')
+        user = self._users.get_by_id(user_id)
+        if not user:
+            raise ValueError('Користувача не знайдено.')
+
+        tx = self._accounts.get_transaction(tx_id, account['id'])
+        if not tx:
+            raise ValueError('Транзакцію не знайдено або немає доступу.')
+
+        return self._build_receipt(account, user, dict(tx))
+
+    def _build_receipt(self, account: dict, user: dict, tx: dict) -> bytes:
+        """Генерує A6-подібний PDF чек для однієї транзакції."""
+        buf = io.BytesIO()
+        W, H = 105 * mm, 148 * mm   # A6
+        doc = SimpleDocTemplate(
+            buf,
+            pagesize=(W, H),
+            leftMargin=10 * mm, rightMargin=10 * mm,
+            topMargin=10 * mm, bottomMargin=8 * mm,
+        )
+
+        styles  = getSampleStyleSheet()
+        normal  = ParagraphStyle('n', fontName='Helvetica', fontSize=9, leading=13, textColor=_MUTED)
+        bold    = ParagraphStyle('b', fontName='Helvetica-Bold', fontSize=9, leading=13)
+        heading = ParagraphStyle('h', fontName='Helvetica-Bold', fontSize=13, leading=18, textColor=_NAVY)
+        small   = ParagraphStyle('s', fontName='Helvetica', fontSize=8, leading=11, textColor=_MUTED)
+
+        direction = tx.get('direction', 'out')
+        amount    = float(tx.get('amount', 0))
+        amt_color = _GREEN if direction == 'in' else _RED
+        sign      = '+' if direction == 'in' else '−'
+        amt_str   = f'{sign}₴{amount:,.2f}'.replace(',', ' ')
+
+        tx_date = tx.get('created_at', '')
+        try:
+            dt = datetime.fromisoformat(str(tx_date).replace('Z', '+00:00'))
+            date_str = dt.strftime('%d.%m.%Y %H:%M')
+        except Exception:
+            date_str = str(tx_date)
+
+        tx_type_ua = {
+            'transfer': 'Переказ', 'topup': 'Поповнення',
+            'payout': 'Виплата', 'donation': 'Донат', 'savings': 'Накопичення',
+        }
+        type_label = tx_type_ua.get(tx.get('tx_type', ''), tx.get('tx_type', ''))
+
+        story = []
+
+        # Header
+        header_data = [[
+            Paragraph('<font color="#162c5c"><b>Army</b></font><font color="#1a56db"><b>Bank</b></font>', heading),
+            Paragraph('ЧЕК', ParagraphStyle('chek', fontName='Helvetica-Bold', fontSize=10, textColor=_MUTED, alignment=2)),
+        ]]
+        header_t = Table(header_data, colWidths=[None, 20 * mm])
+        header_t.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('BOTTOMPADDING', (0,0), (-1,-1), 0)]))
+        story.append(header_t)
+        story.append(HRFlowable(width='100%', thickness=0.5, color=_LIGHT, spaceAfter=6))
+
+        # Big amount
+        story.append(Paragraph(
+            f'<font color="#{("16a34a" if direction == "in" else "dc2626")}"><b>{amt_str}</b></font>',
+            ParagraphStyle('amt', fontName='Helvetica-Bold', fontSize=22, leading=28, alignment=1),
+        ))
+        story.append(Paragraph(type_label, ParagraphStyle('tl', fontName='Helvetica', fontSize=10, textColor=_MUTED, alignment=1, spaceAfter=6)))
+        story.append(HRFlowable(width='100%', thickness=0.4, color=_LIGHT, spaceAfter=4))
+
+        # Details rows
+        def row(label, value):
+            return [Paragraph(label, small), Paragraph(f'<b>{value}</b>', bold)]
+
+        details = [
+            row('Номер транзакції', f'#{tx["id"]}'),
+            row('Дата та час', date_str),
+            row('Рахунок відправника', account.get('account_number', '—')),
+            row('Рахунок отримувача', tx.get('related_account') or '—'),
+            row('Власник', user.get('full_name', '—')),
+            row('Опис', tx.get('description') or '—'),
+            row('Статус', '✓ Виконано'),
+        ]
+        dt = Table(details, colWidths=[35 * mm, None])
+        dt.setStyle(TableStyle([
+            ('FONTSIZE',      (0,0), (-1,-1), 8),
+            ('TOPPADDING',    (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+            ('LEFTPADDING',   (0,0), (-1,-1), 0),
+            ('RIGHTPADDING',  (0,0), (-1,-1), 0),
+            ('LINEBELOW',     (0,0), (-1,-2), 0.3, colors.HexColor('#e2e8f0')),
+        ]))
+        story.append(dt)
+        story.append(Spacer(1, 6))
+        story.append(HRFlowable(width='100%', thickness=0.4, color=_LIGHT, spaceAfter=4))
+        story.append(Paragraph('Цифровий банкінг для захисників України', small))
+
+        doc.build(story)
+        return buf.getvalue()
+
+    # ──────────────────────────────────────────────────────────────────────
     def _period_label(self, from_date: str | None, to_date: str | None) -> str:
         if from_date and to_date:
             return f'{from_date} — {to_date}'

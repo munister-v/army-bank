@@ -1539,6 +1539,42 @@
     </div>
   </div>
 
+  <!-- ── RECEIPT MODAL ───────────────────────────────────────────────────── -->
+  <div id="receiptOverlay" class="tc-overlay hidden" role="dialog" aria-modal="true">
+    <div class="tc-sheet" style="max-width:380px">
+      <div class="tc-handle"></div>
+      <div id="receiptIcon" class="tc-icon" style="background:rgba(22,163,74,.12)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div id="receiptTitle" class="tc-title" style="font-size:15px">Переказ виконано</div>
+      <div id="receiptAmount" style="font-size:28px;font-weight:800;letter-spacing:-.01em;margin:4px 0 16px;text-align:center">—</div>
+
+      <div style="width:100%;background:rgba(255,255,255,.05);border-radius:10px;padding:12px 14px;text-align:left;margin-bottom:16px">
+        <div class="receipt-row" style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:13px">
+          <span style="opacity:.5">Транзакція</span><span id="receiptTxId" style="font-family:monospace">—</span>
+        </div>
+        <div class="receipt-row" style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:13px">
+          <span style="opacity:.5">Дата / час</span><span id="receiptDate">—</span>
+        </div>
+        <div class="receipt-row" style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:13px">
+          <span style="opacity:.5">Звідки</span><span id="receiptFrom" style="font-family:monospace">—</span>
+        </div>
+        <div class="receipt-row" style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:13px">
+          <span style="opacity:.5">Куди</span><span id="receiptTo" style="font-family:monospace">—</span>
+        </div>
+        <div class="receipt-row" style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
+          <span style="opacity:.5">Опис</span><span id="receiptDesc" style="text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
+        </div>
+      </div>
+
+      <button type="button" id="receiptDownloadBtn" class="btn-accent tc-confirm-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Скачати чек PDF
+      </button>
+      <button type="button" id="receiptCloseBtn" class="btn-ghost tc-cancel-btn">Закрити</button>
+    </div>
+  </div>
+
   <!-- ── STATEMENT MODAL ──────────────────────────────────────────────────── -->
   <div id="statementOverlay" class="tc-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="stmtTitle">
     <div class="tc-sheet" style="max-width:420px">

@@ -451,10 +451,33 @@ function renderTransactions(list, container = '#transactionsList') {
             </div>
             <div class="muted">${TX_TYPE_LABELS[tx.tx_type] || tx.tx_type}${tx.related_account ? ` · ${tx.related_account}` : ''}</div>
           </div>
+          <button type="button" class="tx-receipt-btn" data-tx-receipt="${tx.id}" data-amount="${tx.amount}" data-dir="${tx.direction}" data-desc="${(tx.description||'').replace(/"/g,'&quot;')}" data-from="${tx.related_account||''}" data-at="${tx.created_at||''}" title="Чек PDF" style="background:none;border:none;cursor:pointer;padding:4px 6px;opacity:.35;color:inherit;flex-shrink:0;line-height:1">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </button>
         </div>
       `).join('')}
     </div>
   `).join('');
+
+  // Bind receipt button (must bind before drawer to stop propagation)
+  el.querySelectorAll('.tx-receipt-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      btn.style.opacity = '1';
+      setTimeout(() => { btn.style.opacity = '.35'; }, 600);
+      const myAcc = $('#heroAccount')?.textContent?.replace(/^Рахунок:\s*/i, '').trim() || '—';
+      const dir = btn.dataset.dir || 'out';
+      receipt.open({
+        tx_id:        Number(btn.dataset.txReceipt),
+        amount:       Number(btn.dataset.amount),
+        direction:    dir,
+        from_account: dir === 'out' ? myAcc : (btn.dataset.from || '—'),
+        to_account:   dir === 'out' ? (btn.dataset.from || '—') : myAcc,
+        description:  btn.dataset.desc,
+        created_at:   btn.dataset.at,
+      });
+    });
+  });
 
   // Bind click → drawer
   el.querySelectorAll('.item-clickable').forEach(item => {
@@ -664,6 +687,94 @@ document.addEventListener('DOMContentLoaded', function() {
       .catch(() => {});
   });
 });
+
+// ── Receipt modal ────────────────────────────────────────────────────────────
+const receipt = (() => {
+  let _txId = null;
+
+  function fmtAmt(amount, direction) {
+    const sign = direction === 'in' ? '+' : '−';
+    const color = direction === 'in' ? '#34d399' : '#f87171';
+    const val = '₴\u202f' + Math.abs(Number(amount)).toLocaleString('uk-UA', { minimumFractionDigits: 2 });
+    return `<span style="color:${color}">${sign}${val}</span>`;
+  }
+
+  function fmtDt(s) {
+    if (!s) return '—';
+    try {
+      return new Date(s).toLocaleString('uk-UA', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+      });
+    } catch (_) { return s; }
+  }
+
+  function open(data) {
+    // data: { tx_id, amount, direction, from_account, to_account, description, created_at, title }
+    _txId = data.tx_id || null;
+    const dir = data.direction || 'out';
+
+    $('#receiptAmount').innerHTML  = fmtAmt(data.amount, dir);
+    $('#receiptTitle').textContent = data.title || (dir === 'in' ? 'Надходження' : 'Переказ виконано');
+    $('#receiptTxId').textContent  = _txId ? `#${_txId}` : '—';
+    $('#receiptDate').textContent  = fmtDt(data.created_at || new Date().toISOString());
+    $('#receiptFrom').textContent  = data.from_account || '—';
+    $('#receiptTo').textContent    = data.to_account   || '—';
+    $('#receiptDesc').textContent  = data.description  || '—';
+
+    // Icon/colour by direction
+    const icon = $('#receiptIcon');
+    if (icon) {
+      icon.style.background = dir === 'in' ? 'rgba(22,163,74,.12)' : 'rgba(26,86,219,.12)';
+      icon.innerHTML = dir === 'in'
+        ? '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>'
+        : '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1a56db" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+    }
+
+    $('#receiptDownloadBtn').disabled = !_txId;
+    $('#receiptOverlay')?.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  async function download() {
+    if (!_txId) return;
+    const btn = $('#receiptDownloadBtn');
+    try {
+      btn.disabled = true;
+      btn.innerHTML = '<span style="opacity:.6">Формування…</span>';
+      const res = await fetch(`${window.ARMY_BANK_BASE || ''}/api/transactions/${_txId}/receipt`, {
+        headers: { Authorization: `Bearer ${api.token}` },
+      });
+      if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Помилка'); }
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `receipt-${_txId}.pdf`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      showToast('Чек PDF завантажено', 'success');
+    } catch (e) {
+      showToast(e.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Скачати чек PDF';
+    }
+  }
+
+  function close() {
+    $('#receiptOverlay')?.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    $('#receiptDownloadBtn')?.addEventListener('click', download);
+    $('#receiptCloseBtn')?.addEventListener('click', close);
+    $('#receiptOverlay')?.addEventListener('click', e => { if (e.target === $('#receiptOverlay')) close(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#receiptOverlay')?.classList.contains('hidden')) close(); });
+  });
+
+  return { open, close };
+})();
 
 // ── Statement modal ──────────────────────────────────────────────────────────
 (function () {
@@ -1477,11 +1588,11 @@ function bindJsonForm(selector, endpoint, options = {}) {
       setButtonLoading(btn, true);
       const values = Object.fromEntries(new FormData(form).entries());
       const payload = options.transform ? options.transform(values) : values;
-      await api.request(endpoint(payload), { method: 'POST', body: JSON.stringify(payload) });
+      const result = await api.request(endpoint(payload), { method: 'POST', body: JSON.stringify(payload) });
       form.reset();
       if (options.afterReset) options.afterReset(form);
       await refreshAllData();
-      if (options.afterSuccess) options.afterSuccess();
+      if (options.afterSuccess) options.afterSuccess(result, payload);
       showToast(options.successMessage || 'Операцію виконано.');
     } catch (error) {
       showToast(error.message);
@@ -1567,7 +1678,22 @@ bindJsonForm('#transferForm', () => {
     const sel = $('#transferTemplateSelect');
     if (sel) sel.value = '';
     clearTransferDraft();
-    _transferIdempotencyKey = null;  // clear key so next transfer gets a fresh one
+    _transferIdempotencyKey = null;
+  },
+  afterSuccess: (result, payload) => {
+    // result = {account, tx_id, order_id, ...}
+    const myAccNum = $('#heroAccount')?.textContent?.replace(/^Рахунок:\s*/i, '').trim() || '—';
+    const toAcc = payload?.recipient_account_number || payload?.card_number || '—';
+    receipt.open({
+      tx_id:        result?.tx_id,
+      amount:       payload?.amount,
+      direction:    'out',
+      from_account: myAccNum,
+      to_account:   toAcc,
+      description:  payload?.description,
+      created_at:   new Date().toISOString(),
+      title:        'Переказ виконано',
+    });
   },
 });
 
