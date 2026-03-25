@@ -393,109 +393,148 @@ def init_db() -> None:
     if USE_PG:
         schema_sql = Path(SCHEMA_PG_PATH).read_text(encoding='utf-8')
         with get_connection_pg() as conn:
-            with conn.cursor() as cur:
-                cur.execute(schema_sql)
-                cur.execute(NOTIFICATIONS_DDL)
-                cur.execute(BUDGET_LIMITS_DDL)
-                cur.execute(RECURRING_TX_DDL)
-                cur.execute(DEBTS_DDL)
-                cur.execute(CARDS_DDL)
-                cur.execute(PAYMENT_CORE_DDL)
+            def _pg_exec(sql: str, *, optional: bool = False, label: str = '') -> None:
                 try:
-                    cur.execute('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_order_id INTEGER REFERENCES payment_orders(id);')
-                except Exception:
-                    pass
-                try:
-                    cur.execute('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS note TEXT;')
-                except Exception:
-                    pass
-                try:
-                    cur.execute('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS tags TEXT;')
-                except Exception:
-                    pass
-                try:
-                    cur.execute('ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash TEXT;')
-                except Exception:
-                    pass
-                try:
-                    cur.execute("ALTER TABLE cards ADD COLUMN IF NOT EXISTS design VARCHAR(20) NOT NULL DEFAULT 'gold';")
-                except Exception:
-                    pass
-                try:
-                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS review_state VARCHAR(20) NOT NULL DEFAULT 'none';")
-                except Exception:
-                    pass
-                try:
-                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS assigned_admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL;")
-                except Exception:
-                    pass
-                try:
-                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMPTZ;")
-                except Exception:
-                    pass
-                try:
-                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS decision_by INTEGER REFERENCES users(id) ON DELETE SET NULL;")
-                except Exception:
-                    pass
-                try:
-                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS decision_note TEXT;")
-                except Exception:
-                    pass
-                try:
-                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS decided_at TIMESTAMPTZ;")
-                except Exception:
-                    pass
-                try:
-                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS escalation_level INTEGER NOT NULL DEFAULT 0;")
-                except Exception:
-                    pass
-                try:
-                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_state VARCHAR(20) NOT NULL DEFAULT 'none';")
-                except Exception:
-                    pass
-                try:
-                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_requested_action VARCHAR(20);")
-                except Exception:
-                    pass
-                try:
-                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL;")
-                except Exception:
-                    pass
-                try:
-                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_requested_at TIMESTAMPTZ;")
-                except Exception:
-                    pass
-                try:
-                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_decided_by INTEGER REFERENCES users(id) ON DELETE SET NULL;")
-                except Exception:
-                    pass
-                try:
-                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_decided_at TIMESTAMPTZ;")
-                except Exception:
-                    pass
-                try:
-                    cur.execute("ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_note TEXT;")
-                except Exception:
-                    pass
-                try:
-                    cur.execute("CREATE INDEX IF NOT EXISTS idx_payment_orders_approval_state ON payment_orders(approval_state);")
-                except Exception:
-                    pass
-                try:
-                    cur.execute(
-                        """CREATE TABLE IF NOT EXISTS payment_order_events (
-                            id SERIAL PRIMARY KEY,
-                            payment_order_id INTEGER NOT NULL REFERENCES payment_orders(id) ON DELETE CASCADE,
-                            actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-                            event_type VARCHAR(40) NOT NULL,
-                            details TEXT NOT NULL DEFAULT '',
-                            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                        );"""
-                    )
-                    cur.execute('CREATE INDEX IF NOT EXISTS idx_payment_order_events_order ON payment_order_events(payment_order_id);')
-                    cur.execute('CREATE INDEX IF NOT EXISTS idx_payment_order_events_type ON payment_order_events(event_type);')
-                except Exception:
-                    pass
+                    with conn.cursor() as cur:
+                        cur.execute(sql)
+                    conn.commit()
+                except Exception as exc:
+                    conn.rollback()
+                    if not optional:
+                        raise
+                    if label:
+                        print(f'[Army Bank] init_db optional migration skipped ({label}): {exc}')
+
+            _pg_exec(schema_sql, label='schema_pg.sql')
+            _pg_exec(NOTIFICATIONS_DDL, optional=True, label='notifications')
+            _pg_exec(BUDGET_LIMITS_DDL, optional=True, label='budget_limits')
+            _pg_exec(RECURRING_TX_DDL, optional=True, label='recurring_transactions')
+            _pg_exec(DEBTS_DDL, optional=True, label='debts')
+            _pg_exec(CARDS_DDL, optional=True, label='cards')
+            _pg_exec(PAYMENT_CORE_DDL, optional=True, label='payment_core')
+
+            _pg_exec(
+                'ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_order_id INTEGER REFERENCES payment_orders(id);',
+                optional=True,
+                label='transactions.payment_order_id',
+            )
+            _pg_exec(
+                'ALTER TABLE transactions ADD COLUMN IF NOT EXISTS note TEXT;',
+                optional=True,
+                label='transactions.note',
+            )
+            _pg_exec(
+                'ALTER TABLE transactions ADD COLUMN IF NOT EXISTS tags TEXT;',
+                optional=True,
+                label='transactions.tags',
+            )
+            _pg_exec(
+                'ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash TEXT;',
+                optional=True,
+                label='users.pin_hash',
+            )
+            _pg_exec(
+                "ALTER TABLE cards ADD COLUMN IF NOT EXISTS design VARCHAR(20) NOT NULL DEFAULT 'gold';",
+                optional=True,
+                label='cards.design',
+            )
+            _pg_exec(
+                "ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS review_state VARCHAR(20) NOT NULL DEFAULT 'none';",
+                optional=True,
+                label='payment_orders.review_state',
+            )
+            _pg_exec(
+                "ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS assigned_admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL;",
+                optional=True,
+                label='payment_orders.assigned_admin_id',
+            )
+            _pg_exec(
+                "ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMPTZ;",
+                optional=True,
+                label='payment_orders.assigned_at',
+            )
+            _pg_exec(
+                "ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS decision_by INTEGER REFERENCES users(id) ON DELETE SET NULL;",
+                optional=True,
+                label='payment_orders.decision_by',
+            )
+            _pg_exec(
+                "ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS decision_note TEXT;",
+                optional=True,
+                label='payment_orders.decision_note',
+            )
+            _pg_exec(
+                "ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS decided_at TIMESTAMPTZ;",
+                optional=True,
+                label='payment_orders.decided_at',
+            )
+            _pg_exec(
+                "ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS escalation_level INTEGER NOT NULL DEFAULT 0;",
+                optional=True,
+                label='payment_orders.escalation_level',
+            )
+            _pg_exec(
+                "ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_state VARCHAR(20) NOT NULL DEFAULT 'none';",
+                optional=True,
+                label='payment_orders.approval_state',
+            )
+            _pg_exec(
+                "ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_requested_action VARCHAR(20);",
+                optional=True,
+                label='payment_orders.approval_requested_action',
+            )
+            _pg_exec(
+                "ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL;",
+                optional=True,
+                label='payment_orders.approval_requested_by',
+            )
+            _pg_exec(
+                "ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_requested_at TIMESTAMPTZ;",
+                optional=True,
+                label='payment_orders.approval_requested_at',
+            )
+            _pg_exec(
+                "ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_decided_by INTEGER REFERENCES users(id) ON DELETE SET NULL;",
+                optional=True,
+                label='payment_orders.approval_decided_by',
+            )
+            _pg_exec(
+                "ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_decided_at TIMESTAMPTZ;",
+                optional=True,
+                label='payment_orders.approval_decided_at',
+            )
+            _pg_exec(
+                "ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS approval_note TEXT;",
+                optional=True,
+                label='payment_orders.approval_note',
+            )
+            _pg_exec(
+                "CREATE INDEX IF NOT EXISTS idx_payment_orders_approval_state ON payment_orders(approval_state);",
+                optional=True,
+                label='idx_payment_orders_approval_state',
+            )
+            _pg_exec(
+                """CREATE TABLE IF NOT EXISTS payment_order_events (
+                    id SERIAL PRIMARY KEY,
+                    payment_order_id INTEGER NOT NULL REFERENCES payment_orders(id) ON DELETE CASCADE,
+                    actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    event_type VARCHAR(40) NOT NULL,
+                    details TEXT NOT NULL DEFAULT '',
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );""",
+                optional=True,
+                label='payment_order_events.table',
+            )
+            _pg_exec(
+                'CREATE INDEX IF NOT EXISTS idx_payment_order_events_order ON payment_order_events(payment_order_id);',
+                optional=True,
+                label='payment_order_events.idx_order',
+            )
+            _pg_exec(
+                'CREATE INDEX IF NOT EXISTS idx_payment_order_events_type ON payment_order_events(event_type);',
+                optional=True,
+                label='payment_order_events.idx_type',
+            )
     else:
         schema_sql = Path(SCHEMA_PATH).read_text(encoding='utf-8')
         with get_connection_sqlite() as conn:
