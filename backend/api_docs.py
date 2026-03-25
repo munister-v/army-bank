@@ -1,6 +1,8 @@
 """API catalog, docs page and OpenAPI schema for developer handoff."""
 from __future__ import annotations
 
+import os
+import platform
 from datetime import datetime, timezone
 from html import escape
 
@@ -13,9 +15,29 @@ def _join(prefix: str, path: str) -> str:
     return f'{p}{path}' if p else path
 
 
+def build_api_version() -> dict:
+    commit = (
+        os.getenv('RENDER_GIT_COMMIT')
+        or os.getenv('SOURCE_VERSION')
+        or os.getenv('GIT_COMMIT')
+        or ''
+    )
+    short_commit = commit[:12] if commit else ''
+    return {
+        'api_version': API_DOCS_VERSION,
+        'git_commit': commit or None,
+        'git_commit_short': short_commit or None,
+        'runtime': {
+            'python': platform.python_version(),
+            'platform': platform.platform(),
+        },
+    }
+
+
 def build_api_catalog(prefix: str = '') -> dict:
     api_base = _join(prefix, '/api')
     now_iso = datetime.now(timezone.utc).isoformat()
+    version_url = _join(prefix, '/api/version')
     return {
         'ok': True,
         'service': 'WeeGo Army Bank API',
@@ -24,8 +46,11 @@ def build_api_catalog(prefix: str = '') -> dict:
         'base_path': prefix or '/',
         'api_base': api_base,
         'health_url': _join(prefix, '/health'),
+        'version_url': version_url,
         'docs_url': _join(prefix, '/api/docs'),
         'openapi_url': _join(prefix, '/api/openapi.json'),
+        'postman_collection_url': _join(prefix, '/api/postman/collection'),
+        'postman_environment_url': _join(prefix, '/api/postman/environment'),
         'auth': {
             'type': 'Bearer JWT token',
             'header': 'Authorization: Bearer <token>',
@@ -37,6 +62,18 @@ def build_api_catalog(prefix: str = '') -> dict:
             'error': {'ok': False, 'error': '<human-readable message>'},
         },
         'groups': [
+            {
+                'name': 'System',
+                'endpoints': [
+                    {'method': 'GET', 'path': _join(prefix, '/health')},
+                    {'method': 'GET', 'path': _join(prefix, '/api')},
+                    {'method': 'GET', 'path': version_url},
+                    {'method': 'GET', 'path': _join(prefix, '/api/docs')},
+                    {'method': 'GET', 'path': _join(prefix, '/api/openapi.json')},
+                    {'method': 'GET', 'path': _join(prefix, '/api/postman/collection')},
+                    {'method': 'GET', 'path': _join(prefix, '/api/postman/environment')},
+                ],
+            },
             {
                 'name': 'Auth',
                 'endpoints': [
@@ -133,6 +170,20 @@ def build_openapi_schema(prefix: str = '') -> dict:
                     'tags': ['System'],
                     'summary': 'OpenAPI schema',
                     'responses': {'200': {'description': 'OpenAPI 3.0 JSON schema.'}},
+                }
+            },
+            '/api/version': {
+                'get': {
+                    'tags': ['System'],
+                    'summary': 'API runtime and version metadata',
+                    'responses': {'200': {'description': 'Version payload.'}},
+                }
+            },
+            '/api/docs': {
+                'get': {
+                    'tags': ['System'],
+                    'summary': 'Human-readable API documentation page',
+                    'responses': {'200': {'description': 'HTML docs.'}},
                 }
             },
             '/api/auth/register': {
@@ -521,11 +572,187 @@ def build_openapi_schema(prefix: str = '') -> dict:
     }
 
 
+def build_postman_collection(prefix: str = '') -> dict:
+    api_prefix = _join(prefix, '/api')
+    return {
+        'info': {
+            'name': 'Army Bank API',
+            'description': (
+                'Starter collection for external developers. '
+                'Set baseUrl/token variables in environment.'
+            ),
+            '_postman_id': 'army-bank-api-collection',
+            'schema': 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
+        },
+        'variable': [
+            {'key': 'baseUrl', 'value': 'https://army-bank.onrender.com'},
+            {'key': 'apiPrefix', 'value': api_prefix},
+            {'key': 'token', 'value': ''},
+            {'key': 'identity', 'value': 'admin@army-bank.ua'},
+            {'key': 'password', 'value': ''},
+            {'key': 'userId', 'value': '1'},
+        ],
+        'item': [
+            {
+                'name': 'System',
+                'item': [
+                    {
+                        'name': 'API Catalog',
+                        'request': {
+                            'method': 'GET',
+                            'header': [],
+                            'url': {'raw': '{{baseUrl}}{{apiPrefix}}', 'host': ['{{baseUrl}}'], 'path': ['{{apiPrefix}}']},
+                        },
+                    },
+                    {
+                        'name': 'API Version',
+                        'request': {
+                            'method': 'GET',
+                            'header': [],
+                            'url': {'raw': '{{baseUrl}}{{apiPrefix}}/version'},
+                        },
+                    },
+                    {
+                        'name': 'OpenAPI JSON',
+                        'request': {
+                            'method': 'GET',
+                            'header': [],
+                            'url': {'raw': '{{baseUrl}}{{apiPrefix}}/openapi.json'},
+                        },
+                    },
+                ],
+            },
+            {
+                'name': 'Auth',
+                'item': [
+                    {
+                        'name': 'Login',
+                        'event': [
+                            {
+                                'listen': 'test',
+                                'script': {
+                                    'type': 'text/javascript',
+                                    'exec': [
+                                        "const json = pm.response.json();",
+                                        "if (json && json.ok && json.data && json.data.token) {",
+                                        "  pm.environment.set('token', json.data.token);",
+                                        "}",
+                                    ],
+                                },
+                            }
+                        ],
+                        'request': {
+                            'method': 'POST',
+                            'header': [{'key': 'Content-Type', 'value': 'application/json'}],
+                            'body': {
+                                'mode': 'raw',
+                                'raw': '{\n  "identity": "{{identity}}",\n  "password": "{{password}}"\n}',
+                            },
+                            'url': {'raw': '{{baseUrl}}{{apiPrefix}}/auth/login'},
+                        },
+                    },
+                    {
+                        'name': 'Me',
+                        'request': {
+                            'method': 'GET',
+                            'header': [{'key': 'Authorization', 'value': 'Bearer {{token}}'}],
+                            'url': {'raw': '{{baseUrl}}{{apiPrefix}}/auth/me'},
+                        },
+                    },
+                ],
+            },
+            {
+                'name': 'Admin',
+                'item': [
+                    {
+                        'name': 'Transactions Registry',
+                        'request': {
+                            'method': 'GET',
+                            'header': [{'key': 'Authorization', 'value': 'Bearer {{token}}'}],
+                            'url': {
+                                'raw': '{{baseUrl}}{{apiPrefix}}/admin/transactions?limit=50&offset=0&sort_by=newest',
+                            },
+                        },
+                    },
+                    {
+                        'name': 'Create Payout',
+                        'request': {
+                            'method': 'POST',
+                            'header': [
+                                {'key': 'Authorization', 'value': 'Bearer {{token}}'},
+                                {'key': 'Content-Type', 'value': 'application/json'},
+                            ],
+                            'body': {
+                                'mode': 'raw',
+                                'raw': '{\n  "user_id": {{userId}},\n  "amount": 1000,\n  "title": "Test payout",\n  "payout_type": "combat"\n}',
+                            },
+                            'url': {'raw': '{{baseUrl}}{{apiPrefix}}/admin/payouts'},
+                        },
+                    },
+                ],
+            },
+            {
+                'name': 'Processing',
+                'item': [
+                    {
+                        'name': 'SLA Queue',
+                        'request': {
+                            'method': 'GET',
+                            'header': [{'key': 'Authorization', 'value': 'Bearer {{token}}'}],
+                            'url': {
+                                'raw': '{{baseUrl}}{{apiPrefix}}/admin/payments/sla-queue?limit=20&offset=0&open_only=true',
+                            },
+                        },
+                    },
+                    {
+                        'name': 'Approval Inbox',
+                        'request': {
+                            'method': 'GET',
+                            'header': [{'key': 'Authorization', 'value': 'Bearer {{token}}'}],
+                            'url': {
+                                'raw': '{{baseUrl}}{{apiPrefix}}/admin/payments/approval-inbox?limit=20&offset=0&open_only=true',
+                            },
+                        },
+                    },
+                    {
+                        'name': 'Fraud Stats',
+                        'request': {
+                            'method': 'GET',
+                            'header': [{'key': 'Authorization', 'value': 'Bearer {{token}}'}],
+                            'url': {'raw': '{{baseUrl}}{{apiPrefix}}/admin/payments/fraud-stats'},
+                        },
+                    },
+                ],
+            },
+        ],
+    }
+
+
+def build_postman_environment(prefix: str = '') -> dict:
+    return {
+        'name': 'Army Bank API (Render)',
+        'values': [
+            {'key': 'baseUrl', 'value': 'https://army-bank.onrender.com', 'enabled': True},
+            {'key': 'apiPrefix', 'value': _join(prefix, '/api'), 'enabled': True},
+            {'key': 'identity', 'value': 'admin@army-bank.ua', 'enabled': True},
+            {'key': 'password', 'value': '', 'enabled': True},
+            {'key': 'token', 'value': '', 'enabled': True},
+            {'key': 'userId', 'value': '1', 'enabled': True},
+        ],
+        '_postman_variable_scope': 'environment',
+        '_postman_exported_at': datetime.now(timezone.utc).isoformat(),
+        '_postman_exported_using': 'Army Bank API docs',
+    }
+
+
 def build_docs_html(prefix: str = '') -> str:
     catalog = build_api_catalog(prefix)
     docs_url = escape(catalog['docs_url'])
     openapi_url = escape(catalog['openapi_url'])
     health_url = escape(catalog['health_url'])
+    version_url = escape(catalog['version_url'])
+    postman_collection_url = escape(catalog['postman_collection_url'])
+    postman_environment_url = escape(catalog['postman_environment_url'])
     api_base = escape(catalog['api_base'])
     generated_at = escape(catalog['generated_at'])
 
@@ -589,6 +816,7 @@ def build_docs_html(prefix: str = '') -> str:
       <span class="pill">Docs: <a href="{docs_url}">{docs_url}</a></span>
       <span class="pill">OpenAPI: <a href="{openapi_url}">{openapi_url}</a></span>
       <span class="pill">Health: <a href="{health_url}">{health_url}</a></span>
+      <span class="pill">Version: <a href="{version_url}">{version_url}</a></span>
       <span class="pill">Generated: {generated_at}</span>
     </div>
 
@@ -613,6 +841,8 @@ def build_docs_html(prefix: str = '') -> str:
     <div class="card">
       <h2>Machine-readable schema</h2>
       <p class="ok">Use <a href="{openapi_url}">{openapi_url}</a> to generate typed clients (OpenAPI 3.0.3).</p>
+      <p>Postman collection: <a href="{postman_collection_url}">{postman_collection_url}</a></p>
+      <p>Postman environment: <a href="{postman_environment_url}">{postman_environment_url}</a></p>
     </div>
   </div>
 </body>

@@ -6,15 +6,21 @@ This document is a practical integration guide for backend/API consumers.
 
 - Production (Render): `https://army-bank.onrender.com`
 - API base: `https://army-bank.onrender.com/api`
+- API version: `https://army-bank.onrender.com/api/version`
 - Human docs: `https://army-bank.onrender.com/api/docs`
 - OpenAPI schema: `https://army-bank.onrender.com/api/openapi.json`
+- Postman collection: `https://army-bank.onrender.com/api/postman/collection`
+- Postman environment: `https://army-bank.onrender.com/api/postman/environment`
 - Healthcheck: `https://army-bank.onrender.com/health`
 
 If deployment uses `BASE_PATH` (for example `/bank`), prepend it to all paths:
 
 - `/bank/api/...`
+- `/bank/api/version`
 - `/bank/api/docs`
 - `/bank/api/openapi.json`
+- `/bank/api/postman/collection`
+- `/bank/api/postman/environment`
 
 ## 2. Authentication
 
@@ -166,3 +172,15 @@ Recommended pipeline:
 2. Generate client for your stack.
 3. Keep a local contract snapshot in your integration repo.
 4. Diff schema on each backend release.
+
+## 9. Postman quick start
+
+1. Import collection URL:
+   - `https://army-bank.onrender.com/api/postman/collection`
+2. Import environment URL:
+   - `https://army-bank.onrender.com/api/postman/environment`
+3. Fill environment variables:
+   - `identity`
+   - `password`
+4. Run `Auth / Login` request to auto-save `token`.
+5. Run protected requests (Admin/Processing folders).

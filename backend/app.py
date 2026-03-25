@@ -7,7 +7,14 @@ from pathlib import Path
 from flask import Flask, Response, abort, jsonify, redirect, send_from_directory
 from flask_compress import Compress
 
-from .api_docs import build_api_catalog, build_docs_html, build_openapi_schema
+from .api_docs import (
+    build_api_catalog,
+    build_api_version,
+    build_docs_html,
+    build_openapi_schema,
+    build_postman_collection,
+    build_postman_environment,
+)
 from .config import BASE_PATH, BOOTSTRAP_TOKEN, DEBUG
 from .database import init_db, init_admin
 from .routes.account_routes import account_bp
@@ -141,9 +148,24 @@ def create_app() -> Flask:
     def api_catalog():
         return jsonify(build_api_catalog(prefix))
 
+    @app.get(prefix + '/api/version' if prefix else '/api/version')
+    def api_version():
+        payload = build_api_version()
+        payload['ok'] = True
+        payload['base_path'] = prefix or '/'
+        return jsonify(payload)
+
     @app.get(prefix + '/api/openapi.json' if prefix else '/api/openapi.json')
     def api_openapi():
         return jsonify(build_openapi_schema(prefix))
+
+    @app.get(prefix + '/api/postman/collection' if prefix else '/api/postman/collection')
+    def api_postman_collection():
+        return jsonify(build_postman_collection(prefix))
+
+    @app.get(prefix + '/api/postman/environment' if prefix else '/api/postman/environment')
+    def api_postman_environment():
+        return jsonify(build_postman_environment(prefix))
 
     @app.get(prefix + '/api/docs' if prefix else '/api/docs')
     def api_docs():

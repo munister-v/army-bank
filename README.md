@@ -93,15 +93,21 @@ pytest tests/ -v
 ## API для сторонніх розробників
 
 - API catalog: `GET /api`
+- API version: `GET /api/version`
 - Людинозрозумілі docs: `GET /api/docs`
 - OpenAPI schema (3.0.3): `GET /api/openapi.json`
+- Postman collection: `GET /api/postman/collection`
+- Postman environment: `GET /api/postman/environment`
 - Healthcheck: `GET /health`
 
 Продакшн-приклади:
 
 - https://army-bank.onrender.com/api
+- https://army-bank.onrender.com/api/version
 - https://army-bank.onrender.com/api/docs
 - https://army-bank.onrender.com/api/openapi.json
+- https://army-bank.onrender.com/api/postman/collection
+- https://army-bank.onrender.com/api/postman/environment
 - https://army-bank.onrender.com/health
 
 Детальний handoff-док для інтеграцій: **API_HANDOFF.md**.
