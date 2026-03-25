@@ -26,40 +26,101 @@
       <nav class="menu">
         <a class="menu-btn nav-link" href="/dashboard">На головну</a>
         <button type="button" class="menu-btn active" data-tab="users">Користувачі</button>
+        <button type="button" class="menu-btn" data-tab="security">Безпека</button>
         <button type="button" class="menu-btn" data-tab="audit">Аудит</button>
       </nav>
       <div class="sidebar-footer">
         <button id="logoutBtn" class="secondary-btn">Вийти</button>
       </div>
     </aside>
+
     <main class="content">
+
+      <!-- ── USERS ─────────────────────────────────────────────────── -->
       <section id="usersTab" class="admin-tab">
         <h1>Користувачі</h1>
-        <p class="muted">Фільтр за роллю: <select id="roleFilter"><option value="">Усі</option><option value="soldier">Військовий</option><option value="operator">Оператор</option><option value="admin">Адмін</option><option value="platform_admin">Платформа</option></select></p>
-        <div class="card" style="padding: 0;">
+        <p class="muted">Фільтр: <select id="roleFilter">
+          <option value="">Усі</option>
+          <option value="soldier">Військовий</option>
+          <option value="operator">Оператор</option>
+          <option value="admin">Адмін</option>
+          <option value="platform_admin">Платформа</option>
+        </select></p>
+        <div class="card" style="padding:0">
           <table class="table" aria-label="Таблиця користувачів">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Користувач</th>
-                <th>Контакти</th>
-                <th>Роль</th>
-                <th>Дії</th>
-              </tr>
-            </thead>
+            <thead><tr><th>ID</th><th>Користувач</th><th>Контакти</th><th>Роль</th><th>Дії</th></tr></thead>
             <tbody id="usersTableBody"></tbody>
           </table>
         </div>
       </section>
+
+      <!-- ── SECURITY ──────────────────────────────────────────────── -->
+      <section id="securityTab" class="admin-tab hidden">
+        <h1>Безпека платежів</h1>
+
+        <!-- Stats row -->
+        <div class="stats-row" id="fraudStats">
+          <div class="stat-card"><div class="stat-val" id="statBlocked">—</div><div class="stat-lbl">Заблоковано</div></div>
+          <div class="stat-card"><div class="stat-val" id="statCritical">—</div><div class="stat-lbl">Критичних</div></div>
+          <div class="stat-card"><div class="stat-val" id="statHigh">—</div><div class="stat-lbl">Високий ризик</div></div>
+          <div class="stat-card"><div class="stat-val" id="statUnresolved">—</div><div class="stat-lbl">Невирішено</div></div>
+        </div>
+
+        <!-- Payment Orders -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:24px 0 10px">
+          <h2 style="font-size:16px;font-weight:700">Платіжні ордери</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="orderRiskFilter" style="font-size:12px">
+              <option value="">Усі рівні</option>
+              <option value="critical">Критичний</option>
+              <option value="high">Високий</option>
+              <option value="medium">Середній</option>
+              <option value="low">Низький</option>
+            </select>
+            <select id="orderStatusFilter" style="font-size:12px">
+              <option value="">Усі статуси</option>
+              <option value="blocked">Заблоковано</option>
+              <option value="completed">Виконано</option>
+              <option value="failed">Помилка</option>
+              <option value="pending">Очікує</option>
+            </select>
+            <button class="ghost-btn" onclick="loadOrders()" style="font-size:12px">↻</button>
+          </div>
+        </div>
+        <div class="card" style="padding:0">
+          <table class="table" aria-label="Платіжні ордери">
+            <thead><tr><th>ID</th><th>Відправник</th><th>Отримувач</th><th>Сума</th><th>Ризик</th><th>Статус</th><th>Час</th></tr></thead>
+            <tbody id="ordersTableBody"><tr><td colspan="7" class="muted" style="text-align:center;padding:24px">Завантаження…</td></tr></tbody>
+          </table>
+        </div>
+
+        <!-- Risk Events -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:28px 0 10px">
+          <h2 style="font-size:16px;font-weight:700">Події ризику <span id="unresolvedBadge"></span></h2>
+          <button class="ghost-btn" onclick="loadRiskEvents()" style="font-size:12px">↻</button>
+        </div>
+        <div id="riskEventsList" class="list"></div>
+
+        <!-- Integrity -->
+        <div style="margin-top:28px">
+          <h2 style="font-size:16px;font-weight:700;margin-bottom:10px">Цілісність транзакцій</h2>
+          <button id="integrityBtn" class="secondary-btn" onclick="runIntegrityCheck()">Перевірити хеш-ланцюг</button>
+          <pre id="integrityResult" style="margin-top:12px;font-size:12px;display:none"></pre>
+        </div>
+      </section>
+
+      <!-- ── AUDIT ──────────────────────────────────────────────────── -->
       <section id="auditTab" class="admin-tab hidden">
         <h1>Аудит-логи</h1>
         <div id="auditList" class="list"></div>
       </section>
+
       <footer class="app-footer">
-      <a href="https://munister.com.ua/army-bank" target="_blank" rel="noopener">munister.com.ua</a>
+        <a href="https://munister.com.ua/army-bank" target="_blank" rel="noopener">munister.com.ua</a>
       </footer>
     </main>
   </div>
+
   <div id="backdrop" class="backdrop"></div>
   <aside id="drawer" class="drawer" aria-label="User details">
     <div class="drawer-header">
@@ -71,14 +132,14 @@
     </div>
     <div class="drawer-body">
       <div class="stack">
-        <div class="card" style="box-shadow:none;">
+        <div class="card" style="box-shadow:none">
           <div class="subtle">Рахунок</div>
-          <div style="margin-top:8px;"><strong id="drawerBalance">—</strong></div>
+          <div style="margin-top:8px"><strong id="drawerBalance">—</strong></div>
           <div class="subtle" id="drawerAccount">—</div>
         </div>
-        <div class="card" style="box-shadow:none;">
+        <div class="card" style="box-shadow:none">
           <div class="subtle">Останні транзакції</div>
-          <div id="drawerTx" class="list" style="margin-top:12px;"></div>
+          <div id="drawerTx" class="list" style="margin-top:12px"></div>
         </div>
       </div>
     </div>
@@ -88,8 +149,9 @@
       </div>
     </div>
   </aside>
+
   <div id="toast" class="toast hidden"></div>
   <script src="/js/api.js"></script>
-  <script src="/js/admin.js"></script>
+  <script src="/js/admin.js?v=2"></script>
 </body>
 </html>

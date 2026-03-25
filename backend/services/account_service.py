@@ -28,40 +28,23 @@ class AccountService:
         self.features.add_audit_log(user_id, 'topup', f'Поповнення на {amount:.2f} грн.')
         return self.get_main_account(user_id)
 
-    def transfer(self, user_id: int, recipient_account_number: str, amount: float, description: str) -> dict:
+    def transfer(self, user_id: int, recipient_account_number: str, amount: float, description: str, idempotency_key: str | None = None) -> dict:
+        from ..services.payment_core import PaymentCore
         validate_positive_amount(amount)
-        sender = self.get_main_account(user_id)
-        recipient = self.accounts.get_account_by_number(recipient_account_number.strip())
-        if not recipient:
-            raise ValueError('Рахунок отримувача не знайдено.')
-        if recipient['id'] == sender['id']:
-            raise ValueError('Неможливо переказати кошти на власний рахунок.')
-        if sender['balance'] < amount:
-            raise ValueError('Недостатньо коштів на рахунку.')
-
-        sender_balance = round(sender['balance'] - amount, 2)
-        recipient_balance = round(recipient['balance'] + amount, 2)
-        self.accounts.update_balance(sender['id'], sender_balance)
-        self.accounts.update_balance(recipient['id'], recipient_balance)
-        self.accounts.add_transaction(sender['id'], 'transfer', 'out', amount, description, recipient['account_number'])
-        self.accounts.add_transaction(recipient['id'], 'transfer', 'in', amount, f'Надходження: {description}', sender['account_number'])
-        self.features.add_audit_log(user_id, 'transfer', f'Переказ {amount:.2f} грн на {recipient_account_number}.')
-        # Notify recipient
-        try:
-            self.features.create_notification(
-                recipient['user_id'], 'transfer_received',
-                f'Надходження ₴{amount:,.0f}'.replace(',', ' '),
-                f'Від {sender["account_number"]}: {description}',
-                '💸',
-            )
-        except Exception:
-            pass
+        core = PaymentCore()
+        result = core.transfer(
+            user_id=user_id,
+            recipient_account_number=recipient_account_number,
+            amount=amount,
+            description=description,
+            idempotency_key=idempotency_key,
+        )
         # Check budget limit for sender
         try:
-            self._check_budget_alert(user_id, sender['id'], 'transfer')
+            self._check_budget_alert(user_id, result['account']['id'], 'transfer')
         except Exception:
             pass
-        return self.get_main_account(user_id)
+        return result['account']
 
     def _check_budget_alert(self, user_id: int, account_id: int, tx_type: str) -> None:
         """Fire a notification if a budget limit is exceeded this month."""

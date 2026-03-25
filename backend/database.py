@@ -243,6 +243,99 @@ CREATE INDEX IF NOT EXISTS idx_cards_account_id ON cards(account_id);
 CREATE INDEX IF NOT EXISTS idx_cards_card_number ON cards(card_number);
 """
 
+PAYMENT_CORE_DDL = """
+CREATE TABLE IF NOT EXISTS payment_orders (
+    id SERIAL PRIMARY KEY,
+    idempotency_key VARCHAR(64) NOT NULL UNIQUE,
+    initiator_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    sender_account_id INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
+    recipient_account_id INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
+    amount NUMERIC(14,2) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    risk_score INTEGER NOT NULL DEFAULT 0,
+    risk_level VARCHAR(20) NOT NULL DEFAULT 'low',
+    risk_flags TEXT NOT NULL DEFAULT '[]',
+    tx_id_out INTEGER,
+    tx_id_in INTEGER,
+    failure_reason TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_payment_orders_status ON payment_orders(status);
+CREATE INDEX IF NOT EXISTS idx_payment_orders_risk_level ON payment_orders(risk_level);
+CREATE INDEX IF NOT EXISTS idx_payment_orders_user ON payment_orders(initiator_user_id);
+
+CREATE TABLE IF NOT EXISTS risk_events (
+    id SERIAL PRIMARY KEY,
+    payment_order_id INTEGER REFERENCES payment_orders(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    event_type VARCHAR(60) NOT NULL,
+    severity VARCHAR(20) NOT NULL DEFAULT 'low',
+    score_delta INTEGER NOT NULL DEFAULT 0,
+    details TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    resolved_at TIMESTAMPTZ,
+    resolved_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_risk_events_severity ON risk_events(severity);
+CREATE INDEX IF NOT EXISTS idx_risk_events_resolved ON risk_events(resolved_at);
+
+CREATE TABLE IF NOT EXISTS integrity_hashes (
+    id SERIAL PRIMARY KEY,
+    account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+    prev_hash VARCHAR(64) NOT NULL,
+    tx_hash VARCHAR(64) NOT NULL,
+    chain_hash VARCHAR(64) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_integrity_hashes_account ON integrity_hashes(account_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_integrity_hashes_tx ON integrity_hashes(transaction_id);
+"""
+
+PAYMENT_CORE_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS payment_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    initiator_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    sender_account_id INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
+    recipient_account_id INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
+    amount REAL NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending',
+    risk_score INTEGER NOT NULL DEFAULT 0,
+    risk_level TEXT NOT NULL DEFAULT 'low',
+    risk_flags TEXT NOT NULL DEFAULT '[]',
+    tx_id_out INTEGER,
+    tx_id_in INTEGER,
+    failure_reason TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS risk_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    payment_order_id INTEGER REFERENCES payment_orders(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    event_type TEXT NOT NULL,
+    severity TEXT NOT NULL DEFAULT 'low',
+    score_delta INTEGER NOT NULL DEFAULT 0,
+    details TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    resolved_at TEXT,
+    resolved_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE TABLE IF NOT EXISTS integrity_hashes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+    prev_hash TEXT NOT NULL,
+    tx_hash TEXT NOT NULL,
+    chain_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
 
 def init_db() -> None:
     """Ініціалізує схему БД."""
@@ -256,6 +349,11 @@ def init_db() -> None:
                 cur.execute(RECURRING_TX_DDL)
                 cur.execute(DEBTS_DDL)
                 cur.execute(CARDS_DDL)
+                cur.execute(PAYMENT_CORE_DDL)
+                try:
+                    cur.execute('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_order_id INTEGER REFERENCES payment_orders(id);')
+                except Exception:
+                    pass
                 try:
                     cur.execute('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS note TEXT;')
                 except Exception:
@@ -281,6 +379,11 @@ def init_db() -> None:
             conn.executescript(RECURRING_TX_DDL_SQLITE)
             conn.executescript(DEBTS_DDL_SQLITE)
             conn.executescript(CARDS_DDL_SQLITE)
+            conn.executescript(PAYMENT_CORE_DDL_SQLITE)
+            try:
+                conn.execute('ALTER TABLE transactions ADD COLUMN payment_order_id INTEGER;')
+            except Exception:
+                pass
             try:
                 conn.execute('ALTER TABLE transactions ADD COLUMN note TEXT;')
             except Exception:
