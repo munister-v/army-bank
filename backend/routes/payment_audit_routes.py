@@ -737,7 +737,7 @@ def sla_bulk_action():
 
 @payment_audit_bp.get('/risk-events')
 @auth_required
-@role_required('admin', 'platform_admin')
+@role_required('operator', 'admin', 'platform_admin')
 def list_risk_events():
     limit     = min(request.args.get('limit',  default=50, type=int), 200)
     offset    = request.args.get('offset',   default=0,  type=int)
@@ -758,7 +758,7 @@ def list_risk_events():
 
 @payment_audit_bp.post('/risk-events/<int:event_id>/resolve')
 @auth_required
-@role_required('admin', 'platform_admin')
+@role_required('operator', 'admin', 'platform_admin')
 def resolve_event(event_id: int):
     ok = _repo.resolve_risk_event(event_id, g.current_user['id'])
     if not ok:
@@ -768,7 +768,7 @@ def resolve_event(event_id: int):
 
 @payment_audit_bp.get('/fraud-stats')
 @auth_required
-@role_required('admin', 'platform_admin')
+@role_required('operator', 'admin', 'platform_admin')
 def fraud_stats():
     stats = _repo.fraud_stats()
     return jsonify({'ok': True, 'data': stats})
