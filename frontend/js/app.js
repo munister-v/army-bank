@@ -600,6 +600,42 @@ async function exportCsv() {
 
 $('#exportCsvBtn')?.addEventListener('click', exportCsv);
 
+async function exportStatementPdf() {
+  const btn = $('#exportPdfBtn');
+  try {
+    setButtonLoading(btn, true);
+    const form = $('#transactionsFilters');
+    const params = new URLSearchParams();
+    if (form) {
+      const fd = new FormData(form);
+      if (fd.get('from_date')) params.set('from_date', fd.get('from_date'));
+      if (fd.get('to_date'))   params.set('to_date',   fd.get('to_date'));
+    }
+    const url = '/api/transactions/statement' + (params.toString() ? '?' + params.toString() : '');
+    const res = await fetch((typeof window !== 'undefined' && window.ARMY_BANK_BASE || '') + url, {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      throw new Error(j.error || 'Помилка формування виписки');
+    }
+    const blob = await res.blob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    const date = new Date().toISOString().slice(0, 10);
+    link.download = `army-bank-statement-${date}.pdf`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 15000);
+    showToast('Виписку PDF завантажено.', 'success');
+  } catch (e) {
+    showToast(e.message);
+  } finally {
+    setButtonLoading(btn, false);
+  }
+}
+
+$('#exportPdfBtn')?.addEventListener('click', exportStatementPdf);
+
 // ── ANALYTICS ───────────────────────────────────────────
 async function loadAnalytics() {
   try {

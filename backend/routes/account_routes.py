@@ -206,6 +206,37 @@ def achievements():
         return api_error(str(exc))
 
 
+@account_bp.get('/transactions/statement')
+@auth_required
+def export_statement_pdf():
+    """Генерує PDF-виписку за рахунком для поточного користувача."""
+    try:
+        from ..services.statement_service import StatementService
+        from_date = request.args.get('from_date') or None
+        to_date   = request.args.get('to_date')   or None
+        pdf_bytes = StatementService().generate_pdf(
+            g.current_user['id'],
+            from_date=from_date,
+            to_date=to_date,
+        )
+        fname = 'army_bank_statement'
+        if from_date:
+            fname += f'_{from_date}'
+        if to_date:
+            fname += f'_{to_date}'
+        fname += '.pdf'
+        return Response(
+            pdf_bytes,
+            mimetype='application/pdf',
+            headers={
+                'Content-Disposition': f'attachment; filename="{fname}"',
+                'Cache-Control': 'no-store',
+            },
+        )
+    except Exception as exc:
+        return api_error(str(exc))
+
+
 @account_bp.get('/transactions/export')
 @auth_required
 def export_csv():

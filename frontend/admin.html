@@ -112,6 +112,27 @@
       <!-- ── AUDIT ──────────────────────────────────────────────────── -->
       <section id="auditTab" class="admin-tab hidden">
         <h1>Аудит-логи</h1>
+
+        <!-- Statement downloads sub-section -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <h2 style="font-size:15px;font-weight:700;margin:0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="vertical-align:-3px;margin-right:5px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Виписки PDF
+          </h2>
+          <button class="ghost-btn" onclick="loadStatements()" style="font-size:12px">↻ Оновити</button>
+        </div>
+        <div class="card" style="padding:0;margin-bottom:24px">
+          <table class="table" aria-label="Завантажені виписки">
+            <thead><tr><th>Час</th><th>Користувач ID</th><th>Деталі</th></tr></thead>
+            <tbody id="statementsTableBody"><tr><td colspan="3" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr></tbody>
+          </table>
+        </div>
+
+        <!-- General audit logs -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <h2 style="font-size:15px;font-weight:700;margin:0">Загальні логи</h2>
+          <button class="ghost-btn" onclick="loadAudit()" style="font-size:12px">↻ Оновити</button>
+        </div>
         <div id="auditList" class="list"></div>
       </section>
 

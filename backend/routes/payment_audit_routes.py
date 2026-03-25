@@ -5,6 +5,7 @@ import json
 from flask import Blueprint, jsonify, request, g
 
 from ..repositories.payment_repository import PaymentRepository
+from ..repositories.feature_repository import FeatureRepository
 from ..services.integrity_service import IntegrityService
 from .helpers import api_error, auth_required, role_required
 
@@ -12,6 +13,7 @@ payment_audit_bp = Blueprint('payment_audit', __name__)
 
 _repo      = PaymentRepository()
 _integrity = IntegrityService()
+_features  = FeatureRepository()
 
 
 @payment_audit_bp.get('/orders')
@@ -105,3 +107,15 @@ def integrity_check():
 def integrity_check_account(account_id: int):
     result = _integrity.verify_account(account_id)
     return jsonify({'ok': True, 'data': result})
+
+
+@payment_audit_bp.get('/statements')
+@auth_required
+@role_required('admin', 'platform_admin')
+def list_statement_downloads():
+    """Список усіх подій завантаження PDF-виписок."""
+    limit   = min(request.args.get('limit', default=100, type=int), 500)
+    user_id = request.args.get('user_id', type=int)
+    logs = _features.list_audit_logs(user_id=user_id, limit=limit)
+    statement_logs = [l for l in logs if (l.get('action') or '') == 'statement_pdf']
+    return jsonify({'ok': True, 'data': statement_logs, 'total': len(statement_logs)})

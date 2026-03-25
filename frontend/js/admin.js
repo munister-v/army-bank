@@ -237,13 +237,40 @@ async function runIntegrityCheck() {
 // ── Audit ────────────────────────────────────────────────────────────────────
 
 async function loadAudit() {
-  const logs = await api.request('/api/admin/audit-logs');
-  $('#auditList').innerHTML = logs.map((l) => `
-    <div class="item">
-      <div class="item-header"><strong>${l.action}</strong><span class="muted">${fmtDate(l.created_at)}</span></div>
-      <div class="muted">user_id: ${l.user_id ?? '—'} · ${l.details || '—'}</div>
-    </div>
-  `).join('');
+  try {
+    const logs = await api.request('/api/admin/audit-logs');
+    const filtered = (Array.isArray(logs) ? logs : []).filter((l) => l.action !== 'statement_pdf');
+    $('#auditList').innerHTML = filtered.length
+      ? filtered.map((l) => `
+          <div class="item">
+            <div class="item-header"><strong>${l.action}</strong><span class="muted">${fmtDate(l.created_at)}</span></div>
+            <div class="muted">user_id: ${l.user_id ?? '—'} · ${l.details || '—'}</div>
+          </div>
+        `).join('')
+      : '<div class="muted" style="padding:16px;text-align:center">Логів немає.</div>';
+  } catch (e) {
+    $('#auditList').innerHTML = `<div class="muted" style="padding:16px">Помилка: ${e.message}</div>`;
+  }
+}
+
+async function loadStatements() {
+  try {
+    const logs = await api.request('/api/admin/payments/statements');
+    const tbody = $('#statementsTableBody');
+    if (!logs || !logs.length) {
+      tbody.innerHTML = '<tr><td colspan="3" class="muted" style="text-align:center;padding:20px">Виписки ще не завантажувались.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = logs.map((l) => `
+      <tr>
+        <td style="white-space:nowrap">${fmtDate(l.created_at)}</td>
+        <td>${l.user_id ?? '—'}</td>
+        <td style="font-size:12px;color:var(--muted)">${l.details || '—'}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    $('#statementsTableBody').innerHTML = `<tr><td colspan="3" class="muted" style="padding:16px">Помилка: ${e.message}</td></tr>`;
+  }
 }
 
 // ── Tab routing ───────────────────────────────────────────────────────────────
@@ -255,7 +282,7 @@ function switchTab(tabId) {
     btn.classList.toggle('active', btn.dataset.tab === tabId)
   );
   if (tabId === 'users')    loadUsers($('#roleFilter').value);
-  if (tabId === 'audit')    loadAudit();
+  if (tabId === 'audit')    { loadAudit(); loadStatements(); }
   if (tabId === 'security') {
     loadFraudStats();
     loadOrders();
