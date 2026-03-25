@@ -699,7 +699,11 @@ $('#profileLogoutBtn')?.addEventListener('click', async () => {
 });
 
 // ── NAVIGATION ──────────────────────────────────────────
-const ALLOWED_SCREENS = ['dashboard', 'transactions', 'cards', 'profile'];
+const ALLOWED_SCREENS = [
+  'dashboard', 'transactions', 'cards', 'profile',
+  'payouts', 'donations', 'savings', 'analytics',
+  'contacts', 'calendar', 'recurring', 'debts',
+];
 
 function getBasePath() {
   return (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
@@ -735,8 +739,12 @@ function switchScreen(screenId) {
   $('.bottom-nav')?.classList.remove('nav-hidden');
 
   if (id === 'transactions') loadTransactionsWithFilters();
-  if (id === 'profile') renderProfileScreen();
-  if (id === 'cards') { if (typeof loadCards === 'function') loadCards(); }
+  if (id === 'profile')    renderProfileScreen();
+  if (id === 'cards')      { if (typeof loadCards      === 'function') loadCards(); }
+  if (id === 'analytics')  { if (typeof loadAnalytics  === 'function') loadAnalytics(); }
+  if (id === 'calendar')   { if (typeof loadCalendar   === 'function') loadCalendar(); }
+  if (id === 'recurring')  { if (typeof loadRecurring  === 'function') loadRecurring(); }
+  if (id === 'debts')      { if (typeof loadDebts      === 'function') loadDebts(); }
   if (id !== 'dashboard') setDashboardActionFormsOpen(false);
 }
 
@@ -2205,10 +2213,18 @@ let _cmdItems = [];
 let _cmdIdx = 0;
 
 const NAV_CMDS = [
-  { type: 'nav', label: 'Огляд', screen: 'dashboard', icon: '🏠' },
-  { type: 'nav', label: 'Операції', screen: 'transactions', icon: '📊' },
-  { type: 'nav', label: 'Картки', screen: 'cards', icon: '💳' },
-  { type: 'nav', label: 'Профіль', screen: 'profile', icon: '👤' },
+  { type: 'nav', label: 'Огляд',           screen: 'dashboard',    icon: '🏠' },
+  { type: 'nav', label: 'Операції',        screen: 'transactions', icon: '📊' },
+  { type: 'nav', label: 'Картки',          screen: 'cards',        icon: '💳' },
+  { type: 'nav', label: 'Профіль',         screen: 'profile',      icon: '👤' },
+  { type: 'nav', label: 'Виплати',         screen: 'payouts',      icon: '💰' },
+  { type: 'nav', label: 'Донати',          screen: 'donations',    icon: '🤝' },
+  { type: 'nav', label: 'Накопичення',     screen: 'savings',      icon: '🎯' },
+  { type: 'nav', label: 'Аналітика',       screen: 'analytics',    icon: '📈' },
+  { type: 'nav', label: 'Контакти',        screen: 'contacts',     icon: '👥' },
+  { type: 'nav', label: 'Календар',        screen: 'calendar',     icon: '📅' },
+  { type: 'nav', label: 'Автоплатежі',     screen: 'recurring',    icon: '🔄' },
+  { type: 'nav', label: 'Борги',           screen: 'debts',        icon: '📋' },
 ];
 
 function openCmdPalette() {
@@ -2337,7 +2353,11 @@ document.addEventListener('keydown', (e) => {
   clearTimeout(_kbTimer);
   _kbTimer = setTimeout(() => { _kbBuffer = ''; }, 800);
 
-  const navMap = { 'GD': 'dashboard', 'GT': 'transactions', 'GC': 'cards', 'GP': 'profile' };
+  const navMap = {
+    'GD': 'dashboard', 'GT': 'transactions', 'GC': 'cards',   'GP': 'profile',
+    'GY': 'payouts',   'GN': 'donations',    'GS': 'savings', 'GA': 'analytics',
+    'GO': 'contacts',  'GL': 'calendar',     'GR': 'recurring','GB': 'debts',
+  };
   if (navMap[_kbBuffer]) {
     const screen = navMap[_kbBuffer];
     const base = getBasePath();
