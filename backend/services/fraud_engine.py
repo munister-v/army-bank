@@ -908,7 +908,12 @@ def _shannon_entropy(labels: list[int]) -> float:
 
 class FraudEngine:
     """Оркеструє 22 правила у трьох шарах (cheap → medium → expensive).
-    Early-exit після досягнення CRITICAL на будь-якому шарі."""
+    Early-exit після досягнення CRITICAL на будь-якому шарі.
+
+    Кожне правило виконується ізольовано: виключення логуються але не
+    пробиваються вгору — fraud engine НІКОЛИ не блокує переказ через
+    технічну помилку окремого правила.
+    """
 
     def __init__(self):
         # Layer 1: без DB
@@ -939,6 +944,19 @@ class FraudEngine:
         self._mule          = MoneyMuleRule()
         self._propagation   = RecipientRiskPropagationRule()
 
+    # ── Safe wrapper ─────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _run(rule_fn, *args) -> None:
+        """Виконує правило ізольовано. Виключення не пробиваються вгору."""
+        try:
+            rule_fn(*args)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(
+                'fraud rule %s failed: %s', rule_fn.__qualname__, exc
+            )
+
     def assess(
         self,
         account_id: int,
@@ -949,47 +967,48 @@ class FraudEngine:
         recipient_account_id: Optional[int] = None,
     ) -> RiskResult:
         result = RiskResult()
+        r = self._run  # alias
 
         # ── Layer 1: без DB ───────────────────────────────────────────────────
-        self._structuring.evaluate(amount, result)
-        self._round.evaluate(amount, result)
-        self._description.evaluate(description, result)
-        self._depletion.evaluate(account_id, amount, balance, result)
+        r(self._structuring.evaluate,  amount, result)
+        r(self._round.evaluate,        amount, result)
+        r(self._description.evaluate,  description, result)
+        r(self._depletion.evaluate,    account_id, amount, balance, result)
 
         if result.is_critical:
             result.finalize()
             return result
 
         # ── Layer 2: відправник ───────────────────────────────────────────────
-        self._velocity.evaluate(account_id, result)
-        self._account_age.evaluate(account_id, result)
-        self._high_amt.evaluate(account_id, amount, result)
-        self._iqr.evaluate(account_id, amount, result)
-        self._inactivity.evaluate(account_id, amount, result)
-        self._time.evaluate(account_id, result)
-        self._pass_through.evaluate(account_id, amount, result)
-        self._history.evaluate(account_id, result)
+        r(self._velocity.evaluate,     account_id, result)
+        r(self._account_age.evaluate,  account_id, result)
+        r(self._high_amt.evaluate,     account_id, amount, result)
+        r(self._iqr.evaluate,          account_id, amount, result)
+        r(self._inactivity.evaluate,   account_id, amount, result)
+        r(self._time.evaluate,         account_id, result)
+        r(self._pass_through.evaluate, account_id, amount, result)
+        r(self._history.evaluate,      account_id, result)
 
         if result.is_critical:
             result.finalize()
             return result
 
         # ── Layer 3: тяжкі ────────────────────────────────────────────────────
-        self._freq_esc.evaluate(account_id, result)
-        self._entropy.evaluate(account_id, result)
+        r(self._freq_esc.evaluate, account_id, result)
+        r(self._entropy.evaluate,  account_id, result)
 
         if recipient_account:
-            self._duplicate.evaluate(account_id, recipient_account, amount, result)
-            self._split.evaluate(account_id, recipient_account, amount, result)
-            self._progression.evaluate(account_id, recipient_account, amount, result)
-            self._new_recv.evaluate(account_id, recipient_account,
-                                    recipient_account_id or 0, result)
-            self._concentration.evaluate(account_id, recipient_account, result)
-            self._graph.evaluate(account_id, recipient_account, result)
+            r(self._duplicate.evaluate,    account_id, recipient_account, amount, result)
+            r(self._split.evaluate,        account_id, recipient_account, amount, result)
+            r(self._progression.evaluate,  account_id, recipient_account, amount, result)
+            r(self._new_recv.evaluate,     account_id, recipient_account,
+                                           recipient_account_id or 0, result)
+            r(self._concentration.evaluate, account_id, recipient_account, result)
+            r(self._graph.evaluate,         account_id, recipient_account, result)
 
         if recipient_account_id:
-            self._mule.evaluate(recipient_account_id, result)
-            self._propagation.evaluate(recipient_account_id, result)
+            r(self._mule.evaluate,        recipient_account_id, result)
+            r(self._propagation.evaluate, recipient_account_id, result)
 
         result.finalize()
         return result
