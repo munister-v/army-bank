@@ -600,41 +600,155 @@ async function exportCsv() {
 
 $('#exportCsvBtn')?.addEventListener('click', exportCsv);
 
-async function exportStatementPdf() {
-  const btn = $('#exportPdfBtn');
-  try {
-    setButtonLoading(btn, true);
-    const form = $('#transactionsFilters');
-    const params = new URLSearchParams();
-    if (form) {
-      const fd = new FormData(form);
-      if (fd.get('from_date')) params.set('from_date', fd.get('from_date'));
-      if (fd.get('to_date'))   params.set('to_date',   fd.get('to_date'));
-    }
-    const url = '/api/transactions/statement' + (params.toString() ? '?' + params.toString() : '');
-    const res = await fetch((typeof window !== 'undefined' && window.ARMY_BANK_BASE || '') + url, {
-      headers: { Authorization: `Bearer ${api.token}` },
-    });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      throw new Error(j.error || 'Помилка формування виписки');
-    }
-    const blob = await res.blob();
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    const date = new Date().toISOString().slice(0, 10);
-    link.download = `army-bank-statement-${date}.pdf`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(link.href), 15000);
-    showToast('Виписку PDF завантажено.', 'success');
-  } catch (e) {
-    showToast(e.message);
-  } finally {
-    setButtonLoading(btn, false);
-  }
-}
+// ── Statement modal ──────────────────────────────────────────────────────────
+(function () {
+  const overlay   = () => $('#statementOverlay');
+  const dlBtn     = () => $('#stmtDownloadBtn');
+  const cancelBtn = () => $('#stmtCancelBtn');
+  const periodGrid = () => $('#stmtPeriodGrid');
+  const customDates = () => $('#stmtCustomDates');
+  const periodLabel = () => $('#stmtPeriodLabel');
 
-$('#exportPdfBtn')?.addEventListener('click', exportStatementPdf);
+  let _from = null, _to = null;
+
+  function isoDate(d) { return d.toISOString().slice(0, 10); }
+
+  function setActivePeriod(btn) {
+    $$('.stmt-period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function applyPeriod(period) {
+    const now = new Date();
+    customDates().style.display = 'none';
+    dlBtn().disabled = false;
+
+    if (period === 'cur_month') {
+      _from = isoDate(new Date(now.getFullYear(), now.getMonth(), 1));
+      _to   = isoDate(now);
+      const m = now.toLocaleString('uk-UA', { month: 'long', year: 'numeric' });
+      periodLabel().textContent = `Поточний місяць · ${m}`;
+    } else if (period === 'prev_month') {
+      const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const last  = new Date(now.getFullYear(), now.getMonth(), 0);
+      _from = isoDate(first);
+      _to   = isoDate(last);
+      periodLabel().textContent = `Минулий місяць · ${first.toLocaleString('uk-UA', { month: 'long', year: 'numeric' })}`;
+    } else if (period === '3months') {
+      const d = new Date(now); d.setMonth(d.getMonth() - 3);
+      _from = isoDate(d); _to = isoDate(now);
+      periodLabel().textContent = `Останні 3 місяці · ${_from} — ${_to}`;
+    } else if (period === '6months') {
+      const d = new Date(now); d.setMonth(d.getMonth() - 6);
+      _from = isoDate(d); _to = isoDate(now);
+      periodLabel().textContent = `Останні 6 місяців · ${_from} — ${_to}`;
+    } else if (period === 'cur_year') {
+      _from = `${now.getFullYear()}-01-01`; _to = isoDate(now);
+      periodLabel().textContent = `Поточний рік · ${now.getFullYear()}`;
+    } else if (period === 'all') {
+      _from = null; _to = null;
+      periodLabel().textContent = 'Весь час · усі операції';
+    } else if (period === 'custom') {
+      customDates().style.display = 'grid';
+      const fi = $('#stmtFrom'), ti = $('#stmtTo');
+      if (!fi.value && !ti.value) {
+        fi.value = isoDate(new Date(now.getFullYear(), now.getMonth(), 1));
+        ti.value = isoDate(now);
+      }
+      _from = fi.value || null;
+      _to   = ti.value || null;
+      updateCustomLabel();
+    }
+  }
+
+  function updateCustomLabel() {
+    const f = $('#stmtFrom')?.value, t = $('#stmtTo')?.value;
+    _from = f || null; _to = t || null;
+    periodLabel().textContent = (f || t) ? `${f || '…'} — ${t || '…'}` : 'Оберіть діапазон';
+    dlBtn().disabled = !f && !t;
+  }
+
+  function openStatementModal() {
+    const acNum = $('#heroAccount')?.textContent || '—';
+    const owner = $('#heroName')?.textContent || '—';
+    $('#stmtAccount').textContent = acNum;
+    $('#stmtOwner').textContent   = owner;
+
+    // Reset state — default to "this month"
+    $$('.stmt-period-btn').forEach(b => b.classList.remove('active'));
+    customDates().style.display = 'none';
+    const curMonthBtn = document.querySelector('.stmt-period-btn[data-period="cur_month"]');
+    if (curMonthBtn) { curMonthBtn.classList.add('active'); applyPeriod('cur_month'); }
+
+    overlay()?.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeStatementModal() {
+    overlay()?.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  async function downloadStatement() {
+    const btn = dlBtn();
+    try {
+      btn.disabled = true;
+      btn.innerHTML = '<span style="opacity:.6">Формування…</span>';
+      const params = new URLSearchParams();
+      if (_from) params.set('from_date', _from);
+      if (_to)   params.set('to_date',   _to);
+      const url = '/api/transactions/statement' + (params.toString() ? '?' + params.toString() : '');
+      const res = await fetch((window.ARMY_BANK_BASE || '') + url, {
+        headers: { Authorization: `Bearer ${api.token}` },
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Помилка формування виписки');
+      }
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      const suffix = (_from && _to) ? `${_from}_${_to}` : new Date().toISOString().slice(0, 10);
+      link.download = `army-bank-statement-${suffix}.pdf`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 15000);
+      showToast('Виписку PDF завантажено.', 'success');
+      closeStatementModal();
+    } catch (e) {
+      showToast(e.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Завантажити PDF`;
+    }
+  }
+
+  // Wire up after DOM ready
+  function init() {
+    $('#exportPdfBtn')?.addEventListener('click', openStatementModal);
+
+    periodGrid()?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.stmt-period-btn');
+      if (!btn) return;
+      setActivePeriod(btn);
+      applyPeriod(btn.dataset.period);
+    });
+    // custom period button outside grid
+    document.querySelector('.stmt-period-btn[data-period="custom"]')?.addEventListener('click', function() {
+      setActivePeriod(this);
+      applyPeriod('custom');
+    });
+
+    $('#stmtFrom')?.addEventListener('change', updateCustomLabel);
+    $('#stmtTo')?.addEventListener('change', updateCustomLabel);
+    dlBtn()?.addEventListener('click', downloadStatement);
+    cancelBtn()?.addEventListener('click', closeStatementModal);
+    overlay()?.addEventListener('click', (e) => { if (e.target === overlay()) closeStatementModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeStatementModal(); });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
 
 // ── ANALYTICS ───────────────────────────────────────────
 async function loadAnalytics() {

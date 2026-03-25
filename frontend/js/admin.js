@@ -1,4 +1,4 @@
-// Army Bank — Admin Panel
+// Army Bank — Admin Panel v3
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 
@@ -6,7 +6,7 @@ function showToast(msg) {
   const t = $('#toast');
   t.textContent = msg;
   t.classList.remove('hidden');
-  setTimeout(() => t.classList.add('hidden'), 2600);
+  setTimeout(() => t.classList.add('hidden'), 2800);
 }
 
 function basePath() {
@@ -14,12 +14,17 @@ function basePath() {
 }
 
 function fmtMoney(v) {
-  return '₴' + Number(v || 0).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '₴\u202f' + Number(v || 0).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function fmtDate(s) {
   if (!s) return '—';
   return new Date(s).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtShortDate(s) {
+  if (!s) return '—';
+  return new Date(s).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit' });
 }
 
 const RISK_BADGE = {
@@ -35,6 +40,11 @@ const STATUS_BADGE = {
   failed:     '<span style="color:#f87171;font-size:11px">✗ Помилка</span>',
   processing: '<span style="color:#fbbf24;font-size:11px">⏳ Обробка</span>',
   pending:    '<span style="color:#9b9bc0;font-size:11px">○ Очікує</span>',
+};
+
+const TX_TYPE_UA = {
+  transfer: 'Переказ', topup: 'Поповнення', payout: 'Виплата',
+  donation: 'Донат', savings: 'Накопичення',
 };
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -55,30 +65,136 @@ async function checkAdmin() {
   }
 }
 
+// ── Overview ──────────────────────────────────────────────────────────────────
+
+async function loadOverview() {
+  try {
+    const [statsRes, chartRes] = await Promise.all([
+      api.request('/api/admin/stats'),
+      api.request('/api/admin/stats/charts?days=' + ($('#chartDays')?.value || 14)),
+    ]);
+
+    // KPI cards
+    $('#ovUsers').textContent    = statsRes.total_users ?? '—';
+    $('#ovBalance').textContent  = fmtMoney(statsRes.total_balance);
+    $('#ovTx').textContent       = statsRes.total_tx ?? '—';
+    $('#ovPayouts').textContent  = fmtMoney(statsRes.total_payouts);
+    $('#ovDonations').textContent = fmtMoney(statsRes.total_donations);
+
+    // Bar chart
+    renderBarChart(chartRes.daily || []);
+
+    // Type distribution
+    renderTypeDist(chartRes.by_type || []);
+
+    // Top users
+    renderTopUsers(chartRes.top_users || []);
+  } catch (e) {
+    console.warn('overview:', e.message);
+  }
+}
+
+function renderBarChart(daily) {
+  const wrap = $('#barChartWrap');
+  if (!wrap) return;
+  if (!daily.length) { wrap.innerHTML = '<div class="muted" style="padding:20px;text-align:center">Даних немає</div>'; return; }
+
+  const W = Math.max(wrap.offsetWidth || 600, 300);
+  const H = 140;
+  const pad = { top: 10, right: 10, bottom: 30, left: 8 };
+  const barW = Math.max(4, Math.floor((W - pad.left - pad.right) / daily.length) - 3);
+  const maxIn  = Math.max(...daily.map(d => d.vol_in  || 0), 1);
+  const maxOut = Math.max(...daily.map(d => d.vol_out || 0), 1);
+  const maxVal = Math.max(maxIn, maxOut, 1);
+  const innerH = H - pad.top - pad.bottom;
+
+  const bars = daily.map((d, i) => {
+    const x = pad.left + i * ((W - pad.left - pad.right) / daily.length);
+    const hIn  = Math.round((d.vol_in  / maxVal) * innerH);
+    const hOut = Math.round((d.vol_out / maxVal) * innerH);
+    const yIn  = pad.top + innerH - hIn;
+    const yOut = pad.top + innerH - hOut;
+    const label = fmtShortDate(d.day + 'T00:00:00');
+    return `
+      <rect x="${x}" y="${yIn}" width="${barW}" height="${hIn}" rx="2" fill="#1a56db" opacity=".75"/>
+      <rect x="${x + barW / 2}" y="${yOut}" width="${barW / 2}" height="${hOut}" rx="2" fill="#f87171" opacity=".6"/>
+      <text x="${x + barW / 2}" y="${H - 4}" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.4)">${label}</text>
+    `;
+  }).join('');
+
+  wrap.innerHTML = `
+    <svg width="100%" viewBox="0 0 ${W} ${H}" class="bar-chart" style="overflow:visible">
+      ${bars}
+    </svg>
+    <div style="display:flex;gap:16px;margin-top:8px;font-size:11px;opacity:.55">
+      <span><span style="display:inline-block;width:10px;height:10px;background:#1a56db;border-radius:2px;margin-right:4px"></span>Надходження</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#f87171;border-radius:2px;margin-right:4px"></span>Витрати</span>
+    </div>
+  `;
+}
+
+function renderTypeDist(byType) {
+  const wrap = $('#typeDistWrap');
+  if (!wrap) return;
+  if (!byType.length) { wrap.innerHTML = '<div class="muted" style="font-size:12px">Немає даних</div>'; return; }
+  const total = byType.reduce((s, r) => s + (r.cnt || 0), 0) || 1;
+  wrap.innerHTML = '<div class="type-dist">' + byType.map(r => {
+    const pct = Math.round((r.cnt / total) * 100);
+    return `<span class="type-pill">${TX_TYPE_UA[r.tx_type] || r.tx_type} <strong>${r.cnt}</strong> <span style="opacity:.5">${pct}%</span></span>`;
+  }).join('') + '</div>';
+}
+
+function renderTopUsers(topUsers) {
+  const wrap = $('#topUsersWrap');
+  if (!wrap) return;
+  if (!topUsers.length) { wrap.innerHTML = '<div class="muted" style="font-size:12px">Немає даних</div>'; return; }
+  const maxVol = Math.max(...topUsers.map(u => u.total_vol || 0), 1);
+  wrap.innerHTML = topUsers.map(u => {
+    const pct = Math.round(((u.total_vol || 0) / maxVol) * 100);
+    return `
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+          <span style="opacity:.8">${u.full_name || '—'}</span>
+          <span style="font-weight:700">${fmtMoney(u.total_vol)}</span>
+        </div>
+        <div style="background:rgba(255,255,255,.07);border-radius:4px;height:5px">
+          <div style="background:#1a56db;border-radius:4px;height:100%;width:${pct}%;transition:width .4s"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 // ── Users ────────────────────────────────────────────────────────────────────
 
-async function loadUsers(roleFilter) {
+async function loadUsers() {
+  const role   = $('#roleFilter')?.value || '';
+  const search = $('#userSearch')?.value?.trim() || '';
   let url = '/api/admin/users';
-  if (roleFilter) url += '?role=' + encodeURIComponent(roleFilter);
+  const p = new URLSearchParams();
+  if (role)   p.set('role', role);
+  if (search) p.set('search', search);
+  if (p.toString()) url += '?' + p.toString();
+
   const users = await api.request(url);
   const body = $('#usersTableBody');
   body.innerHTML = users.map((u) => `
     <tr data-id="${u.id}">
       <td><strong>#${u.id}</strong></td>
       <td><div><strong>${u.full_name}</strong></div><div class="subtle">${u.military_status || ''}</div></td>
-      <td class="subtle">${u.phone}<br>${u.email}</td>
+      <td class="subtle" style="font-size:12px">${u.phone || '—'}<br>${u.email || '—'}</td>
       <td>
-        <select class="role-select" data-user-id="${u.id}">
-          <option value="soldier"       ${u.role === 'soldier'       ? 'selected' : ''}>Військовий</option>
-          <option value="operator"      ${u.role === 'operator'      ? 'selected' : ''}>Оператор</option>
-          <option value="admin"         ${u.role === 'admin'         ? 'selected' : ''}>Адмін</option>
-          <option value="platform_admin"${u.role === 'platform_admin'? 'selected' : ''}>Платформа</option>
+        <select class="role-select" data-user-id="${u.id}" style="font-size:12px">
+          <option value="soldier"        ${u.role === 'soldier'        ? 'selected' : ''}>Військовий</option>
+          <option value="operator"       ${u.role === 'operator'       ? 'selected' : ''}>Оператор</option>
+          <option value="admin"          ${u.role === 'admin'          ? 'selected' : ''}>Адмін</option>
+          <option value="platform_admin" ${u.role === 'platform_admin' ? 'selected' : ''}>Платформа</option>
         </select>
       </td>
       <td>
         <div class="btn-row">
           <button type="button" class="small-btn save-role" data-user-id="${u.id}">Зберегти</button>
-          <button type="button" class="ghost-btn small-btn open-user" data-user-id="${u.id}">Деталі</button>
+          <button type="button" class="ghost-btn small-btn open-user" data-user-id="${u.id}">Деталі →</button>
         </div>
       </td>
     </tr>
@@ -92,7 +208,7 @@ async function loadUsers(roleFilter) {
       try {
         await api.request(`/api/admin/users/${userId}/role`, { method: 'PATCH', body: JSON.stringify({ role }) });
         showToast('Роль оновлено.');
-        loadUsers($('#roleFilter').value);
+        loadUsers();
       } catch (e) { showToast(e.message); }
     });
   });
@@ -100,6 +216,81 @@ async function loadUsers(roleFilter) {
   $$('.open-user').forEach((btn) =>
     btn.addEventListener('click', () => openUserDrawer(Number(btn.dataset.userId)))
   );
+}
+
+// ── Registry ──────────────────────────────────────────────────────────────────
+
+let _regPage = 0;
+const _regLimit = 50;
+let _regTotal = 0;
+
+async function loadRegistry(reset) {
+  if (reset) _regPage = 0;
+  const params = new URLSearchParams();
+  params.set('limit',  _regLimit);
+  params.set('offset', _regPage * _regLimit);
+  const search = $('#regSearch')?.value?.trim();
+  const userId = $('#regUserId')?.value?.trim();
+  const type   = $('#regType')?.value;
+  const dir    = $('#regDir')?.value;
+  const from   = $('#regFrom')?.value;
+  const to     = $('#regTo')?.value;
+  const minA   = $('#regMin')?.value;
+  const maxA   = $('#regMax')?.value;
+  if (search) params.set('search', search);
+  if (userId) params.set('user_id', userId);
+  if (type)   params.set('tx_type', type);
+  if (dir)    params.set('direction', dir);
+  if (from)   params.set('from_date', from);
+  if (to)     params.set('to_date', to);
+  if (minA)   params.set('min_amount', minA);
+  if (maxA)   params.set('max_amount', maxA);
+
+  $('#regTableBody').innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr>';
+  try {
+    const res = await api.request('/api/admin/transactions?' + params.toString());
+    const rows = Array.isArray(res) ? res : (res.data || []);
+    _regTotal = res.total ?? rows.length;
+
+    $('#regTotal').textContent = `Знайдено: ${_regTotal} транзакцій`;
+    $('#regPrev').disabled = _regPage === 0;
+    $('#regNext').disabled = (_regPage + 1) * _regLimit >= _regTotal;
+    $('#regPageInfo').textContent = `Сторінка ${_regPage + 1} / ${Math.max(1, Math.ceil(_regTotal / _regLimit))}`;
+
+    if (!rows.length) {
+      $('#regTableBody').innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Нічого не знайдено</td></tr>';
+      return;
+    }
+    $('#regTableBody').innerHTML = rows.map(t => `
+      <tr>
+        <td><strong>#${t.id}</strong></td>
+        <td style="font-size:11px;white-space:nowrap">${fmtDate(t.created_at)}</td>
+        <td style="font-size:12px">${t.full_name || '—'}<br><span class="muted" style="font-size:11px">id:${t.user_id}</span></td>
+        <td style="font-size:11px;font-family:monospace">${t.account_number || '—'}</td>
+        <td><span style="font-size:11px;background:rgba(255,255,255,.07);padding:2px 7px;border-radius:100px">${TX_TYPE_UA[t.tx_type] || t.tx_type}</span></td>
+        <td style="font-size:12px">${t.direction === 'in' ? '<span style="color:#34d399">▲ Прихід</span>' : '<span style="color:#f87171">▼ Витрата</span>'}</td>
+        <td style="font-weight:700;white-space:nowrap">${fmtMoney(t.amount)}</td>
+        <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.description || ''}">${t.description || '—'}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    $('#regTableBody').innerHTML = `<tr><td colspan="8" style="color:#f87171;padding:16px">${e.message}</td></tr>`;
+  }
+}
+
+function registryPage(delta) {
+  _regPage = Math.max(0, _regPage + delta);
+  loadRegistry(false);
+}
+
+function resetRegistry() {
+  ['#regSearch','#regUserId','#regMin','#regMax'].forEach(id => { const el = $(id); if (el) el.value = ''; });
+  ['#regType','#regDir'].forEach(id => { const el = $(id); if (el) el.value = ''; });
+  ['#regFrom','#regTo'].forEach(id => { const el = $(id); if (el) el.value = ''; });
+  $('#regTotal').textContent = '';
+  $('#regTableBody').innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Застосуйте фільтр або натисніть ↻</td></tr>';
+  ['#regPrev','#regNext'].forEach(id => { const el = $(id); if (el) el.disabled = true; });
+  $('#regPageInfo').textContent = '—';
 }
 
 // ── Security tab ─────────────────────────────────────────────────────────────
@@ -112,9 +303,9 @@ async function loadFraudStats() {
     const high = (data.by_level || []).find(r => r.risk_level === 'high');
     const unresolved = (data.unresolved_events || []).reduce((s, r) => s + Number(r.cnt), 0);
 
-    $('#statBlocked').textContent  = blocked  ? blocked.cnt  : '0';
-    $('#statCritical').textContent = critical ? critical.cnt : '0';
-    $('#statHigh').textContent     = high     ? high.cnt     : '0';
+    $('#statBlocked').textContent    = blocked  ? blocked.cnt  : '0';
+    $('#statCritical').textContent   = critical ? critical.cnt : '0';
+    $('#statHigh').textContent       = high     ? high.cnt     : '0';
     $('#statUnresolved').textContent = unresolved;
 
     const badge = $('#unresolvedBadge');
@@ -126,14 +317,19 @@ async function loadFraudStats() {
 async function loadOrders() {
   const risk   = $('#orderRiskFilter').value;
   const status = $('#orderStatusFilter').value;
-  let url = '/api/admin/payments/orders?limit=50';
-  if (risk)   url += '&risk_level=' + risk;
-  if (status) url += '&status='     + status;
+  const from   = $('#orderFromDate')?.value;
+  const to     = $('#orderToDate')?.value;
+  const params = new URLSearchParams({ limit: 50 });
+  if (risk)   params.set('risk_level', risk);
+  if (status) params.set('status', status);
+  if (from)   params.set('from_date', from);
+  if (to)     params.set('to_date', to);
 
   $('#ordersTableBody').innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center;padding:16px">Завантаження…</td></tr>';
   try {
-    const { data } = await api.request(url);
-    if (!data || !data.length) {
+    const res = await api.request('/api/admin/payments/orders?' + params.toString());
+    const data = Array.isArray(res) ? res : (res.data || []);
+    if (!data.length) {
       $('#ordersTableBody').innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">Немає ордерів за фільтром</td></tr>';
       return;
     }
@@ -157,8 +353,9 @@ async function loadRiskEvents() {
   const list = $('#riskEventsList');
   list.innerHTML = '<div class="muted" style="padding:12px">Завантаження…</div>';
   try {
-    const { data } = await api.request('/api/admin/payments/risk-events?resolved=false&limit=30');
-    if (!data || !data.length) {
+    const res = await api.request('/api/admin/payments/risk-events?resolved=false&limit=30');
+    const data = Array.isArray(res) ? res : (res.data || []);
+    if (!data.length) {
       list.innerHTML = '<div class="muted" style="padding:16px;text-align:center">✓ Невирішених подій немає</div>';
       return;
     }
@@ -212,17 +409,16 @@ async function runIntegrityCheck() {
   btn.disabled = true; btn.textContent = 'Перевірка…';
   pre.style.display = 'none';
   try {
-    const { data } = await api.request('/api/admin/payments/integrity-check');
+    const res  = await api.request('/api/admin/payments/integrity-check');
+    const data = res.data ?? res;
     const color = data.all_ok ? '#34d399' : '#f87171';
-    const icon  = data.all_ok ? '✓' : '✗';
     pre.style.display = 'block';
     pre.style.color = color;
-    pre.textContent = `${icon} Рахунків перевірено: ${data.total_accounts}\n`
-      + `Порушень: ${data.broken_accounts}\n`
+    pre.textContent = `${data.all_ok ? '✓' : '✗'} Рахунків: ${data.total_accounts}\nПорушень: ${data.broken_accounts}\n`
       + (data.all_ok ? 'Цілісність збережена.' : JSON.stringify(
-          Object.entries(data.per_account)
+          Object.entries(data.per_account || {})
             .filter(([, r]) => !r.ok)
-            .map(([id, r]) => ({ account: id, broken_at_tx: r.broken_at, errors: r.errors.length })),
+            .map(([id, r]) => ({ account: id, broken_at_tx: r.broken_at, errors: r.errors?.length })),
           null, 2
         ));
   } catch (e) {
@@ -237,14 +433,25 @@ async function runIntegrityCheck() {
 // ── Audit ────────────────────────────────────────────────────────────────────
 
 async function loadAudit() {
+  const action = $('#auditActionFilter')?.value || '';
+  const userId = $('#auditUserIdFilter')?.value?.trim() || '';
+  const params = new URLSearchParams({ limit: 200 });
+  if (userId) params.set('user_id', userId);
+
   try {
-    const logs = await api.request('/api/admin/audit-logs');
-    const filtered = (Array.isArray(logs) ? logs : []).filter((l) => l.action !== 'statement_pdf');
-    $('#auditList').innerHTML = filtered.length
-      ? filtered.map((l) => `
+    const res  = await api.request('/api/admin/audit-logs?' + params.toString());
+    let logs = Array.isArray(res) ? res : (res.data || []);
+    logs = logs.filter(l => l.action !== 'statement_pdf');
+    if (action) logs = logs.filter(l => l.action === action);
+
+    $('#auditList').innerHTML = logs.length
+      ? logs.map((l) => `
           <div class="item">
-            <div class="item-header"><strong>${l.action}</strong><span class="muted">${fmtDate(l.created_at)}</span></div>
-            <div class="muted">user_id: ${l.user_id ?? '—'} · ${l.details || '—'}</div>
+            <div class="item-header">
+              <strong>${l.action}</strong>
+              <span class="muted">${fmtDate(l.created_at)}</span>
+            </div>
+            <div class="muted" style="font-size:12px">user_id: ${l.user_id ?? '—'} · ${l.details || '—'}</div>
           </div>
         `).join('')
       : '<div class="muted" style="padding:16px;text-align:center">Логів немає.</div>';
@@ -255,9 +462,10 @@ async function loadAudit() {
 
 async function loadStatements() {
   try {
-    const logs = await api.request('/api/admin/payments/statements');
+    const res  = await api.request('/api/admin/payments/statements');
+    const logs = Array.isArray(res) ? res : (res.data || []);
     const tbody = $('#statementsTableBody');
-    if (!logs || !logs.length) {
+    if (!logs.length) {
       tbody.innerHTML = '<tr><td colspan="3" class="muted" style="text-align:center;padding:20px">Виписки ще не завантажувались.</td></tr>';
       return;
     }
@@ -281,16 +489,16 @@ function switchTab(tabId) {
   $$('.menu-btn[data-tab]').forEach((btn) =>
     btn.classList.toggle('active', btn.dataset.tab === tabId)
   );
-  if (tabId === 'users')    loadUsers($('#roleFilter').value);
+  if (tabId === 'overview') loadOverview();
+  if (tabId === 'users')    loadUsers();
+  if (tabId === 'registry') { resetRegistry(); }
   if (tabId === 'audit')    { loadAudit(); loadStatements(); }
-  if (tabId === 'security') {
-    loadFraudStats();
-    loadOrders();
-    loadRiskEvents();
-  }
+  if (tabId === 'security') { loadFraudStats(); loadOrders(); loadRiskEvents(); }
 }
 
 // ── Drawer ───────────────────────────────────────────────────────────────────
+
+let _drawerUserId = null;
 
 function setDrawer(open) {
   $('#drawer')?.classList.toggle('open', open);
@@ -298,30 +506,91 @@ function setDrawer(open) {
 }
 
 async function openUserDrawer(userId) {
+  _drawerUserId = userId;
   try {
     setDrawer(true);
     $('#drawerTitle').textContent = `Користувач #${userId}`;
-    $('#drawerSub').textContent = 'Завантаження...';
+    $('#drawerSub').textContent   = 'Завантаження...';
     $('#drawerBalance').textContent = '—';
     $('#drawerAccount').textContent = '—';
     $('#drawerTx').innerHTML = '';
-    const [account, txs] = await Promise.all([
+
+    const [userRes, accountRes, txRes] = await Promise.all([
+      api.request(`/api/admin/users/${userId}`),
       api.request(`/api/admin/users/${userId}/account`),
-      api.request(`/api/admin/users/${userId}/transactions?limit=50`),
+      api.request(`/api/admin/users/${userId}/transactions?limit=20`),
     ]);
-    $('#drawerSub').textContent = account.account_number || '—';
+    const user    = userRes.data ?? userRes;
+    const account = accountRes.data ?? accountRes;
+    const txs     = txRes.data ?? txRes;
+
+    $('#drawerTitle').textContent   = user.full_name || `Користувач #${userId}`;
+    $('#drawerSub').textContent     = user.email || '—';
     $('#drawerBalance').textContent = `Баланс: ${fmtMoney(account.balance)}`;
     $('#drawerAccount').textContent = `Рахунок: ${account.account_number}`;
-    $('#drawerTx').innerHTML = (txs || []).slice(0, 20).map((t) => `
+
+    // Set current role in selector
+    const roleSelect = $('#drawerRoleSelect');
+    if (roleSelect) roleSelect.value = user.role || 'soldier';
+
+    $('#drawerTx').innerHTML = (Array.isArray(txs) ? txs : []).map((t) => `
       <div class="item">
         <div class="item-header">
-          <strong>${t.description}</strong>
-          <span class="amount ${t.direction}">${t.direction === 'in' ? '+' : '-'}${fmtMoney(t.amount)}</span>
+          <strong style="font-size:13px">${t.description}</strong>
+          <span class="${t.direction === 'in' ? 'amount in' : 'amount out'}">${t.direction === 'in' ? '+' : '-'}${fmtMoney(t.amount)}</span>
         </div>
-        <div class="subtle">${t.tx_type} · ${fmtDate(t.created_at)}${t.related_account ? ` · ${t.related_account}` : ''}</div>
+        <div class="subtle" style="font-size:11px">${TX_TYPE_UA[t.tx_type] || t.tx_type} · ${fmtDate(t.created_at)}</div>
       </div>
     `).join('') || '<div class="item"><span class="subtle">Транзакцій немає.</span></div>';
   } catch (e) { showToast(e.message); setDrawer(false); }
+}
+
+async function drawerSaveRole() {
+  if (!_drawerUserId) return;
+  const role = $('#drawerRoleSelect')?.value;
+  if (!role) return;
+  try {
+    await api.request(`/api/admin/users/${_drawerUserId}/role`, {
+      method: 'PATCH', body: JSON.stringify({ role })
+    });
+    showToast('Роль оновлено.');
+    loadUsers();
+  } catch (e) { showToast(e.message); }
+}
+
+async function drawerSendPayout() {
+  if (!_drawerUserId) return;
+  const amount = parseFloat($('#drawerPayoutAmt')?.value);
+  const title  = $('#drawerPayoutTitle')?.value?.trim() || 'Виплата';
+  if (!amount || amount <= 0) { showToast('Вкажіть суму.'); return; }
+  try {
+    const res = await api.request('/api/admin/payouts', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: _drawerUserId, amount, title, payout_type: 'combat' }),
+    });
+    showToast(`Нараховано ${fmtMoney(amount)}`);
+    $('#drawerPayoutAmt').value = '';
+    openUserDrawer(_drawerUserId);  // refresh
+  } catch (e) { showToast(e.message); }
+}
+
+async function drawerBalanceAdjust() {
+  if (!_drawerUserId) return;
+  const amount = parseFloat($('#drawerAdjAmt')?.value);
+  const type   = $('#drawerAdjType')?.value || 'credit';
+  const reason = $('#drawerAdjReason')?.value?.trim() || 'Ручне коригування';
+  if (!amount || amount <= 0) { showToast('Вкажіть суму.'); return; }
+  try {
+    const res = await api.request(`/api/admin/users/${_drawerUserId}/balance-adjust`, {
+      method: 'POST',
+      body: JSON.stringify({ amount, type, reason }),
+    });
+    const d = res.data ?? res;
+    showToast(`Новий баланс: ${fmtMoney(d.new_balance)}`);
+    $('#drawerAdjAmt').value = '';
+    $('#drawerAdjReason').value = '';
+    openUserDrawer(_drawerUserId);  // refresh
+  } catch (e) { showToast(e.message); }
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
@@ -332,15 +601,32 @@ async function openUserDrawer(userId) {
   const roleLabels = { soldier: 'Військовий', operator: 'Оператор', admin: 'Адмін', platform_admin: 'Платформа' };
   $('#adminUser').textContent = user.email + ' · ' + (roleLabels[user.role] || user.role);
 
-  $('#roleFilter').addEventListener('change', () => loadUsers($('#roleFilter').value));
-  $('#orderRiskFilter').addEventListener('change', loadOrders);
-  $('#orderStatusFilter').addEventListener('change', loadOrders);
+  // Filters
+  $('#roleFilter')?.addEventListener('change', loadUsers);
+  $('#userSearch')?.addEventListener('input', () => { clearTimeout(window._userSearchT); window._userSearchT = setTimeout(loadUsers, 350); });
+  $('#orderRiskFilter')?.addEventListener('change', loadOrders);
+  $('#orderStatusFilter')?.addEventListener('change', loadOrders);
+  $('#orderFromDate')?.addEventListener('change', loadOrders);
+  $('#orderToDate')?.addEventListener('change', loadOrders);
+  $('#auditActionFilter')?.addEventListener('change', loadAudit);
+  $('#auditUserIdFilter')?.addEventListener('input', () => { clearTimeout(window._auditT); window._auditT = setTimeout(loadAudit, 400); });
+  $('#chartDays')?.addEventListener('change', loadOverview);
 
+  // Reg: search on Enter
+  $('#regSearch')?.addEventListener('keydown', e => { if (e.key === 'Enter') loadRegistry(true); });
+
+  // Tab nav
   $$('.menu-btn[data-tab]').forEach((btn) =>
     btn.addEventListener('click', () => switchTab(btn.dataset.tab))
   );
+
+  // Drawer buttons
   $('#drawerClose')?.addEventListener('click', () => setDrawer(false));
   $('#backdrop')?.addEventListener('click', () => setDrawer(false));
+  $('#drawerSaveRole')?.addEventListener('click', drawerSaveRole);
+  $('#drawerSendPayout')?.addEventListener('click', drawerSendPayout);
+  $('#drawerAdjSubmit')?.addEventListener('click', drawerBalanceAdjust);
+
   $('#logoutBtn').addEventListener('click', () => {
     api.setToken('');
     window.location.href = basePath() || '/';
