@@ -520,6 +520,7 @@ def sla_auto_escalate():
                 decision='escalate',
                 actor_user_id=int(g.current_user['id']),
                 note=note,
+                include_order=False,
             )
             if updated:
                 escalated_ids.append(int(row['id']))
@@ -659,9 +660,10 @@ def sla_bulk_action():
     now = datetime.now(timezone.utc)
     success_ids: list[int] = []
     failed: list[dict] = []
+    orders_map = _repo.get_orders_brief_map(ids)
 
     for order_id in ids:
-        order = _repo.get_order(order_id)
+        order = orders_map.get(order_id)
         if not order:
             failed.append({'id': order_id, 'error': 'order_not_found'})
             continue
@@ -673,7 +675,10 @@ def sla_bulk_action():
         try:
             ok = False
             if action == 'assign':
-                ok = bool(_repo.assign_order(order_id, assignee_id, g.current_user['id'], note))
+                ok = bool(_repo.assign_order(
+                    order_id, assignee_id, g.current_user['id'], note,
+                    include_order=False,
+                ))
             elif action == 'note':
                 ok = _repo.add_order_note(order_id, g.current_user['id'], note)
             else:
@@ -704,6 +709,7 @@ def sla_bulk_action():
                             approver_id=int(g.current_user['id']),
                             approve_request=True,
                             note=note,
+                            include_order=False,
                         ))
                     else:
                         ok = bool(_repo.request_approval(
@@ -711,9 +717,13 @@ def sla_bulk_action():
                             requested_action=decision,
                             requested_by=int(g.current_user['id']),
                             note=note,
+                            include_order=False,
                         ))
                 else:
-                    ok = bool(_repo.set_manual_decision(order_id, decision, g.current_user['id'], note))
+                    ok = bool(_repo.set_manual_decision(
+                        order_id, decision, g.current_user['id'], note,
+                        include_order=False,
+                    ))
 
             if ok:
                 success_ids.append(order_id)

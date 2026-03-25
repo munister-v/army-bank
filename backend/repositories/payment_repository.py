@@ -67,6 +67,31 @@ class PaymentRepository:
                 (key,)
             ).fetchone()
 
+    def get_orders_brief_map(self, order_ids: list[int]) -> dict[int, dict]:
+        clean_ids: list[int] = []
+        for raw in order_ids or []:
+            try:
+                oid = int(raw)
+            except Exception:
+                continue
+            if oid > 0:
+                clean_ids.append(oid)
+        clean_ids = list(dict.fromkeys(clean_ids))
+        if not clean_ids:
+            return {}
+
+        placeholders = ','.join(['%s'] * len(clean_ids))
+        sql = f"""
+            SELECT id, status, risk_level, review_state,
+                   approval_state, approval_requested_action, approval_requested_by,
+                   created_at, updated_at
+            FROM payment_orders
+            WHERE id IN ({placeholders})
+        """
+        with get_connection() as conn:
+            rows = conn.execute(sql, tuple(clean_ids)).fetchall()
+        return {int(r['id']): dict(r) for r in rows}
+
     def set_status(self, order_id: int, status: str,
                    tx_id_out: int | None = None, tx_id_in: int | None = None,
                    failure_reason: str | None = None) -> None:
@@ -221,7 +246,8 @@ class PaymentRepository:
         return [dict(r) for r in rows]
 
     def assign_order(self, order_id: int, assigned_admin_id: int,
-                     actor_user_id: int, note: str = '') -> dict | None:
+                     actor_user_id: int, note: str = '',
+                     include_order: bool = True) -> dict | None:
         with get_connection() as conn:
             updated = conn.execute(
                 """UPDATE payment_orders
@@ -247,10 +273,11 @@ class PaymentRepository:
                        VALUES (%s,%s,'note',%s)""",
                     (order_id, actor_user_id, note[:500])
                 )
-        return self.get_order(order_id)
+        return self.get_order(order_id) if include_order else {'id': order_id}
 
     def set_manual_decision(self, order_id: int, decision: str,
-                            actor_user_id: int, note: str = '') -> dict | None:
+                            actor_user_id: int, note: str = '',
+                            include_order: bool = True) -> dict | None:
         normalized = (decision or '').strip().lower()
         if normalized not in {'approve', 'reject', 'escalate', 'clear'}:
             return None
@@ -328,7 +355,7 @@ class PaymentRepository:
                    VALUES (%s,%s,%s,%s)""",
                 (order_id, actor_user_id, event_type, event_details)
             )
-        return self.get_order(order_id)
+        return self.get_order(order_id) if include_order else {'id': order_id}
 
     def add_order_note(self, order_id: int, actor_user_id: int, note: str) -> bool:
         safe_note = (note or '').strip()[:500]
@@ -354,7 +381,8 @@ class PaymentRepository:
         return True
 
     def request_approval(self, order_id: int, requested_action: str,
-                         requested_by: int, note: str = '') -> dict | None:
+                         requested_by: int, note: str = '',
+                         include_order: bool = True) -> dict | None:
         action = (requested_action or '').strip().lower()
         if action not in {'approve', 'reject'}:
             return None
@@ -385,10 +413,11 @@ class PaymentRepository:
                    VALUES (%s,%s,'approval_requested',%s)""",
                 (order_id, requested_by, f'action={action}; note={safe_note}')
             )
-        return self.get_order(order_id)
+        return self.get_order(order_id) if include_order else {'id': order_id}
 
     def finalize_approval(self, order_id: int, approver_id: int,
-                          approve_request: bool, note: str = '') -> dict | None:
+                          approve_request: bool, note: str = '',
+                          include_order: bool = True) -> dict | None:
         safe_note = (note or '').strip()[:500]
         with get_connection() as conn:
             row = conn.execute(
@@ -438,7 +467,7 @@ class PaymentRepository:
                 (order_id, approver_id,
                  f'approved={approve_request}; requested_action={requested_action}; note={safe_note}')
             )
-        return self.get_order(order_id)
+        return self.get_order(order_id) if include_order else {'id': order_id}
 
     # ── Risk Events ───────────────────────────────────────────────────────────
 
