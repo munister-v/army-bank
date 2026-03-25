@@ -179,6 +179,7 @@ Recommended pipeline:
    - `https://army-bank.onrender.com/api/postman/collection`
 2. Import environment URL:
    - `https://army-bank.onrender.com/api/postman/environment`
+   - fallback from repo: `postman/army-bank.postman_collection.json` and `postman/army-bank.postman_environment.json`
 3. Fill environment variables:
    - `identity`
    - `password`

@@ -100,6 +100,11 @@ pytest tests/ -v
 - Postman environment: `GET /api/postman/environment`
 - Healthcheck: `GET /health`
 
+Локальні файли в репозиторії:
+
+- `postman/army-bank.postman_collection.json`
+- `postman/army-bank.postman_environment.json`
+
 Продакшн-приклади:
 
 - https://army-bank.onrender.com/api
