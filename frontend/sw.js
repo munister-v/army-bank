@@ -1,5 +1,5 @@
-/* Army Bank — Service Worker v13 */
-const CACHE = 'army-bank-v13';
+/* Army Bank — Service Worker v14 */
+const CACHE = 'army-bank-v14';
 
 /* Assets to pre-cache on install */
 const PRECACHE = [
@@ -10,18 +10,19 @@ const PRECACHE = [
   '/js/api.js',
   '/js/app.js',
   '/icons/icon-192.png',
+  '/icons/icon-512.png',
 ];
 
 /* ── Install: pre-cache assets, skip waiting immediately ── */
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => c.addAll(PRECACHE))
-      .then(() => self.skipWaiting())   // activate immediately, no waiting
+      .then(c => c.addAll(PRECACHE.map(url => new Request(url, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
   );
 });
 
-/* ── Activate: wipe old caches, claim all clients, reload them ── */
+/* ── Activate: wipe old caches, claim all clients ── */
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
@@ -30,7 +31,6 @@ self.addEventListener('activate', e => {
       ))
       .then(() => self.clients.claim())
       .then(() => {
-        // Tell all open tabs to reload so they get fresh HTML immediately
         return self.clients.matchAll({ type: 'window' }).then(clients => {
           clients.forEach(c => c.postMessage({ type: 'SW_UPDATED' }));
         });
@@ -44,8 +44,11 @@ self.addEventListener('fetch', e => {
 
   if (e.request.method !== 'GET') return;
 
-  // Bypass API calls and external backends
-  if (url.pathname.startsWith('/api/') || url.hostname.includes('onrender.com')) return;
+  // Bypass API calls and push subscriptions
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/push')) return;
+
+  // Bypass external backends (Render)
+  if (url.hostname.includes('onrender.com')) return;
 
   // Google Fonts — cache-first (rarely change)
   if (url.hostname.includes('fonts.g') || url.pathname.endsWith('.woff2')) {
@@ -59,14 +62,13 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // HTML navigation — network-first so users always get latest version
+  // HTML navigation — network-first, offline fallback to cached /
   if (e.request.mode === 'navigate') {
     e.respondWith(
       fetch(e.request)
         .then(res => {
           if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE).then(c => c.put(e.request, clone));
+            caches.open(CACHE).then(c => c.put(e.request, res.clone()));
           }
           return res;
         })
@@ -75,7 +77,18 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // CSS / JS / images — stale-while-revalidate (fast load + background update)
+  // Icons — cache-first (static assets, never change)
+  if (url.pathname.startsWith('/icons/')) {
+    e.respondWith(
+      caches.match(e.request).then(hit => hit || fetch(e.request).then(res => {
+        if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+        return res;
+      }))
+    );
+    return;
+  }
+
+  // CSS / JS — stale-while-revalidate (fast load + background update)
   e.respondWith(
     caches.open(CACHE).then(async cache => {
       const cached = await cache.match(e.request);
@@ -122,7 +135,6 @@ self.addEventListener('notificationclick', e => {
   const target = e.notification.data?.url || '/dashboard';
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-      // Focus existing window and navigate
       const existing = list.find(c => {
         try { return new URL(c.url).origin === self.location.origin; } catch { return false; }
       });

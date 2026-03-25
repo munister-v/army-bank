@@ -2176,7 +2176,7 @@ $('#pushBtn')?.addEventListener('click', async () => {
 
 // ── SW update detection ───────────────────────────────────
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').then(reg => {
+  navigator.serviceWorker.register('/sw.js?v=14').then(reg => {
     reg.update().catch(() => {});
 
     navigator.serviceWorker.addEventListener('message', e => {
