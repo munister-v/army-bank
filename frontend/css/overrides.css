@@ -2613,8 +2613,8 @@ textarea:focus,
   color: #1f2b20;
 }
 .tax-val.green { color: #1d8248; }
-.tax-val.orange { color: #b35f1f; }
-.tax-val.red   { color: #c64956; }
+.tax-val.orange { color: #a35518; }
+.tax-val.red   { color: #b23b49; }
 .tax-note {
   background: #edf4ea;
   border-left: 3px solid #9eb7a0;
@@ -2672,7 +2672,7 @@ textarea:focus,
 }
 .tax-disclaimer {
   font-size: 11px;
-  color: #728372;
+  color: #5f705f;
   margin: 0;
   line-height: 1.5;
   text-align: center;
