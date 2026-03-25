@@ -29,6 +29,7 @@ def _get_pg_pool():
             maxconn=5,          # Render free PG allows ~10; keep headroom
             dsn=DATABASE_URL,
             cursor_factory=RealDictCursor,
+            connect_timeout=5,  # don't block app boot forever when PG is cold/unreachable
         )
     return _pg_pool
 

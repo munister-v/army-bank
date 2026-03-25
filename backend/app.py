@@ -28,9 +28,15 @@ ARMY_BANK_MARKETING = MARKETING_DIR / 'munister-army-bank'
 
 def create_app() -> Flask:
     """Створює та налаштовує Flask-застосунок."""
-    init_db()
-    init_admin()
+    db_boot_ok = True
+    try:
+        init_db()
+        init_admin()
+    except Exception as exc:
+        db_boot_ok = False
+        print(f'[Army Bank] DB bootstrap warning: {exc}')
     app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path=BASE_PATH or '')
+    app.config['DB_BOOT_OK'] = db_boot_ok
 
     # ── Gzip compression for all text responses (JSON, HTML, CSS, JS) ──
     app.config['COMPRESS_REGISTER'] = False   # manual init below
@@ -218,7 +224,11 @@ def create_app() -> Flask:
 
     @app.get(prefix + '/health')
     def health():
-        return {'ok': True, 'service': 'WeeGo Army Bank'}
+        return {
+            'ok': True,
+            'service': 'WeeGo Army Bank',
+            'db_boot_ok': bool(app.config.get('DB_BOOT_OK', True)),
+        }
 
     # ── Статичні маркетингові сайти (munister.com.ua/army-admin/, /army-bank/) ──
     # Шляхи без BASE_PATH: Nginx проксує сюди окремо від /bank. Один git pull + restart — усе оновлено.
