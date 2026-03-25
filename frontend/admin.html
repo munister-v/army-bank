@@ -145,8 +145,11 @@
           <input type="number" id="regMax" placeholder="Макс ₴" style="width:80px">
           <button class="ghost-btn" onclick="loadRegistry(true)">Знайти</button>
           <button class="ghost-btn" onclick="resetRegistry()">✕</button>
+          <button class="ghost-btn" id="regExportCsvBtn" title="Експорт у CSV" style="margin-left:auto">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>CSV
+          </button>
         </div>
-        <div style="font-size:12px;opacity:.5;margin-bottom:8px" id="regTotal"></div>
+        <div style="font-size:12px;opacity:.5;margin-bottom:8px;display:flex;gap:4px;align-items:center;flex-wrap:wrap" id="regTotal"></div>
         <div class="card" style="padding:0">
           <table class="table" aria-label="Реєстр транзакцій">
             <thead><tr><th>ID</th><th>Дата</th><th>Користувач</th><th>Рахунок</th><th>Тип</th><th>Напрямок</th><th>Сума</th><th>Опис</th></tr></thead>

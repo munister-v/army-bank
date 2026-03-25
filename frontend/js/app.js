@@ -600,6 +600,71 @@ async function exportCsv() {
 
 $('#exportCsvBtn')?.addEventListener('click', exportCsv);
 
+// ── Balance hide/show toggle ──────────────────────────────────────────────────
+(function () {
+  const LS_KEY = 'army_bank_balance_hidden';
+  let hidden = localStorage.getItem(LS_KEY) === '1';
+
+  function maskBalance() {
+    const el = $('#heroBalance');
+    if (!el) return;
+    if (!el.dataset.real && el.textContent && !el.textContent.includes('•'))
+      el.dataset.real = el.textContent;
+    el.textContent = '₴ ••••••';
+    el.style.letterSpacing = '.12em';
+  }
+
+  function unmaskBalance() {
+    const el = $('#heroBalance');
+    if (!el) return;
+    if (el.dataset.real) { el.textContent = el.dataset.real; }
+    el.style.letterSpacing = '';
+  }
+
+  function syncIcons() {
+    const eye    = $('#eyeIcon');
+    const eyeOff = $('#eyeOffIcon');
+    const btn    = $('#toggleBalanceBtn');
+    if (eye)    eye.style.display    = hidden ? 'none' : '';
+    if (eyeOff) eyeOff.style.display = hidden ? ''     : 'none';
+    if (btn)    btn.title = hidden ? 'Показати баланс' : 'Приховати баланс';
+  }
+
+  // Keep data-real fresh when balance updates from app state
+  const _origSetter = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent').set;
+  window._syncHeroBalance = function(newText) {
+    const el = $('#heroBalance');
+    if (!el) return;
+    el.dataset.real = newText;
+    if (hidden) maskBalance(); else { _origSetter.call(el, newText); el.style.letterSpacing = ''; }
+  };
+
+  function init() {
+    syncIcons();
+    if (hidden) maskBalance();
+    $('#toggleBalanceBtn')?.addEventListener('click', () => {
+      hidden = !hidden;
+      localStorage.setItem(LS_KEY, hidden ? '1' : '0');
+      if (hidden) maskBalance(); else unmaskBalance();
+      syncIcons();
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+
+// ── Hero account copy ─────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  $('#heroAccountCopyBtn')?.addEventListener('click', function () {
+    const raw = $('#heroAccount')?.textContent?.replace(/^Рахунок:\s*/i, '').trim();
+    if (!raw || raw === '—') return;
+    navigator.clipboard?.writeText(raw)
+      .then(() => showToast('Номер рахунку скопійовано', 'success'))
+      .catch(() => {});
+  });
+});
+
 // ── Statement modal ──────────────────────────────────────────────────────────
 (function () {
   const overlay   = () => $('#statementOverlay');

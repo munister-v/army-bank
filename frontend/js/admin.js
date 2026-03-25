@@ -314,10 +314,71 @@ function resetRegistry() {
   ['#regSearch','#regUserId','#regMin','#regMax'].forEach(id => { const el = $(id); if (el) el.value = ''; });
   ['#regType','#regDir'].forEach(id => { const el = $(id); if (el) el.value = ''; });
   ['#regFrom','#regTo'].forEach(id => { const el = $(id); if (el) el.value = ''; });
-  $('#regTotal').textContent = '';
+  $('#regTotal').innerHTML = '';
   $('#regTableBody').innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Застосуйте фільтр або натисніть ↻</td></tr>';
   ['#regPrev','#regNext'].forEach(id => { const el = $(id); if (el) el.disabled = true; });
   $('#regPageInfo').textContent = '—';
+}
+
+async function exportRegistryCsv() {
+  const btn = $('#regExportCsvBtn');
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    const params = new URLSearchParams();
+    params.set('limit', 2000);
+    params.set('offset', 0);
+    const search = $('#regSearch')?.value?.trim();
+    const userId = $('#regUserId')?.value?.trim();
+    const type   = $('#regType')?.value;
+    const dir    = $('#regDir')?.value;
+    const from   = $('#regFrom')?.value;
+    const to     = $('#regTo')?.value;
+    const minA   = $('#regMin')?.value;
+    const maxA   = $('#regMax')?.value;
+    if (search) params.set('search', search);
+    if (userId) params.set('user_id', userId);
+    if (type)   params.set('tx_type', type);
+    if (dir)    params.set('direction', dir);
+    if (from)   params.set('from_date', from);
+    if (to)     params.set('to_date', to);
+    if (minA)   params.set('min_amount', minA);
+    if (maxA)   params.set('max_amount', maxA);
+
+    const payload = await apiRaw('/api/admin/transactions?' + params.toString());
+    const rows = payload.data || [];
+    if (!rows.length) { showToast('Немає даних для експорту'); return; }
+
+    const headers = ['ID','Дата','Користувач','User ID','Рахунок','Тип','Напрямок','Сума','Опис'];
+    const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const lines = [
+      headers.join(','),
+      ...rows.map(t => [
+        t.id,
+        fmtDate(t.created_at),
+        escape(t.full_name),
+        t.user_id,
+        escape(t.account_number),
+        t.tx_type,
+        t.direction,
+        Number(t.amount).toFixed(2),
+        escape(t.description),
+      ].join(','))
+    ];
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `registry-${new Date().toISOString().slice(0,10)}.csv`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+    showToast(`Експортовано ${rows.length} транзакцій`);
+  } catch (e) {
+    showToast(e.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>CSV';
+    }
+  }
 }
 
 // ── Security tab ─────────────────────────────────────────────────────────────
@@ -640,7 +701,15 @@ async function drawerBalanceAdjust() {
   $('#chartDays')?.addEventListener('change', loadOverview);
 
   // Reg: search on Enter
+  // Registry: Enter to search, debounce on filter changes
   $('#regSearch')?.addEventListener('keydown', e => { if (e.key === 'Enter') loadRegistry(true); });
+  ['#regType','#regDir','#regFrom','#regTo'].forEach(id => {
+    $(id)?.addEventListener('change', () => loadRegistry(true));
+  });
+  ['#regMin','#regMax','#regUserId'].forEach(id => {
+    $(id)?.addEventListener('input', () => { clearTimeout(window._regT); window._regT = setTimeout(() => loadRegistry(true), 500); });
+  });
+  $('#regExportCsvBtn')?.addEventListener('click', exportRegistryCsv);
 
   // Tab nav
   $$('.menu-btn[data-tab]').forEach((btn) =>
