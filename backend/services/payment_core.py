@@ -68,7 +68,12 @@ class PaymentCore:
             raise ValueError('Недостатньо коштів на рахунку.')
 
         # ── 2. Оцінка ризику ──────────────────────────────────────────────────
-        risk = self._fraud.assess(sender['id'], recipient_account_number, amount)
+        risk = self._fraud.assess(
+            sender['id'], recipient_account_number, amount,
+            balance=float(sender['balance']),
+            description=description,
+            recipient_account_id=recipient['id'],
+        )
 
         # ── 3. Створюємо order у статусі pending ─────────────────────────────
         order_id = self._payments.create_order(
