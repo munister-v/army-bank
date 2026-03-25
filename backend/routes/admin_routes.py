@@ -118,15 +118,26 @@ def get_stats():
 def list_all_transactions():
     """Усі транзакції платформи з пагінацією та фільтрами."""
     try:
-        limit  = min(request.args.get('limit',  default=100, type=int), 500)
-        offset = request.args.get('offset', default=0,   type=int)
+        limit      = min(request.args.get('limit',  default=100, type=int), 500)
+        offset     = request.args.get('offset',     default=0,   type=int)
         tx_type    = request.args.get('tx_type')
         direction  = request.args.get('direction')
         from_date  = request.args.get('from_date')
         to_date    = request.args.get('to_date')
+        user_id    = request.args.get('user_id',    type=int)
+        min_amount = request.args.get('min_amount', type=float)
+        max_amount = request.args.get('max_amount', type=float)
+        search     = (request.args.get('search') or '').strip()
+        sort_by    = (request.args.get('sort_by') or 'newest').strip()
 
         with get_connection() as conn:
-            sql = '''
+            base_sql = '''
+                FROM transactions t
+                JOIN accounts a ON a.id = t.account_id
+                JOIN users u ON u.id = a.user_id
+                WHERE 1=1
+            '''
+            select_sql = '''
                 SELECT t.*, a.account_number, u.full_name, u.id as user_id
                 FROM transactions t
                 JOIN accounts a ON a.id = t.account_id
@@ -134,21 +145,88 @@ def list_all_transactions():
                 WHERE 1=1
             '''
             params: list = []
-            if tx_type:    sql += ' AND t.tx_type = %s';    params.append(tx_type)
-            if direction:  sql += ' AND t.direction = %s';  params.append(direction)
-            if from_date:  sql += ' AND t.created_at >= %s'; params.append(from_date)
-            if to_date:    sql += ' AND t.created_at <= %s'; params.append(to_date + 'T23:59:59')
+            if tx_type:
+                base_sql += ' AND t.tx_type = %s'
+                select_sql += ' AND t.tx_type = %s'
+                params.append(tx_type)
+            if direction:
+                base_sql += ' AND t.direction = %s'
+                select_sql += ' AND t.direction = %s'
+                params.append(direction)
+            if from_date:
+                base_sql += ' AND t.created_at >= %s'
+                select_sql += ' AND t.created_at >= %s'
+                params.append(from_date)
+            if to_date:
+                end_of_day = to_date + 'T23:59:59'
+                base_sql += ' AND t.created_at <= %s'
+                select_sql += ' AND t.created_at <= %s'
+                params.append(end_of_day)
+            if user_id:
+                base_sql += ' AND u.id = %s'
+                select_sql += ' AND u.id = %s'
+                params.append(user_id)
+            if min_amount is not None:
+                base_sql += ' AND t.amount >= %s'
+                select_sql += ' AND t.amount >= %s'
+                params.append(min_amount)
+            if max_amount is not None:
+                base_sql += ' AND t.amount <= %s'
+                select_sql += ' AND t.amount <= %s'
+                params.append(max_amount)
+            if search:
+                base_sql += ' AND (LOWER(t.description) LIKE %s OR a.account_number LIKE %s OR LOWER(u.full_name) LIKE %s)'
+                select_sql += ' AND (LOWER(t.description) LIKE %s OR a.account_number LIKE %s OR LOWER(u.full_name) LIKE %s)'
+                like = f'%{search.lower()}%'
+                params += [like, f'%{search}%', like]
 
             count_row = conn.execute(
-                f'SELECT COUNT(*) as n FROM ({sql}) sub', tuple(params)
+                f'SELECT COUNT(*) as n {base_sql}', tuple(params)
             ).fetchone()
             total = count_row['n'] if count_row else 0
 
-            sql += ' ORDER BY t.created_at DESC, t.id DESC LIMIT %s OFFSET %s'
-            params += [limit, offset]
-            rows = conn.execute(sql, tuple(params)).fetchall()
+            summary_row = conn.execute(
+                f'''
+                SELECT
+                    COALESCE(SUM(CASE WHEN t.direction='in'  THEN t.amount ELSE 0 END),0) AS total_in,
+                    COALESCE(SUM(CASE WHEN t.direction='out' THEN t.amount ELSE 0 END),0) AS total_out,
+                    COALESCE(AVG(t.amount),0) AS avg_amount,
+                    COALESCE(MIN(t.amount),0) AS min_amount,
+                    COALESCE(MAX(t.amount),0) AS max_amount
+                {base_sql}
+                ''',
+                tuple(params)
+            ).fetchone()
 
-        return jsonify({'ok': True, 'data': rows, 'total': total})
+            order_clause = ' ORDER BY t.created_at DESC, t.id DESC'
+            if sort_by == 'oldest':
+                order_clause = ' ORDER BY t.created_at ASC, t.id ASC'
+            elif sort_by == 'amount_desc':
+                order_clause = ' ORDER BY t.amount DESC, t.created_at DESC, t.id DESC'
+            elif sort_by == 'amount_asc':
+                order_clause = ' ORDER BY t.amount ASC, t.created_at DESC, t.id DESC'
+
+            data_params = list(params) + [limit, offset]
+            rows = conn.execute(
+                select_sql + order_clause + ' LIMIT %s OFFSET %s',
+                tuple(data_params)
+            ).fetchall()
+
+        total_in = float(summary_row['total_in']) if summary_row else 0.0
+        total_out = float(summary_row['total_out']) if summary_row else 0.0
+        avg_amount = float(summary_row['avg_amount']) if summary_row else 0.0
+        min_a = float(summary_row['min_amount']) if summary_row else 0.0
+        max_a = float(summary_row['max_amount']) if summary_row else 0.0
+
+        return jsonify({'ok': True, 'data': rows, 'total': total, 'summary': {
+            'count': int(total),
+            'total_in': round(total_in, 2),
+            'total_out': round(total_out, 2),
+            'net': round(total_in - total_out, 2),
+            'avg_amount': round(avg_amount, 2),
+            'min_amount': round(min_a, 2),
+            'max_amount': round(max_a, 2),
+        }})
     except Exception as exc:
         return api_error(str(exc))
 
@@ -200,6 +278,102 @@ def create_payout():
         return jsonify({'ok': True, 'data': {
             'user_id': user_id, 'amount': amount, 'new_balance': new_balance
         }})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@admin_bp.get('/stats/charts')
+@auth_required
+@role_required('admin', 'platform_admin')
+def get_chart_stats():
+    """Дані для графіків: обсяг транзакцій по днях + розподіл за типами."""
+    try:
+        days = min(request.args.get('days', default=14, type=int), 90)
+        with get_connection() as conn:
+            # Daily volumes — last N days
+            daily = conn.execute(
+                """
+                SELECT
+                    DATE(created_at) as day,
+                    COUNT(*) as cnt,
+                    COALESCE(SUM(CASE WHEN direction='in'  THEN amount ELSE 0 END),0) as vol_in,
+                    COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END),0) as vol_out
+                FROM transactions
+                WHERE created_at >= DATE('now', %s)
+                GROUP BY DATE(created_at)
+                ORDER BY day
+                """,
+                (f'-{days} days',)
+            ).fetchall()
+
+            # Type distribution
+            by_type = conn.execute(
+                """
+                SELECT tx_type, COUNT(*) as cnt,
+                       COALESCE(SUM(amount),0) as total_amount
+                FROM transactions
+                GROUP BY tx_type
+                ORDER BY cnt DESC
+                """
+            ).fetchall()
+
+            # Top users by volume
+            top_users = conn.execute(
+                """
+                SELECT u.full_name, u.id, COUNT(*) as tx_cnt,
+                       COALESCE(SUM(t.amount),0) as total_vol
+                FROM transactions t
+                JOIN accounts a ON a.id = t.account_id
+                JOIN users u ON u.id = a.user_id
+                GROUP BY u.id
+                ORDER BY total_vol DESC
+                LIMIT 5
+                """
+            ).fetchall()
+
+        return jsonify({'ok': True, 'data': {
+            'daily':     [dict(r) for r in daily],
+            'by_type':   [dict(r) for r in by_type],
+            'top_users': [dict(r) for r in top_users],
+        }})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@admin_bp.post('/users/<int:user_id>/balance-adjust')
+@auth_required
+@role_required('admin', 'platform_admin')
+def balance_adjust(user_id: int):
+    """Адмін: ручне коригування балансу (дебет або кредит)."""
+    try:
+        data    = request.get_json(force=True) or {}
+        amount  = float(data.get('amount') or 0)
+        reason  = (data.get('reason') or 'Ручне коригування').strip()
+        op_type = (data.get('type') or 'credit').strip()   # 'credit' | 'debit'
+
+        if amount <= 0:
+            return api_error('Сума повинна бути більше 0.')
+        if op_type not in ('credit', 'debit'):
+            return api_error("Тип: 'credit' або 'debit'.")
+
+        account = account_repo.get_account_by_user_id(user_id)
+        if not account:
+            return api_error('Рахунок не знайдено.', 404)
+
+        current = float(account['balance'])
+        if op_type == 'debit' and current < amount:
+            return api_error('Недостатньо коштів на рахунку.')
+
+        direction   = 'in' if op_type == 'credit' else 'out'
+        new_balance = round(current + amount if op_type == 'credit' else current - amount, 2)
+        account_repo.update_balance(account['id'], new_balance)
+        account_repo.add_transaction(account['id'], 'payout', direction, amount, reason)
+
+        feature_repo.add_audit_log(
+            g.current_user['id'], 'admin_balance_adjust',
+            f'{op_type.upper()} {amount:.2f} грн · user_id={user_id} · причина: {reason}.'
+        )
+        return jsonify({'ok': True, 'data': {'new_balance': new_balance}})
     except Exception as exc:
         return api_error(str(exc))
 
