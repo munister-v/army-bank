@@ -1443,6 +1443,8 @@ $('#transferTemplateSelect')?.addEventListener('change', function () {
   function closeOverlay() {
     overlay.classList.add('hidden');
     document.body.style.overflow = '';
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Підтвердити';
   }
 
   cancelBtn.addEventListener('click', closeOverlay);
