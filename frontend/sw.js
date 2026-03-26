@@ -1,14 +1,13 @@
-/* Army Bank — Service Worker v16 */
-const CACHE = 'army-bank-v16';
+/* Army Bank — Service Worker v17 */
+const CACHE = 'army-bank-v17';
 
 /* Assets to pre-cache on install */
 const PRECACHE = [
-  '/',
-  '/css/styles.css?v=29',
-  '/css/overrides.css?v=18',
-  '/manifest.json',
-  '/js/api.js',
-  '/js/app.js?v=37',
+  '/css/styles.css?v=30',
+  '/css/overrides.css?v=19',
+  '/manifest.json?v=2',
+  '/js/api.js?v=2',
+  '/js/app.js?v=38',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
 ];
@@ -88,7 +87,24 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // CSS / JS — stale-while-revalidate (fast load + background update)
+  // CSS / JS / manifest — network-first to surface new versions immediately.
+  if (
+    url.pathname.endsWith('.css')
+    || url.pathname.endsWith('.js')
+    || url.pathname.endsWith('/manifest.json')
+  ) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+        return res;
+      }).catch(() =>
+        caches.match(e.request).then(hit => hit || caches.match('/'))
+      )
+    );
+    return;
+  }
+
+  // Default for other same-origin assets — stale-while-revalidate.
   e.respondWith(
     caches.open(CACHE).then(async cache => {
       const cached = await cache.match(e.request);

@@ -135,12 +135,19 @@ def create_app() -> Flask:
             resp.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
         # Cache-Control for static assets (CSS, JS, fonts, images)
         path = _req.path
-        if path.endswith(('.woff2', '.woff', '.ttf', '.png', '.jpg', '.ico', '.webp')):
+        content_type = (resp.headers.get('Content-Type') or '').lower()
+        is_html = 'text/html' in content_type
+        if is_html:
+            resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
+        elif path.endswith('/sw.js') or path == '/sw.js':
+            # Service Worker script must be revalidated every load to deliver updates immediately.
+            resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        elif path == '/manifest.json':
+            resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
+        elif path.endswith(('.woff2', '.woff', '.ttf', '.png', '.jpg', '.ico', '.webp')):
             resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
         elif path.endswith(('.css', '.js', '.svg')):
-            resp.headers['Cache-Control'] = 'public, max-age=3600, must-revalidate'
-        elif path == '/manifest.json':
-            resp.headers['Cache-Control'] = 'public, max-age=86400'
+            resp.headers['Cache-Control'] = 'public, max-age=300, must-revalidate'
         elif path.startswith('/api/'):
             resp.headers['Cache-Control'] = 'no-store'
         return resp

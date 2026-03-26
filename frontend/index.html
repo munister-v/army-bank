@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Army Bank">
-  <link rel="manifest" href="/manifest.json">
+  <link rel="manifest" href="/manifest.json?v=2">
   <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png">
@@ -35,13 +35,13 @@
     #authScreen.hidden{display:none!important}
   </style>
   <!-- Both stylesheets async (non-blocking) — critical CSS above prevents FOUC -->
-  <link rel="stylesheet" href="/css/styles.css?v=29" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/styles.css?v=29"></noscript>
-  <link rel="stylesheet" href="/css/overrides.css?v=18" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/overrides.css?v=18"></noscript>
+  <link rel="stylesheet" href="/css/styles.css?v=30" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/styles.css?v=30"></noscript>
+  <link rel="stylesheet" href="/css/overrides.css?v=19" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/overrides.css?v=19"></noscript>
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
-  <link rel="preload" href="/js/api.js" as="script">
-  <link rel="preload" href="/js/app.js?v=37" as="script">
+  <link rel="preload" href="/js/api.js?v=2" as="script">
+  <link rel="preload" href="/js/app.js?v=38" as="script">
   <!-- Early server wake-up: ping /health if session token exists (mitigates Render cold-start) -->
   <script>
     (function(){
@@ -1517,8 +1517,8 @@
   <!-- Confetti canvas -->
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
-  <script src="/js/api.js" defer></script>
-  <script src="/js/app.js?v=37" defer></script>
+  <script src="/js/api.js?v=2" defer></script>
+  <script src="/js/app.js?v=38" defer></script>
 
   <!-- Transfer confirmation bottom sheet -->
   <div id="transferConfirmOverlay" class="tc-overlay hidden" role="dialog" aria-modal="true">

@@ -2375,8 +2375,15 @@ if ('serviceWorker' in navigator) {
     setTimeout(() => location.reload(), 200);
   }
 
-  navigator.serviceWorker.register('/sw.js?v=16').then(reg => {
+  navigator.serviceWorker.register('/sw.js?v=17').then(reg => {
+    // If update is already waiting, activate immediately.
+    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+
     reg.update().catch(() => {});
+    setInterval(() => reg.update().catch(() => {}), 60_000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') reg.update().catch(() => {});
+    });
 
     navigator.serviceWorker.addEventListener('message', e => {
       if (e.data?.type === 'SW_UPDATED') _swReload();
