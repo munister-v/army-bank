@@ -30,6 +30,16 @@
   --mono-border-soft: #dce4d8;
   --mono-border-strong: #ccd6c8;
   --mono-focus-ring: 0 0 0 3px rgba(70, 102, 74, 0.22);
+
+  /* Legacy tokens remapped to the light military palette for fallback components */
+  --bg: var(--mono-bg);
+  --surface: var(--mono-surface);
+  --surface2: var(--mono-surface-soft);
+  --text: var(--mono-text);
+  --text-2: #5f6f61;
+  --muted: #8b978a;
+  --border: rgba(20, 34, 21, 0.12);
+  --border-2: rgba(20, 34, 21, 0.2);
 }
 
 html,
@@ -2435,13 +2445,14 @@ textarea:focus,
   text-transform: uppercase !important;
 }
 
-/* Dashboard cards — slightly more depth */
+/* Dashboard cards — keep readable light surfaces */
 #dashboard .card {
   border-radius: 20px !important;
-  background: rgba(255,255,255,.04) !important;
-  border: 1px solid rgba(255,255,255,.07) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+  background: var(--mono-surface) !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  box-shadow: var(--mono-shadow) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* Month strip — badge style */
@@ -2453,16 +2464,16 @@ textarea:focus,
 .ms-item {
   border-radius: 16px !important;
   padding: 12px 10px !important;
-  background: rgba(255,255,255,.04) !important;
-  border: 1px solid rgba(255,255,255,.07) !important;
+  background: #eef3e9 !important;
+  border: 1px solid #d8e2d3 !important;
   text-align: center !important;
 }
 .ms-label {
-  font-size: 9px !important;
+  font-size: 11px !important;
   font-weight: 700 !important;
   letter-spacing: .08em !important;
   text-transform: uppercase !important;
-  color: rgba(255,255,255,.45) !important;
+  color: #6c7c6e !important;
   margin-bottom: 5px !important;
 }
 .ms-value {
