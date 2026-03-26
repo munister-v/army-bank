@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import hmac
+import os
 import re
+import threading
+import time
 import uuid
 from pathlib import Path
 from flask import Flask, Response, abort, jsonify, redirect, send_from_directory, g
@@ -356,6 +359,37 @@ def create_app() -> Flask:
 
 
 app = create_app()
+
+
+def _start_keepalive() -> None:
+    """Пінгує /health кожні 14 хв щоб Render free tier не засипав.
+    Запускається тільки якщо встановлена RENDER_EXTERNAL_URL (Render середовище).
+    """
+    base_url = os.environ.get('RENDER_EXTERNAL_URL', '').rstrip('/')
+    if not base_url:
+        return  # не на Render — нічого не робимо
+
+    ping_url = f'{base_url}/health'
+    interval = 14 * 60  # 14 хвилин
+
+    def _loop():
+        # Перший пінг через 2 хв після старту (даємо час на прогрів)
+        time.sleep(120)
+        while True:
+            try:
+                import urllib.request
+                with urllib.request.urlopen(ping_url, timeout=10) as r:
+                    print(f'[keepalive] {r.status} {ping_url}', flush=True)
+            except Exception as exc:
+                print(f'[keepalive] error: {exc}', flush=True)
+            time.sleep(interval)
+
+    t = threading.Thread(target=_loop, daemon=True, name='keepalive')
+    t.start()
+    print(f'[keepalive] started → {ping_url} every {interval//60} min', flush=True)
+
+
+_start_keepalive()
 
 if __name__ == '__main__':
     app.run(debug=DEBUG)

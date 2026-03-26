@@ -5,7 +5,26 @@ import io
 import csv
 
 from ..database import get_returning_id_suffix, insert_last_id
+from ..config import USE_PG
 from .base import BaseRepository
+
+
+def _cur_month_start() -> str:
+    """Поточний перший день місяця у форматі ISO (SQLite-сумісно)."""
+    from datetime import date
+    d = date.today()
+    return d.replace(day=1).isoformat()
+
+def _prev_month_start() -> str:
+    from datetime import date
+    first = date.today().replace(day=1)
+    if first.month == 1:
+        return first.replace(year=first.year - 1, month=12).isoformat()
+    return first.replace(month=first.month - 1).isoformat()
+
+def _month_label(iso_date: str) -> str:
+    """'2025-03-14' → '2025-03'."""
+    return iso_date[:7]
 
 
 class AccountRepository(BaseRepository):
@@ -78,43 +97,59 @@ class AccountRepository(BaseRepository):
             return conn.execute(sql, tuple(params)).fetchall()
 
     def get_analytics(self, account_id: int) -> dict:
+        cur_month  = _cur_month_start()
+        prev_month = _prev_month_start()
+
+        if USE_PG:
+            cur_month_sql  = "date_trunc('month', CURRENT_DATE)"
+            prev_month_sql = "date_trunc('month', CURRENT_DATE - INTERVAL '1 month')"
+            month_group    = "date_trunc('month', created_at)"
+            month_label    = f"TO_CHAR({month_group}, 'YYYY-MM')"
+            months_ago5    = "date_trunc('month', CURRENT_DATE - INTERVAL '5 months')"
+        else:
+            cur_month_sql  = f"'{cur_month}'"
+            prev_month_sql = f"'{prev_month}'"
+            month_group    = "strftime('%Y-%m', created_at)"
+            month_label    = month_group
+            months_ago5    = f"'{_prev_month_start()}'"  # approximate — 1 month ago; full 6-month done in Python
+
         with self.connection() as conn:
             # Поточний місяць
             month_row = conn.execute(
-                '''
+                f'''
                 SELECT
                     COALESCE(SUM(CASE WHEN direction='in'  THEN amount ELSE 0 END), 0) AS total_in,
                     COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END), 0) AS total_out,
                     COUNT(*) AS tx_count
                 FROM transactions
                 WHERE account_id = %s
-                  AND created_at >= date_trunc('month', CURRENT_DATE)
+                  AND created_at >= {cur_month_sql}
                 ''',
                 (account_id,),
             ).fetchone()
 
             # Попередній місяць
             prev_month_row = conn.execute(
-                '''
+                f'''
                 SELECT
                     COALESCE(SUM(CASE WHEN direction='in'  THEN amount ELSE 0 END), 0) AS total_in,
                     COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END), 0) AS total_out,
                     COUNT(*) AS tx_count
                 FROM transactions
                 WHERE account_id = %s
-                  AND created_at >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month')
-                  AND created_at <  date_trunc('month', CURRENT_DATE)
+                  AND created_at >= {prev_month_sql}
+                  AND created_at <  {cur_month_sql}
                 ''',
                 (account_id,),
             ).fetchone()
 
             # По типу транзакцій (поточний місяць)
             by_type = conn.execute(
-                '''
+                f'''
                 SELECT tx_type, direction, COALESCE(SUM(amount), 0) AS total, COUNT(*) AS cnt
                 FROM transactions
                 WHERE account_id = %s
-                  AND created_at >= date_trunc('month', CURRENT_DATE)
+                  AND created_at >= {cur_month_sql}
                 GROUP BY tx_type, direction
                 ORDER BY total DESC
                 ''',
@@ -122,20 +157,44 @@ class AccountRepository(BaseRepository):
             ).fetchall()
 
             # Останні 6 місяців (для графіка)
-            monthly = conn.execute(
-                '''
-                SELECT
-                    TO_CHAR(date_trunc('month', created_at), 'YYYY-MM') AS month,
-                    COALESCE(SUM(CASE WHEN direction='in'  THEN amount ELSE 0 END), 0) AS total_in,
-                    COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END), 0) AS total_out
-                FROM transactions
-                WHERE account_id = %s
-                  AND created_at >= date_trunc('month', CURRENT_DATE - INTERVAL '5 months')
-                GROUP BY date_trunc('month', created_at)
-                ORDER BY date_trunc('month', created_at) ASC
-                ''',
-                (account_id,),
-            ).fetchall()
+            from datetime import date
+            six_months_ago = date.today().replace(day=1)
+            for _ in range(5):
+                m = six_months_ago.month - 1 or 12
+                y = six_months_ago.year - (1 if six_months_ago.month == 1 else 0)
+                six_months_ago = six_months_ago.replace(year=y, month=m, day=1)
+            months_ago5_val = six_months_ago.isoformat()
+
+            if USE_PG:
+                monthly = conn.execute(
+                    f'''
+                    SELECT
+                        {month_label} AS month,
+                        COALESCE(SUM(CASE WHEN direction='in'  THEN amount ELSE 0 END), 0) AS total_in,
+                        COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END), 0) AS total_out
+                    FROM transactions
+                    WHERE account_id = %s
+                      AND created_at >= %s
+                    GROUP BY {month_group}
+                    ORDER BY {month_group} ASC
+                    ''',
+                    (account_id, months_ago5_val),
+                ).fetchall()
+            else:
+                monthly = conn.execute(
+                    '''
+                    SELECT
+                        strftime('%Y-%m', created_at) AS month,
+                        COALESCE(SUM(CASE WHEN direction='in'  THEN amount ELSE 0 END), 0) AS total_in,
+                        COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END), 0) AS total_out
+                    FROM transactions
+                    WHERE account_id = %s
+                      AND created_at >= %s
+                    GROUP BY strftime('%Y-%m', created_at)
+                    ORDER BY strftime('%Y-%m', created_at) ASC
+                    ''',
+                    (account_id, months_ago5_val),
+                ).fetchall()
 
             return {
                 'current_month': dict(month_row) if month_row else {'total_in': 0, 'total_out': 0, 'tx_count': 0},
@@ -146,6 +205,8 @@ class AccountRepository(BaseRepository):
 
     def get_balance_history(self, account_id: int, days: int = 14) -> list:
         from datetime import date, timedelta
+        today = date.today()
+        start_date = today - timedelta(days=days - 1)
         with self.connection() as conn:
             rows = conn.execute(
                 '''
@@ -153,10 +214,10 @@ class AccountRepository(BaseRepository):
                   COALESCE(SUM(CASE WHEN direction='in' THEN amount ELSE 0 END),0) AS total_in,
                   COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END),0) AS total_out
                 FROM transactions WHERE account_id=%s
-                  AND created_at >= CURRENT_DATE - (%s || ' days')::INTERVAL
+                  AND created_at >= %s
                 GROUP BY DATE(created_at) ORDER BY day ASC
                 ''',
-                (account_id, str(days)),
+                (account_id, start_date.isoformat()),
             ).fetchall()
 
             account = conn.execute('SELECT balance FROM accounts WHERE id = %s', (account_id,)).fetchone()
@@ -173,8 +234,6 @@ class AccountRepository(BaseRepository):
 
             result = []
             running = start_balance
-            today = date.today()
-            start_date = today - timedelta(days=days - 1)
             for i in range(days):
                 d = start_date + timedelta(days=i)
                 day_str = d.isoformat()
@@ -184,37 +243,50 @@ class AccountRepository(BaseRepository):
             return result
 
     def get_spending_insights(self, account_id: int) -> dict:
+        from datetime import date, timedelta
+        cur_month = _cur_month_start()
+        thirty_days_ago = (date.today() - timedelta(days=30)).isoformat()
+
+        if USE_PG:
+            cur_month_sql = "date_trunc('month', CURRENT_DATE)"
+            dow_expr = 'EXTRACT(DOW FROM created_at)'
+            thirty_days_sql = "CURRENT_DATE - INTERVAL '30 days'"
+        else:
+            cur_month_sql = f"'{cur_month}'"
+            dow_expr = "CAST(strftime('%w', created_at) AS INTEGER)"
+            thirty_days_sql = f"'{thirty_days_ago}'"
+
         with self.connection() as conn:
             # Largest single expense this month
-            biggest = conn.execute('''
+            biggest = conn.execute(f'''
                 SELECT description, amount, tx_type FROM transactions
                 WHERE account_id = %s AND direction = 'out'
-                  AND created_at >= date_trunc('month', CURRENT_DATE)
+                  AND created_at >= {cur_month_sql}
                 ORDER BY amount DESC LIMIT 1
             ''', (account_id,)).fetchone()
 
             # Most active day of week
-            active_day = conn.execute('''
-                SELECT EXTRACT(DOW FROM created_at) AS dow, COUNT(*) AS cnt
+            active_day = conn.execute(f'''
+                SELECT {dow_expr} AS dow, COUNT(*) AS cnt
                 FROM transactions WHERE account_id = %s
-                  AND created_at >= CURRENT_DATE - INTERVAL '30 days'
+                  AND created_at >= {thirty_days_sql}
                 GROUP BY dow ORDER BY cnt DESC LIMIT 1
             ''', (account_id,)).fetchone()
 
             # Average transaction amount
-            avg_tx = conn.execute('''
+            avg_tx = conn.execute(f'''
                 SELECT COALESCE(AVG(amount), 0) AS avg_amount, COUNT(*) AS total
                 FROM transactions WHERE account_id = %s
-                  AND created_at >= date_trunc('month', CURRENT_DATE)
+                  AND created_at >= {cur_month_sql}
             ''', (account_id,)).fetchone()
 
             # Savings rate this month (in vs out)
-            rates = conn.execute('''
+            rates = conn.execute(f'''
                 SELECT
                     COALESCE(SUM(CASE WHEN direction='in' THEN amount ELSE 0 END), 0) AS total_in,
                     COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END), 0) AS total_out
                 FROM transactions WHERE account_id = %s
-                  AND created_at >= date_trunc('month', CURRENT_DATE)
+                  AND created_at >= {cur_month_sql}
             ''', (account_id,)).fetchone()
 
             days_uk = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']

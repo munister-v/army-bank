@@ -1,7 +1,7 @@
 """Репозиторій користувачів та сесій."""
 from __future__ import annotations
 
-from ..database import get_returning_id_suffix, insert_last_id
+from ..database import get_returning_id_suffix, insert_last_id, USE_PG
 from .base import BaseRepository
 
 
@@ -90,7 +90,8 @@ class UserRepository(BaseRepository):
                 sql += ' AND role = %s'
                 params.append(role_filter)
             if search:
-                sql += ' AND (full_name ILIKE %s OR phone ILIKE %s OR email ILIKE %s)'
+                op = 'ILIKE' if USE_PG else 'LIKE'
+                sql += f' AND (full_name {op} %s OR phone {op} %s OR email {op} %s)'
                 like = f'%{search}%'
                 params.extend([like, like, like])
             sql += ' ORDER BY id'

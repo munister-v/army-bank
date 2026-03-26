@@ -32,8 +32,11 @@ idempotency_service = IdempotencyService()
 @auth_required
 @role_required('operator', 'admin')
 def list_users():
-    users = user_repo.list_all(role_filter='soldier')
-    return jsonify({'ok': True, 'data': users})
+    try:
+        users = user_repo.list_all(role_filter='soldier')
+        return jsonify({'ok': True, 'data': users})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @operator_bp.post('/payouts')

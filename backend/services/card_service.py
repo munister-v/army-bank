@@ -165,13 +165,12 @@ class CardService:
 
     def get_account_by_card(self, card_number: str) -> dict:
         """Resolve account from card number for transfers."""
-        card = self.cards.get_card_by_number(card_number.replace(' ', ' '))
-        if not card:
-            # Also try stripping all spaces and reformatting
-            stripped = card_number.replace(' ', '')
-            if len(stripped) == 16:
-                formatted = f'{stripped[:4]} {stripped[4:8]} {stripped[8:12]} {stripped[12:16]}'
-                card = self.cards.get_card_by_number(formatted)
+        stripped = card_number.replace(' ', '')
+        if len(stripped) == 16:
+            formatted = f'{stripped[:4]} {stripped[4:8]} {stripped[8:12]} {stripped[12:16]}'
+            card = self.cards.get_card_by_number(formatted) or self.cards.get_card_by_number(card_number)
+        else:
+            card = self.cards.get_card_by_number(card_number)
         if not card:
             raise ValueError('Картку з таким номером не знайдено.')
         if card['status'] == 'closed':

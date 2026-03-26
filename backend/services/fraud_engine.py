@@ -17,10 +17,57 @@ import math
 import re
 from collections import Counter
 from dataclasses import dataclass, field
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from ..database import get_connection
 from ..config import USE_PG
+
+
+def _cutoff(days: int = 0, hours: int = 0, minutes: int = 0) -> str:
+    """Return ISO-8601 UTC timestamp for N units ago. Use as %s parameter in SQL.
+    Works with both PostgreSQL (timestamptz comparison) and SQLite (text comparison)."""
+    return (datetime.now(timezone.utc) - timedelta(days=days, hours=hours, minutes=minutes)).isoformat()
+
+
+def _hours_since(ts_value) -> float:
+    """Convert a created_at column value (PG datetime or SQLite ISO string) to hours ago."""
+    if ts_value is None:
+        return float('inf')
+    try:
+        if isinstance(ts_value, datetime):
+            dt = ts_value if ts_value.tzinfo else ts_value.replace(tzinfo=timezone.utc)
+        else:
+            s = str(ts_value).replace(' ', 'T')
+            if s.endswith('+00:00') or 'Z' in s or '+' in s[10:]:
+                dt = datetime.fromisoformat(s.replace('Z', '+00:00'))
+            else:
+                dt = datetime.fromisoformat(s).replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - dt).total_seconds() / 3600
+    except Exception:
+        return float('inf')
+
+
+def _days_since(ts_value) -> float:
+    return _hours_since(ts_value) / 24
+
+
+def _ts_epoch(ts_value) -> float:
+    """Convert created_at to Unix epoch float."""
+    try:
+        if isinstance(ts_value, (int, float)):
+            return float(ts_value)
+        if isinstance(ts_value, datetime):
+            dt = ts_value if ts_value.tzinfo else ts_value.replace(tzinfo=timezone.utc)
+            return dt.timestamp()
+        s = str(ts_value).replace(' ', 'T').replace('Z', '+00:00')
+        return datetime.fromisoformat(s).timestamp()
+    except Exception:
+        return 0.0
+
+
+def _hour_now_utc() -> int:
+    return datetime.now(timezone.utc).hour
 
 
 # ══ Рівні ризику ═════════════════════════════════════════════════════════════
@@ -178,14 +225,14 @@ class VelocityRule:
             r5  = conn.execute(
                 "SELECT COUNT(*) AS cnt FROM transactions"
                 " WHERE account_id=%s AND direction='out'"
-                "   AND created_at >= NOW() - INTERVAL '5 minutes'",
-                (account_id,)
+                "   AND created_at >= %s",
+                (account_id, _cutoff(minutes=5))
             ).fetchone()
             r60 = conn.execute(
                 "SELECT COUNT(*) AS cnt FROM transactions"
                 " WHERE account_id=%s AND direction='out'"
-                "   AND created_at >= NOW() - INTERVAL '60 minutes'",
-                (account_id,)
+                "   AND created_at >= %s",
+                (account_id, _cutoff(minutes=60))
             ).fetchone()
         burst = int(r5['cnt']  if r5  else 0)
         hour  = int(r60['cnt'] if r60 else 0)
@@ -208,15 +255,15 @@ class FrequencyEscalationRule:
             baseline = conn.execute(
                 "SELECT COUNT(*) AS cnt FROM transactions"
                 " WHERE account_id=%s AND direction='out'"
-                "   AND created_at >= NOW() - (%s || ' days')::INTERVAL"
-                "   AND created_at <  NOW() - INTERVAL '1 hour'",
-                (account_id, str(self.LOOKBACK_DAYS))
+                "   AND created_at >= %s"
+                "   AND created_at <  %s",
+                (account_id, _cutoff(days=self.LOOKBACK_DAYS), _cutoff(hours=1))
             ).fetchone()
             current = conn.execute(
                 "SELECT COUNT(*) AS cnt FROM transactions"
                 " WHERE account_id=%s AND direction='out'"
-                "   AND created_at >= NOW() - INTERVAL '1 hour'",
-                (account_id,)
+                "   AND created_at >= %s",
+                (account_id, _cutoff(hours=1))
             ).fetchone()
         total_past = int(baseline['cnt'] if baseline else 0)
         hourly_avg = total_past / (self.LOOKBACK_DAYS * 24) if total_past > 0 else 0
@@ -241,19 +288,34 @@ class HighAmountRule:
 
     def evaluate(self, account_id: int, amount: float, result: RiskResult) -> None:
         with get_connection() as conn:
-            row = conn.execute(
-                "SELECT COALESCE(AVG(amount),0)    AS avg_a,"
-                "       COALESCE(STDDEV(amount),0) AS std_a,"
-                "       COUNT(*)                   AS cnt,"
-                "       COALESCE(MAX(amount),0)    AS max_a"
-                " FROM transactions"
-                " WHERE account_id=%s AND direction='out'"
-                "   AND created_at >= NOW() - (%s || ' days')::INTERVAL",
-                (account_id, str(self.LOOKBACK_DAYS))
-            ).fetchone()
-        if not row or int(row['cnt']) < 3:
-            return
-        avg, std, max_a = float(row['avg_a']), float(row['std_a']), float(row['max_a'])
+            if USE_PG:
+                row = conn.execute(
+                    "SELECT COALESCE(AVG(amount),0)    AS avg_a,"
+                    "       COALESCE(STDDEV(amount),0) AS std_a,"
+                    "       COUNT(*)                   AS cnt,"
+                    "       COALESCE(MAX(amount),0)    AS max_a"
+                    " FROM transactions"
+                    " WHERE account_id=%s AND direction='out'"
+                    "   AND created_at >= %s",
+                    (account_id, _cutoff(days=self.LOOKBACK_DAYS))
+                ).fetchone()
+                if not row or int(row['cnt']) < 3:
+                    return
+                avg, std, max_a = float(row['avg_a']), float(row['std_a']), float(row['max_a'])
+            else:
+                rows = conn.execute(
+                    "SELECT amount FROM transactions"
+                    " WHERE account_id=%s AND direction='out'"
+                    "   AND created_at >= %s",
+                    (account_id, _cutoff(days=self.LOOKBACK_DAYS))
+                ).fetchall()
+                if not rows or len(rows) < 3:
+                    return
+                amounts_list = [float(r['amount']) for r in rows]
+                avg = sum(amounts_list) / len(amounts_list)
+                max_a = max(amounts_list)
+                variance = sum((a - avg) ** 2 for a in amounts_list) / len(amounts_list)
+                std = math.sqrt(variance)
         if avg < 1:
             return
         ratio = amount / avg
@@ -284,20 +346,35 @@ class AdaptiveQuartileRule:
 
     def evaluate(self, account_id: int, amount: float, result: RiskResult) -> None:
         with get_connection() as conn:
-            row = conn.execute(
-                "SELECT"
-                "  PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY amount) AS p25,"
-                "  PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY amount) AS p75,"
-                "  COUNT(*) AS cnt"
-                " FROM transactions"
-                " WHERE account_id=%s AND direction='out'"
-                "   AND created_at >= NOW() - (%s || ' days')::INTERVAL",
-                (account_id, str(self.LOOKBACK_DAYS))
-            ).fetchone()
-        if not row or int(row['cnt']) < 5:
-            return
-        p25 = float(row['p25'] or 0)
-        p75 = float(row['p75'] or 0)
+            if USE_PG:
+                row = conn.execute(
+                    "SELECT"
+                    "  PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY amount) AS p25,"
+                    "  PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY amount) AS p75,"
+                    "  COUNT(*) AS cnt"
+                    " FROM transactions"
+                    " WHERE account_id=%s AND direction='out'"
+                    "   AND created_at >= %s",
+                    (account_id, _cutoff(days=self.LOOKBACK_DAYS))
+                ).fetchone()
+                if not row or int(row['cnt']) < 5:
+                    return
+                p25 = float(row['p25'] or 0)
+                p75 = float(row['p75'] or 0)
+            else:
+                rows = conn.execute(
+                    "SELECT amount FROM transactions"
+                    " WHERE account_id=%s AND direction='out'"
+                    "   AND created_at >= %s"
+                    " ORDER BY amount",
+                    (account_id, _cutoff(days=self.LOOKBACK_DAYS))
+                ).fetchall()
+                if not rows or len(rows) < 5:
+                    return
+                amounts_sorted = sorted(float(r['amount']) for r in rows)
+                n = len(amounts_sorted)
+                p25 = amounts_sorted[int(n * 0.25)]
+                p75 = amounts_sorted[int(n * 0.75)]
         iqr = p75 - p25
         if iqr < 1:
             return
@@ -370,9 +447,9 @@ class DuplicateTransferRule:
                 "SELECT amount FROM transactions"
                 " WHERE account_id=%s AND direction='out'"
                 "   AND related_account=%s"
-                "   AND created_at >= NOW() - (%s || ' minutes')::INTERVAL"
+                "   AND created_at >= %s"
                 " ORDER BY created_at DESC LIMIT 10",
-                (account_id, recipient_account, str(self.WINDOW_MINUTES))
+                (account_id, recipient_account, _cutoff(minutes=self.WINDOW_MINUTES))
             ).fetchall()
         if not rows:
             return
@@ -401,8 +478,8 @@ class SplitTransactionRule:
                 " FROM transactions"
                 " WHERE account_id=%s AND direction='out'"
                 "   AND related_account=%s"
-                "   AND created_at >= NOW() - (%s || ' minutes')::INTERVAL",
-                (account_id, recipient_account, str(self.WINDOW_MINUTES))
+                "   AND created_at >= %s",
+                (account_id, recipient_account, _cutoff(minutes=self.WINDOW_MINUTES))
             ).fetchone()
         cnt   = int(row['cnt']   if row else 0)
         total = float(row['total'] if row else 0) + amount
@@ -455,8 +532,8 @@ class MoneyMuleRule:
                 "   AND t.related_account = ("
                 "       SELECT account_number FROM accounts WHERE id=%s"
                 "   )"
-                "   AND t.created_at >= NOW() - (%s || ' days')::INTERVAL",
-                (recipient_account_id, recipient_account_id, str(self.WINDOW_DAYS))
+                "   AND t.created_at >= %s",
+                (recipient_account_id, recipient_account_id, _cutoff(days=self.WINDOW_DAYS))
             ).fetchone()
         if not row:
             return
@@ -481,15 +558,13 @@ class InactivityBurstRule:
     def evaluate(self, account_id: int, amount: float, result: RiskResult) -> None:
         with get_connection() as conn:
             row = conn.execute(
-                "SELECT"
-                "  EXTRACT(EPOCH FROM (NOW() - MAX(created_at)))/86400 AS gap_days,"
-                "  COALESCE(AVG(amount), 0) AS avg_a"
+                "SELECT MAX(created_at) AS last_at, COALESCE(AVG(amount), 0) AS avg_a"
                 " FROM transactions WHERE account_id=%s AND direction='out'",
                 (account_id,)
             ).fetchone()
-        if not row or row['gap_days'] is None:
+        if not row or row['last_at'] is None:
             return
-        gap_days = float(row['gap_days'])
+        gap_days = _days_since(row['last_at'])
         avg      = float(row['avg_a'])
         if gap_days >= self.INACTIVITY_DAYS and (avg < 1 or amount >= avg * self.LARGE_AMOUNT_MULT):
             result.add(int(30 * FM.sigmoid(gap_days, self.INACTIVITY_DAYS, 3.0)),
@@ -508,12 +583,11 @@ class NewRecipientRule:
                 (account_id, recipient_account)
             ).fetchone()
             recip_age = conn.execute(
-                "SELECT EXTRACT(EPOCH FROM (NOW() - created_at))/3600 AS age_h"
-                " FROM accounts WHERE id=%s",
+                "SELECT created_at FROM accounts WHERE id=%s",
                 (recipient_account_id,)
             ).fetchone()
         first_time = not prev or int(prev['cnt']) == 0
-        age_h = float(recip_age['age_h']) if recip_age and recip_age['age_h'] else 9999
+        age_h = _hours_since(recip_age['created_at']) if recip_age else 9999
         if first_time and age_h < 48:
             m = FM.decay(age_h, half_life=12.0)   # новіший = вищий ризик
             result.add(int(30 * m), 'new_recipient_new_account',
@@ -526,26 +600,36 @@ class TimeAnomalyRule:
     """Нічний час UTC + персональна аномалія годин."""
 
     def evaluate(self, account_id: int, result: RiskResult) -> None:
-        with get_connection() as conn:
-            row = conn.execute("SELECT EXTRACT(HOUR FROM NOW()) AS h").fetchone()
-        if not row:
-            return
-        hour = int(float(row['h']))
+        hour = _hour_now_utc()
         if 1 <= hour <= 4:
             result.add(int(18 * FM.trapezoid(hour, 0.5, 1.5, 3.5, 4.5)),
                        'time_night_utc', hour_utc=hour)
         with get_connection() as conn:
-            row2 = conn.execute(
-                "SELECT COALESCE(AVG(EXTRACT(HOUR FROM created_at)), 12) AS avg_h,"
-                "       COALESCE(STDDEV(EXTRACT(HOUR FROM created_at)),  4) AS std_h,"
-                "       COUNT(*) AS cnt"
-                " FROM transactions WHERE account_id=%s",
-                (account_id,)
-            ).fetchone()
-        if not row2 or int(row2['cnt']) < 10:
-            return
-        avg_h = float(row2['avg_h'])
-        std_h = float(row2['std_h']) if row2['std_h'] else 4.0
+            if USE_PG:
+                row2 = conn.execute(
+                    "SELECT COALESCE(AVG(EXTRACT(HOUR FROM created_at)), 12) AS avg_h,"
+                    "       COALESCE(STDDEV(EXTRACT(HOUR FROM created_at)),  4) AS std_h,"
+                    "       COUNT(*) AS cnt"
+                    " FROM transactions WHERE account_id=%s",
+                    (account_id,)
+                ).fetchone()
+                if not row2 or int(row2['cnt']) < 10:
+                    return
+                avg_h = float(row2['avg_h'])
+                std_h = float(row2['std_h']) if row2['std_h'] else 4.0
+            else:
+                rows2 = conn.execute(
+                    "SELECT CAST(strftime('%H', created_at) AS INTEGER) AS h, COUNT(*) AS cnt"
+                    " FROM transactions WHERE account_id=%s"
+                    " GROUP BY h",
+                    (account_id,)
+                ).fetchall()
+                total = sum(int(r['cnt']) for r in rows2)
+                if total < 10:
+                    return
+                avg_h = sum(int(r['h']) * int(r['cnt']) for r in rows2) / total
+                variance = sum(((int(r['h']) - avg_h) ** 2) * int(r['cnt']) for r in rows2) / total
+                std_h = math.sqrt(variance) if variance > 0 else 4.0
         zsc = abs(FM.zscore(hour, avg_h, std_h))
         if zsc >= 3.0:
             result.add(int(14 * FM.sigmoid(zsc, 3.0, 3.0)),
@@ -593,8 +677,8 @@ class PassThroughRule:
                 "SELECT COALESCE(SUM(amount), 0) AS total_in, COUNT(*) AS cnt"
                 " FROM transactions"
                 " WHERE account_id=%s AND direction='in'"
-                "   AND created_at >= NOW() - (%s || ' minutes')::INTERVAL",
-                (account_id, str(self.WINDOW_MINUTES))
+                "   AND created_at >= %s",
+                (account_id, _cutoff(minutes=self.WINDOW_MINUTES))
             ).fetchone()
         if not row or int(row['cnt']) == 0:
             return
@@ -617,13 +701,12 @@ class AccountAgeRule:
     def evaluate(self, account_id: int, result: RiskResult) -> None:
         with get_connection() as conn:
             row = conn.execute(
-                "SELECT EXTRACT(EPOCH FROM (NOW() - created_at))/86400 AS age_days"
-                " FROM accounts WHERE id=%s",
+                "SELECT created_at FROM accounts WHERE id=%s",
                 (account_id,)
             ).fetchone()
-        if not row or row['age_days'] is None:
+        if not row or row['created_at'] is None:
             return
-        age_days = float(row['age_days'])
+        age_days = _days_since(row['created_at'])
         if age_days < self.YOUNG_DAYS:
             result.add(int(22 * (1.0 - age_days / self.YOUNG_DAYS)),
                        'new_sender_account', account_age_days=round(age_days, 2))
@@ -638,12 +721,12 @@ class HistoricalFraudRule:
         with get_connection() as conn:
             row = conn.execute(
                 "SELECT"
-                "  COUNT(*) FILTER (WHERE status='blocked')      AS blocked_cnt,"
-                "  COUNT(*) FILTER (WHERE risk_level='critical') AS critical_cnt"
+                "  SUM(CASE WHEN status='blocked'      THEN 1 ELSE 0 END) AS blocked_cnt,"
+                "  SUM(CASE WHEN risk_level='critical' THEN 1 ELSE 0 END) AS critical_cnt"
                 " FROM payment_orders"
                 " WHERE sender_account_id=%s"
-                "   AND created_at >= NOW() - (%s || ' days')::INTERVAL",
-                (account_id, str(self.LOOKBACK_DAYS))
+                "   AND created_at >= %s",
+                (account_id, _cutoff(days=self.LOOKBACK_DAYS))
             ).fetchone()
         if not row:
             return
@@ -666,21 +749,22 @@ class CounterpartyConcentrationRule:
 
     def evaluate(self, account_id: int, recipient_account: str,
                  result: RiskResult) -> None:
+        cutoff = _cutoff(days=self.LOOKBACK_DAYS)
         with get_connection() as conn:
             total_row = conn.execute(
                 "SELECT COUNT(*) AS cnt, COALESCE(SUM(amount), 0) AS total"
                 " FROM transactions"
                 " WHERE account_id=%s AND direction='out'"
-                "   AND created_at >= NOW() - (%s || ' days')::INTERVAL",
-                (account_id, str(self.LOOKBACK_DAYS))
+                "   AND created_at >= %s",
+                (account_id, cutoff)
             ).fetchone()
             recip_row = conn.execute(
                 "SELECT COALESCE(SUM(amount), 0) AS total"
                 " FROM transactions"
                 " WHERE account_id=%s AND direction='out'"
                 "   AND related_account=%s"
-                "   AND created_at >= NOW() - (%s || ' days')::INTERVAL",
-                (account_id, recipient_account, str(self.LOOKBACK_DAYS))
+                "   AND created_at >= %s",
+                (account_id, recipient_account, cutoff)
             ).fetchone()
         if not total_row or int(total_row['cnt']) < self.MIN_TOTAL_TX:
             return
@@ -729,8 +813,8 @@ class TransferGraphRule:
                 " WHERE a.account_number = %s"
                 "   AND t.direction = 'out'"
                 "   AND t.related_account = %s"
-                "   AND t.created_at >= NOW() - (%s || ' hours')::INTERVAL",
-                (recipient_account, sender_number, str(self.PINGPONG_HOURS))
+                "   AND t.created_at >= %s",
+                (recipient_account, sender_number, _cutoff(hours=self.PINGPONG_HOURS))
             ).fetchone()
         if pp and int(pp['cnt']) >= 1:
             result.add(int(38 * FM.sigmoid(int(pp['cnt']), 1, 3.0)),
@@ -744,8 +828,8 @@ class TransferGraphRule:
                 "SELECT COUNT(DISTINCT related_account) AS uniq"
                 " FROM transactions"
                 " WHERE account_id=%s AND direction='out'"
-                "   AND created_at >= NOW() - INTERVAL '1 hour'",
-                (account_id,)
+                "   AND created_at >= %s",
+                (account_id, _cutoff(hours=1))
             ).fetchone()
         if fo and int(fo['uniq']) >= self.FANOUT_MIN:
             result.add(int(32 * FM.sigmoid(int(fo['uniq']), self.FANOUT_MIN, 4.0)),
@@ -753,14 +837,15 @@ class TransferGraphRule:
 
         # ── 2-hop cycle: A→B (current), B→C в минулому, C→A в минулому ───────
         with get_connection() as conn:
+            cycle_cutoff = _cutoff(hours=self.CYCLE_HOURS)
             # Рахунки, яким recipient відправляв (B→C)
             b_sends_to = conn.execute(
                 "SELECT DISTINCT t.related_account AS dest"
                 " FROM transactions t"
                 " JOIN accounts a ON t.account_id = a.id"
                 " WHERE a.account_number = %s AND t.direction = 'out'"
-                "   AND t.created_at >= NOW() - (%s || ' hours')::INTERVAL",
-                (recipient_account, str(self.CYCLE_HOURS))
+                "   AND t.created_at >= %s",
+                (recipient_account, cycle_cutoff)
             ).fetchall()
             # Рахунки, які відправляли на A (C→A)
             sends_to_a = conn.execute(
@@ -769,8 +854,8 @@ class TransferGraphRule:
                 " JOIN accounts a ON t.account_id = a.id"
                 " WHERE t.direction = 'out'"
                 "   AND t.related_account = %s"
-                "   AND t.created_at >= NOW() - (%s || ' hours')::INTERVAL",
-                (sender_number, str(self.CYCLE_HOURS))
+                "   AND t.created_at >= %s",
+                (sender_number, cycle_cutoff)
             ).fetchall()
 
         b_dests   = {r['dest'] for r in b_sends_to}
@@ -800,7 +885,7 @@ class BehavioralEntropyRule:
     def evaluate(self, account_id: int, result: RiskResult) -> None:
         with get_connection() as conn:
             rows = conn.execute(
-                "SELECT amount, EXTRACT(EPOCH FROM created_at) AS ts"
+                "SELECT amount, created_at AS ts"
                 " FROM transactions"
                 " WHERE account_id=%s AND direction='out'"
                 " ORDER BY created_at DESC LIMIT %s",
@@ -810,7 +895,7 @@ class BehavioralEntropyRule:
             return
 
         amounts = [float(r['amount']) for r in rows]
-        timestamps = sorted(float(r['ts']) for r in rows)
+        timestamps = sorted(_ts_epoch(r['ts']) for r in rows)
 
         # ── Entropy сум ───────────────────────────────────────────────────────
         max_a = max(amounts)
@@ -861,12 +946,12 @@ class RecipientRiskPropagationRule:
         with get_connection() as conn:
             row = conn.execute(
                 "SELECT COALESCE(AVG(risk_score), 0) AS avg_score,"
-                "       COUNT(*) FILTER (WHERE status='blocked') AS blocked_cnt,"
+                "       SUM(CASE WHEN status='blocked' THEN 1 ELSE 0 END) AS blocked_cnt,"
                 "       COUNT(*) AS total_cnt"
                 " FROM payment_orders"
                 " WHERE sender_account_id=%s"
-                "   AND created_at >= NOW() - (%s || ' days')::INTERVAL",
-                (recipient_account_id, str(self.LOOKBACK_DAYS))
+                "   AND created_at >= %s",
+                (recipient_account_id, _cutoff(days=self.LOOKBACK_DAYS))
             ).fetchone()
         if not row or int(row['total_cnt']) == 0:
             return

@@ -9,7 +9,7 @@ import os
 from flask import Blueprint, jsonify, request, g
 
 from ..database import get_connection
-from .helpers import api_error, auth_required
+from .helpers import api_error, auth_required, rate_limit
 
 push_bp = Blueprint('push', __name__, url_prefix='/api/push')
 logger = logging.getLogger(__name__)
@@ -85,46 +85,56 @@ def send_push(user_id: int, title: str, body: str, url: str = '/dashboard', push
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @push_bp.get('/vapid-public-key')
+@rate_limit(30, 60)
 def vapid_public_key():
-    return jsonify({'ok': True, 'data': _get_public_key()})
+    try:
+        return jsonify({'ok': True, 'data': _get_public_key()})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @push_bp.get('/status')
 @auth_required
 def push_status():
     """Повертає стан push-підписок поточного користувача + чи налаштований VAPID."""
-    uid = g.current_user['id']
-    with get_connection() as conn:
-        subs = conn.execute(
-            'SELECT id, endpoint, created_at FROM push_subscriptions WHERE user_id = %s',
-            (uid,)
-        ).fetchall()
-    return jsonify({'ok': True, 'data': {
-        'vapid_configured': bool(_get_private_pem()),
-        'subscriptions_count': len(subs),
-        'subscriptions': [
-            {'id': s['id'], 'endpoint': s['endpoint'][:60] + '...', 'created_at': s['created_at']}
-            for s in subs
-        ],
-    }})
+    try:
+        uid = g.current_user['id']
+        with get_connection() as conn:
+            subs = conn.execute(
+                'SELECT id, endpoint, created_at FROM push_subscriptions WHERE user_id = %s',
+                (uid,)
+            ).fetchall()
+        return jsonify({'ok': True, 'data': {
+            'vapid_configured': bool(_get_private_pem()),
+            'subscriptions_count': len(subs),
+            'subscriptions': [
+                {'id': s['id'], 'endpoint': s['endpoint'][:60] + '...', 'created_at': s['created_at']}
+                for s in subs
+            ],
+        }})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @push_bp.post('/test')
 @auth_required
 def test_push():
     """Надіслати тестовий пуш поточному користувачу (для діагностики)."""
-    uid = g.current_user['id']
-    pem = _get_private_pem()
-    if not pem:
-        return api_error('VAPID_PRIVATE_KEY не налаштований на сервері.')
-    with get_connection() as conn:
-        subs = conn.execute(
-            'SELECT endpoint FROM push_subscriptions WHERE user_id = %s', (uid,)
-        ).fetchall()
-    if not subs:
-        return api_error('Немає активних push-підписок. Спочатку підпишіться на сповіщення.')
-    send_push(uid, '🔔 Тест', 'Push-сповіщення працює!', '/dashboard')
-    return jsonify({'ok': True, 'data': {'sent_to': len(subs)}})
+    try:
+        uid = g.current_user['id']
+        pem = _get_private_pem()
+        if not pem:
+            return api_error('VAPID_PRIVATE_KEY не налаштований на сервері.')
+        with get_connection() as conn:
+            subs = conn.execute(
+                'SELECT endpoint FROM push_subscriptions WHERE user_id = %s', (uid,)
+            ).fetchall()
+        if not subs:
+            return api_error('Немає активних push-підписок. Спочатку підпишіться на сповіщення.')
+        send_push(uid, '🔔 Тест', 'Push-сповіщення працює!', '/dashboard')
+        return jsonify({'ok': True, 'data': {'sent_to': len(subs)}})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @push_bp.post('/subscribe')
@@ -154,12 +164,15 @@ def subscribe():
 @push_bp.delete('/unsubscribe')
 @auth_required
 def unsubscribe():
-    data = request.get_json(force=True, silent=True) or {}
-    endpoint = (data.get('endpoint') or '').strip()
-    if endpoint:
-        with get_connection() as conn:
-            conn.execute(
-                'DELETE FROM push_subscriptions WHERE endpoint = %s AND user_id = %s',
-                (endpoint, g.current_user['id'])
-            )
-    return jsonify({'ok': True})
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        endpoint = (data.get('endpoint') or '').strip()
+        if endpoint:
+            with get_connection() as conn:
+                conn.execute(
+                    'DELETE FROM push_subscriptions WHERE endpoint = %s AND user_id = %s',
+                    (endpoint, g.current_user['id'])
+                )
+        return jsonify({'ok': True})
+    except Exception as exc:
+        return api_error(str(exc))

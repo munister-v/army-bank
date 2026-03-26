@@ -30,7 +30,12 @@ async function _pollBalance() {
 
     const bal = formatMoney(fresh.balance);
     const heroBalEl = $('#heroBalance');
-    if (heroBalEl) heroBalEl.textContent = bal;
+    if (heroBalEl) {
+      heroBalEl.textContent = bal;
+      // Scale down font for very large numbers to prevent ₴ clipping
+      const len = bal.replace(/\s/g, '').length;
+      heroBalEl.style.fontSize = len > 12 ? 'clamp(1.4rem,6.5vw,2.4rem)' : len > 9 ? 'clamp(1.6rem,7.5vw,3rem)' : '';
+    }
     const balVal = $('#balanceValue');
     if (balVal) balVal.textContent = bal;
 
@@ -446,12 +451,12 @@ function renderTransactions(list, container = '#transactionsList') {
           <div class="tx-dir-dot ${tx.direction}"></div>
           <div class="item-body">
             <div class="item-header">
-              <strong>${tx.description}</strong>${tx.note ? ' <span title="Є нотатка" style="font-size:11px">📝</span>' : ''}
+              <strong>${escapeHtml(tx.description)}</strong>${tx.note ? ' <span title="Є нотатка" style="font-size:11px">📝</span>' : ''}
               <span class="amount ${tx.direction}">${tx.direction === 'in' ? '+' : '−'}${formatMoney(tx.amount)}</span>
             </div>
-            <div class="muted">${TX_TYPE_LABELS[tx.tx_type] || tx.tx_type}${tx.related_account ? ` · ${tx.related_account}` : ''}</div>
+            <div class="muted">${TX_TYPE_LABELS[tx.tx_type] || tx.tx_type}${tx.related_account ? ` · ${escapeHtml(tx.related_account)}` : ''}</div>
           </div>
-          <button type="button" class="tx-receipt-btn" data-tx-receipt="${tx.id}" data-amount="${tx.amount}" data-dir="${tx.direction}" data-desc="${(tx.description||'').replace(/"/g,'&quot;')}" data-from="${tx.related_account||''}" data-at="${tx.created_at||''}" title="Чек PDF" style="background:none;border:none;cursor:pointer;padding:4px 6px;opacity:.35;color:inherit;flex-shrink:0;line-height:1">
+          <button type="button" class="tx-receipt-btn" data-tx-receipt="${tx.id}" data-amount="${tx.amount}" data-dir="${tx.direction}" data-desc="${escapeHtml(tx.description||'')}" data-from="${escapeHtml(tx.related_account||'')}" data-at="${tx.created_at||''}" title="Чек PDF" style="background:none;border:none;cursor:pointer;padding:4px 6px;opacity:.35;color:inherit;flex-shrink:0;line-height:1">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           </button>
         </div>
@@ -518,48 +523,126 @@ async function openTxDrawer(txId) {
   if (!txId) return;
   openDrawer();
   const body = $('#drawerBody');
-  if (body) body.innerHTML = '<div class="drawer-loading">Завантаження…</div>';
+  if (body) {
+    body.dataset.txId = txId;
+    body.innerHTML = '<div class="drawer-loading">Завантаження…</div>';
+  }
   try {
     const tx = await api.request(`/api/transactions/${txId}`);
     if (!body) return;
+
+    const typeLabel = TX_TYPE_LABELS[tx.tx_type] || tx.tx_type;
+    const repeatTarget = typeof getRepeatTransferTarget === 'function' ? getRepeatTransferTarget(tx) : null;
+    const tagBadges = tx.tags
+      ? tx.tags.split(',').map(t => t.trim()).filter(Boolean)
+          .map(t => `<span class="tag-badge">${escapeHtml(t)}</span>`).join('')
+      : '';
+
     body.innerHTML = `
       <div class="drawer-amount ${tx.direction}">
         ${tx.direction === 'in' ? '+' : '−'}${formatMoney(tx.amount)}
       </div>
+      <div class="drawer-type-chip">${typeLabel} · ${tx.direction === 'in' ? '↓ Прихід' : '↑ Відхід'}</div>
       <dl class="drawer-info-list">
-        <div class="drawer-info-row"><dt>Опис</dt><dd>${tx.description}</dd></div>
-        <div class="drawer-info-row"><dt>Тип</dt><dd>${TX_TYPE_LABELS[tx.tx_type] || tx.tx_type}</dd></div>
-        <div class="drawer-info-row"><dt>Напрям</dt><dd>${tx.direction === 'in' ? '↓ Прихід' : '↑ Відхід'}</dd></div>
-        ${tx.related_account ? `<div class="drawer-info-row"><dt>Контрагент</dt><dd>${tx.related_account}</dd></div>` : ''}
+        <div class="drawer-info-row"><dt>Опис</dt><dd>${escapeHtml(tx.description || '—')}</dd></div>
+        ${tx.related_account ? `<div class="drawer-info-row"><dt>Контрагент</dt><dd>${escapeHtml(tx.related_account)}</dd></div>` : ''}
         <div class="drawer-info-row"><dt>Дата</dt><dd>${formatDate(tx.created_at)}</dd></div>
-        <div class="drawer-info-row"><dt>ID</dt><dd>#${tx.id}</dd></div>
+        <div class="drawer-info-row"><dt>ID операції</dt><dd>#${tx.id}</dd></div>
+        <div class="drawer-info-row"><dt>Статус</dt><dd class="status-ok">✓ Виконано</dd></div>
       </dl>
-      <button class="btn-ghost" id="shareTxBtn" style="width:100%;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-        Поділитися
-      </button>
+      ${tagBadges ? `<div class="drawer-tags-row">${tagBadges}</div>` : ''}
+      <div class="drawer-actions">
+        <button class="btn-primary" id="drawerPdfBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Завантажити чек PDF
+        </button>
+        <button class="btn-ghost" id="drawerShareBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Поділитися
+        </button>
+        ${repeatTarget ? `<button class="btn-accent" id="drawerRepeatBtn">Повторити переказ</button>` : ''}
+      </div>
       <div class="drawer-note-section">
         <label class="drawer-note-label">Нотатка</label>
-        <textarea id="drawerNoteInput" class="drawer-note-input" placeholder="Додайте особисту нотатку…" rows="2">${tx.note || ''}</textarea>
-        <button id="saveNoteBtn" class="btn-ghost btn-sm" style="margin-top:6px">Зберегти нотатку</button>
+        <textarea id="drawerNoteInput" class="drawer-note-input" placeholder="Особиста нотатка…" rows="2">${escapeHtml(tx.note || '')}</textarea>
+        <button id="saveNoteBtn" class="btn-ghost btn-sm" style="margin-top:6px;width:100%">Зберегти нотатку</button>
+      </div>
+      <div class="drawer-note-section" style="margin-top:0;padding-top:0;border-top:0">
+        <label class="drawer-note-label">Теги</label>
+        <input id="drawerTagsInput" type="text" class="drawer-note-input" placeholder="їжа, магазин, особисте" value="${escapeHtml(tx.tags || '')}">
+        <button id="saveTagsBtn" class="btn-ghost btn-sm" style="margin-top:6px;width:100%">Зберегти теги</button>
       </div>
     `;
-    $('#shareTxBtn')?.addEventListener('click', () => {
+
+    $('#drawerPdfBtn')?.addEventListener('click', async () => {
+      const btn = $('#drawerPdfBtn');
+      const orig = btn.innerHTML;
+      try {
+        btn.disabled = true;
+        btn.innerHTML = '<span style="opacity:.6">Формування…</span>';
+        const res = await fetch(`${window.ARMY_BANK_BASE || ''}/api/transactions/${tx.id}/receipt`, {
+          headers: { Authorization: `Bearer ${api.token}` },
+        });
+        if (!res.ok) { const t = await res.text(); throw new Error(t); }
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `receipt-${tx.id}.pdf`;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+        showToast('Чек завантажено.', 'success');
+      } catch(e) {
+        showToast(e.message || 'Помилка завантаження.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+      }
+    });
+
+    $('#drawerShareBtn')?.addEventListener('click', () => {
       if (typeof shareTransaction === 'function') shareTransaction(tx);
     });
+
+    $('#drawerRepeatBtn')?.addEventListener('click', () => {
+      if (!repeatTarget) return;
+      if (typeof goToDashboardTransferForm === 'function') goToDashboardTransferForm();
+      if (typeof prefillTransferForm === 'function') prefillTransferForm({
+        mode: repeatTarget.mode, account: repeatTarget.account,
+        card: repeatTarget.card, amount: tx.amount,
+        description: tx.description || 'Переказ',
+      });
+      closeDrawer();
+      showToast('Переказ підготовлено до повтору.', 'success');
+    });
+
     $('#saveNoteBtn')?.addEventListener('click', async () => {
       const note = $('#drawerNoteInput')?.value || '';
       try {
         await api.request(`/api/transactions/${tx.id}/note`, {
-          method: 'PATCH', body: JSON.stringify({ note })
+          method: 'PATCH', body: JSON.stringify({ note }),
         });
         showToast('Нотатку збережено.', 'success');
+      } catch(e) { showToast(e.message); }
+    });
+
+    $('#saveTagsBtn')?.addEventListener('click', async () => {
+      const tags = $('#drawerTagsInput')?.value || '';
+      try {
+        await api.request(`/api/transactions/${tx.id}/tags`, {
+          method: 'PATCH', body: JSON.stringify({ tags }),
+        });
+        showToast('Теги збережено.', 'success');
+        if (typeof loadTagsCloud === 'function') loadTagsCloud().catch(() => {});
       } catch(e) { showToast(e.message); }
     });
   } catch (e) {
     if (body) body.innerHTML = `<div class="drawer-error">${e.message}</div>`;
   }
 }
+window.openTxDrawer = openTxDrawer;
 
 $('#drawerClose')?.addEventListener('click', closeDrawer);
 $('#drawerBackdrop')?.addEventListener('click', closeDrawer);
@@ -1213,7 +1296,7 @@ async function _updateBankCards() {
 
   // Try to load real issued cards
   var cards = [];
-  try { cards = (await api.request('/api/cards')).filter(function(c){ return c.status !== 'closed'; }); }
+  try { const r = await api.request('/api/cards'); cards = (Array.isArray(r) ? r : []).filter(function(c){ return c.status !== 'closed'; }); }
   catch(_) {}
 
   if (!cards.length) {
@@ -1585,7 +1668,7 @@ async function refreshAllData() {
                 <div class="tx-dir-dot ${tx.direction}"></div>
                 <div class="item-body">
                   <div class="item-header">
-                    <strong>${tx.description}</strong>
+                    <strong>${escapeHtml(tx.description)}</strong>
                     <span class="amount ${tx.direction}">${tx.direction==='in'?'+':'−'}${formatMoney(tx.amount)}</span>
                   </div>
                   <div class="muted">${formatDate(tx.created_at)}</div>
@@ -2176,13 +2259,18 @@ $('#pushBtn')?.addEventListener('click', async () => {
 
 // ── SW update detection ───────────────────────────────────
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js?v=14').then(reg => {
+  let _swReloading = false;
+  function _swReload() {
+    if (_swReloading) return;
+    _swReloading = true;
+    setTimeout(() => location.reload(), 200);
+  }
+
+  navigator.serviceWorker.register('/sw.js?v=15').then(reg => {
     reg.update().catch(() => {});
 
     navigator.serviceWorker.addEventListener('message', e => {
-      if (e.data?.type === 'SW_UPDATED') {
-        setTimeout(() => location.reload(), 200);
-      }
+      if (e.data?.type === 'SW_UPDATED') _swReload();
     });
 
     reg.addEventListener('updatefound', () => {
@@ -2194,7 +2282,7 @@ if ('serviceWorker' in navigator) {
       });
     });
 
-    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+    navigator.serviceWorker.addEventListener('controllerchange', _swReload);
   });
 }
 
@@ -2229,6 +2317,8 @@ function scheduleBootstrapRetry() {
     setAuthenticated(false);
     return;
   }
+  // Дозволяємо першу відрисовку (shell + тема) до мережевих запитів
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   try {
     await hydrateAuthenticatedApp();
   } catch (error) {
@@ -2246,12 +2336,18 @@ function scheduleBootstrapRetry() {
   }
 })();
 
-// ── THEME ──────────────────────────────────────────────
+// ── THEME / COMPACT / ANIMATIONS — batch localStorage read ─────────────────
+// Один раз читаємо всі налаштування щоб уникнути 3 окремих sync I/O операцій
+const _prefs = {
+  theme:      localStorage.getItem('ab_theme')      || 'dark',
+  compact:    localStorage.getItem('ab_compact')    === 'true',
+  animations: localStorage.getItem('ab_animations') !== 'false',
+};
+
 function initTheme() {
-  const saved = localStorage.getItem('ab_theme') || 'dark';
-  applyTheme(saved);
+  applyTheme(_prefs.theme);
   const toggle = $('#themeToggle');
-  if (toggle) toggle.checked = saved === 'light';
+  if (toggle) toggle.checked = _prefs.theme === 'light';
 }
 
 function applyTheme(theme) {
@@ -2265,10 +2361,9 @@ $('#themeToggle')?.addEventListener('change', function() {
 
 // Compact mode
 function initCompact() {
-  const saved = localStorage.getItem('ab_compact') === 'true';
-  document.documentElement.classList.toggle('compact', saved);
+  document.documentElement.classList.toggle('compact', _prefs.compact);
   const toggle = $('#compactToggle');
-  if (toggle) toggle.checked = saved;
+  if (toggle) toggle.checked = _prefs.compact;
 }
 
 $('#compactToggle')?.addEventListener('change', function() {
@@ -2278,10 +2373,9 @@ $('#compactToggle')?.addEventListener('change', function() {
 
 // Animations toggle
 function initAnimations() {
-  const disabled = localStorage.getItem('ab_animations') === 'false';
-  document.documentElement.classList.toggle('no-animations', disabled);
+  document.documentElement.classList.toggle('no-animations', !_prefs.animations);
   const toggle = $('#animationsToggle');
-  if (toggle) toggle.checked = !disabled;
+  if (toggle) toggle.checked = _prefs.animations;
 }
 
 $('#animationsToggle')?.addEventListener('change', function() {
@@ -3103,7 +3197,7 @@ function renderCalendar() {
             <div class="tx-dir-dot ${tx.direction}"></div>
             <div class="item-body">
               <div class="item-header">
-                <strong>${tx.description}</strong>
+                <strong>${escapeHtml(tx.description)}</strong>
                 <span class="amount ${tx.direction}">${tx.direction==='in'?'+':'−'}${formatMoney(tx.amount)}</span>
               </div>
               <div class="muted">${(TX_TYPE_LABELS||{})[tx.tx_type]||tx.tx_type}</div>
@@ -3667,9 +3761,6 @@ async function loadTagsCloud() {
   } catch (_e) {}
 }
 
-// Patch openTxDrawer to include tags section
-const _origOpenTxDrawer = openTxDrawer;
-
 function getRepeatTransferTarget(tx) {
   if (!tx || tx.tx_type !== 'transfer' || tx.direction !== 'out' || !tx.related_account) return null;
   const related = String(tx.related_account || '').trim();
@@ -3682,86 +3773,6 @@ function getRepeatTransferTarget(tx) {
   return { mode: 'account', account: normalized };
 }
 
-window.openTxDrawer = async function(txId) {
-  if (!txId) return;
-  openDrawer();
-  const body = $('#drawerBody');
-  if (body) body.innerHTML = '<div class="drawer-loading">Завантаження\u2026</div>';
-  try {
-    const tx = await api.request('/api/transactions/' + txId);
-    if (!body) return;
-    const tagBadges = tx.tags
-      ? tx.tags.split(',').map(function(t) { return t.trim(); }).filter(Boolean)
-          .map(function(t) { return '<span class="tag-badge">' + t + '</span>'; }).join('')
-      : '';
-    const repeatTarget = getRepeatTransferTarget(tx);
-    const repeatButtonHtml = repeatTarget
-      ? '<button class="btn-accent" id="repeatTransferBtn" style="width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px">Повторити переказ</button>'
-      : '';
-    body.innerHTML =
-      '<div class="drawer-amount ' + tx.direction + '">' +
-        (tx.direction === 'in' ? '+' : '\u2212') + formatMoney(tx.amount) +
-      '</div>' +
-      '<dl class="drawer-info-list">' +
-        '<div class="drawer-info-row"><dt>Опис</dt><dd>' + tx.description + '</dd></div>' +
-        '<div class="drawer-info-row"><dt>Тип</dt><dd>' + (TX_TYPE_LABELS[tx.tx_type] || tx.tx_type) + '</dd></div>' +
-        '<div class="drawer-info-row"><dt>Напрям</dt><dd>' + (tx.direction === 'in' ? '\u2193 Прихід' : '\u2191 Відхід') + '</dd></div>' +
-        (tx.related_account ? '<div class="drawer-info-row"><dt>Контрагент</dt><dd>' + tx.related_account + '</dd></div>' : '') +
-        '<div class="drawer-info-row"><dt>Дата</dt><dd>' + formatDate(tx.created_at) + '</dd></div>' +
-        '<div class="drawer-info-row"><dt>ID</dt><dd>#' + tx.id + '</dd></div>' +
-      '</dl>' +
-      (tagBadges ? '<div class="drawer-tags">' + tagBadges + '</div>' : '') +
-      '<button class="btn-ghost" id="shareTxBtn" style="width:100%;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px">' +
-        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>' +
-        'Поділитися' +
-      '</button>' +
-      repeatButtonHtml +
-      '<div class="drawer-note-section">' +
-        '<label class="drawer-note-label">Нотатка</label>' +
-        '<textarea id="drawerNoteInput" class="drawer-note-input" placeholder="Додайте особисту нотатку\u2026" rows="2">' + (tx.note || '') + '</textarea>' +
-        '<button id="saveNoteBtn" class="btn-ghost btn-sm" style="margin-top:6px">Зберегти нотатку</button>' +
-      '</div>' +
-      '<div class="drawer-note-section">' +
-        '<label class="drawer-note-label">Теги (через кому)</label>' +
-        '<input id="drawerTagsInput" type="text" class="drawer-note-input" placeholder="наприклад: їжа, магазин, особисте" value="' + (tx.tags || '') + '">' +
-        '<button id="saveTagsBtn" class="btn-ghost btn-sm" style="margin-top:6px">Зберегти теги</button>' +
-      '</div>';
-
-    $('#shareTxBtn')?.addEventListener('click', function() {
-      if (typeof shareTransaction === 'function') shareTransaction(tx);
-    });
-    $('#repeatTransferBtn')?.addEventListener('click', function() {
-      if (!repeatTarget) return;
-      goToDashboardTransferForm();
-      prefillTransferForm({
-        mode: repeatTarget.mode,
-        account: repeatTarget.account,
-        card: repeatTarget.card,
-        amount: tx.amount,
-        description: tx.description || 'Переказ',
-      });
-      closeDrawer();
-      showToast('Переказ підготовлено до повтору.', 'success');
-    });
-    $('#saveNoteBtn')?.addEventListener('click', async function() {
-      const note = ($('#drawerNoteInput') || {}).value || '';
-      try {
-        await api.request('/api/transactions/' + tx.id + '/note', { method: 'PATCH', body: JSON.stringify({ note: note }) });
-        showToast('Нотатку збережено.', 'success');
-      } catch (e) { showToast(e.message); }
-    });
-    $('#saveTagsBtn')?.addEventListener('click', async function() {
-      const tags = ($('#drawerTagsInput') || {}).value || '';
-      try {
-        await api.request('/api/transactions/' + tx.id + '/tags', { method: 'PATCH', body: JSON.stringify({ tags: tags }) });
-        showToast('Теги збережено.', 'success');
-        loadTagsCloud().catch(function() {});
-      } catch (e) { showToast(e.message); }
-    });
-  } catch (e) {
-    if (body) body.innerHTML = '<div class="drawer-error">' + e.message + '</div>';
-  }
-};
 
 // ── Onboarding Tour ──────────────────────────────────────
 var ONBOARDING_STEPS = [
@@ -4282,13 +4293,7 @@ async function loadBudgetProgress() {
     }
   });
 
-  // Store txId on drawer open so auto-save knows which transaction
-  var _origOpenTxDrawerV3 = window.openTxDrawer;
-  window.openTxDrawer = async function(txId) {
-    var body = document.getElementById('drawerBody');
-    if (body) body.dataset.txId = txId;
-    if (_origOpenTxDrawerV3) return _origOpenTxDrawerV3(txId);
-  };
+  // txId is now stored in body.dataset.txId inside openTxDrawer itself
 })();
 
 // ── Refresh button (R) visual feedback ───────────────

@@ -159,13 +159,16 @@ class FeatureRepository(BaseRepository):
 
     def get_monthly_spending(self, account_id):
         """Returns dict of {tx_type: total_spent} for current month outgoing transactions."""
+        from ..database import USE_PG
+        from datetime import date
+        cur_month_sql = "date_trunc('month', CURRENT_DATE)" if USE_PG else f"'{date.today().replace(day=1).isoformat()}'"
         with self.connection() as conn:
-            rows = conn.execute('''
+            rows = conn.execute(f'''
                 SELECT tx_type, COALESCE(SUM(amount), 0) AS spent
                 FROM transactions
                 WHERE account_id = %s
                   AND direction = 'out'
-                  AND created_at >= date_trunc('month', CURRENT_DATE)
+                  AND created_at >= {cur_month_sql}
                 GROUP BY tx_type
             ''', (account_id,)).fetchall()
             return {r['tx_type']: float(r['spent']) for r in rows}

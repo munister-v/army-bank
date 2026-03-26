@@ -188,8 +188,11 @@ async function loadUsers() {
   if (search) p.set('search', search);
   if (p.toString()) url += '?' + p.toString();
 
-  const users = await api.request(url);
+  try {
+  const res = await api.request(url);
+  const users = Array.isArray(res) ? res : (res.data || []);
   const body = $('#usersTableBody');
+  if (!users.length) { body.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Користувачів не знайдено</td></tr>'; return; }
   body.innerHTML = users.map((u) => `
     <tr data-id="${u.id}">
       <td><strong>#${u.id}</strong></td>
@@ -228,6 +231,7 @@ async function loadUsers() {
   $$('.open-user').forEach((btn) =>
     btn.addEventListener('click', () => openUserDrawer(Number(btn.dataset.userId)))
   );
+  } catch (e) { $('#usersTableBody').innerHTML = `<tr><td colspan="5" style="color:#f87171;padding:16px">${e.message}</td></tr>`; }
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────────

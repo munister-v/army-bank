@@ -252,11 +252,11 @@ img { display: block; max-width: 100%; }
   letter-spacing: .12em; margin-bottom: 8px;
 }
 .balance-amount {
-  font-size: clamp(2.4rem, 11vw, 4rem);
+  font-size: clamp(1.8rem, 8.5vw, 3.5rem);
   font-weight: 800; letter-spacing: -.03em;
   line-height: 1.05; color: #fff;
   font-variant-numeric: tabular-nums;
-  word-break: break-word;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .balance-account {
   display: inline-flex; align-items: center; gap: 6px;
@@ -684,7 +684,37 @@ select option { background: #0d0d0d; color: #e5e5e5; }
   font-size: 9px; color: var(--muted); font-weight: 600;
   flex-shrink: 0; text-transform: uppercase; letter-spacing: .12em;
 }
-.drawer-info-row dd { font-size: 13px; text-align: right; }
+.drawer-info-row dd { font-size: 13px; text-align: right; color: inherit; }
+.drawer-info-row dd.status-ok { color: var(--green); font-weight: 600; }
+.drawer-type-chip {
+  text-align: center; font-size: 11px; color: var(--muted);
+  margin: -16px 0 18px; letter-spacing: .04em;
+}
+.drawer-tags-row { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0 2px; }
+.drawer-actions {
+  display: flex; flex-direction: column; gap: 8px; margin: 18px 0 10px;
+}
+.drawer-actions .btn-primary,
+.drawer-actions .btn-ghost,
+.drawer-actions .btn-accent {
+  width: 100%; display: flex; align-items: center;
+  justify-content: center; gap: 8px;
+}
+.drawer-note-section {
+  border-top: 1px solid rgba(255,255,255,.07);
+  padding-top: 14px; margin-top: 14px;
+}
+.drawer-note-label {
+  display: block; font-size: 9px; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--muted); font-weight: 600; margin-bottom: 6px;
+}
+.drawer-note-input {
+  width: 100%; background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.1); border-radius: 8px;
+  color: inherit; font-size: 13px; padding: 8px 10px;
+  font-family: inherit; resize: none; box-sizing: border-box;
+}
+.drawer-note-input:focus { outline: none; border-color: var(--blue); }
 .drawer-loading, .drawer-error { text-align: center; color: var(--muted); padding: 24px 0; font-size: 14px; }
 .drawer-error { color: var(--red); }
 @media (min-width: 640px) {

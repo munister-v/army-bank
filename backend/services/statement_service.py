@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import os
 from datetime import datetime
 
 from reportlab.lib import colors
@@ -17,6 +18,68 @@ from reportlab.pdfbase.ttfonts import TTFont
 from ..repositories.account_repository import AccountRepository
 from ..repositories.user_repository import UserRepository
 from ..repositories.feature_repository import FeatureRepository
+
+# ── Реєстрація Unicode-шрифтів (підтримка кирилиці) ──────────────────────────
+_FONTS_DIR = os.path.join(os.path.dirname(__file__), 'fonts')
+_FONTS_REGISTERED = False
+_FONT_NAME = 'Helvetica'        # буде перезаписано після успішної реєстрації
+_FONT_NAME_BOLD = 'Helvetica-Bold'
+
+# Каскад пошуку Cyrillic-сумісних TTF: спочатку бандл проекту, потім системні
+_FONT_CANDIDATES = [
+    # bundled DejaVu Sans (BSD-license, Cyrillic, ships with the repo — works everywhere)
+    (os.path.join(_FONTS_DIR, 'DejaVuSans.ttf'),
+     os.path.join(_FONTS_DIR, 'DejaVuSans-Bold.ttf'),
+     'DejaVu'),
+    # bundled Arial (macOS local dev legacy)
+    (os.path.join(_FONTS_DIR, 'Arial.ttf'),
+     os.path.join(_FONTS_DIR, 'Arial-Bold.ttf'),
+     'Arial'),
+    # Ubuntu / Debian system DejaVu (Render, Railway, Heroku)
+    ('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+     '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+     'DejaVu'),
+    ('/usr/share/fonts/dejavu/DejaVuSans.ttf',
+     '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf',
+     'DejaVu'),
+    # Liberation Sans (also Cyrillic-capable)
+    ('/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+     '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+     'Liberation'),
+    # macOS system Arial
+    ('/System/Library/Fonts/Supplemental/Arial.ttf',
+     '/System/Library/Fonts/Supplemental/Arial Bold.ttf',
+     'Arial'),
+]
+
+
+def _ensure_fonts() -> None:
+    global _FONTS_REGISTERED, _FONT_NAME, _FONT_NAME_BOLD
+    if _FONTS_REGISTERED:
+        return
+    from reportlab.pdfbase import pdfmetrics as pm
+    for normal_path, bold_path, family in _FONT_CANDIDATES:
+        if not (os.path.isfile(normal_path) and os.path.isfile(bold_path)):
+            continue
+        try:
+            reg_normal = f'{family}'
+            reg_bold   = f'{family}-Bold'
+            pdfmetrics.registerFont(TTFont(reg_normal, normal_path))
+            pdfmetrics.registerFont(TTFont(reg_bold,   bold_path))
+            pm.registerFontFamily(family, normal=reg_normal, bold=reg_bold,
+                                  italic=reg_normal, boldItalic=reg_bold)
+            _FONT_NAME      = reg_normal
+            _FONT_NAME_BOLD = reg_bold
+            _FONTS_REGISTERED = True
+            return
+        except Exception:
+            continue
+    # усі варіанти вичерпані — залишаємось на Helvetica (без кирилиці)
+
+
+def _f(bold: bool = False) -> str:
+    """Повертає зареєстроване ім'я шрифту (з підтримкою кирилиці) або Helvetica."""
+    return _FONT_NAME_BOLD if bold else _FONT_NAME
 
 
 # ── Кольорова схема Army Bank ──────────────────────────────────────────────
@@ -66,6 +129,7 @@ class StatementService:
             f'{len(txs)} транз.',
         )
 
+        _ensure_fonts()
         return self._build_pdf(account, user, txs, from_date, to_date)
 
     # ──────────────────────────────────────────────────────────────────────
@@ -82,6 +146,7 @@ class StatementService:
         if not tx:
             raise ValueError('Транзакцію не знайдено або немає доступу.')
 
+        _ensure_fonts()
         return self._build_receipt(account, user, dict(tx))
 
     def _build_receipt(self, account: dict, user: dict, tx: dict) -> bytes:
@@ -96,10 +161,10 @@ class StatementService:
         )
 
         styles  = getSampleStyleSheet()
-        normal  = ParagraphStyle('n', fontName='Helvetica', fontSize=9, leading=13, textColor=_MUTED)
-        bold    = ParagraphStyle('b', fontName='Helvetica-Bold', fontSize=9, leading=13)
-        heading = ParagraphStyle('h', fontName='Helvetica-Bold', fontSize=13, leading=18, textColor=_NAVY)
-        small   = ParagraphStyle('s', fontName='Helvetica', fontSize=8, leading=11, textColor=_MUTED)
+        normal  = ParagraphStyle('n', fontName=_f(),     fontSize=9, leading=13, textColor=_MUTED)
+        bold    = ParagraphStyle('b', fontName=_f(True), fontSize=9, leading=13)
+        heading = ParagraphStyle('h', fontName=_f(True), fontSize=13, leading=18, textColor=_NAVY)
+        small   = ParagraphStyle('s', fontName=_f(),     fontSize=8, leading=11, textColor=_MUTED)
 
         direction = tx.get('direction', 'out')
         amount    = float(tx.get('amount', 0))
@@ -125,7 +190,7 @@ class StatementService:
         # Header
         header_data = [[
             Paragraph('<font color="#162c5c"><b>Army</b></font><font color="#1a56db"><b>Bank</b></font>', heading),
-            Paragraph('ЧЕК', ParagraphStyle('chek', fontName='Helvetica-Bold', fontSize=10, textColor=_MUTED, alignment=2)),
+            Paragraph('ЧЕК', ParagraphStyle('chek', fontName=_f(True), fontSize=10, textColor=_MUTED, alignment=2)),
         ]]
         header_t = Table(header_data, colWidths=[None, 20 * mm])
         header_t.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('BOTTOMPADDING', (0,0), (-1,-1), 0)]))
@@ -135,9 +200,9 @@ class StatementService:
         # Big amount
         story.append(Paragraph(
             f'<font color="#{("16a34a" if direction == "in" else "dc2626")}"><b>{amt_str}</b></font>',
-            ParagraphStyle('amt', fontName='Helvetica-Bold', fontSize=22, leading=28, alignment=1),
+            ParagraphStyle('amt', fontName=_f(True), fontSize=22, leading=28, alignment=1),
         ))
-        story.append(Paragraph(type_label, ParagraphStyle('tl', fontName='Helvetica', fontSize=10, textColor=_MUTED, alignment=1, spaceAfter=6)))
+        story.append(Paragraph(type_label, ParagraphStyle('tl', fontName=_f(), fontSize=10, textColor=_MUTED, alignment=1, spaceAfter=6)))
         story.append(HRFlowable(width='100%', thickness=0.4, color=_LIGHT, spaceAfter=4))
 
         # Details rows
@@ -230,7 +295,7 @@ class StatementService:
         now_str = datetime.utcnow().strftime('%d.%m.%Y %H:%M UTC')
         footer_style = ParagraphStyle(
             'footer', parent=styles['Normal'],
-            fontSize=7, textColor=_MUTED, alignment=1,
+            fontSize=7, fontName=_f(), textColor=_MUTED, alignment=1,
         )
         story.append(Paragraph(
             f'Army Bank · Сформовано: {now_str} · munister.com.ua',
@@ -253,7 +318,7 @@ class StatementService:
 
         title_style = ParagraphStyle(
             'title', parent=styles['Normal'],
-            fontSize=18, fontName='Helvetica-Bold',
+            fontSize=18, fontName=_f(True),
             textColor=_NAVY,
         )
         sub_style = ParagraphStyle(
@@ -262,7 +327,7 @@ class StatementService:
         )
         val_style = ParagraphStyle(
             'val', parent=styles['Normal'],
-            fontSize=10, fontName='Helvetica-Bold', textColor=_NAVY,
+            fontSize=10, fontName=_f(True), textColor=_NAVY,
         )
 
         period_label = self._period_label(from_date, to_date)
@@ -272,7 +337,7 @@ class StatementService:
             Paragraph('Army Bank', title_style),
             Spacer(1, 2 * mm),
             Paragraph('Банківська виписка', ParagraphStyle('h2', parent=styles['Normal'],
-                fontSize=11, textColor=_BLUE, fontName='Helvetica-Bold')),
+                fontSize=11, textColor=_BLUE, fontName=_f(True))),
             Spacer(1, 3 * mm),
             Paragraph(f'Власник рахунку:', sub_style),
             Paragraph(user.get('full_name') or '—', val_style),
@@ -289,7 +354,7 @@ class StatementService:
         right_col = [
             Paragraph('Поточний баланс', sub_style),
             Paragraph(balance_fmt, ParagraphStyle('balance', parent=styles['Normal'],
-                fontSize=22, fontName='Helvetica-Bold', textColor=_NAVY)),
+                fontSize=22, fontName=_f(True), textColor=_NAVY)),
             Spacer(1, 3 * mm),
             Paragraph('Валюта:', sub_style),
             Paragraph(account.get('currency') or 'UAH', val_style),
@@ -329,10 +394,10 @@ class StatementService:
         lbl = ParagraphStyle('lbl', parent=styles['Normal'],
             fontSize=8, textColor=_MUTED, alignment=1)
         val = ParagraphStyle('val', parent=styles['Normal'],
-            fontSize=13, fontName='Helvetica-Bold', alignment=1)
+            fontSize=13, fontName=_f(True), alignment=1)
         net_color = _GREEN if summary['net'] >= 0 else _RED
         net_style = ParagraphStyle('net', parent=styles['Normal'],
-            fontSize=13, fontName='Helvetica-Bold', textColor=net_color, alignment=1)
+            fontSize=13, fontName=_f(True), textColor=net_color, alignment=1)
 
         def fmt(v): return f'₴ {v:,.2f}'.replace(',', ' ')
 
@@ -340,10 +405,10 @@ class StatementService:
             [Paragraph('Транзакцій', lbl), Paragraph(str(summary['count']), val)],
             [Paragraph('Надходження', lbl), Paragraph(fmt(summary['total_in']),
                 ParagraphStyle('green', parent=styles['Normal'],
-                    fontSize=13, fontName='Helvetica-Bold', textColor=_GREEN, alignment=1))],
+                    fontSize=13, fontName=_f(True), textColor=_GREEN, alignment=1))],
             [Paragraph('Витрати', lbl), Paragraph(fmt(summary['total_out']),
                 ParagraphStyle('red', parent=styles['Normal'],
-                    fontSize=13, fontName='Helvetica-Bold', textColor=_RED, alignment=1))],
+                    fontSize=13, fontName=_f(True), textColor=_RED, alignment=1))],
             [Paragraph('Баланс руху', lbl), Paragraph(fmt(summary['net']), net_style)],
         ]]
         t = Table(data, colWidths=['25%', '25%', '25%', '25%'])
@@ -365,11 +430,11 @@ class StatementService:
     def _tx_table(self, txs: list):
         styles = getSampleStyleSheet()
         hdr_style = ParagraphStyle('hdr', parent=styles['Normal'],
-            fontSize=8, fontName='Helvetica-Bold', textColor=_WHITE, alignment=1)
+            fontSize=8, fontName=_f(True), textColor=_WHITE, alignment=1)
         cell_style = ParagraphStyle('cell', parent=styles['Normal'],
-            fontSize=8, textColor=colors.HexColor('#1e293b'))
+            fontSize=8, fontName=_f(), textColor=colors.HexColor('#1e293b'))
         muted_style = ParagraphStyle('muted', parent=styles['Normal'],
-            fontSize=7, textColor=_MUTED)
+            fontSize=7, fontName=_f(), textColor=_MUTED)
 
         # Header
         headers = ['#', 'Дата', 'Опис / Контрагент', 'Тип', 'Сума']
@@ -408,14 +473,14 @@ class StatementService:
             row_bg = _BG if i % 2 == 0 else _WHITE
             rows.append([
                 Paragraph(str(i), ParagraphStyle('idx', parent=styles['Normal'],
-                    fontSize=7, textColor=_MUTED, alignment=1)),
+                    fontSize=7, fontName=_f(), textColor=_MUTED, alignment=1)),
                 Paragraph(date_str, ParagraphStyle('date', parent=styles['Normal'],
-                    fontSize=7.5, textColor=colors.HexColor('#374151'))),
+                    fontSize=7.5, fontName=_f(), textColor=colors.HexColor('#374151'))),
                 desc_block,
                 Paragraph(tx_type_str, ParagraphStyle('type', parent=styles['Normal'],
-                    fontSize=7.5, textColor=_MUTED)),
+                    fontSize=7.5, fontName=_f(), textColor=_MUTED)),
                 Paragraph(amt_str, ParagraphStyle('amt', parent=styles['Normal'],
-                    fontSize=9, fontName='Helvetica-Bold', textColor=amt_color, alignment=2)),
+                    fontSize=9, fontName=_f(True), textColor=amt_color, alignment=2)),
             ])
 
         col_widths = [8 * mm, 22 * mm, None, 22 * mm, 30 * mm]
@@ -425,7 +490,7 @@ class StatementService:
         style_cmds = [
             ('BACKGROUND',    (0, 0), (-1, 0),  _NAVY),
             ('TEXTCOLOR',     (0, 0), (-1, 0),  _WHITE),
-            ('FONTNAME',      (0, 0), (-1, 0),  'Helvetica-Bold'),
+            ('FONTNAME',      (0, 0), (-1, 0),  _f(True)),
             ('FONTSIZE',      (0, 0), (-1, 0),  8),
             ('ALIGN',         (0, 0), (-1, -1), 'LEFT'),
             ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),

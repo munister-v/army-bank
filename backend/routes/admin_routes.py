@@ -50,43 +50,55 @@ def _as_bool(value, default: bool = False) -> bool:
 @auth_required
 @role_required('admin', 'platform_admin')
 def list_users():
-    role_filter = request.args.get('role')
-    search = (request.args.get('search') or '').strip()
-    users = user_repo.list_all(role_filter=role_filter, search=search)
-    return jsonify({'ok': True, 'data': users})
+    try:
+        role_filter = request.args.get('role')
+        search = (request.args.get('search') or '').strip()
+        users = user_repo.list_all(role_filter=role_filter, search=search)
+        return jsonify({'ok': True, 'data': users})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @admin_bp.get('/users/<int:user_id>')
 @auth_required
 @role_required('admin', 'platform_admin')
 def get_user(user_id: int):
-    user = user_repo.get_by_id(user_id)
-    if not user:
-        return api_error('Користувача не знайдено.', 404)
-    account = account_repo.get_account_by_user_id(user_id)
-    return jsonify({'ok': True, 'data': {**user, 'account': account}})
+    try:
+        user = user_repo.get_by_id(user_id)
+        if not user:
+            return api_error('Користувача не знайдено.', 404)
+        account = account_repo.get_account_by_user_id(user_id)
+        return jsonify({'ok': True, 'data': {**user, 'account': account}})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @admin_bp.get('/users/<int:user_id>/account')
 @auth_required
 @role_required('admin', 'platform_admin')
 def get_user_account(user_id: int):
-    account = account_repo.get_account_by_user_id(user_id)
-    if not account:
-        return api_error('Рахунок не знайдено.', 404)
-    return jsonify({'ok': True, 'data': account})
+    try:
+        account = account_repo.get_account_by_user_id(user_id)
+        if not account:
+            return api_error('Рахунок не знайдено.', 404)
+        return jsonify({'ok': True, 'data': account})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @admin_bp.get('/users/<int:user_id>/transactions')
 @auth_required
 @role_required('admin', 'platform_admin')
 def get_user_transactions(user_id: int):
-    account = account_repo.get_account_by_user_id(user_id)
-    if not account:
-        return api_error('Рахунок не знайдено.', 404)
-    limit = request.args.get('limit', default=200, type=int)
-    txs = account_repo.list_transactions(account['id'])
-    return jsonify({'ok': True, 'data': txs[: min(limit, 500)]})
+    try:
+        account = account_repo.get_account_by_user_id(user_id)
+        if not account:
+            return api_error('Рахунок не знайдено.', 404)
+        limit = request.args.get('limit', default=200, type=int)
+        txs = account_repo.list_transactions(account['id'])
+        return jsonify({'ok': True, 'data': txs[: min(limit, 500)]})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @admin_bp.patch('/users/<int:user_id>/role')
@@ -627,7 +639,10 @@ def balance_adjust(user_id: int):
 @auth_required
 @role_required('admin', 'platform_admin')
 def list_audit_logs():
-    user_id = request.args.get('user_id', type=int)
-    limit   = request.args.get('limit', default=200, type=int)
-    logs = feature_repo.list_audit_logs(user_id=user_id, limit=min(limit, 500))
-    return jsonify({'ok': True, 'data': logs})
+    try:
+        user_id = request.args.get('user_id', type=int)
+        limit   = request.args.get('limit', default=200, type=int)
+        logs = feature_repo.list_audit_logs(user_id=user_id, limit=min(limit, 500))
+        return jsonify({'ok': True, 'data': logs})
+    except Exception as exc:
+        return api_error(str(exc))

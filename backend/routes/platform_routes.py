@@ -16,8 +16,11 @@ platform_repo = PlatformRepository()
 @role_required('platform_admin')
 def get_overview():
     """Агрегована статистика по всій платформі."""
-    stats = platform_repo.get_overview_stats()
-    return jsonify({'ok': True, 'data': stats})
+    try:
+        stats = platform_repo.get_overview_stats()
+        return jsonify({'ok': True, 'data': stats})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @platform_bp.get('/users')
@@ -25,10 +28,13 @@ def get_overview():
 @role_required('platform_admin')
 def list_platform_users():
     """Список усіх користувачів з балансами."""
-    limit = min(request.args.get('limit', default=500, type=int), 500)
-    offset = request.args.get('offset', default=0, type=int)
-    users = platform_repo.list_all_users_with_balance(limit=limit, offset=offset)
-    return jsonify({'ok': True, 'data': users})
+    try:
+        limit = min(request.args.get('limit', default=500, type=int), 500)
+        offset = request.args.get('offset', default=0, type=int)
+        users = platform_repo.list_all_users_with_balance(limit=limit, offset=offset)
+        return jsonify({'ok': True, 'data': users})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @platform_bp.get('/transactions')
@@ -36,11 +42,14 @@ def list_platform_users():
 @role_required('platform_admin')
 def list_platform_transactions():
     """Транзакції по всіх рахунках."""
-    limit = min(request.args.get('limit', default=200, type=int), 500)
-    offset = request.args.get('offset', default=0, type=int)
-    tx_type = request.args.get('tx_type')
-    rows = platform_repo.list_all_transactions(limit=limit, offset=offset, tx_type=tx_type)
-    return jsonify({'ok': True, 'data': rows})
+    try:
+        limit = min(request.args.get('limit', default=200, type=int), 500)
+        offset = request.args.get('offset', default=0, type=int)
+        tx_type = request.args.get('tx_type')
+        rows = platform_repo.list_all_transactions(limit=limit, offset=offset, tx_type=tx_type)
+        return jsonify({'ok': True, 'data': rows})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @platform_bp.get('/audit-logs')
@@ -48,9 +57,12 @@ def list_platform_transactions():
 @role_required('platform_admin')
 def list_platform_audit_logs():
     """Останні аудит-логи по платформі."""
-    limit = min(request.args.get('limit', default=100, type=int), 500)
-    logs = platform_repo.list_recent_audit_logs(limit=limit)
-    return jsonify({'ok': True, 'data': logs})
+    try:
+        limit = min(request.args.get('limit', default=100, type=int), 500)
+        logs = platform_repo.list_recent_audit_logs(limit=limit)
+        return jsonify({'ok': True, 'data': logs})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @platform_bp.post('/seed-demo')

@@ -33,16 +33,23 @@ async function checkOperator() {
 }
 
 async function loadSoldiers() {
-  const users = await api.request('/api/operator/users');
-  const sel = $('#userSelect');
-  sel.innerHTML = '<option value="">— Обрати —</option>' + users.map((u) => `<option value="${u.id}">#${u.id} ${u.full_name} (${u.phone})</option>`).join('');
-  const list = $('#soldiersList');
-  list.innerHTML = users.map((u) => `
-    <div class="item">
-      <div class="item-header"><strong>#${u.id} ${u.full_name}</strong><span class="muted">${roleLabels[u.role] || u.role}</span></div>
-      <div class="muted">${u.phone} · ${u.email}</div>
-    </div>
-  `).join('');
+  try {
+    const res = await api.request('/api/operator/users');
+    const users = Array.isArray(res) ? res : (res.data || []);
+    const sel = $('#userSelect');
+    sel.innerHTML = '<option value="">— Обрати —</option>' + users.map((u) => `<option value="${u.id}">#${u.id} ${u.full_name} (${u.phone})</option>`).join('');
+    const list = $('#soldiersList');
+    list.innerHTML = users.length
+      ? users.map((u) => `
+          <div class="item">
+            <div class="item-header"><strong>#${u.id} ${u.full_name}</strong><span class="muted">${roleLabels[u.role] || u.role}</span></div>
+            <div class="muted">${u.phone} · ${u.email}</div>
+          </div>
+        `).join('')
+      : '<div class="muted" style="padding:16px;text-align:center">Немає солдатів</div>';
+  } catch (e) {
+    showToast(e.message);
+  }
 }
 
 (async function () {

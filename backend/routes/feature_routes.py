@@ -13,7 +13,10 @@ service = FeatureService()
 @feature_bp.get('/family-contacts')
 @auth_required
 def list_contacts():
-    return jsonify({'ok': True, 'data': service.list_contacts(g.current_user['id'])})
+    try:
+        return jsonify({'ok': True, 'data': service.list_contacts(g.current_user['id'])})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @feature_bp.post('/family-contacts')
@@ -37,7 +40,10 @@ def delete_contact(contact_id: int):
 @feature_bp.get('/savings-goals')
 @auth_required
 def list_goals():
-    return jsonify({'ok': True, 'data': service.list_goals(g.current_user['id'])})
+    try:
+        return jsonify({'ok': True, 'data': service.list_goals(g.current_user['id'])})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @feature_bp.post('/savings-goals')
@@ -72,7 +78,10 @@ def delete_goal(goal_id: int):
 @feature_bp.get('/donations')
 @auth_required
 def list_donations():
-    return jsonify({'ok': True, 'data': service.list_donations(g.current_user['id'])})
+    try:
+        return jsonify({'ok': True, 'data': service.list_donations(g.current_user['id'])})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @feature_bp.post('/donations')
@@ -87,7 +96,10 @@ def create_donation():
 @feature_bp.get('/payouts')
 @auth_required
 def list_payouts():
-    return jsonify({'ok': True, 'data': service.list_payouts(g.current_user['id'])})
+    try:
+        return jsonify({'ok': True, 'data': service.list_payouts(g.current_user['id'])})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @feature_bp.post('/payouts/demo-accrual')
@@ -102,7 +114,10 @@ def demo_payout():
 @feature_bp.get('/payment-templates')
 @auth_required
 def list_payment_templates():
-    return jsonify({'ok': True, 'data': service.list_payment_templates(g.current_user['id'])})
+    try:
+        return jsonify({'ok': True, 'data': service.list_payment_templates(g.current_user['id'])})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @feature_bp.post('/payment-templates')
@@ -126,7 +141,10 @@ def delete_payment_template(template_id: int):
 @feature_bp.get('/audit-logs')
 @auth_required
 def list_my_audit_logs():
-    return jsonify({'ok': True, 'data': service.list_audit_logs(g.current_user['id'])})
+    try:
+        return jsonify({'ok': True, 'data': service.list_audit_logs(g.current_user['id'])})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @feature_bp.get('/payment-templates/<int:template_id>')
@@ -144,7 +162,10 @@ def get_payment_template(template_id: int):
 @feature_bp.get('/budget-limits')
 @auth_required
 def list_budget_limits():
-    return jsonify({'ok': True, 'data': service.list_budget_limits(g.current_user['id'])})
+    try:
+        return jsonify({'ok': True, 'data': service.list_budget_limits(g.current_user['id'])})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @feature_bp.post('/budget-limits')
@@ -173,7 +194,10 @@ def delete_budget_limit(tx_type: str):
 @feature_bp.get('/recurring-transactions')
 @auth_required
 def list_recurring():
-    return jsonify({'ok': True, 'data': service.list_recurring(g.current_user['id'])})
+    try:
+        return jsonify({'ok': True, 'data': service.list_recurring(g.current_user['id'])})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @feature_bp.post('/recurring-transactions')
@@ -212,7 +236,10 @@ def toggle_recurring(recurring_id: int):
 @feature_bp.get('/debts')
 @auth_required
 def list_debts():
-    return jsonify({'ok': True, 'data': service.list_debts(g.current_user['id'])})
+    try:
+        return jsonify({'ok': True, 'data': service.list_debts(g.current_user['id'])})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @feature_bp.post('/debts')
@@ -282,7 +309,10 @@ def clear_pin():
 @feature_bp.get('/auth/pin/status')
 @auth_required
 def pin_status():
-    return jsonify({'ok': True, 'data': {'has_pin': service.has_pin(g.current_user['id'])}})
+    try:
+        return jsonify({'ok': True, 'data': {'has_pin': service.has_pin(g.current_user['id'])}})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 # ── Tags ───────────────────────────────────────────────────
@@ -344,24 +374,36 @@ def top_recipients():
 @feature_bp.get('/notifications')
 @auth_required
 def list_notifications():
-    return jsonify({'ok': True, 'data': service.list_notifications(g.current_user['id'])})
+    try:
+        return jsonify({'ok': True, 'data': service.list_notifications(g.current_user['id'])})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @feature_bp.get('/notifications/unread-count')
 @auth_required
 def unread_count():
-    return jsonify({'ok': True, 'data': {'count': service.count_unread(g.current_user['id'])}})
+    try:
+        return jsonify({'ok': True, 'data': {'count': service.count_unread(g.current_user['id'])}})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @feature_bp.post('/notifications/read-all')
 @auth_required
 def mark_all_read():
-    service.mark_all_read(g.current_user['id'])
-    return jsonify({'ok': True, 'data': True})
+    try:
+        service.mark_all_read(g.current_user['id'])
+        return jsonify({'ok': True, 'data': True})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @feature_bp.post('/notifications/<int:notification_id>/read')
 @auth_required
 def mark_one_read(notification_id: int):
-    service.mark_one_read(notification_id, g.current_user['id'])
-    return jsonify({'ok': True, 'data': True})
+    try:
+        service.mark_one_read(notification_id, g.current_user['id'])
+        return jsonify({'ok': True, 'data': True})
+    except Exception as exc:
+        return api_error(str(exc))

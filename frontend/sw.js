@@ -1,14 +1,14 @@
-/* Army Bank — Service Worker v14 */
-const CACHE = 'army-bank-v14';
+/* Army Bank — Service Worker v15 */
+const CACHE = 'army-bank-v15';
 
 /* Assets to pre-cache on install */
 const PRECACHE = [
   '/',
-  '/css/styles.css',
-  '/css/overrides.css',
+  '/css/styles.css?v=29',
+  '/css/overrides.css?v=18',
   '/manifest.json',
   '/js/api.js',
-  '/js/app.js',
+  '/js/app.js?v=36',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
 ];
@@ -51,7 +51,7 @@ self.addEventListener('fetch', e => {
   if (url.hostname.includes('onrender.com')) return;
 
   // Google Fonts — cache-first (rarely change)
-  if (url.hostname.includes('fonts.g') || url.pathname.endsWith('.woff2')) {
+  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com' || url.pathname.endsWith('.woff2')) {
     e.respondWith(
       caches.match(e.request).then(hit => hit || fetch(e.request).then(res => {
         const clone = res.clone();

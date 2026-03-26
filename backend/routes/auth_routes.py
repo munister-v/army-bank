@@ -51,29 +51,38 @@ def login():
 @auth_bp.post('/logout')
 @auth_required
 def logout():
-    auth_service.logout(g.current_token)
-    return jsonify({'ok': True, 'message': 'Сесію завершено.'})
+    try:
+        auth_service.logout(g.current_token)
+        return jsonify({'ok': True, 'message': 'Сесію завершено.'})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @auth_bp.get('/me')
 @auth_required
 def me():
-    user = g.current_user
-    return jsonify({'ok': True, 'data': {
-        'id': user['id'],
-        'full_name': user['full_name'],
-        'phone': user['phone'],
-        'email': user['email'],
-        'role': user['role'],
-        'military_status': user['military_status'],
-    }})
+    try:
+        user = g.current_user
+        return jsonify({'ok': True, 'data': {
+            'id': user['id'],
+            'full_name': user['full_name'],
+            'phone': user['phone'],
+            'email': user['email'],
+            'role': user['role'],
+            'military_status': user['military_status'],
+        }})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @auth_bp.get('/sessions')
 @auth_required
 def list_sessions():
-    data = auth_service.list_sessions(g.current_user['id'], g.current_token)
-    return jsonify({'ok': True, 'data': data})
+    try:
+        data = auth_service.list_sessions(g.current_user['id'], g.current_token)
+        return jsonify({'ok': True, 'data': data})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @auth_bp.delete('/sessions/<int:session_id>')

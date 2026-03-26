@@ -157,62 +157,68 @@ def _validate_assignee_user(user_id_raw) -> tuple[int | None, str | None]:
 @auth_required
 @role_required('operator', 'admin', 'platform_admin')
 def list_orders():
-    limit             = min(request.args.get('limit',  default=50, type=int), 200)
-    offset            = request.args.get('offset', default=0,  type=int)
-    status            = request.args.get('status')
-    risk_level        = request.args.get('risk_level')
-    user_id           = request.args.get('user_id', type=int)
-    review_state      = request.args.get('review_state')
-    approval_state    = request.args.get('approval_state')
-    assigned_admin_id = request.args.get('assigned_admin_id', type=int)
-    assigned_mode     = request.args.get('assigned_mode')
-    overdue_param     = (request.args.get('overdue') or '').strip().lower()
-    search            = (request.args.get('search') or '').strip()
-    open_only         = _as_bool(request.args.get('open_only'), default=False)
+    try:
+        limit             = min(request.args.get('limit',  default=50, type=int), 200)
+        offset            = request.args.get('offset', default=0,  type=int)
+        status            = request.args.get('status')
+        risk_level        = request.args.get('risk_level')
+        user_id           = request.args.get('user_id', type=int)
+        review_state      = request.args.get('review_state')
+        approval_state    = request.args.get('approval_state')
+        assigned_admin_id = request.args.get('assigned_admin_id', type=int)
+        assigned_mode     = request.args.get('assigned_mode')
+        overdue_param     = (request.args.get('overdue') or '').strip().lower()
+        search            = (request.args.get('search') or '').strip()
+        open_only         = _as_bool(request.args.get('open_only'), default=False)
 
-    overdue_filter: bool | None = None
-    if overdue_param == 'true':
-        overdue_filter = True
-    elif overdue_param == 'false':
-        overdue_filter = False
+        overdue_filter: bool | None = None
+        if overdue_param == 'true':
+            overdue_filter = True
+        elif overdue_param == 'false':
+            overdue_filter = False
 
-    orders = _repo.list_orders(limit=limit, offset=offset,
-                               status=status, risk_level=risk_level,
-                               user_id=user_id,
-                               review_state=review_state,
-                               approval_state=approval_state,
-                               assigned_admin_id=assigned_admin_id,
-                               assigned_mode=assigned_mode,
-                               search=search or None,
-                               open_only=open_only)
-    total = _repo.count_orders(status=status, risk_level=risk_level,
-                               user_id=user_id,
-                               review_state=review_state,
-                               approval_state=approval_state,
-                               assigned_admin_id=assigned_admin_id,
-                               assigned_mode=assigned_mode,
-                               search=search or None,
-                               open_only=open_only)
+        orders = _repo.list_orders(limit=limit, offset=offset,
+                                   status=status, risk_level=risk_level,
+                                   user_id=user_id,
+                                   review_state=review_state,
+                                   approval_state=approval_state,
+                                   assigned_admin_id=assigned_admin_id,
+                                   assigned_mode=assigned_mode,
+                                   search=search or None,
+                                   open_only=open_only)
+        total = _repo.count_orders(status=status, risk_level=risk_level,
+                                   user_id=user_id,
+                                   review_state=review_state,
+                                   approval_state=approval_state,
+                                   assigned_admin_id=assigned_admin_id,
+                                   assigned_mode=assigned_mode,
+                                   search=search or None,
+                                   open_only=open_only)
 
-    now = datetime.now(timezone.utc)
-    orders = [_decorate_order(dict(o), now_utc=now) for o in orders]
-    if overdue_filter is not None:
-        orders = [o for o in orders if bool(o.get('sla_overdue')) is overdue_filter]
-        total = len(orders)
-    return jsonify({'ok': True, 'data': orders, 'total': total})
+        now = datetime.now(timezone.utc)
+        orders = [_decorate_order(dict(o), now_utc=now) for o in orders]
+        if overdue_filter is not None:
+            orders = [o for o in orders if bool(o.get('sla_overdue')) is overdue_filter]
+            total = len(orders)
+        return jsonify({'ok': True, 'data': orders, 'total': total})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @payment_audit_bp.get('/orders/<int:order_id>')
 @auth_required
 @role_required('operator', 'admin', 'platform_admin')
 def get_order(order_id: int):
-    order = _repo.get_order(order_id)
-    if not order:
-        return api_error('Платіжний ордер не знайдено.', 404)
-    order = _decorate_order(dict(order))
-    if (request.args.get('include_timeline') or '').strip().lower() == 'true':
-        order['timeline'] = _repo.list_order_events(order_id, limit=200)
-    return jsonify({'ok': True, 'data': order})
+    try:
+        order = _repo.get_order(order_id)
+        if not order:
+            return api_error('Платіжний ордер не знайдено.', 404)
+        order = _decorate_order(dict(order))
+        if (request.args.get('include_timeline') or '').strip().lower() == 'true':
+            order['timeline'] = _repo.list_order_events(order_id, limit=200)
+        return jsonify({'ok': True, 'data': order})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @payment_audit_bp.patch('/orders/<int:order_id>/assign')
@@ -409,26 +415,32 @@ def finalize_order_approval(order_id: int):
     key_func=lambda: actor_rate_key('processing:notes'),
 )
 def add_order_note(order_id: int):
-    data = request.get_json(silent=True) or {}
-    note = (data.get('note') or '').strip()
-    if not note:
-        return api_error('Порожня нотатка.')
-    ok = _repo.add_order_note(order_id, g.current_user['id'], note)
-    if not ok:
-        return api_error('Платіжний ордер не знайдено.', 404)
-    return jsonify({'ok': True})
+    try:
+        data = request.get_json(silent=True) or {}
+        note = (data.get('note') or '').strip()
+        if not note:
+            return api_error('Порожня нотатка.')
+        ok = _repo.add_order_note(order_id, g.current_user['id'], note)
+        if not ok:
+            return api_error('Платіжний ордер не знайдено.', 404)
+        return jsonify({'ok': True})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @payment_audit_bp.get('/orders/<int:order_id>/timeline')
 @auth_required
 @role_required('operator', 'admin', 'platform_admin')
 def order_timeline(order_id: int):
-    limit = min(request.args.get('limit', default=200, type=int), 500)
-    order = _repo.get_order(order_id)
-    if not order:
-        return api_error('Платіжний ордер не знайдено.', 404)
-    items = _repo.list_order_events(order_id, limit=limit)
-    return jsonify({'ok': True, 'data': items, 'total': len(items)})
+    try:
+        limit = min(request.args.get('limit', default=200, type=int), 500)
+        order = _repo.get_order(order_id)
+        if not order:
+            return api_error('Платіжний ордер не знайдено.', 404)
+        items = _repo.list_order_events(order_id, limit=limit)
+        return jsonify({'ok': True, 'data': items, 'total': len(items)})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @payment_audit_bp.get('/sla-queue')
@@ -602,51 +614,54 @@ def approval_inbox():
     key_func=lambda: actor_rate_key('processing:sla_auto_escalate'),
 )
 def sla_auto_escalate():
-    data = request.get_json(silent=True) or {}
-    dry_run = _as_bool(data.get('dry_run'), default=False)
-    only_unassigned = _as_bool(data.get('only_unassigned'), default=False)
-    scan_limit = min(max(int(data.get('scan_limit') or 1000), 100), 5000)
+    try:
+        data = request.get_json(silent=True) or {}
+        dry_run = _as_bool(data.get('dry_run'), default=False)
+        only_unassigned = _as_bool(data.get('only_unassigned'), default=False)
+        scan_limit = min(max(int(data.get('scan_limit') or 1000), 100), 5000)
 
-    candidates = _repo.list_orders(limit=scan_limit, offset=0)
-    now = datetime.now(timezone.utc)
-    rows = [_decorate_order(dict(row), now_utc=now) for row in candidates]
+        candidates = _repo.list_orders(limit=scan_limit, offset=0)
+        now = datetime.now(timezone.utc)
+        rows = [_decorate_order(dict(row), now_utc=now) for row in candidates]
 
-    eligible = []
-    for row in rows:
-        if not _order_is_open(row):
-            continue
-        if not row.get('sla_overdue'):
-            continue
-        if only_unassigned and row.get('assigned_admin_id'):
-            continue
-        if str(row.get('review_state') or '').lower() == 'escalated':
-            continue
-        eligible.append(row)
+        eligible = []
+        for row in rows:
+            if not _order_is_open(row):
+                continue
+            if not row.get('sla_overdue'):
+                continue
+            if only_unassigned and row.get('assigned_admin_id'):
+                continue
+            if str(row.get('review_state') or '').lower() == 'escalated':
+                continue
+            eligible.append(row)
 
-    escalated_ids: list[int] = []
-    if not dry_run:
-        note = 'Auto SLA escalation: order overdue in processing queue.'
-        for row in eligible:
-            updated = _repo.set_manual_decision(
-                order_id=int(row['id']),
-                decision='escalate',
-                actor_user_id=int(g.current_user['id']),
-                note=note,
-                include_order=False,
-            )
-            if updated:
-                escalated_ids.append(int(row['id']))
+        escalated_ids: list[int] = []
+        if not dry_run:
+            note = 'Auto SLA escalation: order overdue in processing queue.'
+            for row in eligible:
+                updated = _repo.set_manual_decision(
+                    order_id=int(row['id']),
+                    decision='escalate',
+                    actor_user_id=int(g.current_user['id']),
+                    note=note,
+                    include_order=False,
+                )
+                if updated:
+                    escalated_ids.append(int(row['id']))
 
-    return jsonify({
-        'ok': True,
-        'data': {
-            'dry_run': dry_run,
-            'checked': len(rows),
-            'eligible': len(eligible),
-            'escalated_count': len(escalated_ids) if not dry_run else len(eligible),
-            'ids': escalated_ids if not dry_run else [int(r['id']) for r in eligible],
-        }
-    })
+        return jsonify({
+            'ok': True,
+            'data': {
+                'dry_run': dry_run,
+                'checked': len(rows),
+                'eligible': len(eligible),
+                'escalated_count': len(escalated_ids) if not dry_run else len(eligible),
+                'ids': escalated_ids if not dry_run else [int(r['id']) for r in eligible],
+            }
+        })
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @payment_audit_bp.get('/workload')
@@ -876,21 +891,24 @@ def sla_bulk_action():
 @auth_required
 @role_required('operator', 'admin', 'platform_admin')
 def list_risk_events():
-    limit     = min(request.args.get('limit',  default=50, type=int), 200)
-    offset    = request.args.get('offset',   default=0,  type=int)
-    severity  = request.args.get('severity')
-    user_id   = request.args.get('user_id',  type=int)
-    resolved_param = request.args.get('resolved')
-    resolved: bool | None = None
-    if resolved_param == 'true':
-        resolved = True
-    elif resolved_param == 'false':
-        resolved = False
+    try:
+        limit     = min(request.args.get('limit',  default=50, type=int), 200)
+        offset    = request.args.get('offset',   default=0,  type=int)
+        severity  = request.args.get('severity')
+        user_id   = request.args.get('user_id',  type=int)
+        resolved_param = request.args.get('resolved')
+        resolved: bool | None = None
+        if resolved_param == 'true':
+            resolved = True
+        elif resolved_param == 'false':
+            resolved = False
 
-    events = _repo.list_risk_events(limit=limit, offset=offset,
-                                    severity=severity, resolved=resolved,
-                                    user_id=user_id)
-    return jsonify({'ok': True, 'data': events})
+        events = _repo.list_risk_events(limit=limit, offset=offset,
+                                        severity=severity, resolved=resolved,
+                                        user_id=user_id)
+        return jsonify({'ok': True, 'data': events})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @payment_audit_bp.post('/risk-events/<int:event_id>/resolve')
@@ -902,18 +920,24 @@ def list_risk_events():
     key_func=lambda: actor_rate_key('processing:risk_resolve'),
 )
 def resolve_event(event_id: int):
-    ok = _repo.resolve_risk_event(event_id, g.current_user['id'])
-    if not ok:
-        return api_error('Подія не знайдена або вже вирішена.', 404)
-    return jsonify({'ok': True})
+    try:
+        ok = _repo.resolve_risk_event(event_id, g.current_user['id'])
+        if not ok:
+            return api_error('Подія не знайдена або вже вирішена.', 404)
+        return jsonify({'ok': True})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @payment_audit_bp.get('/fraud-stats')
 @auth_required
 @role_required('operator', 'admin', 'platform_admin')
 def fraud_stats():
-    stats = _repo.fraud_stats()
-    return jsonify({'ok': True, 'data': stats})
+    try:
+        stats = _repo.fraud_stats()
+        return jsonify({'ok': True, 'data': stats})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @payment_audit_bp.get('/integrity-check')
@@ -921,16 +945,22 @@ def fraud_stats():
 @role_required('admin', 'platform_admin')
 def integrity_check():
     """Повна перевірка хеш-ланцюгів усіх рахунків."""
-    result = _integrity.verify_all_accounts()
-    return jsonify({'ok': True, 'data': result})
+    try:
+        result = _integrity.verify_all_accounts()
+        return jsonify({'ok': True, 'data': result})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @payment_audit_bp.get('/integrity-check/<int:account_id>')
 @auth_required
 @role_required('admin', 'platform_admin')
 def integrity_check_account(account_id: int):
-    result = _integrity.verify_account(account_id)
-    return jsonify({'ok': True, 'data': result})
+    try:
+        result = _integrity.verify_account(account_id)
+        return jsonify({'ok': True, 'data': result})
+    except Exception as exc:
+        return api_error(str(exc))
 
 
 @payment_audit_bp.get('/statements')
@@ -938,8 +968,11 @@ def integrity_check_account(account_id: int):
 @role_required('admin', 'platform_admin')
 def list_statement_downloads():
     """Список усіх подій завантаження PDF-виписок."""
-    limit   = min(request.args.get('limit', default=100, type=int), 500)
-    user_id = request.args.get('user_id', type=int)
-    logs = _features.list_audit_logs(user_id=user_id, limit=limit)
-    statement_logs = [l for l in logs if (l.get('action') or '') == 'statement_pdf']
-    return jsonify({'ok': True, 'data': statement_logs, 'total': len(statement_logs)})
+    try:
+        limit   = min(request.args.get('limit', default=100, type=int), 500)
+        user_id = request.args.get('user_id', type=int)
+        logs = _features.list_audit_logs(user_id=user_id, limit=limit)
+        statement_logs = [l for l in logs if (l.get('action') or '') == 'statement_pdf']
+        return jsonify({'ok': True, 'data': statement_logs, 'total': len(statement_logs)})
+    except Exception as exc:
+        return api_error(str(exc))
