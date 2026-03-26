@@ -160,6 +160,35 @@ function formatLocalDateISO(date) {
   return `${y}-${m}-${day}`;
 }
 
+function extractFilenameFromDisposition(disposition, fallback = 'download.bin') {
+  const raw = String(disposition || '');
+  if (!raw) return fallback;
+
+  const utfMatch = raw.match(/filename\\*=UTF-8''([^;]+)/i);
+  if (utfMatch && utfMatch[1]) {
+    try {
+      return decodeURIComponent(utfMatch[1].trim());
+    } catch (_) {}
+  }
+
+  const plainMatch = raw.match(/filename=\"?([^\";]+)\"?/i);
+  if (plainMatch && plainMatch[1]) {
+    return plainMatch[1].trim();
+  }
+  return fallback;
+}
+
+function downloadBlobFile(blob, filename) {
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename || 'download.bin';
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(link.href), 15000);
+}
+
 function normalizeAccountNumber(value) {
   let v = String(value || '').toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '');
   if (v.startsWith('AB') && !v.startsWith('AB-')) {
@@ -585,14 +614,11 @@ async function openTxDrawer(txId) {
         });
         if (!res.ok) { const t = await res.text(); throw new Error(t); }
         const blob = await res.blob();
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `receipt-${tx.id}.pdf`;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+        const filename = extractFilenameFromDisposition(
+          res.headers.get('Content-Disposition'),
+          `armybank_receipt_tx${tx.id}.pdf`
+        );
+        downloadBlobFile(blob, filename);
         showToast('Чек завантажено.', 'success');
       } catch(e) {
         showToast(e.message || 'Помилка завантаження.');
@@ -831,14 +857,11 @@ const receipt = (() => {
       });
       if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Помилка'); }
       const blob = await res.blob();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `receipt-${_txId}.pdf`;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      const filename = extractFilenameFromDisposition(
+        res.headers.get('Content-Disposition'),
+        `armybank_receipt_tx${_txId}.pdf`
+      );
+      downloadBlobFile(blob, filename);
       showToast('Чек PDF завантажено', 'success');
     } catch (e) {
       showToast(e.message);
@@ -878,16 +901,25 @@ const receipt = (() => {
 
 // ── Statement modal ──────────────────────────────────────────────────────────
 (function () {
-  const overlay   = () => $('#statementOverlay');
-  const dlBtn     = () => $('#stmtDownloadBtn');
+  const overlay = () => $('#statementOverlay');
+  const dlBtn = () => $('#stmtDownloadBtn');
   const cancelBtn = () => $('#stmtCancelBtn');
   const periodGrid = () => $('#stmtPeriodGrid');
   const customDates = () => $('#stmtCustomDates');
   const periodLabel = () => $('#stmtPeriodLabel');
+  const reportType = () => $('#stmtReportType');
+  const ordersList = () => $('#stmtRecentOrders');
 
-  let _from = null, _to = null;
+  const dlBtnDefaultHtml = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Замовити та завантажити PDF`;
+
+  let _from = null;
+  let _to = null;
 
   function isoDate(d) { return d.toISOString().slice(0, 10); }
+
+  function selectedReportType() {
+    return (reportType()?.value || 'detailed').trim().toLowerCase();
+  }
 
   function setActivePeriod(btn) {
     $$('.stmt-period-btn').forEach(b => b.classList.remove('active'));
@@ -901,14 +933,14 @@ const receipt = (() => {
 
     if (period === 'cur_month') {
       _from = isoDate(new Date(now.getFullYear(), now.getMonth(), 1));
-      _to   = isoDate(now);
+      _to = isoDate(now);
       const m = now.toLocaleString('uk-UA', { month: 'long', year: 'numeric' });
       periodLabel().textContent = `Поточний місяць · ${m}`;
     } else if (period === 'prev_month') {
       const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const last  = new Date(now.getFullYear(), now.getMonth(), 0);
+      const last = new Date(now.getFullYear(), now.getMonth(), 0);
       _from = isoDate(first);
-      _to   = isoDate(last);
+      _to = isoDate(last);
       periodLabel().textContent = `Минулий місяць · ${first.toLocaleString('uk-UA', { month: 'long', year: 'numeric' })}`;
     } else if (period === '3months') {
       const d = new Date(now); d.setMonth(d.getMonth() - 3);
@@ -926,31 +958,112 @@ const receipt = (() => {
       periodLabel().textContent = 'Весь час · усі операції';
     } else if (period === 'custom') {
       customDates().style.display = 'grid';
-      const fi = $('#stmtFrom'), ti = $('#stmtTo');
-      if (!fi.value && !ti.value) {
+      const fi = $('#stmtFrom');
+      const ti = $('#stmtTo');
+      if (fi && ti && !fi.value && !ti.value) {
         fi.value = isoDate(new Date(now.getFullYear(), now.getMonth(), 1));
         ti.value = isoDate(now);
       }
-      _from = fi.value || null;
-      _to   = ti.value || null;
+      _from = fi?.value || null;
+      _to = ti?.value || null;
       updateCustomLabel();
     }
   }
 
   function updateCustomLabel() {
-    const f = $('#stmtFrom')?.value, t = $('#stmtTo')?.value;
-    _from = f || null; _to = t || null;
+    const f = $('#stmtFrom')?.value;
+    const t = $('#stmtTo')?.value;
+    _from = f || null;
+    _to = t || null;
     periodLabel().textContent = (f || t) ? `${f || '…'} — ${t || '…'}` : 'Оберіть діапазон';
     dlBtn().disabled = !f && !t;
+  }
+
+  function orderFallbackFilename() {
+    const suffix = (_from && _to) ? `${_from}_${_to}` : new Date().toISOString().slice(0, 10);
+    return `armybank_statement_${selectedReportType()}_${suffix}.pdf`;
+  }
+
+  async function fetchAndDownloadByQuery(downloadQuery, fallbackFilename) {
+    const query = String(downloadQuery || '').trim();
+    const url = '/api/transactions/statement' + (query ? `?${query}` : '');
+    const res = await fetch((window.ARMY_BANK_BASE || '') + url, {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      throw new Error(j.error || 'Помилка формування виписки');
+    }
+    const blob = await res.blob();
+    const filename = extractFilenameFromDisposition(
+      res.headers.get('Content-Disposition'),
+      fallbackFilename || orderFallbackFilename()
+    );
+    downloadBlobFile(blob, filename);
+  }
+
+  function renderRecentOrders(items) {
+    const box = ordersList();
+    if (!box) return;
+    if (!Array.isArray(items) || !items.length) {
+      box.innerHTML = '<div class="stmt-order-empty">Поки немає замовлень.</div>';
+      return;
+    }
+
+    box.innerHTML = items.map(item => {
+      const period = escapeHtml(item.period_label || '—');
+      const typeLabel = escapeHtml(item.report_type_label || item.report_type || '—');
+      const created = item.created_at ? formatDate(item.created_at) : '—';
+      const filename = escapeHtml(item.filename || 'statement.pdf');
+      const query = encodeURIComponent(item.download_query || '');
+      return `
+        <div class="stmt-order-item">
+          <div class="stmt-order-main">
+            <div class="stmt-order-title">${typeLabel}</div>
+            <div class="stmt-order-meta">${period} · ${created}</div>
+            <div class="stmt-order-file">${filename}</div>
+          </div>
+          <button type="button" class="stmt-order-download" data-query="${query}" data-filename="${filename}">PDF</button>
+        </div>
+      `;
+    }).join('');
+
+    box.querySelectorAll('.stmt-order-download').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const query = decodeURIComponent(btn.dataset.query || '');
+        const filename = btn.dataset.filename || orderFallbackFilename();
+        try {
+          btn.disabled = true;
+          await fetchAndDownloadByQuery(query, filename);
+          showToast('Виписку завантажено.', 'success');
+        } catch (e) {
+          showToast(e.message || 'Помилка завантаження');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  async function loadRecentOrders() {
+    const box = ordersList();
+    if (!box) return;
+    box.innerHTML = '<div class="stmt-order-empty">Завантаження…</div>';
+    try {
+      const rows = await api.request('/api/transactions/statement/orders?limit=6');
+      renderRecentOrders(rows || []);
+    } catch (_) {
+      box.innerHTML = '<div class="stmt-order-empty">Не вдалося завантажити історію.</div>';
+    }
   }
 
   function openStatementModal() {
     const acNum = $('#heroAccount')?.textContent || '—';
     const owner = $('#heroName')?.textContent || '—';
     $('#stmtAccount').textContent = acNum;
-    $('#stmtOwner').textContent   = owner;
+    $('#stmtOwner').textContent = owner;
+    if (reportType()) reportType().value = 'detailed';
 
-    // Reset state — default to "this month"
     $$('.stmt-period-btn').forEach(b => b.classList.remove('active'));
     customDates().style.display = 'none';
     const curMonthBtn = document.querySelector('.stmt-period-btn[data-period="cur_month"]');
@@ -958,6 +1071,7 @@ const receipt = (() => {
 
     overlay()?.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    loadRecentOrders().catch(() => {});
   }
 
   function closeStatementModal() {
@@ -970,38 +1084,33 @@ const receipt = (() => {
     try {
       btn.disabled = true;
       btn.innerHTML = '<span style="opacity:.6">Формування…</span>';
-      const params = new URLSearchParams();
-      if (_from) params.set('from_date', _from);
-      if (_to)   params.set('to_date',   _to);
-      const url = '/api/transactions/statement' + (params.toString() ? '?' + params.toString() : '');
-      const res = await fetch((window.ARMY_BANK_BASE || '') + url, {
-        headers: { Authorization: `Bearer ${api.token}` },
+
+      const payload = {
+        report_type: selectedReportType(),
+      };
+      if (_from) payload.from_date = _from;
+      if (_to) payload.to_date = _to;
+
+      const order = await api.request('/api/transactions/statement/order', {
+        method: 'POST',
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j.error || 'Помилка формування виписки');
+      if (!order || !order.download_query) {
+        throw new Error('Не вдалося отримати параметри замовлення виписки.');
       }
-      const blob = await res.blob();
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      const suffix = (_from && _to) ? `${_from}_${_to}` : new Date().toISOString().slice(0, 10);
-      link.download = `army-bank-statement-${suffix}.pdf`;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(link.href), 15000);
-      showToast('Виписку PDF завантажено.', 'success');
+
+      await fetchAndDownloadByQuery(order.download_query, order.filename || orderFallbackFilename());
+      showToast('Виписку PDF підготовлено та завантажено.', 'success');
+      await loadRecentOrders();
       closeStatementModal();
     } catch (e) {
-      showToast(e.message);
+      showToast(e.message || 'Помилка формування виписки');
     } finally {
       btn.disabled = false;
-      btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Завантажити PDF`;
+      btn.innerHTML = dlBtnDefaultHtml;
     }
   }
 
-  // Wire up after DOM ready
   function init() {
     $('#exportPdfBtn')?.addEventListener('click', openStatementModal);
 
@@ -1011,8 +1120,8 @@ const receipt = (() => {
       setActivePeriod(btn);
       applyPeriod(btn.dataset.period);
     });
-    // custom period button outside grid
-    document.querySelector('.stmt-period-btn[data-period="custom"]')?.addEventListener('click', function() {
+
+    document.querySelector('.stmt-period-btn[data-period="custom"]')?.addEventListener('click', function () {
       setActivePeriod(this);
       applyPeriod('custom');
     });

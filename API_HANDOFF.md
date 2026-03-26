@@ -110,6 +110,9 @@ Many admin/processing registries also support:
 - `GET /api/accounts/main`
 - `POST /api/transactions/topup`
 - `POST /api/transactions/transfer`
+- `POST /api/transactions/statement/order`
+- `GET /api/transactions/statement/orders`
+- `GET /api/transactions/statement`
 - `GET /api/transactions/history`
 - `GET /api/cards`
 
@@ -167,6 +170,15 @@ curl -X POST https://army-bank.onrender.com/api/transactions/topup \
   -H "Idempotency-Key: topup-2026-03-25-001" \
   -H "X-Request-Id: req-topup-001" \
   -d '{"amount": 500}'
+```
+
+### Order statement (detailed/tax/standard)
+
+```bash
+curl -X POST https://army-bank.onrender.com/api/transactions/statement/order \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"report_type":"detailed","from_date":"2026-03-01","to_date":"2026-03-25"}'
 ```
 
 ### Processing SLA queue

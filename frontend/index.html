@@ -1608,6 +1608,15 @@
         <div style="font-size:12px;opacity:.6;margin-top:2px" id="stmtOwner">—</div>
       </div>
 
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;opacity:.5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Тип документа</div>
+        <select id="stmtReportType" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:9px 10px;color:inherit;font-size:13px">
+          <option value="detailed">Детальна виписка (рекомендовано)</option>
+          <option value="standard">Стандартна банківська виписка</option>
+          <option value="tax">Розрахунковий звіт</option>
+        </select>
+      </div>
+
       <!-- Period presets -->
       <div style="margin-bottom:14px">
         <div style="font-size:11px;opacity:.5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Період</div>
@@ -1639,9 +1648,14 @@
       <!-- Selected period label -->
       <div id="stmtPeriodLabel" style="font-size:12px;opacity:.55;text-align:center;margin-bottom:18px">—</div>
 
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;opacity:.5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Останні замовлення</div>
+        <div id="stmtRecentOrders" class="stmt-orders-box"></div>
+      </div>
+
       <button type="button" id="stmtDownloadBtn" class="btn-accent tc-confirm-btn" disabled>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Завантажити PDF
+        Замовити та завантажити PDF
       </button>
       <button type="button" id="stmtCancelBtn" class="btn-ghost tc-cancel-btn">Закрити</button>
     </div>
@@ -1651,6 +1665,15 @@
     .stmt-period-btn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 6px;font-size:12px;color:inherit;cursor:pointer;transition:background .15s,border-color .15s;text-align:center}
     .stmt-period-btn:hover{background:rgba(255,255,255,.12)}
     .stmt-period-btn.active{background:rgba(26,86,219,.25);border-color:#1a56db;color:#93b4f8;font-weight:600}
+    .stmt-orders-box{display:flex;flex-direction:column;gap:8px;max-height:170px;overflow:auto;padding-right:2px}
+    .stmt-order-item{display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 9px}
+    .stmt-order-main{min-width:0}
+    .stmt-order-title{font-size:12px;font-weight:650;line-height:1.25}
+    .stmt-order-meta{font-size:11px;opacity:.7;line-height:1.25}
+    .stmt-order-file{font-size:10px;opacity:.55;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+    .stmt-order-download{background:rgba(26,86,219,.22);border:1px solid rgba(26,86,219,.55);color:#cfe0ff;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:650;cursor:pointer}
+    .stmt-order-download:disabled{opacity:.5;cursor:not-allowed}
+    .stmt-order-empty{font-size:12px;opacity:.6;padding:10px 4px;text-align:center}
   </style>
 </body>
 </html>

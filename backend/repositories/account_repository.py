@@ -51,6 +51,46 @@ class AccountRepository(BaseRepository):
         with self.connection() as conn:
             conn.execute('UPDATE accounts SET balance = %s WHERE id = %s', (new_balance, account_id))
 
+    def get_balance_before(self, account_id: int, from_date: str | None = None) -> float:
+        """Баланс (оборот in-out) до початку дня from_date. Якщо from_date=None -> 0."""
+        if not from_date:
+            return 0.0
+        with self.connection() as conn:
+            row = conn.execute(
+                '''
+                SELECT COALESCE(SUM(CASE WHEN direction='in' THEN amount ELSE -amount END), 0) AS bal
+                FROM transactions
+                WHERE account_id = %s
+                  AND created_at < %s
+                ''',
+                (account_id, f'{from_date} 00:00:00'),
+            ).fetchone()
+            return float((row or {}).get('bal') or 0.0)
+
+    def get_balance_until(self, account_id: int, to_date: str | None = None) -> float:
+        """Баланс (оборот in-out) станом на кінець дня to_date. Якщо to_date=None -> весь час."""
+        with self.connection() as conn:
+            if to_date:
+                row = conn.execute(
+                    '''
+                    SELECT COALESCE(SUM(CASE WHEN direction='in' THEN amount ELSE -amount END), 0) AS bal
+                    FROM transactions
+                    WHERE account_id = %s
+                      AND created_at <= %s
+                    ''',
+                    (account_id, f'{to_date} 23:59:59'),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    '''
+                    SELECT COALESCE(SUM(CASE WHEN direction='in' THEN amount ELSE -amount END), 0) AS bal
+                    FROM transactions
+                    WHERE account_id = %s
+                    ''',
+                    (account_id,),
+                ).fetchone()
+            return float((row or {}).get('bal') or 0.0)
+
     def add_transaction(self, account_id: int, tx_type: str, direction: str, amount: float, description: str, related_account: str | None = None) -> None:
         with self.connection() as conn:
             conn.execute(

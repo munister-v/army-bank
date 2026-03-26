@@ -1,6 +1,8 @@
 """Маршрути рахунків та транзакцій."""
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from flask import Blueprint, Response, jsonify, request, g
 
 from ..config import CRITICAL_MONEY_RATE_LIMIT, CRITICAL_RATE_LIMIT_WINDOW_SECONDS
@@ -289,26 +291,74 @@ def export_statement_pdf():
     try:
         from ..services.statement_service import StatementService
         from_date = request.args.get('from_date') or None
-        to_date   = request.args.get('to_date')   or None
-        pdf_bytes = StatementService().generate_pdf(
+        to_date = request.args.get('to_date') or None
+        report_type = (request.args.get('report_type') or 'detailed').strip().lower()
+        order_id = (request.args.get('order_id') or '').strip() or None
+
+        svc = StatementService()
+        from_date, to_date = svc.normalize_period(from_date, to_date)
+        pdf_bytes = svc.generate_pdf(
             g.current_user['id'],
             from_date=from_date,
             to_date=to_date,
+            report_type=report_type,
+            order_id=order_id,
         )
-        fname = 'army_bank_statement'
-        if from_date:
-            fname += f'_{from_date}'
-        if to_date:
-            fname += f'_{to_date}'
-        fname += '.pdf'
+        account = service.get_main_account(g.current_user['id'])
+        fname = svc.build_statement_filename(
+            account_number=account.get('account_number') or 'ACCOUNT',
+            from_date=from_date,
+            to_date=to_date,
+            report_type=report_type,
+        )
         return Response(
             pdf_bytes,
             mimetype='application/pdf',
             headers={
-                'Content-Disposition': f'attachment; filename="{fname}"',
+                'Content-Disposition': f'attachment; filename="{fname}"; filename*=UTF-8\'\'{quote(fname)}',
                 'Cache-Control': 'no-store',
             },
         )
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@account_bp.post('/transactions/statement/order')
+@auth_required
+def order_statement_pdf():
+    """Створює замовлення на формування виписки та повертає download URL."""
+    try:
+        from ..services.statement_service import StatementService
+
+        data = request.get_json(silent=True) or {}
+        from_date = data.get('from_date') or None
+        to_date = data.get('to_date') or None
+        report_type = (data.get('report_type') or 'detailed').strip().lower()
+
+        svc = StatementService()
+        order = svc.create_statement_order(
+            user_id=g.current_user['id'],
+            from_date=from_date,
+            to_date=to_date,
+            report_type=report_type,
+        )
+        base = request.script_root or ''
+        order['download_url'] = f"{base}/api/transactions/statement?{order['download_query']}"
+        return jsonify({'ok': True, 'data': order})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@account_bp.get('/transactions/statement/orders')
+@auth_required
+def list_statement_orders():
+    """Повертає останні замовлення виписок поточного користувача."""
+    try:
+        from ..services.statement_service import StatementService
+
+        limit = min(max(request.args.get('limit', default=10, type=int), 1), 50)
+        rows = StatementService().list_statement_orders(g.current_user['id'], limit=limit)
+        return jsonify({'ok': True, 'data': rows, 'total': len(rows)})
     except Exception as exc:
         return api_error(str(exc))
 
@@ -319,12 +369,14 @@ def export_receipt_pdf(tx_id: int):
     """Генерує PDF-чек для конкретної транзакції поточного користувача."""
     try:
         from ..services.statement_service import StatementService
-        pdf_bytes = StatementService().generate_receipt(g.current_user['id'], tx_id)
+        receipt = StatementService().generate_receipt_with_meta(g.current_user['id'], tx_id)
+        pdf_bytes = receipt['pdf_bytes']
+        filename = receipt['filename']
         return Response(
             pdf_bytes,
             mimetype='application/pdf',
             headers={
-                'Content-Disposition': f'attachment; filename="receipt_{tx_id}.pdf"',
+                'Content-Disposition': f'attachment; filename="{filename}"; filename*=UTF-8\'\'{quote(filename)}',
                 'Cache-Control': 'no-store',
             },
         )

@@ -93,6 +93,9 @@ def build_api_catalog(prefix: str = '') -> dict:
                     {'method': 'GET', 'path': _join(prefix, '/api/accounts/main')},
                     {'method': 'POST', 'path': _join(prefix, '/api/transactions/topup')},
                     {'method': 'POST', 'path': _join(prefix, '/api/transactions/transfer')},
+                    {'method': 'POST', 'path': _join(prefix, '/api/transactions/statement/order')},
+                    {'method': 'GET', 'path': _join(prefix, '/api/transactions/statement/orders')},
+                    {'method': 'GET', 'path': _join(prefix, '/api/transactions/statement')},
                     {'method': 'GET', 'path': _join(prefix, '/api/transactions/history')},
                     {'method': 'GET', 'path': _join(prefix, '/api/cards')},
                 ],
@@ -293,6 +296,44 @@ def build_openapi_schema(prefix: str = '') -> dict:
                         },
                     },
                     'responses': {'200': {'description': 'Transfer completed.'}},
+                }
+            },
+            '/api/transactions/statement/order': {
+                'post': {
+                    'tags': ['Account'],
+                    'summary': 'Create statement order and return download params',
+                    'requestBody': {
+                        'required': False,
+                        'content': {
+                            'application/json': {
+                                'schema': {'$ref': '#/components/schemas/StatementOrderRequest'}
+                            }
+                        },
+                    },
+                    'responses': {'200': {'description': 'Statement order created.'}},
+                }
+            },
+            '/api/transactions/statement/orders': {
+                'get': {
+                    'tags': ['Account'],
+                    'summary': 'List recent statement orders for current user',
+                    'parameters': [
+                        {'$ref': '#/components/parameters/Limit'},
+                    ],
+                    'responses': {'200': {'description': 'Recent statement orders.'}},
+                }
+            },
+            '/api/transactions/statement': {
+                'get': {
+                    'tags': ['Account'],
+                    'summary': 'Download statement PDF by period/report type',
+                    'parameters': [
+                        {'name': 'from_date', 'in': 'query', 'schema': {'type': 'string', 'format': 'date'}},
+                        {'name': 'to_date', 'in': 'query', 'schema': {'type': 'string', 'format': 'date'}},
+                        {'name': 'report_type', 'in': 'query', 'schema': {'type': 'string', 'enum': ['standard', 'detailed', 'tax']}},
+                        {'name': 'order_id', 'in': 'query', 'schema': {'type': 'string'}},
+                    ],
+                    'responses': {'200': {'description': 'PDF document bytes.'}},
                 }
             },
             '/api/transactions/history': {
@@ -565,6 +606,14 @@ def build_openapi_schema(prefix: str = '') -> dict:
                     },
                     'required': ['recipient_account_number', 'amount'],
                 },
+                'StatementOrderRequest': {
+                    'type': 'object',
+                    'properties': {
+                        'from_date': {'type': 'string', 'format': 'date'},
+                        'to_date': {'type': 'string', 'format': 'date'},
+                        'report_type': {'type': 'string', 'enum': ['standard', 'detailed', 'tax']},
+                    },
+                },
                 'PayoutRequest': {
                     'type': 'object',
                     'properties': {
@@ -687,6 +736,34 @@ def build_postman_collection(prefix: str = '') -> dict:
                             'method': 'GET',
                             'header': [{'key': 'Authorization', 'value': 'Bearer {{token}}'}],
                             'url': {'raw': '{{baseUrl}}{{apiPrefix}}/auth/me'},
+                        },
+                    },
+                ],
+            },
+            {
+                'name': 'Account',
+                'item': [
+                    {
+                        'name': 'Order Statement PDF',
+                        'request': {
+                            'method': 'POST',
+                            'header': [
+                                {'key': 'Authorization', 'value': 'Bearer {{token}}'},
+                                {'key': 'Content-Type', 'value': 'application/json'},
+                            ],
+                            'body': {
+                                'mode': 'raw',
+                                'raw': '{\n  \"report_type\": \"detailed\",\n  \"from_date\": \"2026-03-01\",\n  \"to_date\": \"2026-03-25\"\n}',
+                            },
+                            'url': {'raw': '{{baseUrl}}{{apiPrefix}}/transactions/statement/order'},
+                        },
+                    },
+                    {
+                        'name': 'List Statement Orders',
+                        'request': {
+                            'method': 'GET',
+                            'header': [{'key': 'Authorization', 'value': 'Bearer {{token}}'}],
+                            'url': {'raw': '{{baseUrl}}{{apiPrefix}}/transactions/statement/orders?limit=10'},
                         },
                     },
                 ],

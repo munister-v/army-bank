@@ -101,6 +101,7 @@ pytest tests/ -v
 - Healthcheck: `GET /health`
 - Correlation header: `X-Request-Id` (опційно, повертається у відповіді)
 - Monetary safety header: `Idempotency-Key` (обов'язково для грошових mutation endpoint'ів)
+- Statement order flow: `POST /api/transactions/statement/order` + `GET /api/transactions/statement/orders`
 
 Локальні файли в репозиторії:
 
