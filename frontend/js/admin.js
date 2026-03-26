@@ -1,6 +1,7 @@
 // Army Bank — Admin Panel v3
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
+const escapeHtml = (v) => String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 /** Like api.request but returns the full payload (no data unwrap). */
 async function apiRaw(url, options = {}) {
@@ -231,7 +232,7 @@ async function loadUsers() {
   $$('.open-user').forEach((btn) =>
     btn.addEventListener('click', () => openUserDrawer(Number(btn.dataset.userId)))
   );
-  } catch (e) { $('#usersTableBody').innerHTML = `<tr><td colspan="5" style="color:#f87171;padding:16px">${e.message}</td></tr>`; }
+  } catch (e) { $('#usersTableBody').innerHTML = `<tr><td colspan="5" style="color:#f87171;padding:16px">${escapeHtml(e.message)}</td></tr>`; }
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────────
@@ -305,7 +306,7 @@ async function loadRegistry(reset) {
       </tr>
     `).join('');
   } catch (e) {
-    $('#regTableBody').innerHTML = `<tr><td colspan="8" style="color:#f87171;padding:16px">${e.message}</td></tr>`;
+    $('#regTableBody').innerHTML = `<tr><td colspan="8" style="color:#f87171;padding:16px">${escapeHtml(e.message)}</td></tr>`;
   }
 }
 
@@ -437,7 +438,7 @@ async function loadOrders() {
       </tr>
     `).join('');
   } catch (e) {
-    $('#ordersTableBody').innerHTML = `<tr><td colspan="7" style="color:#f87171;padding:16px">${e.message}</td></tr>`;
+    $('#ordersTableBody').innerHTML = `<tr><td colspan="7" style="color:#f87171;padding:16px">${escapeHtml(e.message)}</td></tr>`;
   }
 }
 
@@ -477,7 +478,7 @@ async function loadRiskEvents() {
       `;
     }).join('');
   } catch (e) {
-    list.innerHTML = `<div style="color:#f87171;padding:16px">${e.message}</div>`;
+    list.innerHTML = `<div style="color:#f87171;padding:16px">${escapeHtml(e.message)}</div>`;
   }
 }
 
@@ -548,7 +549,7 @@ async function loadAudit() {
         `).join('')
       : '<div class="muted" style="padding:16px;text-align:center">Логів немає.</div>';
   } catch (e) {
-    $('#auditList').innerHTML = `<div class="muted" style="padding:16px">Помилка: ${e.message}</div>`;
+    $('#auditList').innerHTML = `<div class="muted" style="padding:16px">Помилка: ${escapeHtml(e.message)}</div>`;
   }
 }
 
@@ -569,7 +570,7 @@ async function loadStatements() {
       </tr>
     `).join('');
   } catch (e) {
-    $('#statementsTableBody').innerHTML = `<tr><td colspan="3" class="muted" style="padding:16px">Помилка: ${e.message}</td></tr>`;
+    $('#statementsTableBody').innerHTML = `<tr><td colspan="3" class="muted" style="padding:16px">Помилка: ${escapeHtml(e.message)}</td></tr>`;
   }
 }
 

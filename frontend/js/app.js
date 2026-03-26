@@ -1,4 +1,4 @@
-// Army Bank — головний фронтенд v2.1
+// Army Bank — головний фронтенд v2.2
 const state = {
   user: null,
   account: null,
@@ -639,7 +639,7 @@ async function openTxDrawer(txId) {
       } catch(e) { showToast(e.message); }
     });
   } catch (e) {
-    if (body) body.innerHTML = `<div class="drawer-error">${e.message}</div>`;
+    if (body) body.innerHTML = `<div class="drawer-error">${escapeHtml(e.message)}</div>`;
   }
 }
 window.openTxDrawer = openTxDrawer;
@@ -1676,7 +1676,7 @@ async function refreshAllData() {
               </div>`).join('') : '<div class="empty-state">Переказів між вами ще немає.</div>'}
           `;
         } catch(e) {
-          if (body) body.innerHTML = `<div class="drawer-error">${e.message}</div>`;
+          if (body) body.innerHTML = `<div class="drawer-error">${escapeHtml(e.message)}</div>`;
         }
       });
     });
@@ -2266,7 +2266,7 @@ if ('serviceWorker' in navigator) {
     setTimeout(() => location.reload(), 200);
   }
 
-  navigator.serviceWorker.register('/sw.js?v=15').then(reg => {
+  navigator.serviceWorker.register('/sw.js?v=16').then(reg => {
     reg.update().catch(() => {});
 
     navigator.serviceWorker.addEventListener('message', e => {
@@ -2525,7 +2525,7 @@ $('#secLogHead')?.addEventListener('click', async () => {
           </div>`;
       }).join('');
     } catch(e) {
-      list.innerHTML = `<div class="sec-log-error">${e.message}</div>`;
+      list.innerHTML = `<div class="sec-log-error">${escapeHtml(e.message)}</div>`;
     }
   }
 });
@@ -2740,7 +2740,7 @@ async function loadBudgetLimits() {
       });
     });
   } catch(e) {
-    listEl.innerHTML = `<div class="empty-state">Помилка: ${e.message}</div>`;
+    listEl.innerHTML = `<div class="empty-state">Помилка: ${escapeHtml(e.message)}</div>`;
   }
 }
 
@@ -3052,7 +3052,7 @@ $('#sessionsHead')?.addEventListener('click', async () => {
         });
       });
     } catch(e) {
-      list.innerHTML = `<div class="sec-log-error">${e.message}</div>`;
+      list.innerHTML = `<div class="sec-log-error">${escapeHtml(e.message)}</div>`;
     }
   }
 });
@@ -3631,7 +3631,7 @@ async function loadRecurring() {
       });
     });
   } catch (e) {
-    if (listEl) { listEl.classList.remove('loading'); listEl.innerHTML = '<div class="drawer-error">' + e.message + '</div>'; }
+    if (listEl) { listEl.classList.remove('loading'); listEl.innerHTML = '<div class="drawer-error">' + escapeHtml(e.message) + '</div>'; }
   }
 }
 
@@ -3721,7 +3721,7 @@ async function loadDebts() {
       });
     });
   } catch (e) {
-    if (listEl) { listEl.classList.remove('loading'); listEl.innerHTML = '<div class="drawer-error">' + e.message + '</div>'; }
+    if (listEl) { listEl.classList.remove('loading'); listEl.innerHTML = '<div class="drawer-error">' + escapeHtml(e.message) + '</div>'; }
   }
 }
 
@@ -4463,7 +4463,7 @@ async function loadCards() {
       bindCardActions();
     }
   } catch (e) {
-    list.innerHTML = `<div class="empty-state">${e.message}</div>`;
+    list.innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
   }
 }
 

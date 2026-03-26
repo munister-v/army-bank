@@ -1,6 +1,7 @@
 // Сторінка платформенного адміна
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
+const escapeHtml = (v) => String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 function showToast(msg) {
   const t = $('#toast');
@@ -70,7 +71,7 @@ async function loadOverview() {
     `;
   } catch (e) {
     el.classList.remove('loading');
-    el.innerHTML = `<div class="empty-state">${e.message}</div>`;
+    el.innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
   }
 }
 
@@ -94,7 +95,7 @@ async function loadPlatformUsers() {
     `).join('') || '<tr><td colspan="6" class="subtle">Немає даних</td></tr>';
   } catch (e) {
     if (wrap) wrap.classList.remove('loading');
-    body.innerHTML = `<tr><td colspan="6" class="subtle">${e.message}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="6" class="subtle">${escapeHtml(e.message)}</td></tr>`;
   }
 }
 
@@ -118,7 +119,7 @@ async function loadPlatformTransactions() {
     `).join('') || '<div class="empty-state">Транзакцій немає</div>';
   } catch (e) {
     list.classList.remove('loading');
-    list.innerHTML = `<div class="empty-state">${e.message}</div>`;
+    list.innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
   }
 }
 
@@ -136,7 +137,7 @@ async function loadPlatformAudit() {
     `).join('') || '<div class="empty-state">Логів немає</div>';
   } catch (e) {
     list.classList.remove('loading');
-    list.innerHTML = `<div class="empty-state">${e.message}</div>`;
+    list.innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
   }
 }
 

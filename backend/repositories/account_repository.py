@@ -68,7 +68,7 @@ class AccountRepository(BaseRepository):
                 (transaction_id, account_id),
             ).fetchone()
 
-    def list_transactions(self, account_id: int, from_date: str | None = None, to_date: str | None = None, tx_type: str | None = None, direction: str | None = None, search: str | None = None, min_amount: float | None = None, max_amount: float | None = None):
+    def list_transactions(self, account_id: int, from_date: str | None = None, to_date: str | None = None, tx_type: str | None = None, direction: str | None = None, search: str | None = None, min_amount: float | None = None, max_amount: float | None = None, limit: int = 500):
         with self.connection() as conn:
             sql = 'SELECT * FROM transactions WHERE account_id = %s'
             params = [account_id]
@@ -93,7 +93,8 @@ class AccountRepository(BaseRepository):
             if max_amount is not None:
                 sql += ' AND amount <= %s'
                 params.append(max_amount)
-            sql += ' ORDER BY created_at DESC, id DESC'
+            sql += ' ORDER BY created_at DESC, id DESC LIMIT %s'
+            params.append(min(limit, 1000))
             return conn.execute(sql, tuple(params)).fetchall()
 
     def get_analytics(self, account_id: int) -> dict:
