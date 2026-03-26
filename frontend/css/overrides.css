@@ -54,6 +54,15 @@ body {
   min-height: 100vh !important;
 }
 
+/* Keep auth/app toggling reliable even when app-shell uses !important display rules */
+#appScreen.app-shell.hidden {
+  display: none !important;
+}
+
+#authScreen.auth-screen.hidden {
+  display: none !important;
+}
+
 /* ── Auth ─────────────────────────────────────────── */
 .auth-screen {
   background:
