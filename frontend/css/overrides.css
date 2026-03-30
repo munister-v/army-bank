@@ -1073,11 +1073,38 @@ textarea:focus,
 #appScreen #donations,
 #appScreen #savings,
 #appScreen #contacts,
-#appScreen #analytics,
 #appScreen #calendar,
 #appScreen #recurring,
 #appScreen #debts {
   display: none !important;
+}
+
+/* ── Analytics screen: light-theme fixes ─────── */
+#appScreen #analytics.active-screen {
+  display: block !important;
+}
+.ams-item {
+  background: var(--mono-surface) !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  border-radius: 14px !important;
+  padding: 14px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06) !important;
+}
+.ams-item.green { border-color: rgba(31,160,85,.25) !important; }
+.ams-item.red   { border-color: rgba(242,84,97,.25) !important; }
+.ams-label {
+  font-size: 10px !important;
+  color: var(--mono-muted) !important;
+}
+.ams-sub { color: var(--mono-muted) !important; }
+.cat-bar-wrap {
+  background: var(--mono-border-strong) !important;
+}
+.cat-label { color: var(--mono-text) !important; }
+#analytics .card {
+  background: var(--mono-surface) !important;
+  border: 1px solid var(--mono-border-soft) !important;
+  box-shadow: var(--mono-shadow) !important;
 }
 
 #transactions .section-header-row,
