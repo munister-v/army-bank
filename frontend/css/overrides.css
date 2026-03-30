@@ -226,6 +226,26 @@ body {
   box-shadow: var(--mono-focus-ring) !important;
 }
 
+/* ── Drawer: dark background needs light text ─── */
+.drawer {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+.drawer-info-row dt {
+  font-size: 11px !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+}
+.drawer-info-row dd {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+.drawer-note-label {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+.drawer-note-input {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
 .app-content .icon-btn,
 .notif-panel .icon-btn,
 .drawer .icon-btn,
