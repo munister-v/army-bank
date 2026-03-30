@@ -2412,7 +2412,7 @@ if ('serviceWorker' in navigator) {
     setTimeout(() => location.reload(), 200);
   }
 
-  navigator.serviceWorker.register('/sw.js?v=19').then(reg => {
+  navigator.serviceWorker.register('/sw.js?v=21').then(reg => {
     // If update is already waiting, activate immediately.
     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
 

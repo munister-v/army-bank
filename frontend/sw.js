@@ -1,15 +1,16 @@
-/* Army Bank — Service Worker v20 */
-const CACHE = 'army-bank-v20';
+/* Army Bank — Service Worker v21 */
+const CACHE = 'army-bank-v21';
 
 /* Assets to pre-cache on install */
 const PRECACHE = [
   '/css/styles.css?v=31',
-  '/css/overrides.css?v=21',
+  '/css/overrides.css?v=22',
   '/manifest.json?v=2',
   '/js/api.js?v=2',
-  '/js/app.js?v=41',
+  '/js/app.js?v=42',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  '/offline.html',
 ];
 
 /* ── Install: pre-cache assets, skip waiting immediately ── */
@@ -71,7 +72,7 @@ self.addEventListener('fetch', e => {
           }
           return res;
         })
-        .catch(() => caches.match(e.request).then(hit => hit || caches.match('/')))
+        .catch(() => caches.match(e.request).then(hit => hit || caches.match('/offline.html')))
     );
     return;
   }

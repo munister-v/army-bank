@@ -2,7 +2,7 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Army Bank</title>
   <meta name="description" content="Цифровий банкінг для захисників України">
   <meta name="theme-color" content="#162c5c">
@@ -38,11 +38,11 @@
   <!-- Both stylesheets async (non-blocking) — critical CSS above prevents FOUC -->
   <link rel="stylesheet" href="/css/styles.css?v=31" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="/css/styles.css?v=31"></noscript>
-  <link rel="stylesheet" href="/css/overrides.css?v=21" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/overrides.css?v=21"></noscript>
+  <link rel="stylesheet" href="/css/overrides.css?v=22" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/overrides.css?v=22"></noscript>
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js?v=2" as="script">
-  <link rel="preload" href="/js/app.js?v=41" as="script">
+  <link rel="preload" href="/js/app.js?v=42" as="script">
   <!-- Early server wake-up: ping /health if session token exists (mitigates Render cold-start) -->
   <script>
     (function(){
@@ -1519,7 +1519,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js?v=2" defer></script>
-  <script src="/js/app.js?v=41" defer></script>
+  <script src="/js/app.js?v=42" defer></script>
 
   <!-- Transfer confirmation bottom sheet -->
   <div id="transferConfirmOverlay" class="tc-overlay hidden" role="dialog" aria-modal="true">
