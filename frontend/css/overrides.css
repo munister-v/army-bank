@@ -1068,19 +1068,15 @@ textarea:focus,
   box-shadow: var(--mono-focus-ring) !important;
 }
 
-/* Keep UX focused: core tabs only */
-#appScreen #payouts,
-#appScreen #donations,
-#appScreen #savings,
-#appScreen #contacts,
-#appScreen #calendar,
-#appScreen #recurring,
-#appScreen #debts {
-  display: none !important;
-}
-
-/* ── Analytics screen: light-theme fixes ─────── */
-#appScreen #analytics.active-screen {
+/* ── Secondary screens: let active-screen mechanism work ─────── */
+#appScreen #analytics.active-screen,
+#appScreen #savings.active-screen,
+#appScreen #payouts.active-screen,
+#appScreen #donations.active-screen,
+#appScreen #contacts.active-screen,
+#appScreen #calendar.active-screen,
+#appScreen #recurring.active-screen,
+#appScreen #debts.active-screen {
   display: block !important;
 }
 .ams-item {
