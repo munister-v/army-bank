@@ -1062,8 +1062,8 @@ const receipt = (() => {
   }
 
   function openStatementModal() {
-    const acNum = $('#heroAccount')?.textContent || '—';
-    const owner = $('#heroName')?.textContent || '—';
+    const acNum = ($('#heroAccount')?.textContent || '').replace(/^Рахунок:\s*/i, '').trim() || '—';
+    const owner = ($('#heroName')?.textContent || '').trim() || '—';
     $('#stmtAccount').textContent = acNum;
     $('#stmtOwner').textContent = owner;
     if (reportType()) reportType().value = 'detailed';
@@ -2412,7 +2412,7 @@ if ('serviceWorker' in navigator) {
     setTimeout(() => location.reload(), 200);
   }
 
-  navigator.serviceWorker.register('/sw.js?v=21').then(reg => {
+  navigator.serviceWorker.register('/sw.js?v=22').then(reg => {
     // If update is already waiting, activate immediately.
     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
 

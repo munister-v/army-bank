@@ -2707,3 +2707,123 @@ html, body {
 body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* ── Bottom-sheet modal system ───────────────────────────────────────────── */
+.tc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  background: rgba(0, 0, 0, .55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  overflow: hidden;
+}
+.tc-overlay.hidden { display: none !important; }
+
+.tc-sheet {
+  background: #1a2233;
+  border-radius: 22px 22px 0 0;
+  width: 100%;
+  max-width: 480px;
+  max-height: 92dvh;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 -8px 32px rgba(0,0,0,.35);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: sheetSlideUp .22s cubic-bezier(.32,1,.46,1) both;
+}
+@keyframes sheetSlideUp {
+  from { transform: translateY(100%); opacity: .6; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* Drag handle */
+.tc-handle {
+  width: 40px; height: 4px;
+  background: rgba(255,255,255,.18);
+  border-radius: 2px;
+  margin: 10px auto 0;
+  flex-shrink: 0;
+}
+
+/* Sheet header icon */
+.tc-icon {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 14px auto 8px;
+  flex-shrink: 0;
+}
+
+/* Sheet title */
+.tc-title {
+  font-size: 17px;
+  font-weight: 700;
+  text-align: center;
+  color: #f1f5f9;
+  margin: 0 0 14px;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+/* Scrollable body area */
+.tc-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 18px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Sticky footer buttons */
+.tc-footer {
+  flex-shrink: 0;
+  padding: 12px 18px 16px;
+  border-top: 1px solid rgba(255,255,255,.07);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tc-confirm-btn {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center;
+  padding: 14px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  border: none;
+  transition: opacity .15s, transform .1s;
+}
+.tc-confirm-btn:disabled { opacity: .45; cursor: not-allowed; }
+.tc-confirm-btn:active:not(:disabled) { transform: scale(.98); }
+.tc-cancel-btn {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center;
+  padding: 11px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.55);
+  transition: background .15s;
+}
+.tc-cancel-btn:hover { background: rgba(255,255,255,.06); }
+
+/* Transfer confirm specific rows */
+.tc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 6px 0;
+  font-size: 13px;
+}
+.tc-label { opacity: .55; }
+.tc-val { font-weight: 600; }
