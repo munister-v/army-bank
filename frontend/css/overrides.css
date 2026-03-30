@@ -254,7 +254,7 @@ body {
 }
 
 .balance-label {
-  color: rgba(255, 255, 255, 0.72) !important;
+  color: rgba(255, 255, 255, 0.82) !important;
   font-size: 12px !important;
   letter-spacing: 0.06em !important;
 }
@@ -635,9 +635,15 @@ body {
 }
 
 .item .muted,
-.item-desc,
-.tx-date-label {
+.item-desc {
   color: #8e95a4 !important;
+}
+
+.tx-date-label {
+  color: #4a5568 !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  letter-spacing: .06em !important;
 }
 
 .amount,
@@ -2384,7 +2390,7 @@ textarea:focus,
   font-weight: 600 !important;
   letter-spacing: .1em !important;
   text-transform: uppercase !important;
-  color: rgba(255,255,255,.45) !important;
+  color: rgba(255,255,255,.82) !important;
   margin-bottom: 4px !important;
 }
 .balance-amount {
@@ -2399,7 +2405,7 @@ textarea:focus,
 }
 .balance-account {
   font-size: 12px !important;
-  color: rgba(255,255,255,.4) !important;
+  color: rgba(255,255,255,.72) !important;
   margin-top: 6px !important;
   font-family: var(--font-mono, monospace) !important;
   letter-spacing: .05em !important;
@@ -2418,8 +2424,8 @@ textarea:focus,
   gap: 6px !important;
   padding: 13px 6px !important;
   border-radius: 18px !important;
-  background: rgba(255,255,255,.08) !important;
-  border: 1px solid rgba(255,255,255,.1) !important;
+  background: rgba(255,255,255,.13) !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
   transition: background .15s, transform .12s !important;
@@ -2432,16 +2438,16 @@ textarea:focus,
   width: 38px !important;
   height: 38px !important;
   border-radius: 12px !important;
-  background: rgba(255,255,255,.1) !important;
+  background: rgba(255,255,255,.18) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
 }
 .qa-label {
-  font-size: 10px !important;
+  font-size: 11px !important;
   font-weight: 700 !important;
-  letter-spacing: .04em !important;
-  color: rgba(255,255,255,.75) !important;
+  letter-spacing: .03em !important;
+  color: rgba(255,255,255,.92) !important;
   text-transform: uppercase !important;
 }
 
@@ -2825,5 +2831,5 @@ body {
   padding: 6px 0;
   font-size: 13px;
 }
-.tc-label { opacity: .55; }
+.tc-label { opacity: .75; }
 .tc-val { font-weight: 600; }
