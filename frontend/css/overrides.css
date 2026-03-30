@@ -1031,9 +1031,9 @@ textarea:focus,
 }
 
 .btn-ghost {
-  background: #eef2f8 !important;
-  border: 1px solid #dfe6f2 !important;
-  color: #62718a !important;
+  background: #edf1f7 !important;
+  border: 1px solid #c6d3e6 !important;
+  color: #3a4d68 !important;
   border-radius: 12px !important;
   min-height: 44px !important;
   font-size: 14px !important;
@@ -1057,7 +1057,7 @@ textarea:focus,
 .btn-ghost:hover {
   background: #e8edf7 !important;
   border-color: var(--mono-border-strong) !important;
-  color: #4f5f79 !important;
+  color: #2b3d58 !important;
 }
 
 .btn-accent:focus-visible,
@@ -1178,7 +1178,7 @@ textarea:focus,
 }
 
 #profile .profile-info-row dt {
-  color: #8a93a5 !important;
+  color: #3a4e63 !important;
   font-size: 12px !important;
   letter-spacing: 0.04em !important;
 }
