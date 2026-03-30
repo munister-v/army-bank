@@ -862,9 +862,9 @@ const receipt = (() => {
         `armybank_receipt_tx${_txId}.pdf`
       );
       downloadBlobFile(blob, filename);
-      showToast('Чек PDF завантажено', 'success');
+      showToast(`Квитанцію збережено: ${filename}`, 'success');
     } catch (e) {
-      showToast(e.message);
+      showToast(escapeHtml(e.message));
     } finally {
       btn.disabled = false;
       btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Скачати чек PDF';
@@ -903,6 +903,7 @@ const receipt = (() => {
 (function () {
   const overlay = () => $('#statementOverlay');
   const dlBtn = () => $('#stmtDownloadBtn');
+  const csvBtn = () => $('#stmtCsvBtn');
   const cancelBtn = () => $('#stmtCancelBtn');
   const periodGrid = () => $('#stmtPeriodGrid');
   const customDates = () => $('#stmtCustomDates');
@@ -910,7 +911,8 @@ const receipt = (() => {
   const reportType = () => $('#stmtReportType');
   const ordersList = () => $('#stmtRecentOrders');
 
-  const dlBtnDefaultHtml = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Замовити та завантажити PDF`;
+  const dlBtnDefaultHtml = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:6px;flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Завантажити PDF`;
+  const csvBtnDefaultHtml = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" style="margin-right:4px;flex-shrink:0"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>CSV`;
 
   let _from = null;
   let _to = null;
@@ -930,6 +932,7 @@ const receipt = (() => {
     const now = new Date();
     customDates().style.display = 'none';
     dlBtn().disabled = false;
+    if (csvBtn()) csvBtn().disabled = false;
 
     if (period === 'cur_month') {
       _from = isoDate(new Date(now.getFullYear(), now.getMonth(), 1));
@@ -977,6 +980,7 @@ const receipt = (() => {
     _to = t || null;
     periodLabel().textContent = (f || t) ? `${f || '…'} — ${t || '…'}` : 'Оберіть діапазон';
     dlBtn().disabled = !f && !t;
+    if (csvBtn()) csvBtn().disabled = !f && !t;
   }
 
   function orderFallbackFilename() {
@@ -1066,6 +1070,7 @@ const receipt = (() => {
 
     $$('.stmt-period-btn').forEach(b => b.classList.remove('active'));
     customDates().style.display = 'none';
+    if (csvBtn()) csvBtn().disabled = true;
     const curMonthBtn = document.querySelector('.stmt-period-btn[data-period="cur_month"]');
     if (curMonthBtn) { curMonthBtn.classList.add('active'); applyPeriod('cur_month'); }
 
@@ -1083,13 +1088,12 @@ const receipt = (() => {
     const btn = dlBtn();
     try {
       btn.disabled = true;
-      btn.innerHTML = '<span style="opacity:.6">Формування…</span>';
+      if (csvBtn()) csvBtn().disabled = true;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:6px;animation:spin 1s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-8.49"/></svg><span>Формування…</span>';
 
-      const payload = {
-        report_type: selectedReportType(),
-      };
+      const payload = { report_type: selectedReportType() };
       if (_from) payload.from_date = _from;
-      if (_to) payload.to_date = _to;
+      if (_to)   payload.to_date   = _to;
 
       const order = await api.request('/api/transactions/statement/order', {
         method: 'POST',
@@ -1099,15 +1103,47 @@ const receipt = (() => {
         throw new Error('Не вдалося отримати параметри замовлення виписки.');
       }
 
-      await fetchAndDownloadByQuery(order.download_query, order.filename || orderFallbackFilename());
-      showToast('Виписку PDF підготовлено та завантажено.', 'success');
+      const filename = order.filename || orderFallbackFilename();
+      await fetchAndDownloadByQuery(order.download_query, filename);
+      showToast(`Виписку завантажено: ${filename}`, 'success');
       await loadRecentOrders();
       closeStatementModal();
     } catch (e) {
-      showToast(e.message || 'Помилка формування виписки');
+      showToast(escapeHtml(e.message) || 'Помилка формування виписки');
     } finally {
       btn.disabled = false;
       btn.innerHTML = dlBtnDefaultHtml;
+      if (csvBtn()) csvBtn().disabled = false;
+    }
+  }
+
+  async function downloadCsv() {
+    const btn = csvBtn();
+    if (!btn) return;
+    try {
+      btn.disabled = true;
+      btn.innerHTML = '<span style="opacity:.6">CSV…</span>';
+
+      const params = new URLSearchParams();
+      if (_from) params.set('from_date', _from);
+      if (_to)   params.set('to_date',   _to);
+      const url = `${window.ARMY_BANK_BASE || ''}/api/transactions/export?${params}`;
+
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${api.token}` } });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Помилка завантаження CSV');
+      }
+      const blob = await res.blob();
+      const suffix = (_from && _to) ? `${_from}_${_to}` : new Date().toISOString().slice(0, 10);
+      const fname = extractFilenameFromDisposition(res.headers.get('Content-Disposition'), `armybank_${suffix}.csv`);
+      downloadBlobFile(blob, fname);
+      showToast(`CSV завантажено: ${fname}`, 'success');
+    } catch (e) {
+      showToast(escapeHtml(e.message) || 'Помилка CSV');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = csvBtnDefaultHtml;
     }
   }
 
@@ -1129,6 +1165,7 @@ const receipt = (() => {
     $('#stmtFrom')?.addEventListener('change', updateCustomLabel);
     $('#stmtTo')?.addEventListener('change', updateCustomLabel);
     dlBtn()?.addEventListener('click', downloadStatement);
+    csvBtn()?.addEventListener('click', downloadCsv);
     cancelBtn()?.addEventListener('click', closeStatementModal);
     overlay()?.addEventListener('click', (e) => { if (e.target === overlay()) closeStatementModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeStatementModal(); });

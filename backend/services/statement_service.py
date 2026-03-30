@@ -91,14 +91,19 @@ def _f(bold: bool = False) -> str:
 
 
 # ── Кольорова схема Army Bank ──────────────────────────────────────────────
-_NAVY = colors.HexColor('#162c5c')
-_BLUE = colors.HexColor('#1a56db')
-_LIGHT = colors.HexColor('#e8eef8')
-_GREEN = colors.HexColor('#16a34a')
-_RED = colors.HexColor('#dc2626')
-_MUTED = colors.HexColor('#6b7280')
-_BG = colors.HexColor('#f8fafc')
-_WHITE = colors.white
+_NAVY   = colors.HexColor('#162c5c')
+_NAVY2  = colors.HexColor('#0d1e3d')   # darker navy for header banner
+_BLUE   = colors.HexColor('#1a56db')
+_LIGHT  = colors.HexColor('#e8eef8')
+_GREEN  = colors.HexColor('#16a34a')
+_RED    = colors.HexColor('#dc2626')
+_MUTED  = colors.HexColor('#6b7280')
+_BG     = colors.HexColor('#f8fafc')
+_WHITE  = colors.white
+_STEEL  = colors.HexColor('#334155')   # dark body text
+_LGGREEN = colors.HexColor('#dcfce7')  # light green bg (positive)
+_LGRED   = colors.HexColor('#fee2e2')  # light red bg (negative)
+_GOLD    = colors.HexColor('#d97706')  # amber accent (tax report)
 
 _TX_TYPE_LABELS = {
     'transfer': 'Переказ',
@@ -395,86 +400,140 @@ class StatementService:
     # Receipt PDF
     # ──────────────────────────────────────────────────────────────────────
     def _build_receipt(self, account: dict, user: dict, tx: dict) -> bytes:
-        """Генерує A6-подібний PDF чек для однієї транзакції."""
+        """Генерує A6 PDF квитанцію для однієї транзакції."""
         buf = io.BytesIO()
-        width, height = 105 * mm, 148 * mm   # A6
+        width, height = 105 * mm, 165 * mm   # A6 extended
         doc = SimpleDocTemplate(
             buf,
             pagesize=(width, height),
-            leftMargin=10 * mm,
-            rightMargin=10 * mm,
-            topMargin=10 * mm,
-            bottomMargin=8 * mm,
+            leftMargin=0,
+            rightMargin=0,
+            topMargin=0,
+            bottomMargin=6 * mm,
         )
 
-        styles = getSampleStyleSheet()
-        normal = ParagraphStyle('n', fontName=_f(), fontSize=8.5, leading=12, textColor=_MUTED)
-        bold = ParagraphStyle('b', fontName=_f(True), fontSize=9, leading=13, textColor=_NAVY)
-        small = ParagraphStyle('s', fontName=_f(), fontSize=7.5, leading=10, textColor=_MUTED)
-        head = ParagraphStyle('h', fontName=_f(True), fontSize=13, leading=16, textColor=_NAVY)
-
         direction = str(tx.get('direction') or 'out').lower()
+        is_in = direction == 'in'
         amount = float(tx.get('amount') or 0)
         commission = 0.0
-        total = amount + commission if direction == 'out' else amount
-        sign = '+' if direction == 'in' else '−'
+        total = amount if is_in else amount + commission
+        sign = '+' if is_in else '−'
         amount_str = f'{sign}{self._money(amount)}'
-        total_str = self._money(total)
 
-        tx_date = str(tx.get('created_at') or '')
+        raw_dt = str(tx.get('created_at') or '')
         try:
-            dt = datetime.fromisoformat(tx_date.replace('Z', '+00:00'))
+            dt = datetime.fromisoformat(raw_dt.replace('Z', '+00:00'))
             date_str = dt.strftime('%d.%m.%Y %H:%M')
+            date_short = dt.strftime('%d.%m.%Y')
         except Exception:
-            date_str = tx_date or '—'
+            date_str = raw_dt[:16] or '—'
+            date_short = '—'
 
         tx_type = _TX_TYPE_LABELS.get(tx.get('tx_type'), tx.get('tx_type') or 'Операція')
-        title = f'Квитанція · {tx_type}'
+        tx_num = int(tx.get('id') or 0)
 
         story = []
-        story.append(Paragraph('<b>Army</b><font color="#1a56db"><b>Bank</b></font>', head))
-        story.append(Paragraph(title, ParagraphStyle('ttl', fontName=_f(), fontSize=9.5, textColor=_MUTED, spaceAfter=5)))
 
-        story.append(HRFlowable(width='100%', thickness=0.7, color=_LIGHT, spaceAfter=5))
+        # ── Navy header band ─────────────────────────────────────────────────
+        wt = ParagraphStyle('wt', fontName=_f(True), fontSize=14, textColor=_WHITE, leading=18)
+        wn = ParagraphStyle('wn', fontName=_f(), fontSize=8.5, textColor=colors.HexColor('#93b4f8'),
+                            leading=11, alignment=2)
+        hdr = Table(
+            [[Paragraph('Army<font color="#6ba3f7">Bank</font>', wt),
+              Paragraph(f'Квитанція\n#{tx_num}', wn)]],
+            colWidths=[None, 28 * mm],
+        )
+        hdr.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), _NAVY2),
+            ('TOPPADDING', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 9),
+            ('LEFTPADDING', (0, 0), (-1, -1), 11),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 11),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        story.append(hdr)
 
-        amount_color = _GREEN if direction == 'in' else _RED
-        story.append(Paragraph(
-            f'<font color="#{"16a34a" if direction == "in" else "dc2626"}"><b>{amount_str}</b></font>',
-            ParagraphStyle('amt', fontName=_f(True), fontSize=22, alignment=1, textColor=amount_color, leading=26),
-        ))
+        # ── Amount block ─────────────────────────────────────────────────────
+        amt_bg  = _LGGREEN if is_in else _LGRED
+        amt_fg  = colors.HexColor('#15803d') if is_in else colors.HexColor('#b91c1c')
+        lbl_fg  = colors.HexColor('#166534') if is_in else colors.HexColor('#991b1b')
+        amt_t = Table(
+            [[Paragraph(amount_str,
+                        ParagraphStyle('aa', fontName=_f(True), fontSize=24, textColor=amt_fg,
+                                       alignment=1, leading=28))],
+             [Paragraph(tx_type,
+                        ParagraphStyle('at', fontName=_f(), fontSize=9, textColor=lbl_fg,
+                                       alignment=1, leading=12))]],
+            colWidths=['100%'],
+        )
+        amt_t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), amt_bg),
+            ('TOPPADDING', (0, 0), (0, 0), 10),
+            ('BOTTOMPADDING', (0, -1), (0, -1), 10),
+            ('TOPPADDING', (0, 1), (0, 1), 1),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        story.append(amt_t)
         story.append(Spacer(1, 3))
 
-        def _row(label: str, value: str):
-            return [Paragraph(label, small), Paragraph(f'<b>{value}</b>', bold)]
+        # ── Details table ────────────────────────────────────────────────────
+        lbl_s = ParagraphStyle('ls', fontName=_f(), fontSize=7.8, leading=11, textColor=_MUTED)
+        val_s = ParagraphStyle('vs', fontName=_f(True), fontSize=8.5, leading=12, textColor=_STEEL)
+        ok_s  = ParagraphStyle('ok', fontName=_f(True), fontSize=8.5, leading=12, textColor=_GREEN)
 
-        details = [
-            _row('Транзакція', f'#{int(tx.get("id") or 0)}'),
-            _row('Дата та час', date_str),
-            _row('Тип', tx_type),
-            _row('Власник', user.get('full_name') or '—'),
-            _row('Рахунок', account.get('account_number') or '—'),
-            _row('Контрагент', tx.get('related_account') or '—'),
-            _row('Сума операції', self._money(amount)),
-            _row('Комісія', self._money(commission)),
-            _row('Разом', total_str),
-            _row('Опис', tx.get('description') or '—'),
-            _row('Статус', '✓ Виконано'),
+        def _row(label: str, value: str, val_style=None):
+            return [Paragraph(label, lbl_s), Paragraph(value, val_style or val_s)]
+
+        related = tx.get('related_account') or '—'
+        desc = str(tx.get('description') or '—')
+        if len(desc) > 50:
+            desc = desc[:47] + '…'
+
+        rows = [
+            _row('Транзакція',   f'#{tx_num}'),
+            _row('Дата та час',  date_str),
+            _row('Тип операції', tx_type),
+            _row('Власник',      user.get('full_name') or '—'),
+            _row('Рахунок',      account.get('account_number') or '—'),
+            _row('Контрагент',   related),
+            _row('Сума',         self._money(amount)),
+            _row('Комісія',      self._money(commission)),
+            _row('Разом',        self._money(total)),
+            _row('Опис',         desc),
+            _row('Статус',       '✓  ПІДТВЕРДЖЕНО', ok_s),
         ]
 
-        table = Table(details, colWidths=[34 * mm, None])
-        table.setStyle(TableStyle([
-            ('LINEBELOW', (0, 0), (-1, -2), 0.25, colors.HexColor('#dbe4f1')),
+        det_t = Table(rows, colWidths=[30 * mm, None])
+        n_rows = len(rows)
+        det_t.setStyle(TableStyle([
+            ('LINEBELOW', (0, 0), (-1, n_rows - 2), 0.25, colors.HexColor('#dce6f3')),
+            ('BACKGROUND', (0, n_rows - 1), (-1, n_rows - 1), colors.HexColor('#f0fdf4')),
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('LEFTPADDING', (0, 0), (-1, -1), 11),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 11),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ]))
-        story.append(table)
+        story.append(det_t)
 
-        story.append(Spacer(1, 5))
-        story.append(HRFlowable(width='100%', thickness=0.5, color=_LIGHT, spaceAfter=3))
-        story.append(Paragraph('Документ сформовано автоматично в Army Bank.', normal))
+        # ── Footer ───────────────────────────────────────────────────────────
+        story.append(Spacer(1, 4))
+        story.append(HRFlowable(width='100%', thickness=0.4, color=_LIGHT, spaceAfter=3))
+        ft = Table(
+            [[Paragraph(f'Сформовано: {date_short}',
+                        ParagraphStyle('fl', fontName=_f(), fontSize=7, textColor=_MUTED)),
+              Paragraph('army-bank.com.ua',
+                        ParagraphStyle('fr', fontName=_f(), fontSize=7, textColor=_MUTED, alignment=2))]],
+            colWidths=['50%', '50%'],
+        )
+        ft.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 11),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 11),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        story.append(ft)
 
         doc.build(story)
         return buf.getvalue()
@@ -512,6 +571,13 @@ class StatementService:
         story.append(Spacer(1, 3 * mm))
         story.append(self._detail_metrics_table(summary))
         story.append(Spacer(1, 3 * mm))
+
+        if summary.get('monthly') and len(summary['monthly']) > 1:
+            story.append(Paragraph('Помісячний рух коштів', ParagraphStyle(
+                'sec0', parent=styles['Normal'], fontName=_f(True), fontSize=10.5, textColor=_NAVY, spaceAfter=2,
+            )))
+            story.append(self._monthly_table(summary['monthly']))
+            story.append(Spacer(1, 3 * mm))
 
         if summary.get('by_type'):
             story.append(Paragraph('Розподіл за типами операцій', ParagraphStyle(
@@ -561,57 +627,91 @@ class StatementService:
     ):
         styles = getSampleStyleSheet()
 
-        title = ParagraphStyle('title', parent=styles['Normal'], fontSize=17, fontName=_f(True), textColor=_NAVY)
-        subtitle = ParagraphStyle('sub', parent=styles['Normal'], fontSize=9, fontName=_f(), textColor=_MUTED)
-        value = ParagraphStyle('val', parent=styles['Normal'], fontSize=9.8, fontName=_f(True), textColor=_NAVY)
-        balance = ParagraphStyle('bal', parent=styles['Normal'], fontSize=20, fontName=_f(True), textColor=_NAVY)
-        badge = ParagraphStyle('badge', parent=styles['Normal'], fontSize=8.3, fontName=_f(True), textColor=_BLUE)
+        # Banner styles (white on navy)
+        banner_brand  = ParagraphStyle('bb', parent=styles['Normal'], fontSize=18, fontName=_f(True), textColor=_WHITE)
+        banner_type   = ParagraphStyle('bt', parent=styles['Normal'], fontSize=9.5, fontName=_f(True),
+                                       textColor=colors.HexColor('#93b4f8'), alignment=1)
+        banner_period = ParagraphStyle('bp', parent=styles['Normal'], fontSize=9.5, fontName=_f(),
+                                       textColor=colors.HexColor('#bfcfe8'), alignment=2)
+
+        # Info styles
+        subtitle = ParagraphStyle('sub', parent=styles['Normal'], fontSize=8.3, fontName=_f(), textColor=_MUTED)
+        value    = ParagraphStyle('val', parent=styles['Normal'], fontSize=9.5, fontName=_f(True), textColor=_NAVY)
+        balance  = ParagraphStyle('bal', parent=styles['Normal'], fontSize=21, fontName=_f(True), textColor=_NAVY)
 
         period_label = self._period_label(from_date, to_date)
         report_label = _REPORT_TYPE_LABELS.get(report_type, report_type)
         current_balance = self._money(float(account.get('balance') or 0))
+        now_str = datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M UTC')
 
+        # ── Row 0: navy banner spanning full width ────────────────────────────
+        banner = Table(
+            [[Paragraph('Army<font color="#6ba3f7">Bank</font>', banner_brand),
+              Paragraph(report_label.upper(), banner_type),
+              Paragraph(period_label, banner_period)]],
+            colWidths=['35%', '35%', '30%'],
+        )
+        banner.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), _NAVY2),
+            ('TOPPADDING', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 9),
+            ('LEFTPADDING', (0, 0), (0, 0), 0),
+            ('LEFTPADDING', (1, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+
+        # ── Row 1: account info (two columns) ────────────────────────────────
         left = [
-            Paragraph('Army <font color="#1a56db"><b>Bank</b></font>', title),
-            Spacer(1, 1.3 * mm),
-            Paragraph(report_label, badge),
-            Spacer(1, 2.2 * mm),
             Paragraph('Власник рахунку', subtitle),
             Paragraph(user.get('full_name') or '—', value),
-            Spacer(1, 1.5 * mm),
+            Spacer(1, 2 * mm),
             Paragraph('Рахунок', subtitle),
             Paragraph(account.get('account_number') or '—', value),
-            Spacer(1, 1.5 * mm),
-            Paragraph('Період', subtitle),
-            Paragraph(period_label, value),
+            Spacer(1, 2 * mm),
+            Paragraph('Телефон / Email', subtitle),
+            Paragraph(
+                user.get('phone') or user.get('email') or '—',
+                ParagraphStyle('ph', parent=styles['Normal'], fontSize=8.5, fontName=_f(), textColor=_STEEL),
+            ),
         ]
 
         right = [
             Paragraph('Поточний баланс', subtitle),
             Paragraph(current_balance, balance),
-            Spacer(1, 2.2 * mm),
+            Spacer(1, 1.5 * mm),
             Paragraph('Валюта', subtitle),
             Paragraph(account.get('currency') or 'UAH', value),
             Spacer(1, 1.5 * mm),
             Paragraph('Дата формування', subtitle),
-            Paragraph(datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M UTC'), value),
+            Paragraph(now_str, ParagraphStyle('nw', parent=styles['Normal'], fontSize=8.5, fontName=_f(), textColor=_STEEL)),
         ]
         if order_id:
             right.extend([
                 Spacer(1, 1.5 * mm),
                 Paragraph('ID замовлення', subtitle),
-                Paragraph(order_id, value),
+                Paragraph(order_id, ParagraphStyle('oid', parent=styles['Normal'], fontSize=8, fontName=_f(),
+                                                   textColor=_MUTED)),
             ])
 
-        t = Table([[left, right]], colWidths=['60%', '40%'])
-        t.setStyle(TableStyle([
+        info = Table([[left, right]], colWidths=['62%', '38%'])
+        info.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+
+        # Wrap banner + info into a single outer table
+        outer = Table([[banner], [info]], colWidths=['100%'])
+        outer.setStyle(TableStyle([
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
             ('TOPPADDING', (0, 0), (-1, -1), 0),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ]))
-        return t
+        return outer
 
     def _calc_summary(self, txs: list, opening_balance: float, closing_balance: float) -> dict:
         total_in = 0.0
@@ -672,8 +772,22 @@ class StatementService:
         net = total_in - total_out
         avg_ticket = (total_in + total_out) / count_total if count_total else 0.0
 
-        by_type_rows = sorted(by_type.values(), key=lambda x: (-x['total_turnover'], -x['count']))
-        daily_rows = sorted(by_day.values(), key=lambda x: x['day'])
+        by_type_rows   = sorted(by_type.values(), key=lambda x: (-x['total_turnover'], -x['count']))
+        daily_rows     = sorted(by_day.values(), key=lambda x: x['day'])
+
+        # Monthly breakdown
+        by_month: dict[str, dict] = {}
+        for tx in txs:
+            amount    = float(tx.get('amount') or 0)
+            direction = str(tx.get('direction') or '').lower()
+            month_key = str(tx.get('created_at') or '')[:7]   # 'YYYY-MM'
+            mb = by_month.setdefault(month_key, {'month': month_key, 'in': 0.0, 'out': 0.0, 'count': 0})
+            if direction == 'in':
+                mb['in'] += amount
+            else:
+                mb['out'] += amount
+            mb['count'] += 1
+        monthly_rows = sorted(by_month.values(), key=lambda x: x['month'])
 
         return {
             'count': count_total,
@@ -693,35 +807,60 @@ class StatementService:
             'max_tx': float(max_tx or 0.0),
             'by_type': by_type_rows,
             'daily': daily_rows,
+            'monthly': monthly_rows,
         }
 
     def _summary_table(self, summary: dict):
+        """5 карток: баланс на початку | надходження | витрати | баланс на кінці | чистий рух."""
         styles = getSampleStyleSheet()
-        label = ParagraphStyle('lbl', parent=styles['Normal'], fontName=_f(), fontSize=8, textColor=_MUTED, alignment=1)
-        value = ParagraphStyle('val', parent=styles['Normal'], fontName=_f(True), fontSize=12.5, textColor=_NAVY, alignment=1)
-        pos = ParagraphStyle('pos', parent=value, textColor=_GREEN)
-        neg = ParagraphStyle('neg', parent=value, textColor=_RED)
+        lbl   = ParagraphStyle('lbl', parent=styles['Normal'], fontName=_f(), fontSize=7.5, textColor=_MUTED, alignment=1)
+        val   = ParagraphStyle('val', parent=styles['Normal'], fontName=_f(True), fontSize=11.5, textColor=_NAVY, alignment=1)
+        pos   = ParagraphStyle('pos', parent=val, textColor=_GREEN)
+        neg   = ParagraphStyle('neg', parent=val, textColor=_RED)
 
-        net_style = pos if float(summary.get('net') or 0) >= 0 else neg
-        cards = [
-            [Paragraph('Початковий баланс', label), Paragraph(self._money(summary.get('opening_balance') or 0), value)],
-            [Paragraph('Надходження', label), Paragraph(self._money(summary.get('total_in') or 0), pos)],
-            [Paragraph('Витрати', label), Paragraph(self._money(summary.get('total_out') or 0), neg)],
-            [Paragraph('Кінцевий баланс', label), Paragraph(self._money(summary.get('closing_balance') or 0), value)],
-            [Paragraph('Чистий рух', label), Paragraph(self._money(summary.get('net') or 0), net_style)],
+        net = float(summary.get('net') or 0)
+        net_style = pos if net >= 0 else neg
+        net_sign  = '+' if net >= 0 else ''
+
+        icons = ['≡', '↓', '↑', '≡', '~']
+        icon_s = ParagraphStyle('ic', parent=styles['Normal'], fontName=_f(True), fontSize=11,
+                                textColor=_MUTED, alignment=1)
+
+        cards_data = [
+            ('Поч. баланс', self._money(summary.get('opening_balance') or 0), val, '≡'),
+            ('Надходження', self._money(summary.get('total_in') or 0),        pos, '↓'),
+            ('Витрати',     self._money(summary.get('total_out') or 0),       neg, '↑'),
+            ('Кін. баланс', self._money(summary.get('closing_balance') or 0), val, '≡'),
+            ('Чистий рух',  f'{net_sign}{self._money(abs(net))}',             net_style, '~'),
         ]
 
-        table = Table([cards], colWidths=['20%', '20%', '20%', '20%', '20%'])
+        top_row = [
+            Table(
+                [[Paragraph(ic, icon_s)], [Paragraph(lbl_txt, lbl)], [Paragraph(val_txt, vs)]],
+                colWidths=['100%'],
+            )
+            for lbl_txt, val_txt, vs, ic in cards_data
+        ]
+        for card in top_row:
+            card.setStyle(TableStyle([
+                ('TOPPADDING', (0, 0), (-1, -1), 3),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+            ]))
+
+        table = Table([top_row], colWidths=['20%', '20%', '20%', '20%', '20%'])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), _LIGHT),
-            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#d4def0')),
-            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d4def0')),
-            ('TOPPADDING', (0, 0), (-1, -1), 7),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
-            ('LEFTPADDING', (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('BACKGROUND', (1, 0), (1, 0), colors.HexColor('#f0fdf4')),
+            ('BACKGROUND', (2, 0), (2, 0), colors.HexColor('#fff1f2')),
+            ('BOX',        (0, 0), (-1, -1), 0.6, colors.HexColor('#c7d9f5')),
+            ('INNERGRID',  (0, 0), (-1, -1), 0.5, colors.HexColor('#d4def0')),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ]))
         return table
 
@@ -827,6 +966,83 @@ class StatementService:
         ]))
         return table
 
+    def _monthly_table(self, rows: list[dict]):
+        """Помісячний зведений реєстр руху коштів."""
+        styles = getSampleStyleSheet()
+        hdr  = ParagraphStyle('h', parent=styles['Normal'], fontName=_f(True), fontSize=8, textColor=_WHITE, alignment=1)
+        cell = ParagraphStyle('c', parent=styles['Normal'], fontName=_f(), fontSize=8, textColor=_STEEL)
+        num  = ParagraphStyle('n', parent=cell, alignment=2)
+        pos  = ParagraphStyle('p', parent=num, textColor=_GREEN)
+        neg  = ParagraphStyle('ng', parent=num, textColor=_RED)
+
+        _MONTH_UA = {
+            '01': 'Січень', '02': 'Лютий', '03': 'Березень',
+            '04': 'Квітень', '05': 'Травень', '06': 'Червень',
+            '07': 'Липень', '08': 'Серпень', '09': 'Вересень',
+            '10': 'Жовтень', '11': 'Листопад', '12': 'Грудень',
+        }
+
+        data = [[
+            Paragraph('Місяць', hdr),
+            Paragraph('К-сть', hdr),
+            Paragraph('Надходження', hdr),
+            Paragraph('Витрати', hdr),
+            Paragraph('Чистий рух', hdr),
+        ]]
+
+        for row in rows:
+            month_key = str(row.get('month') or '')
+            year_part  = month_key[:4] if len(month_key) >= 7 else '—'
+            month_part = month_key[5:7] if len(month_key) >= 7 else '—'
+            month_label = f'{_MONTH_UA.get(month_part, month_part)} {year_part}'
+            net = float(row.get('in') or 0) - float(row.get('out') or 0)
+            net_s = pos if net >= 0 else neg
+            net_sign = '+' if net >= 0 else ''
+            data.append([
+                Paragraph(month_label, cell),
+                Paragraph(str(int(row.get('count') or 0)), num),
+                Paragraph(self._money(row.get('in') or 0), pos),
+                Paragraph(self._money(row.get('out') or 0), neg),
+                Paragraph(f'{net_sign}{self._money(abs(net))}', net_s),
+            ])
+
+        # Totals row
+        if len(rows) > 1:
+            tot_in  = sum(float(r.get('in') or 0) for r in rows)
+            tot_out = sum(float(r.get('out') or 0) for r in rows)
+            tot_cnt = sum(int(r.get('count') or 0) for r in rows)
+            tot_net = tot_in - tot_out
+            tot_net_s = pos if tot_net >= 0 else neg
+            tot_sign  = '+' if tot_net >= 0 else ''
+            tot_cell  = ParagraphStyle('tc', parent=cell, fontName=_f(True))
+            tot_num   = ParagraphStyle('tn', parent=tot_cell, alignment=2)
+            data.append([
+                Paragraph('Разом', tot_cell),
+                Paragraph(str(tot_cnt), tot_num),
+                Paragraph(self._money(tot_in), ParagraphStyle('tp', parent=tot_num, textColor=_GREEN)),
+                Paragraph(self._money(tot_out), ParagraphStyle('tn2', parent=tot_num, textColor=_RED)),
+                Paragraph(f'{tot_sign}{self._money(abs(tot_net))}',
+                          ParagraphStyle('tn3', parent=tot_num, textColor=_GREEN if tot_net >= 0 else _RED)),
+            ])
+
+        n = len(data)
+        table = Table(data, colWidths=['28%', '10%', '22%', '20%', '20%'], repeatRows=1)
+        ts = [
+            ('BACKGROUND', (0, 0), (-1, 0), _NAVY),
+            ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#dbe4f1')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [_WHITE, _BG]),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 5),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]
+        if len(rows) > 1:
+            ts.append(('BACKGROUND', (0, n - 1), (-1, n - 1), colors.HexColor('#e8eef8')))
+            ts.append(('LINEABOVE', (0, n - 1), (-1, n - 1), 0.7, _NAVY))
+        table.setStyle(TableStyle(ts))
+        return table
+
     def _tx_table(self, txs: list, opening_balance: float):
         styles = getSampleStyleSheet()
         hdr = ParagraphStyle('hdr', parent=styles['Normal'], fontName=_f(True), fontSize=7.8, textColor=_WHITE, alignment=1)
@@ -896,15 +1112,38 @@ class StatementService:
                 Paragraph(self._money(balance_after), money),
             ])
 
+        # ── Closing balance summary row ──────────────────────────────────────
+        tot_in  = sum(float(t.get('amount') or 0) for t in txs if str(t.get('direction') or '').lower() == 'in')
+        tot_out = sum(float(t.get('amount') or 0) for t in txs if str(t.get('direction') or '').lower() != 'in')
+        closing = running  # final running value after all txs
+        cl_cell = ParagraphStyle('cl', parent=cell, fontName=_f(True), fontSize=7.5)
+        cl_num  = ParagraphStyle('cn', parent=cl_cell, alignment=2)
+        data.append([
+            Paragraph('', cl_cell),
+            Paragraph('', cl_cell),
+            Paragraph(f'Оборот: +{self._money(tot_in)} / −{self._money(tot_out)}',
+                      ParagraphStyle('cld', parent=cl_cell, fontSize=7.2, textColor=_MUTED)),
+            Paragraph('', cl_cell),
+            Paragraph('', cl_cell),
+            Paragraph(self._money(closing),
+                      ParagraphStyle('clb', parent=cl_num, textColor=_NAVY, fontSize=8.5)),
+        ])
+
+        n = len(data)
         table = Table(data, colWidths=[7 * mm, 20 * mm, None, 22 * mm, 26 * mm, 30 * mm], repeatRows=1)
-        table.setStyle(TableStyle([
+        ts = [
             ('BACKGROUND', (0, 0), (-1, 0), _NAVY),
-            ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#dde7f5')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [_WHITE, _BG]),
+            ('GRID', (0, 0), (-1, -2), 0.25, colors.HexColor('#dde7f5')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [_WHITE, _BG]),
             ('TOPPADDING', (0, 0), (-1, -1), 3.5),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 3.5),
             ('LEFTPADDING', (0, 0), (-1, -1), 4),
             ('RIGHTPADDING', (0, 0), (-1, -1), 4),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ]))
+            # Totals row
+            ('BACKGROUND', (0, n - 1), (-1, n - 1), _LIGHT),
+            ('LINEABOVE', (0, n - 1), (-1, n - 1), 0.6, _NAVY),
+            ('GRID', (0, n - 1), (-1, n - 1), 0, colors.white),
+        ]
+        table.setStyle(TableStyle(ts))
         return table
