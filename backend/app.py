@@ -37,6 +37,8 @@ from .routes.operator_routes import operator_bp
 from .routes.platform_routes import platform_bp
 from .routes.push_routes import push_bp
 from .routes.payment_audit_routes import payment_audit_bp
+from .routes.admin_cards_routes import admin_cards_bp
+from .routes.admin_compliance_routes import admin_compliance_bp
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / 'frontend'
@@ -190,6 +192,8 @@ def create_app() -> Flask:
     app.register_blueprint(platform_bp, url_prefix=prefix + '/api/platform')
     app.register_blueprint(push_bp,     url_prefix=prefix + '/api/push')
     app.register_blueprint(payment_audit_bp, url_prefix=prefix + '/api/admin/payments')
+    app.register_blueprint(admin_cards_bp, url_prefix=prefix + '/api/admin')
+    app.register_blueprint(admin_compliance_bp, url_prefix=prefix + '/api/admin/compliance')
 
     @app.get(prefix + '/api' if prefix else '/api')
     @app.get(prefix + '/api/' if prefix else '/api/')

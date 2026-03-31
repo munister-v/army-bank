@@ -570,6 +570,23 @@ def init_db() -> None:
                 label='payment_order_events.idx_type',
             )
             _pg_exec(IDEMPOTENCY_DDL, optional=True, label='api_idempotency')
+            _pg_exec(
+                """CREATE TABLE IF NOT EXISTS compliance_profiles (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+                    kyc_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                    aml_flag INTEGER NOT NULL DEFAULT 0,
+                    risk_level VARCHAR(20) NOT NULL DEFAULT 'low',
+                    notes TEXT,
+                    updated_at TIMESTAMPTZ,
+                    updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+                );""",
+                optional=True, label='compliance_profiles'
+            )
+            _pg_exec(
+                'CREATE INDEX IF NOT EXISTS idx_compliance_user ON compliance_profiles(user_id);',
+                optional=True, label='idx_compliance_user'
+            )
     else:
         schema_sql = Path(SCHEMA_PATH).read_text(encoding='utf-8')
         with get_connection_sqlite() as conn:
@@ -674,6 +691,23 @@ def init_db() -> None:
                 )
                 conn.execute('CREATE INDEX IF NOT EXISTS idx_payment_order_events_order ON payment_order_events(payment_order_id);')
                 conn.execute('CREATE INDEX IF NOT EXISTS idx_payment_order_events_type ON payment_order_events(event_type);')
+            except Exception:
+                pass
+            try:
+                conn.execute(
+                    """CREATE TABLE IF NOT EXISTS compliance_profiles (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL UNIQUE,
+                        kyc_status TEXT NOT NULL DEFAULT 'pending',
+                        aml_flag INTEGER NOT NULL DEFAULT 0,
+                        risk_level TEXT NOT NULL DEFAULT 'low',
+                        notes TEXT,
+                        updated_at TEXT,
+                        updated_by INTEGER,
+                        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+                    );"""
+                )
+                conn.execute('CREATE INDEX IF NOT EXISTS idx_compliance_user ON compliance_profiles(user_id);')
             except Exception:
                 pass
 
