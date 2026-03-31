@@ -178,15 +178,26 @@ function extractFilenameFromDisposition(disposition, fallback = 'download.bin') 
   return fallback;
 }
 
-function downloadBlobFile(blob, filename) {
+async function downloadBlobFile(blob, filename) {
+  const name = filename || 'download.bin';
+  // iOS PWA: Web Share API with files (opens native share sheet → Save to Files)
+  if (navigator.share && navigator.canShare) {
+    const file = new File([blob], name, { type: blob.type || 'application/octet-stream' });
+    if (navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: name }); return; }
+      catch (e) { if (e.name === 'AbortError') return; /* user cancelled */ }
+    }
+  }
+  // Desktop / Android: anchor download
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename || 'download.bin';
+  link.href = url;
+  link.download = name;
   link.style.display = 'none';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(link.href), 15000);
+  setTimeout(() => URL.revokeObjectURL(url), 15000);
 }
 
 function normalizeAccountNumber(value) {
@@ -472,15 +483,20 @@ function renderTransactions(list, container = '#transactionsList') {
     } catch(_) { return day || 'Невідома дата'; }
   }
 
+  // Remap legacy military titles stored in DB
+  const TX_TITLE_REMAP = { 'Бойова виплата': 'Виплата', 'Бойові виплати': 'Виплати' };
+
   el.innerHTML = Object.keys(groups).sort((a,b) => b.localeCompare(a)).map(day => `
     <div class="tx-date-group">
       <div class="tx-date-label">${dayLabel(day)}</div>
-      ${groups[day].map(tx => `
+      ${groups[day].map(tx => {
+        const txTitle = TX_TITLE_REMAP[tx.description] || tx.description;
+        return `
         <div class="item item-clickable" data-tx-id="${tx.id}">
           <div class="tx-dir-dot ${tx.direction}"></div>
           <div class="item-body">
             <div class="item-header">
-              <strong>${escapeHtml(tx.description)}</strong>${tx.note ? ' <span title="Є нотатка" style="font-size:11px">📝</span>' : ''}
+              <strong>${escapeHtml(txTitle)}</strong>${tx.note ? ' <span title="Є нотатка" style="font-size:11px;opacity:.6">✎</span>' : ''}
               <span class="amount ${tx.direction}">${tx.direction === 'in' ? '+' : '−'}${formatMoney(tx.amount)}</span>
             </div>
             <div class="muted">${TX_TYPE_LABELS[tx.tx_type] || tx.tx_type}${tx.related_account ? ` · ${escapeHtml(tx.related_account)}` : ''}</div>
@@ -489,7 +505,7 @@ function renderTransactions(list, container = '#transactionsList') {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           </button>
         </div>
-      `).join('')}
+      `; }).join('')}
     </div>
   `).join('');
 
@@ -1492,6 +1508,8 @@ async function _updateBankCards() {
       network: '<svg width="44" height="14" viewBox="0 0 44 14"><text x="0" y="11" fill="rgba(255,255,255,.6)" font-size="13" font-family="Arial,sans-serif" font-weight="800" letter-spacing="2">VISA</text></svg>' },
     slate:  { cls: 'bank-card-slate',  chipColors: ['#94a3b8','#64748b','#475569'],
       network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(148,163,184,.6)"/><circle cx="27" cy="13" r="12" fill="rgba(100,116,139,.5)"/></svg>' },
+    dark:   { cls: 'bank-card-dark',   chipColors: ['#556070','#3a4858','#263040'],
+      network: '<svg width="44" height="14" viewBox="0 0 44 14"><text x="0" y="11" fill="rgba(255,255,255,.55)" font-size="13" font-family="Arial,sans-serif" font-weight="800" letter-spacing="2">VISA</text></svg>' },
   };
 
   track._bankCardsInit = false; // allow re-init
@@ -4482,12 +4500,13 @@ const CARD_TYPE_LABELS = { virtual: 'Віртуальна', physical: 'Фізи�
 
 function _cardDesignOptions() {
   return [
-    { id: 'gold', label: 'Gold' },
-    { id: 'navy', label: 'Navy' },
+    { id: 'gold',   label: 'Gold' },
+    { id: 'navy',   label: 'Navy' },
     { id: 'forest', label: 'Forest' },
-    { id: 'camo', label: 'Military' },
-    { id: 'rose', label: 'Rose' },
-    { id: 'slate', label: 'Slate' },
+    { id: 'camo',   label: 'Military' },
+    { id: 'rose',   label: 'Rose' },
+    { id: 'slate',  label: 'Slate' },
+    { id: 'dark',   label: 'Dark' },
   ];
 }
 
