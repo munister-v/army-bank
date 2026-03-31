@@ -2954,3 +2954,148 @@ body {
 .cal-dot.in  { background: var(--mono-green) !important; }
 .cal-dot.out { background: var(--mono-red) !important; }
 .cal-cell.cal-empty { pointer-events: none !important; }
+
+/* ── "Обійма" style — clean text blocks & card hierarchy ─── */
+
+/* Sub-screen titles: bigger, bolder, warmer */
+#savings > .section-title,
+#payouts > .section-title,
+#donations > .section-title,
+#contacts > .section-title,
+#debts > .section-title,
+#recurring > .section-title,
+#tax > .section-title,
+#analytics > .section-title {
+  font-size: 26px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em !important;
+  color: #141a15 !important;
+  margin-bottom: 16px !important;
+}
+
+/* Card: warmer surface, more defined shadow, no harsh border */
+.screen > .card,
+.cards-row > .card {
+  background: #fff !important;
+  border: 1px solid #e8ede8 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,.05), 0 1px 3px rgba(0,0,0,.04) !important;
+  padding: 18px 16px !important;
+}
+
+/* Card head: tighter spacing, icon + title inline */
+.screen > .card .card-head,
+.cards-row > .card .card-head {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin-bottom: 16px !important;
+  padding-bottom: 12px !important;
+  border-bottom: 1px solid #f0f3f0 !important;
+}
+
+.screen > .card .card-head h3,
+.cards-row > .card .card-head h3 {
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+  color: #141a15 !important;
+}
+
+/* List items in cards: clean rows with subtle separator */
+.screen .card .item,
+.cards-row .card .item {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  padding: 12px 0 !important;
+  border-bottom: 1px solid #f0f3f0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.screen .card .item:last-child,
+.cards-row .card .item:last-child {
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+
+.screen .card .item:first-child,
+.cards-row .card .item:first-child {
+  padding-top: 0 !important;
+}
+
+/* Item header: bold title + amount on same line */
+.screen .card .item .item-header,
+.cards-row .card .item .item-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: baseline !important;
+  gap: 8px !important;
+}
+
+.screen .card .item .item-header strong,
+.cards-row .card .item .item-header strong {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: #141a15 !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.screen .card .item .item-header .amount,
+.cards-row .card .item .item-header .amount {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  flex-shrink: 0 !important;
+}
+
+/* Item subtitle */
+.screen .card .item .muted,
+.cards-row .card .item .muted {
+  font-size: 12px !important;
+  color: #8a9490 !important;
+  line-height: 1.4 !important;
+}
+
+/* Empty state: warmer & cleaner */
+.screen .card .empty-state,
+.cards-row .card .empty-state {
+  background: #f9fbf9 !important;
+  border: 1.5px dashed #cdd8cd !important;
+  border-radius: 14px !important;
+  padding: 24px 16px !important;
+  text-align: center !important;
+}
+
+.screen .card .empty-state strong {
+  font-size: 15px !important;
+  color: #2e3a2f !important;
+}
+
+/* Form labels inside cards: clean uppercase micro-label */
+.screen .card .lbl,
+.cards-row .card .lbl {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #5a6a5c !important;
+  letter-spacing: .04em !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+  margin-bottom: 12px !important;
+}
+
+/* Quick amount chips */
+.screen .card .amount-chips,
+.screen .card [class*="chips"],
+.cards-row .card .amount-chips {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  margin-bottom: 12px !important;
+}

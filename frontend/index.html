@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Army Bank</title>
-  <meta name="description" content="Цифровий банкінг для захисників України">
+  <meta name="description" content="Ваші фінанси під контролем — Army Bank">
   <meta name="theme-color" content="#162c5c">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,8 +38,8 @@
   <!-- Both stylesheets async (non-blocking) — critical CSS above prevents FOUC -->
   <link rel="stylesheet" href="/css/styles.css?v=31" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="/css/styles.css?v=31"></noscript>
-  <link rel="stylesheet" href="/css/overrides.css?v=29" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/overrides.css?v=29"></noscript>
+  <link rel="stylesheet" href="/css/overrides.css?v=30" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/overrides.css?v=30"></noscript>
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js?v=2" as="script">
   <link rel="preload" href="/js/app.js?v=43" as="script">
@@ -118,7 +118,7 @@
           <span style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:32px;color:var(--accent);letter-spacing:0.05em;">A</span>
         </div>
         <h1>Army<strong>Bank</strong></h1>
-        <p>Цифровий банкінг для захисників</p>
+        <p>Ваші фінанси під контролем</p>
       </div>
 
       <div class="auth-card">
@@ -585,10 +585,10 @@
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                 </svg>
               </div>
-              <h3>Бойова виплата</h3>
+              <h3>Виплата</h3>
             </div>
-            <label class="lbl">Назва<input name="title" value="Бойова виплата"></label>
-            <label class="lbl">Тип<input name="payout_type" value="combat"></label>
+            <label class="lbl">Назва<input name="title" value="Виплата"></label>
+            <label class="lbl">Тип<input name="payout_type" value="general"></label>
             <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" value="10000"></label>
             <button type="submit" class="btn-accent">Нарахувати</button>
           </form>
@@ -671,7 +671,7 @@
 
       <!-- PAYOUTS -->
       <section id="payouts" class="screen">
-        <h2 class="section-title">Бойові виплати</h2>
+        <h2 class="section-title">Виплати</h2>
         <div class="card">
           <div id="payoutsList" class="list"></div>
         </div>

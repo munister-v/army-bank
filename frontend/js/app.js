@@ -1685,7 +1685,7 @@ async function refreshAllData() {
     renderSimpleList('#payoutsList', payouts, (row) => `
       <div class="item">
         <div class="item-header"><strong>${row.title}</strong><span class="amount in">+${formatMoney(row.amount)}</span></div>
-        <div class="muted">${row.payout_type} · ${row.status} · ${formatDate(row.created_at)}</div>
+        <div class="muted">${({combat:'Бойова',general:'Загальна',salary:'Зарплата',bonus:'Бонус'}[row.payout_type]||row.payout_type)} · ${formatDate(row.created_at)}</div>
       </div>
     `, 'Виплат поки немає.');
 
@@ -2221,7 +2221,7 @@ function _genIdempotencyKey() {
 bindJsonForm('#demoPayoutForm', () => '/api/payouts/demo-accrual', {
   transform: (v) => ({ ...v, amount: Number(v.amount) }),
   successMessage: 'Виплату нараховано.',
-  afterReset: (form) => { form.title.value = 'Бойова виплата'; form.payout_type.value = 'combat'; form.amount.value = '10000'; },
+  afterReset: (form) => { form.title.value = 'Виплата'; form.payout_type.value = 'general'; form.amount.value = '10000'; },
 });
 
 bindJsonForm('#donationForm', () => '/api/donations', {
