@@ -1,5 +1,5 @@
-/* Army Bank — Service Worker v26 */
-const CACHE = 'army-bank-v26';
+/* Army Bank — Service Worker v27 */
+const CACHE = 'army-bank-v27';
 
 /* Assets to pre-cache on install */
 const PRECACHE = [

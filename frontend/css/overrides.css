@@ -1,6 +1,7 @@
 /*
  * Army Bank PWA — Monobank-style full redesign
  * Single source of truth for visual layer.
+ * v35
  */
 
 :root {
@@ -2896,14 +2897,14 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* ── Bottom-sheet modal system ───────────────────────────────────────────── */
+/* ── Bottom-sheet modal system (light theme) ─────────────────────────────── */
 .tc-overlay {
   position: fixed;
   inset: 0;
   z-index: 4000;
-  background: rgba(0, 0, 0, .55);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, .45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -2913,8 +2914,8 @@ body {
 .tc-overlay.hidden { display: none !important; }
 
 .tc-sheet {
-  background: #1a2233;
-  border-radius: 22px 22px 0 0;
+  background: #ffffff;
+  border-radius: 24px 24px 0 0;
   width: 100%;
   max-width: 480px;
   max-height: 92dvh;
@@ -2922,7 +2923,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 -8px 32px rgba(0,0,0,.35);
+  box-shadow: 0 -4px 24px rgba(0,0,0,.10), 0 -1px 0 rgba(0,0,0,.06);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   animation: sheetSlideUp .22s cubic-bezier(.32,1,.46,1) both;
 }
@@ -2934,7 +2935,7 @@ body {
 /* Drag handle */
 .tc-handle {
   width: 40px; height: 4px;
-  background: rgba(255,255,255,.18);
+  background: #d1d8d0;
   border-radius: 2px;
   margin: 10px auto 0;
   flex-shrink: 0;
@@ -2952,9 +2953,9 @@ body {
 /* Sheet title */
 .tc-title {
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 800;
   text-align: center;
-  color: #f1f5f9;
+  color: var(--mono-text);
   margin: 0 0 14px;
   padding: 0 20px;
   flex-shrink: 0;
@@ -2967,13 +2968,15 @@ body {
   overscroll-behavior: contain;
   padding: 0 18px;
   -webkit-overflow-scrolling: touch;
+  color: var(--mono-text);
 }
 
 /* Sticky footer buttons */
 .tc-footer {
   flex-shrink: 0;
   padding: 12px 18px 16px;
-  border-top: 1px solid rgba(255,255,255,.07);
+  border-top: 1px solid var(--mono-border-soft);
+  background: #fff;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2999,11 +3002,11 @@ body {
   font-size: 14px;
   cursor: pointer;
   background: transparent;
-  border: 1px solid rgba(255,255,255,.12);
-  color: rgba(255,255,255,.55);
+  border: 1px solid var(--mono-border-soft);
+  color: var(--mono-muted);
   transition: background .15s;
 }
-.tc-cancel-btn:hover { background: rgba(255,255,255,.06); }
+.tc-cancel-btn:hover { background: var(--mono-surface-soft); }
 
 /* Transfer confirm specific rows */
 .tc-row {
