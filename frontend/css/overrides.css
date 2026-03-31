@@ -308,8 +308,7 @@ body {
   scroll-snap-type: x mandatory !important;
   -webkit-overflow-scrolling: touch !important;
   gap: 14px !important;
-  perspective: 1200px !important;
-  padding: 0 1px 10px !important;
+  padding: 6px 2px 22px !important;
 }
 
 .bank-card {
@@ -317,35 +316,57 @@ body {
   width: calc(100% - 2px) !important;
   scroll-snap-align: start !important;
   margin-right: 0 !important;
-  min-height: 164px !important;
-  border-radius: 22px !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  box-shadow: 0 18px 34px rgba(10, 16, 26, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  /* ISO/IEC 7810 ID-1 credit card ratio 85.6×54mm */
+  aspect-ratio: 85.6 / 54 !important;
+  min-height: unset !important;
+  border-radius: 20px !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  /* Layered shadow: contact + close + mid + ambient + inset highlights */
+  box-shadow:
+    0 1px 2px  rgba(0, 0, 0, 0.22),
+    0 4px 8px  rgba(0, 0, 0, 0.18),
+    0 12px 24px rgba(0, 0, 0, 0.14),
+    0 28px 52px rgba(0, 0, 0, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.20),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18) !important;
   background: #1d2634 !important;
-  transform-style: preserve-3d !important;
   overflow: hidden !important;
+  position: relative !important;
 }
 
-.bank-card::before,
+/* Top-left corner specular — plastic light catch */
+.bank-card::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+  background:
+    linear-gradient(
+      132deg,
+      rgba(255, 255, 255, 0.26) 0%,
+      rgba(255, 255, 255, 0.08) 22%,
+      rgba(255, 255, 255, 0) 40%
+    ),
+    linear-gradient(
+      312deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(255, 255, 255, 0) 38%
+    ) !important;
+  mix-blend-mode: soft-light !important;
+}
+
+/* Ambient corner vignette — depth illusion */
 .bank-card::after {
   content: "" !important;
   position: absolute !important;
   inset: 0 !important;
   pointer-events: none !important;
   z-index: 2 !important;
-}
-
-.bank-card::before {
   background:
-    linear-gradient(115deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 38%),
-    linear-gradient(300deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 52%) !important;
-  mix-blend-mode: soft-light !important;
-}
-
-.bank-card::after {
-  background:
-    radial-gradient(130% 100% at 8% 8%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 48%),
-    radial-gradient(120% 96% at 90% 95%, rgba(0, 0, 0, 0.34) 0%, rgba(0, 0, 0, 0) 58%) !important;
+    radial-gradient(ellipse 75% 55% at 14% 10%, rgba(255,255,255,0.13) 0%, transparent 55%),
+    radial-gradient(ellipse 65% 55% at 86% 90%, rgba(0,0,0,0.26) 0%, transparent 52%),
+    linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(0,0,0,0.07) 100%) !important;
 }
 
 .bank-card-bg {
@@ -355,23 +376,36 @@ body {
   z-index: 0 !important;
 }
 
+/* Subtle satin/brushed-plastic texture */
 .bank-card-noise {
   display: block !important;
   position: absolute !important;
   inset: 0 !important;
   z-index: 1 !important;
   background-image:
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.032) 0 2px, rgba(255, 255, 255, 0) 2px 6px),
-    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.04) 0 1px, rgba(0, 0, 0, 0) 1px 4px) !important;
+    repeating-linear-gradient(
+      128deg,
+      rgba(255, 255, 255, 0.028) 0px,
+      rgba(255, 255, 255, 0.028) 1px,
+      transparent 1px,
+      transparent 5px
+    ),
+    repeating-linear-gradient(
+      38deg,
+      rgba(0, 0, 0, 0.030) 0px,
+      rgba(0, 0, 0, 0.030) 1px,
+      transparent 1px,
+      transparent 4px
+    ) !important;
   mix-blend-mode: overlay !important;
-  opacity: 0.34 !important;
+  opacity: 0.55 !important;
 }
 
 .bank-card-content {
   position: relative !important;
   z-index: 3 !important;
   height: 100% !important;
-  padding: 15px 16px 14px !important;
+  padding: 14px 16px 13px !important;
   display: flex !important;
   flex-direction: column !important;
   justify-content: space-between !important;
@@ -390,7 +424,7 @@ body {
 .bank-card-logo-letter {
   border-radius: 7px !important;
   background: rgba(255, 255, 255, 0.12) !important;
-  color: rgba(255, 255, 255, 0.9) !important;
+  color: rgba(255, 255, 255, 0.92) !important;
 }
 
 .bank-card-logo-text,
@@ -399,69 +433,139 @@ body {
 .bank-card-name,
 .bank-card-date,
 .bank-card-label {
-  color: rgba(255, 255, 255, 0.9) !important;
+  color: rgba(255, 255, 255, 0.92) !important;
 }
 
 .bank-card-type {
   border-radius: 999px !important;
-  background: rgba(255, 255, 255, 0.14) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  background: rgba(255, 255, 255, 0.13) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
   padding: 3px 9px !important;
-  font-size: 11px !important;
-  letter-spacing: 0.08em !important;
+  font-size: 10px !important;
+  letter-spacing: 0.10em !important;
   font-weight: 700 !important;
+  text-transform: uppercase !important;
 }
 
 .bank-card-number {
-  margin-top: 8px !important;
-  letter-spacing: 0.14em !important;
-  font-size: 17px !important;
-  font-weight: 650 !important;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25) !important;
+  margin-top: 6px !important;
+  letter-spacing: 0.18em !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35) !important;
+  font-variant-numeric: tabular-nums !important;
 }
 
 .bank-card-label {
-  font-size: 11px !important;
-  opacity: 0.72 !important;
-  letter-spacing: 0.08em !important;
+  font-size: 10px !important;
+  opacity: 0.65 !important;
+  letter-spacing: 0.07em !important;
+  text-transform: uppercase !important;
   white-space: nowrap !important;
 }
 
+/* ── Card colour variants ──────────────────────── */
+
+/* Gold — warm metallic with luminous midpoint */
 .bank-card-gold .bank-card-bg {
   background:
-    linear-gradient(140deg, #3a2a10 0%, #5a441b 34%, #7a5f24 58%, #4d3715 100%),
-    radial-gradient(120% 90% at 0% 0%, rgba(244, 209, 118, 0.35) 0%, rgba(244, 209, 118, 0) 58%) !important;
+    linear-gradient(
+      148deg,
+      #2a1c09 0%,
+      #5c3e14 20%,
+      #b8882a 46%,
+      #7a5519 72%,
+      #2e1d0a 100%
+    ) !important;
+}
+.bank-card-gold::before {
+  background:
+    linear-gradient(
+      132deg,
+      rgba(255, 220, 100, 0.30) 0%,
+      rgba(255, 220, 100, 0.08) 22%,
+      rgba(255, 220, 100, 0) 40%
+    ),
+    linear-gradient(
+      312deg,
+      rgba(255, 200, 60, 0.10) 0%,
+      rgba(255, 200, 60, 0) 38%
+    ) !important;
+  mix-blend-mode: soft-light !important;
 }
 
+/* Navy — deep ocean blue */
 .bank-card-navy .bank-card-bg {
   background:
-    linear-gradient(145deg, #152232 0%, #24384f 42%, #1d2f45 66%, #121f2e 100%),
-    radial-gradient(120% 90% at 0% 0%, rgba(110, 147, 214, 0.24) 0%, rgba(110, 147, 214, 0) 58%) !important;
+    linear-gradient(
+      148deg,
+      #0b1520 0%,
+      #162840 22%,
+      #254a74 50%,
+      #193258 76%,
+      #0b1520 100%
+    ) !important;
 }
 
+/* Forest — rich pine green */
 .bank-card-forest .bank-card-bg {
   background:
-    linear-gradient(150deg, #263625 0%, #39513a 35%, #4c6848 66%, #2c3f2d 100%),
-    radial-gradient(130% 90% at 0% 0%, rgba(174, 198, 142, 0.26) 0%, rgba(174, 198, 142, 0) 58%) !important;
+    linear-gradient(
+      150deg,
+      #162018 0%,
+      #28402c 25%,
+      #3e6645 52%,
+      #2d4832 76%,
+      #162018 100%
+    ) !important;
 }
 
+/* Camo — organic multi-tone */
 .bank-card-camo .bank-card-bg {
   background:
-    radial-gradient(120% 100% at 15% 25%, rgba(119, 123, 84, 0.7) 0%, rgba(119, 123, 84, 0) 42%),
-    radial-gradient(120% 100% at 70% 70%, rgba(62, 76, 52, 0.78) 0%, rgba(62, 76, 52, 0) 45%),
-    linear-gradient(145deg, #2c3a26 0%, #49593e 34%, #394933 58%, #222f1f 100%) !important;
+    radial-gradient(110% 90% at 12% 20%, rgba(130, 135, 88, 0.65) 0%, rgba(130, 135, 88, 0) 44%),
+    radial-gradient(110% 90% at 72% 75%, rgba(55, 70, 44, 0.72) 0%, rgba(55, 70, 44, 0) 44%),
+    radial-gradient(80% 70% at 50% 50%, rgba(90, 108, 70, 0.40) 0%, rgba(90, 108, 70, 0) 60%),
+    linear-gradient(148deg, #242f1e 0%, #3e5234 34%, #31422a 58%, #1e2918 100%) !important;
 }
 
+/* Rose — deep plum-rose */
 .bank-card-rose .bank-card-bg {
   background:
-    linear-gradient(145deg, #3a2234 0%, #5f3556 44%, #7a4a6f 68%, #33202f 100%),
-    radial-gradient(120% 90% at 0% 0%, rgba(250, 171, 201, 0.24) 0%, rgba(250, 171, 201, 0) 58%) !important;
+    linear-gradient(
+      148deg,
+      #28152c 0%,
+      #4e2658 24%,
+      #7c3e70 50%,
+      #512a5a 76%,
+      #28152c 100%
+    ) !important;
 }
 
+/* Slate — cool charcoal-blue */
 .bank-card-slate .bank-card-bg {
   background:
-    linear-gradient(145deg, #2a313a 0%, #465260 42%, #37434f 68%, #242d35 100%),
-    radial-gradient(120% 90% at 0% 0%, rgba(176, 191, 208, 0.2) 0%, rgba(176, 191, 208, 0) 58%) !important;
+    linear-gradient(
+      148deg,
+      #1e252d 0%,
+      #364554 24%,
+      #4e6070 52%,
+      #374755 76%,
+      #1e252d 100%
+    ) !important;
+}
+
+/* Dark — near-black with subtle warmth (savings card) */
+.bank-card-dark .bank-card-bg {
+  background:
+    linear-gradient(
+      148deg,
+      #0e1014 0%,
+      #1c2430 26%,
+      #263040 52%,
+      #1a2130 76%,
+      #0e1014 100%
+    ) !important;
 }
 
 .bank-card-cta {
