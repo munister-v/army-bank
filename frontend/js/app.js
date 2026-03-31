@@ -1425,7 +1425,7 @@ function _initCarouselInteraction(track) {
 
   function getCardWidth() {
     var first = track.querySelector('.bank-card');
-    return first ? first.offsetWidth + 14 : track.clientWidth;
+    return first ? first.offsetWidth + 12 : track.clientWidth;
   }
 
   function updateDots() {
