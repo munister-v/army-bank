@@ -2876,3 +2876,81 @@ body {
 }
 .tc-label { opacity: .75; }
 .tc-val { font-weight: 600; }
+
+/* ── Calendar layout ──────────────────────── */
+.cal-nav {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+.cal-month-label {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: var(--mono-text) !important;
+  min-width: 120px !important;
+  text-align: center !important;
+}
+
+/* ── Calendar grid ─────────────────────────── */
+.cal-weekdays {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  text-align: center !important;
+  margin-bottom: 4px !important;
+}
+.cal-weekdays span {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: var(--mono-muted) !important;
+  padding: 4px 0 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .04em !important;
+}
+.cal-grid {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  gap: 2px !important;
+}
+.cal-cell {
+  aspect-ratio: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: background .15s !important;
+  position: relative !important;
+}
+.cal-cell:hover {
+  background: var(--mono-surface-soft) !important;
+}
+.cal-cell.today .cal-day-num {
+  background: var(--mono-accent) !important;
+  color: #fff !important;
+  border-radius: 50% !important;
+  width: 26px !important;
+  height: 26px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.cal-day-num {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--mono-text) !important;
+  line-height: 1 !important;
+}
+.cal-dots {
+  display: flex !important;
+  gap: 2px !important;
+  margin-top: 2px !important;
+}
+.cal-dot {
+  width: 4px !important;
+  height: 4px !important;
+  border-radius: 50% !important;
+}
+.cal-dot.in  { background: var(--mono-green) !important; }
+.cal-dot.out { background: var(--mono-red) !important; }
+.cal-cell.cal-empty { pointer-events: none !important; }
