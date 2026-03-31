@@ -58,6 +58,29 @@ def _card_row_to_resp(row) -> dict:
     return d
 
 
+# ── Cards stats ──────────────────────────────────────────────────────────────
+
+@admin_cards_bp.get('/cards/stats')
+@auth_required
+@role_required('admin', 'platform_admin')
+def cards_stats():
+    try:
+        with get_connection() as conn:
+            rows = conn.execute(
+                'SELECT status, COUNT(*) AS cnt FROM cards GROUP BY status'
+            ).fetchall()
+        counts = {_row_to_dict(r)['status']: _row_to_dict(r)['cnt'] for r in rows}
+        total = sum(counts.values())
+        return jsonify({'ok': True, 'data': {
+            'total':   total,
+            'active':  counts.get('active', 0),
+            'blocked': counts.get('blocked', 0),
+            'closed':  counts.get('closed', 0),
+        }})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
 # ── List all cards ────────────────────────────────────────────────────────────
 
 @admin_cards_bp.get('/cards')

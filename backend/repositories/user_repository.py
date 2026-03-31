@@ -84,17 +84,24 @@ class UserRepository(BaseRepository):
 
     def list_all(self, role_filter: str | None = None, search: str | None = None):
         with self.connection() as conn:
-            sql = 'SELECT id, full_name, phone, email, role, military_status, created_at FROM users WHERE 1=1'
+            sql = (
+                'SELECT u.id, u.full_name, u.phone, u.email, u.role, u.military_status, u.created_at,'
+                " COALESCE(cp.kyc_status, 'pending') AS kyc_status,"
+                ' COALESCE(cp.aml_flag, 0) AS aml_flag'
+                ' FROM users u'
+                ' LEFT JOIN compliance_profiles cp ON cp.user_id = u.id'
+                ' WHERE 1=1'
+            )
             params: list = []
             if role_filter:
-                sql += ' AND role = %s'
+                sql += ' AND u.role = %s'
                 params.append(role_filter)
             if search:
                 op = 'ILIKE' if USE_PG else 'LIKE'
-                sql += f' AND (full_name {op} %s OR phone {op} %s OR email {op} %s)'
+                sql += f' AND (u.full_name {op} %s OR u.phone {op} %s OR u.email {op} %s)'
                 like = f'%{search}%'
                 params.extend([like, like, like])
-            sql += ' ORDER BY id'
+            sql += ' ORDER BY u.id'
             return conn.execute(sql, tuple(params)).fetchall()
 
     def update_role(self, user_id: int, role: str) -> None:
