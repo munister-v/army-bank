@@ -1305,7 +1305,7 @@ $('#profileLogoutBtn')?.addEventListener('click', async () => {
 // ── NAVIGATION ──────────────────────────────────────────
 const ALLOWED_SCREENS = [
   'dashboard', 'transactions', 'cards', 'profile',
-  'payouts', 'donations', 'savings', 'analytics',
+  'donations', 'savings', 'analytics',
   'contacts', 'calendar', 'recurring', 'debts', 'tax',
 ];
 
@@ -1643,7 +1643,7 @@ $('#txSearchInput')?.addEventListener('input', () => {
 });
 
 async function refreshAllData() {
-  ['#recentTransactions','#transactionsList','#payoutsList','#donationsList','#goalsList','#contactsList']
+  ['#recentTransactions','#transactionsList','#donationsList','#goalsList','#contactsList']
     .forEach((s) => setListLoading(s, true));
 
   try {
@@ -1682,12 +1682,6 @@ async function refreshAllData() {
     renderTransactions(transactions, '#transactionsList');
     renderTransferQuickRecipients(buildQuickRecipients(contacts, transactions));
 
-    renderSimpleList('#payoutsList', payouts, (row) => `
-      <div class="item">
-        <div class="item-header"><strong>${row.title}</strong><span class="amount in">+${formatMoney(row.amount)}</span></div>
-        <div class="muted">${({combat:'Бойова',general:'Загальна',salary:'Зарплата',bonus:'Бонус'}[row.payout_type]||row.payout_type)} · ${formatDate(row.created_at)}</div>
-      </div>
-    `, 'Виплат поки немає.');
 
     renderSimpleList('#donationsList', donations, (row) => `
       <div class="item">
@@ -1862,7 +1856,7 @@ async function refreshAllData() {
     if (typeof loadBudgetProgress === 'function') loadBudgetProgress().catch(() => {});
 
   } finally {
-    ['#recentTransactions','#transactionsList','#payoutsList','#donationsList','#goalsList','#contactsList']
+    ['#recentTransactions','#transactionsList','#donationsList','#goalsList','#contactsList']
       .forEach((s) => setListLoading(s, false));
   }
 }
@@ -2704,16 +2698,19 @@ $('#copyAccountBtn')?.addEventListener('click', () => {
 let _qrVisible = false;
 $('#showQrBtn')?.addEventListener('click', () => {
   const wrap = $('#accountQrWrap');
-  const img = $('#accountQrImg');
+  const img  = $('#accountQrImg');
+  const lbl  = $('#showQrBtnLabel');
+  const numEl = $('#qrAccountNum');
   if (!wrap || !img) return;
   _qrVisible = !_qrVisible;
   wrap.classList.toggle('hidden', !_qrVisible);
+  if (lbl) lbl.textContent = _qrVisible ? 'Сховати QR' : 'Показати QR-код рахунку';
   if (_qrVisible && state.account?.account_number) {
-    const text = encodeURIComponent(state.account.account_number);
-    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${text}&color=ffffff&bgcolor=111111`;
+    const acc = state.account.account_number;
+    const text = encodeURIComponent(acc);
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${text}&color=1b2435&bgcolor=ffffff&margin=8`;
+    if (numEl) numEl.textContent = acc;
   }
-  const qrBtn = $('#showQrBtn');
-  if (qrBtn) qrBtn.textContent = _qrVisible ? 'Сховати QR' : 'QR-код рахунку';
 });
 
 // ── SWIPE TO CLOSE DRAWER ─────────────────────────────────
@@ -3219,16 +3216,26 @@ async function loadAchievements() {
     const data = await api.request('/api/achievements');
     const { achievements, done, total } = data;
     if (countEl) countEl.textContent = `${done}/${total}`;
-    listEl.innerHTML = achievements.map(a => `
+    const DONE_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    const LOCK_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+    const ACHIEVE_SVG = {
+      'Великий заощаджувач': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`,
+      'Близькі поруч':       `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+      'Активний':            `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+      default:               `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>`,
+    };
+    listEl.innerHTML = achievements.map(a => {
+      const iconSvg = ACHIEVE_SVG[a.title] || ACHIEVE_SVG.default;
+      return `
       <div class="achieve-item ${a.done ? 'done' : 'locked'}">
-        <div class="achieve-icon">${a.icon}</div>
+        <div class="achieve-icon">${iconSvg}</div>
         <div class="achieve-body">
           <div class="achieve-title">${a.title}</div>
           <div class="achieve-desc">${a.desc}</div>
         </div>
-        ${a.done ? '<div class="achieve-check">✓</div>' : ''}
-      </div>
-    `).join('');
+        ${a.done ? `<div class="achieve-check">${DONE_SVG}</div>` : `<div class="achieve-check locked-icon">${LOCK_SVG}</div>`}
+      </div>`;
+    }).join('');
   } catch(_) {}
 }
 

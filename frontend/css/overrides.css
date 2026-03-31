@@ -1403,15 +1403,22 @@ textarea:focus,
 }
 
 .achieve-icon {
-  width: 34px !important;
-  height: 34px !important;
-  border-radius: 50% !important;
-  background: #ffffff !important;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 10px !important;
+  background: #f0f5ff !important;
   border: 1px solid #dfe7f3 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  font-size: 16px !important;
+  flex-shrink: 0 !important;
+  color: #3a5ea8 !important;
+}
+
+.achieve-item.done .achieve-icon {
+  background: #eaf6ef !important;
+  border-color: #c4e6d2 !important;
+  color: #1a7a46 !important;
 }
 
 .achieve-body {
@@ -1435,13 +1442,17 @@ textarea:focus,
   width: 22px !important;
   height: 22px !important;
   border-radius: 50% !important;
-  background: #1ea15a !important;
-  color: #ffffff !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  font-size: 12px !important;
-  font-weight: 900 !important;
+  flex-shrink: 0 !important;
+  background: #1ea15a !important;
+  color: #fff !important;
+}
+
+.achieve-check.locked-icon {
+  background: #f0f2f7 !important;
+  color: #b0b8c9 !important;
 }
 
 /* Insights + forecast */
@@ -1764,15 +1775,24 @@ textarea:focus,
   font-size: 14px !important;
 }
 
+.sec-log-body {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
 .sec-log-action {
   font-size: 13px !important;
   color: #1e2a3f !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
 }
 
 .sec-log-date {
   margin-top: 2px !important;
   font-size: 12px !important;
+  word-break: break-all !important;
 }
 
 .budget-limits-list,
@@ -3269,4 +3289,116 @@ a:focus-visible {
   outline: 2px solid var(--mono-blue-mid) !important;
   outline-offset: 3px !important;
   border-radius: 4px !important;
+}
+
+/* ── QR Code Block ───────────────────────────────── */
+.qr-toggle-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  margin-top: 12px !important;
+  padding: 11px 16px !important;
+  background: #f5f8ff !important;
+  border: 1px solid #d6e0f7 !important;
+  border-radius: 12px !important;
+  color: #3a5ea8 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: background 150ms ease, border-color 150ms ease !important;
+}
+.qr-toggle-btn:hover {
+  background: #eaf0fd !important;
+  border-color: #b8caf0 !important;
+}
+.qr-toggle-btn:active { transform: scale(0.98) !important; }
+
+.qr-wrap {
+  margin-top: 12px !important;
+}
+
+.qr-card {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 24px 20px !important;
+  background: #fff !important;
+  border: 1px solid #e4ead4 !important;
+  border-radius: 20px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.07) !important;
+}
+
+.qr-frame {
+  padding: 12px !important;
+  background: #fff !important;
+  border: 1px solid #e8ede8 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06) !important;
+  display: inline-flex !important;
+}
+
+.qr-img {
+  width: 160px !important;
+  height: 160px !important;
+  display: block !important;
+  border-radius: 4px !important;
+}
+
+.qr-account-num {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: #1b2435 !important;
+  letter-spacing: 0.06em !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.qr-caption {
+  font-size: 12px !important;
+  color: #8a97a8 !important;
+  text-align: center !important;
+}
+
+/* ── Analytics — no overflow, full width ────────── */
+#analytics {
+  overflow-x: hidden !important;
+}
+
+.analytics-month-summary {
+  overflow: visible !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+#analytics .cards-row,
+#analytics .analytics-bottom-row {
+  overflow: hidden !important;
+  width: 100% !important;
+}
+
+#analyticsBarChart,
+.bar-chart {
+  overflow-x: hidden !important;
+  width: 100% !important;
+}
+
+/* ── Transactions Filters — mobile grid ─────────── */
+#transactionsFilters.filters-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 10px !important;
+  overflow: visible !important;
+  flex-wrap: unset !important;
+}
+
+#transactionsFilters .lbl {
+  flex: unset !important;
+  min-width: 0 !important;
+}
+
+#transactionsFilters button[type="submit"] {
+  grid-column: 1 / -1 !important;
+  min-height: 46px !important;
 }
