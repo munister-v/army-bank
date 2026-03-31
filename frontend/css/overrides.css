@@ -3099,3 +3099,174 @@ body {
   gap: 6px !important;
   margin-bottom: 12px !important;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   PWA ADAPTIVE — Global mobile/responsive polish
+   ═══════════════════════════════════════════════════════════ */
+
+/* 1. Dynamic viewport height — prevents content hiding behind iOS keyboard */
+#appScreen.app-shell {
+  min-height: 100dvh !important;
+}
+
+/* 2. Touch targets — minimum 44×44px (WCAG 2.5.5) */
+.nav-item,
+.menu-btn {
+  min-height: 44px !important;
+  padding: 8px 6px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.btn-card-action {
+  min-height: 44px !important;
+  padding: 10px 16px !important;
+}
+
+.qa-btn {
+  min-height: 72px !important;
+}
+
+/* 3. Header info — prevent truncation on tiny phones */
+.header-info {
+  max-width: min(calc(100vw - 96px), 220px) !important;
+}
+
+/* 4. Scrollbars hidden on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .app-content,
+  .bank-cards-track,
+  [class*="scroll"] {
+    scrollbar-width: none !important;
+  }
+  .app-content::-webkit-scrollbar,
+  .bank-cards-track::-webkit-scrollbar,
+  [class*="scroll"]::-webkit-scrollbar {
+    display: none !important;
+  }
+}
+
+/* 5. Small phones (≤ 480px) — Quick Actions 2×2 */
+@media (max-width: 480px) {
+  .quick-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .qa-btn {
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    padding: 12px 14px !important;
+    border-radius: 16px !important;
+    min-height: 56px !important;
+  }
+
+  .qa-icon {
+    width: 40px !important;
+    height: 40px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .qa-label {
+    font-size: 13px !important;
+    text-align: left !important;
+  }
+}
+
+/* 6. Very small phones (≤ 360px) — grids single column */
+@media (max-width: 360px) {
+  .month-strip {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+
+  .ams-item {
+    padding: 10px 8px !important;
+  }
+
+  .balance-amount {
+    font-size: clamp(2rem, 12vw, 2.8rem) !important;
+  }
+
+  .app-content {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .nav-item span {
+    font-size: 9px !important;
+  }
+}
+
+/* 7. Landscape on small phones — compact header + PIN */
+@media (orientation: landscape) and (max-height: 500px) {
+  .app-header {
+    padding: 4px 12px !important;
+    min-height: 44px !important;
+  }
+
+  .balance-block {
+    margin-bottom: 8px !important;
+  }
+
+  .balance-amount {
+    font-size: 2rem !important;
+  }
+
+  .pin-key {
+    width: 56px !important;
+    height: 56px !important;
+    font-size: 20px !important;
+  }
+
+  .bottom-nav {
+    height: 48px !important;
+    min-height: 48px !important;
+  }
+
+  .nav-item {
+    min-height: 48px !important;
+    padding: 6px 4px !important;
+  }
+
+  .nav-item span {
+    display: none !important;
+  }
+
+  .app-content {
+    padding-bottom: calc(54px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* 8. Tablet (640–959px) — wider card + roomier spacing */
+@media (min-width: 640px) and (max-width: 959px) {
+  .screen > .card,
+  .cards-row > .card {
+    border-radius: 20px !important;
+  }
+
+  .app-content {
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+  }
+}
+
+/* 9. Overscroll — prevent pull-to-refresh on the app shell */
+#appScreen.app-shell {
+  overscroll-behavior: contain !important;
+}
+
+/* 10. Focus-visible outline for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--mono-blue-mid) !important;
+  outline-offset: 2px !important;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--mono-blue-mid) !important;
+  outline-offset: 3px !important;
+  border-radius: 4px !important;
+}
