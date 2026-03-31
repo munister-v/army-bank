@@ -94,8 +94,8 @@ class FeatureService:
         return self.repo.list_payouts(user_id)
 
     def create_demo_payout(self, user_id: int, data: dict):
-        title = (data.get('title') or 'Бойова виплата').strip()
-        payout_type = (data.get('payout_type') or 'combat').strip()
+        title = (data.get('title') or 'Виплата').strip()
+        payout_type = (data.get('payout_type') or 'general').strip()
         amount = float(data.get('amount') or 0)
         validate_positive_amount(amount)
 

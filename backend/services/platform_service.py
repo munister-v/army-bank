@@ -24,7 +24,7 @@ LAST_NAMES = (
     'Бойко', 'Коваль', 'Шевчук', 'Петренко', 'Савченко', 'Іваненко', 'Гончаренко',
 )
 FUND_NAMES = ('Фонд підтримки підрозділу', 'Волонтерський фонд', 'Допомога родинам', 'Спорядження')
-PAYOUT_TITLES = ('Бойова виплата', 'Службова виплата', 'Компенсація', 'Доплата')
+PAYOUT_TITLES = ('Виплата', 'Службова виплата', 'Компенсація', 'Доплата')
 
 
 def _random_phone() -> str:
@@ -95,7 +95,7 @@ def seed_demo(users_count: int = 10, transactions_per_user: int = 15) -> dict:
                     random.choice(PAYOUT_TITLES),
                 )
                 feature_repo.create_payout(
-                    acc['user_id'], random.choice(PAYOUT_TITLES), amount, 'combat'
+                    acc['user_id'], random.choice(PAYOUT_TITLES), amount, 'general'
                 )
                 total_txs += 1
             elif tx_type == 'transfer' and len(created_accounts) > 1:

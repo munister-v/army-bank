@@ -416,8 +416,8 @@ def create_payout():
             return err
         user_id = int(data.get('user_id') or 0)
         amount  = float(data.get('amount') or 0)
-        title   = (data.get('title') or 'Бойова виплата').strip()
-        payout_type = (data.get('payout_type') or 'combat').strip()
+        title   = (data.get('title') or 'Виплата').strip()
+        payout_type = (data.get('payout_type') or 'general').strip()
 
         if not user_id:
             return api_error('Потрібно вказати user_id.')

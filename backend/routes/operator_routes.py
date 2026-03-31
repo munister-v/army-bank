@@ -59,8 +59,8 @@ def create_payout_for_user():
         if user_id is None:
             return api_error('Потрібно вказати user_id.')
         user_id = int(user_id)
-        title = (data.get('title') or 'Бойова виплата').strip()
-        payout_type = (data.get('payout_type') or 'combat').strip()
+        title = (data.get('title') or 'Виплата').strip()
+        payout_type = (data.get('payout_type') or 'general').strip()
         amount = float(data.get('amount') or 0)
         validate_positive_amount(amount)
 

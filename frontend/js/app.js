@@ -1063,7 +1063,7 @@ const receipt = (() => {
 
   function openStatementModal() {
     const acNum = ($('#heroAccount')?.textContent || '').replace(/^Рахунок:\s*/i, '').trim() || '—';
-    const owner = ($('#heroName')?.textContent || '').trim() || '—';
+    const owner = ($('#userName')?.textContent || '').trim() || '—';
     $('#stmtAccount').textContent = acNum;
     $('#stmtOwner').textContent = owner;
     if (reportType()) reportType().value = 'detailed';
@@ -4364,10 +4364,10 @@ async function loadBudgetProgress() {
   try {
     var limits = await api.request('/api/budget-limits');
     if (!limits || !limits.length) { card.style.display = 'none'; return; }
-    var analytics = await api.request('/api/analytics');
+    var analytics = await api.request('/api/analytics/summary');
     var byType = {};
-    (analytics.by_type || []).forEach(function(r) {
-      if (r.direction === 'out') byType[r.tx_type] = parseFloat(r.total) || 0;
+    ((analytics.by_type || [])).forEach(function(r) {
+      if (r.direction === 'out') byType[r.tx_type] = parseFloat(r.total_out || r.total) || 0;
     });
     var TYPE_LABELS = { transfer: 'Перекази', donation: 'Донати', savings: 'Накопичення', topup: 'Поповнення' };
     list.innerHTML = limits.map(function(l) {
