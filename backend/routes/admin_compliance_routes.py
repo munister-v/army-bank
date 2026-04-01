@@ -16,15 +16,6 @@ feature_repo = FeatureRepository()
 _KYC_STATUSES  = ('not_started', 'pending', 'in_review', 'verified', 'rejected')
 _RISK_LEVELS   = ('low', 'medium', 'high', 'critical')
 
-# Order weight for kyc_status: lower = earlier in result set
-_KYC_ORDER = {
-    'rejected': 0,
-    'in_review': 1,
-    'pending': 2,
-    'not_started': 3,
-    'verified': 4,
-}
-
 
 def _row_to_dict(row) -> dict:
     try:
@@ -40,18 +31,18 @@ def _now_iso() -> str:
 def _ensure_profile(conn, user_id: int) -> dict:
     """Return existing compliance profile or insert a default one."""
     row = conn.execute(
-        'SELECT * FROM compliance_profiles WHERE user_id = ?', (user_id,)
+        'SELECT * FROM compliance_profiles WHERE user_id = %s', (user_id,)
     ).fetchone()
     if row:
         return _row_to_dict(row)
     conn.execute(
         """INSERT INTO compliance_profiles
                (user_id, kyc_status, aml_flag, risk_level, notes, updated_at, updated_by)
-           VALUES (?, 'pending', 0, 'low', NULL, NULL, NULL)""",
+           VALUES (%s, 'pending', 0, 'low', NULL, NULL, NULL)""",
         (user_id,),
     )
     row = conn.execute(
-        'SELECT * FROM compliance_profiles WHERE user_id = ?', (user_id,)
+        'SELECT * FROM compliance_profiles WHERE user_id = %s', (user_id,)
     ).fetchone()
     return _row_to_dict(row)
 
@@ -128,43 +119,45 @@ def list_compliance_users():
         if aml_str in ('0', '1'):
             aml_filter = int(aml_str)
 
-        # Build WHERE conditions (applied after COALESCE)
-        # We wrap in a subquery so filters work on the coalesced values.
-        having_clauses: list[str] = []
+        # Build WHERE conditions that work both on direct query and on subquery
+        # Note: do NOT use table-qualified names (u.full_name) — these must work
+        # inside a COUNT(*) subquery where the original table aliases are gone.
+        where_clauses: list[str] = []
         params: list = []
 
         if kyc_filter:
-            having_clauses.append('kyc_status_eff = ?')
+            where_clauses.append('kyc_status_eff = %s')
             params.append(kyc_filter)
         if aml_filter is not None:
-            having_clauses.append('aml_flag_eff = ?')
+            where_clauses.append('aml_flag_eff = %s')
             params.append(aml_filter)
         if risk_filter:
-            having_clauses.append('risk_level_eff = ?')
+            where_clauses.append('risk_level_eff = %s')
             params.append(risk_filter)
         if search:
-            having_clauses.append(
-                '(u.full_name LIKE ? OR u.phone LIKE ? OR u.email LIKE ?)'
+            where_clauses.append(
+                '(full_name ILIKE %s OR phone ILIKE %s OR email ILIKE %s)'
             )
             like = f'%{search}%'
             params.extend([like, like, like])
 
-        having_sql = ('WHERE ' + ' AND '.join(having_clauses)) if having_clauses else ''
+        where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
 
-        # Ordering: rejected first, in_review, pending, others; aml first; then created_at DESC
+        # ORDER BY uses aliases defined in the SELECT — valid in PostgreSQL ORDER BY
         order_sql = """
             ORDER BY
                 CASE kyc_status_eff
-                    WHEN 'rejected'  THEN 0
-                    WHEN 'in_review' THEN 1
-                    WHEN 'pending'   THEN 2
+                    WHEN 'rejected'    THEN 0
+                    WHEN 'in_review'   THEN 1
+                    WHEN 'pending'     THEN 2
                     WHEN 'not_started' THEN 3
                     ELSE 4
                 END ASC,
                 aml_flag_eff DESC,
-                u.created_at DESC
+                created_at DESC
         """
 
+        # Inner SELECT — aliases (kyc_status_eff, etc.) are used in WHERE and ORDER BY
         inner_sql = """
             SELECT
                 u.id,
@@ -173,7 +166,7 @@ def list_compliance_users():
                 u.email,
                 u.role,
                 u.created_at,
-                cp.id            AS profile_id,
+                cp.id                              AS profile_id,
                 COALESCE(cp.kyc_status, 'pending') AS kyc_status_eff,
                 COALESCE(cp.aml_flag,   0)         AS aml_flag_eff,
                 COALESCE(cp.risk_level, 'low')     AS risk_level_eff,
@@ -184,8 +177,10 @@ def list_compliance_users():
             LEFT JOIN compliance_profiles cp ON cp.user_id = u.id
         """
 
-        count_sql  = f'SELECT COUNT(*) AS cnt FROM ({inner_sql}) sub {having_sql}'
-        select_sql = f'{inner_sql} {having_sql} {order_sql} LIMIT ? OFFSET ?'
+        # COUNT wraps in subquery — WHERE uses unqualified column names (aliases from inner)
+        count_sql  = f'SELECT COUNT(*) AS cnt FROM ({inner_sql}) sub {where_sql}'
+        # Direct query — WHERE + ORDER BY reference the SELECT aliases directly
+        select_sql = f'{inner_sql} {where_sql} {order_sql} LIMIT %s OFFSET %s'
 
         with get_connection() as conn:
             total = _row_to_dict(conn.execute(count_sql, params).fetchone())['cnt']
@@ -206,7 +201,7 @@ def get_compliance_user(user_id: int):
     try:
         with get_connection() as conn:
             user_row = conn.execute(
-                'SELECT id, full_name, phone, email, role, created_at FROM users WHERE id = ?',
+                'SELECT id, full_name, phone, email, role, created_at FROM users WHERE id = %s',
                 (user_id,),
             ).fetchone()
             if not user_row:
@@ -215,11 +210,10 @@ def get_compliance_user(user_id: int):
 
             profile = _ensure_profile(conn, user_id)
 
-            # Resolve updated_by name
             updated_by_name: str | None = None
             if profile.get('updated_by'):
                 upd_row = conn.execute(
-                    'SELECT full_name FROM users WHERE id = ?', (profile['updated_by'],)
+                    'SELECT full_name FROM users WHERE id = %s', (profile['updated_by'],)
                 ).fetchone()
                 if upd_row:
                     updated_by_name = _row_to_dict(upd_row).get('full_name')
@@ -261,45 +255,46 @@ def update_compliance_user(user_id: int):
             except (TypeError, ValueError):
                 return api_error('aml_flag must be 0 or 1.')
 
-        set_clauses: list[str] = ['updated_at = ?', 'updated_by = ?']
+        set_clauses: list[str] = ['updated_at = %s', 'updated_by = %s']
         set_params: list       = [_now_iso(), actor_id]
 
         if kyc_status is not None:
-            set_clauses.append('kyc_status = ?')
+            set_clauses.append('kyc_status = %s')
             set_params.append(kyc_status)
         if aml_flag is not None:
-            set_clauses.append('aml_flag = ?')
+            set_clauses.append('aml_flag = %s')
             set_params.append(aml_flag)
         if risk_level is not None:
-            set_clauses.append('risk_level = ?')
+            set_clauses.append('risk_level = %s')
             set_params.append(risk_level)
         if notes is not None:
-            set_clauses.append('notes = ?')
+            set_clauses.append('notes = %s')
             set_params.append(notes)
 
         with get_connection() as conn:
-            user_row = conn.execute('SELECT id FROM users WHERE id = ?', (user_id,)).fetchone()
+            user_row = conn.execute(
+                'SELECT id FROM users WHERE id = %s', (user_id,)
+            ).fetchone()
             if not user_row:
                 return api_error('User not found.', 404)
 
-            # Ensure profile exists before updating
             _ensure_profile(conn, user_id)
 
             update_sql = (
-                f'UPDATE compliance_profiles SET {", ".join(set_clauses)} WHERE user_id = ?'
+                f'UPDATE compliance_profiles SET {", ".join(set_clauses)} WHERE user_id = %s'
             )
             conn.execute(update_sql, set_params + [user_id])
 
             profile = _row_to_dict(
                 conn.execute(
-                    'SELECT * FROM compliance_profiles WHERE user_id = ?', (user_id,)
+                    'SELECT * FROM compliance_profiles WHERE user_id = %s', (user_id,)
                 ).fetchone()
             )
 
             updated_by_name: str | None = None
             if profile.get('updated_by'):
                 upd_row = conn.execute(
-                    'SELECT full_name FROM users WHERE id = ?', (profile['updated_by'],)
+                    'SELECT full_name FROM users WHERE id = %s', (profile['updated_by'],)
                 ).fetchone()
                 if upd_row:
                     updated_by_name = _row_to_dict(upd_row).get('full_name')

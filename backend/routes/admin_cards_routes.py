@@ -45,7 +45,6 @@ def _mask_card_number(card_number: str | None) -> str:
 
 
 def _row_to_dict(row) -> dict:
-    """Convert a sqlite3.Row or psycopg2 RealDictRow to a plain dict."""
     try:
         return dict(row)
     except Exception:
@@ -112,24 +111,29 @@ def list_cards():
         params: list = []
 
         if status_filter:
-            where_clauses.append('c.status = ?')
+            where_clauses.append('c.status = %s')
             params.append(status_filter)
 
         if user_id_filter is not None:
-            where_clauses.append('u.id = ?')
+            where_clauses.append('u.id = %s')
             params.append(user_id_filter)
 
         if search:
             where_clauses.append(
-                '(u.full_name LIKE ? OR u.phone LIKE ? OR c.card_number LIKE ?)'
+                '(u.full_name ILIKE %s OR u.phone ILIKE %s OR c.card_number ILIKE %s)'
             )
             like = f'%{search}%'
             params.extend([like, like, like])
 
         where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
 
-        count_sql  = f'SELECT COUNT(*) AS cnt FROM cards c JOIN accounts a ON a.id = c.account_id JOIN users u ON u.id = a.user_id {where_sql}'
-        select_sql = f'{_CARD_SELECT} {where_sql} ORDER BY c.id DESC LIMIT ? OFFSET ?'
+        count_sql  = (
+            'SELECT COUNT(*) AS cnt FROM cards c '
+            'JOIN accounts a ON a.id = c.account_id '
+            'JOIN users u ON u.id = a.user_id '
+            f'{where_sql}'
+        )
+        select_sql = f'{_CARD_SELECT} {where_sql} ORDER BY c.id DESC LIMIT %s OFFSET %s'
 
         with get_connection() as conn:
             total = _row_to_dict(conn.execute(count_sql, params).fetchone())['cnt']
@@ -148,7 +152,7 @@ def list_cards():
 @role_required('admin', 'platform_admin')
 def get_card(card_id: int):
     try:
-        sql = f'{_CARD_SELECT} WHERE c.id = ?'
+        sql = f'{_CARD_SELECT} WHERE c.id = %s'
         with get_connection() as conn:
             row = conn.execute(sql, (card_id,)).fetchone()
         if not row:
@@ -167,13 +171,12 @@ def block_card(card_id: int):
     try:
         actor_id = g.current_user['id']
         with get_connection() as conn:
-            row = conn.execute('SELECT status FROM cards WHERE id = ?', (card_id,)).fetchone()
+            row = conn.execute('SELECT status FROM cards WHERE id = %s', (card_id,)).fetchone()
             if not row:
                 return api_error('Card not found.', 404)
-            current_status = _row_to_dict(row)['status']
-            if current_status == 'closed':
+            if _row_to_dict(row)['status'] == 'closed':
                 return api_error('Cannot block a closed card.')
-            conn.execute("UPDATE cards SET status = 'blocked' WHERE id = ?", (card_id,))
+            conn.execute("UPDATE cards SET status = 'blocked' WHERE id = %s", (card_id,))
         feature_repo.add_audit_log(actor_id, 'admin_card_block', f'card_id={card_id}')
         return jsonify({'ok': True, 'data': {'card_id': card_id, 'status': 'blocked'}})
     except Exception as exc:
@@ -189,13 +192,12 @@ def unblock_card(card_id: int):
     try:
         actor_id = g.current_user['id']
         with get_connection() as conn:
-            row = conn.execute('SELECT status FROM cards WHERE id = ?', (card_id,)).fetchone()
+            row = conn.execute('SELECT status FROM cards WHERE id = %s', (card_id,)).fetchone()
             if not row:
                 return api_error('Card not found.', 404)
-            current_status = _row_to_dict(row)['status']
-            if current_status == 'closed':
+            if _row_to_dict(row)['status'] == 'closed':
                 return api_error('Cannot unblock a closed card.')
-            conn.execute("UPDATE cards SET status = 'active' WHERE id = ?", (card_id,))
+            conn.execute("UPDATE cards SET status = 'active' WHERE id = %s", (card_id,))
         feature_repo.add_audit_log(actor_id, 'admin_card_unblock', f'card_id={card_id}')
         return jsonify({'ok': True, 'data': {'card_id': card_id, 'status': 'active'}})
     except Exception as exc:
@@ -211,13 +213,12 @@ def close_card(card_id: int):
     try:
         actor_id = g.current_user['id']
         with get_connection() as conn:
-            row = conn.execute('SELECT status FROM cards WHERE id = ?', (card_id,)).fetchone()
+            row = conn.execute('SELECT status FROM cards WHERE id = %s', (card_id,)).fetchone()
             if not row:
                 return api_error('Card not found.', 404)
-            current_status = _row_to_dict(row)['status']
-            if current_status == 'closed':
+            if _row_to_dict(row)['status'] == 'closed':
                 return api_error('Card is already closed.')
-            conn.execute("UPDATE cards SET status = 'closed' WHERE id = ?", (card_id,))
+            conn.execute("UPDATE cards SET status = 'closed' WHERE id = %s", (card_id,))
         feature_repo.add_audit_log(actor_id, 'admin_card_close', f'card_id={card_id}')
         return jsonify({'ok': True, 'data': {'card_id': card_id, 'status': 'closed'}})
     except Exception as exc:
