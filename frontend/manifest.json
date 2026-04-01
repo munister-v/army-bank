@@ -1,6 +1,6 @@
 {
-  "name": "Army Bank",
-  "short_name": "ArmyBank",
+  "name": "ARM Bank",
+  "short_name": "ARMBank",
   "description": "Цифровий банкінг для захисників України",
   "theme_color": "#162c5c",
   "background_color": "#e7ebe2",
@@ -29,7 +29,7 @@
     { "name": "Аналітика",   "short_name": "Аналітика", "url": "/analytics",    "description": "Фінансова аналітика", "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }] }
   ],
   "screenshots": [
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "form_factor": "narrow", "label": "Army Bank Dashboard" }
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "form_factor": "narrow", "label": "ARM Bank Dashboard" }
   ],
   "prefer_related_applications": false,
   "edge_side_panel": { "preferred_width": 400 }

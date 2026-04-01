@@ -76,15 +76,21 @@ function stopNotifPolling() {
 
 async function performLogout(options = {}) {
   const showMessage = options.showMessage !== false;
+  const reason = options.reason || '';
   stopPolling();
   stopNotifPolling();
   clearBootstrapRetryTimer();
+  stopSessionEngine();
   try { await api.request('/api/auth/logout', { method: 'POST' }); } catch (_) {}
   api.setToken('');
   setAuthenticated(false);
   const base = getBasePath();
   window.history.replaceState(null, '', base || '/');
-  if (showMessage) showToast('Ви вийшли з системи.');
+  if (showMessage) {
+    if (reason === 'idle') showToast('Сесію завершено через бездіяльність.', 'warning');
+    else if (reason === 'expired') showToast('Термін дії сесії вичерпано. Увійдіть повторно.', 'warning');
+    else showToast('Ви вийшли з системи.');
+  }
 }
 
 function isAuthErrorResponse(error) {
@@ -136,7 +142,7 @@ function renderList(containerSelector, items, renderer, emptyText) {
 
 const TX_TYPE_LABELS = {
   topup: 'Поповнення', transfer: 'Переказ',
-  payout: 'Виплата', donation: 'Донат', savings: 'Накопичення',
+  payout: 'Виплата', donation: 'Благодійність', savings: 'Накопичення',
 };
 
 const TRANSFER_DRAFT_KEY = 'ab_transfer_draft_v1';
@@ -1706,7 +1712,7 @@ async function refreshAllData() {
         <div class="item-header"><strong>${row.fund_name}</strong><span class="amount out">−${formatMoney(row.amount)}</span></div>
         <div class="muted">${row.comment || 'Без коментаря'} · ${formatDate(row.created_at)}</div>
       </div>
-    `, 'Донатів поки немає.');
+    `, 'Пожертв поки немає.');
 
     // Check goal completions for confetti celebrations
     if (typeof checkGoalCompletion === 'function') checkGoalCompletion(goals);
@@ -2238,7 +2244,7 @@ bindJsonForm('#demoPayoutForm', () => '/api/payouts/demo-accrual', {
 
 bindJsonForm('#donationForm', () => '/api/donations', {
   transform: (v) => ({ ...v, amount: Number(v.amount) }),
-  successMessage: 'Донат проведено.',
+  successMessage: 'Пожертву проведено.',
 });
 
 bindJsonForm('#goalForm', () => '/api/savings-goals', {
@@ -2458,6 +2464,7 @@ async function hydrateAuthenticatedApp() {
   switchScreen(getScreenIdFromPath());
   clearBootstrapRetryTimer();
   startPolling();
+  startSessionEngine();
   updatePushDot();
   if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
   if (Notification?.permission === 'granted') api.subscribePush().catch(() => {});
@@ -2880,7 +2887,7 @@ async function loadBudgetLimits() {
       listEl.innerHTML = '<div class="empty-state" style="padding:8px 0">Лімітів не встановлено.</div>';
       return;
     }
-    const txLabels = { transfer: 'Переказ', donation: 'Донат', savings: 'Накопичення', topup: 'Поповнення' };
+    const txLabels = { transfer: 'Переказ', donation: 'Благодійність', savings: 'Накопичення', topup: 'Поповнення' };
     listEl.innerHTML = limits.map(l => {
       const pct = l.pct || 0;
       const color = pct >= 90 ? 'var(--red)' : pct >= 70 ? 'var(--orange)' : 'var(--green)';
@@ -3696,6 +3703,154 @@ $('#clearPinBtn')?.addEventListener('click', async function() {
   } catch (e) { showToast(e.message); }
 });
 
+// ── Session Management Engine ────────────────────────────
+// Idle logout: 15 min without activity → warning → 60s countdown → logout
+// Absolute timeout: force logout when JWT exp reached
+// Visibility/online: revalidate token on tab focus / network restore
+
+const SESSION_IDLE_MS     = 15 * 60 * 1000;  // 15 min idle → start warning
+const SESSION_WARN_MS     = 60 * 1000;        // 60 s warning countdown
+const SESSION_MIN_EXTEND  = 30 * 1000;        // don't call /api/me more than once per 30s
+
+let _sesIdleTimer     = null;
+let _sesAbsTimer      = null;
+let _sesWarnInterval  = null;
+let _sesWarnActive    = false;
+let _sesLastExtend    = 0;
+
+function _sesJwtExp(token) {
+  // Parse JWT exp claim without any library
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof json.exp === 'number' ? json.exp * 1000 : null;
+  } catch (_) { return null; }
+}
+
+function _sesCancelWarn() {
+  if (_sesWarnInterval) { clearInterval(_sesWarnInterval); _sesWarnInterval = null; }
+  _sesWarnActive = false;
+  const ov = document.getElementById('sessionWarnOverlay');
+  if (ov) ov.classList.add('hidden');
+}
+
+function _sesShowWarn() {
+  if (_sesWarnActive) return;
+  _sesWarnActive = true;
+  let secs = Math.round(SESSION_WARN_MS / 1000);
+  const ov = document.getElementById('sessionWarnOverlay');
+  const cd = document.getElementById('sessionWarnCountdown');
+  if (ov) ov.classList.remove('hidden');
+  if (cd) cd.textContent = secs;
+  _sesWarnInterval = setInterval(() => {
+    secs -= 1;
+    if (cd) cd.textContent = Math.max(0, secs);
+    if (secs <= 0) {
+      _sesCancelWarn();
+      performLogout({ showMessage: true, reason: 'idle' });
+    }
+  }, 1000);
+}
+
+function _sesResetIdle() {
+  if (!api.token || _sesWarnActive) return;
+  clearTimeout(_sesIdleTimer);
+  _sesIdleTimer = setTimeout(_sesShowWarn, SESSION_IDLE_MS);
+}
+
+function _sesScheduleAbsolute() {
+  clearTimeout(_sesAbsTimer);
+  if (!api.token) return;
+  const exp = _sesJwtExp(api.token);
+  if (!exp) return;
+  const ms = exp - Date.now();
+  if (ms <= 0) {
+    performLogout({ showMessage: true, reason: 'expired' });
+    return;
+  }
+  // Show warning 60s before absolute expiry too (if sooner than idle warning)
+  const warnAt = ms - SESSION_WARN_MS;
+  if (warnAt > 0) {
+    _sesAbsTimer = setTimeout(() => {
+      _sesCancelWarn();
+      _sesShowWarn();
+      // After warning, force logout
+      setTimeout(() => {
+        if (_sesWarnActive) {
+          _sesCancelWarn();
+          performLogout({ showMessage: true, reason: 'expired' });
+        }
+      }, SESSION_WARN_MS + 2000);
+    }, warnAt);
+  } else {
+    _sesAbsTimer = setTimeout(() => {
+      _sesCancelWarn();
+      performLogout({ showMessage: true, reason: 'expired' });
+    }, Math.max(ms, 100));
+  }
+}
+
+async function _sesExtend() {
+  const now = Date.now();
+  if (now - _sesLastExtend < SESSION_MIN_EXTEND) return;
+  _sesLastExtend = now;
+  try {
+    await api.request('/api/auth/me');
+    // If server returns a refreshed token it's handled by api.request interceptor
+    _sesCancelWarn();
+    _sesScheduleAbsolute();
+    _sesResetIdle();
+  } catch (err) {
+    if (isAuthErrorResponse(err)) {
+      _sesCancelWarn();
+      performLogout({ showMessage: true, reason: 'expired' });
+    }
+  }
+}
+
+function startSessionEngine() {
+  stopSessionEngine();
+  if (!api.token) return;
+  _sesScheduleAbsolute();
+  _sesResetIdle();
+}
+
+function stopSessionEngine() {
+  clearTimeout(_sesIdleTimer);
+  clearTimeout(_sesAbsTimer);
+  _sesCancelWarn();
+  _sesIdleTimer = null;
+  _sesAbsTimer  = null;
+}
+
+// Reuse existing activity listeners — also drive session idle reset
+['click', 'keydown', 'touchstart', 'mousemove'].forEach(evt => {
+  document.addEventListener(evt, () => { if (api.token) _sesResetIdle(); }, { passive: true });
+});
+
+// Tab focus → revalidate token
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && api.token) {
+    _sesExtend();
+  }
+});
+
+// Network restore → revalidate token
+window.addEventListener('online', () => {
+  if (api.token) _sesExtend();
+});
+
+// Warning overlay buttons
+document.getElementById('sessionWarnExtend')?.addEventListener('click', () => {
+  _sesLastExtend = 0; // force refresh even within throttle window
+  _sesExtend();
+});
+document.getElementById('sessionWarnLogout')?.addEventListener('click', () => {
+  _sesCancelWarn();
+  performLogout();
+});
+
 // ── Spending Velocity ────────────────────────────────────
 async function loadVelocity() {
   try {
@@ -4394,7 +4549,7 @@ async function loadBudgetProgress() {
     ((analytics.by_type || [])).forEach(function(r) {
       if (r.direction === 'out') byType[r.tx_type] = parseFloat(r.total_out || r.total) || 0;
     });
-    var TYPE_LABELS = { transfer: 'Перекази', donation: 'Донати', savings: 'Накопичення', topup: 'Поповнення' };
+    var TYPE_LABELS = { transfer: 'Перекази', donation: 'Благодійність', savings: 'Накопичення', topup: 'Поповнення' };
     list.innerHTML = limits.map(function(l) {
       var spent = byType[l.tx_type] || 0;
       var limit = parseFloat(l.monthly_limit) || 0;
