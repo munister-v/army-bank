@@ -1425,6 +1425,9 @@ async function refreshProfile() {
   _updateBankCards().catch(function() {});
 }
 
+// CVV reveal cache: { cardId: { card_number, cvv } }
+var _cvvCache = {};
+
 function _initCarouselInteraction(track) {
   if (!track || track._bankCardsInit) return;
   track._bankCardsInit = true;
@@ -1451,6 +1454,51 @@ function _initCarouselInteraction(track) {
     var dots = Array.from(document.querySelectorAll('.bc-dot'));
     var i = dots.indexOf(dot);
     if (i >= 0) track.scrollTo({ left: i * getCardWidth(), behavior: 'smooth' });
+  });
+
+  // Tap-to-flip: distinguish tap from horizontal swipe
+  track.addEventListener('pointerdown', function(e) {
+    track._flipStartX = e.clientX;
+    track._flipStartY = e.clientY;
+  }, { passive: true });
+
+  track.addEventListener('pointerup', function(e) {
+    var dx = Math.abs(e.clientX - (track._flipStartX || e.clientX));
+    var dy = Math.abs(e.clientY - (track._flipStartY || e.clientY));
+    if (dx > 10 || dy > 10) return; // swipe — ignore
+
+    var cardEl = e.target.closest('.bank-card[data-card-id]');
+    if (!cardEl) return;
+
+    var cardId = parseInt(cardEl.dataset.cardId, 10);
+    if (!cardId) return;
+
+    var isFlipped = cardEl.classList.toggle('is-flipped');
+
+    // On first flip: fetch CVV
+    if (isFlipped) {
+      var cvvEl = cardEl.querySelector('.bank-card-cvv-value');
+      var numEl = cardEl.querySelector('.bank-card-full-number');
+      if (!cvvEl) return;
+
+      if (_cvvCache[cardId]) {
+        cvvEl.textContent = _cvvCache[cardId].cvv || '•••';
+        if (numEl) numEl.textContent = _cvvCache[cardId].card_number || '';
+      } else {
+        cvvEl.classList.add('bc-loading');
+        api.request('/api/cards/' + cardId + '/reveal')
+          .then(function(data) {
+            _cvvCache[cardId] = data;
+            cvvEl.textContent = data.cvv || '•••';
+            cvvEl.classList.remove('bc-loading');
+            if (numEl) numEl.textContent = data.card_number || '';
+          })
+          .catch(function() {
+            cvvEl.textContent = '•••';
+            cvvEl.classList.remove('bc-loading');
+          });
+      }
+    }
   });
 }
 
@@ -1527,12 +1575,15 @@ async function _updateBankCards() {
     var statusBadge = blocked
       ? '<span style="font-size:9px;color:rgba(239,68,68,.85);font-family:var(--font-mono);letter-spacing:.08em;background:rgba(239,68,68,.12);padding:2px 8px;border-radius:20px;border:1px solid rgba(239,68,68,.2)">ЗАБЛОК.</span>'
       : '<span style="font-size:9px;color:rgba(255,255,255,.4);font-family:var(--font-mono);letter-spacing:.1em;text-transform:uppercase">' + (card.card_type||'VIRTUAL').toUpperCase() + '</span>';
-    return '<div class="bank-card ' + s.cls + (blocked?' bank-card-blocked':'') + '" data-design="' + selectedDesign + '">'
+
+    // ── Front side HTML ──
+    var frontHtml =
+        '<div class="bank-card-front">'
       + '<div class="bank-card-bg"></div>'
       + '<div class="bank-card-noise"></div>'
       + '<div class="bank-card-content">'
       +   '<div class="bank-card-top">'
-      +     '<div class="bank-card-logo"><span class="bank-card-logo-letter">A</span><span class="bank-card-logo-text">Army<strong>Bank</strong></span></div>'
+      +     '<div class="bank-card-logo"><span class="bank-card-logo-letter">A</span><span class="bank-card-logo-text">ARM<strong>Bank</strong></span></div>'
       +     statusBadge
       +   '</div>'
       +   '<div class="bank-card-chip"><svg width="36" height="28" viewBox="0 0 36 28" fill="none">'
@@ -1551,6 +1602,32 @@ async function _updateBankCards() {
       +     '<div class="bank-card-network">' + s.network + '</div>'
       +   '</div>'
       + '</div></div>';
+
+    // ── Back side HTML ──
+    var backHtml =
+        '<div class="bank-card-back">'
+      + '<div class="bank-card-mag-stripe"></div>'
+      + '<div class="bank-card-back-body">'
+      +   '<div class="bank-card-sig-strip">'
+      +     '<div class="bank-card-cvv-box">'
+      +       '<div class="bank-card-cvv-label">CVV</div>'
+      +       '<div class="bank-card-cvv-value bc-loading">•••</div>'
+      +     '</div>'
+      +   '</div>'
+      +   '<div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.06em;font-variant-numeric:tabular-nums" class="bank-card-full-number"></div>'
+      +   '<div class="bank-card-back-footer">'
+      +     '<div class="bank-card-back-info">ARM<strong>Bank</strong><br>arm-bank.onrender.com</div>'
+      +     '<div>' + s.network + '</div>'
+      +   '</div>'
+      + '</div>'
+      + '</div>';
+
+    return '<div class="bank-card ' + s.cls + (blocked?' bank-card-blocked':'') + '" data-design="' + selectedDesign + '" data-card-id="' + card.id + '">'
+      + '<div class="bank-card-inner">'
+      +   frontHtml
+      +   backHtml
+      + '</div>'
+      + '</div>';
   }).join('');
 
   // Sync dots
@@ -2430,7 +2507,7 @@ if ('serviceWorker' in navigator) {
     setTimeout(() => location.reload(), 200);
   }
 
-  navigator.serviceWorker.register('/sw.js?v=29', { updateViaCache: 'none' }).then(reg => {
+  navigator.serviceWorker.register('/sw.js?v=30', { updateViaCache: 'none' }).then(reg => {
     // If update is already waiting, activate immediately.
     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
 

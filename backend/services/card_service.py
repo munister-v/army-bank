@@ -59,7 +59,24 @@ class CardService:
         for c in cards:
             c['masked_number'] = self._mask(c['card_number'])
             c['expiry_display'] = self._expiry_display(c['expires_at'])
+            c.pop('cvv', None)          # never expose CVV in list
+            c.pop('card_number', None)  # never expose full number in list
         return cards
+
+    def reveal_card(self, user_id: int, card_id: int) -> dict:
+        """Return full card number + CVV for the card owner (used for flip reveal)."""
+        account = self._get_account(user_id)
+        card = self.cards.get_card(card_id, account['id'])
+        if not card:
+            raise ValueError('Картку не знайдено.')
+        if card['status'] == 'closed':
+            raise ValueError('Закрита картка.')
+        return {
+            'id': card['id'],
+            'card_number': card['card_number'],
+            'cvv': card.get('cvv') or '000',
+            'expiry_display': self._expiry_display(card['expires_at']),
+        }
 
     _VALID_DESIGNS = {'gold', 'navy', 'forest', 'rose', 'slate'}
 
@@ -84,7 +101,8 @@ class CardService:
 
         holder = self._format_holder(account.get('holder_name') or '')
         expires_at = _card_expires_at()
-        card_id = self.cards.issue_card(account['id'], number, holder, expires_at, card_type, design)
+        cvv = _generate_cvv()
+        card_id = self.cards.issue_card(account['id'], number, holder, expires_at, card_type, design, cvv)
 
         self.features.add_audit_log(
             user_id, 'card_issued',
@@ -103,6 +121,8 @@ class CardService:
         card = self.cards.get_card(card_id, account['id'])
         card['masked_number'] = self._mask(card['card_number'])
         card['expiry_display'] = self._expiry_display(card['expires_at'])
+        card.pop('cvv', None)
+        card.pop('card_number', None)
         return card
 
     def block_card(self, user_id: int, card_id: int) -> dict:

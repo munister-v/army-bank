@@ -220,6 +220,7 @@ CREATE TABLE IF NOT EXISTS cards (
     design VARCHAR(20) NOT NULL DEFAULT 'gold',
     status TEXT NOT NULL DEFAULT 'active',
     holder_name TEXT,
+    cvv VARCHAR(3) NOT NULL DEFAULT '000',
     issued_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at DATE NOT NULL
 );
@@ -236,6 +237,7 @@ CREATE TABLE IF NOT EXISTS cards (
     design TEXT NOT NULL DEFAULT 'gold',
     status TEXT NOT NULL DEFAULT 'active',
     holder_name TEXT,
+    cvv TEXT NOT NULL DEFAULT '000',
     issued_at TEXT NOT NULL DEFAULT (datetime('now')),
     expires_at TEXT NOT NULL,
     FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE
@@ -473,6 +475,11 @@ def init_db() -> None:
                 label='cards.design',
             )
             _pg_exec(
+                "ALTER TABLE cards ADD COLUMN IF NOT EXISTS cvv VARCHAR(3) NOT NULL DEFAULT '000';",
+                optional=True,
+                label='cards.cvv',
+            )
+            _pg_exec(
                 "ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS review_state VARCHAR(20) NOT NULL DEFAULT 'none';",
                 optional=True,
                 label='payment_orders.review_state',
@@ -616,6 +623,10 @@ def init_db() -> None:
                 pass
             try:
                 conn.execute("ALTER TABLE cards ADD COLUMN design TEXT NOT NULL DEFAULT 'gold';")
+            except Exception:
+                pass
+            try:
+                conn.execute("ALTER TABLE cards ADD COLUMN cvv TEXT NOT NULL DEFAULT '000';")
             except Exception:
                 pass
             try:

@@ -31,6 +31,16 @@ def issue_card():
         return api_error(str(exc))
 
 
+@card_bp.get('/cards/<int:card_id>/reveal')
+@auth_required
+def reveal_card(card_id: int):
+    """Return full card number + CVV for authenticated card owner (used for card flip)."""
+    try:
+        return jsonify({'ok': True, 'data': service.reveal_card(g.current_user['id'], card_id)})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
 @card_bp.patch('/cards/<int:card_id>/block')
 @auth_required
 def block_card(card_id: int):

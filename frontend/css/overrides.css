@@ -1,7 +1,7 @@
 /*
  * Army Bank PWA — Monobank-style full redesign
  * Single source of truth for visual layer.
- * v36
+ * v37
  */
 
 :root {
@@ -548,6 +548,156 @@ body {
 
 .bank-card-blocked {
   filter: saturate(0.52) brightness(0.8) !important;
+}
+
+/* ── Card 3D flip ──────────────────────────────────── */
+.bank-card {
+  overflow: visible !important; /* allow 3D children to be visible outside */
+  perspective: 900px !important;
+  cursor: pointer !important;
+}
+
+/* Disable card-level pseudo overlays — replicated on .bank-card-front */
+.bank-card::before,
+.bank-card::after {
+  display: none !important;
+}
+
+/* Inner wrapper that actually rotates */
+.bank-card-inner {
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  transform-style: preserve-3d !important;
+  transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.bank-card.is-flipped .bank-card-inner {
+  transform: rotateY(180deg) !important;
+}
+
+/* Front & back faces */
+.bank-card-front,
+.bank-card-back {
+  position: absolute !important;
+  inset: 0 !important;
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
+}
+.bank-card-front { z-index: 1 !important; }
+
+/* Restore sheen on front face */
+.bank-card-front::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+  background: linear-gradient(135deg, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0) 45%) !important;
+}
+.bank-card-front::after {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+  background: radial-gradient(ellipse 60% 50% at 88% 94%, rgba(0,0,0,0.16) 0%, transparent 55%) !important;
+}
+/* Gold sheen override */
+.bank-card-gold .bank-card-front::before {
+  background: linear-gradient(135deg, rgba(255,230,120,0.22) 0%, rgba(255,215,80,0) 45%) !important;
+}
+
+/* Back face — dark navy */
+.bank-card-back {
+  transform: rotateY(180deg) !important;
+  background: linear-gradient(160deg, #18202e 0%, #1e2b3e 52%, #141a24 100%) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  z-index: 1 !important;
+}
+
+/* Magnetic stripe */
+.bank-card-mag-stripe {
+  height: 38px !important;
+  background: #050709 !important;
+  margin-top: 18px !important;
+  width: 100% !important;
+  flex-shrink: 0 !important;
+}
+
+/* Back body content */
+.bank-card-back-body {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  padding: 8px 14px 10px !important;
+}
+
+/* Signature strip */
+.bank-card-sig-strip {
+  height: 34px !important;
+  background: repeating-linear-gradient(
+    90deg,
+    #cdc5b0 0px, #cdc5b0 3px,
+    #e2dac8 3px, #e2dac8 6px
+  ) !important;
+  border-radius: 3px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  padding-right: 6px !important;
+}
+
+/* CVV box */
+.bank-card-cvv-box {
+  background: #ffffff !important;
+  border-radius: 3px !important;
+  padding: 3px 9px !important;
+  text-align: center !important;
+  min-width: 46px !important;
+}
+.bank-card-cvv-label {
+  font-size: 7px !important;
+  color: #999 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+}
+.bank-card-cvv-value {
+  font-size: 15px !important;
+  font-weight: 900 !important;
+  color: #111 !important;
+  letter-spacing: 0.14em !important;
+  font-variant-numeric: tabular-nums !important;
+  line-height: 1.15 !important;
+}
+.bank-card-cvv-value.bc-loading {
+  opacity: 0.35 !important;
+}
+
+/* Back footer */
+.bank-card-back-footer {
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: space-between !important;
+}
+.bank-card-back-info {
+  font-size: 8px !important;
+  color: rgba(255,255,255,0.32) !important;
+  letter-spacing: 0.04em !important;
+  line-height: 1.55 !important;
+}
+.bank-card-back-info strong { color: rgba(255,255,255,0.5) !important; }
+.bank-card-tap-hint {
+  font-size: 8px !important;
+  color: rgba(255,255,255,0.2) !important;
+  letter-spacing: 0.03em !important;
+  align-self: flex-end !important;
 }
 
 .bank-cards-dots {
