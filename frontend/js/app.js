@@ -1389,39 +1389,42 @@ async function refreshProfile() {
     api.request('/api/accounts/main'),
   ]);
 
-  const nameEl = $('#userName');
-  if (nameEl) nameEl.textContent = state.user.full_name;
+  if (state.user) {
+    const nameEl = $('#userName');
+    if (nameEl) nameEl.textContent = state.user.full_name || '';
 
-  const roleLabels = { soldier: 'Клієнт', operator: 'Оператор', admin: 'Адміністратор', platform_admin: 'Платформа' };
-  const metaEl = $('#userMeta');
-  if (metaEl) metaEl.textContent = `${roleLabels[state.user.role] || state.user.role} · ${state.user.email}`;
+    const roleLabels = { soldier: 'Клієнт', operator: 'Оператор', admin: 'Адміністратор', platform_admin: 'Платформа' };
+    const metaEl = $('#userMeta');
+    if (metaEl) metaEl.textContent = `${roleLabels[state.user.role] || state.user.role} · ${state.user.email}`;
 
-  const avatarEl = $('#userAvatar');
-  if (avatarEl && state.user.full_name) {
-    const parts = state.user.full_name.trim().split(' ');
-    avatarEl.textContent = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
+    const avatarEl = $('#userAvatar');
+    if (avatarEl && state.user.full_name) {
+      const parts = state.user.full_name.trim().split(' ');
+      avatarEl.textContent = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
+    }
+
+    const adminLink = $('.nav-admin');
+    const operatorLink = $('.nav-operator');
+    const platformLink = $('.nav-platform');
+    if (adminLink) adminLink.classList.toggle('hidden', state.user.role !== 'admin' && state.user.role !== 'platform_admin');
+    if (operatorLink) operatorLink.classList.toggle('hidden', !['operator','admin','platform_admin'].includes(state.user.role));
+    if (platformLink) platformLink.classList.toggle('hidden', state.user.role !== 'platform_admin');
   }
 
-  const balance = formatMoney(state.account.balance);
-  const heroBalEl = $('#heroBalance');
-  if (heroBalEl) {
-    heroBalEl.textContent = balance;
-    heroBalEl.dataset.raw = state.account.balance;  // raw numeric for overlay balance check
+  if (state.account) {
+    const balance = formatMoney(state.account.balance);
+    const heroBalEl = $('#heroBalance');
+    if (heroBalEl) {
+      heroBalEl.textContent = balance;
+      heroBalEl.dataset.raw = state.account.balance;
+    }
+    const heroAccEl = $('#heroAccount');
+    if (heroAccEl) heroAccEl.textContent = `Рахунок: ${state.account.account_number || '—'}`;
+    const balVal = $('#balanceValue');
+    if (balVal) balVal.textContent = balance;
+    const accNum = $('#accountNumber');
+    if (accNum) accNum.textContent = `Рахунок: ${state.account.account_number || '—'}`;
   }
-  const heroAccEl = $('#heroAccount');
-  if (heroAccEl) heroAccEl.textContent = `Рахунок: ${state.account.account_number || '—'}`;
-
-  const balVal = $('#balanceValue');
-  if (balVal) balVal.textContent = balance;
-  const accNum = $('#accountNumber');
-  if (accNum) accNum.textContent = `Рахунок: ${state.account.account_number}`;
-
-  const adminLink = $('.nav-admin');
-  const operatorLink = $('.nav-operator');
-  const platformLink = $('.nav-platform');
-  if (adminLink) adminLink.classList.toggle('hidden', state.user.role !== 'admin' && state.user.role !== 'platform_admin');
-  if (operatorLink) operatorLink.classList.toggle('hidden', !['operator','admin','platform_admin'].includes(state.user.role));
-  if (platformLink) platformLink.classList.toggle('hidden', state.user.role !== 'platform_admin');
 
   /* ── Bank Cards ── */
   _updateBankCards().catch(function() {});
@@ -1617,7 +1620,7 @@ async function _updateBankCards() {
       +   '</div>'
       +   '<div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.06em;font-variant-numeric:tabular-nums" class="bank-card-full-number"></div>'
       +   '<div class="bank-card-back-footer">'
-      +     '<div class="bank-card-back-info">ARM<strong>Bank</strong><br>arm-bank.onrender.com</div>'
+      +     '<div class="bank-card-back-info">ARM<strong>Bank</strong><br>' + location.hostname + '</div>'
       +     '<div>' + s.network + '</div>'
       +   '</div>'
       + '</div>'
@@ -2545,14 +2548,16 @@ async function hydrateAuthenticatedApp() {
   try {
     await refreshAllData();
   } finally {
+    /* Always run startup machinery even when initial data fetch fails —
+       otherwise polling / session engine never start and the app is broken */
     if (_appEl) _appEl.classList.remove('app-loading');
+    clearBootstrapRetryTimer();
+    startPolling();
+    startSessionEngine();
+    updatePushDot();
+    if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
+    if (Notification?.permission === 'granted') api.subscribePush().catch(() => {});
   }
-  clearBootstrapRetryTimer();
-  startPolling();
-  startSessionEngine();
-  updatePushDot();
-  if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
-  if (Notification?.permission === 'granted') api.subscribePush().catch(() => {});
 }
 
 function scheduleBootstrapRetry() {
