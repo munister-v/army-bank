@@ -1,4 +1,4 @@
-// Army Bank — головний фронтенд v2.2
+// Army Bank — головний фронтенд v2.3
 const state = {
   user: null,
   account: null,
@@ -101,6 +101,8 @@ function isAuthErrorResponse(error) {
 }
 
 function setAuthenticated(authenticated) {
+  /* Keep the early-auth CSS class in sync so toggling back to login always works */
+  document.documentElement.classList.toggle('ab-authed', !!authenticated);
   $('#authScreen').classList.toggle('hidden', authenticated);
   $('#appScreen').classList.toggle('hidden', !authenticated);
   $('#sidebar')?.classList.toggle('hidden', !authenticated);
@@ -2506,7 +2508,7 @@ if ('serviceWorker' in navigator) {
     setTimeout(() => location.reload(), 200);
   }
 
-  navigator.serviceWorker.register('/sw.js?v=32', { updateViaCache: 'none' }).then(reg => {
+  navigator.serviceWorker.register('/sw.js?v=33', { updateViaCache: 'none' }).then(reg => {
     // If update is already waiting, activate immediately.
     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
 
@@ -2535,9 +2537,16 @@ if ('serviceWorker' in navigator) {
 
 // ── BOOTSTRAP ────────────────────────────────────────────
 async function hydrateAuthenticatedApp() {
-  await refreshAllData();
+  /* Show app shell immediately — no flash of login page, data will shimmer in */
   setAuthenticated(true);
   switchScreen(getScreenIdFromPath());
+  const _appEl = document.getElementById('appScreen');
+  if (_appEl) _appEl.classList.add('app-loading');
+  try {
+    await refreshAllData();
+  } finally {
+    if (_appEl) _appEl.classList.remove('app-loading');
+  }
   clearBootstrapRetryTimer();
   startPolling();
   startSessionEngine();

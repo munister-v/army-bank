@@ -34,6 +34,12 @@
     #authScreen.auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(180deg,#274fb5 0%,#3f6fd8 52%,#7da0df 100%)}
     #authScreen.hidden{display:none!important}
     #appScreen.hidden{display:none!important}
+    /* Instant auth-state — applied by inline script below before body renders */
+    html.ab-authed #authScreen{display:none!important}
+    html.ab-authed #appScreen{display:flex!important}
+    /* Shimmer on key elements while initial data loads */
+    @keyframes ab-shimmer{0%,100%{opacity:.45}50%{opacity:.85}}
+    .app-loading #heroBalance,.app-loading #userName,.app-loading #heroAccount{animation:ab-shimmer 1.3s ease-in-out infinite}
   </style>
   <!-- Both stylesheets async (non-blocking) — critical CSS above prevents FOUC -->
   <link rel="stylesheet" href="/css/styles.css?v=31" media="print" onload="this.media='all'">
@@ -42,12 +48,15 @@
   <noscript><link rel="stylesheet" href="/css/overrides.css?v=39"></noscript>
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js?v=2" as="script">
-  <link rel="preload" href="/js/app.js?v=50" as="script">
-  <!-- Early server wake-up: ping /health if session token exists (mitigates Render cold-start) -->
+  <link rel="preload" href="/js/app.js?v=51" as="script">
+  <!-- Instant auth state + server wake-up (runs before body renders) -->
   <script>
     (function(){
       try {
         if (localStorage.getItem('army_bank_token')) {
+          /* Hide login page immediately — no flash of auth screen for returning users */
+          document.documentElement.classList.add('ab-authed');
+          /* Kick Render cold-start in parallel */
           fetch('/health', { method: 'GET', cache: 'no-store', keepalive: true }).catch(function(){});
         }
       } catch(_) {}
@@ -1464,7 +1473,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js?v=2" defer></script>
-  <script src="/js/app.js?v=50" defer></script>
+  <script src="/js/app.js?v=51" defer></script>
 
   <!-- Transfer confirmation bottom sheet -->
   <div id="transferConfirmOverlay" class="tc-overlay hidden" role="dialog" aria-modal="true">
