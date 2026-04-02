@@ -1,7 +1,7 @@
 /*
  * Army Bank PWA — Monobank-style full redesign
  * Single source of truth for visual layer.
- * v37
+ * v38
  */
 
 :root {
@@ -47,6 +47,7 @@ html,
 body {
   background: var(--mono-bg) !important;
   color: var(--mono-text) !important;
+  touch-action: manipulation !important; /* disable double-tap zoom in PWA */
 }
 
 #appScreen .screen {
