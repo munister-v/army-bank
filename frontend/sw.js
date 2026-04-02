@@ -7,7 +7,7 @@ const PRECACHE = [
   '/css/overrides.css?v=36',
   '/manifest.json?v=2',
   '/js/api.js?v=2',
-  '/js/app.js?v=47',
+  '/js/app.js?v=48',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/offline.html',

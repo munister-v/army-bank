@@ -1975,7 +1975,7 @@ $('#registerForm')?.addEventListener('submit', async (event) => {
 
 // ── BOUND FORMS ──────────────────────────────────────────
 bindJsonForm('#topupForm', () => '/api/transactions/topup', {
-  transform: (v) => ({ ...v, amount: Number(v.amount) }),
+  transform: (v) => ({ ...v, amount: Number(v.amount), idempotency_key: _genIdempotencyKey() }),
   successMessage: 'Рахунок поповнено.',
   afterReset: (form) => { form.description.value = 'Поповнення рахунку'; },
 });

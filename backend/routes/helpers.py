@@ -97,7 +97,7 @@ def require_idempotency_key(payload: dict | None = None, allow_body_fallback: bo
 
     if allow_body_fallback and isinstance(payload, dict):
         body_key = (payload.get('idempotency_key') or '').strip()
-        if body_key and not _idempotency_enforced():
+        if body_key:
             if len(body_key) > 128:
                 return None, api_error('idempotency_key занадто довгий (максимум 128 символів).')
             return body_key, None
