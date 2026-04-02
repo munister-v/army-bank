@@ -1,7 +1,7 @@
 /*
  * Army Bank PWA — Monobank-style full redesign
  * Single source of truth for visual layer.
- * v38
+ * v39
  */
 
 :root {
@@ -564,12 +564,10 @@ body {
   display: none !important;
 }
 
-/* Inner wrapper that actually rotates */
+/* Inner wrapper that actually rotates — NO overflow:hidden (incompatible with preserve-3d) */
 .bank-card-inner {
   position: absolute !important;
   inset: 0 !important;
-  border-radius: 20px !important;
-  overflow: hidden !important;
   transform-style: preserve-3d !important;
   transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }

@@ -1532,11 +1532,10 @@ async function _updateBankCards() {
     if (!track.querySelector('.bank-card-cta')) {
       var ctaCard = document.createElement('div');
       ctaCard.className = 'bank-card bank-card-cta';
-      ctaCard.innerHTML = '<div class="bank-card-content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center">'
-        + '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="3"/><line x1="1" y1="10" x2="23" y2="10"/></svg>'
-        + '<div style="font-size:13px;color:rgba(255,255,255,.5);line-height:1.4">Картки ще не випущені<br><span style="font-size:11px;color:rgba(167,139,250,.6)">Перейдіть до розділу «Картки»</span></div>'
-        + '</div>';
-      ctaCard.style.cssText = 'background:rgba(255,255,255,.03);border:1px dashed rgba(167,139,250,.2);cursor:pointer';
+      ctaCard.innerHTML = '<div class="bank-card-inner"><div class="bank-card-front" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px">'
+        + '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(100,120,100,.5)" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="3"/><line x1="1" y1="10" x2="23" y2="10"/></svg>'
+        + '<div style="font-size:13px;color:rgba(60,80,60,.6);line-height:1.4">Картки ще не випущені<br><span style="font-size:11px;color:rgba(70,100,74,.5)">Перейдіть до розділу «Картки»</span></div>'
+        + '</div></div>';
       ctaCard.addEventListener('click', function() {
         window.history.pushState(null, '', (getBasePath()||'') + '/cards');
         switchScreen('cards');
@@ -2507,7 +2506,7 @@ if ('serviceWorker' in navigator) {
     setTimeout(() => location.reload(), 200);
   }
 
-  navigator.serviceWorker.register('/sw.js?v=31', { updateViaCache: 'none' }).then(reg => {
+  navigator.serviceWorker.register('/sw.js?v=32', { updateViaCache: 'none' }).then(reg => {
     // If update is already waiting, activate immediately.
     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
 
