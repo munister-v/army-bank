@@ -337,33 +337,6 @@ body {
   position: relative !important;
 }
 
-/* Subtle top-left sheen */
-.bank-card::before {
-  content: "" !important;
-  position: absolute !important;
-  inset: 0 !important;
-  pointer-events: none !important;
-  z-index: 2 !important;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.13) 0%,
-    rgba(255, 255, 255, 0) 45%
-  ) !important;
-}
-
-/* Bottom-right depth shadow */
-.bank-card::after {
-  content: "" !important;
-  position: absolute !important;
-  inset: 0 !important;
-  pointer-events: none !important;
-  z-index: 2 !important;
-  background: radial-gradient(
-    ellipse 60% 50% at 88% 94%,
-    rgba(0, 0, 0, 0.16) 0%,
-    transparent 55%
-  ) !important;
-}
 
 .bank-card-bg {
   display: block !important;

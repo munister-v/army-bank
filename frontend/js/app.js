@@ -1494,13 +1494,18 @@ function _initCarouselInteraction(track) {
         api.request('/api/cards/' + cardId + '/reveal')
           .then(function(data) {
             _cvvCache[cardId] = data;
-            cvvEl.textContent = data.cvv || '•••';
-            cvvEl.classList.remove('bc-loading');
-            if (numEl) numEl.textContent = data.card_number || '';
+            /* Guard: card may have been re-rendered while request was in-flight */
+            if (cvvEl.isConnected) {
+              cvvEl.textContent = data.cvv || '•••';
+              cvvEl.classList.remove('bc-loading');
+            }
+            if (numEl && numEl.isConnected) numEl.textContent = data.card_number || '';
           })
           .catch(function() {
-            cvvEl.textContent = '•••';
-            cvvEl.classList.remove('bc-loading');
+            if (cvvEl.isConnected) {
+              cvvEl.textContent = '•••';
+              cvvEl.classList.remove('bc-loading');
+            }
           });
       }
     }
@@ -2511,7 +2516,7 @@ if ('serviceWorker' in navigator) {
     setTimeout(() => location.reload(), 200);
   }
 
-  navigator.serviceWorker.register('/sw.js?v=33', { updateViaCache: 'none' }).then(reg => {
+  navigator.serviceWorker.register('/sw.js?v=34', { updateViaCache: 'none' }).catch(() => {}).then(reg => {
     // If update is already waiting, activate immediately.
     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
 
@@ -2797,7 +2802,7 @@ $('#copyAccountBtn')?.addEventListener('click', () => {
   const acc = state.account?.account_number;
   if (!acc) return;
   const btn = $('#copyAccountBtn');
-  navigator.clipboard.writeText(acc).then(() => {
+  navigator.clipboard?.writeText(acc).then(() => {
     showToast('Номер рахунку скопійовано.', 'success');
     if (btn) {
       const orig = btn.textContent;
