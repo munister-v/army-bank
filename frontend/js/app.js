@@ -12,6 +12,7 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 function showToast(message, type = '') {
   const toast = $('#toast');
+  if (!toast) return;
   toast.textContent = message;
   toast.className = type ? `toast ${type}` : 'toast';
   toast.classList.remove('hidden');
@@ -2516,7 +2517,7 @@ if ('serviceWorker' in navigator) {
     setTimeout(() => location.reload(), 200);
   }
 
-  navigator.serviceWorker.register('/sw.js?v=34', { updateViaCache: 'none' }).then(reg => {
+  navigator.serviceWorker.register('/sw.js?v=36', { updateViaCache: 'none' }).then(reg => {
     if (!reg) return;
     // If update is already waiting, activate immediately.
     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -2708,17 +2709,18 @@ async function loadSparkline() {
 
     const lastValY = (H - PAD - ((values[values.length-1] - min) / range) * (H - PAD * 2)).toFixed(1);
 
+    const sparkColor = trend >= 0 ? 'var(--mono-success, #4ade80)' : 'var(--mono-danger, #f87171)';
     container.innerHTML = `
       <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none">
         <defs>
           <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="${trend >= 0 ? '#4ade80' : '#f87171'}" stop-opacity="0.18"/>
-            <stop offset="100%" stop-color="${trend >= 0 ? '#4ade80' : '#f87171'}" stop-opacity="0"/>
+            <stop offset="0%" stop-color="${sparkColor}" stop-opacity="0.18"/>
+            <stop offset="100%" stop-color="${sparkColor}" stop-opacity="0"/>
           </linearGradient>
         </defs>
         <polygon points="${areaPoints}" fill="url(#sparkGrad)"/>
-        <polyline points="${points}" fill="none" stroke="${trend >= 0 ? '#4ade80' : '#f87171'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="${lastX}" cy="${lastValY}" r="3" fill="${trend >= 0 ? '#4ade80' : '#f87171'}"/>
+        <polyline points="${points}" fill="none" stroke="${sparkColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="${lastX}" cy="${lastValY}" r="3" fill="${sparkColor}"/>
       </svg>
       <div class="sparkline-labels">
         <span>${history[0]?.day?.slice(5) || ''}</span>
@@ -2952,7 +2954,7 @@ async function renderHeatmap() {
       if (!c) return 0;
       return Math.ceil((c / maxCount) * 4);
     }
-    const COLORS = ['rgba(255,255,255,.06)','rgba(255,255,255,.18)','rgba(255,255,255,.35)','rgba(255,255,255,.55)','#4ade80'];
+    const COLORS = ['rgba(0,0,0,.04)','rgba(0,0,0,.1)','rgba(0,0,0,.2)','rgba(0,0,0,.35)','var(--mono-success, #4ade80)'];
 
     let html = '<div class="heatmap-grid">';
     for (let w = 0; w < WEEKS; w++) {
@@ -3197,8 +3199,7 @@ function launchConfetti() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
   }
-  cancelAnimationFrame(frame);
-  requestAnimationFrame(draw);
+  frame = requestAnimationFrame(draw);
 }
 
 function checkGoalCompletion(goals) {

@@ -48,11 +48,11 @@
   <noscript><link rel="stylesheet" href="/css/overrides.css?v=41"></noscript>
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js?v=2" as="script">
-  <link rel="preload" href="/js/app.js?v=53" as="script">
+  <link rel="preload" href="/js/app.js?v=54" as="script">
   <!-- Build version check + instant auth state + server wake-up -->
   <script>
     (function(){
-      var BUILD = '53';
+      var BUILD = '54';
       try {
         var stored = localStorage.getItem('ab_build');
         if (stored && stored !== BUILD) {
@@ -1489,7 +1489,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js?v=2" defer></script>
-  <script src="/js/app.js?v=53" defer></script>
+  <script src="/js/app.js?v=54" defer></script>
 
   <!-- Transfer confirmation bottom sheet -->
   <div id="transferConfirmOverlay" class="tc-overlay hidden" role="dialog" aria-modal="true">
