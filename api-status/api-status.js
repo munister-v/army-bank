@@ -25,6 +25,7 @@
 
   var rowsModel = [];
   var uptimeHistory = loadHistory();
+  var PLAYBOOK_KEYS = ['auth', 'transactions', 'cards', 'admin'];
 
   function setText(id, text, className) {
     var el = document.getElementById(id);
@@ -32,6 +33,12 @@
     el.textContent = text;
     el.classList.remove('state-ok', 'state-auth', 'state-warn', 'state-bad', 'state-muted');
     if (className) el.classList.add(className);
+  }
+
+  function setHtml(id, html) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = html;
   }
 
   function escapeHtml(v) {
@@ -67,6 +74,91 @@
 
   function globalSecurity(spec) {
     return Array.isArray(spec.security) && spec.security.length > 0;
+  }
+
+  function moduleFromPath(path) {
+    if (path.indexOf('/api/auth') === 0) return 'auth';
+    if (path.indexOf('/api/transactions') === 0 || path.indexOf('/api/accounts') === 0 || path.indexOf('/api/payments') === 0) return 'transactions';
+    if (path.indexOf('/api/cards') === 0 || path.indexOf('/api/card') === 0) return 'cards';
+    if (path.indexOf('/api/admin') === 0 || path.indexOf('/api/compliance') === 0) return 'admin';
+    return null;
+  }
+
+  function createPlaybookStats() {
+    return {
+      total: 0,
+      protected: 0,
+      checkable: 0,
+      ok: 0,
+      auth: 0,
+      warn: 0,
+      bad: 0,
+      samples: []
+    };
+  }
+
+  function stateByStats(stats) {
+    if (!stats.total) return { label: 'немає даних', cls: 'state-muted' };
+    if (stats.bad > 0) return { label: 'ризик', cls: 'state-bad' };
+    if (stats.warn > 0) return { label: 'увага', cls: 'state-warn' };
+    if (!stats.checkable) return { label: 'manual only', cls: 'state-auth' };
+    if (stats.ok === stats.checkable) return { label: 'стабільно', cls: 'state-ok' };
+    if (stats.auth === stats.checkable) return { label: 'auth only', cls: 'state-auth' };
+    return { label: 'частково ok', cls: 'state-warn' };
+  }
+
+  function renderPlaybookCard(key, stats) {
+    setText('pb-' + key + '-total', String(stats.total), null);
+    setText('pb-' + key + '-protected', String(stats.protected), null);
+    setText('pb-' + key + '-checkable', String(stats.checkable), null);
+
+    var state = stateByStats(stats);
+    setText('pb-' + key + '-state', state.label, state.cls);
+
+    if (!stats.samples.length) {
+      setHtml('pb-' + key + '-sample', '<strong>Live endpoints:</strong> <span class="state-muted">немає даних</span>');
+      return;
+    }
+
+    var sampleHtml = stats.samples
+      .slice(0, 3)
+      .map(function (sample) {
+        return '<code>' + escapeHtml(sample) + '</code>';
+      })
+      .join(' ');
+
+    setHtml('pb-' + key + '-sample', '<strong>Live endpoints:</strong> ' + sampleHtml);
+  }
+
+  function renderPlaybook() {
+    var groups = {};
+    PLAYBOOK_KEYS.forEach(function (key) {
+      groups[key] = createPlaybookStats();
+    });
+
+    rowsModel.forEach(function (row) {
+      var key = moduleFromPath(row.path);
+      if (!key || !groups[key]) return;
+
+      var stats = groups[key];
+      stats.total += 1;
+      if (row.auth) stats.protected += 1;
+      if (row.checkable) stats.checkable += 1;
+
+      if (stats.samples.length < 5) {
+        stats.samples.push(row.method + ' ' + row.path);
+      }
+
+      if (!row.checkable) return;
+      if (row.checkState === 'ok') stats.ok += 1;
+      else if (row.checkState === 'auth') stats.auth += 1;
+      else if (row.checkState === 'warn') stats.warn += 1;
+      else if (row.checkState === 'bad') stats.bad += 1;
+    });
+
+    PLAYBOOK_KEYS.forEach(function (key) {
+      renderPlaybookCard(key, groups[key]);
+    });
   }
 
   async function timedFetch(url, options) {
@@ -372,6 +464,7 @@
 
     setText('sum-checked', String(checked), null);
     setText('sum-updated', new Date().toLocaleString('uk-UA'), null);
+    renderPlaybook();
     renderRows();
   }
 
@@ -409,9 +502,11 @@
 
       rowsModel = buildRowsFromSpec(spec);
       setSummary(spec);
+      renderPlaybook();
       renderRows();
       await checkGetEndpoints();
     } catch (e) {
+      rowsModel = [];
       if (endpointRows) {
         endpointRows.innerHTML = '<tr><td colspan="5" class="placeholder">Не вдалося завантажити OpenAPI.</td></tr>';
       }
@@ -424,6 +519,7 @@
       setText('sum-checked', '0', null);
       setText('sum-updated', new Date().toLocaleString('uk-UA'), null);
       updateFilterCount(0);
+      renderPlaybook();
     }
   }
 

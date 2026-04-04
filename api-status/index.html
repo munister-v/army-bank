@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="api-status.css?v=3">
+  <link rel="stylesheet" href="api-status.css?v=4">
 </head>
 <body class="mode-engineer">
   <header class="topbar">
@@ -28,8 +28,8 @@
         <div class="hero-topline">
           <p class="kicker">Live Monitoring</p>
           <div class="mode-switch" role="tablist" aria-label="Режим перегляду">
-            <button id="mode-presentation" class="mode-btn" type="button" data-mode="presentation">Презентация</button>
-            <button id="mode-engineer" class="mode-btn is-active" type="button" data-mode="engineer">Инженерный</button>
+            <button id="mode-presentation" class="mode-btn" type="button" data-mode="presentation">Презентаційний</button>
+            <button id="mode-engineer" class="mode-btn is-active" type="button" data-mode="engineer">Інженерний</button>
           </div>
         </div>
         <h1>Детальний статус API</h1>
@@ -66,7 +66,7 @@
           <div id="uptime-track" class="uptime-track" aria-label="Історія стану health endpoint"></div>
           <p id="uptime-caption" class="uptime-caption">Очікування перших вимірювань...</p>
         </article>
-        <p class="mode-note presentation-only">Режим <strong>Презентация</strong> приховує низькорівневі технічні деталі та залишає тільки ключові сигнали стану API.</p>
+        <p class="mode-note presentation-only">Режим <strong>Презентаційний</strong> приховує низькорівневі технічні деталі та залишає тільки ключові сигнали стану API.</p>
 
         <div class="explain-grid engineer-only">
           <article class="explain-card">
@@ -155,8 +155,94 @@
         <p class="note">Позначка <code>manual</code> означає, що endpoint не перевіряється автоматично (POST/PUT/PATCH/DELETE або маршрут із path-параметрами).</p>
       </div>
     </section>
+    <section class="section playbook-section">
+      <div class="container">
+        <div class="playbook-head">
+          <h2>Банківський чек-ап по сценаріях</h2>
+          <p>Кожна картка нижче відображає окремий бізнес-контур банку: скільки endpoint'ів у сценарії, яка частка захищених маршрутів та як проходить live-перевірка GET-ручок саме зараз.</p>
+        </div>
+
+        <div class="playbook-grid">
+          <article class="playbook-card">
+            <div class="playbook-top">
+              <h3>1. Онбординг і доступ</h3>
+              <span id="pb-auth-state" class="playbook-state state-muted">очікування</span>
+            </div>
+            <p class="playbook-desc">Аутентифікація, сесія, профіль користувача. Це вхідна точка будь-якого клієнта перед фінансовими діями.</p>
+            <div class="playbook-kpi">
+              <div><span>Endpoints</span><strong id="pb-auth-total">...</strong></div>
+              <div><span>Protected</span><strong id="pb-auth-protected">...</strong></div>
+              <div><span>GET checked</span><strong id="pb-auth-checkable">...</strong></div>
+            </div>
+            <ol class="playbook-steps">
+              <li><code>POST /api/auth/login</code> -> видача bearer-токена.</li>
+              <li><code>GET /api/auth/me</code> -> підтвердження ролі та активної сесії.</li>
+              <li><code>POST /api/auth/logout</code> -> завершення сесії на сервері.</li>
+            </ol>
+            <p class="playbook-sample" id="pb-auth-sample">Завантаження endpoint-зрізу...</p>
+          </article>
+
+          <article class="playbook-card">
+            <div class="playbook-top">
+              <h3>2. Перекази і рух коштів</h3>
+              <span id="pb-transactions-state" class="playbook-state state-muted">очікування</span>
+            </div>
+            <p class="playbook-desc">Ключовий фінансовий контур: баланс, історія та атомарні транзакції між рахунками.</p>
+            <div class="playbook-kpi">
+              <div><span>Endpoints</span><strong id="pb-transactions-total">...</strong></div>
+              <div><span>Protected</span><strong id="pb-transactions-protected">...</strong></div>
+              <div><span>GET checked</span><strong id="pb-transactions-checkable">...</strong></div>
+            </div>
+            <ol class="playbook-steps">
+              <li><code>GET /api/accounts/balance</code> -> перевірка доступного балансу.</li>
+              <li><code>POST /api/transactions/transfer</code> -> атомарне списання/зарахування.</li>
+              <li><code>GET /api/transactions</code> -> журнал операцій для клієнта та аудиту.</li>
+            </ol>
+            <p class="playbook-sample" id="pb-transactions-sample">Завантаження endpoint-зрізу...</p>
+          </article>
+
+          <article class="playbook-card">
+            <div class="playbook-top">
+              <h3>3. Картки і платіжні інструменти</h3>
+              <span id="pb-cards-state" class="playbook-state state-muted">очікування</span>
+            </div>
+            <p class="playbook-desc">Управління банківськими картками: перевипуск, блокування, статус та службові перевірки.</p>
+            <div class="playbook-kpi">
+              <div><span>Endpoints</span><strong id="pb-cards-total">...</strong></div>
+              <div><span>Protected</span><strong id="pb-cards-protected">...</strong></div>
+              <div><span>GET checked</span><strong id="pb-cards-checkable">...</strong></div>
+            </div>
+            <ol class="playbook-steps">
+              <li><code>GET /api/cards</code> -> отримання списку карток користувача.</li>
+              <li><code>POST /api/cards/{id}/freeze</code> -> керування статусом картки.</li>
+              <li><code>GET /api/cards/{id}/limits</code> -> перевірка поточних обмежень.</li>
+            </ol>
+            <p class="playbook-sample" id="pb-cards-sample">Завантаження endpoint-зрізу...</p>
+          </article>
+
+          <article class="playbook-card">
+            <div class="playbook-top">
+              <h3>4. Комплаєнс і адміністрування</h3>
+              <span id="pb-admin-state" class="playbook-state state-muted">очікування</span>
+            </div>
+            <p class="playbook-desc">KYC/ризики, адмін-моніторинг і керування системними налаштуваннями банку.</p>
+            <div class="playbook-kpi">
+              <div><span>Endpoints</span><strong id="pb-admin-total">...</strong></div>
+              <div><span>Protected</span><strong id="pb-admin-protected">...</strong></div>
+              <div><span>GET checked</span><strong id="pb-admin-checkable">...</strong></div>
+            </div>
+            <ol class="playbook-steps">
+              <li><code>GET /api/admin/compliance/users</code> -> зріз KYC і ризикових профілів.</li>
+              <li><code>POST /api/admin/.../review</code> -> ручна ескалація або підтвердження.</li>
+              <li><code>GET /api/admin/metrics</code> -> технічний і бізнес-моніторинг.</li>
+            </ol>
+            <p class="playbook-sample" id="pb-admin-sample">Завантаження endpoint-зрізу...</p>
+          </article>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <script src="api-status.js?v=3" defer></script>
+  <script src="api-status.js?v=4" defer></script>
 </body>
 </html>
