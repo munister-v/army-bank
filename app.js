@@ -155,19 +155,31 @@
   var burger = document.querySelector('.nav-burger');
   var mobileNav = document.querySelector('.nav-mobile');
   if (burger && navbar) {
+    function setMenuState(open) {
+      navbar.classList.toggle('nav-open', open);
+      burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+      document.body.classList.toggle('menu-open', open);
+    }
+
     burger.addEventListener('click', function () {
-      var isOpen = navbar.classList.toggle('nav-open');
-      burger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      setMenuState(!navbar.classList.contains('nav-open'));
     });
+
     // Close on link click
     if (mobileNav) {
       mobileNav.querySelectorAll('a').forEach(function(link) {
         link.addEventListener('click', function() {
-          navbar.classList.remove('nav-open');
-          burger.setAttribute('aria-expanded', 'false');
+          setMenuState(false);
         });
       });
     }
+
+    // Ensure menu is closed when switching to desktop layout.
+    window.addEventListener('resize', function () {
+      if (window.innerWidth > 768 && navbar.classList.contains('nav-open')) {
+        setMenuState(false);
+      }
+    });
   }
 
   /* ════════ RENDER WARM-UP PING ════════ */
