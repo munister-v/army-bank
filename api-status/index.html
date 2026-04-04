@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ARM Bank API Status</title>
-  <meta name="description" content="Детальна сторінка live-статусу API ARM Bank: health, version, OpenAPI та перевірка endpoint'ів.">
+  <meta name="description" content="Детальна сторінка live-статусу API ARM Bank: health, version, OpenAPI, фільтри endpoint'ів та режими перегляду.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="api-status.css?v=1">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="api-status.css?v=3">
 </head>
-<body>
+<body class="mode-engineer">
   <header class="topbar">
     <div class="container topbar-inner">
       <a class="brand" href="../">ARM Bank</a>
@@ -25,9 +25,15 @@
   <main>
     <section class="hero">
       <div class="container">
-        <p class="kicker">Live Monitoring</p>
+        <div class="hero-topline">
+          <p class="kicker">Live Monitoring</p>
+          <div class="mode-switch" role="tablist" aria-label="Режим перегляду">
+            <button id="mode-presentation" class="mode-btn" type="button" data-mode="presentation">Презентация</button>
+            <button id="mode-engineer" class="mode-btn is-active" type="button" data-mode="engineer">Инженерный</button>
+          </div>
+        </div>
         <h1>Детальний статус API</h1>
-        <p class="lead">Сторінка підтягує актуальні дані з бойового сервера <code>army-bank.onrender.com</code>: основні health-check endpoint'и, OpenAPI-структуру та доступність GET-методів.</p>
+        <p class="lead">Сторінка тягне дані з <code>army-bank.onrender.com</code>: core health-check, OpenAPI-структуру, доступність GET endpoint'ів та історію аптайма. У верхньому правому куті можна перемкнути режим подачі.</p>
       </div>
     </section>
 
@@ -46,11 +52,44 @@
           <div><span class="sum-label">HTTP methods</span><strong id="sum-methods">...</strong></div>
           <div><span class="sum-label">GET checked</span><strong id="sum-checked">...</strong></div>
           <div><span class="sum-label">Останнє оновлення</span><strong id="sum-updated">...</strong></div>
+          <div><span class="sum-label">Public endpoints</span><strong id="sum-public">...</strong></div>
+          <div><span class="sum-label">Protected endpoints</span><strong id="sum-protected">...</strong></div>
+          <div><span class="sum-label">Auto-checkable GET</span><strong id="sum-autoget">...</strong></div>
+          <div><span class="sum-label">Manual review routes</span><strong id="sum-manual">...</strong></div>
+        </div>
+
+        <article class="uptime-card">
+          <div class="uptime-head">
+            <h3>Аптайм-таймлайн (останні 48 перевірок)</h3>
+            <span id="uptime-ratio" class="uptime-ratio">...</span>
+          </div>
+          <div id="uptime-track" class="uptime-track" aria-label="Історія стану health endpoint"></div>
+          <p id="uptime-caption" class="uptime-caption">Очікування перших вимірювань...</p>
+        </article>
+        <p class="mode-note presentation-only">Режим <strong>Презентация</strong> приховує низькорівневі технічні деталі та залишає тільки ключові сигнали стану API.</p>
+
+        <div class="explain-grid engineer-only">
+          <article class="explain-card">
+            <h3>Як читається перевірка</h3>
+            <p><code>ok</code> означає HTTP 2xx, <code>auth</code> — endpoint працює, але потребує доступу, <code>warn</code> — потрібна ручна увага, <code>bad</code> — помилка.</p>
+          </article>
+          <article class="explain-card">
+            <h3>Що означає manual</h3>
+            <p><code>manual</code> ставиться для маршрутів, які не можна безпечно дергати автотестом (не-GET або path-параметри).</p>
+          </article>
+          <article class="explain-card">
+            <h3>Uptime-стрічка</h3>
+            <p>Лента зберігає останні 48 перевірок <code>/health</code> у браузері, щоб відразу бачити стабільність між релізами і cold-start.</p>
+          </article>
+          <article class="explain-card">
+            <h3>Для чого фільтри</h3>
+            <p>Фільтри по методу, стану та path прискорюють діагностику: можна швидко ізолювати лише критичні або лише auth-ендпоінти.</p>
+          </article>
         </div>
       </div>
     </section>
 
-    <section class="section alt">
+    <section class="section alt engineer-only">
       <div class="container">
         <div class="controls">
           <h2>Endpoint матриця</h2>
@@ -60,6 +99,39 @@
               <input id="bearer-token" type="password" placeholder="Вставте токен, якщо хочете перевіряти захищені GET endpoint'и">
               <button id="rerun-btn" type="button">Оновити перевірку</button>
             </div>
+          </div>
+        </div>
+
+        <div class="filters" aria-label="Фільтри endpoint'ів">
+          <div class="filter-item">
+            <label for="filter-method">Method</label>
+            <select id="filter-method">
+              <option value="ALL">ALL</option>
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+              <option value="PATCH">PATCH</option>
+              <option value="DELETE">DELETE</option>
+            </select>
+          </div>
+          <div class="filter-item">
+            <label for="filter-state">Check</label>
+            <select id="filter-state">
+              <option value="all">all</option>
+              <option value="ok">ok</option>
+              <option value="auth">auth</option>
+              <option value="warn">warn</option>
+              <option value="bad">bad</option>
+              <option value="manual">manual</option>
+            </select>
+          </div>
+          <div class="filter-item filter-wide">
+            <label for="filter-search">Path search</label>
+            <input id="filter-search" type="text" placeholder="Наприклад: /api/admin або /transactions">
+          </div>
+          <div class="filter-item filter-count">
+            <span>Rows</span>
+            <strong id="filter-count">0</strong>
           </div>
         </div>
 
@@ -80,11 +152,11 @@
           </table>
         </div>
 
-        <p class="note">Позначка <code>manual</code> означає, що endpoint не перевіряється автоматично (наприклад, POST/PUT/PATCH/DELETE або маршрут із path-параметрами).</p>
+        <p class="note">Позначка <code>manual</code> означає, що endpoint не перевіряється автоматично (POST/PUT/PATCH/DELETE або маршрут із path-параметрами).</p>
       </div>
     </section>
   </main>
 
-  <script src="api-status.js?v=1" defer></script>
+  <script src="api-status.js?v=3" defer></script>
 </body>
 </html>
