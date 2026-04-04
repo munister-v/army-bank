@@ -2731,3 +2731,67 @@ button:hover,
 .faq-body a {
   color: #2c5e8b;
 }
+
+/* ─── SECTION CONTRAST HOTFIX (2026-04-05) ─────────────────────────────────── */
+:root {
+  --bg: var(--cs-bg);
+  --bg-alt: #e4ede4;
+  --bg-dark: #e3ece3;
+  --bg-dark-2: #dde8de;
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --bg-card2: #f2f8f2;
+}
+
+.section-deep,
+.section-deep.alt,
+.section-architecture,
+.section-api,
+.section-db,
+.section-stack,
+.section-dev,
+.section-faq,
+.feature-section,
+.feat-dark,
+.feat-gray {
+  background: linear-gradient(180deg, #edf4ed, #e5eee6) !important;
+  border-top-color: var(--cs-line) !important;
+}
+
+.section-deep h2,
+.section-architecture h2,
+.section-api h2,
+.section-db h2,
+.section-stack h2,
+.section-dev h2,
+.section-faq h2,
+.feature-text h2,
+.feat-center-header h2,
+.deep-card h3,
+.flow-body h4 {
+  color: var(--cs-ink) !important;
+}
+
+.section-deep .feat-label,
+.section-deep .deep-lead,
+.section-deep .deep-card p,
+.section-deep .deep-card li,
+.section-deep .deep-note,
+.section-deep .flow-body p,
+.section-deep .flow-num,
+.section-deep .deep-list-check li {
+  color: var(--cs-muted) !important;
+}
+
+.section-deep .deep-card,
+.section-deep .deep-note,
+.section-deep .flow-step,
+.section-deep .al-box,
+.section-deep .platform-card,
+.section-deep .api-group,
+.section-deep .db-table,
+.section-deep .stack-col,
+.section-deep .dev-code,
+.section-deep .faq-item {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: var(--cs-line) !important;
+}
