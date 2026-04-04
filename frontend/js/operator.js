@@ -67,6 +67,7 @@ async function loadSoldiers() {
       title: form.title.value,
       payout_type: form.payout_type.value,
       amount: parseFloat(form.amount.value),
+      idempotency_key: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2),
     };
     try {
       await api.request('/api/operator/payouts', {

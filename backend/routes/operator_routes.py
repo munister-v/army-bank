@@ -52,7 +52,7 @@ def create_payout_for_user():
     idempotency_key = None
     try:
         data = request.get_json(force=True) or {}
-        idempotency_key, err = require_idempotency_key(payload=data)
+        idempotency_key, err = require_idempotency_key(payload=data, allow_body_fallback=True)
         if err:
             return err
         user_id = data.get('user_id')

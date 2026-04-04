@@ -686,7 +686,7 @@ async function drawerSendPayout() {
   try {
     const res = await api.request('/api/admin/payouts', {
       method: 'POST',
-      body: JSON.stringify({ user_id: _drawerUserId, amount, title, payout_type: 'general' }),
+      body: JSON.stringify({ user_id: _drawerUserId, amount, title, payout_type: 'general', idempotency_key: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2) }),
     });
     showToast(`Нараховано ${fmtMoney(amount)}`);
     $('#drawerPayoutAmt').value = '';
@@ -703,7 +703,7 @@ async function drawerBalanceAdjust() {
   try {
     const res = await api.request(`/api/admin/users/${_drawerUserId}/balance-adjust`, {
       method: 'POST',
-      body: JSON.stringify({ amount, type, reason }),
+      body: JSON.stringify({ amount, type, reason, idempotency_key: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2) }),
     });
     const d = res.data ?? res;
     showToast(`Новий баланс: ${fmtMoney(d.new_balance)}`);

@@ -429,7 +429,7 @@ def create_payout():
     idempotency_key = None
     try:
         data = request.get_json(force=True) or {}
-        idempotency_key, err = require_idempotency_key(payload=data)
+        idempotency_key, err = require_idempotency_key(payload=data, allow_body_fallback=True)
         if err:
             return err
         user_id = int(data.get('user_id') or 0)
@@ -596,7 +596,7 @@ def balance_adjust(user_id: int):
     idempotency_key = None
     try:
         data    = request.get_json(force=True) or {}
-        idempotency_key, err = require_idempotency_key(payload=data)
+        idempotency_key, err = require_idempotency_key(payload=data, allow_body_fallback=True)
         if err:
             return err
         amount  = float(data.get('amount') or 0)
