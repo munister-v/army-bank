@@ -243,9 +243,75 @@
     el.textContent = new Date().toLocaleString('uk-UA');
   }
 
+  var MODULE_DEFS = [
+    { key: 'auth', label: 'Auth', prefixes: ['/api/auth'] },
+    { key: 'transactions', label: 'Transactions', prefixes: ['/api/transactions'] },
+    { key: 'cards', label: 'Cards', prefixes: ['/api/cards'] },
+    { key: 'admin', label: 'Admin', prefixes: ['/api/admin'] },
+    { key: 'operator', label: 'Operator', prefixes: ['/api/operator'] },
+    { key: 'platform', label: 'Platform', prefixes: ['/api/platform'] },
+    { key: 'push', label: 'Push', prefixes: ['/api/push'] },
+    { key: 'documents', label: 'Documents', prefixes: ['/api/document', '/api/documents'] }
+  ];
+
+  function detectModuleKey(path) {
+    for (var i = 0; i < MODULE_DEFS.length; i++) {
+      var mod = MODULE_DEFS[i];
+      for (var j = 0; j < mod.prefixes.length; j++) {
+        if (String(path).indexOf(mod.prefixes[j]) === 0) return mod.key;
+      }
+    }
+    return null;
+  }
+
+  function setModuleCard(key, total, publicCount, protectedCount, methodTotal) {
+    var totalEl = document.getElementById('mod-' + key + '-total');
+    var metaEl = document.getElementById('mod-' + key + '-meta');
+    var barEl = document.getElementById('mod-' + key + '-bar');
+
+    if (totalEl) {
+      totalEl.textContent = String(total);
+    }
+    if (metaEl) {
+      if (typeof total === 'string') {
+        metaEl.textContent = total;
+      } else {
+        metaEl.textContent = 'public ' + publicCount + ' · protected ' + protectedCount;
+      }
+    }
+    if (barEl) {
+      if (typeof total === 'string') {
+        barEl.style.width = '0%';
+      } else {
+        var ratio = methodTotal > 0 ? Math.round((total / methodTotal) * 100) : 0;
+        var width = total > 0 && ratio < 5 ? 5 : ratio;
+        barEl.style.width = width + '%';
+      }
+    }
+  }
+
+  function renderModuleTelemetry(moduleStats, methodTotal) {
+    MODULE_DEFS.forEach(function (mod) {
+      var data = moduleStats[mod.key] || { total: 0, publicCount: 0, protectedCount: 0 };
+      setModuleCard(mod.key, data.total, data.publicCount, data.protectedCount, methodTotal);
+    });
+  }
+
+  function resetModuleTelemetry() {
+    MODULE_DEFS.forEach(function (mod) {
+      setModuleCard(mod.key, 'н/д', 0, 0, 0);
+    });
+  }
+
   function analyzeOpenApi(spec) {
     var paths = spec && spec.paths ? spec.paths : {};
     var globalSec = Array.isArray(spec && spec.security) && spec.security.length > 0;
+    var moduleStats = {};
+
+    MODULE_DEFS.forEach(function (mod) {
+      moduleStats[mod.key] = { total: 0, publicCount: 0, protectedCount: 0 };
+    });
+
     var out = {
       pathCount: Object.keys(paths).length,
       methodCount: 0,
@@ -254,7 +320,8 @@
       getCount: 0,
       postCount: 0,
       putPatchCount: 0,
-      deleteCount: 0
+      deleteCount: 0,
+      moduleStats: moduleStats
     };
 
     Object.keys(paths).forEach(function (path) {
@@ -273,12 +340,18 @@
         var auth = (Array.isArray(op.security) && op.security.length > 0) || (globalSec && op.security !== null);
         if (auth) out.protectedCount += 1;
         else out.publicCount += 1;
+
+        var modKey = detectModuleKey(path);
+        if (modKey && out.moduleStats[modKey]) {
+          out.moduleStats[modKey].total += 1;
+          if (auth) out.moduleStats[modKey].protectedCount += 1;
+          else out.moduleStats[modKey].publicCount += 1;
+        }
       });
     });
 
     return out;
   }
-
   function renderUnavailableLiveState() {
     setLiveText('ls-version', 'н/д', null);
     setLiveText('ls-health', 'н/д', null);
@@ -311,6 +384,7 @@
     if (heroPaths) heroPaths.textContent = 'н/д';
     if (heroHealth) heroHealth.textContent = 'n/a';
 
+    resetModuleTelemetry();
     markLiveUpdated();
   }
 
@@ -384,6 +458,7 @@
           setMiniMetric('ls-post-methods', String(stats.postCount));
           setMiniMetric('ls-putpatch-methods', String(stats.putPatchCount));
           setMiniMetric('ls-delete-methods', String(stats.deleteCount));
+          renderModuleTelemetry(stats.moduleStats, stats.methodCount);
 
           setProbe('probe-openapi', 'loaded', 'ok', oResp.status + ' · ' + oOut.ms + ' ms');
           latencies.push(oOut.ms);
@@ -407,6 +482,7 @@
           setMiniMetric('ls-post-methods', 'н/д');
           setMiniMetric('ls-putpatch-methods', 'н/д');
           setMiniMetric('ls-delete-methods', 'н/д');
+          resetModuleTelemetry();
           setProbe('probe-openapi', 'invalid', 'warn', oResp.status + ' · ' + oOut.ms + ' ms');
 
           var trustMethodsFail = document.getElementById('trust-api-count');
@@ -429,6 +505,7 @@
         setMiniMetric('ls-post-methods', 'н/д');
         setMiniMetric('ls-putpatch-methods', 'н/д');
         setMiniMetric('ls-delete-methods', 'н/д');
+        resetModuleTelemetry();
         setProbe('probe-openapi', 'n/a', 'muted', '—');
       }
 

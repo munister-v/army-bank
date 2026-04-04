@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://army-bank.onrender.com">
   <link rel="dns-prefetch" href="https://army-bank.onrender.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=29">
+  <link rel="stylesheet" href="styles.css?v=30">
 </head>
 <body>
 
@@ -335,6 +335,21 @@
         </ol>
       </article>
     </div>
+
+    <article class="live-module-panel">
+      <h3>Модульна телеметрія API</h3>
+      <p class="live-panel-desc">Кожна картка показує live-кількість методів у домені, частку protected-методів та загальну насиченість модуля. Дані беруться безпосередньо з <code>/api/openapi.json</code>.</p>
+      <div class="module-grid">
+        <div class="module-card"><p class="module-name">Auth</p><p class="module-total"><strong id="mod-auth-total">...</strong> methods</p><p class="module-meta" id="mod-auth-meta">...</p><div class="module-bar"><span id="mod-auth-bar"></span></div></div>
+        <div class="module-card"><p class="module-name">Transactions</p><p class="module-total"><strong id="mod-transactions-total">...</strong> methods</p><p class="module-meta" id="mod-transactions-meta">...</p><div class="module-bar"><span id="mod-transactions-bar"></span></div></div>
+        <div class="module-card"><p class="module-name">Cards</p><p class="module-total"><strong id="mod-cards-total">...</strong> methods</p><p class="module-meta" id="mod-cards-meta">...</p><div class="module-bar"><span id="mod-cards-bar"></span></div></div>
+        <div class="module-card"><p class="module-name">Admin</p><p class="module-total"><strong id="mod-admin-total">...</strong> methods</p><p class="module-meta" id="mod-admin-meta">...</p><div class="module-bar"><span id="mod-admin-bar"></span></div></div>
+        <div class="module-card"><p class="module-name">Operator</p><p class="module-total"><strong id="mod-operator-total">...</strong> methods</p><p class="module-meta" id="mod-operator-meta">...</p><div class="module-bar"><span id="mod-operator-bar"></span></div></div>
+        <div class="module-card"><p class="module-name">Platform</p><p class="module-total"><strong id="mod-platform-total">...</strong> methods</p><p class="module-meta" id="mod-platform-meta">...</p><div class="module-bar"><span id="mod-platform-bar"></span></div></div>
+        <div class="module-card"><p class="module-name">Push</p><p class="module-total"><strong id="mod-push-total">...</strong> methods</p><p class="module-meta" id="mod-push-meta">...</p><div class="module-bar"><span id="mod-push-bar"></span></div></div>
+        <div class="module-card"><p class="module-name">Documents</p><p class="module-total"><strong id="mod-documents-total">...</strong> methods</p><p class="module-meta" id="mod-documents-meta">...</p><div class="module-bar"><span id="mod-documents-bar"></span></div></div>
+      </div>
+    </article>
   </div>
 </section>
 
@@ -1213,6 +1228,6 @@ curl -sS -X POST https://army-bank.onrender.com/api/transactions/transfer \
   </div>
 </footer>
 
-<script src="app.js?v=25" defer></script>
+<script src="app.js?v=26" defer></script>
 </body>
 </html>
