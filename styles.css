@@ -3435,3 +3435,54 @@ body.menu-open {
     min-width: 0;
   }
 }
+
+/* ─── MOBILE HOTFIX II (2026-04-05) ────────────────────────────────────────── */
+@media (max-width: 920px) {
+  .deep-card-grid,
+  .deep-card-grid.cols-4 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .deep-card {
+    min-width: 0;
+    padding: 20px 16px;
+  }
+
+  .deep-card p,
+  .deep-card li,
+  .deep-card code {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    align-items: stretch;
+  }
+
+  .hero-content {
+    order: 1;
+  }
+
+  .hero-visual {
+    order: 2 !important;
+    justify-content: center !important;
+    align-items: flex-start;
+    padding-top: 4px;
+  }
+
+  .phone-frame {
+    width: min(100%, 244px);
+    margin: 0 auto;
+    transform: none !important;
+    animation: none !important;
+  }
+
+  .phone-screen {
+    min-height: 500px;
+  }
+}
