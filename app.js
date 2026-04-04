@@ -254,6 +254,36 @@
     { key: 'documents', label: 'Documents', prefixes: ['/api/document', '/api/documents'] }
   ];
 
+  var MODULE_MAP = {};
+  for (var mm = 0; mm < MODULE_DEFS.length; mm++) {
+    MODULE_MAP[MODULE_DEFS[mm].key] = MODULE_DEFS[mm];
+  }
+
+  var MODULE_FILTER_STORAGE_KEY = 'ab_landing_module_filter_v1';
+  var PROBE_HISTORY_STORAGE_KEY = 'ab_landing_probe_history_v1';
+  var PROBE_HISTORY_WINDOW_MS = 24 * 60 * 60 * 1000;
+  var PROBE_HISTORY_LIMIT = 96;
+  var PROBE_TIMELINE_POINTS = 24;
+  var PROBE_KEYS = ['health', 'version', 'openapi', 'docs'];
+
+  var selectedModule = loadStoredModuleFilter();
+  var openapiEndpointRows = [];
+  var probeHistory = loadProbeHistory();
+
+  function escapeHtml(v) {
+    return String(v)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function getModuleLabel(key) {
+    if (key && MODULE_MAP[key]) return MODULE_MAP[key].label;
+    return 'Other';
+  }
+
   function detectModuleKey(path) {
     for (var i = 0; i < MODULE_DEFS.length; i++) {
       var mod = MODULE_DEFS[i];
@@ -261,7 +291,60 @@
         if (String(path).indexOf(mod.prefixes[j]) === 0) return mod.key;
       }
     }
-    return null;
+    return 'other';
+  }
+
+  function endpointMethodClass(method) {
+    var m = String(method || '').toLowerCase();
+    if (m === 'get') return 'get';
+    if (m === 'post') return 'post';
+    if (m === 'put') return 'put';
+    if (m === 'patch') return 'patch';
+    if (m === 'delete') return 'delete';
+    return '';
+  }
+
+  function loadStoredModuleFilter() {
+    try {
+      var saved = localStorage.getItem(MODULE_FILTER_STORAGE_KEY);
+      if (saved === 'all' || MODULE_MAP[saved]) return saved;
+    } catch (e) {
+      // ignore storage errors
+    }
+    return 'all';
+  }
+
+  function updateModuleChipActive() {
+    var chips = document.querySelectorAll('.module-chip');
+    Array.prototype.forEach.call(chips, function (chip) {
+      var key = chip.getAttribute('data-module') || 'all';
+      chip.classList.toggle('is-active', key === selectedModule);
+    });
+  }
+
+  function setModuleFilter(key) {
+    var normalized = (key === 'all' || MODULE_MAP[key]) ? key : 'all';
+    selectedModule = normalized;
+
+    try {
+      localStorage.setItem(MODULE_FILTER_STORAGE_KEY, normalized);
+    } catch (e) {
+      // ignore storage errors
+    }
+
+    updateModuleChipActive();
+    renderModuleEndpointRows();
+  }
+
+  function bindModuleFilterControls() {
+    var chips = document.querySelectorAll('.module-chip');
+    Array.prototype.forEach.call(chips, function (chip) {
+      chip.addEventListener('click', function () {
+        var key = chip.getAttribute('data-module') || 'all';
+        setModuleFilter(key);
+      });
+    });
+    updateModuleChipActive();
   }
 
   function setModuleCard(key, total, publicCount, protectedCount, methodTotal) {
@@ -303,6 +386,159 @@
     });
   }
 
+  function renderModuleEndpointRows() {
+    var rowsEl = document.getElementById('module-endpoint-rows');
+    var countEl = document.getElementById('module-endpoint-count');
+    var summaryEl = document.getElementById('module-filter-summary');
+
+    if (!rowsEl) return;
+
+    if (!openapiEndpointRows.length) {
+      rowsEl.innerHTML = '<div class="module-endpoint-empty">OpenAPI endpoint-дані ще не завантажені.</div>';
+      if (countEl) countEl.textContent = '0';
+      if (summaryEl) summaryEl.textContent = 'Немає даних для фільтрації.';
+      return;
+    }
+
+    var filtered = selectedModule === 'all'
+      ? openapiEndpointRows.slice()
+      : openapiEndpointRows.filter(function (row) { return row.moduleKey === selectedModule; });
+
+    if (countEl) countEl.textContent = String(filtered.length);
+
+    if (summaryEl) {
+      var label = selectedModule === 'all' ? 'All modules' : getModuleLabel(selectedModule);
+      summaryEl.textContent = label + ': ' + filtered.length + ' з ' + openapiEndpointRows.length + ' методів';
+    }
+
+    if (!filtered.length) {
+      rowsEl.innerHTML = '<div class="module-endpoint-empty">Для цього модуля endpoint-методів не знайдено.</div>';
+      return;
+    }
+
+    var limit = 14;
+    var visible = filtered.slice(0, limit);
+
+    rowsEl.innerHTML = visible.map(function (row) {
+      return '<div class="module-endpoint-row">' +
+        '<span class="me-method ' + endpointMethodClass(row.method) + '">' + escapeHtml(row.method) + '</span>' +
+        '<code class="module-endpoint-path" title="' + escapeHtml(row.path) + '">' + escapeHtml(row.path) + '</code>' +
+        '<span class="module-endpoint-auth' + (row.auth ? ' protected' : '') + '">' + (row.auth ? 'protected' : 'public') + '</span>' +
+        '<span class="module-endpoint-module">' + escapeHtml(getModuleLabel(row.moduleKey)) + '</span>' +
+      '</div>';
+    }).join('');
+
+    if (filtered.length > limit) {
+      rowsEl.innerHTML += '<div class="module-endpoint-empty">Показано перші ' + limit + ' записів із ' + filtered.length + '.</div>';
+    }
+  }
+
+  function createEmptyProbeHistory() {
+    return { health: [], version: [], openapi: [], docs: [] };
+  }
+
+  function pruneProbeHistory() {
+    var cutoff = Date.now() - PROBE_HISTORY_WINDOW_MS;
+
+    PROBE_KEYS.forEach(function (key) {
+      var list = Array.isArray(probeHistory[key]) ? probeHistory[key] : [];
+      list = list.filter(function (item) {
+        return item && typeof item.ts === 'number' && typeof item.state === 'string' && item.ts >= cutoff;
+      });
+      if (list.length > PROBE_HISTORY_LIMIT) {
+        list = list.slice(-PROBE_HISTORY_LIMIT);
+      }
+      probeHistory[key] = list;
+    });
+  }
+
+  function loadProbeHistory() {
+    try {
+      var raw = localStorage.getItem(PROBE_HISTORY_STORAGE_KEY);
+      if (!raw) {
+        return createEmptyProbeHistory();
+      }
+      var parsed = JSON.parse(raw);
+      var result = createEmptyProbeHistory();
+      PROBE_KEYS.forEach(function (key) {
+        if (Array.isArray(parsed[key])) {
+          result[key] = parsed[key];
+        }
+      });
+      probeHistory = result;
+      pruneProbeHistory();
+      return probeHistory;
+    } catch (e) {
+      return createEmptyProbeHistory();
+    }
+  }
+
+  function saveProbeHistory() {
+    try {
+      localStorage.setItem(PROBE_HISTORY_STORAGE_KEY, JSON.stringify(probeHistory));
+    } catch (e) {
+      // ignore storage errors
+    }
+  }
+
+  function timelineTone(state) {
+    if (state === 'ok') return 'ok';
+    if (state === 'warn') return 'warn';
+    if (state === 'bad') return 'bad';
+    if (state === 'auth') return 'auth';
+    return 'muted';
+  }
+
+  function renderProbeTimelines() {
+    var tracks = {
+      health: { track: 'tl-health-track', ratio: 'tl-health-ratio', label: 'Health' },
+      version: { track: 'tl-version-track', ratio: 'tl-version-ratio', label: 'Version' },
+      openapi: { track: 'tl-openapi-track', ratio: 'tl-openapi-ratio', label: 'OpenAPI' },
+      docs: { track: 'tl-docs-track', ratio: 'tl-docs-ratio', label: 'Docs' }
+    };
+
+    pruneProbeHistory();
+
+    PROBE_KEYS.forEach(function (key) {
+      var config = tracks[key];
+      var trackEl = document.getElementById(config.track);
+      var ratioEl = document.getElementById(config.ratio);
+      if (!trackEl || !ratioEl) return;
+
+      var recent = (probeHistory[key] || []).slice(-PROBE_TIMELINE_POINTS);
+      var padded = recent.slice();
+      while (padded.length < PROBE_TIMELINE_POINTS) {
+        padded.unshift(null);
+      }
+
+      trackEl.innerHTML = padded.map(function (point) {
+        if (!point) {
+          return '<span class="timeline-dot muted" title="Немає даних"></span>';
+        }
+        var tone = timelineTone(point.state);
+        var timeText = new Date(point.ts).toLocaleString('uk-UA');
+        return '<span class="timeline-dot ' + tone + '" title="' + escapeHtml(config.label + ' · ' + point.state + ' · ' + timeText) + '"></span>';
+      }).join('');
+
+      var measured = recent.length;
+      var okCount = recent.filter(function (item) { return item.state === 'ok'; }).length;
+      ratioEl.textContent = measured ? (okCount + '/' + measured + ' ok') : 'нема даних';
+    });
+  }
+
+  function pushProbePoint(key, state) {
+    if (PROBE_KEYS.indexOf(key) === -1) return;
+
+    probeHistory[key].push({
+      ts: Date.now(),
+      state: state
+    });
+
+    pruneProbeHistory();
+    saveProbeHistory();
+    renderProbeTimelines();
+  }
+
   function analyzeOpenApi(spec) {
     var paths = spec && spec.paths ? spec.paths : {};
     var globalSec = Array.isArray(spec && spec.security) && spec.security.length > 0;
@@ -321,7 +557,8 @@
       postCount: 0,
       putPatchCount: 0,
       deleteCount: 0,
-      moduleStats: moduleStats
+      moduleStats: moduleStats,
+      endpointRows: []
     };
 
     Object.keys(paths).forEach(function (path) {
@@ -342,12 +579,24 @@
         else out.publicCount += 1;
 
         var modKey = detectModuleKey(path);
-        if (modKey && out.moduleStats[modKey]) {
+        if (MODULE_MAP[modKey] && out.moduleStats[modKey]) {
           out.moduleStats[modKey].total += 1;
           if (auth) out.moduleStats[modKey].protectedCount += 1;
           else out.moduleStats[modKey].publicCount += 1;
         }
+
+        out.endpointRows.push({
+          moduleKey: modKey,
+          method: String(method).toUpperCase(),
+          path: path,
+          auth: auth
+        });
       });
+    });
+
+    out.endpointRows.sort(function (a, b) {
+      if (a.path === b.path) return a.method.localeCompare(b.method);
+      return a.path.localeCompare(b.path);
     });
 
     return out;
@@ -361,9 +610,13 @@
     setLiveText('ls-latency', 'н/д', null);
 
     setProbe('probe-health', 'n/a', 'muted', '—');
+    pushProbePoint('health', 'bad');
     setProbe('probe-version', 'n/a', 'muted', '—');
+    pushProbePoint('version', 'bad');
     setProbe('probe-openapi', 'n/a', 'muted', '—');
+    pushProbePoint('openapi', 'bad');
     setProbe('probe-docs', 'n/a', 'muted', '—');
+    pushProbePoint('docs', 'bad');
 
     setMiniMetric('ls-public-methods', 'н/д');
     setMiniMetric('ls-protected-methods', 'н/д');
@@ -385,6 +638,8 @@
     if (heroHealth) heroHealth.textContent = 'n/a';
 
     resetModuleTelemetry();
+    openapiEndpointRows = [];
+    renderModuleEndpointRows();
     markLiveUpdated();
   }
 
@@ -414,6 +669,7 @@
         setLiveText('ls-version', versionText, vResp.ok);
         setProbe('probe-version', vResp.ok ? 'ok' : ('HTTP ' + vResp.status), vResp.ok ? 'ok' : 'warn', vResp.status + ' · ' + vOut.ms + ' ms');
         latencies.push(vOut.ms);
+        pushProbePoint('version', vResp.ok ? 'ok' : 'warn');
       } else {
         setLiveText('ls-version', 'н/д', null);
         setProbe('probe-version', 'n/a', 'muted', '—');
@@ -429,6 +685,7 @@
         setLiveText('ls-health', healthText, isUp);
         setProbe('probe-health', isUp ? 'up' : 'down', isUp ? 'ok' : 'bad', hResp.status + ' · ' + hOut.ms + ' ms');
         latencies.push(hOut.ms);
+        pushProbePoint('health', isUp ? 'ok' : 'bad');
 
         var heroHealth = document.getElementById('hero-api-health');
         if (heroHealth) heroHealth.textContent = isUp ? 'UP' : 'DOWN';
@@ -459,9 +716,12 @@
           setMiniMetric('ls-putpatch-methods', String(stats.putPatchCount));
           setMiniMetric('ls-delete-methods', String(stats.deleteCount));
           renderModuleTelemetry(stats.moduleStats, stats.methodCount);
+          openapiEndpointRows = stats.endpointRows.slice();
+          renderModuleEndpointRows();
 
           setProbe('probe-openapi', 'loaded', 'ok', oResp.status + ' · ' + oOut.ms + ' ms');
           latencies.push(oOut.ms);
+          pushProbePoint('openapi', 'ok');
 
           var trustMethods = document.getElementById('trust-api-count');
           var trustPaths = document.getElementById('trust-path-count');
@@ -483,7 +743,10 @@
           setMiniMetric('ls-putpatch-methods', 'н/д');
           setMiniMetric('ls-delete-methods', 'н/д');
           resetModuleTelemetry();
+          openapiEndpointRows = [];
+          renderModuleEndpointRows();
           setProbe('probe-openapi', 'invalid', 'warn', oResp.status + ' · ' + oOut.ms + ' ms');
+          pushProbePoint('openapi', 'warn');
 
           var trustMethodsFail = document.getElementById('trust-api-count');
           var trustPathsFail = document.getElementById('trust-path-count');
@@ -506,7 +769,10 @@
         setMiniMetric('ls-putpatch-methods', 'н/д');
         setMiniMetric('ls-delete-methods', 'н/д');
         resetModuleTelemetry();
+        openapiEndpointRows = [];
+        renderModuleEndpointRows();
         setProbe('probe-openapi', 'n/a', 'muted', '—');
+        pushProbePoint('openapi', 'bad');
       }
 
       if (docsRes.status === 'fulfilled') {
@@ -517,8 +783,10 @@
 
         setProbe('probe-docs', docsState, docsTone, dResp.status + ' · ' + dOut.ms + ' ms');
         latencies.push(dOut.ms);
+        pushProbePoint('docs', docsTone);
       } else {
         setProbe('probe-docs', 'n/a', 'muted', '—');
+        pushProbePoint('docs', 'bad');
       }
 
       if (latencies.length > 0) {
@@ -534,7 +802,9 @@
       renderUnavailableLiveState();
     });
   }
-
+  bindModuleFilterControls();
+  renderModuleEndpointRows();
+  renderProbeTimelines();
   loadLiveStatus();
 
   /* ════════ FAQ ACCORDION ════════ */
@@ -555,5 +825,5 @@
     });
   });
 
-  console.log('ArmyBank v1.7.0 — portfolio project by Viacheslav Munister');
+  console.log('ArmyBank v1.8.0 — portfolio project by Viacheslav Munister');
 })();

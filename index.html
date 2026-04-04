@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://army-bank.onrender.com">
   <link rel="dns-prefetch" href="https://army-bank.onrender.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=30">
+  <link rel="stylesheet" href="styles.css?v=31">
 </head>
 <body>
 
@@ -323,6 +323,29 @@
         </div>
       </article>
 
+      <article class="live-panel live-panel-timeline">
+        <h3>Стабільність контурів за 24h</h3>
+        <p class="live-panel-desc">Локальна історія цього браузера за останні 24 години. Кожен маркер — окрема перевірка під час відкриття сторінки або ручного оновлення.</p>
+        <div class="timeline-grid">
+          <div class="timeline-row">
+            <div class="timeline-head"><span>Health</span><strong id="tl-health-ratio">...</strong></div>
+            <div id="tl-health-track" class="timeline-track" aria-label="Health timeline"></div>
+          </div>
+          <div class="timeline-row">
+            <div class="timeline-head"><span>Version</span><strong id="tl-version-ratio">...</strong></div>
+            <div id="tl-version-track" class="timeline-track" aria-label="Version timeline"></div>
+          </div>
+          <div class="timeline-row">
+            <div class="timeline-head"><span>OpenAPI</span><strong id="tl-openapi-ratio">...</strong></div>
+            <div id="tl-openapi-track" class="timeline-track" aria-label="OpenAPI timeline"></div>
+          </div>
+          <div class="timeline-row">
+            <div class="timeline-head"><span>Docs</span><strong id="tl-docs-ratio">...</strong></div>
+            <div id="tl-docs-track" class="timeline-track" aria-label="Docs timeline"></div>
+          </div>
+        </div>
+      </article>
+
       <article class="live-panel live-panel-flow">
         <h3>Як проходить транзакція</h3>
         <p class="live-panel-desc">Скорочений технічний ланцюжок обробки фінансової операції від клієнта до commit у БД.</p>
@@ -339,6 +362,26 @@
     <article class="live-module-panel">
       <h3>Модульна телеметрія API</h3>
       <p class="live-panel-desc">Кожна картка показує live-кількість методів у домені, частку protected-методів та загальну насиченість модуля. Дані беруться безпосередньо з <code>/api/openapi.json</code>.</p>
+      <div class="module-filter" id="module-filter" aria-label="Фільтр модулів API">
+        <button type="button" class="module-chip is-active" data-module="all">All</button>
+        <button type="button" class="module-chip" data-module="auth">Auth</button>
+        <button type="button" class="module-chip" data-module="transactions">Transactions</button>
+        <button type="button" class="module-chip" data-module="cards">Cards</button>
+        <button type="button" class="module-chip" data-module="admin">Admin</button>
+        <button type="button" class="module-chip" data-module="operator">Operator</button>
+        <button type="button" class="module-chip" data-module="platform">Platform</button>
+        <button type="button" class="module-chip" data-module="push">Push</button>
+        <button type="button" class="module-chip" data-module="documents">Documents</button>
+      </div>
+      <p class="module-filter-summary" id="module-filter-summary">Завантаження endpoint-зрізу...</p>
+      <div class="module-endpoint-head">
+        <h4>Endpoint зріз</h4>
+        <span id="module-endpoint-count">0</span>
+      </div>
+      <div class="module-endpoint-rows" id="module-endpoint-rows">
+        <div class="module-endpoint-empty">Завантаження OpenAPI...</div>
+      </div>
+
       <div class="module-grid">
         <div class="module-card"><p class="module-name">Auth</p><p class="module-total"><strong id="mod-auth-total">...</strong> methods</p><p class="module-meta" id="mod-auth-meta">...</p><div class="module-bar"><span id="mod-auth-bar"></span></div></div>
         <div class="module-card"><p class="module-name">Transactions</p><p class="module-total"><strong id="mod-transactions-total">...</strong> methods</p><p class="module-meta" id="mod-transactions-meta">...</p><div class="module-bar"><span id="mod-transactions-bar"></span></div></div>
@@ -1228,6 +1271,6 @@ curl -sS -X POST https://army-bank.onrender.com/api/transactions/transfer \
   </div>
 </footer>
 
-<script src="app.js?v=26" defer></script>
+<script src="app.js?v=27" defer></script>
 </body>
 </html>
