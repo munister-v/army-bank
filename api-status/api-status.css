@@ -352,3 +352,187 @@ body.mode-engineer .presentation-only { display: none; }
     grid-template-columns: 1fr;
   }
 }
+
+/* --- VISUAL ALIGNMENT PASS (2026-04-05) --- */
+:root {
+  --bg: #edf3ed;
+  --bg-alt: #e8efe8;
+  --card: rgba(255, 255, 255, 0.9);
+  --line: rgba(58, 90, 74, 0.2);
+  --text: #10251a;
+  --text-2: #567064;
+  --accent: #17392c;
+  --ok: #237850;
+  --warn: #9a6d1d;
+  --bad: #a44a4a;
+  --muted: #648172;
+  --auth: #335f98;
+}
+
+body {
+  background:
+    radial-gradient(70% 45% at 100% -5%, rgba(187, 138, 42, 0.14), transparent),
+    radial-gradient(75% 45% at 0% 0%, rgba(81, 126, 104, 0.2), transparent),
+    linear-gradient(180deg, #eef4ee, #e7efe8);
+}
+
+.topbar {
+  background: rgba(237, 243, 237, 0.9);
+  border-bottom-color: rgba(58, 90, 74, 0.2);
+  backdrop-filter: blur(16px);
+}
+
+.brand {
+  color: #1c4534;
+}
+
+.links a {
+  color: #5d776a;
+}
+
+.links a:hover {
+  color: #17392c;
+}
+
+.kicker {
+  color: #7a5a23;
+}
+
+.lead code,
+.note code,
+.explain-card code {
+  color: #7f5c1e;
+}
+
+.mode-switch,
+.mode-btn,
+.card,
+.summary > div,
+.uptime-card,
+.filter-count,
+.table-wrap,
+.explain-card,
+.playbook-card,
+.playbook-footnote,
+.playbook-note {
+  border-color: rgba(58, 90, 74, 0.2);
+}
+
+.mode-btn {
+  background: rgba(255, 255, 255, 0.75);
+  color: #5a7367;
+}
+
+.mode-btn.is-active {
+  background: rgba(23, 57, 44, 0.12);
+  color: #17392c;
+}
+
+.section.alt {
+  background: linear-gradient(180deg, rgba(231, 239, 232, 0.76), rgba(224, 235, 226, 0.52));
+  border-top-color: rgba(58, 90, 74, 0.2);
+}
+
+.card,
+.summary > div,
+.uptime-card,
+.explain-card,
+.filter-count,
+.playbook-card {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 24px rgba(24, 49, 37, 0.08);
+}
+
+.value,
+.summary strong,
+.filter-count strong,
+h1,
+h2,
+.playbook-top h3 {
+  color: #10251a;
+}
+
+.meta,
+.sum-label,
+.label,
+.note,
+.explain-card p,
+.playbook-desc,
+.playbook-kpi span,
+.playbook-sample,
+.uptime-caption {
+  color: #5b7367;
+}
+
+.uptime-ratio {
+  color: #1f4d39;
+}
+
+.uptime-track,
+.timeline-track {
+  border-color: rgba(58, 90, 74, 0.24);
+}
+
+input,
+select {
+  background: #f6faf6;
+  color: #10251a;
+  border-color: rgba(58, 90, 74, 0.28);
+}
+
+button {
+  background: linear-gradient(145deg, #17392c, #224b3a);
+  color: #f3f8f3;
+}
+
+button:hover {
+  background: linear-gradient(145deg, #102e23, #1b4333);
+}
+
+.badge {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.m-get { color: #24684b; border-color: rgba(36, 104, 75, 0.34); }
+.m-post { color: #1f5f8f; border-color: rgba(31, 95, 143, 0.34); }
+.m-put,
+.m-patch { color: #8a651e; border-color: rgba(138, 101, 30, 0.34); }
+.m-delete { color: #924040; border-color: rgba(146, 64, 64, 0.34); }
+
+.playbook-section {
+  border-top-color: rgba(58, 90, 74, 0.2);
+  background:
+    radial-gradient(1000px 360px at 90% -10%, rgba(187, 138, 42, 0.12), transparent),
+    radial-gradient(900px 360px at 0% 110%, rgba(81, 126, 104, 0.12), transparent);
+}
+
+.playbook-card {
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.92), rgba(248, 252, 248, 0.84));
+}
+
+.playbook-state {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+/* readability fix on light playbook cards */
+th {
+  color: #5f776a;
+}
+
+td code {
+  color: #1f4535;
+}
+
+.playbook-steps {
+  color: #355646;
+}
+
+.playbook-steps code,
+.playbook-sample code {
+  color: #7f5c1e;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.playbook-sample strong {
+  color: #1a3b2d;
+}
