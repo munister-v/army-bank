@@ -248,6 +248,9 @@
 
         var trust = document.getElementById('trust-api-count');
         if (trust) trust.textContent = String(methodCount);
+
+        var heroCount = document.getElementById('hero-api-methods');
+        if (heroCount) heroCount.textContent = String(methodCount);
       } else {
         setLiveText('ls-paths', 'н/д', null);
         setLiveText('ls-methods', 'н/д', null);
