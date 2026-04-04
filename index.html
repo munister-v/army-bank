@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://army-bank.onrender.com">
   <link rel="dns-prefetch" href="https://army-bank.onrender.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=31">
+  <link rel="stylesheet" href="styles.css?v=32">
 </head>
 <body>
 
@@ -274,6 +274,13 @@
     </div>
 
     <p class="live-updated">Остання перевірка в браузері: <span id="ls-updated">очікується</span></p>
+
+    <div class="live-controls" aria-label="Live керування">
+      <button type="button" id="live-auto-toggle" class="live-control-btn">Пауза realtime</button>
+      <button type="button" id="live-refresh-now" class="live-control-btn live-control-btn-alt">Оновити зараз</button>
+      <span class="live-control-meta" id="live-auto-state">realtime on</span>
+      <span class="live-control-meta">наступне оновлення через <strong id="live-countdown">60s</strong></span>
+    </div>
 
     <div class="live-actions" aria-label="Швидкі посилання API">
       <a href="api-status/">Детальний API Status</a>
@@ -1271,6 +1278,6 @@ curl -sS -X POST https://army-bank.onrender.com/api/transactions/transfer \
   </div>
 </footer>
 
-<script src="app.js?v=27" defer></script>
+<script src="app.js?v=28" defer></script>
 </body>
 </html>

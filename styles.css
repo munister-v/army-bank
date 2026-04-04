@@ -1817,3 +1817,56 @@ strong { font-weight: 600; }
     grid-template-columns: repeat(24, minmax(3px, 1fr));
   }
 }
+
+/* ─── LIVE AUTO REFRESH CONTROLS (2026-04-04) ─── */
+.live-controls {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+.live-control-btn {
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.04);
+  color: #dce7ff;
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  min-height: 32px;
+  padding: 0 12px;
+  cursor: pointer;
+}
+.live-control-btn:hover {
+  border-color: rgba(240,192,64,0.45);
+  color: #fff;
+}
+.live-control-btn-alt {
+  border-color: rgba(96,165,250,0.45);
+  color: #cde4ff;
+}
+.live-control-btn.is-paused {
+  border-color: rgba(251,191,36,0.45);
+  color: #ffe1a2;
+  background: rgba(251,191,36,0.14);
+}
+.live-control-meta {
+  color: #9fb4de;
+  font-size: 12px;
+}
+.live-control-meta strong {
+  font-family: var(--ff-mono);
+  color: #dce9ff;
+}
+
+@media (max-width: 640px) {
+  .live-controls {
+    align-items: stretch;
+  }
+  .live-control-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

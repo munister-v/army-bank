@@ -265,10 +265,17 @@
   var PROBE_HISTORY_LIMIT = 96;
   var PROBE_TIMELINE_POINTS = 24;
   var PROBE_KEYS = ['health', 'version', 'openapi', 'docs'];
+  var LIVE_REFRESH_INTERVAL_MS = 60 * 1000;
+  var LIVE_AUTO_STORAGE_KEY = 'ab_landing_live_auto_v1';
 
   var selectedModule = loadStoredModuleFilter();
   var openapiEndpointRows = [];
   var probeHistory = loadProbeHistory();
+  var liveAutoEnabled = loadLiveAutoEnabled();
+  var liveRefreshIntervalId = null;
+  var liveCountdownIntervalId = null;
+  var liveCountdownRemainingSec = Math.floor(LIVE_REFRESH_INTERVAL_MS / 1000);
+  var isLiveLoading = false;
 
   function escapeHtml(v) {
     return String(v)
@@ -314,39 +321,111 @@
     return 'all';
   }
 
-  function updateModuleChipActive() {
-    var chips = document.querySelectorAll('.module-chip');
-    Array.prototype.forEach.call(chips, function (chip) {
-      var key = chip.getAttribute('data-module') || 'all';
-      chip.classList.toggle('is-active', key === selectedModule);
-    });
-  }
-
-  function setModuleFilter(key) {
-    var normalized = (key === 'all' || MODULE_MAP[key]) ? key : 'all';
-    selectedModule = normalized;
-
+  function loadLiveAutoEnabled() {
     try {
-      localStorage.setItem(MODULE_FILTER_STORAGE_KEY, normalized);
+      var saved = localStorage.getItem(LIVE_AUTO_STORAGE_KEY);
+      if (saved === 'off') return false;
     } catch (e) {
       // ignore storage errors
     }
-
-    updateModuleChipActive();
-    renderModuleEndpointRows();
+    return true;
   }
 
-  function bindModuleFilterControls() {
-    var chips = document.querySelectorAll('.module-chip');
-    Array.prototype.forEach.call(chips, function (chip) {
-      chip.addEventListener('click', function () {
-        var key = chip.getAttribute('data-module') || 'all';
-        setModuleFilter(key);
+  function persistLiveAutoEnabled() {
+    try {
+      localStorage.setItem(LIVE_AUTO_STORAGE_KEY, liveAutoEnabled ? 'on' : 'off');
+    } catch (e) {
+      // ignore storage errors
+    }
+  }
+
+  function updateLiveControlsUi() {
+    var toggleBtn = document.getElementById('live-auto-toggle');
+    var stateEl = document.getElementById('live-auto-state');
+    var countdownEl = document.getElementById('live-countdown');
+
+    if (toggleBtn) {
+      toggleBtn.textContent = liveAutoEnabled ? 'Пауза realtime' : 'Увімкнути realtime';
+      toggleBtn.classList.toggle('is-paused', !liveAutoEnabled);
+    }
+
+    if (stateEl) {
+      stateEl.textContent = liveAutoEnabled ? (isLiveLoading ? 'realtime on · loading' : 'realtime on') : 'realtime paused';
+    }
+
+    if (countdownEl) {
+      if (!liveAutoEnabled) {
+        countdownEl.textContent = 'paused';
+      } else if (isLiveLoading) {
+        countdownEl.textContent = '...';
+      } else {
+        countdownEl.textContent = String(liveCountdownRemainingSec) + 's';
+      }
+    }
+  }
+
+  function clearLiveAutoTimers() {
+    if (liveRefreshIntervalId) {
+      clearInterval(liveRefreshIntervalId);
+      liveRefreshIntervalId = null;
+    }
+    if (liveCountdownIntervalId) {
+      clearInterval(liveCountdownIntervalId);
+      liveCountdownIntervalId = null;
+    }
+  }
+
+  function restartLiveAutoTimers() {
+    clearLiveAutoTimers();
+
+    if (!liveAutoEnabled) {
+      updateLiveControlsUi();
+      return;
+    }
+
+    liveCountdownRemainingSec = Math.floor(LIVE_REFRESH_INTERVAL_MS / 1000);
+    updateLiveControlsUi();
+
+    liveCountdownIntervalId = setInterval(function () {
+      if (!liveAutoEnabled) return;
+      if (liveCountdownRemainingSec > 0) {
+        liveCountdownRemainingSec -= 1;
+      } else {
+        liveCountdownRemainingSec = Math.floor(LIVE_REFRESH_INTERVAL_MS / 1000);
+      }
+      updateLiveControlsUi();
+    }, 1000);
+
+    liveRefreshIntervalId = setInterval(function () {
+      if (!liveAutoEnabled) return;
+      liveCountdownRemainingSec = Math.floor(LIVE_REFRESH_INTERVAL_MS / 1000);
+      updateLiveControlsUi();
+      loadLiveStatus();
+    }, LIVE_REFRESH_INTERVAL_MS);
+  }
+
+  function bindLiveControls() {
+    var toggleBtn = document.getElementById('live-auto-toggle');
+    var refreshBtn = document.getElementById('live-refresh-now');
+
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', function () {
+        liveAutoEnabled = !liveAutoEnabled;
+        persistLiveAutoEnabled();
+        restartLiveAutoTimers();
       });
-    });
-    updateModuleChipActive();
-  }
+    }
 
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', function () {
+        liveCountdownRemainingSec = Math.floor(LIVE_REFRESH_INTERVAL_MS / 1000);
+        updateLiveControlsUi();
+        loadLiveStatus();
+      });
+    }
+
+    updateLiveControlsUi();
+  }
   function setModuleCard(key, total, publicCount, protectedCount, methodTotal) {
     var totalEl = document.getElementById('mod-' + key + '-total');
     var metaEl = document.getElementById('mod-' + key + '-meta');
@@ -644,11 +723,15 @@
   }
 
   function loadLiveStatus() {
-    if (!document.getElementById('ls-version')) return;
+    if (!document.getElementById('ls-version')) return Promise.resolve();
+    if (isLiveLoading) return Promise.resolve();
+
+    isLiveLoading = true;
+    updateLiveControlsUi();
 
     var base = 'https://army-bank.onrender.com';
 
-    Promise.allSettled([
+    return Promise.allSettled([
       timedJson(base + '/api/version'),
       timedJson(base + '/health'),
       timedJson(base + '/api/openapi.json'),
@@ -673,6 +756,7 @@
       } else {
         setLiveText('ls-version', 'н/д', null);
         setProbe('probe-version', 'n/a', 'muted', '—');
+        pushProbePoint('version', 'bad');
       }
 
       if (healthRes.status === 'fulfilled') {
@@ -692,6 +776,7 @@
       } else {
         setLiveText('ls-health', 'н/д', null);
         setProbe('probe-health', 'n/a', 'muted', '—');
+        pushProbePoint('health', 'bad');
 
         var heroHealthFail = document.getElementById('hero-api-health');
         if (heroHealthFail) heroHealthFail.textContent = 'n/a';
@@ -800,12 +885,18 @@
       markLiveUpdated();
     }).catch(function () {
       renderUnavailableLiveState();
+    }).finally(function () {
+      isLiveLoading = false;
+      updateLiveControlsUi();
     });
   }
+  bindLiveControls();
   bindModuleFilterControls();
   renderModuleEndpointRows();
   renderProbeTimelines();
-  loadLiveStatus();
+  loadLiveStatus().finally(function () {
+    restartLiveAutoTimers();
+  });
 
   /* ════════ FAQ ACCORDION ════════ */
   document.querySelectorAll('.faq-trigger').forEach(function (btn) {
@@ -825,5 +916,5 @@
     });
   });
 
-  console.log('ArmyBank v1.8.0 — portfolio project by Viacheslav Munister');
+  console.log('ArmyBank v1.9.0 — portfolio project by Viacheslav Munister');
 })();
