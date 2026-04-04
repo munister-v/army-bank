@@ -2795,3 +2795,85 @@ button:hover,
   background: rgba(255, 255, 255, 0.92) !important;
   border-color: var(--cs-line) !important;
 }
+
+/* ─── VISUAL BUGFIX PASS (2026-04-05) ──────────────────────────────────────── */
+.hero-actions .btn-ghost {
+  color: #2f5f8f !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(47, 95, 143, 0.28) !important;
+  text-decoration: none;
+}
+
+.hero-actions .btn-ghost:hover {
+  color: #204f7d !important;
+  background: #ffffff !important;
+  border-color: rgba(47, 95, 143, 0.45) !important;
+}
+
+.hero-matrix .hm-k {
+  color: #597066 !important;
+  font-weight: 500;
+}
+
+.faq-item {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: var(--cs-line) !important;
+}
+
+.faq-trigger {
+  background: transparent !important;
+  color: var(--cs-ink) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.faq-trigger:hover {
+  color: var(--cs-primary) !important;
+  background: rgba(255, 255, 255, 0.65) !important;
+}
+
+.footer .logo .logo-mark {
+  border-color: rgba(29, 70, 54, 0.34);
+  box-shadow: 0 6px 14px rgba(23, 57, 44, 0.14);
+}
+
+.section-stack .stack-col h3 {
+  color: #2c4a3b !important;
+  border-bottom-color: rgba(54, 88, 70, 0.32) !important;
+}
+
+.section-stack .stack-item {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--cs-line);
+  border-radius: 10px;
+  padding: 11px 12px;
+  margin-bottom: 8px;
+}
+
+.section-stack .stack-item:last-child {
+  margin-bottom: 0;
+}
+
+.section-stack .stack-item code {
+  color: #233d30;
+  font-weight: 500;
+}
+
+.section-stack .stack-item span {
+  color: #4f675b;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .hero-actions .btn-ghost {
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .section-stack .stack-item {
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
