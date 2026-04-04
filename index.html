@@ -7,13 +7,13 @@
   <meta http-equiv="Pragma" content="no-cache">
   <title>ARMBank — Банківська платформа</title>
   <meta name="description" content="ARM Bank — банківська платформа з актуальною технічною інформацією, PWA, ролями доступу та документацією.">
-  <meta name="theme-color" content="#060810">
+  <meta name="theme-color" content="#e7efe8">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://army-bank.onrender.com">
   <link rel="dns-prefetch" href="https://army-bank.onrender.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=39">
+  <link rel="stylesheet" href="styles.css?v=40">
 </head>
 <body>
 
@@ -47,7 +47,7 @@
     <a href="#api" role="menuitem">API</a>
     <a href="#stack" role="menuitem">Стек</a>
     <a href="https://github.com/munister-v" target="_blank" role="menuitem">GitHub</a>
-    <a href="https://army-bank.onrender.com/dashboard" target="_blank" class="nav-cta" style="text-align:center;margin-top:8px" role="menuitem">Відкрити додаток</a>
+    <a href="https://army-bank.onrender.com/dashboard" target="_blank" class="nav-cta nav-mobile-cta" role="menuitem">Відкрити додаток</a>
   </div>
 </nav>
 
@@ -530,7 +530,7 @@
     <p class="deep-lead">Перелік узгоджений із сценаріями з технічної документації та поточною кодовою базою: від реєстрації до платформеного адміністрування.</p>
     <div class="deep-split">
       <div>
-        <div class="deep-card" style="margin-bottom:20px">
+        <div class="deep-card deep-card-spaced">
           <h3>Користувач (soldier)</h3>
           <ul class="deep-list-check">
             <li>Реєстрація з валідацією ПІБ, телефону, email, пароля; автоматичне створення основного рахунку (<code>AB-100000 + id</code>)</li>
@@ -546,7 +546,7 @@
         </div>
       </div>
       <div>
-        <div class="deep-card" style="margin-bottom:20px">
+        <div class="deep-card deep-card-spaced">
           <h3>Службові ролі</h3>
           <ul class="deep-list-check">
             <li><strong>operator</strong> — нарахування виплат клієнтам з ідемпотентністю, вузький контур <code>/api/operator/*</code></li>
@@ -554,7 +554,7 @@
             <li><strong>platform_admin</strong> — платформені операції, демо-дані, bootstrap-ендпоінт</li>
           </ul>
         </div>
-        <div class="deep-card" style="margin-bottom:20px">
+        <div class="deep-card deep-card-spaced">
           <h3>Документообіг (ARM Admin)</h3>
           <ul class="deep-list-check">
             <li>Шаблони документів, вибір одержувачів (всі / частина клієнтів), реєстр</li>
@@ -657,7 +657,7 @@
     <p class="feat-label">PDF</p>
     <h2>Технічна документація продукту</h2>
     <p class="deep-lead">Повний внутрішній документ <strong>«Архітектурно-технічна документація програмного комплексу ARM Bank»</strong> (версія&nbsp;2.0, підготовка 04.04.2026) містить 35+ сторінок: детальний розбір API, матрицю ролей, модель даних, карту маршрутів, тестування, обмеження та дорожню карту розвитку. Використовується для презентацій стейкхолдерам і як база для експлуатаційної документації.</p>
-    <p class="deep-lead" style="margin-top:-24px">Короткі витримки з того документа інтегровані безпосередньо на цій сторінці в блоках «Склад комплексу», «Що реалізовано», «Шар даних», «Життєвий цикл переказу» та «Розгортання». Повний PDF зберігається в матеріалах проєкту / за запитом автора.</p>
+    <p class="deep-lead deep-lead-tight">Короткі витримки з того документа інтегровані безпосередньо на цій сторінці в блоках «Склад комплексу», «Що реалізовано», «Шар даних», «Життєвий цикл переказу» та «Розгортання». Повний PDF зберігається в матеріалах проєкту / за запитом автора.</p>
   </div>
 </section>
 
@@ -923,7 +923,7 @@
             <span class="cred-val">не публікується</span>
           </div>
         </div>
-        <a href="https://army-bank.onrender.com/dashboard" target="_blank" class="btn-dark" style="margin-top:24px">Відкрити платформу</a>
+        <a href="https://army-bank.onrender.com/dashboard" target="_blank" class="btn-dark cta-spaced">Відкрити платформу</a>
         <p class="dev-note">Free tier Render — перший запуск ~30 сек</p>
       </div>
       <div class="dev-code">

@@ -723,7 +723,6 @@
   }
 
   function loadLiveStatus() {
-    if (!document.getElementById('ls-version')) return Promise.resolve();
     if (isLiveLoading) return Promise.resolve();
 
     isLiveLoading = true;
@@ -890,13 +889,19 @@
       updateLiveControlsUi();
     });
   }
-  bindLiveControls();
-  bindModuleFilterControls();
-  renderModuleEndpointRows();
-  renderProbeTimelines();
-  loadLiveStatus().finally(function () {
-    restartLiveAutoTimers();
-  });
+  var hasLivePanel = !!document.getElementById('ls-version');
+
+  if (hasLivePanel) {
+    bindLiveControls();
+    bindModuleFilterControls();
+    renderModuleEndpointRows();
+    renderProbeTimelines();
+    loadLiveStatus().finally(function () {
+      restartLiveAutoTimers();
+    });
+  } else {
+    loadLiveStatus();
+  }
 
   /* ════════ FAQ ACCORDION ════════ */
   document.querySelectorAll('.faq-trigger').forEach(function (btn) {
