@@ -827,7 +827,7 @@ const receipt = (() => {
 
   function fmtAmt(amount, direction) {
     const sign = direction === 'in' ? '+' : '−';
-    const color = direction === 'in' ? '#34d399' : '#f87171';
+    const color = direction === 'in' ? 'var(--mono-success, #34d399)' : 'var(--mono-danger, #f87171)';
     const val = '₴\u202f' + Math.abs(Number(amount)).toLocaleString('uk-UA', { minimumFractionDigits: 2 });
     return `<span style="color:${color}">${sign}${val}</span>`;
   }
@@ -859,10 +859,10 @@ const receipt = (() => {
     // Icon/colour by direction
     const icon = $('#receiptIcon');
     if (icon) {
-      icon.style.background = dir === 'in' ? 'rgba(22,163,74,.12)' : 'rgba(26,86,219,.12)';
+      icon.style.background = dir === 'in' ? 'rgba(31,160,85,.12)' : 'rgba(47,74,55,.12)';
       icon.innerHTML = dir === 'in'
-        ? '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>'
-        : '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1a56db" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+        ? '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--mono-success,#1fa055)" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>'
+        : '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--mono-blue-mid,#46664a)" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
     }
 
     $('#receiptDownloadBtn').disabled = !_txId;
@@ -2278,7 +2278,7 @@ function _genIdempotencyKey() {
       if (Number.isFinite(currentBalance)) {
         const after = currentBalance - amount;
         afterEl.textContent = fmtMoney(after);
-        afterEl.style.color = after < 0 ? '#f87171' : '';
+        afterEl.style.color = after < 0 ? 'var(--mono-danger, #f87171)' : '';
       } else {
         afterEl.textContent = '—';
       }

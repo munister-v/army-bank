@@ -1,13 +1,13 @@
-/* Army Bank — Service Worker v34 */
-const CACHE = 'army-bank-v34';
+/* Army Bank — Service Worker v35 */
+const CACHE = 'army-bank-v35';
 
 /* Assets to pre-cache on install */
 const PRECACHE = [
   '/css/styles.css?v=31',
-  '/css/overrides.css?v=40',
+  '/css/overrides.css?v=41',
   '/manifest.json?v=2',
   '/js/api.js?v=2',
-  '/js/app.js?v=52',
+  '/js/app.js?v=53',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/offline.html',

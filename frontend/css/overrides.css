@@ -660,14 +660,14 @@ body {
 }
 .bank-card-back-info {
   font-size: 8px !important;
-  color: rgba(255,255,255,0.32) !important;
+  color: rgba(255,255,255,0.5) !important;
   letter-spacing: 0.04em !important;
   line-height: 1.55 !important;
 }
-.bank-card-back-info strong { color: rgba(255,255,255,0.5) !important; }
+.bank-card-back-info strong { color: rgba(255,255,255,0.7) !important; }
 .bank-card-tap-hint {
   font-size: 8px !important;
-  color: rgba(255,255,255,0.2) !important;
+  color: rgba(255,255,255,0.35) !important;
   letter-spacing: 0.03em !important;
   align-self: flex-end !important;
 }
@@ -2403,7 +2403,7 @@ textarea:focus,
 .modal-overlay {
   position: fixed !important;
   inset: 0 !important;
-  z-index: 700 !important;
+  z-index: 3000 !important;
   background: rgba(12, 18, 30, 0.46) !important;
   backdrop-filter: blur(3px) !important;
   -webkit-backdrop-filter: blur(3px) !important;
@@ -3612,3 +3612,55 @@ a:focus-visible {
   grid-column: 1 / -1 !important;
   min-height: 46px !important;
 }
+
+/* ── PIN overlay light-theme compat ─────────────────────────────────────── */
+.pin-overlay {
+  background: var(--mono-bg) !important;
+}
+.pin-title {
+  color: var(--mono-text) !important;
+}
+.pin-subtitle {
+  color: var(--mono-muted) !important;
+}
+.pin-key {
+  background: var(--mono-surface-soft) !important;
+  border-color: var(--mono-border-soft) !important;
+  color: var(--mono-text) !important;
+}
+.pin-key:hover {
+  background: var(--mono-surface) !important;
+}
+.pin-key:active {
+  transform: scale(.92) !important;
+  background: var(--mono-border-soft) !important;
+}
+.pin-key-back { color: var(--mono-muted) !important; }
+.pin-dot { border-color: var(--mono-success) !important; }
+.pin-dot.filled { background: var(--mono-success) !important; }
+.pin-error { color: var(--mono-danger) !important; }
+
+/* ── Onboarding overlay light-theme compat ──────────────────────────────── */
+.onboarding-card {
+  background: var(--mono-surface) !important;
+  border-color: var(--mono-border-soft) !important;
+  color: var(--mono-text) !important;
+}
+
+/* ── Receipt colors: use theme vars ─────────────────────────────────────── */
+.receipt-amount[data-dir="in"] { color: var(--mono-success) !important; }
+.receipt-amount[data-dir="out"] { color: var(--mono-blue-mid) !important; }
+
+/* ── Drawer loading spinner ─────────────────────────────────────────────── */
+.drawer-loading::after {
+  content: '';
+  display: block;
+  width: 24px;
+  height: 24px;
+  margin: 8px auto;
+  border: 3px solid rgba(255,255,255,.15);
+  border-top-color: rgba(255,255,255,.7);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

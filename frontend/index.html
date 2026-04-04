@@ -44,15 +44,15 @@
   <!-- Both stylesheets async (non-blocking) — critical CSS above prevents FOUC -->
   <link rel="stylesheet" href="/css/styles.css?v=31" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="/css/styles.css?v=31"></noscript>
-  <link rel="stylesheet" href="/css/overrides.css?v=40" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/overrides.css?v=40"></noscript>
+  <link rel="stylesheet" href="/css/overrides.css?v=41" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/overrides.css?v=41"></noscript>
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js?v=2" as="script">
-  <link rel="preload" href="/js/app.js?v=52" as="script">
+  <link rel="preload" href="/js/app.js?v=53" as="script">
   <!-- Build version check + instant auth state + server wake-up -->
   <script>
     (function(){
-      var BUILD = '52';
+      var BUILD = '53';
       try {
         var stored = localStorage.getItem('ab_build');
         if (stored && stored !== BUILD) {
@@ -213,7 +213,7 @@
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
             </svg>
-            <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;min-width:16px;height:16px;background:var(--accent);border-radius:8px;border:2px solid var(--bg);font-size:9px;font-weight:900;color:#000;align-items:center;justify-content:center;line-height:1;padding:0 2px"></span>
+            <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;min-width:16px;height:16px;background:#ef4444;border-radius:8px;border:2px solid var(--mono-surface);font-size:9px;font-weight:900;color:#fff;align-items:center;justify-content:center;line-height:1;padding:0 2px"></span>
           </button>
           <button id="pushBtn" class="icon-btn" aria-label="Push-сповіщення" title="Push-сповіщення" style="position:relative">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
@@ -222,7 +222,7 @@
               <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
               <line x1="12" y1="20" x2="12.01" y2="20"/>
             </svg>
-            <span id="pushDot" style="display:none;position:absolute;top:4px;right:4px;width:9px;height:9px;border-radius:50%;background:#4ade80;border:2px solid rgba(20,34,64,0.8)"></span>
+            <span id="pushDot" style="display:none;position:absolute;top:4px;right:4px;width:9px;height:9px;border-radius:50%;background:var(--mono-success);border:2px solid var(--mono-blue-top)"></span>
           </button>
           <button id="logoutBtn" class="icon-btn" aria-label="Вийти">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
@@ -1489,7 +1489,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js?v=2" defer></script>
-  <script src="/js/app.js?v=52" defer></script>
+  <script src="/js/app.js?v=53" defer></script>
 
   <!-- Transfer confirmation bottom sheet -->
   <div id="transferConfirmOverlay" class="tc-overlay hidden" role="dialog" aria-modal="true">

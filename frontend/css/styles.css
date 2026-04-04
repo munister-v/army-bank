@@ -597,7 +597,7 @@ select option { background: #0d0d0d; color: #e5e5e5; }
   border: 1px solid var(--border-2);
   box-shadow: 0 8px 32px rgba(0,0,0,.6);
   font-size: 14px; font-weight: 600;
-  z-index: 9999; text-align: center;
+  z-index: 10001; text-align: center;
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
 }
 .toast.success { border-color: rgba(74,222,128,.3); color: var(--green); }
@@ -747,7 +747,7 @@ select option { background: #0d0d0d; color: #e5e5e5; }
 
 /* ── PIN OVERLAY ─────────────────────────────────── */
 .pin-overlay {
-  position: fixed; inset: 0; z-index: 9999;
+  position: fixed; inset: 0; z-index: 10000;
   background: #0f1b2d;
   display: flex; align-items: center; justify-content: center;
 }
@@ -788,7 +788,7 @@ select option { background: #0d0d0d; color: #e5e5e5; }
 
 /* ── ONBOARDING ──────────────────────────────────── */
 .onboarding-overlay {
-  position: fixed; inset: 0; z-index: 8888;
+  position: fixed; inset: 0; z-index: 9000;
   background: rgba(0,0,0,.72); backdrop-filter: blur(6px);
   display: flex; align-items: center; justify-content: center; padding: 24px;
 }
