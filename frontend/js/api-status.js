@@ -12,6 +12,7 @@
     rows: document.getElementById('endpointRows'),
     preview: document.getElementById('responsePreview'),
     progress: document.getElementById('runProgress'),
+    progressBar: document.getElementById('runProgressBar'),
     mode: document.getElementById('modeSelect'),
     search: document.getElementById('searchInput'),
     status: document.getElementById('statusFilter'),
@@ -48,6 +49,25 @@
       return JSON.stringify(obj, null, 2);
     } catch {
       return rawText;
+    }
+  }
+
+  function setRunProgress(done, total, label) {
+    const safeTotal = Math.max(0, Number(total) || 0);
+    const safeDone = Math.max(0, Math.min(Number(done) || 0, safeTotal || 1));
+    const percent = safeTotal > 0 ? Math.round((safeDone / safeTotal) * 100) : 0;
+
+    if (els.progressBar) {
+      els.progressBar.style.width = `${percent}%`;
+    }
+    if (els.progress) {
+      if (label) {
+        els.progress.textContent = label;
+      } else if (safeTotal > 0) {
+        els.progress.textContent = `${safeDone}/${safeTotal} (${percent}%)`;
+      } else {
+        els.progress.textContent = 'Готово до перевірки';
+      }
     }
   }
 
@@ -171,9 +191,11 @@
 
   function renderRows() {
     const rows = state.endpoints.filter(matchesFilter).map((ep) => {
+      const methodCls = `method-${ep.method.toLowerCase()}`;
+      const rowCls = ep.status ? `api-row-${ep.status}` : '';
       return `
-        <tr data-id="${escapeHtml(ep.id)}">
-          <td><span class="api-pill">${escapeHtml(ep.method)}</span></td>
+        <tr data-id="${escapeHtml(ep.id)}" class="${rowCls}">
+          <td><span class="api-pill api-method ${methodCls}">${escapeHtml(ep.method)}</span></td>
           <td>
             <div class="api-path">${escapeHtml(ep.path)}</div>
             <div class="muted" style="margin-top:3px">${escapeHtml(ep.summary || '—')}</div>
@@ -259,13 +281,13 @@
 
     state.running = true;
     toggleBusy(true);
-    els.progress.textContent = `Перевірка: ${ep.method} ${ep.path}`;
+    setRunProgress(0, 1, `Перевірка: ${ep.method} ${ep.path}`);
 
     await runProbe(ep);
 
     state.running = false;
     toggleBusy(false);
-    els.progress.textContent = 'Готово до перевірки';
+    setRunProgress(1, 1, `Завершено: ${ep.method} ${ep.path}`);
     renderRows();
   }
 
@@ -281,17 +303,18 @@
 
     state.running = true;
     toggleBusy(true);
+    setRunProgress(0, queue.length, `Run 0/${queue.length}`);
 
     for (let i = 0; i < queue.length; i += 1) {
       const ep = queue[i];
-      els.progress.textContent = `Run ${i + 1}/${queue.length}: ${ep.method} ${ep.path}`;
+      setRunProgress(i, queue.length, `Run ${i + 1}/${queue.length}: ${ep.method} ${ep.path}`);
       await runProbe(ep);
       renderRows();
     }
 
     state.running = false;
     toggleBusy(false);
-    els.progress.textContent = `Завершено: ${queue.length} endpoint(ів)`;
+    setRunProgress(queue.length, queue.length, `Завершено: ${queue.length} endpoint(ів)`);
   }
 
   function toggleBusy(isBusy) {
@@ -305,7 +328,8 @@
   async function loadSpec() {
     if (state.running) return;
     toggleBusy(true);
-    els.progress.textContent = 'Завантаження OpenAPI...';
+    setRunProgress(0, 0, 'Завантаження OpenAPI...');
+
     try {
       const response = await fetch(withBase('/api/openapi.json'), {
         method: 'GET',
@@ -319,14 +343,14 @@
       state.schema = await response.json();
       state.endpoints = buildEndpoints(state.schema);
       els.preview.textContent = 'OpenAPI завантажено. Можна запускати перевірку endpoint-ів.';
-      els.progress.textContent = `Завантажено ${state.endpoints.length} endpoint(ів)`;
+      setRunProgress(0, state.endpoints.length, `Завантажено ${state.endpoints.length} endpoint(ів)`);
       renderRows();
     } catch (err) {
       state.endpoints = [];
       renderRows();
       const message = String(err && err.message ? err.message : err);
       els.preview.textContent = `Не вдалося завантажити OpenAPI: ${message}`;
-      els.progress.textContent = 'Помилка завантаження OpenAPI';
+      setRunProgress(0, 0, 'Помилка завантаження OpenAPI');
     } finally {
       toggleBusy(false);
     }

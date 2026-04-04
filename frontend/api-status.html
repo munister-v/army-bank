@@ -6,14 +6,20 @@
   <title>API Status Check — Army Bank</title>
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="stylesheet" href="/css/admin-armybank-theme.css?v=2">
-  <link rel="stylesheet" href="/css/api-status.css?v=1">
+  <link rel="stylesheet" href="/css/api-status.css?v=2">
 </head>
 <body class="admin-ab-landing">
   <main class="api-status-shell">
     <section class="api-status-head card">
       <div>
+        <div class="api-kicker">Operational Console</div>
         <h1>API Status Check</h1>
         <p class="muted">Детальна перевірка працездатності API банку по всіх endpoint-ах з OpenAPI.</p>
+        <div class="api-meta-pills">
+          <span class="api-pill">Live OpenAPI</span>
+          <span class="api-pill">Endpoint Matrix</span>
+          <span class="api-pill">Safe / Strict Modes</span>
+        </div>
       </div>
       <div class="api-status-links">
         <a class="ghost-btn" href="/api/docs" target="_blank" rel="noopener">API Docs</a>
@@ -63,6 +69,9 @@
         <strong>Endpoints</strong>
         <span id="runProgress" class="muted">Готово до перевірки</span>
       </div>
+      <div class="api-progress-track" aria-hidden="true">
+        <div id="runProgressBar" class="api-progress-bar" style="width:0%"></div>
+      </div>
       <div class="api-table-scroll">
         <table class="table api-table" aria-label="API status matrix">
           <thead>
@@ -93,6 +102,6 @@
   </main>
 
   <script src="/js/api.js"></script>
-  <script src="/js/api-status.js"></script>
+  <script src="/js/api-status.js?v=2"></script>
 </body>
 </html>
