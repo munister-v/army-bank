@@ -1870,3 +1870,242 @@ strong { font-weight: 600; }
     justify-content: center;
   }
 }
+
+/* ─── RESPONSIVE + VISUAL POLISH (2026-04-04) ─── */
+:root {
+  --section-gap-polish: clamp(70px, 8vw, 108px);
+}
+
+.feature-section,
+.section-architecture,
+.section-api,
+.section-db,
+.section-stack,
+.section-dev,
+.section-faq,
+.section-deep {
+  padding-top: var(--section-gap-polish);
+  padding-bottom: var(--section-gap-polish);
+}
+
+.api-groups {
+  gap: 10px;
+}
+.api-group,
+.db-table,
+.deep-card,
+.live-panel,
+.live-module-panel {
+  border-radius: 14px;
+  overflow: hidden;
+}
+.api-group,
+.db-table {
+  background:
+    linear-gradient(165deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)),
+    rgba(10, 14, 24, 0.82);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+}
+.ag-header {
+  background:
+    linear-gradient(120deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)),
+    rgba(13, 18, 30, 0.88);
+}
+
+.platform-card,
+.deep-card {
+  border-radius: 14px;
+}
+.platform-card {
+  position: relative;
+  overflow: hidden;
+}
+.platform-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(140deg, rgba(240,192,64,0.08), transparent 45%, rgba(96,165,250,0.08));
+  pointer-events: none;
+}
+
+.faq-list {
+  display: grid;
+  gap: 10px;
+}
+.faq-item {
+  border: 1px solid rgba(255,255,255,0.11);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.015);
+}
+.faq-item:first-child {
+  border-top: 1px solid rgba(255,255,255,0.11);
+}
+.faq-trigger {
+  padding: 18px 16px;
+}
+.faq-body {
+  padding: 0 16px 18px;
+}
+
+@media (max-width: 1024px) {
+  .container,
+  .nav-inner {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+  .hero-content {
+    max-width: 100%;
+    text-align: left;
+  }
+  .hero-tag {
+    margin-left: 0;
+    margin-right: 0;
+  }
+  .hero-actions {
+    justify-content: flex-start;
+  }
+  .hero-desc,
+  .hero-meta {
+    text-align: left;
+  }
+  .hero-visual {
+    order: 2;
+    justify-content: flex-start;
+  }
+  .phone-frame {
+    width: min(100%, 302px);
+  }
+
+  .trust-inner {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .trust-item {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    scroll-snap-align: start;
+  }
+
+  .live-actions a {
+    flex: 1 1 calc(50% - 8px);
+    justify-content: center;
+    text-align: center;
+  }
+
+  .module-endpoint-row {
+    grid-template-columns: auto 1fr;
+    align-items: start;
+  }
+  .module-endpoint-path {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: 768px) {
+  .container,
+  .nav-inner {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .hero {
+    padding: calc(var(--nav-h) + 44px) 0 48px;
+  }
+  .hero-content {
+    padding: 18px 16px;
+    border-radius: 16px;
+  }
+  .hero h1 {
+    font-size: clamp(34px, 9vw, 46px);
+    line-height: 1;
+  }
+
+  .hero-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    width: 100%;
+  }
+  .hero-actions .btn-dark,
+  .hero-actions .btn-ghost {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .live-grid,
+  .module-grid,
+  .deep-card-grid,
+  .stack-grid,
+  .db-grid,
+  .platform-grid,
+  .feature-grid,
+  .dev-grid,
+  .deep-split {
+    grid-template-columns: 1fr;
+  }
+
+  .live-deep-grid {
+    gap: 10px;
+  }
+  .live-panel,
+  .live-module-panel,
+  .deep-card,
+  .api-group,
+  .db-table {
+    border-radius: 12px;
+  }
+
+  .timeline-track {
+    grid-template-columns: repeat(24, minmax(2px, 1fr));
+  }
+
+  .section-live {
+    padding: 72px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .container,
+  .nav-inner {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .hero-matrix {
+    grid-template-columns: 1fr;
+  }
+  .hm-item {
+    padding: 8px 10px;
+  }
+  .hm-item strong {
+    font-size: 15px;
+  }
+
+  .live-actions a {
+    flex: 1 1 100%;
+  }
+
+  .module-chip {
+    font-size: 9px;
+    padding: 6px 8px;
+  }
+  .module-endpoint-row {
+    padding: 8px;
+  }
+  .module-endpoint-path {
+    font-size: 10px;
+  }
+}
