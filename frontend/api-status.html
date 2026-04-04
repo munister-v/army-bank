@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Status Check — Army Bank</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/admin-armybank-theme.css?v=2">
+  <link rel="stylesheet" href="/css/api-status.css?v=1">
+</head>
+<body class="admin-ab-landing">
+  <main class="api-status-shell">
+    <section class="api-status-head card">
+      <div>
+        <h1>API Status Check</h1>
+        <p class="muted">Детальна перевірка працездатності API банку по всіх endpoint-ах з OpenAPI.</p>
+      </div>
+      <div class="api-status-links">
+        <a class="ghost-btn" href="/api/docs" target="_blank" rel="noopener">API Docs</a>
+        <a class="ghost-btn" href="/api/openapi.json" target="_blank" rel="noopener">OpenAPI JSON</a>
+        <a class="ghost-btn" href="/admin">Адмінка</a>
+      </div>
+    </section>
+
+    <section class="api-controls card">
+      <div class="api-control-row">
+        <label for="modeSelect">Режим перевірки</label>
+        <select id="modeSelect">
+          <option value="safe" selected>Safe (GET реальні, write через OPTIONS)</option>
+          <option value="strict">Strict (реальні HTTP методи)</option>
+        </select>
+      </div>
+      <div class="api-control-row">
+        <label for="searchInput">Фільтр</label>
+        <input id="searchInput" type="search" placeholder="/api/admin ... або GET">
+      </div>
+      <div class="api-control-row">
+        <label for="statusFilter">Статус</label>
+        <select id="statusFilter">
+          <option value="all" selected>Усі</option>
+          <option value="ok">OK</option>
+          <option value="warn">Reachable (4xx)</option>
+          <option value="fail">Fail (5xx / network)</option>
+          <option value="idle">Not checked</option>
+        </select>
+      </div>
+      <div class="api-buttons">
+        <button id="reloadSpecBtn" class="ghost-btn" type="button">Оновити OpenAPI</button>
+        <button id="runAllBtn" class="primary-btn" type="button">Run All Checks</button>
+      </div>
+    </section>
+
+    <section class="api-summary">
+      <article class="card stat"><div class="stat-label">Endpoint-ів</div><div id="sumTotal" class="stat-value">0</div></article>
+      <article class="card stat"><div class="stat-label">OK</div><div id="sumOk" class="stat-value ok">0</div></article>
+      <article class="card stat"><div class="stat-label">Reachable</div><div id="sumWarn" class="stat-value warn">0</div></article>
+      <article class="card stat"><div class="stat-label">Fail</div><div id="sumFail" class="stat-value fail">0</div></article>
+      <article class="card stat"><div class="stat-label">Not checked</div><div id="sumIdle" class="stat-value">0</div></article>
+    </section>
+
+    <section class="card api-table-wrap">
+      <div class="api-table-head">
+        <strong>Endpoints</strong>
+        <span id="runProgress" class="muted">Готово до перевірки</span>
+      </div>
+      <div class="api-table-scroll">
+        <table class="table api-table" aria-label="API status matrix">
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Path</th>
+              <th>Tag</th>
+              <th>Auth</th>
+              <th>Strategy</th>
+              <th>Status</th>
+              <th>HTTP</th>
+              <th>ms</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="endpointRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card api-log-wrap">
+      <div class="api-table-head">
+        <strong>Остання відповідь</strong>
+        <span class="muted">для вибраного endpoint</span>
+      </div>
+      <pre id="responsePreview" class="api-preview">Натисни Run для endpoint-а або Run All.</pre>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/api-status.js"></script>
+</body>
+</html>

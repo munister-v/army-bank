@@ -1,0 +1,215 @@
+.api-status-shell {
+  max-width: 1360px;
+  margin: 28px auto;
+  padding: 0 20px 30px;
+  display: grid;
+  gap: 14px;
+}
+
+.api-status-head,
+.api-controls,
+.api-table-wrap,
+.api-log-wrap {
+  padding: 16px;
+}
+
+.api-status-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.api-status-head h1 {
+  margin: 0 0 6px;
+  font-size: 24px;
+}
+
+.api-status-links {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.api-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.api-control-row {
+  display: grid;
+  gap: 6px;
+}
+
+.api-control-row label {
+  font-size: 12px;
+  opacity: .75;
+}
+
+.api-control-row input,
+.api-control-row select {
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.05);
+  color: inherit;
+}
+
+.api-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.api-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.api-summary .stat {
+  padding: 12px;
+}
+
+.stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  opacity: .6;
+}
+
+.stat-value {
+  margin-top: 6px;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.stat-value.ok { color: #22c55e; }
+.stat-value.warn { color: #facc15; }
+.stat-value.fail { color: #ef4444; }
+
+.api-table-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 8px;
+}
+
+.api-table-scroll {
+  overflow-x: auto;
+}
+
+.api-table {
+  min-width: 1060px;
+}
+
+.api-table td,
+.api-table th {
+  vertical-align: top;
+  font-size: 12px;
+}
+
+.api-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+
+.api-pill.idle {
+  background: rgba(148,163,184,.12);
+  color: #cbd5e1;
+  border-color: rgba(148,163,184,.25);
+}
+
+.api-pill.ok {
+  background: rgba(34,197,94,.13);
+  color: #22c55e;
+  border-color: rgba(34,197,94,.26);
+}
+
+.api-pill.warn {
+  background: rgba(250,204,21,.13);
+  color: #facc15;
+  border-color: rgba(250,204,21,.26);
+}
+
+.api-pill.fail {
+  background: rgba(239,68,68,.13);
+  color: #ef4444;
+  border-color: rgba(239,68,68,.26);
+}
+
+.api-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  white-space: nowrap;
+}
+
+.api-preview {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(15,23,42,.35);
+  border: 1px solid rgba(148,163,184,.2);
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.api-run-btn {
+  border: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.05);
+  color: inherit;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.api-run-btn:disabled,
+#runAllBtn:disabled,
+#reloadSpecBtn:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+@media (max-width: 980px) {
+  .api-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .api-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .api-status-shell {
+    padding: 0 12px 20px;
+  }
+
+  .api-status-head {
+    flex-direction: column;
+  }
+
+  .api-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .api-buttons {
+    justify-content: stretch;
+  }
+
+  .api-buttons .ghost-btn,
+  .api-buttons .primary-btn {
+    width: 100%;
+  }
+}

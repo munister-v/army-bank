@@ -308,9 +308,14 @@ def create_app() -> Flask:
     def operator_page():
         return send_html('operator.html')
 
+
     @app.get(prefix + '/platform')
     def platform_page():
         return send_html('platform.html')
+
+    @app.get(prefix + '/api-status')
+    def api_status_page():
+        return send_html('api-status.html')
 
     @app.get(prefix + '/health')
     def health():
