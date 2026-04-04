@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARM Bank API Status</title>
+  <meta name="description" content="Детальна сторінка live-статусу API ARM Bank: health, version, OpenAPI та перевірка endpoint'ів.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="api-status.css?v=1">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="../">ARM Bank</a>
+      <nav class="links" aria-label="Навігація">
+        <a href="../">Лендінг</a>
+        <a href="https://army-bank.onrender.com/api/docs" target="_blank" rel="noopener">API Docs</a>
+        <a href="https://army-bank.onrender.com/api-status" target="_blank" rel="noopener">Render API Status</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <p class="kicker">Live Monitoring</p>
+        <h1>Детальний статус API</h1>
+        <p class="lead">Сторінка підтягує актуальні дані з бойового сервера <code>army-bank.onrender.com</code>: основні health-check endpoint'и, OpenAPI-структуру та доступність GET-методів.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <h2>Швидка перевірка</h2>
+        <div class="cards" id="core-cards">
+          <article class="card"><p class="label">/health</p><p id="c-health" class="value">...</p><p id="c-health-ms" class="meta">очікування</p></article>
+          <article class="card"><p class="label">/api/version</p><p id="c-version" class="value">...</p><p id="c-version-ms" class="meta">очікування</p></article>
+          <article class="card"><p class="label">/api/openapi.json</p><p id="c-openapi" class="value">...</p><p id="c-openapi-ms" class="meta">очікування</p></article>
+          <article class="card"><p class="label">/api/docs</p><p id="c-docs" class="value">...</p><p id="c-docs-ms" class="meta">очікування</p></article>
+        </div>
+
+        <div class="summary">
+          <div><span class="sum-label">OpenAPI paths</span><strong id="sum-paths">...</strong></div>
+          <div><span class="sum-label">HTTP methods</span><strong id="sum-methods">...</strong></div>
+          <div><span class="sum-label">GET checked</span><strong id="sum-checked">...</strong></div>
+          <div><span class="sum-label">Останнє оновлення</span><strong id="sum-updated">...</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt">
+      <div class="container">
+        <div class="controls">
+          <h2>Endpoint матриця</h2>
+          <div class="token-wrap">
+            <label for="bearer-token">Bearer token (опційно)</label>
+            <div class="token-row">
+              <input id="bearer-token" type="password" placeholder="Вставте токен, якщо хочете перевіряти захищені GET endpoint'и">
+              <button id="rerun-btn" type="button">Оновити перевірку</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Method</th>
+                <th>Path</th>
+                <th>Auth</th>
+                <th>Operation ID</th>
+                <th>Check</th>
+              </tr>
+            </thead>
+            <tbody id="endpoint-rows">
+              <tr><td colspan="5" class="placeholder">Завантаження OpenAPI...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="note">Позначка <code>manual</code> означає, що endpoint не перевіряється автоматично (наприклад, POST/PUT/PATCH/DELETE або маршрут із path-параметрами).</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="api-status.js?v=1" defer></script>
+</body>
+</html>
