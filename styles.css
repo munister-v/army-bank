@@ -2877,3 +2877,170 @@ button:hover,
     gap: 8px;
   }
 }
+
+/* ─── DESIGN LIFT PASS (2026-04-05) ────────────────────────────────────────── */
+:root {
+  --dl-ink: #10291f;
+  --dl-muted: #4f6d60;
+  --dl-line: rgba(34, 79, 60, 0.2);
+  --dl-primary: #1f5a43;
+  --dl-accent: #ad7c2e;
+}
+
+body {
+  color: var(--dl-ink);
+  background:
+    radial-gradient(75% 54% at 0% 0%, rgba(74, 131, 103, 0.2), transparent 60%),
+    radial-gradient(64% 42% at 100% 0%, rgba(173, 124, 46, 0.14), transparent 62%),
+    linear-gradient(180deg, #eef7ef, #e6f1e8);
+}
+
+.navbar.scrolled,
+.nav-mobile {
+  background: rgba(236, 245, 237, 0.92);
+  border-color: var(--dl-line);
+}
+
+.hero-content {
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.94), rgba(245, 251, 246, 0.9));
+  border-color: var(--dl-line);
+}
+
+.hero h1,
+.hero h1 em,
+.section-architecture h2,
+.section-api h2,
+.section-db h2,
+.section-stack h2,
+.section-dev h2,
+.section-faq h2,
+.section-deep h2,
+.feature-text h2,
+.feat-center-header h2,
+.deep-card h3,
+.platform-card h3,
+.dev-block h2 {
+  color: var(--dl-ink) !important;
+}
+
+.hero-desc,
+.hero-meta,
+.feat-desc,
+.feature-text p,
+.feature-text li,
+.deep-lead,
+.deep-card p,
+.deep-card li,
+.faq-body p,
+.note,
+.dev-note,
+.footer-sub,
+.footer-bottom,
+.label,
+.sum-label,
+.live-label,
+.module-meta {
+  color: var(--dl-muted) !important;
+}
+
+.feature-section,
+.feat-dark,
+.feat-gray,
+.section-architecture,
+.section-api,
+.section-db,
+.section-stack,
+.section-dev,
+.section-faq,
+.section-deep,
+.section-deep.alt {
+  border-top-color: var(--dl-line) !important;
+}
+
+.feature-section,
+.section-api,
+.section-stack,
+.section-dev,
+.section-deep {
+  background: linear-gradient(180deg, #edf7ef, #e5f1e7) !important;
+}
+
+.feat-gray,
+.section-architecture,
+.section-db,
+.section-faq,
+.section-deep.alt {
+  background: linear-gradient(180deg, #f2f9f2, #e9f4eb) !important;
+}
+
+.feat-label,
+.section-deep .feat-label,
+.stack-col h3,
+.ag-header code,
+.dc-title {
+  color: #2e6a52 !important;
+}
+
+.feat-label::before {
+  background: var(--dl-accent) !important;
+}
+
+.feat-card,
+.feat-card-light,
+.platform-card,
+.deep-card,
+.api-group,
+.db-table,
+.stack-col,
+.dev-code,
+.faq-item,
+.push-notif,
+.al-box,
+.module-card,
+.live-card,
+.live-panel,
+.summary > div,
+.uptime-card,
+.timeline-row,
+.trust-item {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 252, 249, 0.92)) !important;
+  border-color: var(--dl-line) !important;
+  box-shadow: 0 12px 26px rgba(19, 51, 38, 0.08) !important;
+}
+
+.fc-code,
+.dc-pre,
+.table-wrap,
+.module-endpoint-rows,
+.timeline-track,
+.uptime-track {
+  background: #f6fbf7;
+  border-color: var(--dl-line);
+}
+
+.section-stack .stack-item {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--dl-line);
+  border-radius: 10px;
+}
+
+.section-stack .stack-item code {
+  color: #1f4736;
+}
+
+.section-stack .stack-item span {
+  color: #4d6a5d;
+}
+
+.footer {
+  background: linear-gradient(180deg, rgba(237, 246, 238, 0.82), rgba(229, 240, 231, 0.98));
+}
+
+.footer-inner,
+.footer-bottom {
+  border-color: var(--dl-line);
+}
+
+.sync-hint {
+  display: none !important;
+}
