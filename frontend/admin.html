@@ -54,6 +54,7 @@
         <button type="button" class="menu-btn" data-tab="registry">Реєстр транзакцій</button>
         <button type="button" class="menu-btn" data-tab="security">Безпека</button>
         <button type="button" class="menu-btn" data-tab="audit">Аудит</button>
+        <button type="button" class="menu-btn" data-tab="docs">Документообіг</button>
       </nav>
       <div class="sidebar-footer">
         <button id="logoutBtn" class="secondary-btn">Вийти</button>
@@ -72,6 +73,9 @@
           <div class="ov-card"><div class="ov-lbl">Транзакцій</div><div class="ov-val" id="ovTx">—</div></div>
           <div class="ov-card"><div class="ov-lbl">Виплат (сума)</div><div class="ov-val" id="ovPayouts">—</div></div>
           <div class="ov-card"><div class="ov-lbl">Донатів (сума)</div><div class="ov-val" id="ovDonations">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Нових сьогодні</div><div class="ov-val" id="ovNewToday">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Активних сьогодні</div><div class="ov-val" id="ovActiveToday">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Чистий приток (міс.)</div><div class="ov-val" id="ovNetFlow">—</div></div>
         </div>
 
         <div class="chart-wrap">
@@ -84,6 +88,11 @@
             </select>
           </div>
           <div id="barChartWrap" style="overflow-x:auto"></div>
+        </div>
+
+        <div class="chart-wrap">
+          <h3>Нові користувачі по днях</h3>
+          <div id="regChartWrap" style="overflow-x:auto"></div>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
@@ -105,7 +114,7 @@
           <input type="search" id="userSearch" placeholder="Пошук за ім'ям / телефоном…">
           <select id="roleFilter">
             <option value="">Усі ролі</option>
-            <option value="soldier">Військовий</option>
+            <option value="soldier">Клієнт</option>
             <option value="operator">Оператор</option>
             <option value="admin">Адмін</option>
             <option value="platform_admin">Платформа</option>
@@ -253,6 +262,64 @@
         <div id="auditList" class="list"></div>
       </section>
 
+      <!-- ── DOCS ──────────────────────────────────────────────────────── -->
+      <section id="docsTab" class="admin-tab hidden">
+        <h1>Документообіг</h1>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+          <div class="card" style="box-shadow:none">
+            <h2 style="font-size:15px;font-weight:700;margin:0 0 14px">Новий шаблон</h2>
+            <div class="stack" style="gap:8px">
+              <input type="text" id="docTitle" placeholder="Назва документа" style="width:100%;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit;box-sizing:border-box">
+              <select id="docCategory" style="width:100%;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit;box-sizing:border-box">
+                <option value="general">Загальний</option>
+                <option value="financial">Фінансовий</option>
+                <option value="contract">Договір</option>
+                <option value="notice">Повідомлення</option>
+              </select>
+              <textarea id="docBody" placeholder="Текст документа…" rows="6" style="width:100%;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+              <button class="small-btn" style="width:100%" onclick="createDocTemplate()">Зберегти шаблон</button>
+            </div>
+          </div>
+          <div class="card" style="box-shadow:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <h2 style="font-size:15px;font-weight:700;margin:0">Шаблони</h2>
+              <button class="ghost-btn" onclick="loadDocTemplates()" style="font-size:12px">↻</button>
+            </div>
+            <div id="docTemplatesList"><div class="muted" style="font-size:13px;padding:12px 0">Завантаження…</div></div>
+          </div>
+        </div>
+
+        <div id="docSendPanel" class="card" style="box-shadow:none;margin-top:20px;display:none">
+          <h2 style="font-size:15px;font-weight:700;margin:0 0 14px">Надіслати документ</h2>
+          <div style="font-size:13px;opacity:.7;margin-bottom:10px">Шаблон: <strong id="docSendTemplateName">—</strong></div>
+          <input type="text" id="docSendNote" placeholder="Нотатка (необов'язково)…" style="width:100%;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit;box-sizing:border-box;margin-bottom:10px">
+          <div style="margin-bottom:12px">
+            <div class="filter-row" style="margin-bottom:8px">
+              <input type="search" id="docUserSearch" placeholder="Пошук отримувача…" style="flex:1">
+              <button class="ghost-btn" onclick="searchDocUsers()" style="font-size:12px">Знайти</button>
+            </div>
+            <div id="docUserPickList" style="max-height:220px;overflow-y:auto;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="small-btn" onclick="sendDocToUsers()">Надіслати вибраним</button>
+            <button class="ghost-btn" onclick="closeDocSend()">Скасувати</button>
+          </div>
+        </div>
+
+        <div style="margin-top:24px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <h2 style="font-size:15px;font-weight:700;margin:0">Надіслані документи</h2>
+            <button class="ghost-btn" onclick="loadDocAssignments()" style="font-size:12px">↻</button>
+          </div>
+          <div class="card" style="padding:0">
+            <table class="table">
+              <thead><tr><th>ID</th><th>Шаблон</th><th>Отримувач</th><th>Нотатка</th><th>Дата</th></tr></thead>
+              <tbody id="docAssignmentsBody"><tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <footer class="app-footer">
         <a href="https://munister.com.ua/army-bank" target="_blank" rel="noopener">munister.com.ua</a>
       </footer>
@@ -282,7 +349,7 @@
             <h4>Роль</h4>
             <div class="adjust-row">
               <select id="drawerRoleSelect">
-                <option value="soldier">Військовий</option>
+                <option value="soldier">Клієнт</option>
                 <option value="operator">Оператор</option>
                 <option value="admin">Адмін</option>
                 <option value="platform_admin">Платформа</option>

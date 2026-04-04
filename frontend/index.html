@@ -49,9 +49,25 @@
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js?v=2" as="script">
   <link rel="preload" href="/js/app.js?v=52" as="script">
-  <!-- Instant auth state + server wake-up (runs before body renders) -->
+  <!-- Build version check + instant auth state + server wake-up -->
   <script>
     (function(){
+      var BUILD = '52';
+      try {
+        var stored = localStorage.getItem('ab_build');
+        if (stored && stored !== BUILD) {
+          /* New build deployed — nuke all SW caches and reload for clean update */
+          localStorage.setItem('ab_build', BUILD);
+          if ('serviceWorker' in navigator && 'caches' in window) {
+            Promise.all([
+              navigator.serviceWorker.getRegistrations().then(function(r){return Promise.all(r.map(function(x){return x.unregister();}));}),
+              caches.keys().then(function(k){return Promise.all(k.map(function(c){return caches.delete(c);}));})
+            ]).then(function(){location.reload();}).catch(function(){location.reload();});
+          } else { location.reload(); }
+          return;
+        }
+        localStorage.setItem('ab_build', BUILD);
+      } catch(_) {}
       try {
         if (localStorage.getItem('army_bank_token')) {
           /* Hide login page immediately — no flash of auth screen for returning users */

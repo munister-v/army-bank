@@ -2516,12 +2516,13 @@ if ('serviceWorker' in navigator) {
     setTimeout(() => location.reload(), 200);
   }
 
-  navigator.serviceWorker.register('/sw.js?v=34', { updateViaCache: 'none' }).catch(() => {}).then(reg => {
+  navigator.serviceWorker.register('/sw.js?v=34', { updateViaCache: 'none' }).then(reg => {
+    if (!reg) return;
     // If update is already waiting, activate immediately.
     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
 
     reg.update().catch(() => {});
-    setInterval(() => reg.update().catch(() => {}), 60_000);
+    setInterval(() => reg.update().catch(() => {}), 30_000);
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') reg.update().catch(() => {});
     });
@@ -2540,7 +2541,7 @@ if ('serviceWorker' in navigator) {
     });
 
     navigator.serviceWorker.addEventListener('controllerchange', _swReload);
-  });
+  }).catch(() => {});
 }
 
 // ── BOOTSTRAP ────────────────────────────────────────────

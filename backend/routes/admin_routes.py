@@ -133,6 +133,21 @@ def get_stats():
             total_tx      = conn.execute('SELECT COUNT(*) as n FROM transactions').fetchone()['n']
             total_payouts = conn.execute("SELECT COALESCE(SUM(amount),0) as s FROM transactions WHERE tx_type='payout' AND direction='in'").fetchone()['s']
             total_donations = conn.execute('SELECT COALESCE(SUM(amount),0) as s FROM donations').fetchone()['s']
+            net_flow_month = conn.execute(
+                """SELECT
+                    COALESCE(SUM(CASE WHEN direction='in'  THEN amount ELSE 0 END),0) -
+                    COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END),0) as net
+                   FROM transactions
+                   WHERE created_at >= date_trunc('month', NOW())"""
+            ).fetchone()
+            new_users_today = conn.execute(
+                "SELECT COUNT(*) as n FROM users WHERE DATE(created_at) = CURRENT_DATE"
+            ).fetchone()
+            active_today = conn.execute(
+                """SELECT COUNT(DISTINCT a.user_id) as n FROM transactions t
+                   JOIN accounts a ON a.id = t.account_id
+                   WHERE DATE(t.created_at) = CURRENT_DATE"""
+            ).fetchone()
             by_role = conn.execute(
                 "SELECT role, COUNT(*) as cnt FROM users GROUP BY role"
             ).fetchall()
@@ -140,13 +155,16 @@ def get_stats():
                 'SELECT t.*, a.account_number FROM transactions t JOIN accounts a ON a.id=t.account_id ORDER BY t.created_at DESC, t.id DESC LIMIT 10'
             ).fetchall()
         return jsonify({'ok': True, 'data': {
-            'total_users':    total_users,
-            'total_balance':  round(float(total_balance), 2),
-            'total_tx':       total_tx,
-            'total_payouts':  round(float(total_payouts), 2),
-            'total_donations':round(float(total_donations), 2),
-            'by_role':        by_role,
-            'recent_tx':      recent_tx,
+            'total_users':      total_users,
+            'total_balance':    round(float(total_balance), 2),
+            'total_tx':         total_tx,
+            'total_payouts':    round(float(total_payouts), 2),
+            'total_donations':  round(float(total_donations), 2),
+            'net_flow_month':   round(float(net_flow_month['net'] or 0), 2),
+            'new_users_today':  int(new_users_today['n'] or 0),
+            'active_today':     int(active_today['n'] or 0),
+            'by_role':          by_role,
+            'recent_tx':        recent_tx,
         }})
     except Exception as exc:
         return api_error(str(exc))
@@ -529,6 +547,18 @@ def get_chart_stats():
                 """
             ).fetchall()
 
+            # Daily user registrations
+            new_users_daily = conn.execute(
+                """
+                SELECT DATE(created_at) as day, COUNT(*) as cnt
+                FROM users
+                WHERE created_at >= DATE('now', %s)
+                GROUP BY DATE(created_at)
+                ORDER BY day
+                """,
+                (f'-{days} days',)
+            ).fetchall()
+
             # Top users by volume
             top_users = conn.execute(
                 """
@@ -544,9 +574,10 @@ def get_chart_stats():
             ).fetchall()
 
         return jsonify({'ok': True, 'data': {
-            'daily':     [dict(r) for r in daily],
-            'by_type':   [dict(r) for r in by_type],
-            'top_users': [dict(r) for r in top_users],
+            'daily':           [dict(r) for r in daily],
+            'by_type':         [dict(r) for r in by_type],
+            'top_users':       [dict(r) for r in top_users],
+            'new_users_daily': [dict(r) for r in new_users_daily],
         }})
     except Exception as exc:
         return api_error(str(exc))

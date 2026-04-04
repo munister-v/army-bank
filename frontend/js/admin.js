@@ -88,14 +88,20 @@ async function loadOverview() {
     ]);
 
     // KPI cards
-    $('#ovUsers').textContent    = statsRes.total_users ?? '—';
-    $('#ovBalance').textContent  = fmtMoney(statsRes.total_balance);
-    $('#ovTx').textContent       = statsRes.total_tx ?? '—';
-    $('#ovPayouts').textContent  = fmtMoney(statsRes.total_payouts);
+    $('#ovUsers').textContent     = statsRes.total_users ?? '—';
+    $('#ovBalance').textContent   = fmtMoney(statsRes.total_balance);
+    $('#ovTx').textContent        = statsRes.total_tx ?? '—';
+    $('#ovPayouts').textContent   = fmtMoney(statsRes.total_payouts);
     $('#ovDonations').textContent = fmtMoney(statsRes.total_donations);
+    $('#ovNewToday').textContent   = statsRes.new_users_today ?? '—';
+    $('#ovActiveToday').textContent = statsRes.active_today ?? '—';
+    $('#ovNetFlow').textContent   = fmtMoney(statsRes.net_flow_month);
 
-    // Bar chart
+    // Bar chart (transactions)
     renderBarChart(chartRes.daily || []);
+
+    // Registration trend chart
+    renderRegChart(chartRes.new_users_daily || []);
 
     // Type distribution
     renderTypeDist(chartRes.by_type || []);
@@ -144,6 +150,26 @@ function renderBarChart(daily) {
       <span><span style="display:inline-block;width:10px;height:10px;background:#f87171;border-radius:2px;margin-right:4px"></span>Витрати</span>
     </div>
   `;
+}
+
+function renderRegChart(daily) {
+  const wrap = $('#regChartWrap');
+  if (!wrap) return;
+  if (!daily.length) { wrap.innerHTML = '<div class="muted" style="padding:20px;text-align:center">Даних немає</div>'; return; }
+  const W = Math.max(wrap.offsetWidth || 600, 300);
+  const H = 100;
+  const pad = { top: 8, right: 10, bottom: 28, left: 8 };
+  const maxVal = Math.max(...daily.map(d => d.cnt || 0), 1);
+  const innerH = H - pad.top - pad.bottom;
+  const barW = Math.max(4, Math.floor((W - pad.left - pad.right) / daily.length) - 3);
+  const bars = daily.map((d, i) => {
+    const x = pad.left + i * ((W - pad.left - pad.right) / daily.length);
+    const h = Math.round(((d.cnt || 0) / maxVal) * innerH);
+    const y = pad.top + innerH - h;
+    return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="2" fill="#34d399" opacity=".75"/>
+      <text x="${x + barW / 2}" y="${H - 4}" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.4)">${fmtShortDate(d.day + 'T00:00:00')}</text>`;
+  }).join('');
+  wrap.innerHTML = `<svg width="100%" viewBox="0 0 ${W} ${H}" class="bar-chart" style="overflow:visible">${bars}</svg>`;
 }
 
 function renderTypeDist(byType) {
@@ -197,11 +223,11 @@ async function loadUsers() {
   body.innerHTML = users.map((u) => `
     <tr data-id="${u.id}">
       <td><strong>#${u.id}</strong></td>
-      <td><div><strong>${u.full_name}</strong></div><div class="subtle">${u.military_status || ''}</div></td>
+      <td><div><strong>${u.full_name}</strong></div><div class="subtle">${u.status || u.military_status || ''}</div></td>
       <td class="subtle" style="font-size:12px">${u.phone || '—'}<br>${u.email || '—'}</td>
       <td>
         <select class="role-select" data-user-id="${u.id}" style="font-size:12px">
-          <option value="soldier"        ${u.role === 'soldier'        ? 'selected' : ''}>Військовий</option>
+          <option value="soldier"        ${u.role === 'soldier'        ? 'selected' : ''}>Клієнт</option>
           <option value="operator"       ${u.role === 'operator'       ? 'selected' : ''}>Оператор</option>
           <option value="admin"          ${u.role === 'admin'          ? 'selected' : ''}>Адмін</option>
           <option value="platform_admin" ${u.role === 'platform_admin' ? 'selected' : ''}>Платформа</option>
@@ -587,6 +613,7 @@ function switchTab(tabId) {
   if (tabId === 'registry') { resetRegistry(); }
   if (tabId === 'audit')    { loadAudit(); loadStatements(); }
   if (tabId === 'security') { loadFraudStats(); loadOrders(); loadRiskEvents(); }
+  if (tabId === 'docs')     { loadDocTemplates(); loadDocAssignments(); }
 }
 
 // ── Drawer ───────────────────────────────────────────────────────────────────
@@ -659,7 +686,7 @@ async function drawerSendPayout() {
   try {
     const res = await api.request('/api/admin/payouts', {
       method: 'POST',
-      body: JSON.stringify({ user_id: _drawerUserId, amount, title, payout_type: 'combat' }),
+      body: JSON.stringify({ user_id: _drawerUserId, amount, title, payout_type: 'general' }),
     });
     showToast(`Нараховано ${fmtMoney(amount)}`);
     $('#drawerPayoutAmt').value = '';
@@ -686,12 +713,130 @@ async function drawerBalanceAdjust() {
   } catch (e) { showToast(e.message); }
 }
 
+// ── Document flow ─────────────────────────────────────────────────────────────
+
+let _docSendTemplateId = null;
+const _docSelectedUsers = new Set();
+
+async function loadDocTemplates() {
+  const wrap = $('#docTemplatesList');
+  if (!wrap) return;
+  try {
+    const res = await api.request('/api/admin/doc-templates');
+    const list = Array.isArray(res) ? res : (res.data || []);
+    if (!list.length) { wrap.innerHTML = '<div class="muted" style="font-size:13px">Шаблонів немає</div>'; return; }
+    const CAT = { general: 'Загальний', financial: 'Фінансовий', contract: 'Договір', notice: 'Повідомлення' };
+    wrap.innerHTML = list.map(t => `
+      <div style="border-bottom:1px solid rgba(255,255,255,.07);padding:10px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div>
+          <div style="font-weight:600;font-size:13px">${escapeHtml(t.title)}</div>
+          <div style="font-size:11px;opacity:.5;margin-top:2px">${CAT[t.category] || t.category} · ${fmtShortDate(t.created_at)}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="ghost-btn" style="font-size:11px" onclick="openDocSend(${t.id}, ${JSON.stringify(escapeHtml(t.title))})">Надіслати</button>
+          <button class="ghost-btn" style="font-size:11px;color:#f87171" onclick="deleteDocTemplate(${t.id})">✕</button>
+        </div>
+      </div>`).join('');
+  } catch (e) { if (wrap) wrap.innerHTML = `<div class="muted">${escapeHtml(e.message)}</div>`; }
+}
+
+async function createDocTemplate() {
+  const title = $('#docTitle')?.value.trim();
+  const body  = $('#docBody')?.value.trim();
+  const category = $('#docCategory')?.value || 'general';
+  if (!title) { showToast('Вкажіть назву шаблона.'); return; }
+  try {
+    await api.request('/api/admin/doc-templates', { method: 'POST', body: JSON.stringify({ title, body, category }) });
+    showToast('Шаблон збережено');
+    $('#docTitle').value = '';
+    $('#docBody').value = '';
+    loadDocTemplates();
+  } catch (e) { showToast(e.message); }
+}
+
+async function deleteDocTemplate(id) {
+  if (!confirm('Видалити шаблон?')) return;
+  try {
+    await api.request(`/api/admin/doc-templates/${id}`, { method: 'DELETE' });
+    showToast('Видалено');
+    loadDocTemplates();
+  } catch (e) { showToast(e.message); }
+}
+
+function openDocSend(templateId, templateName) {
+  _docSendTemplateId = templateId;
+  _docSelectedUsers.clear();
+  $('#docSendTemplateName').textContent = templateName;
+  $('#docSendNote').value = '';
+  $('#docUserSearch').value = '';
+  $('#docUserPickList').innerHTML = '<div class="muted" style="font-size:12px;padding:6px">Введіть ім\'я або телефон для пошуку</div>';
+  $('#docSendPanel').style.display = '';
+  $('#docSendPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeDocSend() {
+  $('#docSendPanel').style.display = 'none';
+  _docSendTemplateId = null;
+  _docSelectedUsers.clear();
+}
+
+async function searchDocUsers() {
+  const q = $('#docUserSearch')?.value.trim();
+  if (!q) return;
+  const list = $('#docUserPickList');
+  list.innerHTML = '<div class="muted" style="font-size:12px;padding:6px">Пошук…</div>';
+  try {
+    const res = await api.request('/api/admin/users?search=' + encodeURIComponent(q));
+    const users = Array.isArray(res) ? res : (res.data || []);
+    if (!users.length) { list.innerHTML = '<div class="muted" style="font-size:12px;padding:6px">Не знайдено</div>'; return; }
+    list.innerHTML = users.map(u => `
+      <label style="display:flex;align-items:center;gap:8px;padding:6px;cursor:pointer;border-radius:6px;font-size:13px">
+        <input type="checkbox" value="${u.id}" ${_docSelectedUsers.has(u.id) ? 'checked' : ''}
+          onchange="if(this.checked) _docSelectedUsers.add(${u.id}); else _docSelectedUsers.delete(${u.id})">
+        <span>${escapeHtml(u.full_name || '—')} <span style="opacity:.5;font-size:11px">#${u.id}</span></span>
+      </label>`).join('');
+  } catch (e) { list.innerHTML = `<div class="muted">${escapeHtml(e.message)}</div>`; }
+}
+
+async function sendDocToUsers() {
+  if (!_docSendTemplateId) return;
+  const userIds = [..._docSelectedUsers];
+  if (!userIds.length) { showToast('Виберіть хоча б одного отримувача.'); return; }
+  const notes = $('#docSendNote')?.value.trim() || '';
+  try {
+    await api.request(`/api/admin/doc-templates/${_docSendTemplateId}/send`, {
+      method: 'POST', body: JSON.stringify({ user_ids: userIds, notes }),
+    });
+    showToast(`Надіслано ${userIds.length} отримувачам`);
+    closeDocSend();
+    loadDocAssignments();
+  } catch (e) { showToast(e.message); }
+}
+
+async function loadDocAssignments() {
+  const body = $('#docAssignmentsBody');
+  if (!body) return;
+  try {
+    const res = await api.request('/api/admin/doc-assignments');
+    const list = Array.isArray(res) ? res : (res.data || []);
+    if (!list.length) { body.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Немає надісланих документів</td></tr>'; return; }
+    body.innerHTML = list.map(a => `
+      <tr>
+        <td>#${a.id}</td>
+        <td>${escapeHtml(a.template_title || '—')}</td>
+        <td>${escapeHtml(a.recipient_name || '—')} <span class="muted">#${a.user_id}</span></td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(a.notes || '—')}</td>
+        <td>${fmtShortDate(a.sent_at)}</td>
+      </tr>`).join('');
+  } catch (e) { if (body) body.innerHTML = `<tr><td colspan="5" class="muted" style="padding:16px">${escapeHtml(e.message)}</td></tr>`; }
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 
 (async function () {
   const user = await checkAdmin();
   if (!user) return;
-  const roleLabels = { soldier: 'Військовий', operator: 'Оператор', admin: 'Адмін', platform_admin: 'Платформа' };
+  const roleLabels = { soldier: 'Клієнт', operator: 'Оператор', admin: 'Адмін', platform_admin: 'Платформа' };
   $('#adminUser').textContent = user.email + ' · ' + (roleLabels[user.role] || user.role);
 
   // Filters

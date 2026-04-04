@@ -82,11 +82,11 @@ async function loadPlatformUsers() {
   try {
     const users = await api.request('/api/platform/users');
     if (wrap) wrap.classList.remove('loading');
-    const roleLabels = { soldier: 'Військовий', operator: 'Оператор', admin: 'Адмін', platform_admin: 'Платформа' };
+    const roleLabels = { soldier: 'Клієнт', operator: 'Оператор', admin: 'Адмін', platform_admin: 'Платформа' };
     body.innerHTML = users.map((u) => `
       <tr>
         <td><strong>#${u.id}</strong></td>
-        <td><div><strong>${u.full_name}</strong></div><div class="subtle">${u.military_status || ''}</div></td>
+        <td><div><strong>${u.full_name}</strong></div><div class="subtle">${u.status || u.military_status || ''}</div></td>
         <td class="subtle">${u.phone}<br>${u.email}</td>
         <td>${roleLabels[u.role] || u.role}</td>
         <td>${u.account_number || '—'}</td>
@@ -144,7 +144,7 @@ async function loadPlatformAudit() {
 (async function () {
   const user = await checkPlatformAdmin();
   if (!user) return;
-  const roleLabels = { soldier: 'Військовий', operator: 'Оператор', admin: 'Адмін', platform_admin: 'Платформа' };
+  const roleLabels = { soldier: 'Клієнт', operator: 'Оператор', admin: 'Адмін', platform_admin: 'Платформа' };
   $('#platformUser').textContent = user.email + ' · ' + (roleLabels[user.role] || user.role);
 
   $$('.menu-btn[data-tab]').forEach((btn) => {

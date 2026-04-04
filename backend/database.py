@@ -424,6 +424,55 @@ CREATE INDEX IF NOT EXISTS idx_api_idempotency_created ON api_idempotency(create
 """
 
 
+DOC_TEMPLATES_DDL = """
+CREATE TABLE IF NOT EXISTS document_templates (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    category VARCHAR(50) NOT NULL DEFAULT 'general',
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+DOC_TEMPLATES_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS document_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT 'general',
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
+USER_DOCS_DDL = """
+CREATE TABLE IF NOT EXISTS user_documents (
+    id SERIAL PRIMARY KEY,
+    template_id INTEGER NOT NULL REFERENCES document_templates(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    sent_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    notes TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_user_docs_user ON user_documents(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_docs_template ON user_documents(template_id);
+"""
+
+USER_DOCS_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS user_documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    template_id INTEGER NOT NULL REFERENCES document_templates(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    sent_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    sent_at TEXT NOT NULL DEFAULT (datetime('now')),
+    notes TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_user_docs_user ON user_documents(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_docs_template ON user_documents(template_id);
+"""
+
+
 def init_db() -> None:
     """Ініціалізує схему БД."""
     if USE_PG:
@@ -577,6 +626,8 @@ def init_db() -> None:
                 label='payment_order_events.idx_type',
             )
             _pg_exec(IDEMPOTENCY_DDL, optional=True, label='api_idempotency')
+            _pg_exec(DOC_TEMPLATES_DDL, optional=True, label='document_templates')
+            _pg_exec(USER_DOCS_DDL, optional=True, label='user_documents')
             _pg_exec(
                 """CREATE TABLE IF NOT EXISTS compliance_profiles (
                     id SERIAL PRIMARY KEY,
@@ -605,6 +656,8 @@ def init_db() -> None:
             conn.executescript(CARDS_DDL_SQLITE)
             conn.executescript(PAYMENT_CORE_DDL_SQLITE)
             conn.executescript(IDEMPOTENCY_DDL_SQLITE)
+            conn.executescript(DOC_TEMPLATES_DDL_SQLITE)
+            conn.executescript(USER_DOCS_DDL_SQLITE)
             try:
                 conn.execute('ALTER TABLE transactions ADD COLUMN payment_order_id INTEGER;')
             except Exception:

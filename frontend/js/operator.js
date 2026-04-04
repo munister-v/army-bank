@@ -1,6 +1,6 @@
 // Сторінка оператора
 const $ = (s) => document.querySelector(s);
-const roleLabels = { soldier: 'Військовий', operator: 'Оператор', admin: 'Адмін' };
+const roleLabels = { soldier: 'Клієнт', operator: 'Оператор', admin: 'Адмін' };
 
 function showToast(msg) {
   const t = $('#toast');
@@ -38,7 +38,7 @@ async function loadSoldiers() {
     const users = Array.isArray(res) ? res : (res.data || []);
     const sel = $('#userSelect');
     sel.innerHTML = '<option value="">— Обрати —</option>' + users.map((u) => `<option value="${u.id}">#${u.id} ${u.full_name} (${u.phone})</option>`).join('');
-    const list = $('#soldiersList');
+    const list = $('#clientsList');
     list.innerHTML = users.length
       ? users.map((u) => `
           <div class="item">
@@ -46,7 +46,7 @@ async function loadSoldiers() {
             <div class="muted">${u.phone} · ${u.email}</div>
           </div>
         `).join('')
-      : '<div class="muted" style="padding:16px;text-align:center">Немає солдатів</div>';
+      : '<div class="muted" style="padding:16px;text-align:center">Немає клієнтів</div>';
   } catch (e) {
     showToast(e.message);
   }
