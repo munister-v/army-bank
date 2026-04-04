@@ -119,45 +119,44 @@ def list_compliance_users():
         if aml_str in ('0', '1'):
             aml_filter = int(aml_str)
 
-        # Build WHERE conditions that work both on direct query and on subquery
-        # Note: do NOT use table-qualified names (u.full_name) — these must work
-        # inside a COUNT(*) subquery where the original table aliases are gone.
+        # Build WHERE conditions for the outer query over an inner subquery.
+        # Using sub.* keeps filtering/sorting valid for both count + data SQL.
         where_clauses: list[str] = []
         params: list = []
 
         if kyc_filter:
-            where_clauses.append('kyc_status_eff = %s')
+            where_clauses.append('sub.kyc_status_eff = %s')
             params.append(kyc_filter)
         if aml_filter is not None:
-            where_clauses.append('aml_flag_eff = %s')
+            where_clauses.append('sub.aml_flag_eff = %s')
             params.append(aml_filter)
         if risk_filter:
-            where_clauses.append('risk_level_eff = %s')
+            where_clauses.append('sub.risk_level_eff = %s')
             params.append(risk_filter)
         if search:
             where_clauses.append(
-                '(full_name ILIKE %s OR phone ILIKE %s OR email ILIKE %s)'
+                '(sub.full_name ILIKE %s OR sub.phone ILIKE %s OR sub.email ILIKE %s)'
             )
             like = f'%{search}%'
             params.extend([like, like, like])
 
         where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
 
-        # ORDER BY uses aliases defined in the SELECT — valid in PostgreSQL ORDER BY
+        # Sort in the outer query where aliased fields are real columns of sub.
         order_sql = """
             ORDER BY
-                CASE kyc_status_eff
+                CASE sub.kyc_status_eff
                     WHEN 'rejected'    THEN 0
                     WHEN 'in_review'   THEN 1
                     WHEN 'pending'     THEN 2
                     WHEN 'not_started' THEN 3
                     ELSE 4
                 END ASC,
-                aml_flag_eff DESC,
-                created_at DESC
+                sub.aml_flag_eff DESC,
+                sub.created_at DESC
         """
 
-        # Inner SELECT — aliases (kyc_status_eff, etc.) are used in WHERE and ORDER BY
+        # Inner SELECT provides normalized/aliased compliance fields.
         inner_sql = """
             SELECT
                 u.id,
@@ -177,10 +176,9 @@ def list_compliance_users():
             LEFT JOIN compliance_profiles cp ON cp.user_id = u.id
         """
 
-        # COUNT wraps in subquery — WHERE uses unqualified column names (aliases from inner)
+        # Both count and select operate on the same subquery shape.
         count_sql  = f'SELECT COUNT(*) AS cnt FROM ({inner_sql}) sub {where_sql}'
-        # Direct query — WHERE + ORDER BY reference the SELECT aliases directly
-        select_sql = f'{inner_sql} {where_sql} {order_sql} LIMIT %s OFFSET %s'
+        select_sql = f'SELECT * FROM ({inner_sql}) sub {where_sql} {order_sql} LIMIT %s OFFSET %s'
 
         with get_connection() as conn:
             total = _row_to_dict(conn.execute(count_sql, params).fetchone())['cnt']
