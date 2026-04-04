@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://army-bank.onrender.com">
   <link rel="dns-prefetch" href="https://army-bank.onrender.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=28">
+  <link rel="stylesheet" href="styles.css?v=29">
 </head>
 <body>
 
@@ -74,15 +74,19 @@
           <strong id="hero-api-methods">live</strong>
         </div>
         <div class="hm-item">
+          <span class="hm-k">OpenAPI paths</span>
+          <strong id="hero-api-paths">live</strong>
+        </div>
+        <div class="hm-item">
+          <span class="hm-k">Core health</span>
+          <strong id="hero-api-health">pending</strong>
+        </div>
+        <div class="hm-item">
           <span class="hm-k">roles</span>
           <strong>4</strong>
         </div>
-        <div class="hm-item">
-          <span class="hm-k">surfaces</span>
-          <strong>3</strong>
-        </div>
       </div>
-      <p class="hero-meta">Дані у блоці <strong>API methods</strong> синхронізуються з live OpenAPI у реальному часі.</p>
+      <p class="hero-meta">Метрики в цьому блоці оновлюються в браузері напряму з live API: версія, health, OpenAPI-структура, кількість методів і захищених контурів.</p>
     </div>
     <div class="hero-visual">
       <div class="hero-orbit hero-orbit-a" aria-hidden="true"></div>
@@ -223,6 +227,7 @@
 <div class="trust-bar">
   <div class="container trust-inner">
     <div class="trust-item"><strong id="trust-api-count">live</strong> API methods</div>
+    <div class="trust-item"><strong id="trust-path-count">live</strong> OpenAPI paths</div>
     <div class="trust-item"><strong>4</strong> ролі користувачів</div>
     <div class="trust-item"><strong>PIN</strong> + Bearer Auth</div>
     <div class="trust-item"><strong>VAPID</strong> Push</div>
@@ -238,8 +243,9 @@
     <div class="feat-center-header">
       <p class="feat-label">Актуальний стан</p>
       <h2 id="live-status-title">Live статус API</h2>
-      <p class="feat-desc">Блок нижче автоматично підтягує дані з бойового API та оновлює ключові показники. Якщо API тимчасово недоступне, значення позначаються як <code>н/д</code>.</p>
+      <p class="feat-desc">Блок нижче автоматично тягне дані з production API і показує не тільки базові метрики, а й стан ключових endpoint-контурів, затримку відповіді та розподіл OpenAPI-методів.</p>
     </div>
+
     <div class="live-grid">
       <article class="live-card">
         <p class="live-label">API version</p>
@@ -257,8 +263,78 @@
         <p class="live-label">HTTP methods</p>
         <p class="live-value" id="ls-methods">завантаження...</p>
       </article>
+      <article class="live-card">
+        <p class="live-label">Protected methods</p>
+        <p class="live-value" id="ls-protected-card">завантаження...</p>
+      </article>
+      <article class="live-card">
+        <p class="live-label">Avg latency</p>
+        <p class="live-value" id="ls-latency">завантаження...</p>
+      </article>
     </div>
+
     <p class="live-updated">Остання перевірка в браузері: <span id="ls-updated">очікується</span></p>
+
+    <div class="live-actions" aria-label="Швидкі посилання API">
+      <a href="api-status/">Детальний API Status</a>
+      <a href="https://army-bank.onrender.com/api/docs" target="_blank" rel="noopener">Swagger Docs</a>
+      <a href="https://army-bank.onrender.com/api/openapi.json" target="_blank" rel="noopener">OpenAPI JSON</a>
+      <a href="https://army-bank.onrender.com/health" target="_blank" rel="noopener">Health endpoint</a>
+    </div>
+
+    <div class="live-deep-grid">
+      <article class="live-panel">
+        <h3>Стан endpoint-контурів</h3>
+        <p class="live-panel-desc">Оперативний зріз по ключових endpoint-ах. Навіть якщо частина маршрутів закрита авторизацією, тут видно їх фактичну доступність та час відповіді.</p>
+        <div class="live-probe-list">
+          <div class="live-probe-row">
+            <div class="live-probe-main"><span class="live-probe-label">Core health</span><code>/health</code></div>
+            <span id="probe-health-state" class="probe-state muted">...</span>
+            <span id="probe-health-meta" class="probe-meta">...</span>
+          </div>
+          <div class="live-probe-row">
+            <div class="live-probe-main"><span class="live-probe-label">Version endpoint</span><code>/api/version</code></div>
+            <span id="probe-version-state" class="probe-state muted">...</span>
+            <span id="probe-version-meta" class="probe-meta">...</span>
+          </div>
+          <div class="live-probe-row">
+            <div class="live-probe-main"><span class="live-probe-label">OpenAPI schema</span><code>/api/openapi.json</code></div>
+            <span id="probe-openapi-state" class="probe-state muted">...</span>
+            <span id="probe-openapi-meta" class="probe-meta">...</span>
+          </div>
+          <div class="live-probe-row">
+            <div class="live-probe-main"><span class="live-probe-label">Docs surface</span><code>/api/docs</code></div>
+            <span id="probe-docs-state" class="probe-state muted">...</span>
+            <span id="probe-docs-meta" class="probe-meta">...</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="live-panel">
+        <h3>Структура OpenAPI</h3>
+        <p class="live-panel-desc">Показує фактичний склад API за live OpenAPI: скільки методів публічні, скільки працюють у protected-контурі і як розподілені HTTP-дієслова.</p>
+        <div class="live-mini-grid">
+          <div class="live-mini-item"><span>Public methods</span><strong id="ls-public-methods">...</strong></div>
+          <div class="live-mini-item"><span>Protected methods</span><strong id="ls-protected-methods">...</strong></div>
+          <div class="live-mini-item"><span>GET methods</span><strong id="ls-get-methods">...</strong></div>
+          <div class="live-mini-item"><span>POST methods</span><strong id="ls-post-methods">...</strong></div>
+          <div class="live-mini-item"><span>PUT + PATCH</span><strong id="ls-putpatch-methods">...</strong></div>
+          <div class="live-mini-item"><span>DELETE methods</span><strong id="ls-delete-methods">...</strong></div>
+        </div>
+      </article>
+
+      <article class="live-panel live-panel-flow">
+        <h3>Як проходить транзакція</h3>
+        <p class="live-panel-desc">Скорочений технічний ланцюжок обробки фінансової операції від клієнта до commit у БД.</p>
+        <ol class="flow-list">
+          <li><strong>Auth check:</strong> bearer токен верифікується, роль і сесія перевіряються на сервері.</li>
+          <li><strong>Business validation:</strong> сума, рахунок отримувача, доступність коштів та ліміти проходять валідацію.</li>
+          <li><strong>Atomic transaction:</strong> списання і зарахування виконуються в єдиній DB-транзакції.</li>
+          <li><strong>Audit trail:</strong> операція потрапляє у журнал для аналітики, звітів і контролю ризиків.</li>
+          <li><strong>Client sync:</strong> UI/PWA отримує відповідь і синхронізує баланси та історію без перезавантаження.</li>
+        </ol>
+      </article>
+    </div>
   </div>
 </section>
 
@@ -1137,6 +1213,6 @@ curl -sS -X POST https://army-bank.onrender.com/api/transactions/transfer \
   </div>
 </footer>
 
-<script src="app.js?v=24" defer></script>
+<script src="app.js?v=25" defer></script>
 </body>
 </html>

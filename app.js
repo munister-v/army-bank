@@ -194,10 +194,124 @@
     else el.classList.add('muted');
   }
 
+  function setProbe(prefix, stateText, tone, metaText) {
+    var stateEl = document.getElementById(prefix + '-state');
+    var metaEl = document.getElementById(prefix + '-meta');
+
+    if (stateEl) {
+      stateEl.textContent = stateText;
+      stateEl.classList.remove('ok', 'warn', 'bad', 'muted', 'auth');
+      stateEl.classList.add(tone || 'muted');
+    }
+
+    if (metaEl) {
+      metaEl.textContent = metaText || '—';
+    }
+  }
+
+  function setMiniMetric(id, value) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = value;
+  }
+
+  function timedFetch(url, options) {
+    var started = performance.now();
+    return fetch(url, options || {}).then(function (response) {
+      return {
+        response: response,
+        ms: Math.round(performance.now() - started)
+      };
+    });
+  }
+
+  function timedJson(url) {
+    return timedFetch(url, { cache: 'no-store' }).then(function (out) {
+      return out.response.json().then(function (json) {
+        out.json = json;
+        return out;
+      }).catch(function () {
+        out.json = null;
+        return out;
+      });
+    });
+  }
+
   function markLiveUpdated() {
     var el = document.getElementById('ls-updated');
     if (!el) return;
     el.textContent = new Date().toLocaleString('uk-UA');
+  }
+
+  function analyzeOpenApi(spec) {
+    var paths = spec && spec.paths ? spec.paths : {};
+    var globalSec = Array.isArray(spec && spec.security) && spec.security.length > 0;
+    var out = {
+      pathCount: Object.keys(paths).length,
+      methodCount: 0,
+      publicCount: 0,
+      protectedCount: 0,
+      getCount: 0,
+      postCount: 0,
+      putPatchCount: 0,
+      deleteCount: 0
+    };
+
+    Object.keys(paths).forEach(function (path) {
+      var methods = paths[path] || {};
+      Object.keys(methods).forEach(function (method) {
+        var m = String(method).toLowerCase();
+        if (['get', 'post', 'put', 'patch', 'delete'].indexOf(m) === -1) return;
+
+        out.methodCount += 1;
+        if (m === 'get') out.getCount += 1;
+        if (m === 'post') out.postCount += 1;
+        if (m === 'put' || m === 'patch') out.putPatchCount += 1;
+        if (m === 'delete') out.deleteCount += 1;
+
+        var op = methods[method] || {};
+        var auth = (Array.isArray(op.security) && op.security.length > 0) || (globalSec && op.security !== null);
+        if (auth) out.protectedCount += 1;
+        else out.publicCount += 1;
+      });
+    });
+
+    return out;
+  }
+
+  function renderUnavailableLiveState() {
+    setLiveText('ls-version', 'н/д', null);
+    setLiveText('ls-health', 'н/д', null);
+    setLiveText('ls-paths', 'н/д', null);
+    setLiveText('ls-methods', 'н/д', null);
+    setLiveText('ls-protected-card', 'н/д', null);
+    setLiveText('ls-latency', 'н/д', null);
+
+    setProbe('probe-health', 'n/a', 'muted', '—');
+    setProbe('probe-version', 'n/a', 'muted', '—');
+    setProbe('probe-openapi', 'n/a', 'muted', '—');
+    setProbe('probe-docs', 'n/a', 'muted', '—');
+
+    setMiniMetric('ls-public-methods', 'н/д');
+    setMiniMetric('ls-protected-methods', 'н/д');
+    setMiniMetric('ls-get-methods', 'н/д');
+    setMiniMetric('ls-post-methods', 'н/д');
+    setMiniMetric('ls-putpatch-methods', 'н/д');
+    setMiniMetric('ls-delete-methods', 'н/д');
+
+    var trustMethods = document.getElementById('trust-api-count');
+    var trustPaths = document.getElementById('trust-path-count');
+    var heroMethods = document.getElementById('hero-api-methods');
+    var heroPaths = document.getElementById('hero-api-paths');
+    var heroHealth = document.getElementById('hero-api-health');
+
+    if (trustMethods) trustMethods.textContent = 'н/д';
+    if (trustPaths) trustPaths.textContent = 'н/д';
+    if (heroMethods) heroMethods.textContent = 'н/д';
+    if (heroPaths) heroPaths.textContent = 'н/д';
+    if (heroHealth) heroHealth.textContent = 'n/a';
+
+    markLiveUpdated();
   }
 
   function loadLiveStatus() {
@@ -206,63 +320,141 @@
     var base = 'https://army-bank.onrender.com';
 
     Promise.allSettled([
-      fetch(base + '/api/version', { cache: 'no-store' }).then(function (r) { return r.json(); }),
-      fetch(base + '/health', { cache: 'no-store' }),
-      fetch(base + '/api/openapi.json', { cache: 'no-store' }).then(function (r) { return r.json(); })
+      timedJson(base + '/api/version'),
+      timedJson(base + '/health'),
+      timedJson(base + '/api/openapi.json'),
+      timedFetch(base + '/api/docs', { cache: 'no-store' })
     ]).then(function (results) {
       var versionRes = results[0];
       var healthRes = results[1];
       var openapiRes = results[2];
+      var docsRes = results[3];
+      var latencies = [];
 
       if (versionRes.status === 'fulfilled') {
-        var v = versionRes.value || {};
-        setLiveText('ls-version', v.api_version || v.version || 'ok', true);
+        var vOut = versionRes.value;
+        var vResp = vOut.response;
+        var vJson = vOut.json || {};
+        var versionText = vJson.api_version || vJson.version || (vResp.ok ? 'ok' : 'HTTP ' + vResp.status);
+
+        setLiveText('ls-version', versionText, vResp.ok);
+        setProbe('probe-version', vResp.ok ? 'ok' : ('HTTP ' + vResp.status), vResp.ok ? 'ok' : 'warn', vResp.status + ' · ' + vOut.ms + ' ms');
+        latencies.push(vOut.ms);
       } else {
         setLiveText('ls-version', 'н/д', null);
+        setProbe('probe-version', 'n/a', 'muted', '—');
       }
 
       if (healthRes.status === 'fulfilled') {
-        var isUp = !!(healthRes.value && healthRes.value.ok);
-        setLiveText('ls-health', isUp ? 'UP (200)' : 'DOWN', isUp);
+        var hOut = healthRes.value;
+        var hResp = hOut.response;
+        var hJson = hOut.json || {};
+        var isUp = !!hResp.ok && (typeof hJson.ok === 'undefined' || !!hJson.ok);
+        var healthText = isUp ? 'UP (' + hResp.status + ')' : ('DOWN (' + hResp.status + ')');
+
+        setLiveText('ls-health', healthText, isUp);
+        setProbe('probe-health', isUp ? 'up' : 'down', isUp ? 'ok' : 'bad', hResp.status + ' · ' + hOut.ms + ' ms');
+        latencies.push(hOut.ms);
+
+        var heroHealth = document.getElementById('hero-api-health');
+        if (heroHealth) heroHealth.textContent = isUp ? 'UP' : 'DOWN';
       } else {
         setLiveText('ls-health', 'н/д', null);
+        setProbe('probe-health', 'n/a', 'muted', '—');
+
+        var heroHealthFail = document.getElementById('hero-api-health');
+        if (heroHealthFail) heroHealthFail.textContent = 'n/a';
       }
 
       if (openapiRes.status === 'fulfilled') {
-        var spec = openapiRes.value || {};
-        var paths = spec.paths || {};
-        var pathCount = Object.keys(paths).length;
-        var methodCount = 0;
+        var oOut = openapiRes.value;
+        var oResp = oOut.response;
+        var spec = oOut.json || {};
 
-        Object.keys(paths).forEach(function (p) {
-          var methods = paths[p] || {};
-          Object.keys(methods).forEach(function (m) {
-            if (['get', 'post', 'put', 'patch', 'delete'].indexOf(String(m).toLowerCase()) >= 0) {
-              methodCount += 1;
-            }
-          });
-        });
+        if (oResp.ok && spec.paths) {
+          var stats = analyzeOpenApi(spec);
 
-        setLiveText('ls-paths', String(pathCount), true);
-        setLiveText('ls-methods', String(methodCount), true);
+          setLiveText('ls-paths', String(stats.pathCount), true);
+          setLiveText('ls-methods', String(stats.methodCount), true);
+          setLiveText('ls-protected-card', String(stats.protectedCount), stats.protectedCount > 0 ? true : null);
 
-        var trust = document.getElementById('trust-api-count');
-        if (trust) trust.textContent = String(methodCount);
+          setMiniMetric('ls-public-methods', String(stats.publicCount));
+          setMiniMetric('ls-protected-methods', String(stats.protectedCount));
+          setMiniMetric('ls-get-methods', String(stats.getCount));
+          setMiniMetric('ls-post-methods', String(stats.postCount));
+          setMiniMetric('ls-putpatch-methods', String(stats.putPatchCount));
+          setMiniMetric('ls-delete-methods', String(stats.deleteCount));
 
-        var heroCount = document.getElementById('hero-api-methods');
-        if (heroCount) heroCount.textContent = String(methodCount);
+          setProbe('probe-openapi', 'loaded', 'ok', oResp.status + ' · ' + oOut.ms + ' ms');
+          latencies.push(oOut.ms);
+
+          var trustMethods = document.getElementById('trust-api-count');
+          var trustPaths = document.getElementById('trust-path-count');
+          var heroMethods = document.getElementById('hero-api-methods');
+          var heroPaths = document.getElementById('hero-api-paths');
+
+          if (trustMethods) trustMethods.textContent = String(stats.methodCount);
+          if (trustPaths) trustPaths.textContent = String(stats.pathCount);
+          if (heroMethods) heroMethods.textContent = String(stats.methodCount);
+          if (heroPaths) heroPaths.textContent = String(stats.pathCount);
+        } else {
+          setLiveText('ls-paths', 'н/д', null);
+          setLiveText('ls-methods', 'н/д', null);
+          setLiveText('ls-protected-card', 'н/д', null);
+          setMiniMetric('ls-public-methods', 'н/д');
+          setMiniMetric('ls-protected-methods', 'н/д');
+          setMiniMetric('ls-get-methods', 'н/д');
+          setMiniMetric('ls-post-methods', 'н/д');
+          setMiniMetric('ls-putpatch-methods', 'н/д');
+          setMiniMetric('ls-delete-methods', 'н/д');
+          setProbe('probe-openapi', 'invalid', 'warn', oResp.status + ' · ' + oOut.ms + ' ms');
+
+          var trustMethodsFail = document.getElementById('trust-api-count');
+          var trustPathsFail = document.getElementById('trust-path-count');
+          var heroMethodsFail = document.getElementById('hero-api-methods');
+          var heroPathsFail = document.getElementById('hero-api-paths');
+
+          if (trustMethodsFail) trustMethodsFail.textContent = 'н/д';
+          if (trustPathsFail) trustPathsFail.textContent = 'н/д';
+          if (heroMethodsFail) heroMethodsFail.textContent = 'н/д';
+          if (heroPathsFail) heroPathsFail.textContent = 'н/д';
+        }
       } else {
         setLiveText('ls-paths', 'н/д', null);
         setLiveText('ls-methods', 'н/д', null);
+        setLiveText('ls-protected-card', 'н/д', null);
+        setMiniMetric('ls-public-methods', 'н/д');
+        setMiniMetric('ls-protected-methods', 'н/д');
+        setMiniMetric('ls-get-methods', 'н/д');
+        setMiniMetric('ls-post-methods', 'н/д');
+        setMiniMetric('ls-putpatch-methods', 'н/д');
+        setMiniMetric('ls-delete-methods', 'н/д');
+        setProbe('probe-openapi', 'n/a', 'muted', '—');
+      }
+
+      if (docsRes.status === 'fulfilled') {
+        var dOut = docsRes.value;
+        var dResp = dOut.response;
+        var docsTone = dResp.ok ? 'ok' : (dResp.status === 401 || dResp.status === 403 ? 'auth' : 'warn');
+        var docsState = dResp.ok ? 'open' : ('HTTP ' + dResp.status);
+
+        setProbe('probe-docs', docsState, docsTone, dResp.status + ' · ' + dOut.ms + ' ms');
+        latencies.push(dOut.ms);
+      } else {
+        setProbe('probe-docs', 'n/a', 'muted', '—');
+      }
+
+      if (latencies.length > 0) {
+        var sum = latencies.reduce(function (acc, ms) { return acc + ms; }, 0);
+        var avg = Math.round(sum / latencies.length);
+        setLiveText('ls-latency', avg + ' ms', avg <= 450 ? true : avg >= 1200 ? false : null);
+      } else {
+        setLiveText('ls-latency', 'н/д', null);
       }
 
       markLiveUpdated();
     }).catch(function () {
-      setLiveText('ls-version', 'н/д', null);
-      setLiveText('ls-health', 'н/д', null);
-      setLiveText('ls-paths', 'н/д', null);
-      setLiveText('ls-methods', 'н/д', null);
-      markLiveUpdated();
+      renderUnavailableLiveState();
     });
   }
 
@@ -286,5 +478,5 @@
     });
   });
 
-  console.log('ArmyBank v1.6.0 — portfolio project by Viacheslav Munister');
+  console.log('ArmyBank v1.7.0 — portfolio project by Viacheslav Munister');
 })();

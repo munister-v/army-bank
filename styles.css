@@ -1331,3 +1331,217 @@ strong { font-weight: 600; }
     text-align: left;
   }
 }
+
+/* ─── LIVE DETAIL BOOST (2026-04-04) ─── */
+.hero-matrix {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.live-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.live-actions {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.live-actions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.04);
+  color: #c8d5f0;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.live-actions a:hover {
+  color: #fff;
+  border-color: rgba(240,192,64,0.45);
+  background: rgba(240,192,64,0.12);
+}
+
+.live-deep-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 14px;
+}
+.live-panel {
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 14px;
+  padding: 14px;
+  background:
+    linear-gradient(165deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)),
+    rgba(10, 16, 28, 0.78);
+  box-shadow: 0 14px 36px rgba(0,0,0,0.22);
+}
+.live-panel h3 {
+  margin: 0;
+  font-size: 15px;
+  color: #eef4ff;
+  letter-spacing: 0.01em;
+}
+.live-panel-desc {
+  margin: 8px 0 12px;
+  color: #a9b7d5;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.live-probe-list {
+  display: grid;
+  gap: 8px;
+}
+.live-probe-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255,255,255,0.02);
+}
+.live-probe-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.live-probe-label {
+  color: #d6e2fb;
+  font-size: 13px;
+  font-weight: 600;
+}
+.live-probe-main code {
+  color: #8ea5cf;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+}
+
+.probe-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.probe-state.ok {
+  color: #90f0c2;
+  border-color: rgba(52,211,153,0.45);
+  background: rgba(52,211,153,0.14);
+}
+.probe-state.warn {
+  color: #ffd87d;
+  border-color: rgba(251,191,36,0.45);
+  background: rgba(251,191,36,0.14);
+}
+.probe-state.bad {
+  color: #ffc0c0;
+  border-color: rgba(248,113,113,0.45);
+  background: rgba(248,113,113,0.14);
+}
+.probe-state.auth {
+  color: #d4d4ff;
+  border-color: rgba(165,180,252,0.5);
+  background: rgba(165,180,252,0.15);
+}
+.probe-state.muted {
+  color: #9db0d8;
+  border-color: rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+}
+.probe-meta {
+  font-family: var(--ff-mono);
+  color: #8ea5cf;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.live-mini-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.live-mini-item {
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255,255,255,0.02);
+}
+.live-mini-item span {
+  display: block;
+  color: #9db0d8;
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.live-mini-item strong {
+  display: block;
+  margin-top: 4px;
+  color: #f4f7ff;
+  font-family: var(--ff-mono);
+  font-size: 20px;
+}
+
+.live-panel-flow {
+  grid-column: 1 / -1;
+}
+.flow-list {
+  margin: 0;
+  padding-left: 20px;
+  color: #d5e0f8;
+  font-size: 13px;
+}
+.flow-list li {
+  margin-bottom: 6px;
+  line-height: 1.6;
+}
+.flow-list li:last-child {
+  margin-bottom: 0;
+}
+.flow-list strong {
+  color: #ffd98a;
+  font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+  .hero-matrix {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .live-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .live-deep-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .live-grid {
+    grid-template-columns: 1fr;
+  }
+  .live-probe-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+  .probe-meta {
+    white-space: normal;
+  }
+}
