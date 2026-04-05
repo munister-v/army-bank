@@ -3486,3 +3486,161 @@ body.menu-open {
     min-height: 500px;
   }
 }
+
+/* ─── HERO + TRUST MOBILE REFINEMENT (2026-04-05) ─────────────────────────── */
+@media (max-width: 900px) {
+  .hero {
+    padding-top: calc(var(--nav-h) + 22px) !important;
+    padding-bottom: 38px !important;
+  }
+
+  .hero-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+    align-items: start !important;
+  }
+
+  .hero-content {
+    order: 1 !important;
+    max-width: 100% !important;
+    padding: 16px 14px !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 24px rgba(20, 43, 31, 0.11) !important;
+  }
+
+  .hero-tag {
+    margin-bottom: 14px !important;
+  }
+
+  .hero h1 {
+    font-size: clamp(30px, 8.5vw, 40px) !important;
+    line-height: 1.03 !important;
+    margin-bottom: 14px !important;
+  }
+
+  .hero-desc {
+    font-size: 13px !important;
+    line-height: 1.55 !important;
+    margin-bottom: 14px !important;
+    max-width: none !important;
+  }
+
+  .hero-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .hero-actions .btn-dark,
+  .hero-actions .btn-ghost {
+    width: 100% !important;
+    min-height: 42px !important;
+    justify-content: center !important;
+    padding: 0 12px !important;
+    font-size: 12px !important;
+  }
+
+  .hero-matrix {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-top: 10px !important;
+  }
+
+  .hero-matrix .hm-item {
+    padding: 9px 10px !important;
+  }
+
+  .hero-matrix .hm-k {
+    font-size: 8.5px !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  .hero-matrix .hm-item strong {
+    font-size: 22px !important;
+  }
+
+  .hero-meta {
+    margin-top: 10px !important;
+    font-size: 12px !important;
+  }
+
+  .hero-visual {
+    order: 2 !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+    min-height: 0 !important;
+  }
+
+  .hero-orbit-a,
+  .hero-orbit-b {
+    display: none !important;
+  }
+
+  .phone-frame {
+    width: clamp(224px, 56vw, 292px) !important;
+    margin: 0 auto !important;
+    transform: none !important;
+    animation: none !important;
+    border-radius: 34px !important;
+  }
+
+  .phone-screen {
+    min-height: 470px !important;
+  }
+
+  .trust-bar {
+    padding: 14px 0 4px !important;
+  }
+
+  .trust-inner {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    justify-content: stretch !important;
+    align-items: stretch !important;
+    flex-wrap: unset !important;
+    overflow: visible !important;
+    padding-bottom: 0 !important;
+    scroll-snap-type: none !important;
+  }
+
+  .trust-item {
+    width: 100% !important;
+    min-height: 44px !important;
+    justify-content: center !important;
+    text-align: center !important;
+    white-space: normal !important;
+    line-height: 1.25 !important;
+    padding: 9px 10px !important;
+    border-radius: 12px !important;
+    flex: initial !important;
+    scroll-snap-align: none !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .hero-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  .hero-matrix {
+    grid-template-columns: 1fr !important;
+  }
+
+  .phone-frame {
+    width: clamp(214px, 70vw, 274px) !important;
+  }
+
+  .phone-screen {
+    min-height: 445px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .trust-inner {
+    grid-template-columns: 1fr !important;
+  }
+}
