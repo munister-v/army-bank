@@ -5946,3 +5946,50 @@ html.menu-open {
     inset: 2.0% 4.25% 2.75% 4.25%;
   }
 }
+
+/* ─── BOTTOM TABBAR CLIP FIX (2026-04-05) ─────────────────────────────────── */
+.phone-screen {
+  inset: 2.05% 4.35% 3.2% 4.35% !important;
+}
+
+.phone-frame::after {
+  inset: 1.95% 4.15% 3.0% 4.15%;
+}
+
+.phone-screen .ps-nav {
+  padding-top: 7px !important;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+}
+
+.phone-screen .ps-nav-item span {
+  line-height: 1.32 !important;
+}
+
+@media (max-width: 960px) {
+  .phone-screen {
+    inset: 2.05% 4.4% 3.35% 4.4% !important;
+  }
+
+  .phone-frame::after {
+    inset: 1.95% 4.2% 3.15% 4.2%;
+  }
+}
+
+@media (max-width: 560px) {
+  .phone-screen {
+    inset: 2.1% 4.45% 3.6% 4.45% !important;
+  }
+
+  .phone-frame::after {
+    inset: 2.0% 4.25% 3.35% 4.25%;
+  }
+
+  .phone-screen .ps-nav {
+    padding-top: 6px !important;
+    padding-bottom: calc(13px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .phone-screen .ps-nav-item span {
+    font-size: 6.8px !important;
+  }
+}
