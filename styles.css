@@ -6241,3 +6241,116 @@ body {
     line-height: 1.62 !important;
   }
 }
+
+/* ─── CORNER FIX + ART DIRECTION FINAL (2026-04-05) ───────────────────────── */
+body {
+  background:
+    radial-gradient(58% 42% at 12% -8%, rgba(34, 92, 70, 0.16), transparent 68%),
+    radial-gradient(46% 36% at 104% 6%, rgba(199, 154, 67, 0.16), transparent 70%),
+    radial-gradient(42% 30% at 52% 94%, rgba(41, 97, 74, 0.12), transparent 72%),
+    linear-gradient(180deg, #eff5ef 0%, #e7efe8 42%, #e4ece5 100%) !important;
+}
+
+.hero {
+  isolation: isolate;
+}
+
+.hero::before {
+  background:
+    radial-gradient(74% 54% at 16% 16%, rgba(26, 84, 62, 0.2) 0%, transparent 64%),
+    radial-gradient(56% 42% at 88% 14%, rgba(199, 154, 67, 0.2) 0%, transparent 66%),
+    radial-gradient(52% 34% at 62% 82%, rgba(48, 106, 82, 0.14) 0%, transparent 72%) !important;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(135deg, rgba(17, 39, 29, 0.03) 0 1px, transparent 1px 22px);
+  opacity: 0.42;
+  z-index: 0;
+}
+
+.hero-grid,
+.hero-content,
+.hero-visual {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-visual::before {
+  content: '';
+  position: absolute;
+  width: min(540px, 78vw);
+  aspect-ratio: 1;
+  right: 3%;
+  top: 8%;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 34% 36%, rgba(197, 151, 67, 0.25), rgba(197, 151, 67, 0.04) 55%, transparent 70%),
+    radial-gradient(circle at 68% 64%, rgba(36, 89, 68, 0.28), rgba(36, 89, 68, 0.04) 58%, transparent 76%);
+  filter: blur(16px);
+  z-index: 0;
+}
+
+.phone-frame,
+.phone-frame::before,
+.phone-frame::after {
+  background: transparent !important;
+}
+
+.phone-frame {
+  z-index: 2;
+}
+
+.phone-screen {
+  overflow: hidden !important;
+  border-radius: clamp(28px, 8.2%, 44px) !important;
+}
+
+.phone-device-frame {
+  z-index: 7;
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .hero-visual {
+    max-height: none !important;
+    overflow: visible !important;
+    margin-bottom: 6px !important;
+  }
+
+  .hero-visual::after {
+    display: none !important;
+  }
+
+  .hero-visual::before {
+    width: min(380px, 92vw);
+    right: 50%;
+    transform: translateX(50%);
+    top: 2%;
+    opacity: 0.72;
+  }
+
+  .phone-frame {
+    width: clamp(198px, 58vw, 252px) !important;
+    transform: translateY(0) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .phone-frame {
+    width: clamp(186px, 60vw, 232px) !important;
+  }
+
+  .phone-screen {
+    inset: 2.12% 4.45% 3.25% 4.45% !important;
+  }
+
+  .phone-frame::after {
+    inset: 2.0% 4.25% 3.05% 4.25% !important;
+  }
+}
