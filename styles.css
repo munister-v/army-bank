@@ -3955,3 +3955,15 @@ body.menu-open {
     min-height: 462px !important;
   }
 }
+
+/* ─── MOBILE NAV ALIGN FIX (2026-04-05) ───────────────────────────────────── */
+@media (max-width: 900px) {
+  .nav-inner {
+    justify-content: space-between !important;
+    gap: 10px !important;
+  }
+
+  .nav-burger {
+    margin-left: auto !important;
+  }
+}
