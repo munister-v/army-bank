@@ -159,20 +159,40 @@
       navbar.classList.toggle('nav-open', open);
       burger.setAttribute('aria-expanded', open ? 'true' : 'false');
       document.body.classList.toggle('menu-open', open);
+      document.documentElement.classList.toggle('menu-open', open);
     }
 
-    burger.addEventListener('click', function () {
+    burger.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
       setMenuState(!navbar.classList.contains('nav-open'));
     });
 
     // Close on link click
     if (mobileNav) {
-      mobileNav.querySelectorAll('a').forEach(function(link) {
-        link.addEventListener('click', function() {
+      mobileNav.querySelectorAll('a').forEach(function (link) {
+        link.addEventListener('click', function () {
           setMenuState(false);
         });
       });
     }
+
+    // Close on outside tap (mobile)
+    document.addEventListener('click', function (event) {
+      if (!navbar.classList.contains('nav-open')) return;
+      var tappedBurger = burger.contains(event.target);
+      var tappedMenu = mobileNav && mobileNav.contains(event.target);
+      if (!tappedBurger && !tappedMenu) {
+        setMenuState(false);
+      }
+    });
+
+    // Close on Esc
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && navbar.classList.contains('nav-open')) {
+        setMenuState(false);
+      }
+    });
 
     // Ensure menu is closed when switching to desktop layout.
     window.addEventListener('resize', function () {

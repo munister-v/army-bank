@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://army-bank.onrender.com">
   <link rel="dns-prefetch" href="https://army-bank.onrender.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=47">
+  <link rel="stylesheet" href="styles.css?v=52">
 </head>
 <body>
 
@@ -35,6 +35,7 @@
       <li><a href="#stack">Стек</a></li>
       <li><a href="https://github.com/munister-v" target="_blank" rel="noopener">GitHub</a></li>
     </ul>
+    <a href="https://army-bank.onrender.com/api-status" target="_blank" rel="noopener" class="nav-status-btn">API status</a>
     <a href="https://army-bank.onrender.com/dashboard" target="_blank" rel="noopener" class="nav-cta">Відкрити додаток</a>
     <button class="nav-burger" aria-label="Відкрити меню" aria-expanded="false" aria-controls="mobile-menu">
       <span></span><span></span><span></span>
@@ -47,6 +48,7 @@
     <a href="#api" role="menuitem">API</a>
     <a href="#stack" role="menuitem">Стек</a>
     <a href="https://github.com/munister-v" target="_blank" role="menuitem">GitHub</a>
+    <a href="https://army-bank.onrender.com/api-status" target="_blank" class="nav-mobile-status" role="menuitem">API status</a>
     <a href="https://army-bank.onrender.com/dashboard" target="_blank" class="nav-cta nav-mobile-cta" role="menuitem">Відкрити додаток</a>
   </div>
 </nav>
@@ -63,6 +65,7 @@
         <a href="https://army-bank.onrender.com/dashboard" target="_blank" class="btn-dark">Спробувати live demo</a>
         <a href="#architecture" class="btn-ghost">Як це працює</a>
       </div>
+      <a href="https://army-bank.onrender.com/api-status" target="_blank" rel="noopener" class="hero-api-link">Перевірити API status ↗</a>
       <div class="hero-matrix" aria-label="Ключові показники">
         <div class="hm-item">
           <span class="hm-k">API methods</span>
@@ -80,6 +83,9 @@
           <span class="hm-k">roles</span>
           <strong>4</strong>
         </div>
+      </div>
+      <div class="hero-proof" aria-label="Ключові технічні сигнали">
+        <span>PIN + Bearer Auth</span><span>PWA offline</span><span>ECDSA документообіг</span>
       </div>
       <p class="hero-meta">Оглядовий блок показує ключові характеристики платформи: архітектуру, ролі доступу, модулі, стек і робочі сценарії використання.</p>
     </div>
@@ -213,6 +219,7 @@
           </div>
 
         </div>
+        <img class="phone-device-frame" src="assets/apple-iphone-15-2023-medium-clean.png" alt="" aria-hidden="true">
       </div>
     </div>
   </div>
@@ -914,6 +921,10 @@
             <span class="cred-val cred-copyable" data-copy="https://army-bank.onrender.com/api">https://army-bank.onrender.com/api</span>
           </div>
           <div class="cred-row">
+            <span class="cred-key">API status</span>
+            <span class="cred-val cred-copyable" data-copy="https://army-bank.onrender.com/api-status">https://army-bank.onrender.com/api-status</span>
+          </div>
+          <div class="cred-row">
             <span class="cred-key">Login</span>
             <span class="cred-val">за запитом / власний акаунт</span>
           </div>
@@ -922,7 +933,10 @@
             <span class="cred-val">не публікується</span>
           </div>
         </div>
-        <a href="https://army-bank.onrender.com/dashboard" target="_blank" class="btn-dark cta-spaced">Відкрити платформу</a>
+        <div class="dev-ctas">
+          <a href="https://army-bank.onrender.com/dashboard" target="_blank" class="btn-dark cta-spaced">Відкрити платформу</a>
+          <a href="https://army-bank.onrender.com/api-status" target="_blank" class="btn-ghost cta-spaced cta-status">API status</a>
+        </div>
         <p class="dev-note">Free tier Render — перший запуск ~30 сек</p>
       </div>
       <div class="dev-code">
@@ -1102,6 +1116,6 @@ curl -sS -X POST https://army-bank.onrender.com/api/transactions/transfer \
   </div>
 </footer>
 
-<script src="app.js?v=28" defer></script>
+<script src="app.js?v=30" defer></script>
 </body>
 </html>
