@@ -6444,3 +6444,114 @@ body {
     border-radius: 25px !important;
   }
 }
+
+/* ─── PHONE PARITY + MOBILE 30-40% TEASER (2026-04-05) ───────────────────── */
+.phone-frame {
+  border: 1px solid rgba(165, 174, 168, 0.44) !important;
+  background: linear-gradient(180deg, #262b30 0%, #11161b 100%) !important;
+  box-shadow:
+    0 30px 68px rgba(8, 20, 15, 0.3),
+    0 10px 22px rgba(8, 18, 14, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.28) !important;
+}
+
+.phone-frame::before {
+  content: '' !important;
+  display: block !important;
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(235, 242, 236, 0.18), rgba(255, 255, 255, 0) 30%);
+  z-index: 1;
+}
+
+.phone-screen {
+  border-radius: 29px !important;
+  box-shadow: inset 0 0 0 1px rgba(12, 26, 20, 0.12) !important;
+}
+
+.phone-notch {
+  display: block !important;
+  position: absolute !important;
+  top: 11px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 122px !important;
+  height: 30px !important;
+  border-radius: 18px !important;
+  background: linear-gradient(180deg, #05090d 0%, #0a0f14 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 0 rgba(0,0,0,0.45) !important;
+  z-index: 3 !important;
+  margin: 0 !important;
+}
+
+.phone-notch::after {
+  content: '' !important;
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(69, 108, 180, 0.95), rgba(19, 38, 74, 0.9) 58%, #0a1224 100%);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+}
+
+@media (max-width: 900px) {
+  .hero-visual {
+    max-height: clamp(214px, 36vh, 304px) !important;
+    overflow: hidden !important;
+    align-items: flex-start !important;
+    margin-bottom: 2px !important;
+  }
+
+  .hero-visual::after {
+    content: '' !important;
+    display: block !important;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: clamp(48px, 12vh, 96px);
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(233, 241, 234, 0) 0%, rgba(233, 241, 234, 0.88) 72%, rgba(233, 241, 234, 1) 100%);
+    z-index: 6;
+  }
+
+  .phone-frame {
+    width: clamp(184px, 54vw, 234px) !important;
+    padding: 8px !important;
+    border-radius: 34px !important;
+  }
+
+  .phone-screen {
+    border-radius: 24px !important;
+  }
+
+  .phone-notch {
+    top: 9px !important;
+    width: 92px !important;
+    height: 22px !important;
+    border-radius: 13px !important;
+  }
+
+  .phone-notch::after {
+    width: 7px;
+    height: 7px;
+    right: 10px;
+  }
+}
+
+@media (max-width: 560px) {
+  .hero-visual {
+    max-height: clamp(196px, 34vh, 260px) !important;
+  }
+
+  .phone-frame {
+    width: clamp(172px, 56vw, 214px) !important;
+    border-radius: 32px !important;
+  }
+}
