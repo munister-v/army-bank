@@ -5850,3 +5850,59 @@ html.menu-open {
     font-size: 6.9px !important;
   }
 }
+
+/* ─── MOBILE HERO COMPACT PHONE TEASER (2026-04-05) ───────────────────────── */
+@media (max-width: 900px) {
+  .hero-grid {
+    gap: 12px !important;
+  }
+
+  .hero-visual {
+    order: 1 !important;
+    position: relative;
+    min-height: 0 !important;
+    max-height: clamp(220px, 38vh, 300px) !important;
+    overflow: hidden !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    margin-bottom: 2px !important;
+  }
+
+  .hero-visual::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: clamp(54px, 13vh, 110px);
+    background: linear-gradient(180deg, rgba(239, 246, 241, 0) 0%, rgba(239, 246, 241, 0.95) 70%, rgba(239, 246, 241, 1) 100%);
+    pointer-events: none;
+    z-index: 8;
+  }
+
+  .phone-frame {
+    width: clamp(244px, 78vw, 332px) !important;
+    transform: translateY(-4%) !important;
+    margin: 0 auto !important;
+  }
+
+  .hero-content {
+    order: 2 !important;
+    margin-top: 0 !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .hero-visual {
+    max-height: clamp(206px, 36vh, 272px) !important;
+  }
+
+  .hero-visual::after {
+    height: clamp(48px, 12vh, 92px);
+  }
+
+  .phone-frame {
+    width: clamp(238px, 80vw, 312px) !important;
+    transform: translateY(-6%) !important;
+  }
+}
