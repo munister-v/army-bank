@@ -5799,3 +5799,54 @@ html.menu-open {
     inset: 1.9% 4.5% 2.0% 4.8%;
   }
 }
+
+/* ─── PHONE EDGE + BOTTOM NAV SAFE-FIT HOTFIX (2026-04-05) ────────────────── */
+.phone-screen {
+  inset: 2.05% 4.95% 2.65% 5.2% !important;
+}
+
+.phone-frame::after {
+  inset: 1.95% 4.75% 2.45% 5.0%;
+}
+
+.phone-screen .ps-nav {
+  padding: 7px 10px calc(11px + env(safe-area-inset-bottom)) !important;
+}
+
+.phone-screen .ps-nav-item {
+  min-width: 0;
+}
+
+.phone-screen .ps-nav-item span {
+  display: block;
+  line-height: 1.24 !important;
+  white-space: nowrap;
+}
+
+@media (max-width: 960px) {
+  .phone-screen {
+    inset: 2.05% 5.0% 2.75% 5.25% !important;
+  }
+
+  .phone-frame::after {
+    inset: 1.95% 4.8% 2.55% 5.05%;
+  }
+}
+
+@media (max-width: 560px) {
+  .phone-screen {
+    inset: 2.1% 5.1% 2.95% 5.35% !important;
+  }
+
+  .phone-frame::after {
+    inset: 2.0% 4.9% 2.75% 5.15%;
+  }
+
+  .phone-screen .ps-nav {
+    padding: 6px 9px calc(11px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .phone-screen .ps-nav-item span {
+    font-size: 6.9px !important;
+  }
+}
