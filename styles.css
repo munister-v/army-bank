@@ -5906,3 +5906,43 @@ html.menu-open {
     transform: translateY(-6%) !important;
   }
 }
+
+/* ─── IPHONE SCREEN SIDE GUTTERS FIX (2026-04-05) ─────────────────────────── */
+.phone-screen {
+  inset: 2.05% 4.35% 2.65% 4.35% !important;
+  padding: 0 !important;
+}
+
+.phone-frame::after {
+  inset: 1.95% 4.15% 2.45% 4.15%;
+}
+
+.phone-screen > .ps-hdr,
+.phone-screen > .ps-body,
+.phone-screen > .ps-nav {
+  width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+@media (max-width: 960px) {
+  .phone-screen {
+    inset: 2.05% 4.4% 2.75% 4.4% !important;
+    padding: 0 !important;
+  }
+
+  .phone-frame::after {
+    inset: 1.95% 4.2% 2.55% 4.2%;
+  }
+}
+
+@media (max-width: 560px) {
+  .phone-screen {
+    inset: 2.1% 4.45% 2.95% 4.45% !important;
+    padding: 0 !important;
+  }
+
+  .phone-frame::after {
+    inset: 2.0% 4.25% 2.75% 4.25%;
+  }
+}
