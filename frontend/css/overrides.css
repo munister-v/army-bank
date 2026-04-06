@@ -32,10 +32,6 @@
   --mono-border-strong: #ccd6c8;
   --mono-focus-ring: 0 0 0 3px rgba(70, 102, 74, 0.22);
 
-  /* Font variables — override styles.css defaults to match loaded fonts */
-  --font-ui:   'Manrope', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
-
   /* Legacy tokens remapped to the light military palette for fallback components */
   --bg: var(--mono-bg);
   --surface: var(--mono-surface);
@@ -136,8 +132,8 @@ body {
 }
 
 .field input:focus {
-  border-color: #92abe4 !important;
-  box-shadow: 0 0 0 3px rgba(54, 105, 215, 0.12) !important;
+  border-color: rgba(47, 74, 55, 0.55) !important;
+  box-shadow: var(--mono-focus-ring) !important;
 }
 
 .field label {
@@ -145,11 +141,7 @@ body {
 }
 
 .auth-submit {
-  background: #ef5d67 !important;
   border-radius: 14px !important;
-  color: #ffffff !important;
-  font-size: 14px !important;
-  letter-spacing: 0.04em !important;
 }
 
 .auth-forgot button {
@@ -646,11 +638,10 @@ body {
 }
 .bank-card-cvv-value {
   font-size: 15px !important;
-  font-weight: 700 !important;
+  font-weight: 900 !important;
   color: #111 !important;
   letter-spacing: 0.14em !important;
   font-variant-numeric: tabular-nums !important;
-  font-feature-settings: "tnum" !important;
   line-height: 1.15 !important;
 }
 .bank-card-cvv-value.bc-loading {
@@ -882,7 +873,6 @@ body {
 .amount,
 .item-amount {
   font-weight: 700 !important;
-  font-feature-settings: "tnum" !important;
 }
 
 .amount.in,
@@ -1240,7 +1230,8 @@ textarea:focus,
   border-radius: 14px !important;
   min-height: 46px !important;
   font-size: 15px !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
   transition: transform var(--mono-motion-fast) ease, background var(--mono-motion-fast) ease, box-shadow var(--mono-motion-fast) ease !important;
 }
 
@@ -1251,7 +1242,7 @@ textarea:focus,
   border-radius: 12px !important;
   min-height: 44px !important;
   font-size: 14px !important;
-  font-weight: 600 !important;
+  font-weight: 650 !important;
   transition: transform var(--mono-motion-fast) ease, background var(--mono-motion-fast) ease, border-color var(--mono-motion-fast) ease, color var(--mono-motion-fast) ease !important;
 }
 
@@ -1265,7 +1256,8 @@ textarea:focus,
 .btn-primary:active,
 .auth-submit:active,
 .btn-ghost:active {
-  transform: scale(0.98) !important;
+  transform: scale(0.96) !important;
+  box-shadow: none !important;
 }
 
 .btn-ghost:hover {
@@ -1728,9 +1720,8 @@ textarea:focus,
 
 .forecast-balance {
   font-size: 16px !important;
-  font-weight: 700 !important;
+  font-weight: 800 !important;
   letter-spacing: -0.02em !important;
-  font-feature-settings: "tnum" !important;
 }
 
 .forecast-balance.up {
@@ -2562,13 +2553,13 @@ textarea:focus,
 .nav-item.active,
 .nav-link.active,
 .menu-btn.active {
-  color: var(--mono-danger) !important;
+  color: var(--mono-blue-top) !important;
   background: transparent !important;
 }
 
 .nav-item:active,
 .menu-btn:active {
-  transform: translateY(1px) !important;
+  transform: scale(0.88) !important;
 }
 
 .nav-item:focus-visible,
@@ -2587,13 +2578,13 @@ textarea:focus,
   width: 20px !important;
   height: 3px !important;
   border-radius: 999px !important;
-  background: var(--mono-danger) !important;
+  background: var(--mono-blue-top) !important;
 }
 
 .nav-item.active svg,
 .nav-link.active svg,
 .menu-btn.active svg {
-  stroke: var(--mono-danger) !important;
+  stroke: var(--mono-blue-top) !important;
 }
 
 .screen.active-screen > .section-header-row,
@@ -2676,7 +2667,6 @@ textarea:focus,
   font-weight: 800 !important;
   letter-spacing: -.04em !important;
   line-height: 1 !important;
-  font-feature-settings: "tnum" !important;
   background: linear-gradient(135deg, #fff 60%, rgba(255,255,255,.6)) !important;
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
@@ -2763,9 +2753,8 @@ textarea:focus,
 }
 .ms-value {
   font-size: 14px !important;
-  font-weight: 700 !important;
+  font-weight: 800 !important;
   letter-spacing: -.02em !important;
-  font-feature-settings: "tnum" !important;
 }
 .ms-item.green .ms-value { color: #4ade80 !important; }
 .ms-item.red .ms-value   { color: #f87171 !important; }
@@ -3084,7 +3073,7 @@ body {
   padding: 14px 16px;
   border-radius: 12px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 650;
   cursor: pointer;
   border: none;
   transition: opacity .15s, transform .1s;
@@ -3673,41 +3662,3 @@ a:focus-visible {
   animation: spin .6s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-
-/* ── Mobile nav hotfix (iOS) ───────────────────────────────────────────── */
-@media (max-width: 767px) {
-  .bottom-nav {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-around !important;
-    gap: 0 !important;
-    overflow: hidden !important;
-  }
-
-  .bottom-nav .nav-hidden-mobile {
-    display: none !important;
-  }
-
-  .bottom-nav .nav-more-btn {
-    display: flex !important;
-  }
-
-  .more-sheet-grid {
-    display: grid !important;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    gap: 12px !important;
-  }
-
-  .more-sheet-item {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    min-height: 0 !important;
-    padding: 0 !important;
-  }
-}
-
-@media (min-width: 768px) {
-  .bottom-nav .nav-hidden-mobile {
-    display: flex !important;
