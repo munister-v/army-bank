@@ -29,10 +29,10 @@
     #authScreen.hidden{display:none!important}
   </style>
   <!-- overrides.css синхронно — це активна тема, блокуємо перший рендер щоб не блімало -->
-  <link rel="stylesheet" href="/css/overrides.css?v=41">
-  <!-- styles.css async — базові стилі, всі перекриті !important в overrides.css -->
-  <link rel="stylesheet" href="/css/styles.css?v=7" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/styles.css?v=7"></noscript>
+  <link rel="stylesheet" href="/css/overrides.css?v=42">
+  <!-- styles.css sync — прибрано async, щоб не було блімання на старті -->
+  <link rel="stylesheet" href="/css/styles.css?v=8">
+  <noscript><link rel="stylesheet" href="/css/styles.css?v=8"></noscript>
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js" as="script">
   <link rel="preload" href="/js/app.js" as="script">
