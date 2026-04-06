@@ -3689,3 +3689,125 @@ a:focus-visible {
   color: #fca5a5 !important;
   border-color: rgba(248,113,113,.20) !important;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   MODERN VISUAL REFRESH — v1
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── App body: subtle noise texture on background ─── */
+body {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E") !important;
+  background-size: 200px 200px !important;
+  background-repeat: repeat !important;
+}
+
+/* ── Header: richer gradient + mesh glow ────────────── */
+.app-header {
+  background:
+    radial-gradient(ellipse 80% 60% at 15% -20%, rgba(255,255,255,.18) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 80% at 90% 110%, rgba(47,74,55,.6) 0%, transparent 60%),
+    linear-gradient(160deg, #1e3828 0%, #2f4a37 35%, #3d5e45 65%, #8aaa88 100%) !important;
+}
+
+/* ── Balance label: more stylish ───────────────────── */
+.balance-label {
+  font-size: 11px !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  color: rgba(255,255,255,.65) !important;
+  font-weight: 500 !important;
+}
+
+/* ── Quick actions: force single row, compact ──────── */
+#dashboard .quick-actions,
+.quick-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  display: grid !important;
+  gap: 6px !important;
+}
+#dashboard .qa-btn,
+.qa-btn {
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  padding: 10px 4px 8px !important;
+  gap: 5px !important;
+  border-radius: 16px !important;
+  min-height: 64px !important;
+}
+#dashboard .qa-icon,
+.qa-icon {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 10px !important;
+}
+#dashboard .qa-label,
+.qa-label {
+  font-size: 9.5px !important;
+  letter-spacing: 0 !important;
+  line-height: 1.25 !important;
+  text-transform: none !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  text-align: center !important;
+  width: 100% !important;
+  overflow: hidden !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  color: rgba(20,26,21,.75) !important;
+}
+
+/* ── Dashboard cards: gradient surface ─────────────── */
+#dashboard .card,
+#recentTransactionsCard {
+  background: linear-gradient(160deg, #ffffff 0%, #f6faf4 100%) !important;
+  border: 1px solid rgba(32, 54, 38, 0.07) !important;
+  box-shadow: 0 1px 3px rgba(17,25,18,.05), 0 4px 16px rgba(17,25,18,.06) !important;
+  border-radius: 22px !important;
+}
+
+/* ── "Операції" card head ───────────────────────────── */
+#recentTransactionsCard .card-head h3 {
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: #141a15 !important;
+}
+
+/* ── All section titles ─────────────────────────────── */
+.screen > .section-title,
+h2.section-title,
+h3.section-title,
+.card-head h3 {
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* ── "Усі" link button ─────────────────────────────── */
+#recentTransactionsCard .card-head .btn-ghost,
+.card-head .btn-ghost {
+  background: rgba(47,74,55,.08) !important;
+  border: none !important;
+  color: var(--mono-blue-top) !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  border-radius: 20px !important;
+  padding: 4px 12px !important;
+  min-height: unset !important;
+}
+
+/* ── Bottom nav: pill active highlight ─────────────── */
+.nav-item.active {
+  background: rgba(47, 74, 55, 0.10) !important;
+  border-radius: 14px !important;
+}
+
+/* ── Auth screen: richer gradient ─────────────────── */
+.auth-screen {
+  background:
+    radial-gradient(ellipse 100% 60% at 50% 0%, rgba(120,150,255,.25) 0%, transparent 60%),
+    linear-gradient(180deg, #1e3870 0%, #274fb5 40%, #4a72d4 75%, #7da0df 100%) !important;
+}
