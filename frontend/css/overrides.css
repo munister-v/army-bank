@@ -4054,3 +4054,299 @@ button.btn-ghost:last-child {
 ::-webkit-scrollbar-track { background: transparent !important; }
 ::-webkit-scrollbar-thumb { background: rgba(47,74,55,.25) !important; border-radius: 99px !important; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(47,74,55,.45) !important; }
+
+/* ══════════════════════════════════════════════════════
+   ROUND 3 — ще дрібніші деталі
+   ══════════════════════════════════════════════════════ */
+
+/* 1. Аватар — повне коло + градієнт */
+.avatar,
+#userAvatar {
+  border-radius: 999px !important;
+  background: linear-gradient(145deg, #3d6b4a 0%, #2f4a37 60%, #1e3828 100%) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: .04em !important;
+  color: rgba(255,255,255,.92) !important;
+  box-shadow: 0 2px 8px rgba(20,40,25,.25) !important;
+}
+
+/* 2. Точки навігації карток — тонкі / активна — виражена */
+.bc-dot {
+  width: 6px !important;
+  height: 6px !important;
+  background: rgba(255,255,255,.35) !important;
+  border-radius: 999px !important;
+  transition: width .2s ease, background .2s ease !important;
+}
+.bc-dot.active {
+  width: 20px !important;
+  background: rgba(255,255,255,.92) !important;
+}
+
+/* 3. Результат конвертера — помітний дисплей */
+.conv-result {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #1e3828 !important;
+  background: rgba(47,74,55,.08) !important;
+  border: 1px solid rgba(47,74,55,.14) !important;
+  border-radius: 12px !important;
+  padding: 10px 16px !important;
+  text-align: center !important;
+  letter-spacing: -.01em !important;
+  font-feature-settings: "tnum" !important;
+}
+
+/* 4. Рядки курсів валют — сепаратори + вирівнювання */
+.rate-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 11px 0 !important;
+  border-bottom: 1px solid rgba(20,26,21,.06) !important;
+}
+.rate-item:last-child { border-bottom: none !important; }
+.rate-flag { font-size: 18px !important; line-height: 1 !important; }
+.rate-code {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #253b2c !important;
+  letter-spacing: .02em !important;
+  flex: 1 !important;
+}
+.rate-val {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #141a15 !important;
+  font-feature-settings: "tnum" !important;
+  letter-spacing: -.01em !important;
+}
+
+/* 5. ms-item — розрізняти прихід / витрати кольором фону */
+.ms-item.green {
+  background: rgba(34,163,80,.08) !important;
+  border-color: rgba(34,163,80,.18) !important;
+}
+.ms-item.red {
+  background: rgba(220,60,60,.07) !important;
+  border-color: rgba(220,60,60,.15) !important;
+}
+/* Менш кричущі кольори значень */
+.ms-item.green .ms-value { color: #1a7d3a !important; }
+.ms-item.red   .ms-value { color: #c0392b !important; }
+.ms-item.green .ms-label svg { stroke: #22a350 !important; }
+.ms-item.red   .ms-label svg { stroke: #c0392b !important; }
+
+/* 6. Рядки налаштувань профілю — сепаратори */
+.setting-row {
+  padding: 14px 0 !important;
+  border-bottom: 1px solid rgba(20,26,21,.06) !important;
+}
+.setting-row:last-child { border-bottom: none !important; }
+.setting-label {
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  color: #141a15 !important;
+}
+.setting-desc {
+  font-size: 12px !important;
+  color: #5a7060 !important;
+  margin-top: 2px !important;
+  line-height: 1.4 !important;
+}
+
+/* 7. Швидкі посилання профілю — зелений відтінок (висока специфічність) */
+#profile .profile-link-btn,
+.profile-links-grid .profile-link-btn {
+  background: rgba(47,74,55,.06) !important;
+  border: 1px solid rgba(47,74,55,.14) !important;
+  border-radius: 14px !important;
+  color: #1a3024 !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  padding: 13px 12px !important;
+  transition: background .15s !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+#profile .profile-link-btn:hover,
+.profile-links-grid .profile-link-btn:hover {
+  background: rgba(47,74,55,.12) !important;
+  border-color: rgba(47,74,55,.22) !important;
+}
+/* Вийти — небезпечна дія */
+#profileLogoutBtn {
+  background: rgba(180,30,30,.06) !important;
+  border-color: rgba(180,30,30,.18) !important;
+  color: #9b2020 !important;
+  font-weight: 700 !important;
+}
+#profileLogoutBtn:hover {
+  background: rgba(180,30,30,.11) !important;
+}
+
+/* 8. Заголовки секцій профілю — чіткіша типографіка */
+.card-head h3 {
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  letter-spacing: -.02em !important;
+  color: #111814 !important;
+}
+#profile .card-head h3 {
+  font-size: 18px !important;
+  letter-spacing: -.025em !important;
+}
+
+/* 9. Значок рахунку — рядок балансу */
+.balance-account-row,
+[class*="account-row"],
+.header-account {
+  font-size: 12px !important;
+  opacity: .65 !important;
+  letter-spacing: .01em !important;
+}
+
+/* 10. conv-select — акуратні дропдауни */
+.conv-select {
+  background: rgba(47,74,55,.06) !important;
+  border: 1px solid rgba(47,74,55,.16) !important;
+  border-radius: 12px !important;
+  color: #1e3828 !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  padding: 8px 10px !important;
+  cursor: pointer !important;
+  appearance: auto !important;
+}
+
+/* 11. Input полів — уніфікована висота + фокус */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  min-height: 48px !important;
+}
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus {
+  border-color: rgba(47,74,55,.5) !important;
+  box-shadow: 0 0 0 3px rgba(47,74,55,.1) !important;
+  outline: none !important;
+}
+
+/* 12. Карткові дії — spacing між картками дашборду */
+#dashboard .card + .card,
+#dashboard .ms-grid + .card {
+  margin-top: 0 !important;
+}
+#dashboard > * + * {
+  margin-top: 0 !important;
+}
+
+/* 13. Budget progress bar — якщо є */
+[class*="budget-bar"], [class*="progress-bar"] {
+  background: rgba(47,74,55,.1) !important;
+  border-radius: 99px !important;
+  overflow: hidden !important;
+}
+[class*="budget-bar"] > *, [class*="progress-bar"] > * {
+  background: linear-gradient(90deg, #2f4a37, #3d6b4a) !important;
+  border-radius: 99px !important;
+  transition: width .4s ease !important;
+}
+
+/* ── Додаткові дрібниці ────────────────────────────── */
+
+/* "ВИДАЛИТИ PIN" — небезпечна дія → червоний стиль */
+#pinCard .btn-ghost.btn-sm,
+#pinStatusCard .btn-ghost.btn-sm,
+[id*="pin"] .btn-ghost.btn-sm[style*="color"],
+[id*="Pin"] .btn-ghost.btn-sm {
+  background: rgba(180,30,30,.07) !important;
+  border-color: rgba(180,30,30,.22) !important;
+  color: #9b2020 !important;
+  font-size: 11px !important;
+  letter-spacing: .08em !important;
+}
+
+/* Акордеон-секції профілю — чистіший вигляд */
+.card .card-head[role="button"],
+.card .card-head.collapsible,
+[class*="accordion"] .card-head {
+  cursor: pointer !important;
+  user-select: none !important;
+  border-radius: 12px !important;
+  transition: background .15s !important;
+}
+.card .card-head[role="button"]:hover,
+.card .card-head.collapsible:hover {
+  background: rgba(47,74,55,.04) !important;
+}
+
+/* Іконки в швидких посиланнях — зелені */
+.profile-link-btn svg,
+.profile-links-grid svg {
+  stroke: #2f4a37 !important;
+  flex-shrink: 0 !important;
+  opacity: .8 !important;
+}
+#profileLogoutBtn svg { stroke: #9b2020 !important; opacity: 1 !important; }
+
+/* Лейбл "ЗАГАЛЬНИЙ БАЛАНС" — акуратніший */
+.balance-label {
+  font-size: 10px !important;
+  letter-spacing: .10em !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  opacity: .72 !important;
+}
+
+/* Рядок рахунку під балансом */
+#headerAccount,
+.header-account-row,
+[id*="accountDisplay"] {
+  font-size: 12px !important;
+  font-feature-settings: "tnum" !important;
+  opacity: .6 !important;
+  letter-spacing: .02em !important;
+}
+
+/* Кнопки дій в хедері — рівніший розмір */
+.header-actions button,
+.app-header .icon-btn {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background .15s !important;
+}
+.header-actions button:hover,
+.app-header .icon-btn:hover {
+  background: rgba(255,255,255,.15) !important;
+}
+
+/* Copy-кнопка біля рахунку */
+.copy-btn {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(255,255,255,.18) !important;
+  border: 1px solid rgba(255,255,255,.22) !important;
+  transition: background .15s !important;
+}
+.copy-btn:hover { background: rgba(255,255,255,.28) !important; }
+.copy-btn svg { stroke: rgba(255,255,255,.85) !important; }
+
+/* Картка з балансом у хедері — рівніші відступи */
+.balance-block {
+  padding: 4px 0 16px !important;
+}
+.balance-amount {
+  font-size: 38px !important;
+  line-height: 1.05 !important;
+}
