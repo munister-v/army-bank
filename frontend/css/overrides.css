@@ -17,8 +17,8 @@
   --mono-danger: #f25461;
   --mono-success: #1fa055;
   --mono-ink: #1f2b22;
-  --mono-shadow: 0 12px 30px rgba(17, 25, 40, 0.12);
-  --mono-card-shadow: 0 14px 28px rgba(17, 25, 40, 0.16);
+  --mono-shadow: 0 2px 8px rgba(17, 25, 40, 0.07), 0 1px 2px rgba(17, 25, 40, 0.04);
+  --mono-card-shadow: 0 4px 16px rgba(17, 25, 40, 0.09), 0 1px 3px rgba(17, 25, 40, 0.05);
   --mono-radius-xl: 28px;
   --mono-radius-lg: 22px;
   --mono-radius-md: 16px;
@@ -102,12 +102,12 @@ body {
 }
 
 .auth-card {
-  background: rgba(255, 255, 255, 0.96) !important;
-  border: none !important;
-  border-radius: var(--mono-radius-lg) !important;
-  box-shadow: 0 24px 48px rgba(15, 30, 66, 0.22) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+  background: rgba(255, 255, 255, 0.97) !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 32px rgba(15, 30, 66, 0.16), 0 2px 8px rgba(15, 30, 66, 0.08) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
 }
 
 .auth-tab {
@@ -702,19 +702,20 @@ body {
   width: 50px !important;
   height: 50px !important;
   border-radius: 50% !important;
-  background: #202c24 !important;
+  background: #ffffff !important;
   border: none !important;
-  color: #eef4e7 !important;
-  box-shadow: 0 8px 20px rgba(16, 24, 20, 0.24) !important;
-  transition: transform var(--mono-motion-fast) ease, background var(--mono-motion-fast) ease !important;
+  color: var(--mono-blue-top) !important;
+  box-shadow: 0 2px 8px rgba(16, 24, 20, 0.10), 0 1px 2px rgba(16, 24, 20, 0.06) !important;
+  transition: transform var(--mono-motion-fast) ease, box-shadow var(--mono-motion-fast) ease !important;
 }
 
 .qa-btn:hover .qa-icon {
-  background: #1a241d !important;
+  box-shadow: 0 4px 14px rgba(16, 24, 20, 0.14), 0 1px 3px rgba(16, 24, 20, 0.08) !important;
 }
 
 .qa-btn:active .qa-icon {
-  transform: scale(0.95) translateY(1px) !important;
+  transform: scale(0.92) !important;
+  box-shadow: 0 1px 3px rgba(16, 24, 20, 0.08) !important;
 }
 
 .qa-btn:focus-visible {
@@ -2693,30 +2694,30 @@ textarea:focus,
   gap: 6px !important;
   padding: 13px 6px !important;
   border-radius: 18px !important;
-  background: rgba(255,255,255,.13) !important;
-  border: 1px solid rgba(255,255,255,.18) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+  background: rgba(255,255,255,.16) !important;
+  border: 1px solid rgba(255,255,255,.22) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
   transition: background .15s, transform .12s !important;
 }
 .qa-btn:active {
-  transform: scale(.94) !important;
-  background: rgba(255,255,255,.14) !important;
+  transform: scale(.93) !important;
+  background: rgba(255,255,255,.12) !important;
 }
 .qa-icon {
   width: 38px !important;
   height: 38px !important;
   border-radius: 12px !important;
-  background: rgba(255,255,255,.18) !important;
+  background: rgba(255,255,255,.24) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
 }
 .qa-label {
   font-size: 11px !important;
-  font-weight: 700 !important;
-  letter-spacing: .03em !important;
-  color: rgba(255,255,255,.92) !important;
+  font-weight: 600 !important;
+  letter-spacing: .04em !important;
+  color: rgba(255,255,255,.95) !important;
   text-transform: uppercase !important;
 }
 
