@@ -3811,3 +3811,246 @@ h3.section-title,
     radial-gradient(ellipse 100% 60% at 50% 0%, rgba(120,150,255,.25) 0%, transparent 60%),
     linear-gradient(180deg, #1e3870 0%, #274fb5 40%, #4a72d4 75%, #7da0df 100%) !important;
 }
+
+/* ══════════════════════════════════════════════════════
+   DETAIL POLISH — мікро-покращення по всіх екранах
+   ══════════════════════════════════════════════════════ */
+
+/* 1. Auth — активний таб: червоний → військово-зелений */
+.auth-tab.active {
+  color: #1a3024 !important;
+  border-bottom-color: #2f4a37 !important;
+}
+.auth-tab {
+  font-weight: 500 !important;
+  letter-spacing: .01em !important;
+  padding-bottom: 10px !important;
+  transition: color .15s, border-color .15s !important;
+}
+
+/* 2. Auth — картка форми: трохи м'якша тінь + radius */
+.auth-card {
+  border-radius: 24px !important;
+  box-shadow: 0 8px 40px rgba(10,20,60,.18), 0 2px 8px rgba(10,20,60,.10) !important;
+}
+
+/* 3. Auth — логотип: рамка → без рамки, чистий */
+.auth-logo-box,
+[class*="auth-logo"] {
+  border: none !important;
+  background: rgba(255,255,255,.15) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border-radius: 18px !important;
+}
+
+/* 4. Toggle — зелений коли увімкнено (замість синього) */
+.toggle-switch input:checked + .toggle-knob {
+  background: #3a6647 !important;
+  border-color: #2f5438 !important;
+}
+
+/* 5. Іконки секцій профілю — blue/purple → зелені тони */
+.card-icon-wrap.blue {
+  background: rgba(47,74,55,.11) !important;
+  color: #2f4a37 !important;
+}
+.card-icon-wrap.blue svg {
+  stroke: #2f4a37 !important;
+  color: #2f4a37 !important;
+}
+.card-icon-wrap.purple {
+  background: rgba(47,74,55,.08) !important;
+  color: #2f4a37 !important;
+}
+.card-icon-wrap.purple svg {
+  stroke: #2f4a37 !important;
+  color: #2f4a37 !important;
+}
+
+/* 6. Фільтр-чіпи операцій — активний стан зелений */
+.tx-qf-chip {
+  border-radius: 20px !important;
+  font-weight: 500 !important;
+  letter-spacing: .01em !important;
+}
+.tx-qf-chip.active {
+  background: rgba(47,74,55,.12) !important;
+  border-color: rgba(47,74,55,.28) !important;
+  color: #1a3024 !important;
+  font-weight: 600 !important;
+}
+.tx-qf-chip:hover {
+  background: rgba(47,74,55,.07) !important;
+  border-color: rgba(47,74,55,.18) !important;
+  color: #253b2c !important;
+}
+
+/* 7. Застосувати — помітна кнопка (заповнена зелена) */
+#transactions form > .btn-ghost,
+#transactionsFilterForm .btn-ghost,
+#transactions .btn-ghost[type="submit"],
+button.btn-ghost:last-child {
+  background: #2f4a37 !important;
+  border-color: #2f4a37 !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  letter-spacing: .06em !important;
+}
+#transactions form > .btn-ghost:hover,
+#transactions .btn-ghost[type="submit"]:hover {
+  background: #3d5e45 !important;
+  border-color: #3d5e45 !important;
+}
+
+/* 8. PDF / CSV кнопки — зелений відтінок */
+#transactions .btn-ghost.btn-sm {
+  background: rgba(47,74,55,.07) !important;
+  border-color: rgba(47,74,55,.2) !important;
+  color: #2a4030 !important;
+  font-weight: 600 !important;
+}
+#transactions .btn-ghost.btn-sm:hover {
+  background: rgba(47,74,55,.14) !important;
+  border-color: rgba(47,74,55,.3) !important;
+}
+
+/* 9. Заголовки сторінок — гострі та впевнені */
+.section-title,
+#transactions .section-title,
+#cards .section-title,
+#profile .section-title,
+#savings .section-title,
+#analytics .section-title {
+  font-size: 26px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em !important;
+  color: #111814 !important;
+  line-height: 1.1 !important;
+}
+.section-header-row {
+  align-items: center !important;
+  padding: 6px 0 10px !important;
+}
+
+/* 10. Рядки профілю — тонкі роздільники */
+.profile-info-row {
+  padding: 13px 0 !important;
+  border-bottom: 1px solid rgba(20,26,21,.065) !important;
+}
+.profile-info-row:last-child {
+  border-bottom: none !important;
+}
+.profile-info-row dt {
+  font-size: 10.5px !important;
+  letter-spacing: .07em !important;
+  font-weight: 600 !important;
+  color: #4a5e52 !important;
+  text-transform: uppercase !important;
+  margin-bottom: 2px !important;
+}
+.profile-info-row dd {
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  color: #141a15 !important;
+}
+
+/* 11. Порожній стан — зрозумілий + розставлений */
+.empty-state {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  padding: 40px 20px !important;
+  color: #5a7060 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  border-radius: 16px !important;
+  background: rgba(47,74,55,.03) !important;
+  border: 1.5px dashed rgba(47,74,55,.15) !important;
+}
+
+/* 12. Мс-стата — чистіший вигляд */
+.ms-item {
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+}
+.ms-label {
+  font-size: 10px !important;
+  letter-spacing: .07em !important;
+  font-weight: 600 !important;
+  color: #4a5e52 !important;
+  text-transform: uppercase !important;
+  margin-bottom: 4px !important;
+}
+.ms-value {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* 13. Bottom nav — активна іконка та текст зелені */
+.nav-item.active svg {
+  stroke: var(--mono-blue-top) !important;
+  color: var(--mono-blue-top) !important;
+}
+.nav-item.active .nav-label {
+  color: var(--mono-blue-top) !important;
+  font-weight: 700 !important;
+}
+.nav-item {
+  border-radius: 14px !important;
+  transition: background .15s !important;
+}
+
+/* 14. Кнопка "Випустити картку" — зелена рамка */
+#cards .btn-ghost,
+[id*="issue"], [id*="Issue"] {
+  border-color: rgba(47,74,55,.25) !important;
+  color: #2a4030 !important;
+  font-weight: 600 !important;
+}
+
+/* 15. Заголовок хедера: subtitle "Завантаження..." */
+.header-subtitle,
+.app-header .subtitle,
+[class*="header-desc"] {
+  font-size: 11px !important;
+  opacity: .65 !important;
+  letter-spacing: .01em !important;
+}
+
+/* 16. Баланс нуль / прочерк — не тривожний */
+.balance-amount {
+  letter-spacing: -0.04em !important;
+}
+
+/* 17. Картка-акордеон: тонший скелет помилки */
+#cards .empty-state {
+  color: #b05a50 !important;
+  background: rgba(220,80,60,.04) !important;
+  border-color: rgba(220,80,60,.18) !important;
+}
+
+/* 18. Кнопка QR / "Показати" — тема */
+#showQrBtn, [id*="qr"], [id*="Qr"] {
+  border-color: rgba(47,74,55,.2) !important;
+  color: #2a4030 !important;
+  font-weight: 600 !important;
+}
+#showQrBtn svg, [id*="qr"] svg {
+  stroke: #2a4030 !important;
+}
+
+/* 19. Анімація: уніфікація плавних hover-ів */
+.card, .ms-item, .btn-ghost, .tx-qf-chip, .nav-item, .qa-btn {
+  transition-duration: 150ms !important;
+  transition-timing-function: cubic-bezier(.25,.46,.45,.94) !important;
+}
+
+/* 20. Скролбар — ультра-тонкий зелений */
+::-webkit-scrollbar { width: 3px !important; height: 3px !important; }
+::-webkit-scrollbar-track { background: transparent !important; }
+::-webkit-scrollbar-thumb { background: rgba(47,74,55,.25) !important; border-radius: 99px !important; }
+::-webkit-scrollbar-thumb:hover { background: rgba(47,74,55,.45) !important; }
