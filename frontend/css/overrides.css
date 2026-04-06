@@ -3673,3 +3673,41 @@ a:focus-visible {
   animation: spin .6s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Mobile nav hotfix (iOS) ───────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .bottom-nav {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    gap: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .bottom-nav .nav-hidden-mobile {
+    display: none !important;
+  }
+
+  .bottom-nav .nav-more-btn {
+    display: flex !important;
+  }
+
+  .more-sheet-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .more-sheet-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .bottom-nav .nav-hidden-mobile {
+    display: flex !important;

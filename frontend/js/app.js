@@ -2563,7 +2563,7 @@ async function hydrateAuthenticatedApp() {
     startSessionEngine();
     updatePushDot();
     if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
-    if (Notification?.permission === 'granted') api.subscribePush().catch(() => {});
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') api.subscribePush().catch(() => {});
   }
 }
 
