@@ -1,4 +1,4 @@
-// Army Bank — головний фронтенд v2.1
+// Army Bank — головний фронтенд v2.3
 const state = {
   user: null,
   account: null,
@@ -12,6 +12,7 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 function showToast(message, type = '') {
   const toast = $('#toast');
+  if (!toast) return;
   toast.textContent = message;
   toast.className = type ? `toast ${type}` : 'toast';
   toast.classList.remove('hidden');
@@ -30,7 +31,12 @@ async function _pollBalance() {
 
     const bal = formatMoney(fresh.balance);
     const heroBalEl = $('#heroBalance');
-    if (heroBalEl) heroBalEl.textContent = bal;
+    if (heroBalEl) {
+      heroBalEl.textContent = bal;
+      // Scale down font for very large numbers to prevent ₴ clipping
+      const len = bal.replace(/\s/g, '').length;
+      heroBalEl.style.fontSize = len > 12 ? 'clamp(1.4rem,6.5vw,2.4rem)' : len > 9 ? 'clamp(1.6rem,7.5vw,3rem)' : '';
+    }
     const balVal = $('#balanceValue');
     if (balVal) balVal.textContent = bal;
 
@@ -54,7 +60,50 @@ function stopPolling() {
   state._lastBalance = null;
 }
 
+let _bootstrapRetryTimer = null;
+
+function clearBootstrapRetryTimer() {
+  if (_bootstrapRetryTimer) {
+    clearTimeout(_bootstrapRetryTimer);
+    _bootstrapRetryTimer = null;
+  }
+}
+
+function stopNotifPolling() {
+  if (typeof window._stopNotifPolling === 'function') {
+    window._stopNotifPolling();
+  }
+}
+
+async function performLogout(options = {}) {
+  const showMessage = options.showMessage !== false;
+  const reason = options.reason || '';
+  stopPolling();
+  stopNotifPolling();
+  clearBootstrapRetryTimer();
+  stopSessionEngine();
+  try { await api.request('/api/auth/logout', { method: 'POST' }); } catch (_) {}
+  api.setToken('');
+  setAuthenticated(false);
+  const base = getBasePath();
+  window.history.replaceState(null, '', base || '/');
+  if (showMessage) {
+    if (reason === 'idle') showToast('Сесію завершено через бездіяльність.', 'warning');
+    else if (reason === 'expired') showToast('Термін дії сесії вичерпано. Увійдіть повторно.', 'warning');
+    else showToast('Ви вийшли з системи.');
+  }
+}
+
+function isAuthErrorResponse(error) {
+  const status = Number(error?.status || 0);
+  if (status === 401 || status === 403) return true;
+  const msg = String(error?.message || '');
+  return msg.includes('авторизац') || msg.includes('сесію') || msg.includes('Недійсна');
+}
+
 function setAuthenticated(authenticated) {
+  /* Keep the early-auth CSS class in sync so toggling back to login always works */
+  document.documentElement.classList.toggle('ab-authed', !!authenticated);
   $('#authScreen').classList.toggle('hidden', authenticated);
   $('#appScreen').classList.toggle('hidden', !authenticated);
   $('#sidebar')?.classList.toggle('hidden', !authenticated);
@@ -96,8 +145,321 @@ function renderList(containerSelector, items, renderer, emptyText) {
 
 const TX_TYPE_LABELS = {
   topup: 'Поповнення', transfer: 'Переказ',
-  payout: 'Виплата', donation: 'Донат', savings: 'Накопичення',
+  payout: 'Виплата', donation: 'Благодійність', savings: 'Накопичення',
 };
+
+const TRANSFER_DRAFT_KEY = 'ab_transfer_draft_v1';
+const TX_QUICK_FILTER_KEY = 'ab_tx_quick_filter_v1';
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatLocalDateISO(date) {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function extractFilenameFromDisposition(disposition, fallback = 'download.bin') {
+  const raw = String(disposition || '');
+  if (!raw) return fallback;
+
+  const utfMatch = raw.match(/filename\\*=UTF-8''([^;]+)/i);
+  if (utfMatch && utfMatch[1]) {
+    try {
+      return decodeURIComponent(utfMatch[1].trim());
+    } catch (_) {}
+  }
+
+  const plainMatch = raw.match(/filename=\"?([^\";]+)\"?/i);
+  if (plainMatch && plainMatch[1]) {
+    return plainMatch[1].trim();
+  }
+  return fallback;
+}
+
+async function downloadBlobFile(blob, filename) {
+  const name = filename || 'download.bin';
+  // iOS PWA: Web Share API with files (opens native share sheet → Save to Files)
+  if (navigator.share && navigator.canShare) {
+    const file = new File([blob], name, { type: blob.type || 'application/octet-stream' });
+    if (navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: name }); return; }
+      catch (e) { if (e.name === 'AbortError') return; /* user cancelled */ }
+    }
+  }
+  // Desktop / Android: anchor download
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 15000);
+}
+
+function normalizeAccountNumber(value) {
+  let v = String(value || '').toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '');
+  if (v.startsWith('AB') && !v.startsWith('AB-')) {
+    v = v.replace(/^AB-?/, 'AB-');
+  }
+  return v;
+}
+
+function isLikelyAccountNumber(value) {
+  return /^AB-\d{4,}$/.test(normalizeAccountNumber(value));
+}
+
+function getTransferMode() {
+  return ($('#transferModeToggle .tmt-btn.active') || {}).dataset?.mode || 'account';
+}
+
+function setTransferMode(mode) {
+  const nextMode = mode === 'card' ? 'card' : 'account';
+  const btn = document.querySelector(`#transferModeToggle .tmt-btn[data-mode="${nextMode}"]`);
+  if (!btn) return;
+  if (!btn.classList.contains('active')) btn.click();
+}
+
+function readTransferDraft() {
+  try {
+    const raw = localStorage.getItem(TRANSFER_DRAFT_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return (parsed && typeof parsed === 'object') ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function writeTransferDraft(draft) {
+  try { localStorage.setItem(TRANSFER_DRAFT_KEY, JSON.stringify(draft)); }
+  catch (_) {}
+}
+
+function clearTransferDraft() {
+  try { localStorage.removeItem(TRANSFER_DRAFT_KEY); }
+  catch (_) {}
+}
+
+function saveTransferDraftFromForm() {
+  const form = $('#transferForm');
+  if (!form) return;
+  const mode = getTransferMode();
+  const account = normalizeAccountNumber(form.recipient_account_number?.value || '');
+  const card = (form.recipient_card_number?.value || '').replace(/[^\d\s]/g, '').trim();
+  const amount = form.amount?.value || '';
+  const description = form.description?.value || '';
+  const templateId = form.template_id?.value || '';
+  const hasData = account || card || amount || description || templateId;
+  if (!hasData) {
+    clearTransferDraft();
+    return;
+  }
+  writeTransferDraft({ mode, account, card, amount, description, template_id: templateId, ts: Date.now() });
+}
+
+function restoreTransferDraft() {
+  const form = $('#transferForm');
+  if (!form) return;
+  const draft = readTransferDraft();
+  if (!draft) return;
+
+  setTransferMode(draft.mode || 'account');
+  if (form.recipient_account_number && draft.account) form.recipient_account_number.value = draft.account;
+  if (form.recipient_card_number && draft.card) form.recipient_card_number.value = draft.card;
+  if (form.amount && draft.amount) form.amount.value = draft.amount;
+  if (form.description && draft.description) form.description.value = draft.description;
+  if (form.template_id && draft.template_id) form.template_id.value = draft.template_id;
+}
+
+function initTransferDraftAutosave() {
+  const form = $('#transferForm');
+  if (!form) return;
+  ['input', 'change'].forEach((evt) => {
+    form.addEventListener(evt, saveTransferDraftFromForm);
+  });
+  restoreTransferDraft();
+}
+
+function goToDashboardTransferForm() {
+  const activeScreen = document.querySelector('.screen.active-screen')?.id;
+  if (activeScreen !== 'dashboard') {
+    const base = getBasePath();
+    window.history.pushState(null, '', base ? base + '/dashboard' : '/dashboard');
+    switchScreen('dashboard');
+  }
+  setDashboardActionFormsOpen(true);
+  const form = $('#transferForm');
+  form?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function prefillTransferForm(options = {}) {
+  const form = $('#transferForm');
+  if (!form) return false;
+  const mode = options.mode === 'card' ? 'card' : 'account';
+  setTransferMode(mode);
+  if (mode === 'card') {
+    if (form.recipient_card_number) form.recipient_card_number.value = options.card || '';
+    if (form.recipient_account_number) form.recipient_account_number.value = '';
+  } else {
+    if (form.recipient_account_number) form.recipient_account_number.value = normalizeAccountNumber(options.account || '');
+    if (form.recipient_card_number) form.recipient_card_number.value = '';
+  }
+  if (form.amount && options.amount !== undefined && options.amount !== null && options.amount !== '') {
+    const num = Number(options.amount);
+    form.amount.value = Number.isFinite(num) ? num.toFixed(2) : String(options.amount);
+  }
+  if (form.description && options.description) form.description.value = options.description;
+  saveTransferDraftFromForm();
+  return true;
+}
+
+function buildQuickRecipients(contacts = [], transactions = []) {
+  const map = new Map();
+
+  contacts.forEach((row, idx) => {
+    const acc = normalizeAccountNumber(row.account_number || '');
+    if (!isLikelyAccountNumber(acc)) return;
+    map.set(acc, {
+      account: acc,
+      title: row.contact_name || `Контакт ${idx + 1}`,
+      score: 300 - idx * 3,
+    });
+  });
+
+  transactions.forEach((tx, idx) => {
+    if (tx.tx_type !== 'transfer' || tx.direction !== 'out') return;
+    const acc = normalizeAccountNumber(tx.related_account || '');
+    if (!isLikelyAccountNumber(acc)) return;
+    const score = Math.max(1, 120 - idx);
+    const existing = map.get(acc);
+    if (existing) {
+      existing.score += score;
+      return;
+    }
+    map.set(acc, {
+      account: acc,
+      title: 'Швидкий переказ',
+      score: score,
+    });
+  });
+
+  return Array.from(map.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+}
+
+function renderTransferQuickRecipients(items = []) {
+  const wrap = $('#transferQuickRecipients');
+  if (!wrap) return;
+
+  if (!items.length) {
+    wrap.classList.add('hidden');
+    wrap.innerHTML = '';
+    return;
+  }
+
+  wrap.innerHTML = items.map((item) => {
+    const shortAcc = item.account.length > 10 ? `${item.account.slice(0, 7)}…${item.account.slice(-2)}` : item.account;
+    return `<button type="button" class="tqr-chip" data-quick-account="${escapeHtml(item.account)}" title="${escapeHtml(item.account)}">${escapeHtml(item.title)} · ${escapeHtml(shortAcc)}</button>`;
+  }).join('');
+
+  wrap.classList.remove('hidden');
+  wrap.querySelectorAll('[data-quick-account]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const account = normalizeAccountNumber(btn.dataset.quickAccount || '');
+      if (!account) return;
+      goToDashboardTransferForm();
+      prefillTransferForm({ mode: 'account', account: account });
+      showToast(`Отримувач ${account} підставлено.`, 'success');
+    });
+  });
+}
+
+function setTxQuickFilterActive(key) {
+  $$('#txQuickFilters .tx-qf-chip').forEach((btn) => {
+    const btnKey = btn.dataset.days ? `days${btn.dataset.days}` : (btn.dataset.range || '');
+    btn.classList.toggle('active', !!key && key !== 'clear' && btnKey === key);
+  });
+}
+
+function applyTxQuickFilter(key, options = {}) {
+  const opts = { reload: true, persist: true, ...options };
+  const form = $('#transactionsFilters');
+  if (!form) return;
+
+  const fromInput = form.querySelector('[name="from_date"]');
+  const toInput = form.querySelector('[name="to_date"]');
+  if (!fromInput || !toInput) return;
+
+  const now = new Date();
+  const today = formatLocalDateISO(now);
+  let nextKey = key;
+
+  if (key === 'today') {
+    fromInput.value = today;
+    toInput.value = today;
+  } else if (key === 'month') {
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    fromInput.value = formatLocalDateISO(monthStart);
+    toInput.value = today;
+  } else if (key === 'days7' || key === 'days30') {
+    const days = key === 'days7' ? 7 : 30;
+    const from = new Date(now);
+    from.setDate(now.getDate() - (days - 1));
+    fromInput.value = formatLocalDateISO(from);
+    toInput.value = today;
+  } else {
+    nextKey = 'clear';
+    fromInput.value = '';
+    toInput.value = '';
+  }
+
+  setTxQuickFilterActive(nextKey);
+  if (opts.persist) {
+    if (nextKey === 'clear') localStorage.removeItem(TX_QUICK_FILTER_KEY);
+    else localStorage.setItem(TX_QUICK_FILTER_KEY, nextKey);
+  }
+  if (opts.reload) loadTransactionsWithFilters();
+}
+
+function initTxQuickFilters() {
+  const wrap = $('#txQuickFilters');
+  if (!wrap) return;
+  wrap.addEventListener('click', (event) => {
+    const btn = event.target.closest('.tx-qf-chip');
+    if (!btn) return;
+    if (btn.dataset.range === 'today') return applyTxQuickFilter('today');
+    if (btn.dataset.range === 'month') return applyTxQuickFilter('month');
+    if (btn.dataset.range === 'clear') return applyTxQuickFilter('clear');
+    if (btn.dataset.days === '7') return applyTxQuickFilter('days7');
+    if (btn.dataset.days === '30') return applyTxQuickFilter('days30');
+  });
+
+  const form = $('#transactionsFilters');
+  if (form) {
+    ['from_date', 'to_date'].forEach((name) => {
+      form.querySelector(`[name="${name}"]`)?.addEventListener('change', () => {
+        localStorage.removeItem(TX_QUICK_FILTER_KEY);
+        setTxQuickFilterActive('');
+      });
+    });
+  }
+
+  const savedKey = localStorage.getItem(TX_QUICK_FILTER_KEY);
+  if (savedKey) applyTxQuickFilter(savedKey, { reload: false, persist: false });
+}
 
 function renderTransactions(list, container = '#transactionsList') {
   const el = $(container);
@@ -130,27 +492,58 @@ function renderTransactions(list, container = '#transactionsList') {
     } catch(_) { return day || 'Невідома дата'; }
   }
 
+  // Remap legacy military titles stored in DB
+  const TX_TITLE_REMAP = { 'Бойова виплата': 'Виплата', 'Бойові виплати': 'Виплати' };
+
   el.innerHTML = Object.keys(groups).sort((a,b) => b.localeCompare(a)).map(day => `
     <div class="tx-date-group">
       <div class="tx-date-label">${dayLabel(day)}</div>
-      ${groups[day].map(tx => `
+      ${groups[day].map(tx => {
+        const txTitle = TX_TITLE_REMAP[tx.description] || tx.description;
+        return `
         <div class="item item-clickable" data-tx-id="${tx.id}">
           <div class="tx-dir-dot ${tx.direction}"></div>
           <div class="item-body">
             <div class="item-header">
-              <strong>${tx.description}</strong>${tx.note ? ' <span title="Є нотатка" style="font-size:11px">📝</span>' : ''}
+              <strong>${escapeHtml(txTitle)}</strong>${tx.note ? ' <span title="Є нотатка" style="font-size:11px;opacity:.6">✎</span>' : ''}
               <span class="amount ${tx.direction}">${tx.direction === 'in' ? '+' : '−'}${formatMoney(tx.amount)}</span>
             </div>
-            <div class="muted">${TX_TYPE_LABELS[tx.tx_type] || tx.tx_type}${tx.related_account ? ` · ${tx.related_account}` : ''}</div>
+            <div class="muted">${TX_TYPE_LABELS[tx.tx_type] || tx.tx_type}${tx.related_account ? ` · ${escapeHtml(tx.related_account)}` : ''}</div>
           </div>
+          <button type="button" class="tx-receipt-btn" data-tx-receipt="${tx.id}" data-amount="${tx.amount}" data-dir="${tx.direction}" data-desc="${escapeHtml(tx.description||'')}" data-from="${escapeHtml(tx.related_account||'')}" data-at="${tx.created_at||''}" title="Чек PDF" style="background:none;border:none;cursor:pointer;padding:4px 6px;opacity:.35;color:inherit;flex-shrink:0;line-height:1">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </button>
         </div>
-      `).join('')}
+      `; }).join('')}
     </div>
   `).join('');
 
+  // Bind receipt button (must bind before drawer to stop propagation)
+  el.querySelectorAll('.tx-receipt-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      btn.style.opacity = '1';
+      setTimeout(() => { btn.style.opacity = '.35'; }, 600);
+      const myAcc = $('#heroAccount')?.textContent?.replace(/^Рахунок:\s*/i, '').trim() || '—';
+      const dir = btn.dataset.dir || 'out';
+      receipt.open({
+        tx_id:        Number(btn.dataset.txReceipt),
+        amount:       Number(btn.dataset.amount),
+        direction:    dir,
+        from_account: dir === 'out' ? myAcc : (btn.dataset.from || '—'),
+        to_account:   dir === 'out' ? (btn.dataset.from || '—') : myAcc,
+        description:  btn.dataset.desc,
+        created_at:   btn.dataset.at,
+      });
+    });
+  });
+
   // Bind click → drawer
   el.querySelectorAll('.item-clickable').forEach(item => {
-    item.addEventListener('click', () => openTxDrawer(Number(item.dataset.txId)));
+    item.addEventListener('click', () => {
+      const fn = (typeof window !== 'undefined' && window.openTxDrawer) ? window.openTxDrawer : openTxDrawer;
+      fn(Number(item.dataset.txId));
+    });
   });
 }
 
@@ -184,48 +577,123 @@ async function openTxDrawer(txId) {
   if (!txId) return;
   openDrawer();
   const body = $('#drawerBody');
-  if (body) body.innerHTML = '<div class="drawer-loading">Завантаження…</div>';
+  if (body) {
+    body.dataset.txId = txId;
+    body.innerHTML = '<div class="drawer-loading">Завантаження…</div>';
+  }
   try {
     const tx = await api.request(`/api/transactions/${txId}`);
     if (!body) return;
+
+    const typeLabel = TX_TYPE_LABELS[tx.tx_type] || tx.tx_type;
+    const repeatTarget = typeof getRepeatTransferTarget === 'function' ? getRepeatTransferTarget(tx) : null;
+    const tagBadges = tx.tags
+      ? tx.tags.split(',').map(t => t.trim()).filter(Boolean)
+          .map(t => `<span class="tag-badge">${escapeHtml(t)}</span>`).join('')
+      : '';
+
     body.innerHTML = `
       <div class="drawer-amount ${tx.direction}">
         ${tx.direction === 'in' ? '+' : '−'}${formatMoney(tx.amount)}
       </div>
+      <div class="drawer-type-chip">${typeLabel} · ${tx.direction === 'in' ? '↓ Прихід' : '↑ Відхід'}</div>
       <dl class="drawer-info-list">
-        <div class="drawer-info-row"><dt>Опис</dt><dd>${tx.description}</dd></div>
-        <div class="drawer-info-row"><dt>Тип</dt><dd>${TX_TYPE_LABELS[tx.tx_type] || tx.tx_type}</dd></div>
-        <div class="drawer-info-row"><dt>Напрям</dt><dd>${tx.direction === 'in' ? '↓ Прихід' : '↑ Відхід'}</dd></div>
-        ${tx.related_account ? `<div class="drawer-info-row"><dt>Контрагент</dt><dd>${tx.related_account}</dd></div>` : ''}
+        <div class="drawer-info-row"><dt>Опис</dt><dd>${escapeHtml(tx.description || '—')}</dd></div>
+        ${tx.related_account ? `<div class="drawer-info-row"><dt>Контрагент</dt><dd>${escapeHtml(tx.related_account)}</dd></div>` : ''}
         <div class="drawer-info-row"><dt>Дата</dt><dd>${formatDate(tx.created_at)}</dd></div>
-        <div class="drawer-info-row"><dt>ID</dt><dd>#${tx.id}</dd></div>
+        <div class="drawer-info-row"><dt>ID операції</dt><dd>#${tx.id}</dd></div>
+        <div class="drawer-info-row"><dt>Статус</dt><dd class="status-ok">✓ Виконано</dd></div>
       </dl>
-      <button class="btn-ghost" id="shareTxBtn" style="width:100%;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-        Поділитися
-      </button>
+      ${tagBadges ? `<div class="drawer-tags-row">${tagBadges}</div>` : ''}
+      <div class="drawer-actions">
+        <button class="btn-primary" id="drawerPdfBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Завантажити чек PDF
+        </button>
+        <button class="btn-ghost" id="drawerShareBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Поділитися
+        </button>
+        ${repeatTarget ? `<button class="btn-accent" id="drawerRepeatBtn">Повторити переказ</button>` : ''}
+      </div>
       <div class="drawer-note-section">
         <label class="drawer-note-label">Нотатка</label>
-        <textarea id="drawerNoteInput" class="drawer-note-input" placeholder="Додайте особисту нотатку…" rows="2">${tx.note || ''}</textarea>
-        <button id="saveNoteBtn" class="btn-ghost btn-sm" style="margin-top:6px">Зберегти нотатку</button>
+        <textarea id="drawerNoteInput" class="drawer-note-input" placeholder="Особиста нотатка…" rows="2">${escapeHtml(tx.note || '')}</textarea>
+        <button id="saveNoteBtn" class="btn-ghost btn-sm" style="margin-top:6px;width:100%">Зберегти нотатку</button>
+      </div>
+      <div class="drawer-note-section" style="margin-top:0;padding-top:0;border-top:0">
+        <label class="drawer-note-label">Теги</label>
+        <input id="drawerTagsInput" type="text" class="drawer-note-input" placeholder="їжа, магазин, особисте" value="${escapeHtml(tx.tags || '')}">
+        <button id="saveTagsBtn" class="btn-ghost btn-sm" style="margin-top:6px;width:100%">Зберегти теги</button>
       </div>
     `;
-    $('#shareTxBtn')?.addEventListener('click', () => {
+
+    $('#drawerPdfBtn')?.addEventListener('click', async () => {
+      const btn = $('#drawerPdfBtn');
+      const orig = btn.innerHTML;
+      try {
+        btn.disabled = true;
+        btn.innerHTML = '<span style="opacity:.6">Формування…</span>';
+        const res = await fetch(`${window.ARMY_BANK_BASE || ''}/api/transactions/${tx.id}/receipt`, {
+          headers: { Authorization: `Bearer ${api.token}` },
+        });
+        if (!res.ok) { const t = await res.text(); throw new Error(t); }
+        const blob = await res.blob();
+        const filename = extractFilenameFromDisposition(
+          res.headers.get('Content-Disposition'),
+          `armybank_receipt_tx${tx.id}.pdf`
+        );
+        downloadBlobFile(blob, filename);
+        showToast('Чек завантажено.', 'success');
+      } catch(e) {
+        showToast(e.message || 'Помилка завантаження.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+      }
+    });
+
+    $('#drawerShareBtn')?.addEventListener('click', () => {
       if (typeof shareTransaction === 'function') shareTransaction(tx);
     });
+
+    $('#drawerRepeatBtn')?.addEventListener('click', () => {
+      if (!repeatTarget) return;
+      if (typeof goToDashboardTransferForm === 'function') goToDashboardTransferForm();
+      if (typeof prefillTransferForm === 'function') prefillTransferForm({
+        mode: repeatTarget.mode, account: repeatTarget.account,
+        card: repeatTarget.card, amount: tx.amount,
+        description: tx.description || 'Переказ',
+      });
+      closeDrawer();
+      showToast('Переказ підготовлено до повтору.', 'success');
+    });
+
     $('#saveNoteBtn')?.addEventListener('click', async () => {
       const note = $('#drawerNoteInput')?.value || '';
       try {
         await api.request(`/api/transactions/${tx.id}/note`, {
-          method: 'PATCH', body: JSON.stringify({ note })
+          method: 'PATCH', body: JSON.stringify({ note }),
         });
         showToast('Нотатку збережено.', 'success');
       } catch(e) { showToast(e.message); }
     });
+
+    $('#saveTagsBtn')?.addEventListener('click', async () => {
+      const tags = $('#drawerTagsInput')?.value || '';
+      try {
+        await api.request(`/api/transactions/${tx.id}/tags`, {
+          method: 'PATCH', body: JSON.stringify({ tags }),
+        });
+        showToast('Теги збережено.', 'success');
+        if (typeof loadTagsCloud === 'function') loadTagsCloud().catch(() => {});
+      } catch(e) { showToast(e.message); }
+    });
   } catch (e) {
-    if (body) body.innerHTML = `<div class="drawer-error">${e.message}</div>`;
+    if (body) body.innerHTML = `<div class="drawer-error">${escapeHtml(e.message)}</div>`;
   }
 }
+window.openTxDrawer = openTxDrawer;
 
 $('#drawerClose')?.addEventListener('click', closeDrawer);
 $('#drawerBackdrop')?.addEventListener('click', closeDrawer);
@@ -288,6 +756,449 @@ async function exportCsv() {
 }
 
 $('#exportCsvBtn')?.addEventListener('click', exportCsv);
+
+// ── Balance hide/show toggle ──────────────────────────────────────────────────
+(function () {
+  const LS_KEY = 'army_bank_balance_hidden';
+  let hidden = localStorage.getItem(LS_KEY) === '1';
+
+  function maskBalance() {
+    const el = $('#heroBalance');
+    if (!el) return;
+    if (!el.dataset.real && el.textContent && !el.textContent.includes('•'))
+      el.dataset.real = el.textContent;
+    el.textContent = '₴ ••••••';
+    el.style.letterSpacing = '.12em';
+  }
+
+  function unmaskBalance() {
+    const el = $('#heroBalance');
+    if (!el) return;
+    if (el.dataset.real) { el.textContent = el.dataset.real; }
+    el.style.letterSpacing = '';
+  }
+
+  function syncIcons() {
+    const eye    = $('#eyeIcon');
+    const eyeOff = $('#eyeOffIcon');
+    const btn    = $('#toggleBalanceBtn');
+    if (eye)    eye.style.display    = hidden ? 'none' : '';
+    if (eyeOff) eyeOff.style.display = hidden ? ''     : 'none';
+    if (btn)    btn.title = hidden ? 'Показати баланс' : 'Приховати баланс';
+  }
+
+  // Keep data-real fresh when balance updates from app state
+  const _origSetter = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent').set;
+  window._syncHeroBalance = function(newText) {
+    const el = $('#heroBalance');
+    if (!el) return;
+    el.dataset.real = newText;
+    if (hidden) maskBalance(); else { _origSetter.call(el, newText); el.style.letterSpacing = ''; }
+  };
+
+  function init() {
+    syncIcons();
+    if (hidden) maskBalance();
+    $('#toggleBalanceBtn')?.addEventListener('click', () => {
+      hidden = !hidden;
+      localStorage.setItem(LS_KEY, hidden ? '1' : '0');
+      if (hidden) maskBalance(); else unmaskBalance();
+      syncIcons();
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+
+// ── Hero account copy ─────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  $('#heroAccountCopyBtn')?.addEventListener('click', function () {
+    const raw = $('#heroAccount')?.textContent?.replace(/^Рахунок:\s*/i, '').trim();
+    if (!raw || raw === '—') return;
+    navigator.clipboard?.writeText(raw)
+      .then(() => showToast('Номер рахунку скопійовано', 'success'))
+      .catch(() => {});
+  });
+});
+
+// ── Receipt modal ────────────────────────────────────────────────────────────
+const receipt = (() => {
+  let _txId = null;
+
+  function fmtAmt(amount, direction) {
+    const sign = direction === 'in' ? '+' : '−';
+    const color = direction === 'in' ? 'var(--mono-success, #34d399)' : 'var(--mono-danger, #f87171)';
+    const val = '₴\u202f' + Math.abs(Number(amount)).toLocaleString('uk-UA', { minimumFractionDigits: 2 });
+    return `<span style="color:${color}">${sign}${val}</span>`;
+  }
+
+  function fmtDt(s) {
+    if (!s) return '—';
+    try {
+      return new Date(s).toLocaleString('uk-UA', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+      });
+    } catch (_) { return s; }
+  }
+
+  function open(data) {
+    // data: { tx_id, amount, direction, from_account, to_account, description, created_at, title }
+    _txId = data.tx_id || null;
+    const dir = data.direction || 'out';
+
+    const amtEl = $('#receiptAmount');
+    if (amtEl) { amtEl.innerHTML = fmtAmt(data.amount, dir); amtEl.dataset.dir = dir; }
+    $('#receiptTitle').textContent = data.title || (dir === 'in' ? 'Надходження' : 'Переказ виконано');
+    $('#receiptTxId').textContent  = _txId ? `#${_txId}` : '—';
+    $('#receiptDate').textContent  = fmtDt(data.created_at || new Date().toISOString());
+    $('#receiptFrom').textContent  = data.from_account || '—';
+    $('#receiptTo').textContent    = data.to_account   || '—';
+    $('#receiptDesc').textContent  = data.description  || '—';
+
+    // Icon/colour by direction
+    const icon = $('#receiptIcon');
+    if (icon) {
+      icon.style.background = dir === 'in' ? 'rgba(31,160,85,.12)' : 'rgba(47,74,55,.12)';
+      icon.innerHTML = dir === 'in'
+        ? '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--mono-success,#1fa055)" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>'
+        : '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--mono-blue-mid,#46664a)" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+    }
+
+    $('#receiptDownloadBtn').disabled = !_txId;
+    $('#receiptOverlay')?.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  async function download() {
+    if (!_txId) return;
+    const btn = $('#receiptDownloadBtn');
+    try {
+      btn.disabled = true;
+      btn.innerHTML = '<span style="opacity:.6">Формування…</span>';
+      const res = await fetch(`${window.ARMY_BANK_BASE || ''}/api/transactions/${_txId}/receipt`, {
+        headers: { Authorization: `Bearer ${api.token}` },
+      });
+      if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Помилка'); }
+      const blob = await res.blob();
+      const filename = extractFilenameFromDisposition(
+        res.headers.get('Content-Disposition'),
+        `armybank_receipt_tx${_txId}.pdf`
+      );
+      downloadBlobFile(blob, filename);
+      showToast(`Квитанцію збережено: ${filename}`, 'success');
+    } catch (e) {
+      showToast(escapeHtml(e.message));
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Скачати чек PDF';
+    }
+  }
+
+  function close() {
+    $('#receiptOverlay')?.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    $('#receiptDownloadBtn')?.addEventListener('click', download);
+    $('#receiptCloseBtn')?.addEventListener('click', close);
+    $('#receiptShareBtn')?.addEventListener('click', () => {
+      if (typeof shareTransaction === 'function') {
+        shareTransaction({
+          id:              _txId,
+          description:     $('#receiptDesc')?.textContent || '—',
+          amount:          ($('#receiptAmount')?.textContent || '').replace(/[^0-9.,]/g, '').replace(',', '.'),
+          direction:       ($('#receiptAmount')?.dataset?.dir) || 'out',
+          tx_type:         'transfer',
+          created_at:      $('#receiptDate')?.textContent || new Date().toISOString(),
+          related_account: $('#receiptTo')?.textContent || '',
+        });
+      }
+    });
+    $('#receiptOverlay')?.addEventListener('click', e => { if (e.target === $('#receiptOverlay')) close(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#receiptOverlay')?.classList.contains('hidden')) close(); });
+  });
+
+  return { open, close };
+})();
+
+// ── Statement modal ──────────────────────────────────────────────────────────
+(function () {
+  const overlay = () => $('#statementOverlay');
+  const dlBtn = () => $('#stmtDownloadBtn');
+  const csvBtn = () => $('#stmtCsvBtn');
+  const cancelBtn = () => $('#stmtCancelBtn');
+  const periodGrid = () => $('#stmtPeriodGrid');
+  const customDates = () => $('#stmtCustomDates');
+  const periodLabel = () => $('#stmtPeriodLabel');
+  const reportType = () => $('#stmtReportType');
+  const ordersList = () => $('#stmtRecentOrders');
+
+  const dlBtnDefaultHtml = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:6px;flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Завантажити PDF`;
+  const csvBtnDefaultHtml = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" style="margin-right:4px;flex-shrink:0"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>CSV`;
+
+  let _from = null;
+  let _to = null;
+
+  function isoDate(d) { return d.toISOString().slice(0, 10); }
+
+  function selectedReportType() {
+    return (reportType()?.value || 'detailed').trim().toLowerCase();
+  }
+
+  function setActivePeriod(btn) {
+    $$('.stmt-period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function applyPeriod(period) {
+    const now = new Date();
+    customDates().style.display = 'none';
+    dlBtn().disabled = false;
+    if (csvBtn()) csvBtn().disabled = false;
+
+    if (period === 'cur_month') {
+      _from = isoDate(new Date(now.getFullYear(), now.getMonth(), 1));
+      _to = isoDate(now);
+      const m = now.toLocaleString('uk-UA', { month: 'long', year: 'numeric' });
+      periodLabel().textContent = `Поточний місяць · ${m}`;
+    } else if (period === 'prev_month') {
+      const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const last = new Date(now.getFullYear(), now.getMonth(), 0);
+      _from = isoDate(first);
+      _to = isoDate(last);
+      periodLabel().textContent = `Минулий місяць · ${first.toLocaleString('uk-UA', { month: 'long', year: 'numeric' })}`;
+    } else if (period === '3months') {
+      const d = new Date(now); d.setMonth(d.getMonth() - 3);
+      _from = isoDate(d); _to = isoDate(now);
+      periodLabel().textContent = `Останні 3 місяці · ${_from} — ${_to}`;
+    } else if (period === '6months') {
+      const d = new Date(now); d.setMonth(d.getMonth() - 6);
+      _from = isoDate(d); _to = isoDate(now);
+      periodLabel().textContent = `Останні 6 місяців · ${_from} — ${_to}`;
+    } else if (period === 'cur_year') {
+      _from = `${now.getFullYear()}-01-01`; _to = isoDate(now);
+      periodLabel().textContent = `Поточний рік · ${now.getFullYear()}`;
+    } else if (period === 'all') {
+      _from = null; _to = null;
+      periodLabel().textContent = 'Весь час · усі операції';
+    } else if (period === 'custom') {
+      customDates().style.display = 'grid';
+      const fi = $('#stmtFrom');
+      const ti = $('#stmtTo');
+      if (fi && ti && !fi.value && !ti.value) {
+        fi.value = isoDate(new Date(now.getFullYear(), now.getMonth(), 1));
+        ti.value = isoDate(now);
+      }
+      _from = fi?.value || null;
+      _to = ti?.value || null;
+      updateCustomLabel();
+    }
+  }
+
+  function updateCustomLabel() {
+    const f = $('#stmtFrom')?.value;
+    const t = $('#stmtTo')?.value;
+    _from = f || null;
+    _to = t || null;
+    periodLabel().textContent = (f || t) ? `${f || '…'} — ${t || '…'}` : 'Оберіть діапазон';
+    dlBtn().disabled = !f && !t;
+    if (csvBtn()) csvBtn().disabled = !f && !t;
+  }
+
+  function orderFallbackFilename() {
+    const suffix = (_from && _to) ? `${_from}_${_to}` : new Date().toISOString().slice(0, 10);
+    return `armybank_statement_${selectedReportType()}_${suffix}.pdf`;
+  }
+
+  async function fetchAndDownloadByQuery(downloadQuery, fallbackFilename) {
+    const query = String(downloadQuery || '').trim();
+    const url = '/api/transactions/statement' + (query ? `?${query}` : '');
+    const res = await fetch((window.ARMY_BANK_BASE || '') + url, {
+      headers: { Authorization: `Bearer ${api.token}` },
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      throw new Error(j.error || 'Помилка формування виписки');
+    }
+    const blob = await res.blob();
+    const filename = extractFilenameFromDisposition(
+      res.headers.get('Content-Disposition'),
+      fallbackFilename || orderFallbackFilename()
+    );
+    downloadBlobFile(blob, filename);
+  }
+
+  function renderRecentOrders(items) {
+    const box = ordersList();
+    if (!box) return;
+    if (!Array.isArray(items) || !items.length) {
+      box.innerHTML = '<div class="stmt-order-empty">Поки немає замовлень.</div>';
+      return;
+    }
+
+    box.innerHTML = items.map(item => {
+      const period = escapeHtml(item.period_label || '—');
+      const typeLabel = escapeHtml(item.report_type_label || item.report_type || '—');
+      const created = item.created_at ? formatDate(item.created_at) : '—';
+      const filename = escapeHtml(item.filename || 'statement.pdf');
+      const query = encodeURIComponent(item.download_query || '');
+      return `
+        <div class="stmt-order-item">
+          <div class="stmt-order-main">
+            <div class="stmt-order-title">${typeLabel}</div>
+            <div class="stmt-order-meta">${period} · ${created}</div>
+            <div class="stmt-order-file">${filename}</div>
+          </div>
+          <button type="button" class="stmt-order-download" data-query="${query}" data-filename="${filename}">PDF</button>
+        </div>
+      `;
+    }).join('');
+
+    box.querySelectorAll('.stmt-order-download').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const query = decodeURIComponent(btn.dataset.query || '');
+        const filename = btn.dataset.filename || orderFallbackFilename();
+        try {
+          btn.disabled = true;
+          await fetchAndDownloadByQuery(query, filename);
+          showToast('Виписку завантажено.', 'success');
+        } catch (e) {
+          showToast(e.message || 'Помилка завантаження');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  async function loadRecentOrders() {
+    const box = ordersList();
+    if (!box) return;
+    box.innerHTML = '<div class="stmt-order-empty">Завантаження…</div>';
+    try {
+      const rows = await api.request('/api/transactions/statement/orders?limit=6');
+      renderRecentOrders(rows || []);
+    } catch (_) {
+      box.innerHTML = '<div class="stmt-order-empty">Не вдалося завантажити історію.</div>';
+    }
+  }
+
+  function openStatementModal() {
+    const acNum = ($('#heroAccount')?.textContent || '').replace(/^Рахунок:\s*/i, '').trim() || '—';
+    const owner = ($('#userName')?.textContent || '').trim() || '—';
+    $('#stmtAccount').textContent = acNum;
+    $('#stmtOwner').textContent = owner;
+    if (reportType()) reportType().value = 'detailed';
+
+    $$('.stmt-period-btn').forEach(b => b.classList.remove('active'));
+    customDates().style.display = 'none';
+    if (csvBtn()) csvBtn().disabled = true;
+    const curMonthBtn = document.querySelector('.stmt-period-btn[data-period="cur_month"]');
+    if (curMonthBtn) { curMonthBtn.classList.add('active'); applyPeriod('cur_month'); }
+
+    overlay()?.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    loadRecentOrders().catch(() => {});
+  }
+
+  function closeStatementModal() {
+    overlay()?.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  async function downloadStatement() {
+    const btn = dlBtn();
+    try {
+      btn.disabled = true;
+      if (csvBtn()) csvBtn().disabled = true;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:6px;animation:spin 1s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-8.49"/></svg><span>Формування…</span>';
+
+      const payload = { report_type: selectedReportType() };
+      if (_from) payload.from_date = _from;
+      if (_to)   payload.to_date   = _to;
+
+      const order = await api.request('/api/transactions/statement/order', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (!order || !order.download_query) {
+        throw new Error('Не вдалося отримати параметри замовлення виписки.');
+      }
+
+      const filename = order.filename || orderFallbackFilename();
+      await fetchAndDownloadByQuery(order.download_query, filename);
+      showToast(`Виписку завантажено: ${filename}`, 'success');
+      await loadRecentOrders();
+      closeStatementModal();
+    } catch (e) {
+      showToast(escapeHtml(e.message) || 'Помилка формування виписки');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = dlBtnDefaultHtml;
+      if (csvBtn()) csvBtn().disabled = false;
+    }
+  }
+
+  async function downloadCsv() {
+    const btn = csvBtn();
+    if (!btn) return;
+    try {
+      btn.disabled = true;
+      btn.innerHTML = '<span style="opacity:.6">CSV…</span>';
+
+      const params = new URLSearchParams();
+      if (_from) params.set('from_date', _from);
+      if (_to)   params.set('to_date',   _to);
+      const url = `${window.ARMY_BANK_BASE || ''}/api/transactions/export?${params}`;
+
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${api.token}` } });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Помилка завантаження CSV');
+      }
+      const blob = await res.blob();
+      const suffix = (_from && _to) ? `${_from}_${_to}` : new Date().toISOString().slice(0, 10);
+      const fname = extractFilenameFromDisposition(res.headers.get('Content-Disposition'), `armybank_${suffix}.csv`);
+      downloadBlobFile(blob, fname);
+      showToast(`CSV завантажено: ${fname}`, 'success');
+    } catch (e) {
+      showToast(escapeHtml(e.message) || 'Помилка CSV');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = csvBtnDefaultHtml;
+    }
+  }
+
+  function init() {
+    $('#exportPdfBtn')?.addEventListener('click', openStatementModal);
+
+    periodGrid()?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.stmt-period-btn');
+      if (!btn) return;
+      setActivePeriod(btn);
+      applyPeriod(btn.dataset.period);
+    });
+
+    document.querySelector('.stmt-period-btn[data-period="custom"]')?.addEventListener('click', function () {
+      setActivePeriod(this);
+      applyPeriod('custom');
+    });
+
+    $('#stmtFrom')?.addEventListener('change', updateCustomLabel);
+    $('#stmtTo')?.addEventListener('change', updateCustomLabel);
+    dlBtn()?.addEventListener('click', downloadStatement);
+    csvBtn()?.addEventListener('click', downloadCsv);
+    cancelBtn()?.addEventListener('click', closeStatementModal);
+    overlay()?.addEventListener('click', (e) => { if (e.target === overlay()) closeStatementModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeStatementModal(); });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
 
 // ── ANALYTICS ───────────────────────────────────────────
 async function loadAnalytics() {
@@ -413,17 +1324,15 @@ $('#changePasswordForm')?.addEventListener('submit', async (e) => {
 
 // Profile logout button
 $('#profileLogoutBtn')?.addEventListener('click', async () => {
-  stopPolling();
-  try { await api.request('/api/auth/logout', { method: 'POST' }); } catch (_) {}
-  api.setToken('');
-  setAuthenticated(false);
-  const base = (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
-  window.history.replaceState(null, '', base || '/');
-  showToast('Ви вийшли з системи.');
+  await performLogout();
 });
 
 // ── NAVIGATION ──────────────────────────────────────────
-const ALLOWED_SCREENS = ['dashboard', 'transactions', 'payouts', 'donations', 'savings', 'contacts', 'analytics', 'profile', 'calendar', 'recurring', 'debts', 'cards'];
+const ALLOWED_SCREENS = [
+  'dashboard', 'transactions', 'cards', 'profile',
+  'donations', 'savings', 'analytics',
+  'contacts', 'calendar', 'recurring', 'debts', 'tax',
+];
 
 function getBasePath() {
   return (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
@@ -451,13 +1360,27 @@ function switchScreen(screenId) {
     btn.classList.toggle('active', btn.dataset.screen === id);
   });
 
+  const appShell = $('#appScreen');
+  if (appShell) {
+    appShell.classList.toggle('screen-dashboard', id === 'dashboard');
+    appShell.dataset.screen = id;
+  }
+  $('.bottom-nav')?.classList.remove('nav-hidden');
+
   if (id === 'transactions') loadTransactionsWithFilters();
-  if (id === 'analytics') loadAnalytics();
-  if (id === 'profile') renderProfileScreen();
-  if (id === 'calendar') loadCalendar();
-  if (id === 'recurring') { if (typeof loadRecurring === 'function') loadRecurring(); }
-  if (id === 'debts') { if (typeof loadDebts === 'function') loadDebts(); }
-  if (id === 'cards') { if (typeof loadCards === 'function') loadCards(); }
+  if (id === 'profile')    renderProfileScreen();
+  if (id === 'cards')      { if (typeof loadCards      === 'function') loadCards(); }
+  if (id === 'analytics')  { if (typeof loadAnalytics  === 'function') loadAnalytics(); }
+  if (id === 'calendar')   { if (typeof loadCalendar   === 'function') loadCalendar(); }
+  if (id === 'recurring')  { if (typeof loadRecurring  === 'function') loadRecurring(); }
+  if (id === 'debts')      { if (typeof loadDebts      === 'function') loadDebts(); }
+  if (id !== 'dashboard') setDashboardActionFormsOpen(false);
+}
+
+function setDashboardActionFormsOpen(open) {
+  const formsWrap = $('#dashboardActionForms');
+  if (!formsWrap) return;
+  formsWrap.classList.toggle('open', !!open);
 }
 
 async function refreshProfile() {
@@ -467,40 +1390,49 @@ async function refreshProfile() {
     api.request('/api/accounts/main'),
   ]);
 
-  const nameEl = $('#userName');
-  if (nameEl) nameEl.textContent = state.user.full_name;
+  if (state.user) {
+    const nameEl = $('#userName');
+    if (nameEl) nameEl.textContent = state.user.full_name || '';
 
-  const roleLabels = { soldier: 'Клієнт', operator: 'Оператор', admin: 'Адміністратор', platform_admin: 'Платформа' };
-  const metaEl = $('#userMeta');
-  if (metaEl) metaEl.textContent = `${roleLabels[state.user.role] || state.user.role} · ${state.user.email}`;
+    const roleLabels = { soldier: 'Клієнт', operator: 'Оператор', admin: 'Адміністратор', platform_admin: 'Платформа' };
+    const metaEl = $('#userMeta');
+    if (metaEl) metaEl.textContent = `${roleLabels[state.user.role] || state.user.role} · ${state.user.email}`;
 
-  const avatarEl = $('#userAvatar');
-  if (avatarEl && state.user.full_name) {
-    const parts = state.user.full_name.trim().split(' ');
-    avatarEl.textContent = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
+    const avatarEl = $('#userAvatar');
+    if (avatarEl && state.user.full_name) {
+      const parts = state.user.full_name.trim().split(' ');
+      avatarEl.textContent = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
+    }
+
+    const adminLink = $('.nav-admin');
+    const operatorLink = $('.nav-operator');
+    const platformLink = $('.nav-platform');
+    if (adminLink) adminLink.classList.toggle('hidden', state.user.role !== 'admin' && state.user.role !== 'platform_admin');
+    if (operatorLink) operatorLink.classList.toggle('hidden', !['operator','admin','platform_admin'].includes(state.user.role));
+    if (platformLink) platformLink.classList.toggle('hidden', state.user.role !== 'platform_admin');
   }
 
-  const balance = formatMoney(state.account.balance);
-  const heroBalEl = $('#heroBalance');
-  if (heroBalEl) heroBalEl.textContent = balance;
-  const heroAccEl = $('#heroAccount');
-  if (heroAccEl) heroAccEl.textContent = `Рахунок: ${state.account.account_number || '—'}`;
-
-  const balVal = $('#balanceValue');
-  if (balVal) balVal.textContent = balance;
-  const accNum = $('#accountNumber');
-  if (accNum) accNum.textContent = `Рахунок: ${state.account.account_number}`;
-
-  const adminLink = $('.nav-admin');
-  const operatorLink = $('.nav-operator');
-  const platformLink = $('.nav-platform');
-  if (adminLink) adminLink.classList.toggle('hidden', state.user.role !== 'admin' && state.user.role !== 'platform_admin');
-  if (operatorLink) operatorLink.classList.toggle('hidden', !['operator','admin','platform_admin'].includes(state.user.role));
-  if (platformLink) platformLink.classList.toggle('hidden', state.user.role !== 'platform_admin');
+  if (state.account) {
+    const balance = formatMoney(state.account.balance);
+    const heroBalEl = $('#heroBalance');
+    if (heroBalEl) {
+      heroBalEl.textContent = balance;
+      heroBalEl.dataset.raw = state.account.balance;
+    }
+    const heroAccEl = $('#heroAccount');
+    if (heroAccEl) heroAccEl.textContent = `Рахунок: ${state.account.account_number || '—'}`;
+    const balVal = $('#balanceValue');
+    if (balVal) balVal.textContent = balance;
+    const accNum = $('#accountNumber');
+    if (accNum) accNum.textContent = `Рахунок: ${state.account.account_number || '—'}`;
+  }
 
   /* ── Bank Cards ── */
   _updateBankCards().catch(function() {});
 }
+
+// CVV reveal cache: { cardId: { card_number, cvv } }
+var _cvvCache = {};
 
 function _initCarouselInteraction(track) {
   if (!track || track._bankCardsInit) return;
@@ -508,7 +1440,7 @@ function _initCarouselInteraction(track) {
 
   function getCardWidth() {
     var first = track.querySelector('.bank-card');
-    return first ? first.offsetWidth + 14 : track.clientWidth;
+    return first ? first.offsetWidth + 12 : track.clientWidth;
   }
 
   function updateDots() {
@@ -529,6 +1461,56 @@ function _initCarouselInteraction(track) {
     var i = dots.indexOf(dot);
     if (i >= 0) track.scrollTo({ left: i * getCardWidth(), behavior: 'smooth' });
   });
+
+  // Tap-to-flip: distinguish tap from horizontal swipe
+  track.addEventListener('pointerdown', function(e) {
+    track._flipStartX = e.clientX;
+    track._flipStartY = e.clientY;
+  }, { passive: true });
+
+  track.addEventListener('pointerup', function(e) {
+    var dx = Math.abs(e.clientX - (track._flipStartX || e.clientX));
+    var dy = Math.abs(e.clientY - (track._flipStartY || e.clientY));
+    if (dx > 10 || dy > 10) return; // swipe — ignore
+
+    var cardEl = e.target.closest('.bank-card[data-card-id]');
+    if (!cardEl) return;
+
+    var cardId = parseInt(cardEl.dataset.cardId, 10);
+    if (!cardId) return;
+
+    var isFlipped = cardEl.classList.toggle('is-flipped');
+
+    // On first flip: fetch CVV
+    if (isFlipped) {
+      var cvvEl = cardEl.querySelector('.bank-card-cvv-value');
+      var numEl = cardEl.querySelector('.bank-card-full-number');
+      if (!cvvEl) return;
+
+      if (_cvvCache[cardId]) {
+        cvvEl.textContent = _cvvCache[cardId].cvv || '•••';
+        if (numEl) numEl.textContent = _cvvCache[cardId].card_number || '';
+      } else {
+        cvvEl.classList.add('bc-loading');
+        api.request('/api/cards/' + cardId + '/reveal')
+          .then(function(data) {
+            _cvvCache[cardId] = data;
+            /* Guard: card may have been re-rendered while request was in-flight */
+            if (cvvEl.isConnected) {
+              cvvEl.textContent = data.cvv || '•••';
+              cvvEl.classList.remove('bc-loading');
+            }
+            if (numEl && numEl.isConnected) numEl.textContent = data.card_number || '';
+          })
+          .catch(function() {
+            if (cvvEl.isConnected) {
+              cvvEl.textContent = '•••';
+              cvvEl.classList.remove('bc-loading');
+            }
+          });
+      }
+    }
+  });
 }
 
 async function _updateBankCards() {
@@ -541,7 +1523,7 @@ async function _updateBankCards() {
 
   // Try to load real issued cards
   var cards = [];
-  try { cards = (await api.request('/api/cards')).filter(function(c){ return c.status !== 'closed'; }); }
+  try { const r = await api.request('/api/cards'); cards = (Array.isArray(r) ? r : []).filter(function(c){ return c.status !== 'closed'; }); }
   catch(_) {}
 
   if (!cards.length) {
@@ -561,11 +1543,10 @@ async function _updateBankCards() {
     if (!track.querySelector('.bank-card-cta')) {
       var ctaCard = document.createElement('div');
       ctaCard.className = 'bank-card bank-card-cta';
-      ctaCard.innerHTML = '<div class="bank-card-content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center">'
-        + '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="3"/><line x1="1" y1="10" x2="23" y2="10"/></svg>'
-        + '<div style="font-size:13px;color:rgba(255,255,255,.5);line-height:1.4">Картки ще не випущені<br><span style="font-size:11px;color:rgba(167,139,250,.6)">Перейдіть до розділу «Картки»</span></div>'
-        + '</div>';
-      ctaCard.style.cssText = 'background:rgba(255,255,255,.03);border:1px dashed rgba(167,139,250,.2);cursor:pointer';
+      ctaCard.innerHTML = '<div class="bank-card-inner"><div class="bank-card-front" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px">'
+        + '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(100,120,100,.5)" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="3"/><line x1="1" y1="10" x2="23" y2="10"/></svg>'
+        + '<div style="font-size:13px;color:rgba(60,80,60,.6);line-height:1.4">Картки ще не випущені<br><span style="font-size:11px;color:rgba(70,100,74,.5)">Перейдіть до розділу «Картки»</span></div>'
+        + '</div></div>';
       ctaCard.addEventListener('click', function() {
         window.history.pushState(null, '', (getBasePath()||'') + '/cards');
         switchScreen('cards');
@@ -580,31 +1561,39 @@ async function _updateBankCards() {
   // Render real cards
   var DESIGN_MAP = {
     gold:   { cls: 'bank-card-gold',   chipColors: ['#e8c848','#d4a830','#c89820'],
-      network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(255,90,50,.85)"/><circle cx="27" cy="13" r="12" fill="rgba(255,180,50,.75)"/></svg>' },
+      network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(255,92,53,.92)"/><circle cx="27" cy="13" r="12" fill="rgba(247,178,56,.82)"/></svg>' },
     navy:   { cls: 'bank-card-navy',   chipColors: ['#b8b8b8','#a0a0a0','#888888'],
-      network: '<svg width="44" height="14" viewBox="0 0 44 14"><text x="0" y="11" fill="rgba(255,255,255,.6)" font-size="13" font-family="Arial,sans-serif" font-weight="800" letter-spacing="2">VISA</text></svg>' },
-    forest: { cls: 'bank-card-forest', chipColors: ['#6ee7b7','#34d399','#10b981'],
-      network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(52,211,153,.75)"/><circle cx="27" cy="13" r="12" fill="rgba(16,185,129,.6)"/></svg>' },
+      network: '<svg width="44" height="14" viewBox="0 0 44 14"><text x="0" y="11" fill="rgba(255,255,255,.72)" font-size="13" font-family="Arial,sans-serif" font-weight="800" letter-spacing="2">VISA</text></svg>' },
+    forest: { cls: 'bank-card-forest', chipColors: ['#a4c18f','#7f9e6e','#55724e'],
+      network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(126,171,109,.76)"/><circle cx="27" cy="13" r="12" fill="rgba(90,133,74,.64)"/></svg>' },
+    camo:   { cls: 'bank-card-camo',   chipColors: ['#c4bd88','#8f9266','#5a633f'],
+      network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(201,177,106,.76)"/><circle cx="27" cy="13" r="12" fill="rgba(134,122,68,.62)"/></svg>' },
     rose:   { cls: 'bank-card-rose',   chipColors: ['#fda4af','#fb7185','#f43f5e'],
       network: '<svg width="44" height="14" viewBox="0 0 44 14"><text x="0" y="11" fill="rgba(255,255,255,.6)" font-size="13" font-family="Arial,sans-serif" font-weight="800" letter-spacing="2">VISA</text></svg>' },
     slate:  { cls: 'bank-card-slate',  chipColors: ['#94a3b8','#64748b','#475569'],
       network: '<svg width="42" height="26" viewBox="0 0 42 26" fill="none"><circle cx="15" cy="13" r="12" fill="rgba(148,163,184,.6)"/><circle cx="27" cy="13" r="12" fill="rgba(100,116,139,.5)"/></svg>' },
+    dark:   { cls: 'bank-card-dark',   chipColors: ['#556070','#3a4858','#263040'],
+      network: '<svg width="44" height="14" viewBox="0 0 44 14"><text x="0" y="11" fill="rgba(255,255,255,.55)" font-size="13" font-family="Arial,sans-serif" font-weight="800" letter-spacing="2">VISA</text></svg>' },
   };
 
   track._bankCardsInit = false; // allow re-init
   track.innerHTML = cards.map(function(card, i) {
-    var s = DESIGN_MAP[card.design] || DESIGN_MAP.gold;
+    var selectedDesign = _getEffectiveCardDesign(card);
+    var s = DESIGN_MAP[selectedDesign] || DESIGN_MAP.gold;
     var cid = 'chip_' + card.id;
     var blocked = card.status === 'blocked';
     var statusBadge = blocked
       ? '<span style="font-size:9px;color:rgba(239,68,68,.85);font-family:var(--font-mono);letter-spacing:.08em;background:rgba(239,68,68,.12);padding:2px 8px;border-radius:20px;border:1px solid rgba(239,68,68,.2)">ЗАБЛОК.</span>'
       : '<span style="font-size:9px;color:rgba(255,255,255,.4);font-family:var(--font-mono);letter-spacing:.1em;text-transform:uppercase">' + (card.card_type||'VIRTUAL').toUpperCase() + '</span>';
-    return '<div class="bank-card ' + s.cls + (blocked?' bank-card-blocked':'') + '">'
+
+    // ── Front side HTML ──
+    var frontHtml =
+        '<div class="bank-card-front">'
       + '<div class="bank-card-bg"></div>'
       + '<div class="bank-card-noise"></div>'
       + '<div class="bank-card-content">'
       +   '<div class="bank-card-top">'
-      +     '<div class="bank-card-logo"><span class="bank-card-logo-letter">A</span><span class="bank-card-logo-text">Army<strong>Bank</strong></span></div>'
+      +     '<div class="bank-card-logo"><span class="bank-card-logo-letter">A</span><span class="bank-card-logo-text">ARM<strong>Bank</strong></span></div>'
       +     statusBadge
       +   '</div>'
       +   '<div class="bank-card-chip"><svg width="36" height="28" viewBox="0 0 36 28" fill="none">'
@@ -623,6 +1612,32 @@ async function _updateBankCards() {
       +     '<div class="bank-card-network">' + s.network + '</div>'
       +   '</div>'
       + '</div></div>';
+
+    // ── Back side HTML ──
+    var backHtml =
+        '<div class="bank-card-back">'
+      + '<div class="bank-card-mag-stripe"></div>'
+      + '<div class="bank-card-back-body">'
+      +   '<div class="bank-card-sig-strip">'
+      +     '<div class="bank-card-cvv-box">'
+      +       '<div class="bank-card-cvv-label">CVV</div>'
+      +       '<div class="bank-card-cvv-value bc-loading">•••</div>'
+      +     '</div>'
+      +   '</div>'
+      +   '<div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.06em;font-variant-numeric:tabular-nums" class="bank-card-full-number"></div>'
+      +   '<div class="bank-card-back-footer">'
+      +     '<div class="bank-card-back-info">ARM<strong>Bank</strong><br>' + location.hostname + '</div>'
+      +     '<div>' + s.network + '</div>'
+      +   '</div>'
+      + '</div>'
+      + '</div>';
+
+    return '<div class="bank-card ' + s.cls + (blocked?' bank-card-blocked':'') + '" data-design="' + selectedDesign + '" data-card-id="' + card.id + '">'
+      + '<div class="bank-card-inner">'
+      +   frontHtml
+      +   backHtml
+      + '</div>'
+      + '</div>';
   }).join('');
 
   // Sync dots
@@ -642,11 +1657,55 @@ async function loadPaymentTemplates() {
     state.paymentTemplates = [];
   }
   const sel = $('#transferTemplateSelect');
+  if (sel) {
+    sel.innerHTML = '<option value="">— Обрати шаблон —</option>' +
+      state.paymentTemplates.map((t) =>
+        `<option value="${t.id}" data-account="${t.recipient_account || ''}" data-amount="${t.amount || ''}" data-desc="${(t.description || '').replace(/"/g, '&quot;')}">${t.name}</option>`
+      ).join('');
+  }
+  _renderTemplateChips();
+}
+
+function _populateGoalSelect(goals) {
+  const sel = $('#goalIdSelect');
   if (!sel) return;
-  sel.innerHTML = '<option value="">— Обрати шаблон —</option>' +
-    state.paymentTemplates.map((t) =>
-      `<option value="${t.id}" data-account="${t.recipient_account || ''}" data-amount="${t.amount || ''}" data-desc="${(t.description || '').replace(/"/g, '&quot;')}">${t.name}</option>`
-    ).join('');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Оберіть ціль —</option>' +
+    (goals || [])
+      .filter((g) => g.current_amount < g.target_amount)
+      .map((g) => {
+        const pct = g.target_amount > 0 ? Math.round(g.current_amount / g.target_amount * 100) : 0;
+        return `<option value="${g.id}"${String(g.id) === cur ? ' selected' : ''}>${escapeHtml(g.title)} (${pct}%)</option>`;
+      }).join('');
+}
+
+function _renderTemplateChips() {
+  const chips = $('#templateChips');
+  if (!chips) return;
+  if (!state.paymentTemplates.length) {
+    chips.classList.add('hidden');
+    return;
+  }
+  chips.classList.remove('hidden');
+  chips.innerHTML = state.paymentTemplates.map((t) =>
+    `<button type="button" class="template-chip" data-tpl-account="${escapeHtml(t.recipient_account || '')}" data-tpl-amount="${t.amount || ''}" data-tpl-desc="${escapeHtml(t.description || '')}" data-tpl-id="${t.id}" title="${escapeHtml(t.name)}">` +
+    `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>` +
+    `${escapeHtml(t.name)}` +
+    (t.amount ? `<span class="tc-amt">₴${Number(t.amount).toLocaleString('uk-UA')}</span>` : '') +
+    `</button>`
+  ).join('');
+  chips.querySelectorAll('.template-chip').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const account = btn.dataset.tplAccount;
+      const amount  = btn.dataset.tplAmount;
+      const desc    = btn.dataset.tplDesc;
+      const tplId   = btn.dataset.tplId;
+      prefillTransferForm({ mode: 'account', account, amount, description: desc, template_id: tplId });
+      chips.querySelectorAll('.template-chip').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      showToast(`Шаблон «${btn.title}» підставлено.`, 'success');
+    });
+  });
 }
 
 async function deletePaymentTemplate(templateId) {
@@ -695,7 +1754,7 @@ $('#txSearchInput')?.addEventListener('input', () => {
 });
 
 async function refreshAllData() {
-  ['#recentTransactions','#transactionsList','#payoutsList','#donationsList','#goalsList','#contactsList']
+  ['#recentTransactions','#transactionsList','#donationsList','#goalsList','#contactsList']
     .forEach((s) => setListLoading(s, true));
 
   try {
@@ -716,7 +1775,8 @@ async function refreshAllData() {
       avatarEl.textContent = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
     }
     const balance = formatMoney(state.account.balance);
-    const heroBalEl = $('#heroBalance');  if (heroBalEl) heroBalEl.textContent = balance;
+    const heroBalEl = $('#heroBalance');
+    if (heroBalEl) { heroBalEl.textContent = balance; heroBalEl.dataset.raw = state.account.balance; }
     const heroAccEl = $('#heroAccount');  if (heroAccEl) heroAccEl.textContent = `Рахунок: ${state.account.account_number || '—'}`;
     const balVal = $('#balanceValue');    if (balVal) balVal.textContent = balance;
     const accNum = $('#accountNumber');   if (accNum) accNum.textContent = `Рахунок: ${state.account.account_number}`;
@@ -731,49 +1791,64 @@ async function refreshAllData() {
 
     renderTransactions(transactions.slice(0, 5), '#recentTransactions');
     renderTransactions(transactions, '#transactionsList');
+    renderTransferQuickRecipients(buildQuickRecipients(contacts, transactions));
 
-    renderSimpleList('#payoutsList', payouts, (row) => `
-      <div class="item">
-        <div class="item-header"><strong>${row.title}</strong><span class="amount in">+${formatMoney(row.amount)}</span></div>
-        <div class="muted">${row.payout_type} · ${row.status} · ${formatDate(row.created_at)}</div>
-      </div>
-    `, 'Виплат поки немає.');
 
     renderSimpleList('#donationsList', donations, (row) => `
       <div class="item">
         <div class="item-header"><strong>${row.fund_name}</strong><span class="amount out">−${formatMoney(row.amount)}</span></div>
         <div class="muted">${row.comment || 'Без коментаря'} · ${formatDate(row.created_at)}</div>
       </div>
-    `, 'Донатів поки немає.');
+    `, 'Пожертв поки немає.');
 
     // Check goal completions for confetti celebrations
     if (typeof checkGoalCompletion === 'function') checkGoalCompletion(goals);
 
-    // Goals with progress bars + delete + estimated completion
+    // Goals with progress bars + contribute + delete
     renderSimpleList('#goalsList', goals, (row) => {
       const pct = row.target_amount > 0 ? Math.min(100, Math.round(row.current_amount / row.target_amount * 100)) : 0;
-      const remaining = row.target_amount - row.current_amount;
-      let estText = '';
-      if (pct < 100 && remaining > 0) {
-        estText = `· залишилось ${formatMoney(remaining)}`;
-      }
+      const remaining = Math.max(0, row.target_amount - row.current_amount);
+      const done = pct >= 100;
       return `
-        <div class="item item-with-actions">
+        <div class="item item-with-actions goal-item">
           <div class="item-main">
             <div class="item-header">
-              <strong>${row.title}</strong>
-              <span class="pct-badge ${pct >= 100 ? 'done' : ''}">${pct}%</span>
+              <strong>${escapeHtml(row.title)}</strong>
+              <span class="pct-badge ${done ? 'done' : ''}">${done ? '✓' : pct + '%'}</span>
             </div>
             <div class="progress-bar-wrap">
-              <div class="progress-bar" style="width:${pct}%"></div>
+              <div class="progress-bar ${done ? 'done' : ''}" style="width:${pct}%"></div>
             </div>
-            <div class="muted">${formatMoney(row.current_amount)} / ${formatMoney(row.target_amount)} ${estText}${row.deadline ? ` · до ${row.deadline}` : ''}</div>
+            <div class="muted" style="font-size:11px;margin-top:3px">${formatMoney(row.current_amount)} / ${formatMoney(row.target_amount)}${!done && remaining > 0 ? ` · ще ${formatMoney(remaining)}` : ''}${row.deadline ? ` · до ${row.deadline}` : ''}</div>
           </div>
-          <button class="btn-icon-danger" data-delete-goal="${row.id}" title="Видалити ціль" aria-label="Видалити">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-          </button>
+          <div class="item-btns">
+            ${!done ? `<button class="btn-icon-transfer" data-contribute-goal="${row.id}" data-goal-title="${escapeHtml(row.title)}" title="Поповнити ціль" aria-label="Поповнити">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            </button>` : ''}
+            <button class="btn-icon-danger" data-delete-goal="${row.id}" title="Видалити ціль" aria-label="Видалити">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </button>
+          </div>
         </div>`;
     }, 'Цілей накопичення поки немає.');
+
+    // Populate goal dropdown in contribution form
+    _populateGoalSelect(goals);
+
+    // Bind goal contribute button — pre-fills form and scrolls to it
+    $$('#goalsList [data-contribute-goal]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const goalId = Number(btn.dataset.contributeGoal);
+        const sel = $('#goalIdSelect');
+        if (sel) sel.value = String(goalId);
+        const form = document.getElementById('goalContributionForm');
+        if (form) {
+          form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const amtInput = form.querySelector('[name="amount"]');
+          if (amtInput) amtInput.focus();
+        }
+      });
+    });
 
     // Bind goal delete
     $$('#goalsList [data-delete-goal]').forEach((btn) => {
@@ -844,7 +1919,7 @@ async function refreshAllData() {
                 <div class="tx-dir-dot ${tx.direction}"></div>
                 <div class="item-body">
                   <div class="item-header">
-                    <strong>${tx.description}</strong>
+                    <strong>${escapeHtml(tx.description)}</strong>
                     <span class="amount ${tx.direction}">${tx.direction==='in'?'+':'−'}${formatMoney(tx.amount)}</span>
                   </div>
                   <div class="muted">${formatDate(tx.created_at)}</div>
@@ -852,7 +1927,7 @@ async function refreshAllData() {
               </div>`).join('') : '<div class="empty-state">Переказів між вами ще немає.</div>'}
           `;
         } catch(e) {
-          if (body) body.innerHTML = `<div class="drawer-error">${e.message}</div>`;
+          if (body) body.innerHTML = `<div class="drawer-error">${escapeHtml(e.message)}</div>`;
         }
       });
     });
@@ -861,15 +1936,10 @@ async function refreshAllData() {
     $$('#contactsList [data-transfer-account]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const acc = btn.dataset.transferAccount;
-        const form = $('#transferForm');
-        if (form) {
-          form.recipient_account_number.value = acc;
-          const base = getBasePath();
-          window.history.pushState(null, '', base ? base + '/dashboard' : '/dashboard');
-          switchScreen('dashboard');
-          form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          showToast(`Рахунок ${acc} підставлено у форму переказу.`);
-        }
+        if (!acc) return;
+        goToDashboardTransferForm();
+        prefillTransferForm({ mode: 'account', account: acc });
+        showToast(`Рахунок ${acc} підставлено у форму переказу.`);
       });
     });
 
@@ -897,7 +1967,7 @@ async function refreshAllData() {
     if (typeof loadBudgetProgress === 'function') loadBudgetProgress().catch(() => {});
 
   } finally {
-    ['#recentTransactions','#transactionsList','#payoutsList','#donationsList','#goalsList','#contactsList']
+    ['#recentTransactions','#transactionsList','#donationsList','#goalsList','#contactsList']
       .forEach((s) => setListLoading(s, false));
   }
 }
@@ -906,20 +1976,24 @@ async function handleAuth(form, endpoint) {
   const formData = Object.fromEntries(new FormData(form).entries());
   const result = await api.request(endpoint, { method: 'POST', body: JSON.stringify(formData) });
   api.setToken(result.token);
-  setAuthenticated(true);
-  await refreshAllData();
+  clearBootstrapRetryTimer();
+  try {
+    await hydrateAuthenticatedApp();
+  } catch (error) {
+    if (!isAuthErrorResponse(error)) {
+      scheduleBootstrapRetry();
+    } else {
+      api.setToken('');
+      setAuthenticated(false);
+    }
+    error.postAuthInit = true;
+    throw error;
+  }
   const screen = getScreenIdFromPath();
-  switchScreen(screen);
   const base = getBasePath();
   const targetPath = base ? base + '/' + screen : '/' + screen;
   if (window.location.pathname !== targetPath) window.history.replaceState(null, '', targetPath);
   showToast('Успішна авторизація.');
-  startPolling();
-  updatePushDot();
-  if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
-  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-    api.subscribePush().catch(() => {});
-  }
 }
 
 function bindJsonForm(selector, endpoint, options = {}) {
@@ -932,11 +2006,11 @@ function bindJsonForm(selector, endpoint, options = {}) {
       setButtonLoading(btn, true);
       const values = Object.fromEntries(new FormData(form).entries());
       const payload = options.transform ? options.transform(values) : values;
-      await api.request(endpoint(payload), { method: 'POST', body: JSON.stringify(payload) });
+      const result = await api.request(endpoint(payload), { method: 'POST', body: JSON.stringify(payload) });
       form.reset();
       if (options.afterReset) options.afterReset(form);
       await refreshAllData();
-      if (options.afterSuccess) options.afterSuccess();
+      if (options.afterSuccess) options.afterSuccess(result, payload);
       showToast(options.successMessage || 'Операцію виконано.');
     } catch (error) {
       showToast(error.message);
@@ -958,11 +2032,14 @@ $('#loginForm')?.addEventListener('submit', async (event) => {
     setButtonLoading(btn, true);
     await handleAuth(form, '/api/auth/login');
   } catch (error) {
-    if (errBox && errTxt) {
+    const isCredentialsError = !error?.postAuthInit && isAuthErrorResponse(error);
+    if (isCredentialsError && errBox && errTxt) {
       errTxt.textContent = error.message || 'Невірні облікові дані';
       errBox.classList.remove('hidden');
       form.classList.add('auth-shake');
       setTimeout(() => form.classList.remove('auth-shake'), 500);
+    } else {
+      showToast(error?.message || 'Сервер тимчасово недоступний. Спробуйте знову.');
     }
   } finally {
     setButtonLoading(btn, false);
@@ -985,7 +2062,7 @@ $('#registerForm')?.addEventListener('submit', async (event) => {
 
 // ── BOUND FORMS ──────────────────────────────────────────
 bindJsonForm('#topupForm', () => '/api/transactions/topup', {
-  transform: (v) => ({ ...v, amount: Number(v.amount) }),
+  transform: (v) => ({ ...v, amount: Number(v.amount), idempotency_key: _genIdempotencyKey() }),
   successMessage: 'Рахунок поповнено.',
   afterReset: (form) => { form.description.value = 'Поповнення рахунку'; },
 });
@@ -996,17 +2073,21 @@ bindJsonForm('#transferForm', () => {
 }, {
   transform: (v) => {
     const activeMode = ($('#transferModeToggle .tmt-btn.active') || {}).dataset?.mode || 'account';
+    // Include idempotency key so server deduplicates retries/double-taps
+    const ikey = _transferIdempotencyKey || _genIdempotencyKey();
     if (activeMode === 'card') {
       return {
         card_number: (v.recipient_card_number || '').replace(/\s/g, ''),
         amount: Number(v.amount),
         description: v.description || 'Переказ по картці',
+        idempotency_key: ikey,
       };
     }
     return {
-      recipient_account_number: v.recipient_account_number,
+      recipient_account_number: normalizeAccountNumber(v.recipient_account_number),
       amount: Number(v.amount),
       description: v.description || 'Переказ',
+      idempotency_key: ikey,
     };
   },
   successMessage: 'Переказ виконано.',
@@ -1014,6 +2095,23 @@ bindJsonForm('#transferForm', () => {
     form.description.value = 'Переказ родині';
     const sel = $('#transferTemplateSelect');
     if (sel) sel.value = '';
+    clearTransferDraft();
+    _transferIdempotencyKey = null;
+  },
+  afterSuccess: (result, payload) => {
+    // result = {account, tx_id, order_id, ...}
+    const myAccNum = $('#heroAccount')?.textContent?.replace(/^Рахунок:\s*/i, '').trim() || '—';
+    const toAcc = payload?.recipient_account_number || payload?.card_number || '—';
+    receipt.open({
+      tx_id:        result?.tx_id,
+      amount:       payload?.amount,
+      direction:    'out',
+      from_account: myAccNum,
+      to_account:   toAcc,
+      description:  payload?.description,
+      created_at:   new Date().toISOString(),
+      title:        'Переказ виконано',
+    });
   },
 });
 
@@ -1022,9 +2120,11 @@ $('#transferTemplateSelect')?.addEventListener('change', function () {
   if (!opt || !opt.value) return;
   const form = $('#transferForm');
   if (form) {
+    setTransferMode('account');
     form.recipient_account_number.value = opt.dataset.account || '';
     form.amount.value = opt.dataset.amount || '';
     form.description.value = (opt.dataset.desc || '').replace(/&quot;/g, '"');
+    saveTransferDraftFromForm();
   }
 });
 
@@ -1043,33 +2143,53 @@ $('#transferTemplateSelect')?.addEventListener('change', function () {
 
   toggle.addEventListener('click', (e) => {
     const btn = e.target.closest('.tmt-btn');
-    if (btn) applyMode(btn.dataset.mode);
+    if (btn) {
+      applyMode(btn.dataset.mode);
+      saveTransferDraftFromForm();
+    }
   });
 
   // Card number auto-format + status indicator
   document.addEventListener('input', (e) => {
-    if (e.target.name !== 'recipient_card_number') return;
-    const inp = e.target;
-    const raw = inp.value.replace(/\D/g, '').slice(0, 16);
-    const formatted = raw.replace(/(.{4})(?=.)/g, '$1 ');
-    if (inp.value !== formatted) {
-      const pos = inp.selectionStart;
-      inp.value = formatted;
-      inp.setSelectionRange(Math.min(pos, formatted.length), Math.min(pos, formatted.length));
-    }
-    const status = $('#cardLookupStatus');
-    if (status) {
-      if (raw.length === 16) {
-        status.textContent = '✓';
-        status.className = 'card-lookup-status ok';
-      } else if (raw.length > 0) {
-        status.textContent = raw.length + '/16';
-        status.className = 'card-lookup-status pending';
-      } else {
-        status.textContent = '';
-        status.className = 'card-lookup-status';
+    if (e.target.name === 'recipient_card_number') {
+      const inp = e.target;
+      const raw = inp.value.replace(/\D/g, '').slice(0, 16);
+      const formatted = raw.replace(/(.{4})(?=.)/g, '$1 ');
+      if (inp.value !== formatted) {
+        const pos = inp.selectionStart;
+        inp.value = formatted;
+        inp.setSelectionRange(Math.min(pos, formatted.length), Math.min(pos, formatted.length));
       }
+      const status = $('#cardLookupStatus');
+      if (status) {
+        if (raw.length === 16) {
+          status.textContent = '✓';
+          status.className = 'card-lookup-status ok';
+        } else if (raw.length > 0) {
+          status.textContent = raw.length + '/16';
+          status.className = 'card-lookup-status pending';
+        } else {
+          status.textContent = '';
+          status.className = 'card-lookup-status';
+        }
+      }
+      saveTransferDraftFromForm();
+      return;
     }
+
+    if (e.target.name === 'recipient_account_number') {
+      const inp = e.target;
+      const normalized = normalizeAccountNumber(inp.value);
+      if (inp.value !== normalized) {
+        const pos = inp.selectionStart;
+        inp.value = normalized;
+        inp.setSelectionRange(Math.min(pos, normalized.length), Math.min(pos, normalized.length));
+      }
+      saveTransferDraftFromForm();
+      return;
+    }
+
+    if (e.target.closest('#transferForm')) saveTransferDraftFromForm();
   });
 })();
 
@@ -1088,21 +2208,38 @@ $('#transferTemplateSelect')?.addEventListener('change', function () {
 })();
 
 // ── Transfer confirmation bottom sheet ──────────────────────
+// Shared idempotency key: generated when overlay opens, sent with the request.
+// Cleared after form reset to prevent re-use on next transfer.
+let _transferIdempotencyKey = null;
+
+function _genIdempotencyKey() {
+  try { return crypto.randomUUID(); } catch (_) {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  }
+}
+
 (function() {
-  const overlay   = document.getElementById('transferConfirmOverlay');
+  const overlay    = document.getElementById('transferConfirmOverlay');
   const confirmBtn = document.getElementById('tcConfirmBtn');
   const cancelBtn  = document.getElementById('tcCancelBtn');
   const previewBtn = document.getElementById('transferPreviewBtn');
-  if (!overlay || !previewBtn) return;
+  const form       = document.getElementById('transferForm');
+  if (!overlay || !previewBtn || !form) return;
 
-  function formatMoney(n) {
+  function fmtMoney(n) {
     return '₴\u202f' + Number(n).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  previewBtn.addEventListener('click', function() {
-    const form = document.getElementById('transferForm');
-    if (!form) return;
+  // ── Fix: intercept form submit so Enter key can't bypass overlay ──────────
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    // Only allow submission when triggered by confirmBtn (sets _transferConfirmed flag)
+    if (!form._transferConfirmed) {
+      previewBtn.click();
+    }
+  });
 
+  function openOverlay() {
     const mode = (document.querySelector('#transferModeToggle .tmt-btn.active') || {}).dataset?.mode || 'account';
     const amount = parseFloat(form.amount?.value || '0');
     const desc = form.description?.value || '';
@@ -1113,42 +2250,75 @@ $('#transferTemplateSelect')?.addEventListener('change', function () {
       if (raw.length !== 16) { showToast('Введіть повний номер картки (16 цифр)'); return; }
       toVal = form.recipient_card_number.value;
     } else {
-      toVal = form.recipient_account_number?.value || '';
+      toVal = normalizeAccountNumber(form.recipient_account_number?.value || '');
       if (!toVal) { showToast('Введіть номер рахунку'); return; }
+      if (!isLikelyAccountNumber(toVal)) { showToast('Формат рахунку: AB-100001'); return; }
+      if (form.recipient_account_number) form.recipient_account_number.value = toVal;
     }
 
     if (!amount || amount <= 0) { showToast('Введіть суму переказу'); return; }
 
+    // ── Fix: client-side balance check ────────────────────────────────────
+    const currentBalance = parseFloat(
+      document.getElementById('balanceAmount')?.dataset?.raw ||
+      document.getElementById('heroBalance')?.dataset?.raw || 'Infinity'
+    );
+    if (Number.isFinite(currentBalance) && amount > currentBalance) {
+      showToast('Недостатньо коштів на рахунку.'); return;
+    }
+
+    // ── Fix: generate idempotency key per transfer attempt ────────────────
+    _transferIdempotencyKey = _genIdempotencyKey();
+
     document.getElementById('tcTo').textContent = toVal;
-    document.getElementById('tcAmount').textContent = formatMoney(amount);
+    document.getElementById('tcAmount').textContent = fmtMoney(amount);
     document.getElementById('tcDesc').textContent = desc || '—';
+
+    const afterEl = document.getElementById('tcAfterBalance');
+    if (afterEl) {
+      if (Number.isFinite(currentBalance)) {
+        const after = currentBalance - amount;
+        afterEl.textContent = fmtMoney(after);
+        afterEl.style.color = after < 0 ? 'var(--mono-danger, #f87171)' : '';
+      } else {
+        afterEl.textContent = '—';
+      }
+    }
 
     overlay.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-  });
+    confirmBtn.focus();
+  }
+
+  previewBtn.addEventListener('click', openOverlay);
 
   function closeOverlay() {
     overlay.classList.add('hidden');
     document.body.style.overflow = '';
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Підтвердити';
+    form._transferConfirmed = false;
   }
 
   cancelBtn.addEventListener('click', closeOverlay);
-  overlay.addEventListener('click', function(e) {
-    if (e.target === overlay) closeOverlay();
-  });
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeOverlay(); });
+  overlay.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeOverlay(); });
 
   confirmBtn.addEventListener('click', async function() {
     confirmBtn.disabled = true;
     confirmBtn.textContent = 'Виконуємо…';
     try {
-      const form = document.getElementById('transferForm');
-      const realSubmit = document.getElementById('transferSubmitReal');
+      // Signal to form submit handler that this is a confirmed submission
+      form._transferConfirmed = true;
       closeOverlay();
+      // Trigger the real form submit (goes through bindJsonForm handler)
+      const realSubmit = document.getElementById('transferSubmitReal');
       if (realSubmit) realSubmit.click();
     } catch(err) {
       showToast(err.message || 'Помилка переказу');
       confirmBtn.disabled = false;
       confirmBtn.textContent = 'Підтвердити';
+      form._transferConfirmed = false;
     }
   });
 })();
@@ -1156,12 +2326,12 @@ $('#transferTemplateSelect')?.addEventListener('change', function () {
 bindJsonForm('#demoPayoutForm', () => '/api/payouts/demo-accrual', {
   transform: (v) => ({ ...v, amount: Number(v.amount) }),
   successMessage: 'Виплату нараховано.',
-  afterReset: (form) => { form.title.value = 'Бойова виплата'; form.payout_type.value = 'combat'; form.amount.value = '10000'; },
+  afterReset: (form) => { form.title.value = 'Виплата'; form.payout_type.value = 'general'; form.amount.value = '10000'; },
 });
 
 bindJsonForm('#donationForm', () => '/api/donations', {
   transform: (v) => ({ ...v, amount: Number(v.amount) }),
-  successMessage: 'Донат проведено.',
+  successMessage: 'Пожертву проведено.',
 });
 
 bindJsonForm('#goalForm', () => '/api/savings-goals', {
@@ -1192,6 +2362,8 @@ bindJsonForm('#templateForm', () => '/api/payment-templates', {
 
 $('#transactionsFilters')?.addEventListener('submit', (event) => {
   event.preventDefault();
+  localStorage.removeItem(TX_QUICK_FILTER_KEY);
+  setTxQuickFilterActive('');
   loadTransactionsWithFilters();
   showToast('Фільтри застосовано.');
 });
@@ -1217,7 +2389,12 @@ window.addEventListener('popstate', () => {
 $$('[data-jump]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.jump;
-    const screenMap = { history: 'transactions', 'donations-screen': 'donations', payouts: 'payouts', savings: 'savings', contacts: 'contacts', calendar: 'calendar', cards: 'cards' };
+    const screenMap = {
+      history: 'transactions',
+      transactions: 'transactions',
+      cards: 'cards',
+      profile: 'profile',
+    };
     if (screenMap[id]) {
       const target = screenMap[id];
       const base = getBasePath();
@@ -1225,9 +2402,38 @@ $$('[data-jump]').forEach((btn) => {
       switchScreen(target);
       return;
     }
+
+    if (id === 'iban') {
+      const activeScreen = document.querySelector('.screen.active-screen')?.id;
+      if (activeScreen !== 'dashboard') {
+        const base = getBasePath();
+        window.history.pushState(null, '', base ? base + '/dashboard' : '/dashboard');
+        switchScreen('dashboard');
+      }
+      setDashboardActionFormsOpen(true);
+      const transferForm = $('#transferForm');
+      transferForm?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(() => {
+        const accountModeBtn = document.querySelector('#transferModeToggle [data-mode="account"]');
+        if (accountModeBtn && !accountModeBtn.classList.contains('active')) {
+          accountModeBtn.click();
+        }
+        const accountInput = document.querySelector('#transferAccountLabel input[name="recipient_account_number"]');
+        accountInput?.focus();
+      }, 180);
+      return;
+    }
+
     const formMap = { topup: '#topupForm', transfer: '#transferForm' };
     const target = formMap[id];
     if (target) {
+      const activeScreen = document.querySelector('.screen.active-screen')?.id;
+      if (activeScreen !== 'dashboard') {
+        const base = getBasePath();
+        window.history.pushState(null, '', base ? base + '/dashboard' : '/dashboard');
+        switchScreen('dashboard');
+      }
+      setDashboardActionFormsOpen(true);
       $(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   });
@@ -1246,13 +2452,7 @@ $$('.auth-tab').forEach((tab) => {
 
 // Logout (header button)
 $('#logoutBtn')?.addEventListener('click', async () => {
-  stopPolling();
-  try { await api.request('/api/auth/logout', { method: 'POST' }); } catch (_) {}
-  api.setToken('');
-  setAuthenticated(false);
-  const base = getBasePath();
-  window.history.replaceState(null, '', base || '/');
-  showToast('Ви вийшли з системи.');
+  await performLogout();
 });
 
 // ── Push notification bell button ─────────────────────────
@@ -1310,15 +2510,27 @@ $('#pushBtn')?.addEventListener('click', async () => {
 
 // ── SW update detection ───────────────────────────────────
 if ('serviceWorker' in navigator) {
-  let swRefreshing = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (swRefreshing) return;
-    swRefreshing = true;
-    location.reload();
-  });
+  let _swReloading = false;
+  function _swReload() {
+    if (_swReloading) return;
+    _swReloading = true;
+    setTimeout(() => location.reload(), 200);
+  }
 
-  navigator.serviceWorker.register('/sw.js').then(reg => {
+  navigator.serviceWorker.register('/sw.js?v=36', { updateViaCache: 'none' }).then(reg => {
+    if (!reg) return;
+    // If update is already waiting, activate immediately.
+    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+
     reg.update().catch(() => {});
+    setInterval(() => reg.update().catch(() => {}), 30_000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') reg.update().catch(() => {});
+    });
+
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'SW_UPDATED') _swReload();
+    });
 
     reg.addEventListener('updatefound', () => {
       const newSW = reg.installing;
@@ -1328,7 +2540,9 @@ if ('serviceWorker' in navigator) {
         }
       });
     });
-  });
+
+    navigator.serviceWorker.addEventListener('controllerchange', _swReload);
+  }).catch(() => {});
 }
 
 // ── BOOTSTRAP ────────────────────────────────────────────
@@ -1349,7 +2563,7 @@ async function hydrateAuthenticatedApp() {
     startSessionEngine();
     updatePushDot();
     if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') api.subscribePush().catch(() => {});
+    if (Notification?.permission === 'granted') api.subscribePush().catch(() => {});
   }
 }
 
@@ -1372,36 +2586,37 @@ function scheduleBootstrapRetry() {
     setAuthenticated(false);
     return;
   }
+  // Дозволяємо першу відрисовку (shell + тема) до мережевих запитів
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   try {
-    setAuthenticated(true);
-    await refreshAllData();
-    switchScreen(getScreenIdFromPath());
-    startPolling();
-    updatePushDot();
-    if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') api.subscribePush().catch(() => {});
+    await hydrateAuthenticatedApp();
   } catch (error) {
-    // Очищуємо токен тільки при помилці авторизації (401/403).
-    // Мережеві помилки або 503 (Render sleeping) — не виходимо з акаунту.
-    const msg = error?.message || '';
-    const isAuthError = msg.includes('авторизац') || msg.includes('сесію') || msg.includes('Недійсна');
-    if (isAuthError) {
+    if (isAuthErrorResponse(error)) {
+      stopPolling();
+      stopNotifPolling();
+      clearBootstrapRetryTimer();
       api.setToken('');
       setAuthenticated(false);
       showToast('Сесію завершено. Увійдіть повторно.');
     } else {
       showToast('Сервер тимчасово недоступний. Спробуємо знову…');
-      setTimeout(() => location.reload(), 10000);
+      scheduleBootstrapRetry();
     }
   }
 })();
 
-// ── THEME ──────────────────────────────────────────────
+// ── THEME / COMPACT / ANIMATIONS — batch localStorage read ─────────────────
+// Один раз читаємо всі налаштування щоб уникнути 3 окремих sync I/O операцій
+const _prefs = {
+  theme:      localStorage.getItem('ab_theme')      || 'dark',
+  compact:    localStorage.getItem('ab_compact')    === 'true',
+  animations: localStorage.getItem('ab_animations') !== 'false',
+};
+
 function initTheme() {
-  const saved = localStorage.getItem('ab_theme') || 'dark';
-  applyTheme(saved);
+  applyTheme(_prefs.theme);
   const toggle = $('#themeToggle');
-  if (toggle) toggle.checked = saved === 'light';
+  if (toggle) toggle.checked = _prefs.theme === 'light';
 }
 
 function applyTheme(theme) {
@@ -1415,10 +2630,9 @@ $('#themeToggle')?.addEventListener('change', function() {
 
 // Compact mode
 function initCompact() {
-  const saved = localStorage.getItem('ab_compact') === 'true';
-  document.documentElement.classList.toggle('compact', saved);
+  document.documentElement.classList.toggle('compact', _prefs.compact);
   const toggle = $('#compactToggle');
-  if (toggle) toggle.checked = saved;
+  if (toggle) toggle.checked = _prefs.compact;
 }
 
 $('#compactToggle')?.addEventListener('change', function() {
@@ -1428,10 +2642,9 @@ $('#compactToggle')?.addEventListener('change', function() {
 
 // Animations toggle
 function initAnimations() {
-  const disabled = localStorage.getItem('ab_animations') === 'false';
-  document.documentElement.classList.toggle('no-animations', disabled);
+  document.documentElement.classList.toggle('no-animations', !_prefs.animations);
   const toggle = $('#animationsToggle');
-  if (toggle) toggle.checked = !disabled;
+  if (toggle) toggle.checked = _prefs.animations;
 }
 
 $('#animationsToggle')?.addEventListener('change', function() {
@@ -1496,17 +2709,18 @@ async function loadSparkline() {
 
     const lastValY = (H - PAD - ((values[values.length-1] - min) / range) * (H - PAD * 2)).toFixed(1);
 
+    const sparkColor = trend >= 0 ? 'var(--mono-success, #4ade80)' : 'var(--mono-danger, #f87171)';
     container.innerHTML = `
       <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none">
         <defs>
           <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="${trend >= 0 ? '#4ade80' : '#f87171'}" stop-opacity="0.18"/>
-            <stop offset="100%" stop-color="${trend >= 0 ? '#4ade80' : '#f87171'}" stop-opacity="0"/>
+            <stop offset="0%" stop-color="${sparkColor}" stop-opacity="0.18"/>
+            <stop offset="100%" stop-color="${sparkColor}" stop-opacity="0"/>
           </linearGradient>
         </defs>
         <polygon points="${areaPoints}" fill="url(#sparkGrad)"/>
-        <polyline points="${points}" fill="none" stroke="${trend >= 0 ? '#4ade80' : '#f87171'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="${lastX}" cy="${lastValY}" r="3" fill="${trend >= 0 ? '#4ade80' : '#f87171'}"/>
+        <polyline points="${points}" fill="none" stroke="${sparkColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="${lastX}" cy="${lastValY}" r="3" fill="${sparkColor}"/>
       </svg>
       <div class="sparkline-labels">
         <span>${history[0]?.day?.slice(5) || ''}</span>
@@ -1540,6 +2754,8 @@ function initQuickAmounts() {
   });
 }
 initQuickAmounts();
+initTransferDraftAutosave();
+initTxQuickFilters();
 
 // ── SECURITY LOG ──────────────────────────────────────────
 let _secLogLoaded = false;
@@ -1579,7 +2795,7 @@ $('#secLogHead')?.addEventListener('click', async () => {
           </div>`;
       }).join('');
     } catch(e) {
-      list.innerHTML = `<div class="sec-log-error">${e.message}</div>`;
+      list.innerHTML = `<div class="sec-log-error">${escapeHtml(e.message)}</div>`;
     }
   }
 });
@@ -1589,7 +2805,7 @@ $('#copyAccountBtn')?.addEventListener('click', () => {
   const acc = state.account?.account_number;
   if (!acc) return;
   const btn = $('#copyAccountBtn');
-  navigator.clipboard.writeText(acc).then(() => {
+  navigator.clipboard?.writeText(acc).then(() => {
     showToast('Номер рахунку скопійовано.', 'success');
     if (btn) {
       const orig = btn.textContent;
@@ -1605,16 +2821,19 @@ $('#copyAccountBtn')?.addEventListener('click', () => {
 let _qrVisible = false;
 $('#showQrBtn')?.addEventListener('click', () => {
   const wrap = $('#accountQrWrap');
-  const img = $('#accountQrImg');
+  const img  = $('#accountQrImg');
+  const lbl  = $('#showQrBtnLabel');
+  const numEl = $('#qrAccountNum');
   if (!wrap || !img) return;
   _qrVisible = !_qrVisible;
   wrap.classList.toggle('hidden', !_qrVisible);
+  if (lbl) lbl.textContent = _qrVisible ? 'Сховати QR' : 'Показати QR-код рахунку';
   if (_qrVisible && state.account?.account_number) {
-    const text = encodeURIComponent(state.account.account_number);
-    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${text}&color=ffffff&bgcolor=111111`;
+    const acc = state.account.account_number;
+    const text = encodeURIComponent(acc);
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${text}&color=1b2435&bgcolor=ffffff&margin=8`;
+    if (numEl) numEl.textContent = acc;
   }
-  const qrBtn = $('#showQrBtn');
-  if (qrBtn) qrBtn.textContent = _qrVisible ? 'Сховати QR' : 'QR-код рахунку';
 });
 
 // ── SWIPE TO CLOSE DRAWER ─────────────────────────────────
@@ -1622,52 +2841,28 @@ $('#showQrBtn')?.addEventListener('click', () => {
   const drawer = $('#txDrawer');
   if (!drawer) return;
   let startY = 0, startX = 0;
+  let canSwipeClose = false;
   drawer.addEventListener('touchstart', e => {
+    const target = e.target;
+    if (target && target.closest('input, textarea, select, button, [contenteditable="true"]')) {
+      canSwipeClose = false;
+      return;
+    }
+    const body = $('#drawerBody');
+    const startsInHeader = !!(target && target.closest('.drawer-header'));
+    const bodyAtTop = !body || body.scrollTop <= 2;
+    canSwipeClose = startsInHeader || bodyAtTop;
     startY = e.touches[0].clientY;
     startX = e.touches[0].clientX;
   }, { passive: true });
   drawer.addEventListener('touchend', e => {
+    if (!canSwipeClose) return;
     const dy = e.changedTouches[0].clientY - startY;
     const dx = e.changedTouches[0].clientX - startX;
-    // Swipe down (mobile) or right (desktop side drawer)
-    if (dy > 60 || dx > 80) closeDrawer();
-  }, { passive: true });
-})();
-
-// ── PULL TO REFRESH ───────────────────────────────────────
-(function initPullToRefresh() {
-  const content = $('.app-content');
-  if (!content) return;
-  let startY = 0, pulling = false;
-  const indicator = document.createElement('div');
-  indicator.className = 'ptr-indicator hidden';
-  indicator.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="ptr-spin"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
-  content.parentNode.insertBefore(indicator, content);
-
-  content.addEventListener('touchstart', e => {
-    if (content.scrollTop === 0) {
-      startY = e.touches[0].clientY;
-      pulling = true;
-    }
-  }, { passive: true });
-
-  content.addEventListener('touchmove', e => {
-    if (!pulling) return;
-    const dy = e.touches[0].clientY - startY;
-    if (dy > 10) indicator.classList.remove('hidden');
-  }, { passive: true });
-
-  content.addEventListener('touchend', async e => {
-    if (!pulling) return;
-    const dy = e.changedTouches[0].clientY - startY;
-    pulling = false;
-    if (dy > 60) {
-      indicator.classList.add('spinning');
-      try { await refreshAllData(); showToast('Оновлено', 'success'); }
-      catch(_) {}
-      indicator.classList.remove('spinning');
-    }
-    indicator.classList.add('hidden');
+    const verticalSwipe = dy > 90 && Math.abs(dy) > Math.abs(dx) * 1.2;
+    const horizontalSwipe = dx > 120 && Math.abs(dx) > Math.abs(dy) * 1.2;
+    if (verticalSwipe || horizontalSwipe) closeDrawer();
+    canSwipeClose = false;
   }, { passive: true });
 })();
 
@@ -1759,7 +2954,7 @@ async function renderHeatmap() {
       if (!c) return 0;
       return Math.ceil((c / maxCount) * 4);
     }
-    const COLORS = ['rgba(255,255,255,.06)','rgba(255,255,255,.18)','rgba(255,255,255,.35)','rgba(255,255,255,.55)','#4ade80'];
+    const COLORS = ['rgba(0,0,0,.04)','rgba(0,0,0,.1)','rgba(0,0,0,.2)','rgba(0,0,0,.35)','var(--mono-success, #4ade80)'];
 
     let html = '<div class="heatmap-grid">';
     for (let w = 0; w < WEEKS; w++) {
@@ -1790,7 +2985,7 @@ async function loadBudgetLimits() {
       listEl.innerHTML = '<div class="empty-state" style="padding:8px 0">Лімітів не встановлено.</div>';
       return;
     }
-    const txLabels = { transfer: 'Переказ', donation: 'Донат', savings: 'Накопичення', topup: 'Поповнення' };
+    const txLabels = { transfer: 'Переказ', donation: 'Благодійність', savings: 'Накопичення', topup: 'Поповнення' };
     listEl.innerHTML = limits.map(l => {
       const pct = l.pct || 0;
       const color = pct >= 90 ? 'var(--red)' : pct >= 70 ? 'var(--orange)' : 'var(--green)';
@@ -1818,7 +3013,7 @@ async function loadBudgetLimits() {
       });
     });
   } catch(e) {
-    listEl.innerHTML = `<div class="empty-state">Помилка: ${e.message}</div>`;
+    listEl.innerHTML = `<div class="empty-state">Помилка: ${escapeHtml(e.message)}</div>`;
   }
 }
 
@@ -1888,6 +3083,8 @@ async function loadCurrencyRates() {
       const el = $(`#rate${code}`);
       if (el) el.textContent = `₴${_ratesCache[code].toFixed(2)}`;
     });
+    const updated = $('#ratesUpdated');
+    if (updated) updated.textContent = 'Резервні курси · офлайн';
     updateConverter();
   }
 }
@@ -1917,98 +3114,6 @@ function updateConverter() {
 
 loadCurrencyRates();
 
-// ── COMMAND PALETTE (Ctrl+K) ──────────────────────────
-let _cmdOpen = false;
-let _cmdItems = [];
-let _cmdIdx = 0;
-
-const NAV_CMDS = [
-  { type: 'nav', label: 'Огляд', screen: 'dashboard', icon: '🏠' },
-  { type: 'nav', label: 'Операції', screen: 'transactions', icon: '📊' },
-  { type: 'nav', label: 'Цілі накопичення', screen: 'savings', icon: '🎯' },
-  { type: 'nav', label: 'Родина', screen: 'contacts', icon: '👨‍👩‍👧' },
-  { type: 'nav', label: 'Аналітика', screen: 'analytics', icon: '📈' },
-  { type: 'nav', label: 'Профіль', screen: 'profile', icon: '👤' },
-  { type: 'nav', label: 'Виплати', screen: 'payouts', icon: '🛡' },
-  { type: 'nav', label: 'Донати', screen: 'donations', icon: '❤️' },
-];
-
-function openCmdPalette() {
-  _cmdOpen = true;
-  $('#cmdPalette')?.classList.remove('hidden');
-  $('#cmdBackdrop')?.classList.remove('hidden');
-  const input = $('#cmdInput');
-  if (input) { input.value = ''; input.focus(); }
-  renderCmdResults('');
-}
-
-function closeCmdPalette() {
-  _cmdOpen = false;
-  $('#cmdPalette')?.classList.add('hidden');
-  $('#cmdBackdrop')?.classList.add('hidden');
-}
-
-function renderCmdResults(query) {
-  const el = $('#cmdResults');
-  if (!el) return;
-
-  const q = query.toLowerCase().trim();
-  let items = [...NAV_CMDS];
-
-  _cmdItems = q ? items.filter(it =>
-    it.label.toLowerCase().includes(q)
-  ) : items;
-
-  _cmdIdx = 0;
-  if (!_cmdItems.length) {
-    el.innerHTML = '<div class="cmd-empty">Нічого не знайдено</div>';
-    return;
-  }
-  renderCmdList();
-}
-
-function renderCmdList() {
-  const el = $('#cmdResults');
-  if (!el) return;
-  el.innerHTML = _cmdItems.map((item, i) => `
-    <div class="cmd-item ${i === _cmdIdx ? 'active' : ''}" data-idx="${i}">
-      <span class="cmd-item-icon">${item.icon}</span>
-      <span class="cmd-item-label">${item.label}</span>
-      ${item.type === 'nav' ? '<span class="cmd-item-type">Розділ</span>' : ''}
-    </div>
-  `).join('');
-  el.querySelectorAll('.cmd-item').forEach(row => {
-    row.addEventListener('click', () => {
-      _cmdIdx = Number(row.dataset.idx);
-      executeCmdItem();
-    });
-    row.addEventListener('mouseenter', () => {
-      _cmdIdx = Number(row.dataset.idx);
-      el.querySelectorAll('.cmd-item').forEach((r,i) => r.classList.toggle('active', i === _cmdIdx));
-    });
-  });
-}
-
-function executeCmdItem() {
-  const item = _cmdItems[_cmdIdx];
-  if (!item) return;
-  closeCmdPalette();
-  if (item.type === 'nav') {
-    const base = getBasePath();
-    window.history.pushState(null, '', base ? base + '/' + item.screen : '/' + item.screen);
-    switchScreen(item.screen);
-  }
-}
-
-$('#cmdInput')?.addEventListener('input', e => renderCmdResults(e.target.value));
-$('#cmdInput')?.addEventListener('keydown', e => {
-  if (e.key === 'ArrowDown') { _cmdIdx = Math.min(_cmdIdx + 1, _cmdItems.length - 1); renderCmdList(); e.preventDefault(); }
-  if (e.key === 'ArrowUp')   { _cmdIdx = Math.max(_cmdIdx - 1, 0); renderCmdList(); e.preventDefault(); }
-  if (e.key === 'Enter')     { executeCmdItem(); e.preventDefault(); }
-  if (e.key === 'Escape')    { closeCmdPalette(); }
-});
-$('#cmdBackdrop')?.addEventListener('click', closeCmdPalette);
-
 // ── KEYBOARD SHORTCUTS ────────────────────────────────
 let _kbBuffer = '';
 let _kbTimer = null;
@@ -2017,28 +3122,15 @@ document.addEventListener('keydown', (e) => {
   if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) {
     if (e.key === 'Escape') {
       document.activeElement.blur();
-      closeCmdPalette();
       closeDrawer();
+      closeConfirm();
     }
     return;
   }
 
-  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-    e.preventDefault();
-    _cmdOpen ? closeCmdPalette() : openCmdPalette();
-    return;
-  }
-
   if (e.key === 'Escape') {
-    closeCmdPalette();
     closeDrawer();
     closeConfirm();
-    return;
-  }
-
-  if (e.key === '?') {
-    $('#kbHelp')?.classList.toggle('hidden');
-    $('#kbBackdrop')?.classList.toggle('hidden');
     return;
   }
 
@@ -2052,7 +3144,11 @@ document.addEventListener('keydown', (e) => {
   clearTimeout(_kbTimer);
   _kbTimer = setTimeout(() => { _kbBuffer = ''; }, 800);
 
-  const navMap = { 'GD': 'dashboard', 'GT': 'transactions', 'GS': 'savings', 'GC': 'contacts', 'GA': 'analytics', 'GP': 'profile' };
+  const navMap = {
+    'GD': 'dashboard', 'GT': 'transactions', 'GC': 'cards',   'GP': 'profile',
+    'GY': 'payouts',   'GN': 'donations',    'GS': 'savings', 'GA': 'analytics',
+    'GO': 'contacts',  'GL': 'calendar',     'GR': 'recurring','GB': 'debts',
+  };
   if (navMap[_kbBuffer]) {
     const screen = navMap[_kbBuffer];
     const base = getBasePath();
@@ -2060,15 +3156,6 @@ document.addEventListener('keydown', (e) => {
     switchScreen(screen);
     _kbBuffer = '';
   }
-});
-
-$('#kbClose')?.addEventListener('click', () => {
-  $('#kbHelp')?.classList.add('hidden');
-  $('#kbBackdrop')?.classList.add('hidden');
-});
-$('#kbBackdrop')?.addEventListener('click', () => {
-  $('#kbHelp')?.classList.add('hidden');
-  $('#kbBackdrop')?.classList.add('hidden');
 });
 
 // ── CONFETTI CELEBRATION ──────────────────────────────
@@ -2112,8 +3199,7 @@ function launchConfetti() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
   }
-  cancelAnimationFrame(frame);
-  requestAnimationFrame(draw);
+  frame = requestAnimationFrame(draw);
 }
 
 function checkGoalCompletion(goals) {
@@ -2144,13 +3230,57 @@ function shareTransaction(tx) {
     `🔑 ID: #${tx.id}`,
   ].filter(Boolean).join('\n');
 
-  if (navigator.share) {
-    navigator.share({ title: 'Army Bank — Виписка', text }).catch(() => {});
-  } else {
-    navigator.clipboard.writeText(text).then(() =>
-      showToast('Деталі скопійовано в буфер обміну.', 'success')
-    ).catch(() => showToast('Не вдалося скопіювати.'));
+  function _copyFallback() {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, 99999);
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) { showToast('Деталі скопійовано в буфер обміну.', 'success'); return; }
+    } catch (_) {}
+    // Last resort — show a modal with the text
+    _showShareModal(text);
   }
+
+  if (navigator.share) {
+    navigator.share({ title: 'Army Bank — Виписка', text }).catch(() => _copyFallback());
+  } else if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => showToast('Деталі скопійовано в буфер обміну.', 'success'))
+      .catch(() => _copyFallback());
+  } else {
+    _copyFallback();
+  }
+}
+
+function _showShareModal(text) {
+  const existing = document.getElementById('_shareModal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = '_shareModal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:var(--card-bg,#1a2444);border-radius:16px;padding:24px;max-width:380px;width:100%;position:relative">
+      <div style="font-weight:700;font-size:15px;margin-bottom:12px">Поділитися операцією</div>
+      <textarea id="_shareText" readonly style="width:100%;height:160px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:12px;font-size:12px;font-family:monospace;color:inherit;resize:none;margin-bottom:12px">${text}</textarea>
+      <div style="display:flex;gap:10px">
+        <button id="_shareCopyBtn" class="btn-accent" style="flex:1">Скопіювати</button>
+        <button id="_shareCloseBtn" class="btn-ghost">Закрити</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('_shareCopyBtn')?.addEventListener('click', () => {
+    const ta = document.getElementById('_shareText');
+    ta.select(); ta.setSelectionRange(0, 99999);
+    try { document.execCommand('copy'); showToast('Скопійовано!', 'success'); } catch(_) {}
+    modal.remove();
+  });
+  document.getElementById('_shareCloseBtn')?.addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 }
 
 // ── SESSION MANAGEMENT ─────────────────────────────────
@@ -2194,7 +3324,7 @@ $('#sessionsHead')?.addEventListener('click', async () => {
         });
       });
     } catch(e) {
-      list.innerHTML = `<div class="sec-log-error">${e.message}</div>`;
+      list.innerHTML = `<div class="sec-log-error">${escapeHtml(e.message)}</div>`;
     }
   }
 });
@@ -2208,16 +3338,26 @@ async function loadAchievements() {
     const data = await api.request('/api/achievements');
     const { achievements, done, total } = data;
     if (countEl) countEl.textContent = `${done}/${total}`;
-    listEl.innerHTML = achievements.map(a => `
+    const DONE_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    const LOCK_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+    const ACHIEVE_SVG = {
+      'Великий заощаджувач': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`,
+      'Близькі поруч':       `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+      'Активний':            `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+      default:               `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>`,
+    };
+    listEl.innerHTML = achievements.map(a => {
+      const iconSvg = ACHIEVE_SVG[a.title] || ACHIEVE_SVG.default;
+      return `
       <div class="achieve-item ${a.done ? 'done' : 'locked'}">
-        <div class="achieve-icon">${a.icon}</div>
+        <div class="achieve-icon">${iconSvg}</div>
         <div class="achieve-body">
           <div class="achieve-title">${a.title}</div>
           <div class="achieve-desc">${a.desc}</div>
         </div>
-        ${a.done ? '<div class="achieve-check">✓</div>' : ''}
-      </div>
-    `).join('');
+        ${a.done ? `<div class="achieve-check">${DONE_SVG}</div>` : `<div class="achieve-check locked-icon">${LOCK_SVG}</div>`}
+      </div>`;
+    }).join('');
   } catch(_) {}
 }
 
@@ -2339,7 +3479,7 @@ function renderCalendar() {
             <div class="tx-dir-dot ${tx.direction}"></div>
             <div class="item-body">
               <div class="item-header">
-                <strong>${tx.description}</strong>
+                <strong>${escapeHtml(tx.description)}</strong>
                 <span class="amount ${tx.direction}">${tx.direction==='in'?'+':'−'}${formatMoney(tx.amount)}</span>
               </div>
               <div class="muted">${(TX_TYPE_LABELS||{})[tx.tx_type]||tx.tx_type}</div>
@@ -2484,6 +3624,9 @@ async function loadForecast() {
       refreshAllData().catch(() => {});
     }
     if (e.data?.type === 'LOGOUT') {
+      stopPolling();
+      stopNotifPolling();
+      clearBootstrapRetryTimer();
       api.setToken('');
       setAuthenticated(false);
       showToast('Вийшли в іншій вкладці.');
@@ -2612,11 +3755,7 @@ $('#pinBackBtn')?.addEventListener('click', function() {
 
 $('#pinLogoutBtn')?.addEventListener('click', async function() {
   hidePinLock();
-  stopPolling();
-  try { await api.request('/api/auth/logout', { method: 'POST' }); } catch (_e) {}
-  api.setToken('');
-  setAuthenticated(false);
-  showToast('Ви вийшли з системи.');
+  await performLogout();
 });
 
 async function checkPinStatus() {
@@ -2661,6 +3800,154 @@ $('#clearPinBtn')?.addEventListener('click', async function() {
   } catch (e) { showToast(e.message); }
 });
 
+// ── Session Management Engine ────────────────────────────
+// Idle logout: 15 min without activity → warning → 60s countdown → logout
+// Absolute timeout: force logout when JWT exp reached
+// Visibility/online: revalidate token on tab focus / network restore
+
+const SESSION_IDLE_MS     = 15 * 60 * 1000;  // 15 min idle → start warning
+const SESSION_WARN_MS     = 60 * 1000;        // 60 s warning countdown
+const SESSION_MIN_EXTEND  = 30 * 1000;        // don't call /api/me more than once per 30s
+
+let _sesIdleTimer     = null;
+let _sesAbsTimer      = null;
+let _sesWarnInterval  = null;
+let _sesWarnActive    = false;
+let _sesLastExtend    = 0;
+
+function _sesJwtExp(token) {
+  // Parse JWT exp claim without any library
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof json.exp === 'number' ? json.exp * 1000 : null;
+  } catch (_) { return null; }
+}
+
+function _sesCancelWarn() {
+  if (_sesWarnInterval) { clearInterval(_sesWarnInterval); _sesWarnInterval = null; }
+  _sesWarnActive = false;
+  const ov = document.getElementById('sessionWarnOverlay');
+  if (ov) ov.classList.add('hidden');
+}
+
+function _sesShowWarn() {
+  if (_sesWarnActive) return;
+  _sesWarnActive = true;
+  let secs = Math.round(SESSION_WARN_MS / 1000);
+  const ov = document.getElementById('sessionWarnOverlay');
+  const cd = document.getElementById('sessionWarnCountdown');
+  if (ov) ov.classList.remove('hidden');
+  if (cd) cd.textContent = secs;
+  _sesWarnInterval = setInterval(() => {
+    secs -= 1;
+    if (cd) cd.textContent = Math.max(0, secs);
+    if (secs <= 0) {
+      _sesCancelWarn();
+      performLogout({ showMessage: true, reason: 'idle' });
+    }
+  }, 1000);
+}
+
+function _sesResetIdle() {
+  if (!api.token || _sesWarnActive) return;
+  clearTimeout(_sesIdleTimer);
+  _sesIdleTimer = setTimeout(_sesShowWarn, SESSION_IDLE_MS);
+}
+
+function _sesScheduleAbsolute() {
+  clearTimeout(_sesAbsTimer);
+  if (!api.token) return;
+  const exp = _sesJwtExp(api.token);
+  if (!exp) return;
+  const ms = exp - Date.now();
+  if (ms <= 0) {
+    performLogout({ showMessage: true, reason: 'expired' });
+    return;
+  }
+  // Show warning 60s before absolute expiry too (if sooner than idle warning)
+  const warnAt = ms - SESSION_WARN_MS;
+  if (warnAt > 0) {
+    _sesAbsTimer = setTimeout(() => {
+      _sesCancelWarn();
+      _sesShowWarn();
+      // After warning, force logout
+      setTimeout(() => {
+        if (_sesWarnActive) {
+          _sesCancelWarn();
+          performLogout({ showMessage: true, reason: 'expired' });
+        }
+      }, SESSION_WARN_MS + 2000);
+    }, warnAt);
+  } else {
+    _sesAbsTimer = setTimeout(() => {
+      _sesCancelWarn();
+      performLogout({ showMessage: true, reason: 'expired' });
+    }, Math.max(ms, 100));
+  }
+}
+
+async function _sesExtend() {
+  const now = Date.now();
+  if (now - _sesLastExtend < SESSION_MIN_EXTEND) return;
+  _sesLastExtend = now;
+  try {
+    await api.request('/api/auth/me');
+    // If server returns a refreshed token it's handled by api.request interceptor
+    _sesCancelWarn();
+    _sesScheduleAbsolute();
+    _sesResetIdle();
+  } catch (err) {
+    if (isAuthErrorResponse(err)) {
+      _sesCancelWarn();
+      performLogout({ showMessage: true, reason: 'expired' });
+    }
+  }
+}
+
+function startSessionEngine() {
+  stopSessionEngine();
+  if (!api.token) return;
+  _sesScheduleAbsolute();
+  _sesResetIdle();
+}
+
+function stopSessionEngine() {
+  clearTimeout(_sesIdleTimer);
+  clearTimeout(_sesAbsTimer);
+  _sesCancelWarn();
+  _sesIdleTimer = null;
+  _sesAbsTimer  = null;
+}
+
+// Reuse existing activity listeners — also drive session idle reset
+['click', 'keydown', 'touchstart', 'mousemove'].forEach(evt => {
+  document.addEventListener(evt, () => { if (api.token) _sesResetIdle(); }, { passive: true });
+});
+
+// Tab focus → revalidate token
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && api.token) {
+    _sesExtend();
+  }
+});
+
+// Network restore → revalidate token
+window.addEventListener('online', () => {
+  if (api.token) _sesExtend();
+});
+
+// Warning overlay buttons
+document.getElementById('sessionWarnExtend')?.addEventListener('click', () => {
+  _sesLastExtend = 0; // force refresh even within throttle window
+  _sesExtend();
+});
+document.getElementById('sessionWarnLogout')?.addEventListener('click', () => {
+  _sesCancelWarn();
+  performLogout();
+});
+
 // ── Spending Velocity ────────────────────────────────────
 async function loadVelocity() {
   try {
@@ -2697,12 +3984,21 @@ async function loadTopRecipients() {
     el.style.display = '';
     el.innerHTML = '<h3 class="card-title" style="margin-bottom:12px">Топ отримувачів</h3>' +
       list.map(function(r, i) {
-        return '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">' +
+        return '<button type="button" class="top-recipient-row" data-top-account="' + escapeHtml(r.related_account || '') + '" style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);width:100%;background:transparent;border-left:none;border-right:none;border-top:none;text-align:left">' +
           '<div style="width:24px;height:24px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:var(--green)">' + (i+1) + '</div>' +
-          '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + r.related_account + '</div>' +
+          '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(r.related_account || '—') + '</div>' +
           '<div class="muted">' + r.tx_count + ' переказів</div></div>' +
-          '<div style="font-weight:900;color:var(--red)">\u2212' + formatMoney(r.total_sent) + '</div></div>';
+          '<div style="font-weight:900;color:var(--red)">\u2212' + formatMoney(r.total_sent) + '</div></button>';
       }).join('');
+    el.querySelectorAll('[data-top-account]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const account = normalizeAccountNumber(btn.dataset.topAccount || '');
+        if (!isLikelyAccountNumber(account)) return;
+        goToDashboardTransferForm();
+        prefillTransferForm({ mode: 'account', account: account });
+        showToast(`Переказ на ${account} підготовлено.`, 'success');
+      });
+    });
   } catch (_e) {}
 }
 
@@ -2765,7 +4061,7 @@ async function loadRecurring() {
       });
     });
   } catch (e) {
-    if (listEl) { listEl.classList.remove('loading'); listEl.innerHTML = '<div class="drawer-error">' + e.message + '</div>'; }
+    if (listEl) { listEl.classList.remove('loading'); listEl.innerHTML = '<div class="drawer-error">' + escapeHtml(e.message) + '</div>'; }
   }
 }
 
@@ -2855,7 +4151,7 @@ async function loadDebts() {
       });
     });
   } catch (e) {
-    if (listEl) { listEl.classList.remove('loading'); listEl.innerHTML = '<div class="drawer-error">' + e.message + '</div>'; }
+    if (listEl) { listEl.classList.remove('loading'); listEl.innerHTML = '<div class="drawer-error">' + escapeHtml(e.message) + '</div>'; }
   }
 }
 
@@ -2895,70 +4191,18 @@ async function loadTagsCloud() {
   } catch (_e) {}
 }
 
-// Patch openTxDrawer to include tags section
-const _origOpenTxDrawer = openTxDrawer;
-window.openTxDrawer = async function(txId) {
-  if (!txId) return;
-  openDrawer();
-  const body = $('#drawerBody');
-  if (body) body.innerHTML = '<div class="drawer-loading">Завантаження\u2026</div>';
-  try {
-    const tx = await api.request('/api/transactions/' + txId);
-    if (!body) return;
-    const tagBadges = tx.tags
-      ? tx.tags.split(',').map(function(t) { return t.trim(); }).filter(Boolean)
-          .map(function(t) { return '<span class="tag-badge">' + t + '</span>'; }).join('')
-      : '';
-    body.innerHTML =
-      '<div class="drawer-amount ' + tx.direction + '">' +
-        (tx.direction === 'in' ? '+' : '\u2212') + formatMoney(tx.amount) +
-      '</div>' +
-      '<dl class="drawer-info-list">' +
-        '<div class="drawer-info-row"><dt>Опис</dt><dd>' + tx.description + '</dd></div>' +
-        '<div class="drawer-info-row"><dt>Тип</dt><dd>' + (TX_TYPE_LABELS[tx.tx_type] || tx.tx_type) + '</dd></div>' +
-        '<div class="drawer-info-row"><dt>Напрям</dt><dd>' + (tx.direction === 'in' ? '\u2193 Прихід' : '\u2191 Відхід') + '</dd></div>' +
-        (tx.related_account ? '<div class="drawer-info-row"><dt>Контрагент</dt><dd>' + tx.related_account + '</dd></div>' : '') +
-        '<div class="drawer-info-row"><dt>Дата</dt><dd>' + formatDate(tx.created_at) + '</dd></div>' +
-        '<div class="drawer-info-row"><dt>ID</dt><dd>#' + tx.id + '</dd></div>' +
-      '</dl>' +
-      (tagBadges ? '<div class="drawer-tags">' + tagBadges + '</div>' : '') +
-      '<button class="btn-ghost" id="shareTxBtn" style="width:100%;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px">' +
-        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>' +
-        'Поділитися' +
-      '</button>' +
-      '<div class="drawer-note-section">' +
-        '<label class="drawer-note-label">Нотатка</label>' +
-        '<textarea id="drawerNoteInput" class="drawer-note-input" placeholder="Додайте особисту нотатку\u2026" rows="2">' + (tx.note || '') + '</textarea>' +
-        '<button id="saveNoteBtn" class="btn-ghost btn-sm" style="margin-top:6px">Зберегти нотатку</button>' +
-      '</div>' +
-      '<div class="drawer-note-section">' +
-        '<label class="drawer-note-label">Теги (через кому)</label>' +
-        '<input id="drawerTagsInput" type="text" class="drawer-note-input" placeholder="наприклад: їжа, магазин, особисте" value="' + (tx.tags || '') + '">' +
-        '<button id="saveTagsBtn" class="btn-ghost btn-sm" style="margin-top:6px">Зберегти теги</button>' +
-      '</div>';
-
-    $('#shareTxBtn')?.addEventListener('click', function() {
-      if (typeof shareTransaction === 'function') shareTransaction(tx);
-    });
-    $('#saveNoteBtn')?.addEventListener('click', async function() {
-      const note = ($('#drawerNoteInput') || {}).value || '';
-      try {
-        await api.request('/api/transactions/' + tx.id + '/note', { method: 'PATCH', body: JSON.stringify({ note: note }) });
-        showToast('Нотатку збережено.', 'success');
-      } catch (e) { showToast(e.message); }
-    });
-    $('#saveTagsBtn')?.addEventListener('click', async function() {
-      const tags = ($('#drawerTagsInput') || {}).value || '';
-      try {
-        await api.request('/api/transactions/' + tx.id + '/tags', { method: 'PATCH', body: JSON.stringify({ tags: tags }) });
-        showToast('Теги збережено.', 'success');
-        loadTagsCloud().catch(function() {});
-      } catch (e) { showToast(e.message); }
-    });
-  } catch (e) {
-    if (body) body.innerHTML = '<div class="drawer-error">' + e.message + '</div>';
+function getRepeatTransferTarget(tx) {
+  if (!tx || tx.tx_type !== 'transfer' || tx.direction !== 'out' || !tx.related_account) return null;
+  const related = String(tx.related_account || '').trim();
+  const digits = related.replace(/\D/g, '');
+  if (digits.length === 16) {
+    return { mode: 'card', card: digits.replace(/(.{4})(?=.)/g, '$1 ') };
   }
-};
+  const normalized = normalizeAccountNumber(related);
+  if (!isLikelyAccountNumber(normalized)) return null;
+  return { mode: 'account', account: normalized };
+}
+
 
 // ── Onboarding Tour ──────────────────────────────────────
 var ONBOARDING_STEPS = [
@@ -3041,60 +4285,7 @@ window.handleAuth = async function(form, endpoint) {
   }
 };
 
-// ── Keyboard shortcuts G+D / G+R ─────────────────────────
-(function() {
-  var _gPressedTime = 0;
-  document.addEventListener('keydown', function(e) {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-    if (!api.token) return;
-    var key = e.key.toLowerCase();
-    var now = Date.now();
-    if (key === 'g') { _gPressedTime = now; return; }
-    if (now - _gPressedTime < 1000) {
-      if (key === 'd') { switchScreen('debts'); _gPressedTime = 0; }
-      if (key === 'r') { switchScreen('recurring'); _gPressedTime = 0; }
-    }
-  });
-})();
-
-console.log('[Army Bank] Wave 5 loaded \u2014 PIN, Recurring, Debts, Tags, Velocity, Onboarding');
-
-// ── More Sheet ────────────────────────────────────────────
-(function() {
-  var btn = document.getElementById('navMoreBtn');
-  var sheet = document.getElementById('moreSheet');
-  var overlay = document.getElementById('moreSheetOverlay');
-  if (!btn || !sheet || !overlay) return;
-
-  function openSheet() {
-    sheet.classList.add('open');
-    overlay.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-  }
-  function closeSheet() {
-    sheet.classList.remove('open');
-    overlay.classList.add('hidden');
-    document.body.style.overflow = '';
-  }
-
-  btn.addEventListener('click', openSheet);
-  overlay.addEventListener('click', closeSheet);
-
-  // Items in sheet close the sheet and navigate
-  sheet.querySelectorAll('.nav-link').forEach(function(el) {
-    el.addEventListener('click', function() {
-      closeSheet();
-    });
-  });
-
-  // Swipe down to close
-  var startY = 0;
-  sheet.addEventListener('touchstart', function(e) { startY = e.touches[0].clientY; }, { passive: true });
-  sheet.addEventListener('touchend', function(e) {
-    var dy = e.changedTouches[0].clientY - startY;
-    if (dy > 60) closeSheet();
-  }, { passive: true });
-})();
+console.log('[Army Bank] UX core modules loaded');
 
 // ── A2HS Install Banner ───────────────────────────────────
 (function() {
@@ -3160,46 +4351,77 @@ console.log('[Army Bank] Wave 5 loaded \u2014 PIN, Recurring, Debts, Tags, Veloc
   var content = document.querySelector('.app-content');
   var indicator = document.getElementById('pullRefreshIndicator');
   if (!content || !indicator) return;
-  var startY = 0, pulling = false, threshold = 70;
+  var startY = 0, pulling = false, pullDistance = 0, threshold = 70;
 
   content.addEventListener('touchstart', function(e) {
-    if (content.scrollTop === 0) startY = e.touches[0].clientY;
-    else startY = 0;
+    if (content.scrollTop <= 0) {
+      startY = e.touches[0].clientY;
+      pullDistance = 0;
+      return;
+    }
+    startY = 0;
+    pullDistance = 0;
   }, { passive: true });
 
   content.addEventListener('touchmove', function(e) {
     if (!startY) return;
     var dy = e.touches[0].clientY - startY;
-    if (dy > 20 && !pulling) {
+    if (dy <= 0) return;
+    pullDistance = dy;
+    if (dy > 24 && !pulling) {
       pulling = true;
       indicator.classList.add('visible');
     }
   }, { passive: true });
 
   content.addEventListener('touchend', function() {
-    if (pulling) {
-      pulling = false;
+    if (pulling && pullDistance >= threshold) {
       refreshAllData().finally(function() {
         indicator.classList.remove('visible');
       });
+    } else {
+      indicator.classList.remove('visible');
     }
+    pulling = false;
+    pullDistance = 0;
     startY = 0;
   }, { passive: true });
 })();
 
 // ── Swipe between screens ─────────────────────────────────
 (function() {
-  var SCREENS_ORDER = ['dashboard', 'transactions', 'savings', 'contacts', 'profile', 'recurring', 'debts'];
+  var SCREENS_ORDER = ['dashboard', 'transactions', 'cards', 'profile'];
   var content = document.querySelector('.app-content');
   if (!content) return;
-  var startX = 0, startY = 0;
+  var startX = 0, startY = 0, swipeEligible = false;
+  var EDGE_GUTTER = 28;
+
+  function isInteractiveTarget(target) {
+    if (!target || !target.closest) return false;
+    return !!target.closest(
+      'input, textarea, select, button, a, [data-no-screen-swipe], ' +
+      '.bank-cards-track, .bank-card, .quick-actions, .transfer-mode-toggle, ' +
+      '#dashboardActionForms, .drawer, .notif-panel'
+    );
+  }
+
+  function hasOpenOverlay() {
+    return !document.getElementById('txDrawer')?.classList.contains('hidden') ||
+      !document.getElementById('transferConfirmOverlay')?.classList.contains('hidden') ||
+      !document.getElementById('confirmDialog')?.classList.contains('hidden') ||
+      document.getElementById('notifPanel')?.classList.contains('open');
+  }
 
   content.addEventListener('touchstart', function(e) {
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
+    var fromEdge = startX <= EDGE_GUTTER || startX >= (window.innerWidth - EDGE_GUTTER);
+    swipeEligible = fromEdge && !isInteractiveTarget(e.target) && !hasOpenOverlay();
   }, { passive: true });
 
   content.addEventListener('touchend', function(e) {
+    if (!swipeEligible) return;
+    swipeEligible = false;
     var dx = e.changedTouches[0].clientX - startX;
     var dy = e.changedTouches[0].clientY - startY;
     if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
@@ -3224,6 +4446,60 @@ console.log('[Army Bank] Wave 5 loaded \u2014 PIN, Recurring, Debts, Tags, Veloc
       if (typeof navigator.vibrate === 'function') navigator.vibrate(10);
     }
   }, { passive: true });
+})();
+
+// ── Auto-hide bottom nav on scroll (mobile) ──────────────
+(function() {
+  var content = document.querySelector('.app-content');
+  var nav = document.querySelector('.bottom-nav');
+  if (!content || !nav) return;
+
+  var lastY = 0;
+  var ticking = false;
+
+  function isMobileLayout() {
+    return window.matchMedia('(max-width: 959px)').matches;
+  }
+
+  function showNav() {
+    nav.classList.remove('nav-hidden');
+  }
+
+  function updateNav() {
+    ticking = false;
+    if (!isMobileLayout()) {
+      showNav();
+      return;
+    }
+    var y = content.scrollTop || 0;
+    var dy = y - lastY;
+    var notifOpen = document.getElementById('notifPanel')?.classList.contains('open');
+    if (notifOpen) {
+      showNav();
+      lastY = y;
+      return;
+    }
+    if (y < 20 || dy < -6) {
+      showNav();
+    } else if (dy > 8) {
+      nav.classList.add('nav-hidden');
+    }
+    lastY = y < 0 ? 0 : y;
+  }
+
+  content.addEventListener('scroll', function() {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(updateNav);
+  }, { passive: true });
+
+  content.addEventListener('touchend', function() {
+    if ((content.scrollTop || 0) < 20) showNav();
+  }, { passive: true });
+
+  window.addEventListener('resize', showNav, { passive: true });
+  window.addEventListener('orientationchange', showNav, { passive: true });
+  window.addEventListener('popstate', showNav);
 })();
 
 // ── NOTIFICATION CENTER ────────────────────────────────────────
@@ -3334,10 +4610,26 @@ console.log('[Army Bank] Wave 5 loaded \u2014 PIN, Recurring, Debts, Tags, Veloc
     } catch(e) {}
   }
 
+  var notifPollTimer = null;
+
   // Poll badge every 60 seconds once logged in
   window._startNotifPolling = function() {
+    if (!api.token) return;
     refreshBadge();
-    setInterval(refreshBadge, 60000);
+    if (notifPollTimer) return;
+    notifPollTimer = setInterval(function() {
+      if (!api.token) {
+        window._stopNotifPolling();
+        return;
+      }
+      refreshBadge();
+    }, 60000);
+  };
+
+  window._stopNotifPolling = function() {
+    if (!notifPollTimer) return;
+    clearInterval(notifPollTimer);
+    notifPollTimer = null;
   };
 })();
 
@@ -3349,12 +4641,12 @@ async function loadBudgetProgress() {
   try {
     var limits = await api.request('/api/budget-limits');
     if (!limits || !limits.length) { card.style.display = 'none'; return; }
-    var analytics = await api.request('/api/analytics');
+    var analytics = await api.request('/api/analytics/summary');
     var byType = {};
-    (analytics.by_type || []).forEach(function(r) {
-      if (r.direction === 'out') byType[r.tx_type] = parseFloat(r.total) || 0;
+    ((analytics.by_type || [])).forEach(function(r) {
+      if (r.direction === 'out') byType[r.tx_type] = parseFloat(r.total_out || r.total) || 0;
     });
-    var TYPE_LABELS = { transfer: 'Перекази', donation: 'Донати', savings: 'Накопичення', topup: 'Поповнення' };
+    var TYPE_LABELS = { transfer: 'Перекази', donation: 'Благодійність', savings: 'Накопичення', topup: 'Поповнення' };
     list.innerHTML = limits.map(function(l) {
       var spent = byType[l.tx_type] || 0;
       var limit = parseFloat(l.monthly_limit) || 0;
@@ -3431,21 +4723,7 @@ async function loadBudgetProgress() {
     }
   });
 
-  // Store txId on drawer open so auto-save knows which transaction
-  var _origOpenTxDrawerV3 = window.openTxDrawer;
-  window.openTxDrawer = async function(txId) {
-    var body = document.getElementById('drawerBody');
-    if (body) body.dataset.txId = txId;
-    if (_origOpenTxDrawerV3) return _origOpenTxDrawerV3(txId);
-  };
-})();
-
-// ── Keyboard shortcut: Ctrl+K hint in footer ─────────
-(function() {
-  var hint = document.querySelector('.kb-hint');
-  if (hint) hint.addEventListener('click', function() {
-    if (typeof openCmdPalette === 'function') openCmdPalette();
-  });
+  // txId is now stored in body.dataset.txId inside openTxDrawer itself
 })();
 
 // ── Refresh button (R) visual feedback ───────────────
@@ -3472,8 +4750,76 @@ console.log('[Army Bank] Polish v3 loaded — UX improvements');
 const CARD_STATUS_LABELS = { active: 'Активна', blocked: 'Заблокована', closed: 'Закрита' };
 const CARD_TYPE_LABELS = { virtual: 'Віртуальна', physical: 'Фізична' };
 
+function _cardDesignOptions() {
+  return [
+    { id: 'gold',   label: 'Gold' },
+    { id: 'navy',   label: 'Navy' },
+    { id: 'forest', label: 'Forest' },
+    { id: 'camo',   label: 'Military' },
+    { id: 'rose',   label: 'Rose' },
+    { id: 'slate',  label: 'Slate' },
+    { id: 'dark',   label: 'Dark' },
+  ];
+}
+
+function _cardDesignStorageKey() {
+  return 'ab_card_design_overrides_v1';
+}
+
 function _cardStatusClass(status) {
   return status === 'active' ? 'card-status-active' : status === 'blocked' ? 'card-status-blocked' : 'card-status-closed';
+}
+
+function _readCardDesignOverrides() {
+  try {
+    const raw = localStorage.getItem(_cardDesignStorageKey());
+    const parsed = raw ? JSON.parse(raw) : {};
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function _writeCardDesignOverrides(map) {
+  try { localStorage.setItem(_cardDesignStorageKey(), JSON.stringify(map || {})); }
+  catch (_) {}
+}
+
+function _isSupportedCardDesign(design) {
+  return _cardDesignOptions().some((d) => d.id === design);
+}
+
+function _getEffectiveCardDesign(card) {
+  const overrides = _readCardDesignOverrides();
+  const fromStorage = overrides[String(card.id)];
+  const resolved = fromStorage || card.design || 'gold';
+  return _isSupportedCardDesign(resolved) ? resolved : 'gold';
+}
+
+function _setCardDesignOverride(cardId, design) {
+  if (!_isSupportedCardDesign(design)) return;
+  const map = _readCardDesignOverrides();
+  map[String(cardId)] = design;
+  _writeCardDesignOverrides(map);
+}
+
+function _getCardDesignLabel(design) {
+  const m = _cardDesignOptions().find((d) => d.id === design);
+  return m ? m.label : 'Gold';
+}
+
+function _renderCardDesignPalette(cardId, activeDesign, disabled) {
+  return _cardDesignOptions().map((opt) => `
+    <button
+      type="button"
+      class="cmi-design-dot design-${opt.id} ${opt.id === activeDesign ? 'active' : ''}"
+      data-set-design="${cardId}"
+      data-design="${opt.id}"
+      aria-label="Стиль ${opt.label}"
+      title="${opt.label}"
+      ${disabled ? 'disabled' : ''}
+    ></button>
+  `).join('');
 }
 
 function renderCardItem(card) {
@@ -3481,6 +4827,8 @@ function renderCardItem(card) {
   const typeLabel = CARD_TYPE_LABELS[card.card_type] || card.card_type;
   const isActive = card.status === 'active';
   const isClosed = card.status === 'closed';
+  const activeDesign = _getEffectiveCardDesign(card);
+  const designLabel = _getCardDesignLabel(activeDesign);
 
   return `
     <div class="card-manage-item ${card.status}" data-card-id="${card.id}">
@@ -3498,6 +4846,14 @@ function renderCardItem(card) {
           <span>${typeLabel}</span>
           <span>•</span>
           <span>дійсна до ${card.expiry_display || card.expires_at || '—'}</span>
+        </div>
+        <div class="cmi-design">
+          <div class="cmi-design-head">
+            <span class="cmi-design-label">Стиль: ${designLabel}</span>
+          </div>
+          <div class="cmi-design-palette">
+            ${_renderCardDesignPalette(card.id, activeDesign, isClosed)}
+          </div>
         </div>
       </div>
       <div class="cmi-right">
@@ -3538,7 +4894,7 @@ async function loadCards() {
       bindCardActions();
     }
   } catch (e) {
-    list.innerHTML = `<div class="empty-state">${e.message}</div>`;
+    list.innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
   }
 }
 
@@ -3555,6 +4911,7 @@ function bindCardActions() {
         const newStatus = result.status;
         showToast(newStatus === 'active' ? 'Картку розблоковано.' : 'Картку заблоковано.', newStatus === 'active' ? 'success' : '');
         loadCards();
+        _updateBankCards().catch(function() {});
       } catch (e) {
         showToast(e.message);
         btn.disabled = false;
@@ -3575,11 +4932,45 @@ function bindCardActions() {
             await api.request(`/api/cards/${cardId}/close`, { method: 'PATCH' });
             showToast('Картку закрито.', '');
             loadCards();
+            _updateBankCards().catch(function() {});
           } catch (e) {
             showToast(e.message);
           }
         }
       );
+    });
+  });
+
+  // Design customization
+  $$('#cardsList [data-set-design][data-design]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const cardId = Number(btn.dataset.setDesign);
+      const design = (btn.dataset.design || '').trim();
+      if (!cardId || !design || !_isSupportedCardDesign(design)) return;
+      if (btn.classList.contains('active')) return;
+
+      _setCardDesignOverride(cardId, design);
+      _updateBankCards().catch(function() {});
+
+      let savedOnServer = false;
+      try {
+        await api.request(`/api/cards/${cardId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ design: design }),
+        });
+        savedOnServer = true;
+      } catch (_) {
+        try {
+          await api.request(`/api/cards/${cardId}/design`, {
+            method: 'PATCH',
+            body: JSON.stringify({ design: design }),
+          });
+          savedOnServer = true;
+        } catch (_) {}
+      }
+
+      showToast(savedOnServer ? 'Дизайн картки оновлено.' : 'Дизайн застосовано локально.', 'success');
+      loadCards();
     });
   });
 }

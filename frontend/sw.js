@@ -1,10 +1,10 @@
-/* Army Bank — Service Worker v38 */
-const CACHE = 'army-bank-v38';
+/* Army Bank — Service Worker v35 */
+const CACHE = 'army-bank-v36';
 
 /* Assets to pre-cache on install */
 const PRECACHE = [
-  '/css/styles.css?v=8',
-  '/css/overrides.css?v=42',
+  '/css/styles.css?v=31',
+  '/css/overrides.css?v=41',
   '/manifest.json?v=2',
   '/js/api.js?v=2',
   '/js/app.js?v=54',
@@ -30,6 +30,11 @@ self.addEventListener('activate', e => {
         keys.filter(k => k !== CACHE).map(k => caches.delete(k))
       ))
       .then(() => self.clients.claim())
+      .then(() => {
+        return self.clients.matchAll({ type: 'window' }).then(clients => {
+          clients.forEach(c => c.postMessage({ type: 'SW_UPDATED' }));
+        });
+      })
   );
 });
 
