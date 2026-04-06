@@ -2,77 +2,47 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>ARM Bank</title>
-  <meta name="description" content="Ваші фінанси під контролем — ARM Bank">
-  <meta name="theme-color" content="#162c5c">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Army Bank</title>
+  <meta name="description" content="Цифровий банкінг для захисників України">
+  <meta name="theme-color" content="#2f4a37">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="ARM Bank">
-  <link rel="manifest" href="/manifest.json?v=2">
-  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
-  <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png">
-  <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144.png">
-  <meta name="msapplication-TileImage" content="/icons/icon-144.png">
-  <meta name="msapplication-TileColor" content="#060810">
+  <meta name="apple-mobile-web-app-title" content="Army Bank">
+  <link rel="manifest" href="/manifest.json">
   <link rel="preconnect" href="https://army-bank.onrender.com">
   <link rel="dns-prefetch" href="https://army-bank.onrender.com">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Manrope: кирилиця + латиниця; Cormorant — лише акценти; JetBrains Mono — мітки -->
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400&display=swap" as="style" onload="this.rel='stylesheet'">
-  <noscript><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400&display=swap" rel="stylesheet"></noscript>
-  <!-- Critical inline CSS: matches overrides.css colors to prevent FOUC -->
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" as="style" onload="this.rel='stylesheet'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
+  <!-- Critical inline CSS: body bg + auth shell to prevent FOUC before styles.css loads -->
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%;background:#e7ebe2;color:#141a15;font-family:Manrope,system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;text-size-adjust:100%}
+    html,body{height:100%;background:#050505;color:#e5e5e5;font-family:Manrope,system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;text-size-adjust:100%}
     .hidden{display:none!important}
     .screen{display:none;flex-direction:column;height:100%}
+    /* Must match app.js + styles.css: .active-screen, not .active */
     .screen.active-screen{display:block}
-    #authScreen.auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(180deg,#274fb5 0%,#3f6fd8 52%,#7da0df 100%)}
+    /* Must match setAuthenticated(): toggles .hidden, not .active */
+    #authScreen.auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#050505}
     #authScreen.hidden{display:none!important}
-    #appScreen.hidden{display:none!important}
-    /* Instant auth-state — applied by inline script below before body renders */
-    html.ab-authed #authScreen{display:none!important}
-    html.ab-authed #appScreen{display:flex!important}
-    /* Shimmer on key elements while initial data loads */
-    @keyframes ab-shimmer{0%,100%{opacity:.45}50%{opacity:.85}}
-    .app-loading #heroBalance,.app-loading #userName,.app-loading #heroAccount{animation:ab-shimmer 1.3s ease-in-out infinite}
   </style>
-  <!-- Both stylesheets async (non-blocking) — critical CSS above prevents FOUC -->
-  <link rel="stylesheet" href="/css/styles.css?v=31" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/styles.css?v=31"></noscript>
+  <!-- Main stylesheet: async load (non-blocking), display:none swap triggers once loaded -->
+  <link rel="stylesheet" href="/css/styles.css?v=7" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/styles.css?v=7"></noscript>
   <link rel="stylesheet" href="/css/overrides.css?v=41" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="/css/overrides.css?v=41"></noscript>
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
-  <link rel="preload" href="/js/api.js?v=2" as="script">
-  <link rel="preload" href="/js/app.js?v=54" as="script">
-  <!-- Build version check + instant auth state + server wake-up -->
+  <link rel="preload" href="/js/api.js" as="script">
+  <link rel="preload" href="/js/app.js" as="script">
+  <!-- Early server wake-up: ping /health if session token exists (mitigates Render cold-start) -->
   <script>
     (function(){
-      var BUILD = '54';
-      try {
-        var stored = localStorage.getItem('ab_build');
-        if (stored && stored !== BUILD) {
-          /* New build deployed — nuke all SW caches and reload for clean update */
-          localStorage.setItem('ab_build', BUILD);
-          if ('serviceWorker' in navigator && 'caches' in window) {
-            Promise.all([
-              navigator.serviceWorker.getRegistrations().then(function(r){return Promise.all(r.map(function(x){return x.unregister();}));}),
-              caches.keys().then(function(k){return Promise.all(k.map(function(c){return caches.delete(c);}));})
-            ]).then(function(){location.reload();}).catch(function(){location.reload();});
-          } else { location.reload(); }
-          return;
-        }
-        localStorage.setItem('ab_build', BUILD);
-      } catch(_) {}
       try {
         if (localStorage.getItem('army_bank_token')) {
-          /* Hide login page immediately — no flash of auth screen for returning users */
-          document.documentElement.classList.add('ab-authed');
-          /* Kick Render cold-start in parallel */
           fetch('/health', { method: 'GET', cache: 'no-store', keepalive: true }).catch(function(){});
         }
       } catch(_) {}
@@ -142,8 +112,8 @@
         <div class="auth-logo-mark" aria-hidden="true">
           <span style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:32px;color:var(--accent);letter-spacing:0.05em;">A</span>
         </div>
-        <h1>ARM<strong>Bank</strong></h1>
-        <p>Ваші фінанси під контролем</p>
+        <h1>Army<strong>Bank</strong></h1>
+        <p>Цифровий банкінг для захисників</p>
       </div>
 
       <div class="auth-card">
@@ -195,7 +165,7 @@
   </div>
 
   <!-- ══ APP SHELL ══════════════════════════════════════════ -->
-  <div id="appScreen" class="app-shell hidden screen-dashboard">
+  <div id="appScreen" class="app-shell hidden">
 
     <!-- Header / Balance card -->
     <header class="app-header">
@@ -207,46 +177,26 @@
             <div class="header-role" id="userMeta">Завантаження…</div>
           </div>
         </div>
-        <div class="header-actions">
-          <button id="notifBtn" class="icon-btn" aria-label="Сповіщення" title="Сповіщення" style="position:relative">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
-            <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;min-width:16px;height:16px;background:#ef4444;border-radius:8px;border:2px solid var(--mono-surface);font-size:9px;font-weight:900;color:#fff;align-items:center;justify-content:center;line-height:1;padding:0 2px"></span>
-          </button>
-          <button id="pushBtn" class="icon-btn" aria-label="Push-сповіщення" title="Push-сповіщення" style="position:relative">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
-              <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
-              <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
-              <line x1="12" y1="20" x2="12.01" y2="20"/>
-            </svg>
-            <span id="pushDot" style="display:none;position:absolute;top:4px;right:4px;width:9px;height:9px;border-radius:50%;background:var(--mono-success);border:2px solid var(--mono-blue-top)"></span>
-          </button>
-          <button id="logoutBtn" class="icon-btn" aria-label="Вийти">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-          </button>
-        </div>
+        <button id="notifBtn" class="icon-btn" aria-label="Сповіщення" title="Сповіщення" style="position:relative">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;min-width:16px;height:16px;background:var(--accent);border-radius:8px;border:2px solid var(--bg);font-size:9px;font-weight:900;color:#000;align-items:center;justify-content:center;line-height:1;padding:0 2px"></span>
+        </button>
+        <button id="logoutBtn" class="icon-btn" aria-label="Вийти">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
       </div>
 
       <div class="balance-block">
-        <div class="balance-label-row" style="display:flex;align-items:center;gap:8px;justify-content:center">
-          <div class="balance-label">Загальний баланс</div>
-          <button type="button" id="toggleBalanceBtn" aria-label="Приховати баланс" style="background:none;border:none;cursor:pointer;padding:2px;opacity:.55;line-height:1;color:inherit" title="Приховати/показати баланс">
-            <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            <svg id="eyeOffIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-          </button>
-        </div>
+        <div class="balance-label">Загальний баланс</div>
         <div class="balance-amount" id="heroBalance">₴0,00</div>
-        <button type="button" id="heroAccountCopyBtn" style="background:none;border:none;cursor:pointer;padding:0;display:inline-flex;align-items:center;gap:5px;color:inherit;opacity:.7" title="Копіювати номер рахунку">
-          <span id="heroAccount">Рахунок: —</span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        </button>
+        <div class="balance-account" id="heroAccount">Рахунок: —</div>
         <!-- Hidden legacy ids for JS -->
         <span id="balanceValue" style="display:none"></span>
         <span id="accountNumber" style="display:none"></span>
@@ -257,90 +207,82 @@
         <div class="bank-cards-track" id="bankCardsTrack">
           <!-- Gold Premium Card -->
           <div class="bank-card bank-card-gold" id="bankCardPrimary">
-            <div class="bank-card-inner">
-              <div class="bank-card-front">
-                <div class="bank-card-bg"></div>
-                <div class="bank-card-noise"></div>
-                <div class="bank-card-content">
-                  <div class="bank-card-top">
-                    <div class="bank-card-logo">
-                      <span class="bank-card-logo-letter">A</span>
-                      <span class="bank-card-logo-text">ARM<strong>Bank</strong></span>
-                    </div>
-                    <div class="bank-card-type">PREMIUM</div>
-                  </div>
-                  <div class="bank-card-chip">
-                    <svg width="36" height="28" viewBox="0 0 36 28" fill="none">
-                      <rect x="0.5" y="0.5" width="35" height="27" rx="4" fill="url(#chipGoldPWA)" stroke="rgba(255,255,255,.18)"/>
-                      <line x1="0" y1="10" x2="36" y2="10" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
-                      <line x1="0" y1="18" x2="36" y2="18" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
-                      <line x1="12" y1="0" x2="12" y2="28" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
-                      <line x1="24" y1="0" x2="24" y2="28" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
-                      <defs><linearGradient id="chipGoldPWA" x1="0" y1="0" x2="36" y2="28"><stop stop-color="#e8c848"/><stop offset="0.5" stop-color="#d4a830"/><stop offset="1" stop-color="#c89820"/></linearGradient></defs>
-                    </svg>
-                  </div>
-                  <div class="bank-card-number" id="bankCardNumber">•••• •••• •••• ••••</div>
-                  <div class="bank-card-bottom">
-                    <div class="bank-card-holder">
-                      <div class="bank-card-label">Власник картки</div>
-                      <div class="bank-card-name" id="bankCardName">ARM BANK</div>
-                    </div>
-                    <div class="bank-card-expiry">
-                      <div class="bank-card-label">Дійсна до</div>
-                      <div class="bank-card-date" id="bankCardExpiry">12/28</div>
-                    </div>
-                    <div class="bank-card-network">
-                      <svg width="42" height="26" viewBox="0 0 42 26" fill="none">
-                        <circle cx="15" cy="13" r="12" fill="rgba(255,90,50,.8)"/>
-                        <circle cx="27" cy="13" r="12" fill="rgba(255,180,50,.7)"/>
-                      </svg>
-                    </div>
-                  </div>
+            <div class="bank-card-bg"></div>
+            <div class="bank-card-noise"></div>
+            <div class="bank-card-content">
+              <div class="bank-card-top">
+                <div class="bank-card-logo">
+                  <span class="bank-card-logo-letter">A</span>
+                  <span class="bank-card-logo-text">Army<strong>Bank</strong></span>
+                </div>
+                <div class="bank-card-type">PREMIUM</div>
+              </div>
+              <div class="bank-card-chip">
+                <svg width="36" height="28" viewBox="0 0 36 28" fill="none">
+                  <rect x="0.5" y="0.5" width="35" height="27" rx="4" fill="url(#chipGoldPWA)" stroke="rgba(255,255,255,.18)"/>
+                  <line x1="0" y1="10" x2="36" y2="10" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
+                  <line x1="0" y1="18" x2="36" y2="18" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
+                  <line x1="12" y1="0" x2="12" y2="28" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
+                  <line x1="24" y1="0" x2="24" y2="28" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
+                  <defs><linearGradient id="chipGoldPWA" x1="0" y1="0" x2="36" y2="28"><stop stop-color="#e8c848"/><stop offset="0.5" stop-color="#d4a830"/><stop offset="1" stop-color="#c89820"/></linearGradient></defs>
+                </svg>
+              </div>
+              <div class="bank-card-number" id="bankCardNumber">•••• •••• •••• ••••</div>
+              <div class="bank-card-bottom">
+                <div class="bank-card-holder">
+                  <div class="bank-card-label">Власник картки</div>
+                  <div class="bank-card-name" id="bankCardName">ARMY BANK</div>
+                </div>
+                <div class="bank-card-expiry">
+                  <div class="bank-card-label">Дійсна до</div>
+                  <div class="bank-card-date" id="bankCardExpiry">12/28</div>
+                </div>
+                <div class="bank-card-network">
+                  <svg width="42" height="26" viewBox="0 0 42 26" fill="none">
+                    <circle cx="15" cy="13" r="12" fill="rgba(255,90,50,.8)"/>
+                    <circle cx="27" cy="13" r="12" fill="rgba(255,180,50,.7)"/>
+                  </svg>
                 </div>
               </div>
             </div>
           </div>
           <!-- Dark Savings Card -->
           <div class="bank-card bank-card-dark" id="bankCardSavings">
-            <div class="bank-card-inner">
-              <div class="bank-card-front">
-                <div class="bank-card-bg"></div>
-                <div class="bank-card-noise"></div>
-                <div class="bank-card-content">
-                  <div class="bank-card-top">
-                    <div class="bank-card-logo">
-                      <span class="bank-card-logo-letter">A</span>
-                      <span class="bank-card-logo-text">ARM<strong>Bank</strong></span>
-                    </div>
-                    <div class="bank-card-type">SAVINGS</div>
-                  </div>
-                  <div class="bank-card-chip">
-                    <svg width="36" height="28" viewBox="0 0 36 28" fill="none">
-                      <rect x="0.5" y="0.5" width="35" height="27" rx="4" fill="url(#chipSilverPWA)" stroke="rgba(255,255,255,.18)"/>
-                      <line x1="0" y1="10" x2="36" y2="10" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
-                      <line x1="0" y1="18" x2="36" y2="18" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
-                      <line x1="12" y1="0" x2="12" y2="28" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
-                      <line x1="24" y1="0" x2="24" y2="28" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
-                      <defs><linearGradient id="chipSilverPWA" x1="0" y1="0" x2="36" y2="28"><stop stop-color="#b8b8b8"/><stop offset="0.5" stop-color="#a0a0a0"/><stop offset="1" stop-color="#888888"/></linearGradient></defs>
-                    </svg>
-                  </div>
-                  <div class="bank-card-number" id="bankCardSavingsNumber">•••• •••• •••• ••••</div>
-                  <div class="bank-card-bottom">
-                    <div class="bank-card-holder">
-                      <div class="bank-card-label">Власник картки</div>
-                      <div class="bank-card-name" id="bankCardSavingsName">ARM BANK</div>
-                    </div>
-                    <div class="bank-card-expiry">
-                      <div class="bank-card-label">Дійсна до</div>
-                      <div class="bank-card-date">12/28</div>
-                    </div>
-                    <div class="bank-card-network">
-                      <svg width="38" height="24" viewBox="0 0 38 24" fill="none">
-                        <rect x="1" y="1" width="36" height="22" rx="3" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
-                        <text x="19" y="15" text-anchor="middle" fill="rgba(255,255,255,.55)" font-size="8" font-family="monospace" font-weight="700">VISA</text>
-                      </svg>
-                    </div>
-                  </div>
+            <div class="bank-card-bg"></div>
+            <div class="bank-card-noise"></div>
+            <div class="bank-card-content">
+              <div class="bank-card-top">
+                <div class="bank-card-logo">
+                  <span class="bank-card-logo-letter">A</span>
+                  <span class="bank-card-logo-text">Army<strong>Bank</strong></span>
+                </div>
+                <div class="bank-card-type">SAVINGS</div>
+              </div>
+              <div class="bank-card-chip">
+                <svg width="36" height="28" viewBox="0 0 36 28" fill="none">
+                  <rect x="0.5" y="0.5" width="35" height="27" rx="4" fill="url(#chipSilverPWA)" stroke="rgba(255,255,255,.18)"/>
+                  <line x1="0" y1="10" x2="36" y2="10" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
+                  <line x1="0" y1="18" x2="36" y2="18" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
+                  <line x1="12" y1="0" x2="12" y2="28" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
+                  <line x1="24" y1="0" x2="24" y2="28" stroke="rgba(255,255,255,.12)" stroke-width="0.5"/>
+                  <defs><linearGradient id="chipSilverPWA" x1="0" y1="0" x2="36" y2="28"><stop stop-color="#b8b8b8"/><stop offset="0.5" stop-color="#a0a0a0"/><stop offset="1" stop-color="#888888"/></linearGradient></defs>
+                </svg>
+              </div>
+              <div class="bank-card-number" id="bankCardSavingsNumber">•••• •••• •••• ••••</div>
+              <div class="bank-card-bottom">
+                <div class="bank-card-holder">
+                  <div class="bank-card-label">Власник картки</div>
+                  <div class="bank-card-name" id="bankCardSavingsName">ARMY BANK</div>
+                </div>
+                <div class="bank-card-expiry">
+                  <div class="bank-card-label">Дійсна до</div>
+                  <div class="bank-card-date">12/28</div>
+                </div>
+                <div class="bank-card-network">
+                  <svg width="38" height="24" viewBox="0 0 38 24" fill="none">
+                    <rect x="1" y="1" width="36" height="22" rx="3" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
+                    <text x="19" y="15" text-anchor="middle" fill="rgba(255,255,255,.55)" font-size="8" font-family="monospace" font-weight="700">VISA</text>
+                  </svg>
                 </div>
               </div>
             </div>
@@ -367,23 +309,21 @@
               <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
             </svg>
           </span>
-          <span class="qa-label">На картку</span>
+          <span class="qa-label">Переказ</span>
         </button>
-        <button type="button" class="qa-btn" data-jump="iban">
+        <button type="button" class="qa-btn" data-jump="history">
           <span class="qa-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-              <path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
             </svg>
           </span>
-          <span class="qa-label">За IBAN</span>
+          <span class="qa-label">Операції</span>
         </button>
-        <button type="button" class="qa-btn" data-jump="transactions">
+        <button type="button" class="qa-btn" data-jump="cards">
           <span class="qa-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-              <circle cx="12" cy="12" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
-            </svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="3"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
           </span>
-          <span class="qa-label">Виписка</span>
+          <span class="qa-label">Картки</span>
         </button>
       </div>
 
@@ -402,11 +342,18 @@
           </svg>
           <span>Операції</span>
         </a>
-        <a class="nav-item menu-btn nav-link" data-screen="cards" href="/cards">
+        <a class="nav-item menu-btn nav-link" data-screen="savings" href="/savings">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <rect x="1" y="4" width="22" height="16" rx="3"/><line x1="1" y1="10" x2="23" y2="10"/>
+            <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
           </svg>
-          <span>Картки</span>
+          <span>Цілі</span>
+        </a>
+        <a class="nav-item menu-btn nav-link nav-hidden-mobile" data-screen="contacts" href="/contacts">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <span>Родина</span>
         </a>
         <a class="nav-item menu-btn nav-link" data-screen="profile" href="/profile">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -414,6 +361,18 @@
           </svg>
           <span>Профіль</span>
         </a>
+        <button class="nav-item nav-more-btn" id="navMoreBtn" aria-label="Ще">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+          <span>Ще</span>
+        </button>
+        <button class="menu-btn nav-link nav-hidden-mobile" data-screen="recurring" title="Регулярні платежі">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+          <span>Регулярні</span>
+        </button>
+        <button class="menu-btn nav-link nav-hidden-mobile" data-screen="debts" title="Борги та позики">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span>Борги</span>
+        </button>
       </nav>
     </header>
 
@@ -427,14 +386,6 @@
       <!-- DASHBOARD -->
       <section id="dashboard" class="screen active-screen">
         <h2 class="section-title">Огляд</h2>
-
-        <div class="card" id="recentTransactionsCard">
-          <div class="card-head">
-            <h3>Операції</h3>
-            <button type="button" class="section-see-all nav-link" data-screen="transactions">Усі</button>
-          </div>
-          <div id="recentTransactions" class="list"></div>
-        </div>
 
         <!-- Month overview strip -->
         <div class="month-strip" id="dashMonthStrip">
@@ -539,8 +490,8 @@
           </div>
         </div>
 
-        <div class="cards-row" id="dashboardActionForms">
-          <form id="topupForm" class="card">
+        <div class="cards-row">
+          <form id="topupForm" class="card" id="topupCard">
             <div class="card-head">
               <div class="card-icon-wrap green">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -574,13 +525,11 @@
               <button type="button" class="tmt-btn active" data-mode="account">По рахунку</button>
               <button type="button" class="tmt-btn" data-mode="card">По картці</button>
             </div>
-            <div id="templateChips" class="template-chips hidden"></div>
             <label class="lbl">Шаблон
               <select name="template_id" id="transferTemplateSelect">
                 <option value="">— Обрати шаблон —</option>
               </select>
             </label>
-            <div id="transferQuickRecipients" class="transfer-quick-recipients hidden"></div>
             <!-- Account number input (default) -->
             <label class="lbl" id="transferAccountLabel">Рахунок отримувача<input name="recipient_account_number" placeholder="AB-100001"></label>
             <!-- Card number input (hidden by default) -->
@@ -610,6 +559,13 @@
           </form>
         </div>
 
+        <div class="card">
+          <div class="card-head">
+            <h3>Останні транзакції</h3>
+          </div>
+          <div id="recentTransactions" class="list"></div>
+        </div>
+
         <div class="cards-row">
           <form id="demoPayoutForm" class="card">
             <div class="card-head">
@@ -618,10 +574,10 @@
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                 </svg>
               </div>
-              <h3>Виплата</h3>
+              <h3>Бойова виплата</h3>
             </div>
-            <label class="lbl">Назва<input name="title" value="Виплата"></label>
-            <label class="lbl">Тип<input name="payout_type" value="general"></label>
+            <label class="lbl">Назва<input name="title" value="Бойова виплата"></label>
+            <label class="lbl">Тип<input name="payout_type" value="combat"></label>
             <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" value="10000"></label>
             <button type="submit" class="btn-accent">Нарахувати</button>
           </form>
@@ -648,16 +604,10 @@
       <section id="transactions" class="screen">
         <div class="section-header-row">
           <h2 class="section-title">Операції</h2>
-          <div style="display:flex;gap:8px;align-items:center">
-            <button type="button" id="exportPdfBtn" class="btn-ghost btn-sm" title="Завантажити виписку PDF">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-              PDF
-            </button>
-            <button type="button" id="exportCsvBtn" class="btn-ghost btn-sm">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              CSV
-            </button>
-          </div>
+          <button type="button" id="exportCsvBtn" class="btn-ghost btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            CSV
+          </button>
         </div>
         <div class="card">
           <div class="tx-search-row">
@@ -665,13 +615,6 @@
               <svg class="tx-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               <input id="txSearchInput" type="search" placeholder="Пошук за описом…" autocomplete="off">
             </div>
-          </div>
-          <div class="tx-quick-filters" id="txQuickFilters">
-            <button type="button" class="tx-qf-chip" data-range="today">Сьогодні</button>
-            <button type="button" class="tx-qf-chip" data-days="7">7 днів</button>
-            <button type="button" class="tx-qf-chip" data-days="30">30 днів</button>
-            <button type="button" class="tx-qf-chip" data-range="month">Місяць</button>
-            <button type="button" class="tx-qf-chip tx-qf-clear" data-range="clear">Скинути</button>
           </div>
           <form id="transactionsFilters" class="filters-row">
             <label class="lbl">З дати<input type="date" name="from_date"></label>
@@ -682,7 +625,7 @@
                 <option value="topup">Поповнення</option>
                 <option value="transfer">Переказ</option>
                 <option value="payout">Виплата</option>
-                <option value="donation">Благодійність</option>
+                <option value="donation">Донат</option>
                 <option value="savings">Накопичення</option>
               </select>
             </label>
@@ -702,9 +645,17 @@
         </div>
       </section>
 
+      <!-- PAYOUTS -->
+      <section id="payouts" class="screen">
+        <h2 class="section-title">Бойові виплати</h2>
+        <div class="card">
+          <div id="payoutsList" class="list"></div>
+        </div>
+      </section>
+
       <!-- DONATIONS -->
       <section id="donations" class="screen">
-        <h2 class="section-title">Благодійність</h2>
+        <h2 class="section-title">Донати</h2>
         <div class="cards-row">
           <form id="donationForm" class="card">
             <div class="card-head">
@@ -713,15 +664,15 @@
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                 </svg>
               </div>
-              <h3>Нова пожертва</h3>
+              <h3>Новий донат</h3>
             </div>
-            <label class="lbl">Організація<input name="fund_name" placeholder="Назва організації" required></label>
+            <label class="lbl">Фонд<input name="fund_name" value="Фонд підтримки підрозділу" required></label>
             <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
             <label class="lbl">Коментар<input name="comment" placeholder="Необов'язково"></label>
-            <button type="submit" class="btn-accent">Перерахувати</button>
+            <button type="submit" class="btn-accent">Задонатити</button>
           </form>
           <div class="card">
-            <div class="card-head"><h3>Мої пожертви</h3></div>
+            <div class="card-head"><h3>Мої донати</h3></div>
             <div id="donationsList" class="list"></div>
           </div>
         </div>
@@ -771,11 +722,7 @@
               </div>
               <h3>Внесок</h3>
             </div>
-            <label class="lbl">Ціль
-              <select name="goal_id" id="goalIdSelect" required>
-                <option value="">— Оберіть ціль —</option>
-              </select>
-            </label>
+            <label class="lbl">ID цілі<input name="goal_id" type="number" required placeholder="1"></label>
             <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
             <button type="submit" class="btn-accent">Поповнити</button>
           </form>
@@ -880,7 +827,7 @@
               <label class="lbl">Тип операції
                 <select id="budgetTxType">
                   <option value="transfer">Переказ</option>
-                  <option value="donation">Благодійність</option>
+                  <option value="donation">Донат</option>
                   <option value="savings">Накопичення</option>
                   <option value="topup">Поповнення</option>
                 </select>
@@ -937,19 +884,14 @@
             <div class="profile-info-row"><dt>Роль</dt><dd id="piRole">—</dd></div>
           </dl>
           <!-- QR code for account number -->
-          <button id="showQrBtn" class="qr-toggle-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h1v1h-1z"/><path d="M17 14h1v1h-1z"/><path d="M14 17h1v1h-1z"/><path d="M17 17h1v1h-1z"/><path d="M20 14v4"/><path d="M14 20h4"/></svg>
-            <span id="showQrBtnLabel">Показати QR-код рахунку</span>
-          </button>
           <div id="accountQrWrap" class="qr-wrap hidden">
-            <div class="qr-card">
-              <div class="qr-frame">
-                <img id="accountQrImg" class="qr-img" alt="QR код рахунку" src="">
-              </div>
-              <div class="qr-account-num" id="qrAccountNum">—</div>
-              <div class="qr-caption">Скануйте для переказу на цей рахунок</div>
-            </div>
+            <img id="accountQrImg" class="qr-img" alt="QR код рахунку" src="">
+            <div class="qr-caption">Скануйте для переказу</div>
           </div>
+          <button id="showQrBtn" class="btn-ghost btn-sm" style="margin-top:12px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h1v1h-1z"/><path d="M17 14h1v1h-1z"/><path d="M14 17h1v1h-1z"/><path d="M17 17h1v1h-1z"/><path d="M20 14v4"/><path d="M14 20h4"/></svg>
+            QR-код рахунку
+          </button>
         </div>
 
         <!-- Settings card -->
@@ -961,6 +903,26 @@
             <h3>Налаштування</h3>
           </div>
           <div class="settings-list">
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-label">Світла тема</div>
+                <div class="setting-desc">Перемкнути між темним та світлим режимом</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="themeToggle">
+                <span class="toggle-knob"></span>
+              </label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-label">Компактний вигляд</div>
+                <div class="setting-desc">Зменшити відступи для більшого вмісту</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="compactToggle">
+                <span class="toggle-knob"></span>
+              </label>
+            </div>
             <div class="setting-row">
               <div class="setting-info">
                 <div class="setting-label">Анімації</div>
@@ -1056,45 +1018,17 @@
         <div class="card">
           <div class="card-head"><h3>Швидкі посилання</h3></div>
           <div class="profile-links-grid">
-            <button type="button" class="profile-link-btn nav-link" data-screen="transactions">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              Операції
-            </button>
-            <button type="button" class="profile-link-btn nav-link" data-screen="cards">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="3"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-              Картки
-            </button>
             <button type="button" class="profile-link-btn nav-link" data-screen="analytics">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
               Аналітика
             </button>
-            <button type="button" class="profile-link-btn nav-link" data-screen="savings">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              Накопичення
+            <button type="button" class="profile-link-btn nav-link" data-screen="payouts">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Виплати
             </button>
             <button type="button" class="profile-link-btn nav-link" data-screen="donations">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-              Благодійність
-            </button>
-            <button type="button" class="profile-link-btn nav-link" data-screen="debts">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              Борги
-            </button>
-            <button type="button" class="profile-link-btn nav-link" data-screen="calendar">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              Календар
-            </button>
-            <button type="button" class="profile-link-btn nav-link" data-screen="recurring">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-              Автоплатежі
-            </button>
-            <button type="button" class="profile-link-btn nav-link" data-screen="contacts">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              Контакти
-            </button>
-            <button type="button" class="profile-link-btn nav-link" data-screen="tax">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              Податки
+              Донати
             </button>
             <button type="button" class="profile-link-btn" id="profileLogoutBtn">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -1270,169 +1204,6 @@
         </div>
       </section>
 
-      <!-- ══ TAX CONSULTANT ══════════════════════════════════════ -->
-      <section id="tax" class="screen">
-        <div class="tax-hero">
-          <div class="tax-hero-icon">⚖️</div>
-          <h2 class="tax-hero-title">Фінансова грамотність</h2>
-          <p class="tax-hero-sub">Довідкова інформація по податках та фінансах · перевіряйте останні зміни в офіційних джерелах</p>
-        </div>
-
-        <!-- ── Зарплата та доходи ─────────────────────────── -->
-        <details class="tax-card" open>
-          <summary class="tax-card-head">
-            <span class="tax-card-icon">💰</span>
-            <span class="tax-card-title">Зарплата та основні доходи</span>
-            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </summary>
-          <div class="tax-card-body">
-            <div class="tax-badge green">Роботодавець утримує автоматично</div>
-            <p>З офіційної зарплати роботодавець самостійно утримує та перераховує до бюджету ПДФО і ЄСВ. Ви отримуєте суму «на руки» вже після всіх утримань.</p>
-            <div class="tax-row"><span>ПДФО (18%)</span><span class="tax-val">Утримується з зарплати</span></div>
-            <div class="tax-row"><span>Військовий збір (5%)</span><span class="tax-val">Утримується з зарплати</span></div>
-            <div class="tax-row"><span>ЄСВ (роботодавець, 22%)</span><span class="tax-val">Понад нарахованої зарплати</span></div>
-            <div class="tax-row"><span>Разом «на руки» від нарахованої</span><span class="tax-val green">≈77%</span></div>
-            <div class="tax-note">📌 Перевірте свій розрахунковий листок — там вказані всі утримання за місяць.</div>
-          </div>
-        </details>
-
-        <!-- ── Військовий збір ────────────────────────────── -->
-        <details class="tax-card">
-          <summary class="tax-card-head">
-            <span class="tax-card-icon">🛡️</span>
-            <span class="tax-card-title">Військовий збір (ВЗ)</span>
-            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </summary>
-          <div class="tax-card-body">
-            <div class="tax-badge orange">Ставки можуть змінюватися законом</div>
-            <div class="tax-row"><span>Фізичні особи (зарплата, оренда тощо)</span><span class="tax-val orange">5%</span></div>
-            <div class="tax-row"><span>ФОП 1–3 групи (підприємницькі доходи)</span><span class="tax-val">Перевіряйте чинну ставку</span></div>
-            <div class="tax-row"><span>Пасивні доходи (дивіденди, відсотки)</span><span class="tax-val">5%</span></div>
-            <div class="tax-row"><span>Продаж нерухомості (перший продаж/рік)</span><span class="tax-val">5%</span></div>
-            <div class="tax-row"><span>Виграші в лотереях</span><span class="tax-val">5%</span></div>
-            <p>ВЗ нараховується <strong>понад</strong> ПДФО (не замість). Базою є дохід до вирахування ПДФО.</p>
-            <div class="tax-note">⚠️ Ставки збору встановлюються законодавством і можуть змінюватися — перевіряйте актуальні дані на сайті ДПС.</div>
-          </div>
-        </details>
-
-        <!-- ── ПДФО ───────────────────────────────────────── -->
-        <details class="tax-card">
-          <summary class="tax-card-head">
-            <span class="tax-card-icon">📊</span>
-            <span class="tax-card-title">ПДФО — Податок на доходи фізичних осіб</span>
-            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </summary>
-          <div class="tax-card-body">
-            <div class="tax-row"><span>Основна ставка (зарплата, оренда)</span><span class="tax-val">18%</span></div>
-            <div class="tax-row"><span>Пасивні доходи (дивіденди ФО)</span><span class="tax-val">5%</span></div>
-            <div class="tax-row"><span>Продаж нерухомості (перший/рік)</span><span class="tax-val green">0%</span></div>
-            <div class="tax-row"><span>Продаж нерухомості (другий і більше)</span><span class="tax-val">5%</span></div>
-            <div class="tax-row"><span>Спадщина (1–2 черга)</span><span class="tax-val green">0%</span></div>
-            <div class="tax-row"><span>Спадщина (3 черга)</span><span class="tax-val">5%</span></div>
-            <div class="tax-row"><span>Доходи нерезидентів</span><span class="tax-val red">18%</span></div>
-            <div class="tax-note">📌 Пільгова ставка ПДФО (0%) застосовується до першого продажу нерухомості або авто за рік.</div>
-          </div>
-        </details>
-
-        <!-- ── ФОП ────────────────────────────────────────── -->
-        <details class="tax-card">
-          <summary class="tax-card-head">
-            <span class="tax-card-icon">🏢</span>
-            <span class="tax-card-title">ФОП — підприємницька діяльність</span>
-            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </summary>
-          <div class="tax-card-body">
-            <div class="tax-badge green">Спрощена система оподаткування</div>
-            <div class="tax-row"><span>ФОП 1 група</span><span class="tax-val">≤10% мінімальної зарплати/міс</span></div>
-            <div class="tax-row"><span>ФОП 2 група</span><span class="tax-val">≤20% мінімальної зарплати/міс</span></div>
-            <div class="tax-row"><span>ФОП 3 група</span><span class="tax-val">5% обороту (або 3% з ПДВ)</span></div>
-            <div class="tax-row"><span>ЄСВ «за себе» (мінімальний)</span><span class="tax-val orange">22% від мінімальної зарплати</span></div>
-            <div class="tax-row"><span>Звітність 1–2 група</span><span class="tax-val">1 раз на рік</span></div>
-            <div class="tax-row"><span>Звітність 3 група</span><span class="tax-val">Щоквартально</span></div>
-            <p>ФОП може мати рахунок у будь-якому банку. Доходи проходять через поточний рахунок ФОП, а не особистий.</p>
-            <div class="tax-note">⚠️ Змішування особистих коштів з доходами ФОП ускладнює звітність і може призвести до донарахувань.</div>
-          </div>
-        </details>
-
-        <!-- ── Нерухомість та інвестиції ──────────────────── -->
-        <details class="tax-card">
-          <summary class="tax-card-head">
-            <span class="tax-card-icon">🏠</span>
-            <span class="tax-card-title">Нерухомість, оренда та інвестиції</span>
-            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </summary>
-          <div class="tax-card-body">
-            <div class="tax-row"><span>Оренда квартири (ПДФО + ВЗ)</span><span class="tax-val">18% + 5%</span></div>
-            <div class="tax-row"><span>Продаж авто (перший раз/рік)</span><span class="tax-val green">0%</span></div>
-            <div class="tax-row"><span>Продаж авто (другий і більше/рік)</span><span class="tax-val">5% + 5% ВЗ</span></div>
-            <div class="tax-row"><span>Земельний податок</span><span class="tax-val">Встановлюється місцевою радою</span></div>
-            <div class="tax-row"><span>Податок на нерухомість (понад пільгу)</span><span class="tax-val">Встановлюється місцевою радою</span></div>
-            <div class="tax-row"><span>Відсотки за депозитом у банку</span><span class="tax-val">18% ПДФО + 5% ВЗ</span></div>
-            <div class="tax-note">📌 Пільга: 60 м² на квартиру і 120 м² на будинок не оподатковуються.</div>
-          </div>
-        </details>
-
-        <!-- ── Декларування ───────────────────────────────── -->
-        <details class="tax-card">
-          <summary class="tax-card-head">
-            <span class="tax-card-icon">📋</span>
-            <span class="tax-card-title">Декларування доходів</span>
-            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </summary>
-          <div class="tax-card-body">
-            <div class="tax-row"><span>Термін подачі декларації</span><span class="tax-val">До 1 травня</span></div>
-            <div class="tax-row"><span>Термін сплати за декларацією</span><span class="tax-val">До 1 серпня</span></div>
-            <div class="tax-row"><span>Штраф за несвоєчасну подачу</span><span class="tax-val red">Визначається чинною редакцією ПКУ</span></div>
-            <div class="tax-row"><span>Хто зобов'язаний декларувати</span><span class="tax-val">Доходи ≠ з одного місця роботи</span></div>
-            <p>Декларація потрібна при продажу нерухомості або авто, отриманні доходів з-за кордону, оренді майна фіз. особі або отриманні спадщини від осіб 3-ї черги.</p>
-            <ul class="tax-list">
-              <li>Продаж нерухомості або авто</li>
-              <li>Доходи з-за кордону (оренда, робота)</li>
-              <li>Оренда майна фізичній особі</li>
-              <li>Спадщина від осіб 3-ї черги</li>
-            </ul>
-            <div class="tax-note">📌 Подача — через <strong>Електронний кабінет платника</strong> на cabinet.tax.gov.ua або застосунок «Дія».</div>
-          </div>
-        </details>
-
-        <!-- ── Міжнародне оподаткування ───────────────────── -->
-        <details class="tax-card">
-          <summary class="tax-card-head">
-            <span class="tax-card-icon">🌍</span>
-            <span class="tax-card-title">Міжнародне оподаткування та статус резидента</span>
-            <svg class="tax-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </summary>
-          <div class="tax-card-body">
-            <div class="tax-row"><span>Резидент України</span><span class="tax-val">≥183 днів/рік в Україні</span></div>
-            <div class="tax-row"><span>Оподаткування резидента</span><span class="tax-val">Worldwide доходи</span></div>
-            <div class="tax-row"><span>Доходи з ЄС (за угодами про уникнення)</span><span class="tax-val green">Зараховуються</span></div>
-            <div class="tax-row"><span>Зарплата в іноземній компанії</span><span class="tax-val">18% ПДФО + 5% ВЗ в Україні</span></div>
-            <p>Якщо ви отримуєте доходи за кордоном, сплачений там податок <strong>зараховується проти українського ПДФО</strong> за умови наявності угоди про уникнення подвійного оподаткування.</p>
-            <div class="tax-note">📌 Україна має угоди з 70+ країнами. Повний перелік — на сайті ДПС: tax.gov.ua.</div>
-          </div>
-        </details>
-
-        <!-- ── Корисні посилання ───────────────────────────── -->
-        <div class="tax-links-card">
-          <h3 class="tax-links-title">📎 Корисні ресурси</h3>
-          <div class="tax-links-grid">
-            <a href="https://cabinet.tax.gov.ua" target="_blank" rel="noopener" class="tax-link-btn">
-              <span>🖥️</span> Кабінет платника ДПС
-            </a>
-            <a href="https://tax.gov.ua" target="_blank" rel="noopener" class="tax-link-btn">
-              <span>📖</span> Сайт ДПС України
-            </a>
-            <a href="https://diia.gov.ua" target="_blank" rel="noopener" class="tax-link-btn">
-              <span>📱</span> Застосунок «Дія»
-            </a>
-            <a href="https://zakon.rada.gov.ua/laws/show/2755-17" target="_blank" rel="noopener" class="tax-link-btn">
-              <span>📜</span> Податковий кодекс
-            </a>
-          </div>
-          <p class="tax-disclaimer">⚠️ Інформація має довідковий характер. Остання редакція: 25 березня 2026. Ставки, ліміти та строки можуть змінюватися, тому перевіряйте офіційні роз'яснення ДПС/Мінфіну або звертайтеся до ліцензованого податкового консультанта.</p>
-        </div>
-      </section>
-
     </main>
 
     <!-- ── TX DETAIL DRAWER ─────────────────────────────────── -->
@@ -1462,14 +1233,118 @@
   </div>
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-  <div id="installBanner" class="install-banner hidden" role="status" aria-live="polite">
-    <div class="install-banner-icon" aria-hidden="true">📲</div>
-    <div class="install-banner-text">
-      <b>Встановіть ARM Bank</b>
-      <span>Швидкий доступ і робота як застосунок</span>
+
+  <!-- Install Banner -->
+  <div id="installBanner" class="install-banner hidden">
+    <div class="install-banner-icon">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+        <path d="M16 2L4 8v8c0 7.2 5.2 13.9 12 15.6C23.8 29.9 28 23.2 28 16V8L16 2z" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+        <path d="M11 16l3 3 7-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
     </div>
-    <button id="installBtn" type="button" class="install-banner-btn">Встановити</button>
-    <button id="installDismiss" type="button" class="install-banner-close" aria-label="Закрити">×</button>
+    <div class="install-banner-text">
+      <strong>Army Bank</strong>
+      <span>Встановити на головний екран</span>
+    </div>
+    <button id="installBtn" class="install-btn">Встановити</button>
+    <button id="installDismiss" class="install-dismiss">✕</button>
+  </div>
+
+  <!-- Command palette (Ctrl+K) -->
+  <div id="cmdBackdrop" class="cmd-backdrop hidden"></div>
+  <div id="cmdPalette" class="cmd-palette hidden" role="dialog" aria-label="Пошук">
+    <div class="cmd-input-wrap">
+      <svg class="cmd-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="cmdInput" type="text" placeholder="Пошук транзакцій, цілей, контактів, розділів…" autocomplete="off" spellcheck="false">
+      <kbd class="cmd-esc">Esc</kbd>
+    </div>
+    <div id="cmdResults" class="cmd-results"></div>
+    <div class="cmd-footer">
+      <span><kbd>↑↓</kbd> навігація</span>
+      <span><kbd>↵</kbd> відкрити</span>
+      <span><kbd>Esc</kbd> закрити</span>
+    </div>
+  </div>
+
+  <!-- Keyboard shortcuts help (?+key) -->
+  <div id="kbBackdrop" class="cmd-backdrop hidden"></div>
+  <div id="kbHelp" class="kb-help hidden" role="dialog" aria-label="Клавіатурні скорочення">
+    <div class="kb-header">
+      <h3>Клавіатурні скорочення</h3>
+      <button id="kbClose" class="icon-btn">✕</button>
+    </div>
+    <div class="kb-list">
+      <div class="kb-item"><kbd>Ctrl</kbd><kbd>K</kbd><span>Відкрити пошук</span></div>
+      <div class="kb-item"><kbd>?</kbd><span>Показати скорочення</span></div>
+      <div class="kb-item"><kbd>G</kbd><kbd>D</kbd><span>Перейти: Огляд</span></div>
+      <div class="kb-item"><kbd>G</kbd><kbd>T</kbd><span>Перейти: Операції</span></div>
+      <div class="kb-item"><kbd>G</kbd><kbd>S</kbd><span>Перейти: Цілі</span></div>
+      <div class="kb-item"><kbd>G</kbd><kbd>C</kbd><span>Перейти: Родина</span></div>
+      <div class="kb-item"><kbd>G</kbd><kbd>A</kbd><span>Перейти: Аналітика</span></div>
+      <div class="kb-item"><kbd>G</kbd><kbd>P</kbd><span>Перейти: Профіль</span></div>
+      <div class="kb-item"><kbd>Esc</kbd><span>Закрити панель / діалог</span></div>
+      <div class="kb-item"><kbd>R</kbd><span>Оновити дані</span></div>
+    </div>
+  </div>
+
+  <!-- More Sheet -->
+  <div id="moreSheetOverlay" class="more-sheet-overlay hidden"></div>
+  <div id="moreSheet" class="more-sheet">
+    <div class="more-sheet-handle"></div>
+    <div class="more-sheet-title">Ще</div>
+    <div class="more-sheet-grid">
+      <button class="more-sheet-item nav-link menu-btn" data-screen="contacts">
+        <div class="msi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <span>Родина</span>
+      </button>
+      <button class="more-sheet-item nav-link menu-btn" data-screen="recurring">
+        <div class="msi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+        </div>
+        <span>Регулярні</span>
+      </button>
+      <button class="more-sheet-item nav-link menu-btn" data-screen="debts">
+        <div class="msi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <span>Борги</span>
+      </button>
+      <button class="more-sheet-item nav-link menu-btn" data-screen="analytics">
+        <div class="msi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </div>
+        <span>Аналітика</span>
+      </button>
+      <button class="more-sheet-item nav-link menu-btn" data-screen="donations">
+        <div class="msi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </div>
+        <span>Донати</span>
+      </button>
+      <button class="more-sheet-item nav-link menu-btn" data-screen="payouts">
+        <div class="msi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        </div>
+        <span>Виплати</span>
+      </button>
+      <button class="more-sheet-item nav-link menu-btn" data-screen="calendar">
+        <div class="msi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <span>Календар</span>
+      </button>
+      <button class="more-sheet-item nav-link menu-btn" data-screen="cards">
+        <div class="msi-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="3"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        </div>
+        <span>Картки</span>
+      </button>
+    </div>
   </div>
 
   <!-- Notification Panel -->
@@ -1488,8 +1363,47 @@
   <!-- Confetti canvas -->
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
-  <script src="/js/api.js?v=2" defer></script>
-  <script src="/js/app.js?v=54" defer></script>
+  <script src="/js/api.js" defer></script>
+  <script src="/js/app.js" defer></script>
+  <script>
+    /* ── Service Worker ── */
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+
+    /* ── PWA Install prompt ── */
+    let deferredPrompt = null;
+    const banner = document.getElementById('installBanner');
+    const installBtn = document.getElementById('installBtn');
+    const installDismiss = document.getElementById('installDismiss');
+
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      /* Show banner 3s after load */
+      setTimeout(() => banner?.classList.remove('hidden'), 3000);
+    });
+
+    installBtn?.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      banner?.classList.add('hidden');
+    });
+
+    installDismiss?.addEventListener('click', () => {
+      banner?.classList.add('hidden');
+      localStorage.setItem('ab_install_dismissed', '1');
+    });
+
+    window.addEventListener('appinstalled', () => {
+      banner?.classList.add('hidden');
+      deferredPrompt = null;
+    });
+  </script>
 
   <!-- Transfer confirmation bottom sheet -->
   <div id="transferConfirmOverlay" class="tc-overlay hidden" role="dialog" aria-modal="true">
@@ -1512,189 +1426,11 @@
           <span class="tc-label">Опис</span>
           <span class="tc-val" id="tcDesc">—</span>
         </div>
-        <div class="tc-row tc-balance-row" id="tcAfterRow" style="border-top:1px solid rgba(255,255,255,0.08);margin-top:4px;padding-top:10px">
-          <span class="tc-label" style="opacity:.65">Залишок після</span>
-          <span class="tc-val" id="tcAfterBalance" style="opacity:.8">—</span>
-        </div>
       </div>
       <div class="tc-note">Кошти буде списано з вашого рахунку негайно</div>
       <button type="button" id="tcConfirmBtn" class="btn-accent tc-confirm-btn">Підтвердити</button>
       <button type="button" id="tcCancelBtn" class="btn-ghost tc-cancel-btn">Скасувати</button>
     </div>
   </div>
-
-  <!-- ── RECEIPT MODAL ───────────────────────────────────────────────────── -->
-  <div id="receiptOverlay" class="tc-overlay hidden" role="dialog" aria-modal="true">
-    <div class="tc-sheet">
-      <div class="tc-handle"></div>
-      <div class="tc-body" style="padding-top:4px">
-        <div id="receiptIcon" class="tc-icon" style="background:rgba(22,163,74,.12);margin-top:4px">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-        <div id="receiptTitle" class="tc-title" style="font-size:15px;margin-bottom:2px">Переказ виконано</div>
-        <div id="receiptAmount" style="font-size:30px;font-weight:800;letter-spacing:-.02em;margin:4px 0 16px;text-align:center">—</div>
-
-        <div style="background:rgba(255,255,255,.05);border-radius:12px;overflow:hidden;margin-bottom:8px">
-          <div style="display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px">
-            <span style="opacity:.72">Транзакція</span><span id="receiptTxId" style="font-family:monospace">—</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px">
-            <span style="opacity:.72">Дата / час</span><span id="receiptDate">—</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px">
-            <span style="opacity:.72">Звідки</span><span id="receiptFrom" style="font-family:monospace;text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis">—</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px">
-            <span style="opacity:.72">Куди</span><span id="receiptTo" style="font-family:monospace;text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis">—</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:9px 14px;font-size:13px">
-            <span style="opacity:.72">Опис</span><span id="receiptDesc" style="text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="tc-footer">
-        <button type="button" id="receiptDownloadBtn" class="btn-accent tc-confirm-btn" style="margin:0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:6px;flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Скачати чек PDF
-        </button>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <button type="button" id="receiptShareBtn" class="tc-cancel-btn" style="display:flex;align-items:center;justify-content:center;gap:7px">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-            Поділитися
-          </button>
-          <button type="button" id="receiptCloseBtn" class="tc-cancel-btn">Закрити</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── STATEMENT MODAL ──────────────────────────────────────────────────── -->
-  <div id="statementOverlay" class="tc-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="stmtTitle">
-    <div class="tc-sheet">
-      <div class="tc-handle"></div>
-
-      <!-- Header (not scrollable) -->
-      <div style="flex-shrink:0;padding:0 18px 4px">
-        <h3 class="tc-title" style="margin-bottom:10px">Виписка по рахунку</h3>
-        <!-- Account pill -->
-        <div style="display:flex;align-items:center;gap:10px;background:#f4f7f3;border-radius:12px;padding:10px 13px;margin-bottom:14px;border:1px solid #e4ead4">
-          <div style="width:36px;height:36px;border-radius:10px;background:#e8f0fe;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-          </div>
-          <div style="min-width:0">
-            <div style="font-weight:700;font-size:13px;letter-spacing:.03em;font-family:monospace;color:#1b2435" id="stmtAccount">—</div>
-            <div style="font-size:11px;color:#6b7c8a;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="stmtOwner">—</div>
-          </div>
-          <select id="stmtReportType" style="margin-left:auto;background:#fff;border:1px solid #d6dfe8;border-radius:8px;padding:6px 8px;color:#1b2435;font-size:12px;flex-shrink:0;max-width:130px">
-            <option value="detailed">Детальна</option>
-            <option value="standard">Стандартна</option>
-            <option value="tax">Звіт</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Scrollable body -->
-      <div class="tc-body">
-        <!-- Period presets -->
-        <div style="margin-bottom:14px">
-          <div style="font-size:11px;color:#8a97a5;text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:8px">Період</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px" id="stmtPeriodGrid">
-            <button type="button" class="stmt-period-btn" data-period="cur_month">Цей місяць</button>
-            <button type="button" class="stmt-period-btn" data-period="prev_month">Мин. місяць</button>
-            <button type="button" class="stmt-period-btn" data-period="3months">3 місяці</button>
-            <button type="button" class="stmt-period-btn" data-period="6months">6 місяців</button>
-            <button type="button" class="stmt-period-btn" data-period="cur_year">Цей рік</button>
-            <button type="button" class="stmt-period-btn" data-period="all">Весь час</button>
-          </div>
-          <button type="button" class="stmt-period-btn" data-period="custom" style="width:100%;margin-top:6px">Довільний діапазон…</button>
-        </div>
-
-        <!-- Custom date range -->
-        <div id="stmtCustomDates" style="display:none;margin-bottom:12px">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <label style="font-size:12px;color:#6b7c8a;font-weight:600">Від
-              <input type="date" id="stmtFrom" style="display:block;margin-top:4px;width:100%;background:#fff;border:1px solid #d6dfe8;border-radius:9px;padding:9px 10px;color:#1b2435;font-size:14px;min-height:44px">
-            </label>
-            <label style="font-size:12px;color:#6b7c8a;font-weight:600">По
-              <input type="date" id="stmtTo" style="display:block;margin-top:4px;width:100%;background:#fff;border:1px solid #d6dfe8;border-radius:9px;padding:9px 10px;color:#1b2435;font-size:14px;min-height:44px">
-            </label>
-          </div>
-        </div>
-
-        <!-- Period label -->
-        <div id="stmtPeriodLabel" style="font-size:12px;color:#8a97a5;text-align:center;margin-bottom:14px;min-height:16px">—</div>
-
-        <!-- Recent orders -->
-        <div style="margin-bottom:8px">
-          <div style="font-size:11px;color:#8a97a5;text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:8px">Попередні виписки</div>
-          <div id="stmtRecentOrders" class="stmt-orders-box"></div>
-        </div>
-      </div>
-
-      <!-- Sticky footer -->
-      <div class="tc-footer">
-        <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
-          <button type="button" id="stmtDownloadBtn" class="btn-accent tc-confirm-btn" disabled style="margin:0;padding:13px 14px">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:6px;flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Завантажити PDF
-          </button>
-          <button type="button" id="stmtCsvBtn" class="stmt-csv-btn" disabled title="Завантажити CSV (Excel)">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" style="margin-right:4px;flex-shrink:0"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
-            CSV
-          </button>
-        </div>
-        <button type="button" id="stmtCancelBtn" class="tc-cancel-btn">Закрити</button>
-      </div>
-    </div>
-  </div>
-
-  <style>
-    .stmt-period-btn{background:#f4f7f3;border:1px solid #d6dfe8;border-radius:8px;padding:8px 6px;font-size:12px;color:#1b2435;cursor:pointer;transition:background .15s,border-color .15s;text-align:center}
-    .stmt-period-btn:hover{background:#e8eef6;border-color:#b6c8d8}
-    .stmt-period-btn.active{background:#dbeafe;border-color:#3b82f6;color:#1d4ed8;font-weight:600}
-    .stmt-orders-box{display:flex;flex-direction:column;gap:8px;max-height:170px;overflow:auto;padding-right:2px}
-    .stmt-order-item{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f8faf8;border:1px solid #e0e8e0;border-radius:8px;padding:8px 9px}
-    .stmt-order-main{min-width:0}
-    .stmt-order-title{font-size:12px;font-weight:650;line-height:1.25;color:#1b2435}
-    .stmt-order-meta{font-size:11px;color:#6b7c8a;line-height:1.25}
-    .stmt-order-file{font-size:10px;color:#8a97a5;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
-    .stmt-order-download{background:#dbeafe;border:1px solid #93c5fd;color:#1d4ed8;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:650;cursor:pointer;display:flex;align-items:center}
-    .stmt-order-download:disabled{opacity:.5;cursor:not-allowed}
-    .stmt-order-empty{font-size:12px;color:#8a97a5;padding:10px 4px;text-align:center}
-    .stmt-csv-btn{background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:10px;padding:10px 13px;font-size:12px;font-weight:650;cursor:pointer;display:flex;align-items:center;white-space:nowrap;transition:background .15s}
-    .stmt-csv-btn:hover{background:#bbf7d0}
-    .stmt-csv-btn:disabled{opacity:.4;cursor:not-allowed}
-  </style>
 </body>
-
-<!-- SESSION WARNING OVERLAY -->
-<div id="sessionWarnOverlay" class="hidden" style="
-  position:fixed;inset:0;z-index:9999;
-  background:rgba(0,0,0,.55);
-  display:flex;align-items:center;justify-content:center;
-  backdrop-filter:blur(4px)">
-  <div style="
-    background:#fff;border-radius:20px;padding:32px 28px;max-width:340px;width:90%;
-    box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center;font-family:inherit">
-    <div style="font-size:2.4rem;margin-bottom:10px">⏳</div>
-    <div style="font-size:1.05rem;font-weight:700;color:#111;margin-bottom:8px">Сесія завершується</div>
-    <div style="font-size:.88rem;color:#666;margin-bottom:18px;line-height:1.5">
-      Через <strong id="sessionWarnCountdown" style="color:#e53e3e;font-size:1.1rem">60</strong> сек<br>
-      ви будете автоматично вилогінені.
-    </div>
-    <div style="display:flex;gap:10px;justify-content:center">
-      <button id="sessionWarnExtend" style="
-        background:var(--mono-blue-top,#1a3a5c);color:#fff;border:none;border-radius:12px;
-        padding:12px 22px;font-size:.92rem;font-weight:600;cursor:pointer;flex:1">
-        Продовжити
-      </button>
-      <button id="sessionWarnLogout" style="
-        background:#fee2e2;color:#b91c1c;border:none;border-radius:12px;
-        padding:12px 16px;font-size:.88rem;font-weight:600;cursor:pointer">
-        Вийти
-      </button>
-    </div>
-  </div>
-</div>
 </html>

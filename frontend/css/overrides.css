@@ -32,6 +32,10 @@
   --mono-border-strong: #ccd6c8;
   --mono-focus-ring: 0 0 0 3px rgba(70, 102, 74, 0.22);
 
+  /* Font variables — override styles.css defaults to match loaded fonts */
+  --font-ui:   'Manrope', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+
   /* Legacy tokens remapped to the light military palette for fallback components */
   --bg: var(--mono-bg);
   --surface: var(--mono-surface);
@@ -642,10 +646,11 @@ body {
 }
 .bank-card-cvv-value {
   font-size: 15px !important;
-  font-weight: 900 !important;
+  font-weight: 700 !important;
   color: #111 !important;
   letter-spacing: 0.14em !important;
   font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" !important;
   line-height: 1.15 !important;
 }
 .bank-card-cvv-value.bc-loading {
@@ -877,6 +882,7 @@ body {
 .amount,
 .item-amount {
   font-weight: 700 !important;
+  font-feature-settings: "tnum" !important;
 }
 
 .amount.in,
@@ -1245,7 +1251,7 @@ textarea:focus,
   border-radius: 12px !important;
   min-height: 44px !important;
   font-size: 14px !important;
-  font-weight: 650 !important;
+  font-weight: 600 !important;
   transition: transform var(--mono-motion-fast) ease, background var(--mono-motion-fast) ease, border-color var(--mono-motion-fast) ease, color var(--mono-motion-fast) ease !important;
 }
 
@@ -1722,8 +1728,9 @@ textarea:focus,
 
 .forecast-balance {
   font-size: 16px !important;
-  font-weight: 800 !important;
+  font-weight: 700 !important;
   letter-spacing: -0.02em !important;
+  font-feature-settings: "tnum" !important;
 }
 
 .forecast-balance.up {
@@ -2669,6 +2676,7 @@ textarea:focus,
   font-weight: 800 !important;
   letter-spacing: -.04em !important;
   line-height: 1 !important;
+  font-feature-settings: "tnum" !important;
   background: linear-gradient(135deg, #fff 60%, rgba(255,255,255,.6)) !important;
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
@@ -2755,8 +2763,9 @@ textarea:focus,
 }
 .ms-value {
   font-size: 14px !important;
-  font-weight: 800 !important;
+  font-weight: 700 !important;
   letter-spacing: -.02em !important;
+  font-feature-settings: "tnum" !important;
 }
 .ms-item.green .ms-value { color: #4ade80 !important; }
 .ms-item.red .ms-value   { color: #f87171 !important; }
@@ -3075,7 +3084,7 @@ body {
   padding: 14px 16px;
   border-radius: 12px;
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
   cursor: pointer;
   border: none;
   transition: opacity .15s, transform .1s;
