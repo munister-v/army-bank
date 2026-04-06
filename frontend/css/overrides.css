@@ -3663,3 +3663,29 @@ a:focus-visible {
   animation: spin .6s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Toast notifications — light theme fix ─────────────── */
+.toast {
+  background: rgba(22, 30, 24, 0.94) !important;
+  color: #f2f6f1 !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,.20), 0 1px 4px rgba(0,0,0,.12) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  font-weight: 500 !important;
+}
+.toast.success {
+  background: rgba(18, 52, 30, 0.95) !important;
+  color: #86efac !important;
+  border-color: rgba(74,222,128,.20) !important;
+}
+.toast.warning {
+  background: rgba(50, 35, 10, 0.95) !important;
+  color: #fcd34d !important;
+  border-color: rgba(251,191,36,.20) !important;
+}
+.toast.error {
+  background: rgba(55, 14, 14, 0.95) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(248,113,113,.20) !important;
+}
