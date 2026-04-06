@@ -18,23 +18,21 @@
   <!-- Manrope: кирилиця + латиниця; Cormorant — лише акценти; JetBrains Mono — мітки -->
   <link rel="preload" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" as="style" onload="this.rel='stylesheet'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
-  <!-- Critical inline CSS: body bg + auth shell to prevent FOUC before styles.css loads -->
+  <!-- Critical inline CSS: matches final light-military theme to prevent FOUC -->
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%;background:#050505;color:#e5e5e5;font-family:Manrope,system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;text-size-adjust:100%}
+    html,body{height:100%;background:#e7ebe2;color:#141a15;font-family:Manrope,system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;text-size-adjust:100%}
     .hidden{display:none!important}
     .screen{display:none;flex-direction:column;height:100%}
-    /* Must match app.js + styles.css: .active-screen, not .active */
     .screen.active-screen{display:block}
-    /* Must match setAuthenticated(): toggles .hidden, not .active */
-    #authScreen.auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#050505}
+    #authScreen.auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(180deg,#274fb5 0%,#3f6fd8 52%,#7da0df 100%)}
     #authScreen.hidden{display:none!important}
   </style>
-  <!-- Main stylesheet: async load (non-blocking), display:none swap triggers once loaded -->
+  <!-- overrides.css синхронно — це активна тема, блокуємо перший рендер щоб не блімало -->
+  <link rel="stylesheet" href="/css/overrides.css?v=41">
+  <!-- styles.css async — базові стилі, всі перекриті !important в overrides.css -->
   <link rel="stylesheet" href="/css/styles.css?v=7" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="/css/styles.css?v=7"></noscript>
-  <link rel="stylesheet" href="/css/overrides.css?v=41" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/overrides.css?v=41"></noscript>
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js" as="script">
   <link rel="preload" href="/js/app.js" as="script">

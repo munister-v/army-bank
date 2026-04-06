@@ -177,6 +177,7 @@ def list_compliance_users():
         """
 
         # Both count and select operate on the same subquery shape.
+        # Both queries wrap inner_sql in a subquery so WHERE/ORDER BY can reference aliases
         count_sql  = f'SELECT COUNT(*) AS cnt FROM ({inner_sql}) sub {where_sql}'
         select_sql = f'SELECT * FROM ({inner_sql}) sub {where_sql} {order_sql} LIMIT %s OFFSET %s'
 
