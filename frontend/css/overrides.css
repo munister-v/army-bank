@@ -4351,186 +4351,257 @@ select:focus {
   line-height: 1.05 !important;
 }
 
-/* ╔══════════════════════════════════════════════════════╗
-   ║   CHARACTER REFRESH — душа та індивідуальність       ║
-   ╚══════════════════════════════════════════════════════╝ */
 
-/* ── 1. ХЕДЕР — глибший, живіший ──────────────────────── */
-.app-header {
-  background:
-    radial-gradient(ellipse 90% 80% at 5% 110%, rgba(90,160,100,.35) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 50% at 95% -10%, rgba(180,210,140,.18) 0%, transparent 50%),
-    linear-gradient(155deg, #141f18 0%, #1e3020 25%, #2f4a37 55%, #3b6045 80%, #4a7a52 100%) !important;
-  padding-bottom: 28px !important;
+/* ╔══════════════════════════════════════════════════════════╗
+   ║  MATURE SYSTEM — одне правило, єдина мова               ║
+   ║  Принцип: один акцент (#2f4a37), один матеріал (white), ║
+   ║  вся ієрархія — через шрифт, відступ, тінь              ║
+   ╚══════════════════════════════════════════════════════════╝ */
+
+/* ── СКАСУВАННЯ дитячих рішень ──────────────────────────── */
+/* Прибираємо кольорові картки */
+#budgetProgressCard,
+#sparklineCard,
+#dashboard .card:has(#currencyRates),
+#dashboard .card:has(.conv-row) {
+  background: #fff !important;
+  border: none !important;
 }
 
-/* ── 2. БАЛАНС — великий і драматичний ────────────────── */
-.balance-amount {
-  font-size: 46px !important;
-  font-weight: 800 !important;
-  letter-spacing: -0.05em !important;
-  line-height: 1 !important;
-  color: #ffffff !important;
-  text-shadow: 0 2px 20px rgba(0,0,0,.20) !important;
+/* Прибираємо строкаті іконки qa */
+.quick-actions .qa-btn:nth-child(1) .qa-icon,
+.quick-actions .qa-btn:nth-child(2) .qa-icon,
+.quick-actions .qa-btn:nth-child(3) .qa-icon,
+.quick-actions .qa-btn:nth-child(4) .qa-icon {
+  background: rgba(255,255,255,.18) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,.10) !important;
 }
-.balance-label {
-  color: rgba(255,255,255,.55) !important;
-  font-size: 10px !important;
-  letter-spacing: .14em !important;
-  font-weight: 600 !important;
-  opacity: 1 !important;
+.quick-actions .qa-btn:nth-child(1) .qa-icon svg,
+.quick-actions .qa-btn:nth-child(2) .qa-icon svg,
+.quick-actions .qa-btn:nth-child(3) .qa-icon svg,
+.quick-actions .qa-btn:nth-child(4) .qa-icon svg {
+  stroke: rgba(255,255,255,.90) !important;
 }
-
-/* ── 3. ШВИДКІ ДІЇ — кожна з характером ──────────────── */
-/* Фон qa-btn — прозорий, весь акцент на іконці */
 .quick-actions .qa-btn {
   background: transparent !important;
   border: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
-  padding: 10px 2px 8px !important;
-}
-.quick-actions .qa-btn:active {
-  background: rgba(0,0,0,.06) !important;
 }
 
-/* Розмір іконки більший — щоб кольори читались */
+/* ── 1. СИСТЕМА ПОВЕРХОНЬ ────────────────────────────────
+   Фон: теплий нейтральний — не білий, не зелений
+   Картка: чиста біла, одна мова тіні
+   ─────────────────────────────────────────────────────── */
+body {
+  background-color: #f2f4f1 !important;
+  background-image: none !important;
+}
+
+.card,
+#dashboard .card,
+#transactions .card,
+#profile .card,
+#cards .card,
+#analytics .card,
+#savings .card {
+  background: #fff !important;
+  border-radius: 20px !important;
+  border: none !important;
+  box-shadow: 0 1px 2px rgba(15,23,18,.04), 0 4px 16px rgba(15,23,18,.06) !important;
+}
+
+/* ── 2. ХЕДЕР — мінімалістський і авторитетний ──────────
+   Один темний колір без радіальних «ефектів»
+   Вся увага — на цифрі балансу
+   ─────────────────────────────────────────────────────── */
+.app-header {
+  background: #1a2e20 !important;
+  padding-bottom: 32px !important;
+}
+
+/* ── 3. БАЛАНС — головна сцена ──────────────────────────
+   Великий, чіткий, тільки число
+   ─────────────────────────────────────────────────────── */
+.balance-amount {
+  font-size: 48px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.04em !important;
+  line-height: 1 !important;
+  color: #fff !important;
+  text-shadow: none !important;
+}
+.balance-label {
+  font-size: 10px !important;
+  letter-spacing: .12em !important;
+  font-weight: 500 !important;
+  color: rgba(255,255,255,.45) !important;
+  text-transform: uppercase !important;
+  opacity: 1 !important;
+}
+#headerAccount,
+[id*="accountDisplay"],
+.header-account-row {
+  font-size: 12px !important;
+  color: rgba(255,255,255,.38) !important;
+  opacity: 1 !important;
+  letter-spacing: .02em !important;
+}
+
+/* ── 4. ШВИДКІ ДІЇ — монохромні на темному тлі ─────────
+   Правило: однорідний матеріал, різниця через іконку і текст
+   ─────────────────────────────────────────────────────── */
 .quick-actions .qa-icon {
-  width: 42px !important;
-  height: 42px !important;
-  border-radius: 13px !important;
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 14px !important;
+  background: rgba(255,255,255,.12) !important;
+  box-shadow: none !important;
 }
-
-/* Поповнити — яскраво-зелений */
-.quick-actions .qa-btn:nth-child(1) .qa-icon {
-  background: linear-gradient(145deg, #22c55e, #16a34a) !important;
-  box-shadow: 0 4px 14px rgba(34,197,94,.45) !important;
+.quick-actions .qa-icon svg {
+  stroke: rgba(255,255,255,.88) !important;
 }
-.quick-actions .qa-btn:nth-child(1) .qa-icon svg { stroke: #fff !important; }
-
-/* На картку — синій */
-.quick-actions .qa-btn:nth-child(2) .qa-icon {
-  background: linear-gradient(145deg, #3b82f6, #1d4ed8) !important;
-  box-shadow: 0 4px 14px rgba(59,130,246,.45) !important;
-}
-.quick-actions .qa-btn:nth-child(2) .qa-icon svg { stroke: #fff !important; }
-
-/* За IBAN — фіолетовий */
-.quick-actions .qa-btn:nth-child(3) .qa-icon {
-  background: linear-gradient(145deg, #a855f7, #7c3aed) !important;
-  box-shadow: 0 4px 14px rgba(168,85,247,.45) !important;
-}
-.quick-actions .qa-btn:nth-child(3) .qa-icon svg { stroke: #fff !important; }
-
-/* Виписка — жовтогарячий */
-.quick-actions .qa-btn:nth-child(4) .qa-icon {
-  background: linear-gradient(145deg, #f59e0b, #d97706) !important;
-  box-shadow: 0 4px 14px rgba(245,158,11,.45) !important;
-}
-.quick-actions .qa-btn:nth-child(4) .qa-icon svg { stroke: #fff !important; }
-
-/* ── 4. НАВБАР — справжнє iOS frosted glass ───────────── */
-.bottom-nav {
-  background: rgba(245,248,244,.82) !important;
-  backdrop-filter: saturate(180%) blur(20px) !important;
-  -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
-  border-top: 0.5px solid rgba(0,0,0,.12) !important;
-  box-shadow: 0 -1px 0 rgba(0,0,0,.06) !important;
-  padding: 8px 4px 12px !important;
-}
-.nav-item {
-  border-radius: 12px !important;
-  padding: 6px 4px 4px !important;
-  gap: 3px !important;
-  flex: 1 !important;
-}
-.nav-label {
+.quick-actions .qa-label {
+  color: rgba(255,255,255,.65) !important;
   font-size: 10px !important;
   font-weight: 500 !important;
-  letter-spacing: .01em !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
 }
-.nav-item.active .nav-label {
-  font-weight: 700 !important;
-}
-.nav-item svg {
-  stroke: #8a9690 !important;
-}
-.nav-item.active svg {
-  stroke: #2f4a37 !important;
+.quick-actions .qa-btn:active .qa-icon {
+  background: rgba(255,255,255,.20) !important;
 }
 
-/* ── 5. КАРТКИ — depth hierarchy ──────────────────────── */
-/* Картки першого рівня — легка тінь */
-#dashboard .card {
-  border-radius: 20px !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.07) !important;
-  border: none !important;
-  background: #fff !important;
+/* ── 5. НАВБАР — frosted glass, без кольорів ────────────
+   iOS-стиль: єдина прозора поверхня
+   ─────────────────────────────────────────────────────── */
+.bottom-nav {
+  background: rgba(242,244,241,.88) !important;
+  backdrop-filter: saturate(200%) blur(24px) !important;
+  -webkit-backdrop-filter: saturate(200%) blur(24px) !important;
+  border-top: 0.5px solid rgba(0,0,0,.08) !important;
+  box-shadow: none !important;
 }
-/* Специфічні акцентні картки */
-#recentTransactionsCard {
-  background: #fff !important;
+.nav-item svg { stroke: #94a39a !important; }
+.nav-item .nav-label { color: #94a39a !important; font-weight: 500 !important; }
+.nav-item.active {
+  background: transparent !important;
 }
-#budgetProgressCard {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%) !important;
-  border: 1px solid rgba(34,197,94,.15) !important;
-}
-#sparklineCard {
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
-  border: 1px solid rgba(59,130,246,.13) !important;
-}
+.nav-item.active svg { stroke: #1a2e20 !important; }
+.nav-item.active .nav-label { color: #1a2e20 !important; font-weight: 700 !important; }
 
-/* ── 6. ТИПОГРАФІКА — більше характеру ────────────────── */
-/* Section title на головній */
-#dashboard .section-title,
-#dashboard .card-head h3 {
-  font-size: 16px !important;
+/* ── 6. ТИПОГРАФІКА — ієрархія через weight і розмір ────
+   Правило: h → 700+ чорний, body → 400–500 темно-сірий,
+            label/caption → 400 мʼякий
+   ─────────────────────────────────────────────────────── */
+.section-title,
+.card-head h3,
+h2, h1 {
+  color: #0d1810 !important;
   font-weight: 700 !important;
   letter-spacing: -0.025em !important;
-  color: #0f1c12 !important;
+}
+.card-head h3 {
+  font-size: 16px !important;
+}
+.section-title {
+  font-size: 26px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.035em !important;
 }
 
-/* ── 7. BODY — тонша, тепліша текстура ───────────────── */
-body {
-  background-color: #edf0eb !important;
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.028'/%3E%3C/svg%3E") !important;
-  background-size: 160px 160px !important;
-}
-
-/* ── 8. MS-ITEMS — менш плаский, більш живий ─────────── */
+/* ── 7. СТАТИСТИКА ms-item — сувора і чиста ─────────────
+   Єдиний матеріал #f8f9f7, лише колір числа дає семантику
+   ─────────────────────────────────────────────────────── */
 .ms-item {
+  background: #f6f8f5 !important;
+  border: 1px solid rgba(0,0,0,.055) !important;
   border-radius: 16px !important;
 }
-.ms-item.green {
-  background: linear-gradient(135deg, rgba(34,197,94,.10) 0%, rgba(34,197,94,.05) 100%) !important;
-  border: 1px solid rgba(34,197,94,.20) !important;
-}
-.ms-item.red {
-  background: linear-gradient(135deg, rgba(239,68,68,.09) 0%, rgba(239,68,68,.04) 100%) !important;
-  border: 1px solid rgba(239,68,68,.16) !important;
-}
-.ms-item:not(.green):not(.red) {
-  background: rgba(47,74,55,.06) !important;
-  border: 1px solid rgba(47,74,55,.12) !important;
-}
+.ms-item.green { background: #f6f8f5 !important; border-color: rgba(0,0,0,.055) !important; }
+.ms-item.red   { background: #f6f8f5 !important; border-color: rgba(0,0,0,.055) !important; }
 .ms-item.green .ms-value { color: #15803d !important; }
 .ms-item.red   .ms-value { color: #b91c1c !important; }
+.ms-label { color: #6b7b70 !important; font-weight: 600 !important; font-size: 10px !important; letter-spacing: .06em !important; text-transform: uppercase !important; }
 
-/* ── 9. КАРТКА КУРСІВ — тепліший фон ─────────────────── */
-#dashboard .card:has(#currencyRates),
-#dashboard .card:has(.conv-row) {
-  background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%) !important;
-  border: 1px solid rgba(202,138,4,.15) !important;
+/* ── 8. АКЦЕНТ — зелений тільки для дій ────────────────
+   Primary button, active tab, focus ring — один і той самий
+   ─────────────────────────────────────────────────────── */
+.btn-primary,
+.auth-submit,
+.btn-accent {
+  background: #1a2e20 !important;
+  border-color: #1a2e20 !important;
+  color: #fff !important;
+  letter-spacing: .04em !important;
+}
+.btn-primary:hover, .auth-submit:hover {
+  background: #243d2c !important;
 }
 
-/* ── 10. КЛІКАБЕЛЬНІ КАРТКИ — hover lift ──────────────── */
-#dashboard .card {
-  transition: transform .18s cubic-bezier(.25,.46,.45,.94), box-shadow .18s !important;
-  will-change: transform !important;
+/* ── 9. РЯДКИ КУРСІВ — сувора таблиця ───────────────────
+   Прибираємо будь-який «дизайн» — просто чіткі дані
+   ─────────────────────────────────────────────────────── */
+.rate-item { border-bottom: 1px solid rgba(0,0,0,.06) !important; padding: 12px 0 !important; }
+.rate-item:last-child { border-bottom: none !important; }
+.rate-code { font-size: 14px !important; font-weight: 600 !important; color: #0d1810 !important; }
+.rate-val { font-size: 14px !important; font-weight: 500 !important; color: #0d1810 !important; font-feature-settings: "tnum" !important; }
+.rate-flag { font-size: 20px !important; }
+
+/* ── 10. КОНВЕРТЕР — функціонально, без прикрас ─────────*/
+.conv-result {
+  background: #f6f8f5 !important;
+  border: 1px solid rgba(0,0,0,.08) !important;
+  border-radius: 12px !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: #0d1810 !important;
+  letter-spacing: -.01em !important;
+  padding: 12px 16px !important;
+  text-align: center !important;
 }
-#dashboard .card:active {
-  transform: scale(.985) !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,.05) !important;
+
+/* ── 11. АВАТАР — один матеріал хедера ─────────────────*/
+.avatar, #userAvatar {
+  background: rgba(255,255,255,.15) !important;
+  border: 1.5px solid rgba(255,255,255,.22) !important;
+  color: rgba(255,255,255,.85) !important;
+  box-shadow: none !important;
+  border-radius: 999px !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  letter-spacing: .04em !important;
+}
+
+/* ── 12. КНОПКИ ДІЙ В ХЕДЕРІ ──────────────────────────*/
+.header-actions button,
+.app-header .icon-btn {
+  background: rgba(255,255,255,.10) !important;
+  border: 1px solid rgba(255,255,255,.15) !important;
+  color: rgba(255,255,255,.75) !important;
+  border-radius: 10px !important;
+}
+.header-actions button:hover,
+.app-header .icon-btn:hover {
+  background: rgba(255,255,255,.18) !important;
+}
+.header-actions button svg,
+.app-header .icon-btn svg {
+  stroke: rgba(255,255,255,.75) !important;
+}
+
+/* ── 13. ТОКЕНИ ТІНІ — єдина шкала ─────────────────────
+   sm: елементи інтерфейсу
+   md: картки
+   lg: модалки і шторки
+   ─────────────────────────────────────────────────────── */
+.card { box-shadow: 0 1px 2px rgba(15,23,18,.04), 0 3px 12px rgba(15,23,18,.07) !important; }
+
+/* ── 14. ПРИБИРАЄМО КОЛЬОРОВІ ТОНУВАННЯ ─────────────────
+   Всі картки — білі. Диференціація через контент, не колір
+   ─────────────────────────────────────────────────────── */
+#recentTransactionsCard,
+#sparklineCard,
+#budgetProgressCard {
+  background: #fff !important;
+  border: none !important;
 }
