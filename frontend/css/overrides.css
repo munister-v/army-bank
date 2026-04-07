@@ -2640,34 +2640,35 @@ textarea:focus,
     height: 100vh !important;
     position: sticky !important;
     top: 0 !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
+    overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
-    padding: 28px 20px 140px !important; /* bottom padding for nav */
+    padding: 20px 20px 16px !important;
     border-radius: 0 !important;
     border-right: 1px solid rgba(255,255,255,.08) !important;
-    /* scrollbar прихований */
-    scrollbar-width: none !important;
   }
-  .app-header::-webkit-scrollbar { display: none !important; }
 
   /* Баланс на десктопі — трохи менший */
   .balance-amount {
     font-size: clamp(2rem, 3.5vw, 3rem) !important;
   }
 
-  /* Карусель карток у сайдбарі */
+  /* Карусель карток у сайдбарі — компактна */
   .bank-cards-carousel {
-    margin: 0 -20px !important;
+    margin: 4px -20px 8px !important;
   }
   .bank-cards-track {
     padding-left: 20px !important;
     padding-right: 20px !important;
+    padding-top: 2px !important;
+    padding-bottom: 6px !important;
   }
   .bank-cards-track .bank-card {
     flex: 0 0 calc(280px - 40px) !important;
     width: calc(280px - 40px) !important;
+    max-height: 140px !important;
+    min-height: 120px !important;
+    aspect-ratio: unset !important;
   }
 
   /* Quick actions — 2×2 grid у сайдбарі */
@@ -2692,25 +2693,27 @@ textarea:focus,
 
   /* ── BOTTOM NAV → SIDEBAR NAV ───────────────────────────────── */
   .bottom-nav {
-    position: absolute !important;
+    /* Виймаємо з fixed, вбудовуємо у flex-потік сайдбару */
+    position: sticky !important;
     bottom: 0 !important;
-    left: 0 !important;
+    left: auto !important;
     right: auto !important;
-    width: 280px !important;
     top: auto !important;
+    width: auto !important;
+    margin-top: auto !important;   /* притискає до низу сайдбару */
     transform: none !important;
+    will-change: auto !important;
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 2px !important;
-    background: rgba(26,46,32,.95) !important;
+    background: rgba(20,38,24,.98) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    border-top: 1px solid rgba(255,255,255,.08) !important;
-    border-right: 1px solid rgba(255,255,255,.08) !important;
+    border-top: 1px solid rgba(255,255,255,.10) !important;
     padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
     height: auto !important;
-    will-change: auto !important;
-    transform: translateZ(0) !important;
+    z-index: auto !important;
+    flex-shrink: 0 !important;
   }
 
   /* Nav items — горизонтальні рядки у сайдбарі */
@@ -5610,4 +5613,104 @@ button.btn-primary:active {
 .qa-btn:active .qa-icon {
   transform: scale(.88) !important;
   transition: transform .1s ease !important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║  DESKTOP OVERRIDES — найвищий пріоритет (кінець файлу)       ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+
+@media (min-width: 960px) {
+  /* Quick actions — 2×2 у сайдбарі (перебиває repeat(4,...)) */
+  .quick-actions,
+  #dashboard .quick-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  /* QA btn — вертикальний з фоном у сайдбарі */
+  .quick-actions .qa-btn {
+    flex-direction: column !important;
+    align-items: center !important;
+    background: rgba(255,255,255,.07) !important;
+    border: 1px solid rgba(255,255,255,.10) !important;
+    border-radius: 14px !important;
+    padding: 14px 8px !important;
+    gap: 6px !important;
+  }
+  .quick-actions .qa-btn:hover {
+    background: rgba(255,255,255,.13) !important;
+    cursor: pointer !important;
+  }
+  .quick-actions .qa-icon,
+  #dashboard .quick-actions .qa-icon {
+    width: 36px !important;
+    height: 36px !important;
+    border: none !important;
+    background: rgba(255,255,255,.10) !important;
+  }
+  .quick-actions .qa-label,
+  #dashboard .quick-actions .qa-label {
+    font-size: 9px !important;
+    color: rgba(255,255,255,.55) !important;
+    text-align: center !important;
+  }
+
+  /* Екранні переходи на десктопі — вимкнути свайп-анімацію
+     (на десктопі навігація кліком, не свайпом) */
+  .screen-enter-ltr, .screen-enter-rtl {
+    animation: screenFadeIn 0.18s ease both !important;
+  }
+
+  /* Content grid — 2 колонки для карток де можливо */
+  #dashboard .card-grid,
+  #dashboard [class*="grid"] {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+  }
+
+  /* Scrollbar у контент-зоні */
+  .app-content::-webkit-scrollbar {
+    width: 4px !important;
+  }
+  .app-content::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+  .app-content::-webkit-scrollbar-thumb {
+    background: rgba(26,46,32,.18) !important;
+    border-radius: 2px !important;
+  }
+
+  /* Картки на десктопі — більше внутрішнього простору */
+  .card {
+    padding: 0 !important;
+  }
+  .card-head {
+    padding: 20px 24px 14px !important;
+  }
+
+  /* Section title на десктопі */
+  .section-title {
+    font-size: 28px !important;
+    padding: 4px 0 16px !important;
+  }
+
+  /* Hide mobile-only active dot indicator */
+  .nav-item.active::after {
+    display: none !important;
+  }
+
+  /* Sidebar: показати username/role повністю */
+  .header-name {
+    font-size: 15px !important;
+    color: rgba(255,255,255,.95) !important;
+  }
+  .header-role {
+    font-size: 11px !important;
+    color: rgba(255,255,255,.40) !important;
+  }
+}
+
+@keyframes screenFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
