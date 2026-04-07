@@ -4666,3 +4666,298 @@ h2, h1 {
   border-radius: 0 !important;
   padding: 0 0 8px !important;
 }
+
+/* ╔══════════════════════════════════════════════════════════╗
+   ║  FULL APP REFRESH — той самий принцип що auth logo       ║
+   ║  Текст прямо на поверхні. Без боксів. Повітря. Впевненість║
+   ╚══════════════════════════════════════════════════════════╝ */
+
+/* ── ХЕДЕР: авторитетна темна панель ───────────────────── */
+.app-header {
+  background: #1a2e20 !important;
+  padding: 14px 20px 32px !important;
+}
+
+/* Верхній рядок: аватар + дії */
+.header-top {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 0 !important;
+}
+
+/* Аватар — тонкий обвід, без фону-градієнта */
+.avatar, #userAvatar {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  border: 1.5px solid rgba(255,255,255,.30) !important;
+  color: rgba(255,255,255,.75) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: .04em !important;
+  box-shadow: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* "Кабінет" — дрібний, не перетягує увагу */
+.header-name {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: rgba(255,255,255,.90) !important;
+  letter-spacing: -.01em !important;
+}
+.header-role {
+  font-size: 11px !important;
+  color: rgba(255,255,255,.38) !important;
+  font-weight: 400 !important;
+}
+
+/* Кнопки дій — прозорі, без рамок */
+.header-actions .icon-btn,
+.header-actions button {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: rgba(255,255,255,.60) !important;
+  padding: 6px !important;
+  border-radius: 8px !important;
+  transition: background .15s !important;
+}
+.header-actions .icon-btn:hover,
+.header-actions button:hover {
+  background: rgba(255,255,255,.08) !important;
+}
+.header-actions .icon-btn svg,
+.header-actions button svg {
+  stroke: rgba(255,255,255,.60) !important;
+}
+
+/* ── БАЛАНС: головна сцена ──────────────────────────────
+   Принцип: число — єдиний герой, все інше — шепіт         */
+.balance-block {
+  padding: 20px 0 4px !important;
+  text-align: left !important;
+}
+.balance-label {
+  font-size: 10px !important;
+  letter-spacing: .14em !important;
+  font-weight: 500 !important;
+  color: rgba(255,255,255,.38) !important;
+  text-transform: uppercase !important;
+  opacity: 1 !important;
+  margin-bottom: 4px !important;
+  display: block !important;
+}
+.balance-amount {
+  font-size: 52px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.04em !important;
+  line-height: .95 !important;
+  color: #fff !important;
+  text-shadow: none !important;
+  display: block !important;
+}
+#headerAccount,
+.header-account-row,
+[id*="accountDisplay"] {
+  font-size: 12px !important;
+  color: rgba(255,255,255,.30) !important;
+  letter-spacing: .02em !important;
+  margin-top: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  opacity: 1 !important;
+}
+
+/* ── ШВИДКІ ДІЇ: іконки прямо на темному, без боксів ─── */
+.quick-actions {
+  padding: 4px 0 8px !important;
+  gap: 0 !important;
+}
+.quick-actions .qa-btn {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 8px 4px 10px !important;
+  gap: 7px !important;
+  transition: opacity .15s !important;
+}
+.quick-actions .qa-btn:active { opacity: .6 !important; transform: none !important; }
+
+/* Іконки: тонке коло-обведення замість залитого квадрата */
+.quick-actions .qa-icon,
+#dashboard .quick-actions .qa-icon {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.10) !important;
+  border: 1.5px solid rgba(255,255,255,.18) !important;
+  box-shadow: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.quick-actions .qa-icon svg {
+  stroke: rgba(255,255,255,.85) !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+.quick-actions .qa-label,
+#dashboard .quick-actions .qa-label {
+  font-size: 10.5px !important;
+  font-weight: 500 !important;
+  color: rgba(255,255,255,.55) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  line-height: 1.2 !important;
+  width: 100% !important;
+}
+
+/* ── КАРТКИ: мінімалістська білосніжна поверхня ─────────
+   Не тінь — hairline бордер. Внутрішнє повітря.          */
+.card {
+  background: #fff !important;
+  border-radius: 20px !important;
+  border: none !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,.07), 0 4px 20px rgba(0,0,0,.06) !important;
+  overflow: hidden !important;
+}
+
+/* ── ЗАГОЛОВКИ СЕКЦІЙ: editorial bold ──────────────────── */
+.section-title {
+  font-size: 28px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.04em !important;
+  color: #0d1810 !important;
+  line-height: 1 !important;
+  padding: 8px 0 6px !important;
+}
+.section-header-row {
+  padding: 4px 0 12px !important;
+  align-items: baseline !important;
+}
+
+/* card-head: лаконічніший */
+.card-head {
+  padding: 18px 18px 12px !important;
+  border-bottom: 1px solid rgba(0,0,0,.055) !important;
+}
+.card-head h3 {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: #0d1810 !important;
+}
+.card-body, .card > *:not(.card-head) {
+  padding: 0 !important;
+}
+
+/* ── НАВБАР: повністю переосмислений ───────────────────── */
+.bottom-nav {
+  background: rgba(255,255,255,.92) !important;
+  backdrop-filter: saturate(180%) blur(20px) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+  border-top: 1px solid rgba(0,0,0,.07) !important;
+  box-shadow: none !important;
+  padding: 10px 8px 16px !important;
+  gap: 0 !important;
+}
+.nav-item {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 6px 2px 4px !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+  transition: background .12s !important;
+}
+.nav-item svg {
+  stroke: #9aa39e !important;
+  width: 22px !important;
+  height: 22px !important;
+  stroke-width: 1.8 !important;
+}
+.nav-label {
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  color: #9aa39e !important;
+  letter-spacing: .01em !important;
+}
+.nav-item.active {
+  background: transparent !important;
+}
+.nav-item.active svg { stroke: #1a2e20 !important; stroke-width: 2.2 !important; }
+.nav-item.active .nav-label { color: #1a2e20 !important; font-weight: 700 !important; }
+
+/* ── ТІЛО СТОРІНКИ: чиста нейтральна поверхня ─────────── */
+body {
+  background: #f1f3f0 !important;
+  background-image: none !important;
+}
+
+/* ── РЯДКИ В КАРТКАХ: divider замість box-shadow ──────── */
+.profile-info-row,
+.rate-item,
+.setting-row {
+  padding: 13px 18px !important;
+}
+.profile-info-row { border-bottom: 1px solid rgba(0,0,0,.055) !important; }
+.rate-item { border-bottom: 1px solid rgba(0,0,0,.055) !important; }
+.setting-row { border-bottom: 1px solid rgba(0,0,0,.055) !important; }
+
+/* ── КНОПКА ЗАСТОСУВАТИ — впевнена ─────────────────────── */
+#transactions form .btn-ghost[type="submit"],
+#transactions .btn-ghost[type="submit"],
+button.btn-ghost[type="submit"] {
+  background: #1a2e20 !important;
+  border-color: #1a2e20 !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  letter-spacing: .08em !important;
+  font-size: 13px !important;
+}
+
+/* ── MS ITEMS: чисті, без зайвого ───────────────────────── */
+.ms-item {
+  background: #f7f9f6 !important;
+  border: 1px solid rgba(0,0,0,.06) !important;
+  border-radius: 14px !important;
+  padding: 14px 16px !important;
+}
+.ms-item.green { background: #f7f9f6 !important; border-color: rgba(0,0,0,.06) !important; }
+.ms-item.red   { background: #f7f9f6 !important; border-color: rgba(0,0,0,.06) !important; }
+.ms-item.green .ms-value { color: #166534 !important; }
+.ms-item.red   .ms-value { color: #991b1b !important; }
+.ms-label {
+  font-size: 9px !important;
+  letter-spacing: .10em !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  color: #7a8c80 !important;
+  margin-bottom: 6px !important;
+}
+.ms-value {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+}
+
+/* ── ПУСТИЙ СТАН ─────────────────────────────────────────── */
+.empty-state {
+  padding: 48px 20px !important;
+  color: #8a9e90 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  background: transparent !important;
+  border: 1.5px dashed rgba(0,0,0,.10) !important;
+  border-radius: 16px !important;
+}
