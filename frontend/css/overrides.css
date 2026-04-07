@@ -2605,45 +2605,172 @@ textarea:focus,
   }
 }
 
-/* ── Desktop: centered app frame ─────────────────── */
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║  DESKTOP LAYOUT ≥960px — справжній sidebar, не phone frame   ║
+   ╚══════════════════════════════════════════════════════════════╝ */
 @media (min-width: 960px) {
+
+  /* Body: нейтральний фон */
+  body {
+    background: #eceee9 !important;
+    overflow-y: hidden !important;
+  }
+
+  /* App shell — горизонтальний flex, на весь екран */
   #appScreen.app-shell {
-    width: min(460px, calc(100vw - 24px)) !important;
-    margin: 14px auto 20px !important;
-    border-radius: 32px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    min-height: 100vh !important;
+    height: 100vh !important;
     overflow: hidden !important;
-    box-shadow: 0 26px 70px rgba(17, 27, 44, 0.24) !important;
-    min-height: calc(100vh - 34px) !important;
-    background: var(--mono-bg) !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
     position: relative !important;
+  }
+
+  /* ── SIDEBAR (колишній app-header) ─────────────────────────── */
+  .app-header {
+    width: 280px !important;
+    min-width: 280px !important;
+    flex-shrink: 0 !important;
+    height: 100vh !important;
+    position: sticky !important;
+    top: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
     display: flex !important;
     flex-direction: column !important;
-  }
-
-  .app-header {
+    padding: 28px 20px 140px !important; /* bottom padding for nav */
     border-radius: 0 !important;
-    width: auto !important;
-    position: relative !important;
-    height: auto !important;
-    overflow: visible !important;
+    border-right: 1px solid rgba(255,255,255,.08) !important;
+    /* scrollbar прихований */
+    scrollbar-width: none !important;
+  }
+  .app-header::-webkit-scrollbar { display: none !important; }
+
+  /* Баланс на десктопі — трохи менший */
+  .balance-amount {
+    font-size: clamp(2rem, 3.5vw, 3rem) !important;
   }
 
-  .app-content {
-    max-width: none !important;
-    padding: 12px 16px calc(var(--nav-h) + 30px + env(safe-area-inset-bottom, 0px)) !important;
-    height: auto !important;
+  /* Карусель карток у сайдбарі */
+  .bank-cards-carousel {
+    margin: 0 -20px !important;
+  }
+  .bank-cards-track {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+  .bank-cards-track .bank-card {
+    flex: 0 0 calc(280px - 40px) !important;
+    width: calc(280px - 40px) !important;
   }
 
+  /* Quick actions — 2×2 grid у сайдбарі */
+  .quick-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    padding: 8px 0 0 !important;
+  }
+  .quick-actions .qa-btn {
+    background: rgba(255,255,255,.08) !important;
+    border: 1px solid rgba(255,255,255,.10) !important;
+    border-radius: 14px !important;
+    padding: 12px 8px !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+  .quick-actions .qa-btn:hover {
+    background: rgba(255,255,255,.14) !important;
+  }
+
+  /* ── BOTTOM NAV → SIDEBAR NAV ───────────────────────────────── */
   .bottom-nav {
-    left: 50% !important;
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
     right: auto !important;
-    width: min(440px, calc(100vw - 34px)) !important;
-    transform: translateX(-50%) !important;
+    width: 280px !important;
+    top: auto !important;
+    transform: none !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 2px !important;
+    background: rgba(26,46,32,.95) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-top: 1px solid rgba(255,255,255,.08) !important;
+    border-right: 1px solid rgba(255,255,255,.08) !important;
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    height: auto !important;
+    will-change: auto !important;
+    transform: translateZ(0) !important;
   }
 
+  /* Nav items — горизонтальні рядки у сайдбарі */
+  .nav-item, .menu-btn.nav-item {
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 10px 14px !important;
+    border-radius: 10px !important;
+    width: 100% !important;
+  }
+  .nav-item svg { width: 18px !important; height: 18px !important; }
+  .nav-label { font-size: 13px !important; font-weight: 500 !important; letter-spacing: -.01em !important; }
+  .nav-item.active {
+    background: rgba(255,255,255,.12) !important;
+  }
+  .nav-item.active svg { stroke: #fff !important; }
+  .nav-item.active .nav-label { color: #fff !important; font-weight: 700 !important; }
+  .nav-item.active::after { display: none !important; }
+
+  /* ── MAIN CONTENT AREA ──────────────────────────────────────── */
+  .app-content {
+    flex: 1 !important;
+    min-width: 0 !important;
+    height: 100vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 32px 40px 48px !important;
+    background: #eceee9 !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(0,0,0,.15) transparent !important;
+  }
+  .app-content::-webkit-scrollbar { width: 5px !important; }
+  .app-content::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15) !important; border-radius: 3px !important; }
+
+  /* Screens у main area */
   .screen {
-    max-width: none !important;
+    max-width: 780px !important;
+    margin: 0 auto !important;
     padding-bottom: 0 !important;
+  }
+
+  /* Section titles більші на десктопі */
+  .section-title {
+    font-size: 32px !important;
+  }
+
+  /* Cards grid */
+  .card {
+    border-radius: 18px !important;
+  }
+
+  /* Транзакції — ширша таблиця */
+  .tx-name,
+  .tx-item .item-title { max-width: 280px !important; }
+
+  /* Fix: body padding-bottom не потрібен */
+  .app-content, .page-content, main {
+    padding-bottom: 48px !important;
   }
 }
 
