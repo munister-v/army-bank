@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>ARM Bank</title>
   <meta name="description" content="Ваші фінанси під контролем — ARM Bank">
-  <meta name="theme-color" content="#162c5c">
+  <meta name="theme-color" content="#2f4a37">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -518,7 +518,7 @@
           </div>
           <div class="currency-converter">
             <div class="conv-row">
-              <input id="convAmount" type="number" value="100" min="0" step="any" class="conv-input">
+              <input id="convAmount" type="number" inputmode="decimal" value="100" min="0" step="any" class="conv-input">
               <select id="convFrom" class="conv-select">
                 <option value="UAH">UAH</option>
                 <option value="USD">USD</option>
@@ -549,7 +549,7 @@
               </div>
               <h3>Поповнення</h3>
             </div>
-            <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
+            <label class="lbl">Сума, ₴<input name="amount" type="number" inputmode="decimal" step="0.01" required placeholder="0.00"></label>
             <div class="quick-amounts">
               <button type="button" class="qa-chip" data-amount="500">₴500</button>
               <button type="button" class="qa-chip" data-amount="1000">₴1 000</button>
@@ -595,7 +595,7 @@
               Сума, ₴
               <div class="amount-input-wrap">
                 <span class="amount-currency">₴</span>
-                <input name="amount" type="number" step="0.01" required placeholder="0.00" class="amount-input">
+                <input name="amount" type="number" inputmode="decimal" step="0.01" required placeholder="0.00" class="amount-input">
               </div>
             </label>
             <div class="quick-amounts">
@@ -622,7 +622,7 @@
             </div>
             <label class="lbl">Назва<input name="title" value="Виплата"></label>
             <label class="lbl">Тип<input name="payout_type" value="general"></label>
-            <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" value="10000"></label>
+            <label class="lbl">Сума, ₴<input name="amount" type="number" inputmode="decimal" step="0.01" value="10000"></label>
             <button type="submit" class="btn-accent">Нарахувати</button>
           </form>
 
@@ -637,7 +637,7 @@
             </div>
             <label class="lbl">Назва<input name="name" placeholder="Переказ родині" required></label>
             <label class="lbl">Рахунок<input name="recipient_account" placeholder="AB-100001" required></label>
-            <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01"></label>
+            <label class="lbl">Сума, ₴<input name="amount" type="number" inputmode="decimal" step="0.01"></label>
             <label class="lbl">Опис<input name="description" placeholder="Щомісячний переказ"></label>
             <button type="submit" class="btn-accent">Зберегти</button>
           </form>
@@ -693,8 +693,8 @@
                 <option value="out">Відхід</option>
               </select>
             </label>
-            <label class="lbl">Від, ₴<input type="number" name="min_amount" step="0.01" min="0" placeholder="0"></label>
-            <label class="lbl">До, ₴<input type="number" name="max_amount" step="0.01" min="0" placeholder="∞"></label>
+            <label class="lbl">Від, ₴<input type="number" inputmode="decimal" name="min_amount" step="0.01" min="0" placeholder="0"></label>
+            <label class="lbl">До, ₴<input type="number" inputmode="decimal" name="max_amount" step="0.01" min="0" placeholder="∞"></label>
             <button type="submit" class="btn-ghost">Застосувати</button>
           </form>
           <div id="tagsCloud" style="margin-top:8px"></div>
@@ -716,7 +716,7 @@
               <h3>Нова пожертва</h3>
             </div>
             <label class="lbl">Організація<input name="fund_name" placeholder="Назва організації" required></label>
-            <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
+            <label class="lbl">Сума, ₴<input name="amount" type="number" inputmode="decimal" step="0.01" required placeholder="0.00"></label>
             <label class="lbl">Коментар<input name="comment" placeholder="Необов'язково"></label>
             <button type="submit" class="btn-accent">Перерахувати</button>
           </form>
@@ -740,9 +740,9 @@
             <h3>Калькулятор накопичень</h3>
           </div>
           <div class="calc-grid">
-            <label class="lbl">Сума цілі, ₴<input id="calcTarget" type="number" placeholder="50000" value="50000"></label>
-            <label class="lbl">Щомісячний внесок, ₴<input id="calcMonthly" type="number" placeholder="2000" value="2000"></label>
-            <label class="lbl">Вже накопичено, ₴<input id="calcCurrent" type="number" placeholder="0" value="0"></label>
+            <label class="lbl">Сума цілі, ₴<input id="calcTarget" type="number" inputmode="decimal" placeholder="50000" value="50000"></label>
+            <label class="lbl">Щомісячний внесок, ₴<input id="calcMonthly" type="number" inputmode="decimal" placeholder="2000" value="2000"></label>
+            <label class="lbl">Вже накопичено, ₴<input id="calcCurrent" type="number" inputmode="decimal" placeholder="0" value="0"></label>
           </div>
           <div id="calcResult" class="calc-result"></div>
         </div>
@@ -758,7 +758,7 @@
               <h3>Нова ціль</h3>
             </div>
             <label class="lbl">Назва<input name="title" value="Спорядження" required></label>
-            <label class="lbl">Ціль, ₴<input name="target_amount" type="number" step="0.01" required placeholder="0.00"></label>
+            <label class="lbl">Ціль, ₴<input name="target_amount" type="number" inputmode="decimal" step="0.01" required placeholder="0.00"></label>
             <label class="lbl">Дедлайн<input name="deadline" type="date"></label>
             <button type="submit" class="btn-accent">Створити</button>
           </form>
@@ -776,7 +776,7 @@
                 <option value="">— Оберіть ціль —</option>
               </select>
             </label>
-            <label class="lbl">Сума, ₴<input name="amount" type="number" step="0.01" required placeholder="0.00"></label>
+            <label class="lbl">Сума, ₴<input name="amount" type="number" inputmode="decimal" step="0.01" required placeholder="0.00"></label>
             <button type="submit" class="btn-accent">Поповнити</button>
           </form>
         </div>
@@ -885,7 +885,7 @@
                   <option value="topup">Поповнення</option>
                 </select>
               </label>
-              <label class="lbl">Місячний ліміт, ₴<input id="budgetAmount" type="number" step="0.01" placeholder="0.00"></label>
+              <label class="lbl">Місячний ліміт, ₴<input id="budgetAmount" type="number" inputmode="decimal" step="0.01" placeholder="0.00"></label>
               <div style="display:flex;gap:8px">
                 <button id="saveBudgetBtn" class="btn-accent" style="flex:1">Зберегти</button>
                 <button id="cancelBudgetBtn" class="btn-ghost">✕</button>
@@ -1135,7 +1135,7 @@
           <h3 class="card-title">Новий регулярний платіж</h3>
           <form id="recurringForm" class="form-compact">
             <input type="text" name="title" placeholder="Назва (напр. Оренда)" required>
-            <input type="number" name="amount" placeholder="Сума (₴)" step="0.01" min="0.01" required>
+            <input type="number" inputmode="decimal" name="amount" placeholder="Сума (₴)" step="0.01" min="0.01" required>
             <select name="tx_type">
               <option value="transfer">Переказ</option>
               <option value="topup">Поповнення</option>
@@ -1181,7 +1181,7 @@
           <h3 class="card-title">Додати борг / позику</h3>
           <form id="debtForm" class="form-compact">
             <input type="text" name="contact_name" placeholder="Ім'я / організація" required>
-            <input type="number" name="amount" placeholder="Сума (₴)" step="0.01" min="0.01" required>
+            <input type="number" inputmode="decimal" name="amount" placeholder="Сума (₴)" step="0.01" min="0.01" required>
             <select name="direction">
               <option value="owed_to_me">Мені винні</option>
               <option value="i_owe">Я винен</option>

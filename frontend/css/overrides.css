@@ -60,7 +60,7 @@ body {
 
 #appScreen.app-shell {
   background: var(--mono-bg) !important;
-  padding-top: env(safe-area-inset-top, 0px) !important;
+  padding-top: 0 !important;
   display: flex !important;
   flex-direction: column !important;
   min-height: 100vh !important;
@@ -161,7 +161,7 @@ body {
     linear-gradient(180deg, var(--mono-blue-top) 0%, var(--mono-blue-mid) 46%, var(--mono-blue-low) 100%) !important;
   border: none !important;
   box-shadow: none !important;
-  padding: 10px 18px 14px !important;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 18px 14px !important;
   width: auto !important;
   height: auto !important;
   position: relative !important;
@@ -3197,6 +3197,18 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* ── UX / PWA Touch Rules ────────────────────────────────────────── */
+.icon-btn, .nav-item, .qa-btn, .bank-card, .btn-accent, .tqr-chip, .tx-qf-chip, .bottom-nav, .auth-submit, .btn-primary, .btn-ghost, .tmt-btn {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+.item.item-clickable:active, .item-with-actions.item-clickable:active {
+  background: rgba(0, 0, 0, 0.03) !important;
+  transform: scale(0.99) !important;
 }
 .tc-confirm-btn {
   width: 100%;
