@@ -4868,6 +4868,11 @@ h2, h1 {
   box-shadow: none !important;
   padding: 10px 8px 16px !important;
   gap: 0 !important;
+  /* Фікс: top перебиває bottom — явно скидаємо */
+  top: auto !important;
+  bottom: 8px !important;
+  left: 10px !important;
+  right: 10px !important;
 }
 .nav-item {
   flex: 1 !important;
@@ -4960,4 +4965,522 @@ button.btn-ghost[type="submit"] {
   background: transparent !important;
   border: 1.5px dashed rgba(0,0,0,.10) !important;
   border-radius: 16px !important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║  ANDROID FIX + DESIGN POLISH v3                              ║
+   ║  1. Android Chrome fallbacks (backdrop-filter, safe-area)    ║
+   ║  2. Touch optimization (tap delay, scroll smoothness)        ║
+   ║  3. Font rendering parity iOS ↔ Android                     ║
+   ║  4. Design refinements: transactions, inputs, modals         ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+
+/* ── ANDROID: backdrop-filter fallback ─────────────────────────
+   На Android Chrome < 76 і WebView backdrop-filter не працює.
+   Fallback: solid white з вищою непрозорістю                    */
+@supports not (backdrop-filter: blur(1px)) {
+  .bottom-nav {
+    background: rgba(255,255,255,.97) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    top: auto !important;
+  }
+  .app-modal,
+  .bottom-sheet,
+  .sheet-overlay {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
+/* ── ANDROID: Safe Area (gesture nav bar) ──────────────────────
+   env() підтримується в Android Chrome 69+                      */
+.bottom-nav {
+  padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+}
+.app-content,
+.page-content,
+main {
+  padding-bottom: max(80px, calc(64px + env(safe-area-inset-bottom))) !important;
+}
+
+/* ── TOUCH: прибираємо 300ms затримку ──────────────────────────*/
+a, button, .nav-item, .qa-btn, .card,
+.profile-link-btn, .tx-item, .ms-item,
+[role="button"], input, select, textarea {
+  touch-action: manipulation !important;
+}
+
+/* ── FONT RENDERING: однаково на iOS і Android ─────────────────*/
+body, html {
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+  -webkit-text-size-adjust: 100% !important;
+  text-size-adjust: 100% !important;
+}
+
+/* ── SCROLL: нативна плавність на всіх платформах ─────────────*/
+.app-content,
+.page-content,
+.card-body,
+.tx-list,
+.modal-body {
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior-y: contain !important;
+}
+
+/* ── ANDROID: GPU-compositing тільки для навбару ───────────────
+   УВАГА: transform на .app-header ламає position:fixed дітей!
+   translateZ тільки на самому nav                              */
+.bottom-nav {
+  transform: translateZ(0) !important;
+  will-change: transform !important;
+}
+/* app-header — БЕЗ transform (інакше nav буде відносним до нього) */
+
+/* ── DESIGN v3: ТРАНЗАКЦІЇ — чисті, читабельні ─────────────────*/
+.tx-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 13px 18px !important;
+  border-bottom: 1px solid rgba(0,0,0,.05) !important;
+  background: transparent !important;
+  transition: background .12s !important;
+}
+.tx-item:last-child { border-bottom: none !important; }
+.tx-item:active { background: rgba(0,0,0,.03) !important; }
+
+/* Іконка-аватар транзакції */
+.tx-icon,
+.tx-item .item-icon,
+.tx-item [class*="icon"] {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  border-radius: 12px !important;
+  background: #f0f3f0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: none !important;
+}
+.tx-icon svg,
+.tx-item .item-icon svg { stroke: #4a6650 !important; width: 18px !important; height: 18px !important; }
+
+/* Назва і дата */
+.tx-name,
+.tx-item .item-title,
+.tx-item [class*="title"] {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #0d1810 !important;
+  letter-spacing: -.01em !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 160px !important;
+}
+.tx-date,
+.tx-item .item-date,
+.tx-item [class*="date"] {
+  font-size: 11px !important;
+  color: #9aada0 !important;
+  font-weight: 400 !important;
+  margin-top: 2px !important;
+}
+
+/* Сума — tabular nums, зелено/червоно */
+.tx-amount,
+.tx-item .item-amount,
+.tx-item [class*="amount"] {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: -.02em !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" !important;
+  margin-left: auto !important;
+  white-space: nowrap !important;
+}
+.tx-amount.positive,
+.tx-item.income .tx-amount,
+.tx-item.credit .tx-amount,
+[class*="amount"][class*="in"],
+.tx-amount:not(.negative) { color: #166534 !important; }
+.tx-amount.negative,
+.tx-item.debit .tx-amount,
+.tx-item.expense .tx-amount { color: #991b1b !important; }
+
+/* ── DESIGN v3: INPUTS — чисті, без "пластику" ─────────────────*/
+.form-control,
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+select,
+textarea {
+  background: #f6f8f5 !important;
+  border: 1.5px solid rgba(0,0,0,.10) !important;
+  border-radius: 14px !important;
+  color: #0d1810 !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  font-family: 'Manrope', system-ui, sans-serif !important;
+  padding: 12px 16px !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transition: border-color .15s, background .15s !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+.form-control:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  background: #fff !important;
+  border-color: #1a2e20 !important;
+  box-shadow: 0 0 0 3px rgba(26,46,32,.10) !important;
+}
+
+/* ── DESIGN v3: PRIMARY BUTTON ──────────────────────────────────*/
+.btn-primary,
+button.btn-primary,
+.btn[type="submit"]:not(.btn-ghost),
+.submit-btn {
+  background: #1a2e20 !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 14px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: -.01em !important;
+  padding: 14px 24px !important;
+  box-shadow: 0 2px 8px rgba(26,46,32,.25) !important;
+  transition: opacity .15s, transform .12s !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+.btn-primary:active,
+button.btn-primary:active {
+  opacity: .85 !important;
+  transform: scale(.98) !important;
+}
+
+/* ── DESIGN v3: SHEET / MODAL ───────────────────────────────────*/
+.bottom-sheet,
+.modal-sheet,
+[class*="sheet"] {
+  border-radius: 24px 24px 0 0 !important;
+  background: #fff !important;
+  box-shadow: 0 -4px 32px rgba(0,0,0,.12) !important;
+}
+.sheet-handle,
+[class*="handle"] {
+  width: 36px !important;
+  height: 4px !important;
+  background: rgba(0,0,0,.12) !important;
+  border-radius: 2px !important;
+  margin: 10px auto 16px !important;
+}
+
+/* ── DESIGN v3: КАРТКА РАХУНКУ (bank card) ──────────────────────*/
+.bank-card,
+.virtual-card,
+[class*="bank-card"],
+#cardVisual {
+  background: linear-gradient(135deg, #1a2e20 0%, #2d5038 60%, #1a3a28 100%) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 32px rgba(26,46,32,.32), 0 2px 8px rgba(26,46,32,.18) !important;
+  color: #fff !important;
+  padding: 24px !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+.bank-card::before,
+#cardVisual::before {
+  content: '' !important;
+  position: absolute !important;
+  top: -40px !important;
+  right: -40px !important;
+  width: 180px !important;
+  height: 180px !important;
+  border-radius: 50% !important;
+  background: rgba(255,255,255,.05) !important;
+  pointer-events: none !important;
+}
+.card-number,
+[class*="card-number"] {
+  font-size: 17px !important;
+  letter-spacing: .18em !important;
+  font-weight: 500 !important;
+  font-feature-settings: "tnum" !important;
+  color: rgba(255,255,255,.80) !important;
+  margin: 16px 0 12px !important;
+}
+.card-holder,
+[class*="card-holder"],
+.card-expiry,
+[class*="expiry"] {
+  font-size: 11px !important;
+  letter-spacing: .10em !important;
+  text-transform: uppercase !important;
+  color: rgba(255,255,255,.50) !important;
+  font-weight: 500 !important;
+}
+
+/* ── DESIGN v3: ТИПОГРАФІКА НА МАЛИХ ЕКРАНАХ (360px Android) ───*/
+@media (max-width: 380px) {
+  .balance-amount { font-size: 44px !important; }
+  .section-title  { font-size: 24px !important; }
+  .card-number    { font-size: 15px !important; letter-spacing: .14em !important; }
+  .qa-icon,
+  #dashboard .quick-actions .qa-icon {
+    width: 42px !important;
+    height: 42px !important;
+  }
+  .quick-actions .qa-label,
+  #dashboard .quick-actions .qa-label { font-size: 9.5px !important; }
+}
+
+/* ── DESIGN v3: ПЛАВНІ ПЕРЕХОДИ МІЖ СТОРІНКАМИ ─────────────────*/
+.page {
+  transition: opacity .18s ease, transform .18s ease !important;
+}
+.page.hidden,
+.page[style*="display: none"] {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* ── DESIGN v3: PROFILE LINKS — зрілий вигляд ──────────────────*/
+#profile .profile-link-btn,
+.profile-links-grid .profile-link-btn {
+  background: #fff !important;
+  border: 1px solid rgba(0,0,0,.07) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06) !important;
+  transition: box-shadow .15s, transform .12s !important;
+  padding: 16px !important;
+}
+#profile .profile-link-btn:active,
+.profile-links-grid .profile-link-btn:active {
+  transform: scale(.97) !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04) !important;
+}
+#profile .profile-link-icon,
+.profile-link-icon {
+  background: #f0f4f1 !important;
+  border-radius: 12px !important;
+  color: #1a2e20 !important;
+  box-shadow: none !important;
+}
+
+/* ── DESIGN v3: ФІЛЬТРИ ТРАНЗАКЦІЙ ─────────────────────────────*/
+.filter-chips,
+.period-tabs,
+[class*="filter-tabs"] {
+  gap: 6px !important;
+  padding: 4px 0 12px !important;
+}
+.chip,
+.filter-chip,
+.period-tab,
+[class*="tab-btn"] {
+  background: #fff !important;
+  border: 1.5px solid rgba(0,0,0,.09) !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #5a7060 !important;
+  padding: 6px 14px !important;
+  transition: all .14s !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+.chip.active,
+.filter-chip.active,
+.period-tab.active,
+[class*="tab-btn"].active {
+  background: #1a2e20 !important;
+  border-color: #1a2e20 !important;
+  color: #fff !important;
+}
+
+/* ── DESIGN v3: -webkit-tap-highlight скрізь ───────────────────*/
+* { -webkit-tap-highlight-color: transparent !important; }
+
+/* ── DESIGN v3: АНІМАЦІЯ СКЕЛЕТОН-ЛОАДЕР ───────────────────────*/
+@keyframes skeleton-pulse {
+  0%   { opacity: 1;   }
+  50%  { opacity: 0.4; }
+  100% { opacity: 1;   }
+}
+.skeleton,
+[class*="skeleton"],
+[class*="placeholder"] {
+  background: #e8ebe6 !important;
+  border-radius: 8px !important;
+  animation: skeleton-pulse 1.4s ease-in-out infinite !important;
+  color: transparent !important;
+}
+
+/* ── DESIGN v3: КУРС ВАЛЮТ — компактна панель ──────────────────*/
+.rates-grid,
+.ms-grid {
+  gap: 8px !important;
+  padding: 16px !important;
+}
+
+/* ── DESIGN v3: NOTICE / BADGE ──────────────────────────────────*/
+.badge,
+[class*="badge"],
+.notice {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: .04em !important;
+  border-radius: 999px !important;
+  padding: 2px 7px !important;
+}
+
+/* ── DESIGN v3: SCROLLBAR (desktop preview) ─────────────────────*/
+::-webkit-scrollbar { width: 4px !important; height: 4px !important; }
+::-webkit-scrollbar-track { background: transparent !important; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,.14) !important; border-radius: 2px !important; }
+
+/* ── ФІНАЛ: FLEX-DIRECTION ДЛЯ QA-BTN (перезапис медіа) ────────
+   Залишаємо в самому кінці — виграє за source order             */
+.quick-actions .qa-btn {
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║  SCREEN TRANSITION ANIMATIONS                                ║
+   ║  Плавні переходи між вкладками (overrides.js патчить JS)     ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+
+/* --- Скидаємо старий slideUp, замінюємо на наш --- */
+.screen.active-screen {
+  animation: none !important;
+}
+
+/* --- Вхідний екран зліва направо (вперед) --- */
+@keyframes screenEnterLTR {
+  from { opacity: 0; transform: translateX(28px) scale(.985); }
+  to   { opacity: 1; transform: translateX(0)    scale(1); }
+}
+/* --- Вхідний екран справа наліво (назад) --- */
+@keyframes screenEnterRTL {
+  from { opacity: 0; transform: translateX(-28px) scale(.985); }
+  to   { opacity: 1; transform: translateX(0)     scale(1); }
+}
+/* --- Вихідний (fade + shrink) --- */
+@keyframes screenExitLTR {
+  from { opacity: 1; transform: translateX(0)     scale(1); }
+  to   { opacity: 0; transform: translateX(-20px) scale(.985); }
+}
+@keyframes screenExitRTL {
+  from { opacity: 1; transform: translateX(0)    scale(1); }
+  to   { opacity: 0; transform: translateX(20px) scale(.985); }
+}
+
+.screen-enter-ltr {
+  animation: screenEnterLTR 0.28s cubic-bezier(.22,.68,0,1.1) both !important;
+}
+.screen-enter-rtl {
+  animation: screenEnterRTL 0.28s cubic-bezier(.22,.68,0,1.1) both !important;
+}
+.screen-exit {
+  pointer-events: none !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+}
+.screen-exit-ltr {
+  animation: screenExitLTR 0.20s cubic-bezier(.4,0,.6,1) both !important;
+}
+.screen-exit-rtl {
+  animation: screenExitRTL 0.20s cubic-bezier(.4,0,.6,1) both !important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║  CARD CAROUSEL — DEPTH EFFECT + PEEK                         ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+
+/* Ширина карток: трохи менше 100vw щоб показати сусідню           */
+.bank-cards-track {
+  padding-left: max(20px, env(safe-area-inset-left, 0px)) !important;
+  padding-right: max(20px, env(safe-area-inset-right, 0px)) !important;
+  gap: 12px !important;
+  scroll-snap-type: x mandatory !important;
+  -webkit-overflow-scrolling: touch !important;
+  scroll-padding-left: max(20px, env(safe-area-inset-left, 0px)) !important;
+}
+
+.bank-cards-track .bank-card {
+  flex: 0 0 calc(100vw - 56px) !important;
+  width: calc(100vw - 56px) !important;
+  scroll-snap-align: center !important;
+  margin-right: 0 !important;
+  /* Початковий стан — scale буде оновлено JS, але перший активний одразу 1 */
+  transform-origin: center center !important;
+  will-change: transform, opacity !important;
+}
+
+/* Активна карта — без додаткового scale (JS керує) */
+.bank-cards-track .bank-card:first-child {
+  transform: scale(1) !important;
+  opacity: 1 !important;
+}
+
+/* Dots — більші, виразніші */
+.bc-dot {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 50% !important;
+  background: rgba(255,255,255,.25) !important;
+  transition: all .22s cubic-bezier(.22,.68,0,1.2) !important;
+  display: inline-block !important;
+  cursor: pointer !important;
+}
+.bc-dot.active {
+  background: rgba(255,255,255,.90) !important;
+  width: 18px !important;
+  border-radius: 3px !important;
+}
+
+/* Контейнер dots — centered */
+#bankCardsDots,
+.bank-cards-dots {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  padding: 6px 0 4px !important;
+}
+
+/* ── Nav item tap feedback ────────────────────────────────────── */
+.nav-item {
+  transition: opacity .1s ease !important;
+}
+.nav-item:active {
+  opacity: .6 !important;
+}
+/* Active indicator: pill під іконкою */
+.nav-item.active::after {
+  content: '' !important;
+  display: block !important;
+  width: 4px !important;
+  height: 4px !important;
+  border-radius: 2px !important;
+  background: #1a2e20 !important;
+  margin: 0 auto !important;
+  margin-top: -2px !important;
+}
+
+/* ── QA-btn tap animation ─────────────────────────────────────── */
+.qa-btn:active .qa-icon {
+  transform: scale(.88) !important;
+  transition: transform .1s ease !important;
 }

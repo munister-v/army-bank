@@ -77,7 +77,6 @@ def create_app() -> Flask:
     _ALLOWED_ORIGINS = {
         'https://munister.com.ua',
         'https://www.munister.com.ua',
-        'https://bank.munister.com.ua',
         'http://localhost:9099',
         'http://localhost:5173',
         'http://127.0.0.1:5500',
