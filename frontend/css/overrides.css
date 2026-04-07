@@ -525,6 +525,8 @@ body {
   overflow: visible !important; /* allow 3D children to be visible outside */
   perspective: 900px !important;
   cursor: pointer !important;
+  transform: translateZ(0); /* force WebKit layer to prevent buffer glitching */
+  -webkit-transform: translateZ(0);
 }
 
 /* Disable card-level pseudo overlays — replicated on .bank-card-front */
@@ -3200,7 +3202,7 @@ body {
 }
 
 /* ── UX / PWA Touch Rules ────────────────────────────────────────── */
-.icon-btn, .nav-item, .qa-btn, .bank-card, .btn-accent, .tqr-chip, .tx-qf-chip, .bottom-nav, .auth-submit, .btn-primary, .btn-ghost, .tmt-btn {
+.icon-btn, .nav-item, .qa-btn, .btn-accent, .tqr-chip, .tx-qf-chip, .bottom-nav, .auth-submit, .btn-primary, .btn-ghost, .tmt-btn {
   user-select: none !important;
   -webkit-user-select: none !important;
   -webkit-touch-callout: none !important;
