@@ -64,11 +64,6 @@ body {
   display: flex !important;
   flex-direction: column !important;
   min-height: 100dvh !important;
-  max-width: 480px !important;
-  margin: 0 auto !important;
-  position: relative !important;
-  box-shadow: 0 0 50px rgba(0,0,0,0.12) !important;
-  overflow-x: hidden !important;
 }
 
 /* Keep auth/app toggling reliable even when app-shell uses !important display rules */
@@ -3110,9 +3105,6 @@ textarea:focus,
 html, body {
   overscroll-behavior: none;
 }
-body {
-  background: #2a332d !important; /* desktop fallback background */
-}
 
 /* 3. Safe area — bottom nav / fixed bars clear iPhone home indicator */
 .bottom-nav,
@@ -5300,6 +5292,83 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 input[type="number"] {
   -moz-appearance: textfield; /* Firefox */
+}
+
+/* ── НАЛШТУВАННЯ ДЕСКТОПА (виправлення overrides) ──────── */
+@media (min-width: 768px) {
+  #appScreen.app-shell {
+    flex-direction: row !important;
+    background: #202b23 !important; /* Темний сайдбар */
+  }
+  .app-header {
+    width: 380px !important; /* Збільшив ширину сайдбару, щоб влізла картка */
+    height: 100vh !important;
+    position: sticky !important;
+    top: 0 !important;
+    padding: 28px 20px 24px !important;
+    background: transparent !important;
+    overflow-y: auto !important; /* Щоб меню скролилось на невеликих екранах */
+  }
+  .app-content {
+    flex: 1 !important;
+    background: #e7ebe2 !important; /* Світлий фон контенту праворуч */
+    padding: 32px 40px !important;
+    max-width: none !important;
+  }
+  .bank-card {
+    flex: 0 0 340px !important;
+    width: 340px !important;
+    margin: 0 auto !important;
+    aspect-ratio: auto !important;
+    max-height: 220px !important;
+  }
+  .balance-amount {
+    font-size: clamp(2rem, 2.5vw, 2.4rem) !important;
+  }
+  #heroBalance {
+    white-space: normal !important;
+    word-break: break-all !important;
+  }
+  .bottom-nav {
+    position: relative !important;
+    bottom: auto !important;
+    left: auto !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    flex-direction: column !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 12px 0 0 !important;
+    margin: 30px 0 0 0 !important;
+    border-top: 1px solid rgba(255,255,255,.08) !important;
+    border-radius: 0 !important;
+  }
+  .nav-item {
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    padding: 10px 12px !important;
+    background: transparent !important;
+    min-height: 40px !important;
+    opacity: 1 !important;
+  }
+  .nav-item.active {
+    background: rgba(255,255,255,0.1) !important;
+  }
+  .nav-item .nav-label {
+    display: inline !important;
+    font-size: 12px !important;
+    color: #fff !important;
+    font-weight: 500 !important;
+  }
+  .nav-item svg {
+    color: #fff !important;
+    stroke: #fff !important;
+  }
 }
 .form-control:focus,
 input:focus,
