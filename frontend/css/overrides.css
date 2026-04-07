@@ -323,13 +323,11 @@ body {
   aspect-ratio: 85.6 / 54 !important;
   min-height: unset !important;
   border-radius: 20px !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  /* Clean single ambient shadow */
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
-  background: #1d2634 !important;
-  overflow: hidden !important;
+  border: none !important;
+  /* Card drops a single elegant shadow now */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18) !important;
+  background: transparent !important;
+  overflow: visible !important;
   position: relative !important;
 }
 
@@ -547,13 +545,15 @@ body {
 /* Front & back faces */
 .bank-card-front,
 .bank-card-back {
+  border-radius: 20px !important;
+  overflow: hidden !important;
   position: absolute !important;
   inset: 0 !important;
   backface-visibility: hidden !important;
   -webkit-backface-visibility: hidden !important;
-  border-radius: 20px !important;
-  overflow: hidden !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
 }
+
 .bank-card-front { z-index: 1 !important; }
 
 /* Restore sheen on front face */
@@ -3907,13 +3907,16 @@ body {
   color: rgba(20,26,21,.75) !important;
 }
 
-/* ── Dashboard cards: gradient surface ─────────────── */
+/* ── Dashboard & Profile cards: elegant surface ─────────────── */
 #dashboard .card,
+.profile-card,
+#profile .card,
+.screen > .card,
 #recentTransactionsCard {
-  background: linear-gradient(160deg, #ffffff 0%, #f6faf4 100%) !important;
-  border: 1px solid rgba(32, 54, 38, 0.07) !important;
-  box-shadow: 0 1px 3px rgba(17,25,18,.05), 0 4px 16px rgba(17,25,18,.06) !important;
-  border-radius: 22px !important;
+  background: linear-gradient(160deg, #ffffff 0%, #fcfffa 100%) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
+  border-radius: 16px !important;
 }
 
 /* ── "Операції" card head ───────────────────────────── */
@@ -4152,12 +4155,18 @@ button.btn-ghost:last-child {
   transition: background .15s !important;
 }
 
-/* 14. Кнопка "Випустити картку" — зелена рамка */
-#cards .btn-ghost,
-[id*="issue"], [id*="Issue"] {
-  border-color: rgba(47,74,55,.25) !important;
-  color: #2a4030 !important;
+/* 14. Модалка "Випустити картку" — виправити кольори Cancel/Submit */
+#issueCardModal .btn-ghost,
+.modal-actions .btn-ghost {
+  border-color: rgba(47,74,55,.15) !important;
+  background: rgba(47,74,55,.05) !important;
+  color: #1a3024 !important;
   font-weight: 600 !important;
+}
+#issueCardModal .btn-ghost:hover,
+.modal-actions .btn-ghost:hover {
+  background: rgba(47,74,55,.1) !important;
+  color: #111814 !important;
 }
 
 /* 15. Заголовок хедера: subtitle "Завантаження..." */
@@ -5298,20 +5307,20 @@ input[type="number"] {
 @media (min-width: 768px) {
   #appScreen.app-shell {
     flex-direction: row !important;
-    background: #202b23 !important; /* Темний сайдбар */
+    background: #1c261e !important; /* Глибокий благородний темний зелений сайдбмару */
   }
   .app-header {
-    width: 380px !important; /* Збільшив ширину сайдбару, щоб влізла картка */
+    width: 380px !important;
     height: 100vh !important;
     position: sticky !important;
     top: 0 !important;
-    padding: 28px 20px 24px !important;
+    padding: 32px 20px 24px !important;
     background: transparent !important;
-    overflow-y: auto !important; /* Щоб меню скролилось на невеликих екранах */
+    overflow-y: auto !important;
   }
   .app-content {
     flex: 1 !important;
-    background: #e7ebe2 !important; /* Світлий фон контенту праворуч */
+    background: #f6f8f5 !important; /* Преміальний біло-зеленуватий фон контенту */
     padding: 32px 40px !important;
     max-width: none !important;
   }
