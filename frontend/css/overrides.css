@@ -58,12 +58,17 @@ body {
   display: block !important;
 }
 
-#appScreen.app-shell {
+#appScreen.app-shell, .auth-screen {
   background: var(--mono-bg) !important;
   padding-top: 0 !important;
   display: flex !important;
   flex-direction: column !important;
   min-height: 100dvh !important;
+  max-width: 480px !important;
+  margin: 0 auto !important;
+  position: relative !important;
+  box-shadow: 0 0 50px rgba(0,0,0,0.12) !important;
+  overflow-x: hidden !important;
 }
 
 /* Keep auth/app toggling reliable even when app-shell uses !important display rules */
@@ -525,8 +530,6 @@ body {
   overflow: visible !important; /* allow 3D children to be visible outside */
   perspective: 900px !important;
   cursor: pointer !important;
-  transform: translateZ(0); /* force WebKit layer to prevent buffer glitching */
-  -webkit-transform: translateZ(0);
 }
 
 /* Disable card-level pseudo overlays — replicated on .bank-card-front */
@@ -2452,8 +2455,11 @@ textarea:focus,
 /* ── Bottom Tab Bar ───────────────────────────────── */
 .bottom-nav {
   position: fixed !important;
-  left: 10px !important;
-  right: 10px !important;
+  left: 0 !important;
+  right: 0 !important;
+  margin: 0 auto !important;
+  max-width: 460px !important;
+  width: calc(100% - 20px) !important;
   bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
   height: 64px !important;
   min-height: 64px !important;
@@ -2481,8 +2487,11 @@ textarea:focus,
 /* ── Notification panel (closed by default) ───────── */
 .notif-panel {
   position: fixed !important;
-  left: 10px !important;
-  right: 10px !important;
+  left: 0 !important;
+  right: 0 !important;
+  margin: 0 auto !important;
+  max-width: 460px !important;
+  width: calc(100% - 20px) !important;
   bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
   max-height: min(58vh, 470px) !important;
   overflow: auto !important;
@@ -3100,6 +3109,9 @@ textarea:focus,
 /* 2. Overscroll — no rubber-band bounce outside the app shell */
 html, body {
   overscroll-behavior: none;
+}
+body {
+  background: #2a332d !important; /* desktop fallback background */
 }
 
 /* 3. Safe area — bottom nav / fixed bars clear iPhone home indicator */
