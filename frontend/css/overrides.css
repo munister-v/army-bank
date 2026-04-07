@@ -323,11 +323,11 @@ body {
   aspect-ratio: 85.6 / 54 !important;
   min-height: unset !important;
   border-radius: 20px !important;
-  border: none !important;
-  /* Card drops a single elegant shadow now */
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18) !important;
-  background: transparent !important;
-  overflow: visible !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  overflow: hidden !important;
   position: relative !important;
 }
 
@@ -518,45 +518,57 @@ body {
   filter: saturate(0.52) brightness(0.8) !important;
 }
 
-/* ── Card 3D flip ──────────────────────────────────── */
-.bank-card {
-  overflow: visible !important; /* allow 3D children to be visible outside */
-  perspective: 900px !important;
-  cursor: pointer !important;
+/* ── Wipe variant styles from OUTER .bank-card ──────────────── */
+/* styles.css sets background/box-shadow/::before on .bank-card-gold etc.
+   Those paint on the outer container and overlap .bank-card-front content.
+   Must be wiped so only .bank-card-bg (inside .bank-card-front) paints. */
+.bank-card-gold,
+.bank-card-dark,
+.bank-card-navy,
+.bank-card-forest,
+.bank-card-camo,
+.bank-card-rose,
+.bank-card-slate {
+  background: none !important;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
-
-/* Disable card-level pseudo overlays — replicated on .bank-card-front */
-.bank-card::before,
-.bank-card::after {
+.bank-card-gold::before,
+.bank-card-gold::after,
+.bank-card-dark::before,
+.bank-card-dark::after,
+.bank-card-navy::before,
+.bank-card-navy::after {
   display: none !important;
 }
 
-/* Inner wrapper that actually rotates — NO overflow:hidden (incompatible with preserve-3d) */
+/* ── Card 3D flip — DISABLED, cards render flat with overflow:hidden ── */
+
+/* Make .bank-card-inner non-3D, just a plain wrapper */
 .bank-card-inner {
   position: absolute !important;
   inset: 0 !important;
-  transform-style: preserve-3d !important;
-  transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transform-style: flat !important;
 }
 .bank-card.is-flipped .bank-card-inner {
-  transform: rotateY(180deg) !important;
+  transform: none !important;
 }
 
-/* Front & back faces */
-.bank-card-front,
-.bank-card-back {
-  border-radius: 20px !important;
-  overflow: hidden !important;
+/* Front face: just fill the card, no 3D needed */
+.bank-card-front {
   position: absolute !important;
   inset: 0 !important;
-  backface-visibility: hidden !important;
-  -webkit-backface-visibility: hidden !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
 }
 
-.bank-card-front { z-index: 1 !important; }
+/* Back face: completely hidden */
+.bank-card-back {
+  display: none !important;
+}
 
-/* Restore sheen on front face */
+/* Pseudo overlays on front face */
 .bank-card-front::before {
   content: '' !important;
   position: absolute !important;
@@ -564,6 +576,7 @@ body {
   pointer-events: none !important;
   z-index: 2 !important;
   background: linear-gradient(135deg, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0) 45%) !important;
+  border-radius: 20px !important;
 }
 .bank-card-front::after {
   content: '' !important;
@@ -572,6 +585,7 @@ body {
   pointer-events: none !important;
   z-index: 2 !important;
   background: radial-gradient(ellipse 60% 50% at 88% 94%, rgba(0,0,0,0.16) 0%, transparent 55%) !important;
+  border-radius: 20px !important;
 }
 /* Gold sheen override */
 .bank-card-gold .bank-card-front::before {
@@ -5328,8 +5342,8 @@ input[type="number"] {
     flex: 0 0 340px !important;
     width: 340px !important;
     margin: 0 auto !important;
-    aspect-ratio: auto !important;
-    max-height: 220px !important;
+    aspect-ratio: 85.6 / 54 !important;
+    max-height: none !important;
   }
   .balance-amount {
     font-size: clamp(2rem, 2.5vw, 2.4rem) !important;
@@ -5428,10 +5442,11 @@ button.btn-primary:active {
   margin: 10px auto 16px !important;
 }
 
-/* ── DESIGN v3: КАРТКА РАХУНКУ (bank card) ──────────────────────*/
-.bank-card,
-.virtual-card,
-[class*="bank-card"],
+/* ── DESIGN v3: КАРТКА РАХУНКУ — ВИМКНЕНО ──────────────────────
+   Ці правила конфліктували з системою банківських карт у vault-1:
+   [class*="bank-card"] задавало зелений фон і паддінг КОЖНОМУ
+   дочірньому елементу картки, перекриваючи gold/dark/navy градієнти.
+   Залишаємо лише стилі для #cardVisual (на сторінці /cards). */
 #cardVisual {
   background: linear-gradient(135deg, #1a2e20 0%, #2d5038 60%, #1a3a28 100%) !important;
   border-radius: 20px !important;
@@ -5441,7 +5456,6 @@ button.btn-primary:active {
   position: relative !important;
   overflow: hidden !important;
 }
-.bank-card::before,
 #cardVisual::before {
   content: '' !important;
   position: absolute !important;
@@ -5452,25 +5466,6 @@ button.btn-primary:active {
   border-radius: 50% !important;
   background: rgba(255,255,255,.05) !important;
   pointer-events: none !important;
-}
-.card-number,
-[class*="card-number"] {
-  font-size: 17px !important;
-  letter-spacing: .18em !important;
-  font-weight: 500 !important;
-  font-feature-settings: "tnum" !important;
-  color: rgba(255,255,255,.80) !important;
-  margin: 16px 0 12px !important;
-}
-.card-holder,
-[class*="card-holder"],
-.card-expiry,
-[class*="expiry"] {
-  font-size: 11px !important;
-  letter-spacing: .10em !important;
-  text-transform: uppercase !important;
-  color: rgba(255,255,255,.50) !important;
-  font-weight: 500 !important;
 }
 
 /* ── DESIGN v3: ТИПОГРАФІКА НА МАЛИХ ЕКРАНАХ (360px Android) ───*/
