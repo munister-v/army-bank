@@ -6723,3 +6723,275 @@ body.app-scroll-locked .app-content {
     padding-bottom: 18px !important;
   }
 }
+
+/* ── Desktop Cockpit Layout v1 (PC PWA) ─────────────────────────────── */
+@media (min-width: 1200px) {
+  #appScreen.app-shell {
+    display: grid !important;
+    grid-template-columns: 280px minmax(0, 1fr) 340px;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 16px !important;
+    padding: 16px !important;
+    min-height: 100vh !important;
+    background:
+      radial-gradient(130% 90% at -20% -20%, rgba(70, 102, 74, 0.08) 0%, transparent 72%),
+      linear-gradient(180deg, #edf2e8 0%, #e5ebe0 100%) !important;
+  }
+
+  .app-header {
+    grid-column: 1 / 4 !important;
+    grid-row: 1 !important;
+    position: static !important;
+    top: auto !important;
+    display: grid !important;
+    grid-template-columns: 280px minmax(0, 1fr) 340px;
+    grid-template-areas:
+      "user balance actions"
+      "nav balance actions";
+    gap: 16px !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border-right: none !important;
+    background: transparent !important;
+    align-items: stretch !important;
+    justify-self: stretch !important;
+  }
+
+  .header-top {
+    grid-area: user !important;
+    background: var(--mono-surface) !important;
+    border: 1px solid var(--mono-border-soft) !important;
+    border-radius: 26px !important;
+    box-shadow: var(--mono-card-shadow) !important;
+    padding: 14px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: center !important;
+    gap: 14px !important;
+    min-height: 132px !important;
+  }
+
+  .header-top .header-user {
+    width: 100% !important;
+  }
+
+  .header-top .header-actions {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px !important;
+    justify-content: stretch !important;
+  }
+
+  .header-top .icon-btn {
+    width: 100% !important;
+    background: #eef3eb !important;
+    border-color: #d7e0d4 !important;
+    color: #455649 !important;
+  }
+
+  .header-top .icon-btn svg {
+    stroke: currentColor !important;
+  }
+
+  .header-info {
+    max-width: none !important;
+  }
+
+  .header-name {
+    color: #243128 !important;
+    font-size: 18px !important;
+  }
+
+  .header-role {
+    color: #657467 !important;
+  }
+
+  #sidebar.bottom-nav {
+    grid-area: nav !important;
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 12px !important;
+    border-radius: 26px !important;
+    border: 1px solid var(--mono-border-soft) !important;
+    background: var(--mono-surface) !important;
+    box-shadow: var(--mono-card-shadow) !important;
+    display: grid !important;
+    gap: 8px !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  #sidebar.bottom-nav.nav-hidden {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  #sidebar .nav-item {
+    width: 100% !important;
+    min-height: 52px !important;
+    border-radius: 14px !important;
+    padding: 0 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    color: #455649 !important;
+  }
+
+  #sidebar .nav-item span {
+    display: inline !important;
+    font-size: 16px !important;
+    letter-spacing: 0.01em !important;
+    color: #455649 !important;
+    opacity: 1 !important;
+  }
+
+  #sidebar .nav-item svg {
+    width: 20px !important;
+    height: 20px !important;
+    opacity: 1 !important;
+    margin: 0 !important;
+    stroke: currentColor !important;
+  }
+
+  #sidebar .nav-item.active {
+    background: #e2eade !important;
+    border: 1px solid #cddac7 !important;
+  }
+
+  .balance-block {
+    grid-area: balance !important;
+    background: linear-gradient(180deg, #2f4a37 0%, #3f5f45 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    box-shadow: 0 14px 34px rgba(22, 37, 27, 0.22) !important;
+    border-radius: 28px !important;
+    padding: 18px 20px 16px !important;
+    min-height: 132px !important;
+  }
+
+  .balance-label,
+  .balance-amount,
+  #heroAccount {
+    color: #f7fbf8 !important;
+  }
+
+  .balance-label {
+    font-size: 11px !important;
+    letter-spacing: .12em !important;
+  }
+
+  .balance-amount {
+    font-size: clamp(2.4rem, 3.2vw, 3.5rem) !important;
+    line-height: 1.02 !important;
+  }
+
+  .bank-cards-carousel {
+    display: none !important;
+  }
+
+  .bank-cards-track {
+    justify-content: flex-start !important;
+    padding-bottom: 12px !important;
+  }
+
+  .bank-card {
+    flex: 0 0 min(560px, 100%) !important;
+    width: min(560px, 100%) !important;
+    margin-right: 0 !important;
+  }
+
+  .quick-actions {
+    grid-area: actions !important;
+    margin: 0 !important;
+    padding: 14px !important;
+    border-radius: 26px !important;
+    border: 1px solid var(--mono-border-soft) !important;
+    background: var(--mono-surface) !important;
+    box-shadow: var(--mono-card-shadow) !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px !important;
+    align-content: start !important;
+    min-height: auto !important;
+    align-self: start !important;
+    position: sticky !important;
+    top: 16px !important;
+  }
+
+  .quick-actions::before {
+    content: 'Швидкі дії';
+    grid-column: 1 / -1;
+    font-size: 12px;
+    font-weight: 800;
+    color: #4b5b4d;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    margin: 2px 2px 4px;
+  }
+
+  .qa-btn {
+    min-height: 92px !important;
+    border-radius: 16px !important;
+    border: 1px solid var(--mono-border-soft) !important;
+    background: #f1f5ee !important;
+    color: #405143 !important;
+  }
+
+  .quick-actions .qa-icon {
+    background: #e2eade !important;
+    color: #3f5142 !important;
+  }
+
+  .qa-label,
+  #dashboard .quick-actions .qa-label {
+    color: #405143 !important;
+    font-size: 14px !important;
+    opacity: 1 !important;
+  }
+
+  #appScreen.screen-dashboard .quick-actions .qa-btn .qa-label {
+    color: #405143 !important;
+    opacity: 1 !important;
+  }
+
+  .app-content {
+    grid-column: 2 / 4 !important;
+    grid-row: 2 !important;
+    height: auto !important;
+    max-height: calc(100vh - 32px) !important;
+    overflow: auto !important;
+    padding: 16px !important;
+    border-radius: 26px !important;
+    border: 1px solid #d9e2d7 !important;
+    background: rgba(247, 250, 245, 0.88) !important;
+    box-shadow: 0 12px 28px rgba(22, 37, 27, 0.11) !important;
+    scrollbar-gutter: stable both-edges !important;
+  }
+
+  #dashboard > .cards-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+  }
+
+  #dashboard .card,
+  #transactions .card,
+  #profile .card,
+  #analytics .card,
+  #cards .card {
+    border-radius: 20px !important;
+  }
+}

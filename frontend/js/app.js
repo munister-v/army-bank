@@ -110,6 +110,34 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
   }, { passive: true });
 })();
 
+const _desktopCockpitMql = window.matchMedia('(min-width: 1200px)');
+
+function syncDesktopCockpitMode() {
+  const app = document.getElementById('appScreen');
+  const desktop = _desktopCockpitMql.matches;
+  document.documentElement.classList.toggle('desktop-cockpit', desktop);
+  if (!app) return;
+
+  if (desktop) {
+    app.style.setProperty('display', 'grid', 'important');
+    app.style.setProperty('grid-template-columns', '280px minmax(0, 1fr) 340px', 'important');
+    app.style.setProperty('grid-template-rows', 'auto minmax(0, 1fr)', 'important');
+  } else {
+    app.style.removeProperty('display');
+    app.style.removeProperty('grid-template-columns');
+    app.style.removeProperty('grid-template-rows');
+  }
+}
+
+syncDesktopCockpitMode();
+if (typeof _desktopCockpitMql.addEventListener === 'function') {
+  _desktopCockpitMql.addEventListener('change', syncDesktopCockpitMode);
+} else if (typeof _desktopCockpitMql.addListener === 'function') {
+  _desktopCockpitMql.addListener(syncDesktopCockpitMode);
+}
+window.addEventListener('resize', syncDesktopCockpitMode, { passive: true });
+window.addEventListener('orientationchange', syncDesktopCockpitMode, { passive: true });
+
 const _scrollLocks = new Set();
 
 function _applyScrollLockState() {
