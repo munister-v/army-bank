@@ -8302,3 +8302,98 @@ body.app-scroll-locked .app-content {
     color: #f2faf3 !important;
   }
 }
+
+/* ── Final Fit Pass (mobile bottom + desktop subsection harmony) ───────── */
+@media (max-width: 767px) {
+  #appScreen.screen-dashboard .app-header {
+    padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #appScreen.screen-dashboard .quick-actions {
+    margin-bottom: 20px !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar.bottom-nav {
+    min-height: 74px !important;
+    height: auto !important;
+    padding: 4px 6px max(6px, min(10px, env(safe-area-inset-bottom, 0px))) !important;
+    border-radius: 22px !important;
+    box-shadow: 0 14px 24px rgba(19, 35, 26, 0.16) !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar .nav-item {
+    min-height: 46px !important;
+    padding: 4px 2px 5px !important;
+    border-radius: 12px !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar .nav-item span {
+    font-size: 10px !important;
+    letter-spacing: 0 !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  /* Sub-screens: remove stretched controls and restore visual rhythm */
+  html.desktop-classic #appScreen:not(.screen-dashboard) .app-content {
+    padding: 22px 28px 34px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen {
+    max-width: 1120px !important;
+    margin: 0 auto !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen > .section-header-row,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen > .card,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen > .cards-row {
+    max-width: 1040px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .cards-row {
+    gap: 14px !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .card {
+    border-radius: 14px !important;
+    padding: 16px 16px 14px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .form-compact,
+  html.desktop-classic #appScreen:not(.screen-dashboard) form:not(.auth-form):not(#loginForm):not(#registerForm) {
+    max-width: 640px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl input,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl select,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl textarea {
+    min-height: 44px !important;
+    border-radius: 10px !important;
+    padding: 10px 12px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .btn-primary,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .btn-accent,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .btn-ghost,
+  html.desktop-classic #appScreen:not(.screen-dashboard) button[type="submit"] {
+    width: auto !important;
+    min-width: 160px !important;
+    max-width: 320px !important;
+    min-height: 42px !important;
+    padding: 10px 16px !important;
+    border-radius: 11px !important;
+    align-self: flex-start !important;
+    justify-content: center !important;
+  }
+
+  html.desktop-classic #transactionsFilters.filters-row {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto !important;
+    gap: 10px !important;
+    align-items: end !important;
+  }
+}
