@@ -48,15 +48,31 @@
   <link rel="stylesheet" href="/css/styles.css?v=2026-04-08-26">
   <link rel="stylesheet" href="/css/overrides.css?v=2026-04-08-29">
   <link rel="stylesheet" href="/css/desktop-cockpit.css?v=2026-04-08-04">
+  <link rel="stylesheet" href="/css/mobile-only-gate.css?v=2026-04-08-01">
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js?v=2026-04-08-26" as="script">
-  <link rel="preload" href="/js/app.js?v=2026-04-08-30" as="script">
+  <link rel="preload" href="/js/app.js?v=2026-04-08-31" as="script">
   <link rel="preload" href="/js/overrides.js?v=2026-04-08-26" as="script">
   <!-- Instant auth state + server wake-up (without forced reload loops) -->
   <script>
     (function(){
       var root = document.documentElement;
       root.classList.add('ab-booting');
+
+      try {
+        var ua = navigator.userAgent || '';
+        var isIPhone = /iPhone|iPod/i.test(ua);
+        var isAndroidPhone = /Android/i.test(ua) && /Mobile/i.test(ua);
+        var isWindowsPhone = /Windows Phone|IEMobile/i.test(ua);
+        var hasTouch = Number(navigator.maxTouchPoints || 0) > 0;
+        var shortEdge = Math.min(Number(window.screen?.width || 0), Number(window.screen?.height || 0));
+        var phoneLikeTouch = hasTouch && shortEdge > 0 && shortEdge <= 560;
+        var isPhoneOnly = isIPhone || isAndroidPhone || isWindowsPhone || phoneLikeTouch;
+        if (!isPhoneOnly) {
+          root.classList.add('ab-desktop-blocked');
+          window.__AB_DESKTOP_BLOCKED = true;
+        }
+      } catch(_) {}
 
       try {
         var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
@@ -75,14 +91,14 @@
       } catch(_) {}
 
       try {
-        if (window.matchMedia && window.matchMedia('(min-width: 1200px)').matches) {
+        if (!root.classList.contains('ab-desktop-blocked') && window.matchMedia && window.matchMedia('(min-width: 1200px)').matches) {
           root.classList.add('desktop-classic');
           root.classList.add('desktop-cockpit');
         }
       } catch(_) {}
 
       try {
-        if (localStorage.getItem('army_bank_token')) {
+        if (!root.classList.contains('ab-desktop-blocked') && localStorage.getItem('army_bank_token')) {
           /* Hide login page immediately — no flash of auth screen for returning users */
           root.classList.add('ab-authed');
           /* Kick Render cold-start in parallel */
@@ -159,6 +175,34 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
     Немає з'єднання з мережею
   </div>
+
+  <!-- Desktop Block Screen (mobile-only app policy) -->
+  <section id="desktopBlockScreen" class="desktop-block-screen" aria-labelledby="desktopBlockTitle">
+    <div class="desktop-block-card">
+      <div class="desktop-block-badge">ARM Bank · Mobile Only</div>
+      <h1 id="desktopBlockTitle">Цей застосунок працює тільки на телефоні</h1>
+      <p class="desktop-block-text">
+        Відкрийте ARM Bank зі смартфона та встановіть як PWA. На комп'ютері веб-версія вимкнена.
+      </p>
+
+      <div class="desktop-block-qr-wrap">
+        <img id="desktopBlockQr" alt="QR-код для відкриття ARM Bank на телефоні" loading="lazy" decoding="async">
+      </div>
+
+      <a id="desktopBlockLink" class="desktop-block-link" href="https://army-bank.onrender.com/" target="_blank" rel="noopener">https://army-bank.onrender.com/</a>
+
+      <div class="desktop-block-actions">
+        <button id="desktopCopyLinkBtn" type="button" class="desktop-block-btn primary">Скопіювати посилання</button>
+        <a class="desktop-block-btn" href="https://army-bank.onrender.com/" target="_blank" rel="noopener">Відкрити посилання</a>
+      </div>
+
+      <ol class="desktop-block-steps">
+        <li>Скануйте QR-код камерою телефону.</li>
+        <li>У Safari/Chrome натисніть «Додати на головний екран».</li>
+        <li>Користуйтеся ARM Bank лише з телефона.</li>
+      </ol>
+    </div>
+  </section>
 
   <!-- ══ AUTH ══════════════════════════════════════════════ -->
   <div id="authScreen" class="auth-screen">
@@ -1539,8 +1583,55 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js?v=2026-04-08-26" defer></script>
-  <script src="/js/app.js?v=2026-04-08-30" defer></script>
+  <script src="/js/app.js?v=2026-04-08-31" defer></script>
   <script src="/js/overrides.js?v=2026-04-08-26" defer></script>
+  <script>
+    (function() {
+      var root = document.documentElement;
+      if (!root.classList.contains('ab-desktop-blocked')) return;
+
+      var baseUrl = 'https://army-bank.onrender.com/';
+      var link = document.getElementById('desktopBlockLink');
+      var qr = document.getElementById('desktopBlockQr');
+      var copyBtn = document.getElementById('desktopCopyLinkBtn');
+
+      if (link) {
+        link.href = baseUrl;
+        link.textContent = baseUrl;
+      }
+      if (qr) {
+        var encoded = encodeURIComponent(baseUrl);
+        qr.src = 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=0&data=' + encoded;
+      }
+
+      if (copyBtn) {
+        copyBtn.addEventListener('click', function() {
+          var done = function() {
+            copyBtn.textContent = 'Скопійовано';
+            setTimeout(function() { copyBtn.textContent = 'Скопіювати посилання'; }, 1600);
+          };
+
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(baseUrl).then(done).catch(function() {});
+            return;
+          }
+
+          try {
+            var ta = document.createElement('textarea');
+            ta.value = baseUrl;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'absolute';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            done();
+          } catch (_) {}
+        });
+      }
+    })();
+  </script>
 
   <!-- Transfer confirmation bottom sheet -->
   <div id="transferConfirmOverlay" class="tc-overlay hidden" role="dialog" aria-modal="true">

@@ -9,6 +9,7 @@ const state = {
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+const DESKTOP_MOBILE_ONLY_BLOCKED = document.documentElement.classList.contains('ab-desktop-blocked');
 
 (function initRenderProfile() {
   const root = document.documentElement;
@@ -2833,7 +2834,7 @@ $('#pushBtn')?.addEventListener('click', async () => {
 });
 
 // ── SW update detection ───────────────────────────────────
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && !DESKTOP_MOBILE_ONLY_BLOCKED) {
   let _swReloading = false;
   let _swUpdateTimer = null;
   let _swPendingReload = false;
@@ -2970,6 +2971,12 @@ function scheduleBootstrapRetry() {
 }
 
 (async function bootstrap() {
+  if (DESKTOP_MOBILE_ONLY_BLOCKED) {
+    stopPolling();
+    stopNotifPolling();
+    clearBootstrapRetryTimer();
+    return;
+  }
   if (!api.token) {
     setAuthenticated(false);
     return;
@@ -3500,7 +3507,7 @@ function updateConverter() {
   $(sel)?.addEventListener('change', updateConverter);
 });
 
-loadCurrencyRates();
+if (!DESKTOP_MOBILE_ONLY_BLOCKED) loadCurrencyRates();
 
 // ── KEYBOARD SHORTCUTS ────────────────────────────────
 let _kbBuffer = '';
