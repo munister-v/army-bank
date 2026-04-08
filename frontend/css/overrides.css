@@ -8461,3 +8461,35 @@ body.app-scroll-locked .app-content {
     display: none !important;
   }
 }
+
+/* ── Desktop Screen-Stack Guard (prevents mixed-screen overlays) ───────── */
+@media (min-width: 1200px) {
+  html.desktop-classic #appScreen .app-content {
+    position: relative !important;
+    isolation: isolate !important;
+  }
+
+  html.desktop-classic #appScreen .screen {
+    display: none !important;
+    position: relative !important;
+    inset: auto !important;
+    z-index: auto !important;
+    opacity: 1 !important;
+    transform: none !important;
+    pointer-events: auto !important;
+  }
+
+  html.desktop-classic #appScreen .screen.active-screen {
+    display: block !important;
+    z-index: 2 !important;
+  }
+
+  html.desktop-classic #appScreen .screen.screen-exit,
+  html.desktop-classic #appScreen .screen-exit,
+  html.desktop-classic #appScreen .screen-exit-ltr,
+  html.desktop-classic #appScreen .screen-exit-rtl {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+}

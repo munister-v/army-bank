@@ -1621,6 +1621,16 @@ function switchScreen(screenId) {
 
   closeTransientLayers({ keepPin: true });
 
+  // Defensive cleanup: remove any stale transition artifacts from legacy clients.
+  $$('.screen').forEach((s) => {
+    s.classList.remove('screen-enter-ltr', 'screen-enter-rtl', 'screen-exit', 'screen-exit-ltr', 'screen-exit-rtl');
+    s.style.removeProperty('transform');
+    s.style.removeProperty('opacity');
+    s.style.removeProperty('z-index');
+    s.style.removeProperty('position');
+    s.style.removeProperty('inset');
+  });
+
   $$('.screen').forEach((s) => s.classList.remove('active-screen'));
   const el = $(`#${id}`);
   if (el) el.classList.add('active-screen');
