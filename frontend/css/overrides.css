@@ -6990,8 +6990,13 @@ body.app-scroll-locked .app-content {
   }
 
   html.desktop-classic .bank-card {
-    flex: 0 0 min(500px, 100%) !important;
-    width: min(500px, 100%) !important;
+    flex: 0 0 340px !important;
+    width: 340px !important;
+    max-width: calc(100% - 8px) !important;
+    aspect-ratio: 85.6 / 54 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
     margin-right: 0 !important;
   }
 
