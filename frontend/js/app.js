@@ -117,7 +117,7 @@ function applyDesktopClassicMode() {
   const desktop = _desktopClassicMql.matches;
   const root = document.documentElement;
   root.classList.toggle('desktop-classic', desktop);
-  if (!desktop) root.classList.remove('desktop-cockpit');
+  root.classList.toggle('desktop-cockpit', desktop);
 }
 
 function syncDesktopClassicMode() {

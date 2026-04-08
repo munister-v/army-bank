@@ -8671,3 +8671,486 @@ html.install-banner-visible #appScreen .app-content {
     letter-spacing: 0.01em !important;
   }
 }
+
+/* ── Desktop Cockpit (reference-style rebuild) ─────────────────────────── */
+@media (min-width: 1200px) {
+  html.desktop-cockpit body {
+    background: #eef2f8 !important;
+    overflow: hidden !important;
+  }
+
+  html.desktop-cockpit.ab-authed #appScreen.app-shell {
+    display: grid !important;
+    grid-template-columns: 262px minmax(0, 1fr) !important;
+    grid-template-rows: 1fr !important;
+    width: 100vw !important;
+    max-width: none !important;
+    min-height: 100vh !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    border-radius: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: #eef2f8 !important;
+    overflow: hidden !important;
+  }
+
+  html.desktop-cockpit #appScreen.app-shell::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  html.desktop-cockpit .app-header {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto !important;
+    grid-auto-flow: row !important;
+    grid-auto-rows: auto !important;
+    gap: 10px !important;
+    column-gap: 0 !important;
+    align-content: start !important;
+    height: 100vh !important;
+    padding: 14px 12px !important;
+    border-right: 1px solid #d8dfec !important;
+    background: linear-gradient(180deg, #f8f9fd 0%, #f2f5fb 100%) !important;
+    overflow: hidden !important;
+  }
+
+  html.desktop-cockpit .app-header > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    justify-self: stretch !important;
+  }
+
+  html.desktop-cockpit .header-top,
+  html.desktop-cockpit .balance-block,
+  html.desktop-cockpit #sidebar.bottom-nav,
+  html.desktop-cockpit .bank-cards-carousel,
+  html.desktop-cockpit .quick-actions {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  html.desktop-cockpit #sidebar.bottom-nav {
+    grid-row: 2 !important;
+  }
+
+  html.desktop-cockpit .balance-block {
+    grid-row: 3 !important;
+  }
+
+  html.desktop-cockpit .bank-cards-carousel {
+    grid-row: 4 !important;
+  }
+
+  html.desktop-cockpit .quick-actions {
+    grid-row: 5 !important;
+  }
+
+  html.desktop-cockpit .header-top {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    column-gap: 8px !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 4px 4px !important;
+    min-height: 0 !important;
+  }
+
+  html.desktop-cockpit .header-top::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  html.desktop-cockpit .header-user {
+    display: flex !important;
+    align-items: center !important;
+    flex: 1 1 auto !important;
+    gap: 10px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  html.desktop-cockpit .header-info {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  html.desktop-cockpit #appScreen.screen-dashboard .avatar,
+  html.desktop-cockpit .avatar {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 50% !important;
+    background: #e7edf8 !important;
+    border: 1px solid #d4dff1 !important;
+    color: #516184 !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+  }
+
+  html.desktop-cockpit .header-name {
+    color: #263758 !important;
+    font-size: 20px !important;
+    letter-spacing: -0.015em !important;
+    line-height: 1.1 !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  html.desktop-cockpit .header-role {
+    color: #7b88a5 !important;
+    font-size: 12px !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  html.desktop-cockpit #messengerBtn,
+  html.desktop-cockpit #notifBtn,
+  html.desktop-cockpit #pushBtn {
+    display: none !important;
+  }
+
+  html.desktop-cockpit .header-actions {
+    gap: 6px !important;
+    margin-left: auto !important;
+  }
+
+  html.desktop-cockpit .header-top .icon-btn {
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    border-radius: 10px !important;
+    border: 1px solid #d4dff1 !important;
+    background: #e7edf8 !important;
+    color: #5b6d90 !important;
+  }
+
+  html.desktop-cockpit .balance-block {
+    background: #ffffff !important;
+    border: 1px solid #d8dfec !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 18px rgba(53, 74, 111, 0.08) !important;
+    padding: 10px 11px !important;
+    text-align: left !important;
+  }
+
+  html.desktop-cockpit .balance-label-row {
+    justify-content: flex-start !important;
+    gap: 6px !important;
+  }
+
+  html.desktop-cockpit .balance-label {
+    color: #7f8ca8 !important;
+    font-size: 10px !important;
+    letter-spacing: 0.09em !important;
+  }
+
+  html.desktop-cockpit .balance-amount {
+    color: #2f4670 !important;
+    font-size: clamp(1.35rem, 1.6vw, 1.86rem) !important;
+    line-height: 1.08 !important;
+    letter-spacing: -0.012em !important;
+    text-shadow: none !important;
+  }
+
+  html.desktop-cockpit #heroAccountCopyBtn,
+  html.desktop-cockpit #heroAccount {
+    color: #7788a9 !important;
+    font-size: 12px !important;
+    text-shadow: none !important;
+  }
+
+  html.desktop-cockpit #sidebar.bottom-nav {
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    transform: none !important;
+    opacity: 1 !important;
+    margin: 0 !important;
+    padding: 6px 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+  }
+
+  html.desktop-cockpit #sidebar.bottom-nav::before,
+  html.desktop-cockpit #sidebar.bottom-nav::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item,
+  html.desktop-cockpit #sidebar .menu-btn.nav-item {
+    min-height: 42px !important;
+    border-radius: 10px !important;
+    border: 1px solid transparent !important;
+    padding: 0 10px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 9px !important;
+    color: #6b7894 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item svg {
+    width: 18px !important;
+    height: 18px !important;
+    stroke: #8ca0c4 !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item span {
+    font-size: 14px !important;
+    font-weight: 650 !important;
+    letter-spacing: 0.01em !important;
+    color: #6b7894 !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item:hover:not(.active) {
+    background: #edf2fb !important;
+    border-color: #dce4f3 !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item.active {
+    background: #e8eefb !important;
+    border-color: #cfdbf5 !important;
+    box-shadow: inset 3px 0 0 #4f84ff !important;
+    color: #2f4d80 !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item.active svg {
+    stroke: #4f84ff !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item.active span {
+    color: #2f4d80 !important;
+  }
+
+  html.desktop-cockpit .bank-cards-carousel {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: auto !important;
+    min-height: 0 !important;
+  }
+
+  html.desktop-cockpit .bank-cards-dots {
+    display: none !important;
+  }
+
+  html.desktop-cockpit .bank-cards-track {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    align-content: start !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  html.desktop-cockpit .bank-card {
+    width: auto !important;
+    max-width: none !important;
+    min-height: 98px !important;
+    height: auto !important;
+    aspect-ratio: auto !important;
+    flex: none !important;
+    margin-right: 0 !important;
+    border-radius: 12px !important;
+  }
+
+  html.desktop-cockpit .bank-card-bg,
+  html.desktop-cockpit .bank-card-noise,
+  html.desktop-cockpit .bank-card-chip,
+  html.desktop-cockpit .bank-card-network {
+    display: none !important;
+  }
+
+  html.desktop-cockpit .bank-card .bank-card-front {
+    border-radius: 12px !important;
+    border: 1px solid #d7deec !important;
+    background: #ffffff !important;
+    box-shadow: 0 5px 12px rgba(54, 77, 114, 0.08) !important;
+  }
+
+  html.desktop-cockpit .bank-card-content {
+    padding: 10px 11px !important;
+    gap: 8px !important;
+  }
+
+  html.desktop-cockpit .bank-card-logo-text,
+  html.desktop-cockpit .bank-card-type,
+  html.desktop-cockpit .bank-card-number,
+  html.desktop-cockpit .bank-card-name,
+  html.desktop-cockpit .bank-card-date {
+    color: #415378 !important;
+  }
+
+  html.desktop-cockpit .bank-card-number {
+    font-size: 12px !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  html.desktop-cockpit .bank-card-label {
+    color: #92a0bd !important;
+    font-size: 9px !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  html.desktop-cockpit .quick-actions {
+    margin-top: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: auto repeat(2, minmax(72px, auto)) !important;
+    gap: 8px !important;
+    align-content: start !important;
+  }
+
+  html.desktop-cockpit .quick-actions::before {
+    content: 'Швидкі дії' !important;
+    grid-column: 1 / -1 !important;
+    margin: 0 2px !important;
+    color: #8491ad !important;
+    font-size: 11px !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    font-weight: 800 !important;
+  }
+
+  html.desktop-cockpit .quick-actions::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  html.desktop-cockpit .quick-actions .qa-btn:nth-child(n) {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  html.desktop-cockpit .qa-btn {
+    min-height: 72px !important;
+    border-radius: 10px !important;
+    border: 1px solid #d8e1f0 !important;
+    background: #ffffff !important;
+    box-shadow: 0 4px 10px rgba(56, 77, 111, 0.08) !important;
+    color: #445b84 !important;
+    padding: 6px !important;
+  }
+
+  html.desktop-cockpit .qa-icon {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 10px !important;
+    background: #eef3fc !important;
+    border: 1px solid #dbe5f5 !important;
+    color: #4f7ac5 !important;
+  }
+
+  html.desktop-cockpit .qa-label {
+    color: #526381 !important;
+    font-size: 12px !important;
+    text-transform: none !important;
+    font-weight: 650 !important;
+  }
+
+  html.desktop-cockpit .app-content {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    min-height: 0 !important;
+    height: 100vh !important;
+    overflow: auto !important;
+    padding: 18px 20px 28px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: linear-gradient(180deg, #f6f8fc 0%, #eef2f8 100%) !important;
+  }
+
+  html.desktop-cockpit #dashboard {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 360px !important;
+    gap: 14px !important;
+    align-content: start !important;
+  }
+
+  html.desktop-cockpit .section-title {
+    grid-column: 1 / -1 !important;
+    font-size: 31px !important;
+    line-height: 1.02 !important;
+    margin-bottom: 2px !important;
+    color: #2d3f61 !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  html.desktop-cockpit #dashboard .card {
+    border-radius: 12px !important;
+    border: 1px solid #d8dfec !important;
+    background: #ffffff !important;
+    box-shadow: 0 10px 20px rgba(61, 80, 111, 0.08) !important;
+  }
+
+  html.desktop-cockpit #dashboard .card::before {
+    height: 1px !important;
+    background: #e8edf7 !important;
+  }
+
+  html.desktop-cockpit #dashboard #recentTransactionsCard {
+    grid-column: 1 !important;
+    min-height: 380px !important;
+  }
+
+  html.desktop-cockpit #dashboard > .card:nth-of-type(2) {
+    grid-column: 2 !important;
+    min-height: 220px !important;
+  }
+
+  html.desktop-cockpit #dashboard .month-strip,
+  html.desktop-cockpit #dashboard .sparkline-card,
+  html.desktop-cockpit #dashboard .velocity-card,
+  html.desktop-cockpit #dashboard #topRecipientsCard,
+  html.desktop-cockpit #dashboard #budgetProgressCard,
+  html.desktop-cockpit #dashboard #dashboardActionForms {
+    grid-column: 1 / -1 !important;
+  }
+
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .app-content {
+    padding: 20px 26px 34px !important;
+  }
+
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .quick-actions {
+    display: none !important;
+  }
+}
