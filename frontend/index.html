@@ -41,33 +41,15 @@
     @keyframes ab-shimmer{0%,100%{opacity:.45}50%{opacity:.85}}
     .app-loading #heroBalance,.app-loading #userName,.app-loading #heroAccount{animation:ab-shimmer 1.3s ease-in-out infinite}
   </style>
-  <!-- Both stylesheets async (non-blocking) — critical CSS above prevents FOUC -->
-  <link rel="stylesheet" href="/css/styles.css" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/styles.css"></noscript>
-  <link rel="stylesheet" href="/css/overrides.css" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/overrides.css"></noscript>
+  <!-- Load core UI styles synchronously to avoid auth-screen flicker / design jumps -->
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/overrides.css">
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js" as="script">
   <link rel="preload" href="/js/app.js" as="script">
-  <!-- Build version check + instant auth state + server wake-up -->
+  <!-- Instant auth state + server wake-up (without forced reload loops) -->
   <script>
     (function(){
-      var BUILD = String(Date.parse(document.lastModified) || Date.now());
-      try {
-        var stored = localStorage.getItem('ab_build');
-        if (stored && stored !== BUILD) {
-          /* New build deployed — nuke all SW caches and reload for clean update */
-          localStorage.setItem('ab_build', BUILD);
-          if ('serviceWorker' in navigator && 'caches' in window) {
-            Promise.all([
-              navigator.serviceWorker.getRegistrations().then(function(r){return Promise.all(r.map(function(x){return x.unregister();}));}),
-              caches.keys().then(function(k){return Promise.all(k.map(function(c){return caches.delete(c);}));})
-            ]).then(function(){location.reload();}).catch(function(){location.reload();});
-          } else { location.reload(); }
-          return;
-        }
-        localStorage.setItem('ab_build', BUILD);
-      } catch(_) {}
       try {
         if (localStorage.getItem('army_bank_token')) {
           /* Hide login page immediately — no flash of auth screen for returning users */
