@@ -2790,6 +2790,8 @@ $('#pushBtn')?.addEventListener('click', async () => {
 if ('serviceWorker' in navigator) {
   let _swReloading = false;
   let _swUpdateTimer = null;
+  let _swPendingReload = false;
+  let _swPendingToastAt = 0;
 
   function _clearSwUpdateTimer() {
     if (_swUpdateTimer) {
@@ -2800,7 +2802,7 @@ if ('serviceWorker' in navigator) {
 
   function _scheduleSwUpdates(reg) {
     _clearSwUpdateTimer();
-    const SW_UPDATE_VISIBLE_MS = 60_000;
+    const SW_UPDATE_VISIBLE_MS = 300_000; // 5 min, avoids aggressive mid-session churn
     const updateNow = () => {
       if (document.visibilityState !== 'visible') return;
       if (navigator.onLine === false) return;
@@ -2817,7 +2819,7 @@ if ('serviceWorker' in navigator) {
     window.addEventListener('pageshow', updateNow, { passive: true });
   }
 
-  function _swReload() {
+  function _performSwReload() {
     if (_swReloading) return;
     try {
       const now = Date.now();
@@ -2827,6 +2829,31 @@ if ('serviceWorker' in navigator) {
     } catch (_) {}
     _swReloading = true;
     setTimeout(() => location.reload(), 120);
+  }
+
+  function _markSwPendingReload() {
+    _swPendingReload = true;
+    const now = Date.now();
+    if ((now - _swPendingToastAt) > 12_000) {
+      _swPendingToastAt = now;
+      showToast('Доступне оновлення. Застосуємо після повернення в додаток.', 'success');
+    }
+  }
+
+  function _swReload(options = {}) {
+    const immediate = !!options.immediate;
+    if (!immediate && document.visibilityState === 'visible') {
+      _markSwPendingReload();
+      return;
+    }
+    _swPendingReload = false;
+    _performSwReload();
+  }
+
+  function _applyPendingSwReload() {
+    if (!_swPendingReload || _swReloading) return;
+    if (document.visibilityState !== 'visible') return;
+    _swReload({ immediate: true });
   }
 
   navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
@@ -2852,6 +2879,11 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('controllerchange', _swReload);
   }).catch(() => {});
 
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') _applyPendingSwReload();
+  });
+  window.addEventListener('pageshow', _applyPendingSwReload, { passive: true });
+  window.addEventListener('focus', _applyPendingSwReload, { passive: true });
   window.addEventListener('beforeunload', _clearSwUpdateTimer, { passive: true });
 }
 

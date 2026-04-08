@@ -7329,3 +7329,61 @@ body.app-scroll-locked .app-content {
     font-size: 12px !important;
   }
 }
+
+/* ── Final Stability Layer (Phase 1) ─────────────────────────────────────── */
+@media (max-width: 959px) {
+  #appScreen.app-shell {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 100dvh !important;
+    height: auto !important;
+  }
+
+  .app-header {
+    position: relative !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .app-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior-y: contain !important;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .bottom-nav {
+    position: fixed !important;
+    left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    max-width: 460px !important;
+    margin: 0 auto !important;
+    height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+    transform: translateY(0) !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  html.desktop-classic #sidebar.bottom-nav {
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    transform: none !important;
+  }
+
+  html.desktop-classic .app-content {
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: auto !important;
+  }
+}
