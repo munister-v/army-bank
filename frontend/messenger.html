@@ -25,55 +25,83 @@
 ════════════════════════════════════════════ -->
 <div id="auth-screen" class="auth-screen">
   <div class="auth-bg-grid"></div>
-  <div class="auth-card">
-    <div class="auth-logo">
-      <div class="auth-logo-icon">
-        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32">
-          <path d="M16 3L3 10v12l13 7 13-7V10L16 3z" fill="url(#lg1)" stroke="rgba(212,166,79,.42)" stroke-width=".5"/>
-          <path d="M16 8l-8 4.5v7L16 24l8-4.5v-7L16 8z" fill="rgba(212,166,79,.15)"/>
-          <circle cx="16" cy="16" r="3" fill="#d4a64f"/>
-          <defs>
-            <linearGradient id="lg1" x1="3" y1="3" x2="29" y2="29" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#1a4a33"/>
-              <stop offset="100%" stop-color="#123725"/>
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
-      <div>
-        <div class="auth-logo-title">Army Bank</div>
-        <div class="auth-logo-sub">Захищений месенджер</div>
-      </div>
-    </div>
-
-    <form id="login-form" novalidate>
-      <div class="field-group">
-        <label class="field-label" for="auth-identity">Телефон або Email</label>
-        <input id="auth-identity" class="field-input" type="text"
-               placeholder="+380XXXXXXXXX або email@domain.com"
-               autocomplete="username" inputmode="email" required/>
-      </div>
-      <div class="field-group">
-        <label class="field-label" for="auth-password">Пароль</label>
-        <div class="field-password-wrap">
-          <input id="auth-password" class="field-input" type="password"
-                 placeholder="Ваш пароль від банку"
-                 autocomplete="current-password" required/>
-          <button type="button" class="btn-eye" id="btn-toggle-pw" aria-label="Показати пароль">
-            <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-          </button>
+  <div class="auth-shell">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">
+          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32">
+            <path d="M16 3L3 10v12l13 7 13-7V10L16 3z" fill="url(#lg1)" stroke="rgba(212,166,79,.42)" stroke-width=".5"/>
+            <path d="M16 8l-8 4.5v7L16 24l8-4.5v-7L16 8z" fill="rgba(212,166,79,.15)"/>
+            <circle cx="16" cy="16" r="3" fill="#d4a64f"/>
+            <defs>
+              <linearGradient id="lg1" x1="3" y1="3" x2="29" y2="29" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#1a4a33"/>
+                <stop offset="100%" stop-color="#123725"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div>
+          <div class="auth-logo-title">Army Bank</div>
+          <div class="auth-logo-sub">Захищений месенджер</div>
         </div>
       </div>
-      <div id="auth-error" class="auth-error" hidden></div>
-      <button type="submit" class="btn-primary" id="btn-login">
-        <span id="btn-login-text">Увійти</span>
-        <span id="btn-login-spin" class="spinner" hidden></span>
-      </button>
-    </form>
-    <p class="auth-hint">Використовуйте ті самі дані, що й у банку.</p>
+
+      <div class="auth-compact-points">
+        <span class="auth-point">Банк + чати в одному акаунті</span>
+        <span class="auth-point">Шифрування повідомлень у сховищі</span>
+      </div>
+
+      <form id="login-form" novalidate>
+        <div class="field-group">
+          <label class="field-label" for="auth-identity">Телефон або Email</label>
+          <input id="auth-identity" class="field-input" type="text"
+                 placeholder="+380XXXXXXXXX або email@domain.com"
+                 autocomplete="username" inputmode="email" required/>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="auth-password">Пароль</label>
+          <div class="field-password-wrap">
+            <input id="auth-password" class="field-input" type="password"
+                   placeholder="Ваш пароль від банку"
+                   autocomplete="current-password" required/>
+            <button type="button" class="btn-eye" id="btn-toggle-pw" aria-label="Показати пароль">
+              <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="auth-error" class="auth-error" hidden></div>
+        <button type="submit" class="btn-primary" id="btn-login">
+          <span id="btn-login-text">Увійти</span>
+          <span id="btn-login-spin" class="spinner" hidden></span>
+        </button>
+      </form>
+      <p class="auth-hint">Використовуйте ті самі дані, що й у банку.</p>
+    </div>
+
+    <aside class="auth-showcase" aria-hidden="true">
+      <div class="auth-showcase-head">
+        <h2>Банкінгова комунікація без зайвих вкладок</h2>
+        <p>Підтримка, узгодження платежів і службові повідомлення в одному каналі.</p>
+      </div>
+      <div class="auth-showcase-grid">
+        <article class="auth-showcase-item">
+          <h3>Підтримка 24/7</h3>
+          <p>Швидкий чат із оператором для вирішення фінансових питань.</p>
+        </article>
+        <article class="auth-showcase-item">
+          <h3>Єдиний профіль</h3>
+          <p>Авторизація така сама, як у банку. Не треба окремий акаунт.</p>
+        </article>
+        <article class="auth-showcase-item">
+          <h3>Захист даних</h3>
+          <p>Повідомлення зберігаються в зашифрованому вигляді.</p>
+        </article>
+      </div>
+    </aside>
   </div>
 </div>
 

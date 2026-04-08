@@ -31,6 +31,10 @@ ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', '').strip()
 # One-time bootstrap hardening: якщо задано, /api/bootstrap вимагає X-Bootstrap-Token
 BOOTSTRAP_TOKEN = os.getenv('BOOTSTRAP_TOKEN', '').strip()
 
+# Messenger at-rest encryption keys (Fernet, base64 urlsafe, 32-byte).
+# Multiple keys allowed for rotation: "new_key,old_key".
+MESSENGER_ENCRYPTION_KEYS = os.getenv('MESSENGER_ENCRYPTION_KEYS', '').strip()
+
 # Примітивний anti-bruteforce rate-limit для auth endpoints
 AUTH_RATE_LIMIT_ENABLED = (os.getenv('AUTH_RATE_LIMIT_ENABLED', '1') == '1')
 AUTH_RATE_WINDOW_SECONDS = int(os.getenv('AUTH_RATE_WINDOW_SECONDS', '60'))

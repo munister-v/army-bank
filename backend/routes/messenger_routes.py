@@ -5,6 +5,12 @@ from flask import Blueprint, jsonify, request, g
 
 from ..database import get_connection
 from ..config import USE_PG
+from ..services.messenger_crypto import (
+    decrypt_message,
+    deleted_message_text,
+    encrypt_message,
+    safe_preview,
+)
 from .helpers import api_error, auth_required
 
 messenger_bp = Blueprint('messenger', __name__, url_prefix='/api/messenger')
@@ -100,13 +106,27 @@ def _conv_summary(conv_id: int, me_id: int) -> dict:
                 (conv_id, me_id, _FALSE),
             ).fetchone()['n']
 
+    preview = decrypt_message(conv.get('last_message_text') if conv else '', fallback='')
+    if not preview:
+        preview = conv.get('last_message_text') if conv else ''
+
     return {
         'id': conv['id'],
         'last_message_at': conv['last_message_at'],
-        'last_message_text': conv['last_message_text'],
+        'last_message_text': preview,
         'partner': dict(partner) if partner else None,
         'unread': unread,
     }
+
+
+def _serialize_message_row(row: dict) -> dict:
+    item = dict(row)
+    is_deleted = bool(item.get('is_deleted'))
+    if is_deleted:
+        item['text'] = deleted_message_text()
+    else:
+        item['text'] = decrypt_message(item.get('text', ''), fallback='')
+    return item
 
 
 # ── Пошук користувачів ───────────────────────────────────────────────────────
@@ -235,7 +255,7 @@ def get_messages(conv_id: int):
 
         _mark_read(conn, conv_id, me_id)
 
-    msgs = [dict(r) for r in rows]
+    msgs = [_serialize_message_row(dict(r)) for r in rows]
     msgs.reverse()
     return jsonify({'ok': True, 'data': msgs})
 
@@ -251,6 +271,8 @@ def send_message(conv_id: int):
     if len(text) > 4000:
         return api_error('Повідомлення занадто довге (макс. 4000 символів).')
 
+    encrypted_text = encrypt_message(text)
+
     with get_connection() as conn:
         part = conn.execute(
             'SELECT id FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
@@ -262,7 +284,7 @@ def send_message(conv_id: int):
         if USE_PG:
             cur = conn.execute(
                 'INSERT INTO messages (conversation_id, sender_id, text) VALUES (%s, %s, %s) RETURNING id, created_at',
-                (conv_id, me_id, text),
+                (conv_id, me_id, encrypted_text),
             )
             msg_row = cur.fetchone()
             msg_id = msg_row['id']
@@ -270,17 +292,16 @@ def send_message(conv_id: int):
         else:
             conn.execute(
                 'INSERT INTO messages (conversation_id, sender_id, text) VALUES (%s, %s, %s)',
-                (conv_id, me_id, text),
+                (conv_id, me_id, encrypted_text),
             )
             msg_id = conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
             created_at = conn.execute(
                 'SELECT created_at FROM messages WHERE id = %s', (msg_id,)
             ).fetchone()['created_at']
 
-        preview = text[:100]
         conn.execute(
             f'UPDATE conversations SET last_message_at = {_now_sql()}, last_message_text = %s WHERE id = %s',
-            (preview, conv_id),
+            (safe_preview(), conv_id),
         )
         _mark_read(conn, conv_id, me_id)
 
@@ -327,7 +348,7 @@ def poll_messages(conv_id: int):
         if rows:
             _mark_read(conn, conv_id, me_id)
 
-    return jsonify({'ok': True, 'data': [dict(r) for r in rows]})
+    return jsonify({'ok': True, 'data': [_serialize_message_row(dict(r)) for r in rows]})
 
 
 # ── Загальний unread count ────────────────────────────────────────────────────
@@ -369,7 +390,7 @@ def delete_message(msg_id: int):
             return api_error('Можна видаляти лише свої повідомлення.', 403)
         conn.execute(
             'UPDATE messages SET is_deleted = %s, text = %s WHERE id = %s',
-            (_true, 'Повідомлення видалено', msg_id),
+            (_true, encrypt_message(deleted_message_text()), msg_id),
         )
     return jsonify({'ok': True})
 

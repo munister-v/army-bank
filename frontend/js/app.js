@@ -1597,6 +1597,19 @@ $('#profileLogoutBtn')?.addEventListener('click', async () => {
   await performLogout();
 });
 
+function getMessengerPath() {
+  const base = getBasePath();
+  return base ? `${base}/messenger` : '/messenger';
+}
+
+function openMessengerScreen() {
+  window.location.href = getMessengerPath();
+}
+
+$('#messengerBtn')?.addEventListener('click', openMessengerScreen);
+$('#profileMessengerBtn')?.addEventListener('click', openMessengerScreen);
+$$('[data-open-messenger]').forEach((btn) => btn.addEventListener('click', openMessengerScreen));
+
 // ── NAVIGATION ──────────────────────────────────────────
 const ALLOWED_SCREENS = [
   'dashboard', 'transactions', 'cards', 'profile',
@@ -2676,6 +2689,11 @@ window.addEventListener('popstate', () => {
 $$('[data-jump]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.jump;
+    if (id === 'messenger') {
+      openMessengerScreen();
+      return;
+    }
+
     const screenMap = {
       history: 'transactions',
       transactions: 'transactions',
