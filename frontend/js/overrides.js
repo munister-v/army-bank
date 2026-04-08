@@ -14,12 +14,23 @@
     return document.querySelector('.bank-cards-track');
   }
 
+  function shouldEnhanceCarousel(track) {
+    if (!track) return false;
+    var root = document.documentElement;
+    // Desktop classic >=1200 does not use the cards carousel visually.
+    if (root.classList.contains('desktop-classic') && window.matchMedia('(min-width: 1200px)').matches) {
+      return false;
+    }
+    return true;
+  }
+
   function isDesktopWheelContext() {
     return window.matchMedia('(min-width: 960px)').matches;
   }
 
   function initCarouselDepth() {
     var track = getTrack();
+    if (!shouldEnhanceCarousel(track)) return;
     if (!track || track._depthInit) return;
     track._depthInit = true;
 
@@ -72,6 +83,7 @@
 
   function initCarouselWheelSnap() {
     var track = getTrack();
+    if (!shouldEnhanceCarousel(track)) return;
     if (!track || track._wheelInit) return;
     track._wheelInit = true;
 

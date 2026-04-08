@@ -6429,6 +6429,16 @@ button.btn-primary:active {
   -webkit-backdrop-filter: none !important;
 }
 
+.render-lite #appScreen.app-loading #heroBalance,
+.render-lite #appScreen.app-loading #userName,
+.render-lite #appScreen.app-loading #heroAccount,
+.no-animations #appScreen.app-loading #heroBalance,
+.no-animations #appScreen.app-loading #userName,
+.no-animations #appScreen.app-loading #heroAccount {
+  animation: none !important;
+  opacity: 0.78 !important;
+}
+
 .render-lite .screen.active-screen > .section-header-row,
 .render-lite .screen.active-screen > .card,
 .render-lite .screen.active-screen > .cards-row {
