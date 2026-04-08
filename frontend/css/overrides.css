@@ -2846,21 +2846,26 @@ textarea:focus,
     flex-direction: column !important;
     align-items: center !important;
     gap: 6px !important;
+    transition: background .18s, transform .15s, border-color .18s !important;
   }
   .quick-actions .qa-btn:hover {
-    background: rgba(255,255,255,.14) !important;
+    background: rgba(255,255,255,.16) !important;
+    border-color: rgba(255,255,255,.22) !important;
+    transform: translateY(-2px) !important;
+  }
+  .quick-actions .qa-btn:active {
+    transform: scale(.96) !important;
   }
 
   /* ── BOTTOM NAV → SIDEBAR NAV ───────────────────────────────── */
   .bottom-nav {
-    /* Виймаємо з fixed, вбудовуємо у flex-потік сайдбару */
     position: sticky !important;
     bottom: 0 !important;
     left: auto !important;
     right: auto !important;
     top: auto !important;
     width: auto !important;
-    margin-top: auto !important;   /* притискає до низу сайдбару */
+    margin-top: auto !important;
     transform: none !important;
     will-change: auto !important;
     flex-direction: column !important;
@@ -2870,28 +2875,46 @@ textarea:focus,
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     border-top: 1px solid rgba(255,255,255,.10) !important;
-    padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 12px 8px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
     height: auto !important;
     z-index: auto !important;
     flex-shrink: 0 !important;
   }
 
-  /* Nav items — горизонтальні рядки у сайдбарі */
+  /* Nav items — полірований десктопний стиль з left accent */
   .nav-item, .menu-btn.nav-item {
     flex-direction: row !important;
     justify-content: flex-start !important;
     align-items: center !important;
     gap: 12px !important;
-    padding: 10px 14px !important;
-    border-radius: 10px !important;
+    padding: 11px 16px !important;
+    border-radius: 12px !important;
     width: 100% !important;
+    position: relative !important;
+    transition: background .18s, transform .12s !important;
+    border-left: 3px solid transparent !important;
+    margin-left: 0 !important;
   }
-  .nav-item svg { width: 18px !important; height: 18px !important; }
-  .nav-label { font-size: 13px !important; font-weight: 500 !important; letter-spacing: -.01em !important; }
+  .nav-item:hover {
+    background: rgba(255,255,255,.08) !important;
+  }
+  .nav-item svg { width: 20px !important; height: 20px !important; opacity: .7 !important; transition: opacity .18s !important; }
+  .nav-item:hover svg { opacity: 1 !important; }
+  .nav-label {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    letter-spacing: -.01em !important;
+    color: rgba(255,255,255,.7) !important;
+    transition: color .18s, font-weight .18s !important;
+  }
+  .nav-item:hover .nav-label { color: rgba(255,255,255,.95) !important; }
+
+  /* Active nav item — яскравий лівий бордер + виділений фон */
   .nav-item.active {
     background: rgba(255,255,255,.12) !important;
+    border-left-color: #6bd47c !important;
   }
-  .nav-item.active svg { stroke: #fff !important; }
+  .nav-item.active svg { stroke: #fff !important; opacity: 1 !important; }
   .nav-item.active .nav-label { color: #fff !important; font-weight: 700 !important; }
   .nav-item.active::after { display: none !important; }
 
@@ -2902,17 +2925,25 @@ textarea:focus,
     height: 100vh !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    padding: 32px 40px 48px !important;
+    padding: 36px 48px 48px !important;
     background: #eceee9 !important;
+    /* Elegant scrollbar */
     scrollbar-width: thin !important;
-    scrollbar-color: rgba(0,0,0,.15) transparent !important;
+    scrollbar-color: rgba(47,74,55,.2) transparent !important;
   }
-  .app-content::-webkit-scrollbar { width: 5px !important; }
-  .app-content::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15) !important; border-radius: 3px !important; }
+  .app-content::-webkit-scrollbar { width: 6px !important; }
+  .app-content::-webkit-scrollbar-track { background: transparent !important; }
+  .app-content::-webkit-scrollbar-thumb {
+    background: rgba(47,74,55,.18) !important;
+    border-radius: 3px !important;
+  }
+  .app-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(47,74,55,.32) !important;
+  }
 
-  /* Screens у main area */
+  /* Screens у main area — max-width для читабельності */
   .screen {
-    max-width: 780px !important;
+    max-width: 820px !important;
     margin: 0 auto !important;
     padding-bottom: 0 !important;
   }
@@ -2922,14 +2953,71 @@ textarea:focus,
     font-size: 32px !important;
   }
 
-  /* Cards grid */
+  /* Cards — cover full width with rounded corners */
   .card {
     border-radius: 18px !important;
+    transition: box-shadow .2s, transform .2s !important;
+  }
+  .card:hover {
+    box-shadow: 0 6px 24px rgba(17, 25, 40, .1) !important;
+  }
+
+  /* ── Dashboard grid layout ──────────────────────── */
+  .stats-row,
+  .stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  /* Exchange rates — hover feedback */
+  .rate-row,
+  .exchange-rate-item {
+    transition: background .15s !important;
+    border-radius: 10px !important;
+    padding: 10px 14px !important;
+  }
+  .rate-row:hover,
+  .exchange-rate-item:hover {
+    background: rgba(47,74,55,.05) !important;
+  }
+
+  /* Transaction rows — hover */
+  .tx-item {
+    transition: background .15s, transform .1s !important;
+    border-radius: 12px !important;
+  }
+  .tx-item:hover {
+    background: rgba(47,74,55,.04) !important;
+  }
+
+  /* Quick filter buttons — hover */
+  .filter-btn,
+  .period-btn {
+    transition: background .15s, color .15s, border-color .15s !important;
+  }
+  .filter-btn:hover,
+  .period-btn:hover {
+    background: rgba(47,74,55,.08) !important;
+    border-color: rgba(47,74,55,.2) !important;
+  }
+
+  /* ── Profile page polish ───────────────────────── */
+  .profile-row,
+  .setting-row {
+    transition: background .15s !important;
+    border-radius: 10px !important;
+    padding: 14px 18px !important;
+    margin: 0 -18px !important;
+  }
+  .profile-row:hover,
+  .setting-row:hover {
+    background: rgba(47,74,55,.03) !important;
   }
 
   /* Транзакції — ширша таблиця */
   .tx-name,
-  .tx-item .item-title { max-width: 280px !important; }
+  .tx-item .item-title { max-width: 320px !important; }
 
   /* Fix: body padding-bottom не потрібен */
   .app-content, .page-content, main {
