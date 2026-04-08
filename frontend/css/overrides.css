@@ -2632,6 +2632,25 @@ textarea:focus,
 }
 
 /* ── Notification panel (closed by default) ───────── */
+.notif-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 390 !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: opacity 0.2s ease, visibility 0.2s ease !important;
+}
+
+.notif-overlay.open {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
 .notif-panel {
   position: fixed !important;
   left: 0 !important;
@@ -2647,14 +2666,16 @@ textarea:focus,
   box-shadow: 0 18px 34px rgba(16, 24, 38, 0.18) !important;
   transform: translateY(120%) !important;
   opacity: 0 !important;
+  visibility: hidden !important;
   pointer-events: none !important;
-  transition: transform 0.24s ease, opacity 0.24s ease !important;
+  transition: transform 0.24s ease, opacity 0.24s ease, visibility 0.24s ease !important;
   z-index: 520 !important;
 }
 
 .notif-panel.open {
   transform: translateY(0) !important;
   opacity: 1 !important;
+  visibility: visible !important;
   pointer-events: auto !important;
 }
 
@@ -6681,8 +6702,15 @@ body.app-scroll-locked .app-content {
   visibility: hidden !important;
 }
 
-#notifOverlay {
+#notifOverlay,
+#notifOverlay:not(.open) {
   pointer-events: none;
+  visibility: hidden;
+}
+
+#notifPanel:not(.open) {
+  pointer-events: none !important;
+  visibility: hidden !important;
 }
 
 /* ── Layering + keyboard-open stabilization ─────────────────────────────── */

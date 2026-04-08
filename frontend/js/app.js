@@ -190,10 +190,7 @@ function closeTransientLayers(options = {}) {
   const notifPanel = document.getElementById('notifPanel');
   if (notifPanel) notifPanel.classList.remove('open');
   const notifOverlay = document.getElementById('notifOverlay');
-  if (notifOverlay) {
-    notifOverlay.style.display = 'none';
-    notifOverlay.style.pointerEvents = 'none';
-  }
+  if (notifOverlay) notifOverlay.classList.remove('open');
 
   clearBodyScrollLocks({ keepPin });
 }
@@ -2822,6 +2819,12 @@ if ('serviceWorker' in navigator) {
 
   function _swReload() {
     if (_swReloading) return;
+    try {
+      const now = Date.now();
+      const last = Number(sessionStorage.getItem('ab_sw_reload_at') || 0);
+      if (last && (now - last) < 12_000) return;
+      sessionStorage.setItem('ab_sw_reload_at', String(now));
+    } catch (_) {}
     _swReloading = true;
     setTimeout(() => location.reload(), 120);
   }
@@ -4781,9 +4784,10 @@ console.log('[Army Bank] UX core modules loaded');
 
   var lastY = 0;
   var ticking = false;
+  var mobileMql = window.matchMedia('(max-width: 959px)');
 
   function isMobileLayout() {
-    return window.matchMedia('(max-width: 959px)').matches;
+    return !!mobileMql.matches;
   }
 
   function showNav() {
@@ -4825,6 +4829,11 @@ console.log('[Army Bank] UX core modules loaded');
   window.addEventListener('resize', showNav, { passive: true });
   window.addEventListener('orientationchange', showNav, { passive: true });
   window.addEventListener('popstate', showNav);
+  if (typeof mobileMql.addEventListener === 'function') {
+    mobileMql.addEventListener('change', showNav);
+  } else if (typeof mobileMql.addListener === 'function') {
+    mobileMql.addListener(showNav);
+  }
 })();
 
 // ── NOTIFICATION CENTER ────────────────────────────────────────
@@ -4837,7 +4846,7 @@ console.log('[Army Bank] UX core modules loaded');
   var notifCloseBtn   = document.getElementById('notifCloseBtn');
   var notifMarkAllBtn = document.getElementById('notifMarkAllBtn');
 
-  if (!notifBtn || !notifPanel) return;
+  if (!notifBtn || !notifPanel || !notifOverlay) return;
 
   var ICON_MAP = {
     transfer_received: '💸',
@@ -4859,17 +4868,16 @@ console.log('[Army Bank] UX core modules loaded');
   }
 
   function openNotifPanel() {
+    if (notifPanel.classList.contains('open')) return;
     notifPanel.classList.add('open');
-    notifOverlay.style.display = 'block';
-    notifOverlay.style.pointerEvents = 'auto';
+    notifOverlay.classList.add('open');
     lockBodyScroll('notif-panel');
     loadNotifications();
   }
 
   function closeNotifPanel() {
     notifPanel.classList.remove('open');
-    notifOverlay.style.display = 'none';
-    notifOverlay.style.pointerEvents = 'none';
+    notifOverlay.classList.remove('open');
     unlockBodyScroll('notif-panel');
   }
 
