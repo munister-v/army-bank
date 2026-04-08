@@ -8493,3 +8493,45 @@ body.app-scroll-locked .app-content {
     pointer-events: none !important;
   }
 }
+
+/* ── Install Banner Harmonization (non-blocking on mobile) ─────────────── */
+html.install-banner-visible #appScreen .app-content {
+  padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important;
+  scroll-padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+@media (max-width: 767px) {
+  .install-banner {
+    left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 16px) !important;
+    padding: 10px 12px !important;
+    gap: 8px !important;
+    border-radius: 12px !important;
+    z-index: 1800 !important;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35) !important;
+  }
+
+  .install-banner-icon {
+    font-size: 18px !important;
+  }
+
+  .install-banner-text b {
+    font-size: 12px !important;
+  }
+
+  .install-banner-text span {
+    display: none !important;
+  }
+
+  .install-banner-btn {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+    border-radius: 10px !important;
+  }
+
+  .install-banner-close {
+    width: 22px !important;
+    height: 22px !important;
+  }
+}

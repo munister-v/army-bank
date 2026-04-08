@@ -1648,6 +1648,11 @@ function switchScreen(screenId) {
     appShell.dataset.screen = id;
   }
   $('.bottom-nav')?.classList.remove('nav-hidden');
+  try {
+    window.dispatchEvent(new CustomEvent('ab:screen-changed', { detail: { screen: id } }));
+  } catch (_) {
+    window.dispatchEvent(new Event('ab:screen-changed'));
+  }
 
   if (id === 'transactions') loadTransactionsWithFilters();
   if (id === 'profile')    renderProfileScreen();
@@ -4574,13 +4579,60 @@ var ONBOARDING_STEPS = [
   { icon: '\ud83d\udcca', title: 'Аналітика та захист', text: 'Детальна аналітика, бюджетні ліміти, PIN-захист і звіти. Контролюйте фінанси повністю.' },
 ];
 var _obStep = 0;
+var _obAutoTimer = 0;
+
+function _isOnboardingVisible() {
+  var overlay = $('#onboardingOverlay');
+  if (!overlay) return false;
+  return !overlay.classList.contains('hidden');
+}
+
+function _finishOnboarding(markDone) {
+  var overlay = $('#onboardingOverlay');
+  if (overlay) overlay.classList.add('hidden');
+  if (markDone) {
+    try { localStorage.setItem('army_bank_onboarded', '1'); } catch (_) {}
+  }
+  window.dispatchEvent(new Event('ab:onboarding-visibility'));
+}
+
+function cancelOnboardingAutoShow() {
+  if (_obAutoTimer) {
+    clearTimeout(_obAutoTimer);
+    _obAutoTimer = 0;
+  }
+}
+
+function scheduleOnboardingAutoShow(delayMs) {
+  cancelOnboardingAutoShow();
+  try {
+    if (localStorage.getItem('army_bank_onboarded')) return;
+  } catch (_) {}
+  _obAutoTimer = setTimeout(function() {
+    _obAutoTimer = 0;
+    try {
+      if (localStorage.getItem('army_bank_onboarded')) return;
+    } catch (_) {}
+    if (document.hidden) return;
+    var active = document.querySelector('.screen.active-screen')?.id || $('#appScreen')?.dataset?.screen || 'dashboard';
+    // Do not interrupt users while they are already in sub-screens.
+    if (active !== 'dashboard') return;
+    if (document.documentElement.classList.contains('install-banner-visible')) return;
+    showOnboarding();
+  }, Number(delayMs) || 4200);
+}
 
 function showOnboarding() {
   var overlay = $('#onboardingOverlay');
   if (!overlay) return;
+  if (_isOnboardingVisible()) return;
+  try {
+    if (localStorage.getItem('army_bank_onboarded')) return;
+  } catch (_) {}
   _obStep = 0;
   renderOnboardingStep();
   overlay.classList.remove('hidden');
+  window.dispatchEvent(new Event('ab:onboarding-visibility'));
 }
 
 function renderOnboardingStep() {
@@ -4600,18 +4652,30 @@ function renderOnboardingStep() {
 $('#obNextBtn')?.addEventListener('click', function() {
   _obStep++;
   if (_obStep >= ONBOARDING_STEPS.length) {
-    var overlay = $('#onboardingOverlay');
-    if (overlay) overlay.classList.add('hidden');
-    localStorage.setItem('army_bank_onboarded', '1');
+    _finishOnboarding(true);
   } else {
     renderOnboardingStep();
   }
 });
 
 $('#obSkipBtn')?.addEventListener('click', function() {
-  var overlay = $('#onboardingOverlay');
-  if (overlay) overlay.classList.add('hidden');
-  localStorage.setItem('army_bank_onboarded', '1');
+  _finishOnboarding(true);
+});
+
+$('#onboardingOverlay')?.addEventListener('click', function(e) {
+  if (e.target === e.currentTarget) _finishOnboarding(true);
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && _isOnboardingVisible()) _finishOnboarding(true);
+});
+
+window.addEventListener('ab:screen-changed', function(e) {
+  var screen = e?.detail?.screen || document.querySelector('.screen.active-screen')?.id || '';
+  if (screen && screen !== 'dashboard') {
+    cancelOnboardingAutoShow();
+    if (_isOnboardingVisible()) _finishOnboarding(true);
+  }
 });
 
 // ── Balance CountUp on refresh ───────────────────────────
@@ -4649,9 +4713,7 @@ if (!window._ab_refresh_patched) {
   var _wave5_origHandleAuth = window.handleAuth || handleAuth;
   window.handleAuth = async function(form, endpoint) {
     await _wave5_origHandleAuth(form, endpoint);
-    if (!localStorage.getItem('army_bank_onboarded')) {
-      setTimeout(showOnboarding, 2000);
-    }
+    scheduleOnboardingAutoShow(4200);
   };
 }
 
@@ -4660,10 +4722,55 @@ console.log('[Army Bank] UX core modules loaded');
 // ── A2HS Install Banner ───────────────────────────────────
 (function() {
   var deferredPrompt = null;
+  var canOfferInstall = false;
   var banner = document.getElementById('installBanner');
   var installBtn = document.getElementById('installBtn');
   var dismissBtn = document.getElementById('installDismiss');
   if (!banner) return;
+
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var isInStandalone = ('standalone' in window.navigator) && window.navigator.standalone;
+
+  function getActiveScreenForInstall() {
+    return document.querySelector('.screen.active-screen')?.id || document.getElementById('appScreen')?.dataset?.screen || 'dashboard';
+  }
+
+  function isOnboardingBlockingInstall() {
+    var overlay = document.getElementById('onboardingOverlay');
+    return !!overlay && !overlay.classList.contains('hidden');
+  }
+
+  function setInstallBannerVisible(visible) {
+    banner.classList.toggle('hidden', !visible);
+    document.documentElement.classList.toggle('install-banner-visible', !!visible);
+  }
+
+  function refreshInstallBanner() {
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setInstallBannerVisible(false);
+      return;
+    }
+    if (localStorage.getItem('ab_install_dismissed')) {
+      setInstallBannerVisible(false);
+      return;
+    }
+    if (!canOfferInstall || !api.token) {
+      setInstallBannerVisible(false);
+      return;
+    }
+    if (getActiveScreenForInstall() !== 'dashboard') {
+      setInstallBannerVisible(false);
+      return;
+    }
+    if (isOnboardingBlockingInstall()) {
+      setInstallBannerVisible(false);
+      return;
+    }
+    setInstallBannerVisible(true);
+    if (installBtn) {
+      installBtn.textContent = (isIOS && !isInStandalone && !deferredPrompt) ? '+ Додати' : 'Встановити';
+    }
+  }
 
   // Don't show if already installed or dismissed
   if (window.matchMedia('(display-mode: standalone)').matches) return;
@@ -4672,19 +4779,26 @@ console.log('[Army Bank] UX core modules loaded');
   window.addEventListener('beforeinstallprompt', function(e) {
     e.preventDefault();
     deferredPrompt = e;
-    // Show banner after 3 seconds if not authenticated
+    // Show banner lazily and only on dashboard.
     setTimeout(function() {
-      if (api.token) banner.classList.remove('hidden');
+      canOfferInstall = true;
+      refreshInstallBanner();
     }, 3000);
   });
 
   if (installBtn) {
     installBtn.addEventListener('click', function() {
+      if (isIOS && !isInStandalone && !deferredPrompt) {
+        showToast('Натисніть "Поділитися" → "На головний екран"', '');
+        setInstallBannerVisible(false);
+        localStorage.setItem('ab_install_dismissed', '1');
+        return;
+      }
       if (!deferredPrompt) return;
       deferredPrompt.prompt();
       deferredPrompt.userChoice.then(function(choice) {
         deferredPrompt = null;
-        banner.classList.add('hidden');
+        setInstallBannerVisible(false);
         if (choice.outcome === 'accepted') {
           showToast('Додаток встановлено!', 'success');
         }
@@ -4694,26 +4808,28 @@ console.log('[Army Bank] UX core modules loaded');
 
   if (dismissBtn) {
     dismissBtn.addEventListener('click', function() {
-      banner.classList.add('hidden');
+      setInstallBannerVisible(false);
       localStorage.setItem('ab_install_dismissed', '1');
     });
   }
 
   // iOS Safari install hint
-  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  var isInStandalone = ('standalone' in window.navigator) && window.navigator.standalone;
   if (isIOS && !isInStandalone && !localStorage.getItem('ab_install_dismissed')) {
     setTimeout(function() {
-      if (!api.token) return;
-      if (installBtn) installBtn.textContent = '+ Додати';
-      installBtn.addEventListener('click', function() {
-        showToast('Натисніть "Поділитися" → "На головний екран"', '');
-        banner.classList.add('hidden');
-        localStorage.setItem('ab_install_dismissed', '1');
-      });
-      banner.classList.remove('hidden');
+      canOfferInstall = true;
+      refreshInstallBanner();
     }, 4000);
   }
+
+  window.addEventListener('ab:screen-changed', refreshInstallBanner);
+  window.addEventListener('ab:onboarding-visibility', refreshInstallBanner);
+  window.addEventListener('focus', refreshInstallBanner, { passive: true });
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) refreshInstallBanner();
+  }, { passive: true });
+
+  // Initial post-auth reconciliation.
+  setTimeout(refreshInstallBanner, 1200);
 })();
 
 // ── Pull-to-refresh ───────────────────────────────────────
