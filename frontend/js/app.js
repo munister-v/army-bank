@@ -12,11 +12,34 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 (function initRenderProfile() {
   const root = document.documentElement;
+  const ua = navigator.userAgent || "";
+  const isIOS = /iP(hone|ad|od)/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(ua);
+  const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+  const isFirefox = /Firefox|FxiOS/i.test(ua);
+  const isChromium = !!window.chrome && /Chrome|CriOS|Edg/i.test(ua);
+
+  root.classList.toggle("os-ios", isIOS);
+  root.classList.toggle("os-android", isAndroid);
+  root.classList.toggle("browser-safari", isSafari);
+  root.classList.toggle("browser-firefox", isFirefox);
+  root.classList.toggle("browser-chromium", isChromium);
+
   const cores = Number(navigator.hardwareConcurrency || 0);
   const memory = Number(navigator.deviceMemory || 0);
   const lowEndDevice = (cores > 0 && cores <= 4) || (memory > 0 && memory <= 4);
   root.classList.toggle("render-lite", lowEndDevice);
   root.classList.toggle("render-rich", !lowEndDevice);
+
+  const supportsBackdrop = !!(window.CSS && CSS.supports && (
+    CSS.supports("backdrop-filter: blur(2px)") || CSS.supports("-webkit-backdrop-filter: blur(2px)")
+  ));
+  const supportsContentVisibility = !!(window.CSS && CSS.supports && CSS.supports("content-visibility: auto"));
+  const supportsScrollbarGutter = !!(window.CSS && CSS.supports && CSS.supports("scrollbar-gutter: stable both-edges"));
+
+  root.classList.toggle("no-backdrop-filter", !supportsBackdrop);
+  root.classList.toggle("no-content-visibility", !supportsContentVisibility);
+  root.classList.toggle("no-scrollbar-gutter", !supportsScrollbarGutter);
 
   const syncViewportUnit = () => {
     const vh = (window.visualViewport?.height || window.innerHeight || 0) * 0.01;
@@ -26,6 +49,7 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
   syncViewportUnit();
   window.addEventListener("resize", syncViewportUnit, { passive: true });
   window.visualViewport?.addEventListener("resize", syncViewportUnit, { passive: true });
+  window.addEventListener("orientationchange", syncViewportUnit, { passive: true });
 })();
 
 function showToast(message, type = '') {

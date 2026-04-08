@@ -6453,3 +6453,159 @@ button.btn-primary:active {
     margin-top: 6px !important;
   }
 }
+
+/* ── Cross-browser UI/UX hardening pack ───────────────────────── */
+:root {
+  color-scheme: light;
+}
+
+@supports not (height: 100dvh) {
+  .auth-screen,
+  #appScreen.app-shell {
+    min-height: 100vh !important;
+    height: auto !important;
+  }
+}
+
+/* Reliable keyboard focus for all browsers */
+:where(button, a, input, select, textarea, [role="button"], .nav-item, .qa-btn):focus-visible {
+  outline: 2px solid #2f63d8 !important;
+  outline-offset: 2px !important;
+}
+
+@supports not selector(:focus-visible) {
+  :where(button, a, input, select, textarea, [role="button"], .nav-item, .qa-btn):focus {
+    outline: 2px solid #2f63d8 !important;
+    outline-offset: 2px !important;
+  }
+}
+
+/* Touch ergonomics */
+@media (hover: none) and (pointer: coarse) {
+  .icon-btn,
+  .qa-btn,
+  .nav-item,
+  .menu-btn,
+  .btn-primary,
+  .btn-accent,
+  .btn-ghost,
+  .auth-submit {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+
+  .nav-item,
+  .menu-btn {
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+  }
+}
+
+/* Feature fallbacks driven by JS profile classes */
+.no-backdrop-filter .bottom-nav,
+.no-backdrop-filter .notif-panel,
+.no-backdrop-filter .auth-card,
+.no-backdrop-filter .modal-overlay,
+.no-backdrop-filter .tc-overlay,
+.no-backdrop-filter .tc-sheet {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.no-backdrop-filter .bottom-nav {
+  background: rgba(246, 249, 241, 0.98) !important;
+}
+
+.no-content-visibility #recentTransactions,
+.no-content-visibility #transactionsList,
+.no-content-visibility #donationsList,
+.no-content-visibility #goalsList,
+.no-content-visibility #contactsList,
+.no-content-visibility #securityLogList,
+.no-content-visibility #sessionsList,
+.no-content-visibility .cards-manage-list,
+.no-content-visibility .achievements-grid,
+.no-content-visibility .insights-list {
+  content-visibility: visible !important;
+  contain-intrinsic-size: auto !important;
+}
+
+.no-scrollbar-gutter .app-content {
+  padding-right: 16px !important;
+}
+
+/* Browser/OS specific stability */
+.browser-firefox .app-content {
+  scrollbar-width: thin;
+}
+
+.browser-firefox .bank-cards-track {
+  scrollbar-width: none;
+}
+
+.os-ios .app-content {
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.os-ios #appScreen.screen-dashboard .app-header {
+  padding-bottom: calc(102px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+.os-ios .bottom-nav {
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* Prevent text clipping in very narrow browsers */
+@media (max-width: 380px) {
+  .header-name {
+    font-size: 16px !important;
+  }
+
+  .header-role {
+    font-size: 12px !important;
+  }
+
+  .balance-amount {
+    font-size: clamp(2rem, 11.2vw, 3rem) !important;
+  }
+}
+
+/* Accessibility/contrast modes */
+@media (forced-colors: active) {
+  .bottom-nav,
+  .card,
+  .auth-card,
+  .modal-box,
+  .notif-panel {
+    border: 1px solid CanvasText !important;
+    background: Canvas !important;
+    color: CanvasText !important;
+    box-shadow: none !important;
+  }
+
+  .btn-primary,
+  .btn-accent,
+  .auth-submit,
+  .btn-ghost {
+    border: 1px solid CanvasText !important;
+    background: ButtonFace !important;
+    color: ButtonText !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .card,
+  .auth-card,
+  .modal-box,
+  .notif-panel,
+  .bottom-nav {
+    border-color: rgba(20, 26, 21, 0.35) !important;
+  }
+
+  .muted,
+  .header-role,
+  .balance-label,
+  .qa-label {
+    color: #3c4a3f !important;
+  }
+}
