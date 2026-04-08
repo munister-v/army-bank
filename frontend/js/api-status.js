@@ -82,6 +82,30 @@
     }
   }
 
+  function samplePathValue(name) {
+    const key = String(name || '').toLowerCase();
+    if (!key) return 'sample';
+    if (key.includes('account') && key.includes('number')) return 'AB-100001';
+    if (key.includes('tx_type')) return 'transfer';
+    if (key.includes('report')) return 'standard';
+    if (key.includes('email')) return 'qa@example.com';
+    if (key.includes('phone')) return '380000000000';
+    if (key.includes('id')) return '1';
+    return 'sample';
+  }
+
+  function resolvePathTemplate(path) {
+    let resolved = String(path || '');
+    resolved = resolved.replace(/<([^>]+)>/g, (_, token) => {
+      const name = String(token || '').includes(':')
+        ? String(token).split(':').slice(-1)[0]
+        : String(token || '');
+      return samplePathValue(name);
+    });
+    resolved = resolved.replace(/\{([^}]+)\}/g, (_, name) => samplePathValue(name));
+    return resolved;
+  }
+
   function buildEndpoints(schema) {
     const globalSec = Array.isArray(schema.security) ? schema.security : [];
     const result = [];
@@ -229,7 +253,8 @@
   async function runProbe(ep) {
     const mode = els.mode.value || 'safe';
     const strategy = getStrategy(ep, mode);
-    const url = withBase(ep.path);
+    const runtimePath = resolvePathTemplate(ep.path);
+    const url = withBase(runtimePath);
 
     const headers = {
       Accept: 'application/json, text/plain, */*',

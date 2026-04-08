@@ -12,6 +12,7 @@ from flask import Flask, Response, abort, jsonify, redirect, send_from_directory
 from flask_compress import Compress
 
 from .api_docs import (
+    augment_openapi_with_runtime_routes,
     build_api_catalog,
     build_api_version,
     build_docs_html,
@@ -231,7 +232,9 @@ def create_app() -> Flask:
 
     @app.get(prefix + '/api/openapi.json' if prefix else '/api/openapi.json')
     def api_openapi():
-        return jsonify(build_openapi_schema(prefix))
+        schema = build_openapi_schema(prefix)
+        schema = augment_openapi_with_runtime_routes(schema, app, prefix)
+        return jsonify(schema)
 
     @app.get(prefix + '/api/postman/collection' if prefix else '/api/postman/collection')
     def api_postman_collection():

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import platform
+import re
 from datetime import datetime, timezone
 from html import escape
 
@@ -647,6 +648,129 @@ def build_openapi_schema(prefix: str = '') -> dict:
             },
         },
     }
+
+
+def _is_api_path(path: str) -> bool:
+    return bool(re.match(r'^/api(?:/|$)', path or ''))
+
+
+def _rule_to_openapi_path(rule_path: str, prefix: str = '') -> str:
+    path = str(rule_path or '')
+    pref = prefix or ''
+    if pref and path.startswith(pref):
+        path = path[len(pref):] or '/'
+    if not path.startswith('/'):
+        path = '/' + path
+    # Flask converters: <int:id> -> {id}
+    path = re.sub(r'<(?:[^:<>]+:)?([^<>]+)>', r'{\1}', path)
+    return path
+
+
+def _guess_tag(path: str) -> str:
+    tail = (path or '').removeprefix('/api').strip('/')
+    head = tail.split('/', 1)[0] if tail else ''
+    mapping = {
+        '': 'System',
+        'auth': 'Auth',
+        'accounts': 'Account',
+        'transactions': 'Account',
+        'cards': 'Cards',
+        'admin': 'Admin',
+        'platform': 'Platform',
+        'operator': 'Operator',
+        'push': 'Push',
+        'messenger': 'Messenger',
+        'notifications': 'Features',
+        'budget-limits': 'Features',
+        'recurring-transactions': 'Features',
+        'debts': 'Features',
+        'family-contacts': 'Features',
+        'payment-templates': 'Features',
+        'savings-goals': 'Features',
+        'donations': 'Features',
+        'analytics': 'Features',
+        'audit-logs': 'Features',
+    }
+    return mapping.get(head, 'Features')
+
+
+def _is_public_runtime_endpoint(path: str, method: str) -> bool:
+    pub = {
+        ('GET', '/api'),
+        ('GET', '/api/'),
+        ('GET', '/api/version'),
+        ('GET', '/api/docs'),
+        ('GET', '/api/openapi.json'),
+        ('GET', '/api/postman/collection'),
+        ('GET', '/api/postman/environment'),
+        ('GET', '/api/push/vapid-public-key'),
+        ('POST', '/api/auth/register'),
+        ('POST', '/api/auth/login'),
+    }
+    return (method, path) in pub
+
+
+def _runtime_operation(method: str, path: str) -> dict:
+    tag = _guess_tag(path)
+    op = {
+        'tags': [tag],
+        'summary': f'Auto-discovered {method} {path}',
+        'responses': {
+            '200': {'description': 'Runtime-discovered endpoint.'},
+            '400': {'$ref': '#/components/responses/ErrorResponse'},
+            '401': {'$ref': '#/components/responses/ErrorResponse'},
+            '403': {'$ref': '#/components/responses/ErrorResponse'},
+            '500': {'$ref': '#/components/responses/ErrorResponse'},
+        },
+    }
+    if _is_public_runtime_endpoint(path, method):
+        op['security'] = []
+
+    params = []
+    for name in re.findall(r'\{([^}]+)\}', path):
+        params.append({
+            'name': name,
+            'in': 'path',
+            'required': True,
+            'schema': {'type': 'string'},
+        })
+    if params:
+        op['parameters'] = params
+    return op
+
+
+def augment_openapi_with_runtime_routes(schema: dict, app, prefix: str = '') -> dict:
+    """Доповнює статичну OpenAPI-схему всіма runtime-маршрутами Flask.
+
+    Це знімає ризик, коли нові endpoint-и додані в backend, але ще не внесені
+    вручну в build_openapi_schema().
+    """
+    paths = schema.setdefault('paths', {})
+    tags = schema.setdefault('tags', [])
+    tag_names = {t.get('name') for t in tags if isinstance(t, dict)}
+
+    for rule in app.url_map.iter_rules():
+        methods = sorted((rule.methods or set()) - {'HEAD', 'OPTIONS'})
+        if not methods:
+            continue
+
+        openapi_path = _rule_to_openapi_path(rule.rule, prefix)
+        if not _is_api_path(openapi_path):
+            continue
+
+        path_item = paths.setdefault(openapi_path, {})
+        for method in methods:
+            key = method.lower()
+            if key in path_item:
+                continue
+            op = _runtime_operation(method, openapi_path)
+            path_item[key] = op
+            tag = op['tags'][0]
+            if tag not in tag_names:
+                tags.append({'name': tag})
+                tag_names.add(tag)
+
+    return schema
 
 
 def build_postman_collection(prefix: str = '') -> dict:

@@ -1,3 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body.api-status-page {
   --api-green-900: #0a3f25;
   --api-green-800: #0f5a35;
@@ -14,6 +22,7 @@ body.api-status-page {
   --api-idle: #64748b;
   min-height: 100vh;
   margin: 0;
+  font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--api-ink);
   background:
     radial-gradient(900px 300px at 8% 0%, rgba(255, 210, 120, 0.2), transparent 60%),
