@@ -1,5 +1,5 @@
-/* Army Bank — Service Worker v54 */
-const CACHE = 'army-bank-v54';
+/* Army Bank — Service Worker v55 */
+const CACHE = 'army-bank-v55';
 
 /* Keep precache minimal to reduce stale-asset risk */
 const PRECACHE = [

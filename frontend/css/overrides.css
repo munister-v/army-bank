@@ -2787,7 +2787,7 @@ textarea:focus,
 /* ╔══════════════════════════════════════════════════════════════╗
    ║  DESKTOP LAYOUT ≥960px — справжній sidebar, не phone frame   ║
    ╚══════════════════════════════════════════════════════════════╝ */
-@media (min-width: 960px) {
+@media (min-width: 960px) and (max-width: 1199px) {
 
   /* Body: нейтральний фон */
   body {
@@ -4895,17 +4895,15 @@ body {
   background: rgba(255,255,255,.20) !important;
 }
 
-/* ── 5. НАВБАР — frosted glass, без кольорів ────────────
-   iOS-стиль: єдина прозора поверхня
-   ─────────────────────────────────────────────────────── */
-.bottom-nav {
-  background: rgba(242,244,241,.88) !important;
-  backdrop-filter: saturate(200%) blur(24px) !important;
-  -webkit-backdrop-filter: saturate(200%) blur(24px) !important;
-  border-top: 0.5px solid rgba(0,0,0,.08) !important;
-  box-shadow: none !important;
-}
+/* ── 5. НАВБАР — frosted glass, без кольорів (mobile only) ───── */
 @media (max-width: 959px) {
+  .bottom-nav {
+    background: rgba(242,244,241,.88) !important;
+    backdrop-filter: saturate(200%) blur(24px) !important;
+    -webkit-backdrop-filter: saturate(200%) blur(24px) !important;
+    border-top: 0.5px solid rgba(0,0,0,.08) !important;
+    box-shadow: none !important;
+  }
   .nav-item svg { stroke: #94a39a !important; }
   .nav-item .nav-label { color: #94a39a !important; font-weight: 500 !important; }
   .nav-item.active {
@@ -5200,50 +5198,51 @@ h2, h1 {
   opacity: 1 !important;
 }
 
-/* ── ШВИДКІ ДІЇ: іконки прямо на темному, без боксів ─── */
-.quick-actions {
-  padding: 4px 0 8px !important;
-  gap: 0 !important;
-}
-.quick-actions .qa-btn {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  padding: 8px 4px 10px !important;
-  gap: 7px !important;
-  transition: opacity .15s !important;
-}
-.quick-actions .qa-btn:active { opacity: .6 !important; transform: none !important; }
+/* ── ШВИДКІ ДІЇ: mobile-only style ──────────────────────── */
+@media (max-width: 959px) {
+  .quick-actions {
+    padding: 4px 0 8px !important;
+    gap: 0 !important;
+  }
+  .quick-actions .qa-btn {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 8px 4px 10px !important;
+    gap: 7px !important;
+    transition: opacity .15s !important;
+  }
+  .quick-actions .qa-btn:active { opacity: .6 !important; transform: none !important; }
 
-/* Іконки: тонке коло-обведення замість залитого квадрата */
-.quick-actions .qa-icon,
-#dashboard .quick-actions .qa-icon {
-  width: 48px !important;
-  height: 48px !important;
-  border-radius: 999px !important;
-  background: rgba(255,255,255,.10) !important;
-  border: 1.5px solid rgba(255,255,255,.18) !important;
-  box-shadow: none !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-.quick-actions .qa-icon svg {
-  stroke: rgba(255,255,255,.85) !important;
-  width: 20px !important;
-  height: 20px !important;
-}
-.quick-actions .qa-label,
-#dashboard .quick-actions .qa-label {
-  font-size: 10.5px !important;
-  font-weight: 500 !important;
-  color: rgba(255,255,255,.55) !important;
-  text-transform: none !important;
-  letter-spacing: 0 !important;
-  line-height: 1.2 !important;
-  width: 100% !important;
+  .quick-actions .qa-icon,
+  #dashboard .quick-actions .qa-icon {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 999px !important;
+    background: rgba(255,255,255,.10) !important;
+    border: 1.5px solid rgba(255,255,255,.18) !important;
+    box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .quick-actions .qa-icon svg {
+    stroke: rgba(255,255,255,.85) !important;
+    width: 20px !important;
+    height: 20px !important;
+  }
+  .quick-actions .qa-label,
+  #dashboard .quick-actions .qa-label {
+    font-size: 10.5px !important;
+    font-weight: 500 !important;
+    color: rgba(255,255,255,.55) !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    line-height: 1.2 !important;
+    width: 100% !important;
+  }
 }
 
 /* ── КАРТКИ: мінімалістська білосніжна поверхня ─────────
@@ -5285,45 +5284,44 @@ h2, h1 {
   padding: 0 !important;
 }
 
-/* ── НАВБАР: повністю переосмислений ───────────────────── */
-.bottom-nav {
-  background: rgba(255,255,255,.92) !important;
-  backdrop-filter: saturate(180%) blur(20px) !important;
-  -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
-  border-top: 1px solid rgba(0,0,0,.07) !important;
-  box-shadow: none !important;
-  padding: 10px 8px 16px !important;
-  gap: 0 !important;
-  /* Фікс: top перебиває bottom — явно скидаємо */
-  top: auto !important;
-  bottom: 8px !important;
-  left: 10px !important;
-  right: 10px !important;
-}
-.nav-item {
-  flex: 1 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  gap: 4px !important;
-  padding: 6px 2px 4px !important;
-  border-radius: 12px !important;
-  background: transparent !important;
-  transition: background .12s !important;
-}
-.nav-item svg {
-  stroke: #9aa39e !important;
-  width: 22px !important;
-  height: 22px !important;
-  stroke-width: 1.8 !important;
-}
-.nav-label {
-  font-size: 10px !important;
-  font-weight: 500 !important;
-  color: #9aa39e !important;
-  letter-spacing: .01em !important;
-}
+/* ── НАВБАР: mobile-only redesign ───────────────────────── */
 @media (max-width: 959px) {
+  .bottom-nav {
+    background: rgba(255,255,255,.92) !important;
+    backdrop-filter: saturate(180%) blur(20px) !important;
+    -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+    border-top: 1px solid rgba(0,0,0,.07) !important;
+    box-shadow: none !important;
+    padding: 10px 8px 16px !important;
+    gap: 0 !important;
+    top: auto !important;
+    bottom: 8px !important;
+    left: 10px !important;
+    right: 10px !important;
+  }
+  .nav-item {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 6px 2px 4px !important;
+    border-radius: 12px !important;
+    background: transparent !important;
+    transition: background .12s !important;
+  }
+  .nav-item svg {
+    stroke: #9aa39e !important;
+    width: 22px !important;
+    height: 22px !important;
+    stroke-width: 1.8 !important;
+  }
+  .nav-label {
+    font-size: 10px !important;
+    font-weight: 500 !important;
+    color: #9aa39e !important;
+    letter-spacing: .01em !important;
+  }
   .nav-item.active {
     background: transparent !important;
   }
@@ -5429,13 +5427,15 @@ button.btn-ghost[type="submit"] {
 
 /* ── ANDROID: Safe Area (gesture nav bar) ──────────────────────
    env() підтримується в Android Chrome 69+                      */
-.bottom-nav {
-  padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
-}
-.app-content,
-.page-content,
-main {
-  padding-bottom: max(80px, calc(64px + env(safe-area-inset-bottom))) !important;
+@media (max-width: 959px) {
+  .bottom-nav {
+    padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+  }
+  .app-content,
+  .page-content,
+  main {
+    padding-bottom: max(80px, calc(64px + env(safe-area-inset-bottom))) !important;
+  }
 }
 
 /* ── TOUCH: прибираємо 300ms затримку ──────────────────────────*/
@@ -5467,9 +5467,11 @@ body, html {
 /* ── ANDROID: GPU-compositing тільки для навбару ───────────────
    УВАГА: transform на .app-header ламає position:fixed дітей!
    translateZ тільки на самому nav                              */
-.bottom-nav {
-  transform: translateZ(0) !important;
-  will-change: transform !important;
+@media (max-width: 959px) {
+  .bottom-nav {
+    transform: translateZ(0) !important;
+    will-change: transform !important;
+  }
 }
 /* app-header — БЕЗ transform (інакше nav буде відносним до нього) */
 
@@ -5581,7 +5583,7 @@ input[type="number"] {
 }
 
 /* ── НАЛШТУВАННЯ ДЕСКТОПА (виправлення overrides) ──────── */
-@media (min-width: 768px) {
+@media (min-width: 768px) and (max-width: 959px) {
   #appScreen.app-shell {
     flex-direction: row !important;
     background: #1c261e !important; /* Глибокий благородний темний зелений сайдбмару */
@@ -6027,7 +6029,7 @@ button.btn-primary:active {
    ║  DESKTOP OVERRIDES — найвищий пріоритет (кінець файлу)       ║
    ╚══════════════════════════════════════════════════════════════╝ */
 
-@media (min-width: 960px) {
+@media (min-width: 960px) and (max-width: 1199px) {
   /* Quick actions — 2×2 у сайдбарі (перебиває repeat(4,...)) */
   .quick-actions,
   #dashboard .quick-actions {
@@ -6270,7 +6272,7 @@ button.btn-primary:active {
 }
 
 /* ── Desktop visual stability patch ───────────────────────────── */
-@media (min-width: 960px) {
+@media (min-width: 960px) and (max-width: 1199px) {
   body {
     overflow: hidden !important;
   }
@@ -6506,7 +6508,7 @@ html.no-animations .app-content {
   }
 }
 
-@media (min-width: 960px) {
+@media (min-width: 960px) and (max-width: 1199px) {
   .bank-cards-carousel {
     margin-bottom: 10px !important;
   }
