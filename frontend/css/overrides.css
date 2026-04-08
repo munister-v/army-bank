@@ -47,7 +47,144 @@ html,
 body {
   background: var(--mono-bg) !important;
   color: var(--mono-text) !important;
-  touch-action: manipulation !important; /* disable double-tap zoom in PWA */
+  touch-action: manipulation !important;
+  /* ── Scroll & overflow lockdown ── */
+  overflow-x: hidden !important;
+  overscroll-behavior: none !important;
+  -webkit-overflow-scrolling: touch !important;
+  scroll-behavior: smooth !important;
+}
+
+/* ── Global: prevent ANY horizontal scroll leakage ─────────── */
+#appScreen,
+#appScreen.app-shell {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+
+/* ── Smooth scroll on all scrollable containers ────────────── */
+.app-content,
+.app-header,
+.bank-cards-track,
+.tx-list,
+.modal-body,
+.bottom-sheet .sheet-body {
+  scroll-behavior: smooth !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior-y: contain !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CARD ANIMATIONS — entrance, hover, shimmer
+   ═══════════════════════════════════════════════════════════ */
+
+/* Entrance — cards fade in + slide up on page load */
+@keyframes cardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.bank-card {
+  animation: cardEntrance 0.5s cubic-bezier(0.22, 0.68, 0, 1.1) both !important;
+}
+.bank-card:nth-child(2) { animation-delay: 0.08s !important; }
+.bank-card:nth-child(3) { animation-delay: 0.16s !important; }
+
+/* Hover lift — subtle 3D lift on desktop */
+@media (hover: hover) {
+  .bank-card {
+    transition: transform 0.28s cubic-bezier(0.22, 0.68, 0, 1.1),
+                box-shadow 0.28s ease !important;
+  }
+  .bank-card:hover {
+    transform: translateY(-4px) !important;
+    box-shadow:
+      0 12px 32px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+  }
+  .bank-card:active {
+    transform: scale(0.98) !important;
+    transition-duration: 0.1s !important;
+  }
+}
+
+/* Gold shimmer — sweeping highlight on .bank-card-gold */
+@keyframes goldShimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.bank-card-gold .bank-card-front::before {
+  background: linear-gradient(
+    105deg,
+    rgba(255,230,120,0) 0%,
+    rgba(255,230,120,0.18) 40%,
+    rgba(255,255,255,0.22) 50%,
+    rgba(255,230,120,0.18) 60%,
+    rgba(255,230,120,0) 100%
+  ) !important;
+  background-size: 200% 100% !important;
+  animation: goldShimmer 4s ease-in-out infinite !important;
+  border-radius: 20px !important;
+  inset: 0 !important;
+  position: absolute !important;
+  content: '' !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+}
+
+/* Quick-action button entrance stagger */
+@keyframes qaFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.qa-btn {
+  animation: qaFadeIn 0.35s cubic-bezier(0.22, 0.68, 0, 1.1) both !important;
+}
+.qa-btn:nth-child(1) { animation-delay: 0.12s !important; }
+.qa-btn:nth-child(2) { animation-delay: 0.18s !important; }
+.qa-btn:nth-child(3) { animation-delay: 0.24s !important; }
+.qa-btn:nth-child(4) { animation-delay: 0.30s !important; }
+
+/* Balance number pulse on load */
+@keyframes balancePulse {
+  0%   { opacity: 0; transform: scale(0.92); }
+  60%  { opacity: 1; transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+.balance-amount {
+  animation: balancePulse 0.6s cubic-bezier(0.22, 0.68, 0, 1.1) 0.1s both !important;
+}
+
+/* ── Content cards entrance (dashboard widgets) ──────────── */
+@keyframes widgetSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.app-content .card,
+.app-content .stat-card,
+.app-content .exchange-card {
+  animation: widgetSlideUp 0.4s cubic-bezier(0.22, 0.68, 0, 1.1) both !important;
+}
+.app-content .card:nth-child(1) { animation-delay: 0.05s !important; }
+.app-content .card:nth-child(2) { animation-delay: 0.10s !important; }
+.app-content .card:nth-child(3) { animation-delay: 0.15s !important; }
+.app-content .card:nth-child(4) { animation-delay: 0.20s !important; }
+
+/* Carousel dots — scale pulse on active */
+.bc-dot.active {
+  animation: dotPulse 0.3s cubic-bezier(0.22, 0.68, 0, 1.1) !important;
+}
+@keyframes dotPulse {
+  0%   { transform: scale(0.7); }
+  60%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
 }
 
 #appScreen .screen {
