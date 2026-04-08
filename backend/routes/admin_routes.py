@@ -8,6 +8,7 @@ from flask import Blueprint, jsonify, request, g
 from ..config import (
     CRITICAL_ADMIN_MUTATION_RATE_LIMIT,
     CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+    USE_PG,
 )
 from ..repositories.account_repository import AccountRepository
 from ..repositories.feature_repository import FeatureRepository
@@ -127,6 +128,14 @@ def update_user_role(user_id: int):
 def get_stats():
     """Зведена статистика для дешборду адмінки."""
     try:
+        if USE_PG:
+            month_start_expr = "date_trunc('month', NOW())"
+            today_expr = "CURRENT_DATE"
+        else:
+            # SQLite-compatible date expressions.
+            month_start_expr = "DATE('now', 'start of month')"
+            today_expr = "DATE('now')"
+
         with get_connection() as conn:
             total_users   = conn.execute('SELECT COUNT(*) as n FROM users').fetchone()['n']
             total_balance = conn.execute('SELECT COALESCE(SUM(balance),0) as s FROM accounts').fetchone()['s']
@@ -134,19 +143,19 @@ def get_stats():
             total_payouts = conn.execute("SELECT COALESCE(SUM(amount),0) as s FROM transactions WHERE tx_type='payout' AND direction='in'").fetchone()['s']
             total_donations = conn.execute('SELECT COALESCE(SUM(amount),0) as s FROM donations').fetchone()['s']
             net_flow_month = conn.execute(
-                """SELECT
+                f"""SELECT
                     COALESCE(SUM(CASE WHEN direction='in'  THEN amount ELSE 0 END),0) -
                     COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END),0) as net
                    FROM transactions
-                   WHERE created_at >= date_trunc('month', NOW())"""
+                   WHERE created_at >= {month_start_expr}"""
             ).fetchone()
             new_users_today = conn.execute(
-                "SELECT COUNT(*) as n FROM users WHERE DATE(created_at) = CURRENT_DATE"
+                f"SELECT COUNT(*) as n FROM users WHERE DATE(created_at) = {today_expr}"
             ).fetchone()
             active_today = conn.execute(
-                """SELECT COUNT(DISTINCT a.user_id) as n FROM transactions t
+                f"""SELECT COUNT(DISTINCT a.user_id) as n FROM transactions t
                    JOIN accounts a ON a.id = t.account_id
-                   WHERE DATE(t.created_at) = CURRENT_DATE"""
+                   WHERE DATE(t.created_at) = {today_expr}"""
             ).fetchone()
             by_role = conn.execute(
                 "SELECT role, COUNT(*) as cnt FROM users GROUP BY role"
