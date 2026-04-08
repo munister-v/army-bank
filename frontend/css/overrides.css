@@ -2774,7 +2774,6 @@ textarea:focus,
     overflow-y: hidden !important;
   }
 
-  /* App shell — горизонтальний flex, на весь екран */
   #appScreen.app-shell {
     width: 100% !important;
     max-width: 100% !important;
@@ -2782,7 +2781,9 @@ textarea:focus,
     border-radius: 0 !important;
     box-shadow: none !important;
     min-height: 100vh !important;
+    min-height: 100dvh !important;
     height: 100vh !important;
+    height: 100dvh !important;
     overflow: hidden !important;
     display: flex !important;
     flex-direction: row !important;
@@ -2923,7 +2924,8 @@ textarea:focus,
     flex: 1 !important;
     min-width: 0 !important;
     height: 100vh !important;
-    overflow-y: auto !important;
+    height: 100dvh !important;
+    overflow-y: scroll !important; /* Force scrollbar to prevent layout shifts */
     overflow-x: hidden !important;
     padding: 36px 48px 48px !important;
     background: #eceee9 !important;
@@ -4383,14 +4385,16 @@ button.btn-ghost:last-child {
   letter-spacing: -0.02em !important;
 }
 
-/* 13. Bottom nav — активна іконка та текст зелені */
-.nav-item.active svg {
-  stroke: var(--mono-blue-top) !important;
-  color: var(--mono-blue-top) !important;
-}
-.nav-item.active .nav-label {
-  color: var(--mono-blue-top) !important;
-  font-weight: 700 !important;
+/* 13. Bottom nav — активна іконка та текст зелені (тільки мобілка) */
+@media (max-width: 959px) {
+  .nav-item.active svg {
+    stroke: var(--mono-blue-top) !important;
+    color: var(--mono-blue-top) !important;
+  }
+  .nav-item.active .nav-label {
+    color: var(--mono-blue-top) !important;
+    font-weight: 700 !important;
+  }
 }
 .nav-item {
   border-radius: 14px !important;
@@ -4880,13 +4884,15 @@ body {
   border-top: 0.5px solid rgba(0,0,0,.08) !important;
   box-shadow: none !important;
 }
-.nav-item svg { stroke: #94a39a !important; }
-.nav-item .nav-label { color: #94a39a !important; font-weight: 500 !important; }
-.nav-item.active {
-  background: transparent !important;
+@media (max-width: 959px) {
+  .nav-item svg { stroke: #94a39a !important; }
+  .nav-item .nav-label { color: #94a39a !important; font-weight: 500 !important; }
+  .nav-item.active {
+    background: transparent !important;
+  }
+  .nav-item.active svg { stroke: #1a2e20 !important; }
+  .nav-item.active .nav-label { color: #1a2e20 !important; font-weight: 700 !important; }
 }
-.nav-item.active svg { stroke: #1a2e20 !important; }
-.nav-item.active .nav-label { color: #1a2e20 !important; font-weight: 700 !important; }
 
 /* ── 6. ТИПОГРАФІКА — ієрархія через weight і розмір ────
    Правило: h → 700+ чорний, body → 400–500 темно-сірий,
@@ -5296,11 +5302,13 @@ h2, h1 {
   color: #9aa39e !important;
   letter-spacing: .01em !important;
 }
-.nav-item.active {
-  background: transparent !important;
+@media (max-width: 959px) {
+  .nav-item.active {
+    background: transparent !important;
+  }
+  .nav-item.active svg { stroke: #1a2e20 !important; stroke-width: 2.2 !important; }
+  .nav-item.active .nav-label { color: #1a2e20 !important; font-weight: 700 !important; }
 }
-.nav-item.active svg { stroke: #1a2e20 !important; stroke-width: 2.2 !important; }
-.nav-item.active .nav-label { color: #1a2e20 !important; font-weight: 700 !important; }
 
 /* ── ТІЛО СТОРІНКИ: чиста нейтральна поверхня ─────────── */
 body {
@@ -5605,21 +5613,47 @@ input[type="number"] {
   .nav-item {
     flex-direction: row !important;
     justify-content: flex-start !important;
-    padding: 10px 12px !important;
+    padding: 11px 16px !important;
     background: transparent !important;
     min-height: 40px !important;
     opacity: 1 !important;
+    border-radius: 12px !important;
+    border-left: 3px solid transparent !important;
+    transition: background .18s !important;
+  }
+  .nav-item:hover {
+    background: rgba(255,255,255,.08) !important;
   }
   .nav-item.active {
-    background: rgba(255,255,255,0.1) !important;
+    background: rgba(255,255,255,0.12) !important;
+    border-left-color: #6bd47c !important;
   }
   .nav-item .nav-label {
     display: inline !important;
-    font-size: 12px !important;
-    color: #fff !important;
+    font-size: 14px !important;
+    color: rgba(255,255,255,.7) !important;
     font-weight: 500 !important;
+    transition: color .18s !important;
+  }
+  .nav-item:hover .nav-label {
+    color: rgba(255,255,255,.95) !important;
+  }
+  .nav-item.active .nav-label {
+    color: #fff !important;
+    font-weight: 700 !important;
   }
   .nav-item svg {
+    color: rgba(255,255,255,.7) !important;
+    stroke: rgba(255,255,255,.7) !important;
+    width: 20px !important;
+    height: 20px !important;
+    transition: opacity .18s !important;
+  }
+  .nav-item:hover svg {
+    color: #fff !important;
+    stroke: #fff !important;
+  }
+  .nav-item.active svg {
     color: #fff !important;
     stroke: #fff !important;
   }
