@@ -1,125 +1,135 @@
-/* Army Bank — Service Worker v35 */
-const CACHE = 'army-bank-v36';
+/* Army Bank — Service Worker v39 */
+const CACHE = 'army-bank-v40';
 
-/* Assets to pre-cache on install */
+/* Keep precache minimal to reduce stale-asset risk */
 const PRECACHE = [
-  '/css/styles.css?v=31',
-  '/css/overrides.css?v=41',
-  '/manifest.json?v=2',
-  '/js/api.js?v=2',
-  '/js/app.js?v=54',
+  '/offline.html',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
-  '/offline.html',
 ];
 
-/* ── Install: pre-cache assets, skip waiting immediately ── */
-self.addEventListener('install', e => {
+function asNoStore(request) {
+  return new Request(request, { cache: 'no-store' });
+}
+
+function isStaticCodeOrManifest(pathname) {
+  return pathname.endsWith('.css')
+    || pathname.endsWith('.js')
+    || pathname.endsWith('.mjs')
+    || pathname.endsWith('/manifest.json');
+}
+
+self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => c.addAll(PRECACHE.map(url => new Request(url, { cache: 'reload' }))))
+      .then((cache) => cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
 
-/* ── Activate: wipe old caches, claim all clients ── */
-self.addEventListener('activate', e => {
+self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(
-        keys.filter(k => k !== CACHE).map(k => caches.delete(k))
-      ))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
-      .then(() => {
-        return self.clients.matchAll({ type: 'window' }).then(clients => {
-          clients.forEach(c => c.postMessage({ type: 'SW_UPDATED' }));
-        });
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then((clients) => {
+        clients.forEach((client) => client.postMessage({ type: 'SW_UPDATED' }));
       })
   );
 });
 
-/* ── Fetch ── */
-self.addEventListener('fetch', e => {
+self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
 
   if (e.request.method !== 'GET') return;
 
-  // Bypass API calls and push subscriptions
+  // Never proxy API/push in SW.
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/push')) return;
 
-  // Bypass external backends (Render)
+  // Ignore external backend origin directly.
   if (url.hostname.includes('onrender.com')) return;
 
-  // Google Fonts — cache-first (rarely change)
-  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com' || url.pathname.endsWith('.woff2')) {
-    e.respondWith(
-      caches.match(e.request).then(hit => hit || fetch(e.request).then(res => {
-        const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, clone));
-        return res;
-      }))
-    );
-    return;
-  }
-
-  // HTML navigation — network-first, offline fallback to cached /
-  if (e.request.mode === 'navigate') {
-    e.respondWith(
-      fetch(e.request)
-        .then(res => {
-          if (res.ok) {
-            caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-          }
-          return res;
-        })
-        .catch(() => caches.match(e.request).then(hit => hit || caches.match('/offline.html')))
-    );
-    return;
-  }
-
-  // Icons — cache-first (static assets, never change)
-  if (url.pathname.startsWith('/icons/')) {
-    e.respondWith(
-      caches.match(e.request).then(hit => hit || fetch(e.request).then(res => {
-        if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-        return res;
-      }))
-    );
-    return;
-  }
-
-  // CSS / JS / manifest — network-first to surface new versions immediately.
+  // Google Fonts: cache-first.
   if (
-    url.pathname.endsWith('.css')
-    || url.pathname.endsWith('.js')
-    || url.pathname.endsWith('/manifest.json')
+    url.hostname === 'fonts.googleapis.com'
+    || url.hostname === 'fonts.gstatic.com'
+    || url.pathname.endsWith('.woff2')
   ) {
     e.respondWith(
-      fetch(e.request).then(res => {
-        if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+      caches.match(e.request).then((hit) => hit || fetch(e.request).then((res) => {
+        const clone = res.clone();
+        caches.open(CACHE).then((cache) => cache.put(e.request, clone));
         return res;
-      }).catch(() =>
-        caches.match(e.request).then(hit => hit || caches.match('/'))
-      )
+      }))
     );
     return;
   }
 
-  // Default for other same-origin assets — stale-while-revalidate.
-  e.respondWith(
-    caches.open(CACHE).then(async cache => {
-      const cached = await cache.match(e.request);
-      const fetchPromise = fetch(e.request).then(res => {
-        if (res.ok) cache.put(e.request, res.clone());
+  // App navigations: always try fresh HTML first (no-store).
+  if (e.request.mode === 'navigate') {
+    e.respondWith((async () => {
+      try {
+        const fresh = await fetch(asNoStore(e.request));
+        if (fresh && fresh.ok) {
+          const cache = await caches.open(CACHE);
+          cache.put(e.request, fresh.clone());
+        }
+        return fresh;
+      } catch (_) {
+        const cached = await caches.match(e.request);
+        return cached || caches.match('/offline.html');
+      }
+    })());
+    return;
+  }
+
+  // Icons: cache-first (stable assets).
+  if (url.pathname.startsWith('/icons/')) {
+    e.respondWith(
+      caches.match(e.request).then((hit) => hit || fetch(e.request).then((res) => {
+        if (res.ok) caches.open(CACHE).then((cache) => cache.put(e.request, res.clone()));
         return res;
-      }).catch(() => cached);
-      return cached || fetchPromise;
-    })
-  );
+      }))
+    );
+    return;
+  }
+
+  // CSS/JS/manifest: network-first + no-store to avoid stale bundles.
+  if (url.origin === self.location.origin && isStaticCodeOrManifest(url.pathname)) {
+    e.respondWith((async () => {
+      try {
+        const fresh = await fetch(asNoStore(e.request));
+        if (fresh && fresh.ok) {
+          const cache = await caches.open(CACHE);
+          cache.put(e.request, fresh.clone());
+        }
+        return fresh;
+      } catch (_) {
+        const cached = await caches.match(e.request);
+        return cached || Response.error();
+      }
+    })());
+    return;
+  }
+
+  // Default: stale-while-revalidate for other same-origin assets.
+  e.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    const cached = await cache.match(e.request);
+
+    const update = fetch(e.request)
+      .then((res) => {
+        if (res && res.ok) cache.put(e.request, res.clone());
+        return res;
+      })
+      .catch(() => cached);
+
+    return cached || update;
+  })());
 });
 
-/* ── Push: show notification ── */
-self.addEventListener('push', e => {
+self.addEventListener('push', (e) => {
   let data = { title: 'Army Bank', body: 'Нове повідомлення', url: '/dashboard', type: 'default' };
   try { if (e.data) data = { ...data, ...e.data.json() }; } catch (_) {}
 
@@ -138,27 +148,25 @@ self.addEventListener('push', e => {
     ],
   };
 
-  e.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
+  e.waitUntil(self.registration.showNotification(data.title, options));
 });
 
-/* ── Notification click ── */
-self.addEventListener('notificationclick', e => {
+self.addEventListener('notificationclick', (e) => {
   e.notification.close();
-
   if (e.action === 'dismiss') return;
 
   const target = e.notification.data?.url || '/dashboard';
   e.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-      const existing = list.find(c => {
-        try { return new URL(c.url).origin === self.location.origin; } catch { return false; }
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      const existing = list.find((client) => {
+        try { return new URL(client.url).origin === self.location.origin; }
+        catch { return false; }
       });
+
       if (existing) {
-        return existing.focus().then(w => {
-          try { w.navigate(target); } catch (_) {}
-          return w;
+        return existing.focus().then((client) => {
+          try { client.navigate(target); } catch (_) {}
+          return client;
         });
       }
       return clients.openWindow(target);
@@ -166,7 +174,6 @@ self.addEventListener('notificationclick', e => {
   );
 });
 
-/* ── Message from page ── */
-self.addEventListener('message', e => {
+self.addEventListener('message', (e) => {
   if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });

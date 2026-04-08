@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ARM Bank">
-  <link rel="manifest" href="/manifest.json?v=2">
+  <link rel="manifest" href="/manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png">
@@ -42,17 +42,17 @@
     .app-loading #heroBalance,.app-loading #userName,.app-loading #heroAccount{animation:ab-shimmer 1.3s ease-in-out infinite}
   </style>
   <!-- Both stylesheets async (non-blocking) — critical CSS above prevents FOUC -->
-  <link rel="stylesheet" href="/css/styles.css?v=32" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/styles.css?v=32"></noscript>
-  <link rel="stylesheet" href="/css/overrides.css?v=51" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/overrides.css?v=51"></noscript>
+  <link rel="stylesheet" href="/css/styles.css" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/styles.css"></noscript>
+  <link rel="stylesheet" href="/css/overrides.css" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/overrides.css"></noscript>
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
-  <link rel="preload" href="/js/api.js?v=2" as="script">
-  <link rel="preload" href="/js/app.js?v=54" as="script">
+  <link rel="preload" href="/js/api.js" as="script">
+  <link rel="preload" href="/js/app.js" as="script">
   <!-- Build version check + instant auth state + server wake-up -->
   <script>
     (function(){
-      var BUILD = '54';
+      var BUILD = String(Date.parse(document.lastModified) || Date.now());
       try {
         var stored = localStorage.getItem('ab_build');
         if (stored && stored !== BUILD) {
@@ -1488,9 +1488,9 @@
   <!-- Confetti canvas -->
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
-  <script src="/js/api.js?v=2" defer></script>
-  <script src="/js/app.js?v=54" defer></script>
-  <script src="/js/overrides.js?v=1" defer></script>
+  <script src="/js/api.js" defer></script>
+  <script src="/js/app.js" defer></script>
+  <script src="/js/overrides.js" defer></script>
 
   <!-- Transfer confirmation bottom sheet -->
   <div id="transferConfirmOverlay" class="tc-overlay hidden" role="dialog" aria-modal="true">

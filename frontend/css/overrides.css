@@ -6095,3 +6095,337 @@ button.btn-primary:active {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ── PWA visual stability patch (mobile) ───────────────────────── */
+@media (max-width: 959px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden !important;
+  }
+
+  #appScreen.app-shell {
+    min-height: 100dvh !important;
+    height: auto !important;
+    overflow: hidden !important;
+  }
+
+  .app-header,
+  .app-content,
+  .header-user,
+  .header-info {
+    min-width: 0 !important;
+  }
+
+  .header-top {
+    gap: 8px !important;
+  }
+
+  .header-info {
+    max-width: calc(100vw - 190px) !important;
+  }
+
+  .bank-cards-carousel {
+    overflow: hidden !important;
+  }
+
+  .bank-cards-track {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overscroll-behavior-x: contain !important;
+  }
+
+  .quick-actions {
+    width: 100% !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+  }
+
+  .quick-actions .qa-btn,
+  #dashboard .quick-actions .qa-btn {
+    min-width: 0 !important;
+  }
+
+  .quick-actions .qa-label,
+  #dashboard .quick-actions .qa-label {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Keep bottom nav geometry stable with safe area (no squeezed icons). */
+  .bottom-nav {
+    left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
+    height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 0 8px env(safe-area-inset-bottom, 0px) !important;
+    align-items: stretch !important;
+  }
+
+  /* Generic safe-area rule above should not override tab-bar internals. */
+  .bottom-nav,
+  [class*="bottom-nav"] {
+    --bottom-pad: 0px !important;
+  }
+
+  .nav-item,
+  .menu-btn {
+    min-width: 0 !important;
+    justify-content: center !important;
+  }
+
+  .nav-item span,
+  .menu-btn span {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .app-content {
+    padding-left: max(14px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(14px, env(safe-area-inset-right, 0px)) !important;
+    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important;
+    overscroll-behavior-y: contain !important;
+  }
+
+  .notif-panel {
+    left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .modal-overlay {
+    padding:
+      max(12px, env(safe-area-inset-top, 0px))
+      max(12px, env(safe-area-inset-right, 0px))
+      max(12px, env(safe-area-inset-bottom, 0px))
+      max(12px, env(safe-area-inset-left, 0px)) !important;
+  }
+
+  .tc-overlay {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  .tc-sheet {
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px)) !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .header-info {
+    max-width: calc(100vw - 180px) !important;
+  }
+
+  .balance-amount {
+    font-size: clamp(2.25rem, 12.2vw, 3.3rem) !important;
+  }
+
+  .qa-label {
+    font-size: 10px !important;
+    letter-spacing: 0.01em !important;
+    text-transform: none !important;
+  }
+
+  .nav-item,
+  .menu-btn {
+    font-size: 11px !important;
+    padding: 7px 2px 8px !important;
+  }
+
+  .notif-panel {
+    max-height: min(62vh, 500px) !important;
+  }
+}
+
+/* ── Desktop visual stability patch ───────────────────────────── */
+@media (min-width: 960px) {
+  body {
+    overflow: hidden !important;
+  }
+
+  #appScreen.app-shell {
+    display: flex !important;
+    flex-direction: row !important;
+    min-height: 100dvh !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  .app-header {
+    width: 300px !important;
+    min-width: 300px !important;
+    height: 100dvh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 20px 18px 14px !important;
+  }
+
+  .header-info {
+    max-width: calc(300px - 120px) !important;
+  }
+
+  .bank-cards-track {
+    overflow-x: auto !important;
+    padding-bottom: 10px !important;
+  }
+
+  .bank-cards-track .bank-card {
+    max-height: none !important;
+    aspect-ratio: 85.6 / 54 !important;
+  }
+
+  .quick-actions,
+  #dashboard .quick-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    padding: 8px 0 0 !important;
+  }
+
+  .quick-actions .qa-btn {
+    padding: 12px 8px !important;
+    min-height: 84px !important;
+  }
+
+  .quick-actions .qa-label,
+  #dashboard .quick-actions .qa-label {
+    font-size: 11px !important;
+    color: rgba(255, 255, 255, 0.88) !important;
+    letter-spacing: 0.01em !important;
+    text-transform: none !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+  }
+
+  .bottom-nav {
+    position: sticky !important;
+    bottom: 0 !important;
+    margin-top: 14px !important;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    border-radius: 16px !important;
+  }
+
+  .nav-item,
+  .menu-btn.nav-item {
+    min-height: 40px !important;
+    padding: 10px 12px !important;
+    font-size: 13px !important;
+  }
+
+  .nav-item span,
+  .menu-btn span {
+    color: rgba(255, 255, 255, 0.88) !important;
+  }
+
+  .app-content {
+    height: 100dvh !important;
+    padding: 24px 28px 40px !important;
+    overflow: auto !important;
+  }
+
+  .screen {
+    max-width: 980px !important;
+  }
+
+  .card,
+  #transactions .card,
+  #profile .card,
+  #recentTransactionsCard,
+  #dashboardActionForms .card {
+    padding: 18px !important;
+  }
+
+  .card-head,
+  .cards-row > .card .card-head {
+    padding: 0 !important;
+    margin-bottom: 12px !important;
+  }
+}
+
+/* ── Render polish + performance pack ─────────────────────────── */
+:root {
+  --app-vh: 1vh;
+}
+
+#appScreen.app-shell {
+  min-height: calc(var(--app-vh) * 100) !important;
+}
+
+.app-content {
+  scrollbar-gutter: stable both-edges;
+  contain: paint;
+}
+
+/* Large, dynamic lists: paint only when near viewport */
+#recentTransactions,
+#transactionsList,
+#donationsList,
+#goalsList,
+#contactsList,
+#securityLogList,
+#sessionsList,
+.cards-manage-list,
+.achievements-grid,
+.insights-list {
+  content-visibility: auto;
+  contain-intrinsic-size: 420px;
+}
+
+/* Smoother compositing for floating layers */
+.app-header,
+.bottom-nav,
+.notif-panel,
+.tc-sheet,
+.modal-box,
+.bank-card-inner {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Auto quality profile for weaker devices */
+.render-lite .app-header,
+.render-lite .bottom-nav,
+.render-lite .notif-panel,
+.render-lite .modal-overlay,
+.render-lite .tc-overlay,
+.render-lite .auth-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.render-lite .screen.active-screen > .section-header-row,
+.render-lite .screen.active-screen > .card,
+.render-lite .screen.active-screen > .cards-row {
+  animation: none !important;
+}
+
+.render-lite .qa-btn,
+.render-lite .icon-btn,
+.render-lite .btn-primary,
+.render-lite .btn-accent,
+.render-lite .btn-ghost {
+  transition-duration: 120ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen.active-screen > .section-header-row,
+  .screen.active-screen > .card,
+  .screen.active-screen > .cards-row,
+  .qa-btn,
+  .icon-btn,
+  .btn-primary,
+  .btn-accent,
+  .btn-ghost,
+  .bottom-nav,
+  .notif-panel,
+  .bank-card-inner {
+    animation: none !important;
+    transition: none !important;
+  }
+}

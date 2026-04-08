@@ -10,6 +10,24 @@ const state = {
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
+(function initRenderProfile() {
+  const root = document.documentElement;
+  const cores = Number(navigator.hardwareConcurrency || 0);
+  const memory = Number(navigator.deviceMemory || 0);
+  const lowEndDevice = (cores > 0 && cores <= 4) || (memory > 0 && memory <= 4);
+  root.classList.toggle("render-lite", lowEndDevice);
+  root.classList.toggle("render-rich", !lowEndDevice);
+
+  const syncViewportUnit = () => {
+    const vh = (window.visualViewport?.height || window.innerHeight || 0) * 0.01;
+    if (vh > 0) root.style.setProperty("--app-vh", String(vh) + "px");
+  };
+
+  syncViewportUnit();
+  window.addEventListener("resize", syncViewportUnit, { passive: true });
+  window.visualViewport?.addEventListener("resize", syncViewportUnit, { passive: true });
+})();
+
 function showToast(message, type = '') {
   const toast = $('#toast');
   if (!toast) return;
@@ -133,14 +151,29 @@ function setButtonLoading(button, loading) {
 }
 
 function renderList(containerSelector, items, renderer, emptyText) {
-  const container = $(containerSelector);
+  const container = document.querySelector(containerSelector);
   if (!container) return;
+
+  if (container._renderFrame) {
+    cancelAnimationFrame(container._renderFrame);
+    container._renderFrame = 0;
+  }
+
   container.classList.remove('loading');
   if (!items.length) {
     container.innerHTML = `<div class="empty-state"><strong>Нічого немає</strong>${emptyText || 'Даних поки немає.'}</div>`;
     return;
   }
-  container.innerHTML = items.map(renderer).join('');
+
+  const html = items.map(renderer).join('');
+  if (typeof requestAnimationFrame === 'function') {
+    container._renderFrame = requestAnimationFrame(() => {
+      container.innerHTML = html;
+      container._renderFrame = 0;
+    });
+  } else {
+    container.innerHTML = html;
+  }
 }
 
 const TX_TYPE_LABELS = {
@@ -2517,7 +2550,7 @@ if ('serviceWorker' in navigator) {
     setTimeout(() => location.reload(), 200);
   }
 
-  navigator.serviceWorker.register('/sw.js?v=36', { updateViaCache: 'none' }).then(reg => {
+  navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
     if (!reg) return;
     // If update is already waiting, activate immediately.
     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
