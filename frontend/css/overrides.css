@@ -6745,9 +6745,10 @@ body.app-scroll-locked .app-content {
     top: auto !important;
     display: grid !important;
     grid-template-columns: 280px minmax(0, 1fr) 340px;
+    grid-template-rows: 168px 222px;
     grid-template-areas:
       "user balance actions"
-      "nav balance actions";
+      "nav cards actions";
     gap: 16px !important;
     padding: 0 !important;
     width: 100% !important;
@@ -6774,7 +6775,7 @@ body.app-scroll-locked .app-content {
     align-items: stretch !important;
     justify-content: center !important;
     gap: 14px !important;
-    min-height: 132px !important;
+    min-height: 0 !important;
   }
 
   .header-top .header-user {
@@ -6880,7 +6881,8 @@ body.app-scroll-locked .app-content {
     box-shadow: 0 14px 34px rgba(22, 37, 27, 0.22) !important;
     border-radius: 28px !important;
     padding: 18px 20px 16px !important;
-    min-height: 132px !important;
+    min-height: 0 !important;
+    height: 100% !important;
   }
 
   .balance-label,
@@ -6895,22 +6897,33 @@ body.app-scroll-locked .app-content {
   }
 
   .balance-amount {
-    font-size: clamp(2.4rem, 3.2vw, 3.5rem) !important;
+    font-size: clamp(2.1rem, 2.8vw, 3rem) !important;
     line-height: 1.02 !important;
   }
 
   .bank-cards-carousel {
-    display: none !important;
+    grid-area: cards !important;
+    display: block !important;
+    margin: 0 !important;
+    padding: 12px !important;
+    border-radius: 24px !important;
+    border: 1px solid var(--mono-border-soft) !important;
+    background: var(--mono-surface) !important;
+    box-shadow: var(--mono-card-shadow) !important;
   }
 
   .bank-cards-track {
     justify-content: flex-start !important;
-    padding-bottom: 12px !important;
+    align-items: center !important;
+    gap: 10px !important;
+    height: 100% !important;
+    min-height: 186px !important;
+    padding: 2px 0 10px !important;
   }
 
   .bank-card {
-    flex: 0 0 min(560px, 100%) !important;
-    width: min(560px, 100%) !important;
+    flex: 0 0 min(500px, 100%) !important;
+    width: min(500px, 100%) !important;
     margin-right: 0 !important;
   }
 
@@ -6972,7 +6985,7 @@ body.app-scroll-locked .app-content {
   }
 
   .app-content {
-    grid-column: 2 / 4 !important;
+    grid-column: 1 / 4 !important;
     grid-row: 2 !important;
     height: auto !important;
     max-height: calc(100vh - 32px) !important;
@@ -6988,6 +7001,11 @@ body.app-scroll-locked .app-content {
   #dashboard > .cards-row {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 14px !important;
+  }
+
+  #appScreen .screen {
+    max-width: 1240px !important;
+    margin: 0 auto !important;
   }
 
   #dashboard .card,
