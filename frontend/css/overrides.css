@@ -5395,6 +5395,12 @@ button.btn-ghost[type="submit"] {
   border-radius: 16px !important;
 }
 
+.empty-state.hidden,
+#cardsEmpty.hidden,
+.hidden.empty-state {
+  display: none !important;
+}
+
 /* ╔══════════════════════════════════════════════════════════════╗
    ║  ANDROID FIX + DESIGN POLISH v3                              ║
    ║  1. Android Chrome fallbacks (backdrop-filter, safe-area)    ║
@@ -7048,5 +7054,59 @@ body.app-scroll-locked .app-content {
   html.desktop-classic .screen {
     max-width: 1240px !important;
     margin: 0 auto !important;
+  }
+
+  /* Cards screen (desktop): replace bulky issued-card tiles with compact rows */
+  html.desktop-classic #cards .cards-manage-list {
+    gap: 8px !important;
+  }
+
+  html.desktop-classic #cards .card-manage-item {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+    border: 1px solid #d9e2d6 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+
+  html.desktop-classic #cards .cmi-chip,
+  html.desktop-classic #cards .cmi-design {
+    display: none !important;
+  }
+
+  html.desktop-classic #cards .cmi-number {
+    margin: 0 !important;
+    font-size: 18px !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0.02em !important;
+    color: #1f3429 !important;
+  }
+
+  html.desktop-classic #cards .cmi-meta {
+    margin-top: 4px !important;
+    font-size: 12px !important;
+    color: #6a7c6d !important;
+  }
+
+  html.desktop-classic #cards .cmi-right {
+    gap: 8px !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-end !important;
+  }
+
+  html.desktop-classic #cards .cmi-actions {
+    margin-left: 0 !important;
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  html.desktop-classic #cards .btn-card-action {
+    min-height: 34px !important;
+    padding: 0 10px !important;
+    font-size: 12px !important;
   }
 }
