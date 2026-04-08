@@ -7478,3 +7478,264 @@ body.app-scroll-locked .app-content {
     padding: 24px 28px 40px !important;
   }
 }
+
+/* ── Premium Refinement Layer (contrast + premium composition) ─────────── */
+:root {
+  --ab-premium-ink: #edf5ef;
+  --ab-premium-ink-soft: rgba(237, 245, 239, 0.76);
+  --ab-premium-surface: #f6f8f4;
+}
+
+/* Account row under balance: always readable, including inline-opacity button. */
+#heroAccountCopyBtn {
+  opacity: 1 !important;
+  color: var(--ab-premium-ink-soft) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.03em !important;
+  line-height: 1.25 !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.28) !important;
+}
+
+#heroAccountCopyBtn:hover,
+#heroAccountCopyBtn:focus-visible {
+  color: var(--ab-premium-ink) !important;
+}
+
+#heroAccountCopyBtn svg,
+#heroAccount {
+  color: inherit !important;
+  stroke: currentColor !important;
+}
+
+/* Gentle render optimization for long dashboards on modern browsers. */
+.app-content .card {
+  content-visibility: auto;
+  contain-intrinsic-size: 320px;
+}
+
+@media (max-width: 959px) {
+  body {
+    background:
+      radial-gradient(120% 85% at 50% -12%, rgba(198, 158, 74, 0.2) 0%, rgba(198, 158, 74, 0) 52%),
+      linear-gradient(180deg, #ecf1eb 0%, #e6ede6 62%, #eef2ee 100%) !important;
+  }
+
+  #appScreen.screen-dashboard .app-header {
+    background:
+      radial-gradient(120% 88% at 86% -18%, rgba(214, 170, 74, 0.24) 0%, rgba(214, 170, 74, 0) 56%),
+      linear-gradient(160deg, #0f3d29 0%, #184631 55%, #103624 100%) !important;
+    border-bottom-left-radius: 30px !important;
+    border-bottom-right-radius: 30px !important;
+    box-shadow: 0 18px 38px rgba(9, 24, 16, 0.34) !important;
+  }
+
+  #appScreen.screen-dashboard .header-top {
+    margin-bottom: 6px !important;
+  }
+
+  #appScreen.screen-dashboard .header-name {
+    color: #f3faf3 !important;
+    letter-spacing: -0.01em !important;
+    font-size: clamp(1.6rem, 4vw, 2rem) !important;
+  }
+
+  #appScreen.screen-dashboard .header-role {
+    color: rgba(226, 237, 227, 0.8) !important;
+    font-size: 13px !important;
+  }
+
+  #appScreen.screen-dashboard .balance-label {
+    color: rgba(231, 241, 233, 0.86) !important;
+  }
+
+  #appScreen.screen-dashboard .balance-amount {
+    color: #f8fff8 !important;
+    text-shadow: 0 4px 20px rgba(5, 18, 11, 0.34) !important;
+    font-size: clamp(2.9rem, 14vw, 4.6rem) !important;
+  }
+
+  #appScreen.screen-dashboard #heroAccountCopyBtn {
+    margin-top: 8px !important;
+    padding: 6px 10px !important;
+    border-radius: 11px !important;
+    background: rgba(236, 246, 237, 0.1) !important;
+    border: 1px solid rgba(236, 246, 237, 0.17) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+
+  #appScreen.screen-dashboard .bank-cards-carousel {
+    margin-top: 8px !important;
+  }
+
+  #appScreen.screen-dashboard .bank-card {
+    border-radius: 24px !important;
+    box-shadow: 0 20px 40px rgba(6, 16, 10, 0.34) !important;
+  }
+
+  #appScreen.screen-dashboard .quick-actions {
+    margin-top: 8px !important;
+    gap: 12px !important;
+  }
+
+  #appScreen.screen-dashboard .qa-btn {
+    border-radius: 18px !important;
+    padding: 10px 8px !important;
+    border: 1px solid rgba(226, 239, 229, 0.2) !important;
+    background: linear-gradient(180deg, rgba(244, 251, 246, 0.19) 0%, rgba(244, 251, 246, 0.12) 100%) !important;
+    box-shadow: 0 10px 20px rgba(9, 26, 17, 0.22) !important;
+  }
+
+  #appScreen.screen-dashboard .qa-icon {
+    background: rgba(244, 251, 246, 0.24) !important;
+    border: 1px solid rgba(244, 251, 246, 0.24) !important;
+  }
+
+  #appScreen.screen-dashboard .qa-label {
+    color: rgba(240, 248, 241, 0.96) !important;
+    font-size: 11px !important;
+    font-weight: 650 !important;
+    text-transform: none !important;
+    letter-spacing: 0.01em !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar.bottom-nav {
+    background: rgba(248, 250, 247, 0.88) !important;
+    border: 1px solid rgba(47, 74, 55, 0.16) !important;
+    box-shadow: 0 16px 30px rgba(27, 47, 34, 0.16) !important;
+    backdrop-filter: blur(18px) saturate(155%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(155%) !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar .nav-item span {
+    font-weight: 650 !important;
+    letter-spacing: 0.01em !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  html.desktop-classic body {
+    background:
+      radial-gradient(100% 120% at 12% 0%, rgba(214, 176, 97, 0.14) 0%, rgba(214, 176, 97, 0) 55%),
+      radial-gradient(115% 140% at 100% 100%, rgba(52, 90, 66, 0.16) 0%, rgba(52, 90, 66, 0) 62%),
+      linear-gradient(180deg, #e8eee8 0%, #e3e9e3 100%) !important;
+  }
+
+  html.desktop-classic.ab-authed #appScreen {
+    width: min(1520px, calc(100vw - 28px)) !important;
+    min-height: calc(100vh - 28px) !important;
+    height: calc(100vh - 28px) !important;
+    margin: 14px auto !important;
+    border-radius: 24px !important;
+    border: 1px solid rgba(49, 77, 59, 0.16) !important;
+    box-shadow: 0 24px 46px rgba(16, 33, 23, 0.14) !important;
+    overflow: hidden !important;
+    padding: 14px !important;
+    gap: 12px !important;
+    grid-template-columns: minmax(0, 1fr) 344px !important;
+    grid-template-rows: 112px 60px minmax(0, 1fr) !important;
+  }
+
+  html.desktop-classic .app-header {
+    border-radius: 18px !important;
+    border: 1px solid rgba(240, 249, 241, 0.18) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 14px 28px rgba(14, 29, 20, 0.2) !important;
+  }
+
+  html.desktop-classic .header-name {
+    font-size: 26px !important;
+    letter-spacing: -0.012em !important;
+  }
+
+  html.desktop-classic .header-role {
+    color: rgba(235, 245, 236, 0.78) !important;
+  }
+
+  html.desktop-classic .balance-block {
+    border-radius: 16px !important;
+    background:
+      radial-gradient(130% 110% at 92% -8%, rgba(233, 199, 122, 0.28) 0%, rgba(233, 199, 122, 0) 58%),
+      linear-gradient(155deg, #284f37 0%, #325c41 45%, #1f3d2b 100%) !important;
+    border: 1px solid rgba(234, 247, 235, 0.16) !important;
+    box-shadow: 0 14px 28px rgba(20, 37, 27, 0.24) !important;
+  }
+
+  html.desktop-classic #heroAccountCopyBtn {
+    color: rgba(238, 249, 238, 0.88) !important;
+  }
+
+  html.desktop-classic #dashboard::before,
+  html.desktop-classic .quick-actions::after {
+    content: none !important;
+  }
+
+  html.desktop-classic .quick-actions {
+    padding: 12px !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(39, 61, 47, 0.28) !important;
+    background: linear-gradient(180deg, #1f3327 0%, #263d2f 100%) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: auto repeat(2, minmax(90px, auto)) !important;
+    gap: 10px !important;
+  }
+
+  html.desktop-classic .quick-actions::before {
+    margin: 0 0 2px !important;
+    color: rgba(228, 240, 229, 0.85) !important;
+    letter-spacing: 0.1em !important;
+  }
+
+  html.desktop-classic .qa-btn {
+    min-height: 90px !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(240, 250, 241, 0.14) !important;
+    background: linear-gradient(180deg, rgba(240, 250, 241, 0.13) 0%, rgba(240, 250, 241, 0.08) 100%) !important;
+  }
+
+  html.desktop-classic .qa-btn:hover {
+    transform: translateY(-1px) !important;
+    background: linear-gradient(180deg, rgba(244, 252, 246, 0.2) 0%, rgba(244, 252, 246, 0.12) 100%) !important;
+  }
+
+  html.desktop-classic .qa-label {
+    text-transform: none !important;
+    letter-spacing: 0.01em !important;
+    font-size: 12px !important;
+    font-weight: 650 !important;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav {
+    border-radius: 14px !important;
+    border: 1px solid rgba(39, 62, 48, 0.26) !important;
+    background: rgba(27, 42, 32, 0.72) !important;
+    box-shadow: 0 8px 18px rgba(18, 29, 21, 0.18) !important;
+  }
+
+  html.desktop-classic .app-content {
+    background: var(--ab-premium-surface) !important;
+    border: 1px solid rgba(46, 75, 55, 0.14) !important;
+    box-shadow: 0 10px 24px rgba(16, 32, 23, 0.08) !important;
+  }
+
+  html.desktop-classic .section-title {
+    font-size: clamp(32px, 2.5vw, 40px) !important;
+    margin-bottom: 10px !important;
+  }
+}
+
+@media (min-width: 960px) and (max-width: 1199px) {
+  .bank-cards-track {
+    gap: 12px !important;
+    padding-top: 2px !important;
+  }
+
+  .bank-card {
+    flex: 0 0 min(340px, calc(50vw - 34px)) !important;
+    width: min(340px, calc(50vw - 34px)) !important;
+    aspect-ratio: 85.6 / 54 !important;
+    min-height: 186px !important;
+    max-height: none !important;
+    margin-right: 0 !important;
+  }
+}
