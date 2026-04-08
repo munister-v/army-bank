@@ -13,8 +13,32 @@ _ENC_PREFIX = 'enc:v1:'
 _DELETED_TEXT = 'Повідомлення видалено'
 
 
+def _sanitize_fernet_key(key: str) -> str:
+    raw = (key or '').strip()
+    if not raw:
+        return ''
+    # Accept keys with missing padding and normalize to canonical urlsafe base64.
+    raw = raw.replace('+', '-').replace('/', '_')
+    raw = raw + ('=' * ((4 - len(raw) % 4) % 4))
+    try:
+        decoded = base64.urlsafe_b64decode(raw.encode('ascii'))
+    except Exception:
+        return ''
+    if len(decoded) != 32:
+        return ''
+    return base64.urlsafe_b64encode(decoded).decode('ascii')
+
+
 def _normalize_keys(raw: str) -> list[str]:
-    return [k.strip() for k in (raw or '').split(',') if k.strip()]
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for part in (raw or '').split(','):
+        key = _sanitize_fernet_key(part)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        normalized.append(key)
+    return normalized
 
 
 def _derive_key_from_secret(secret: str) -> str:
