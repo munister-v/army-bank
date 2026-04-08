@@ -38,7 +38,7 @@
     /* Instant auth-state — applied by inline script below before body renders */
     html.ab-authed #authScreen{display:none!important}
     html.ab-authed #appScreen{display:flex!important}
-    html.desktop-classic.ab-authed #appScreen{display:grid!important;grid-template-columns:minmax(0,1fr) 332px;grid-template-rows:116px 64px minmax(0,1fr);gap:16px;padding:16px;min-height:100vh;height:100vh}
+    html.desktop-classic.desktop-cockpit.ab-authed #appScreen{display:grid!important;grid-template-columns:296px minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:18px;padding:18px;min-height:100vh;height:100vh}
     html.ab-booting *,html.ab-booting *::before,html.ab-booting *::after{animation:none!important;transition:none!important}
     /* Shimmer on key elements while initial data loads */
     @keyframes ab-shimmer{0%,100%{opacity:.45}50%{opacity:.85}}
@@ -46,10 +46,11 @@
   </style>
   <!-- Load core UI styles synchronously to avoid auth-screen flicker / design jumps -->
   <link rel="stylesheet" href="/css/styles.css?v=2026-04-08-26">
-  <link rel="stylesheet" href="/css/overrides.css?v=2026-04-08-28">
+  <link rel="stylesheet" href="/css/overrides.css?v=2026-04-08-29">
+  <link rel="stylesheet" href="/css/desktop-cockpit.css?v=2026-04-08-01">
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js?v=2026-04-08-26" as="script">
-  <link rel="preload" href="/js/app.js?v=2026-04-08-28" as="script">
+  <link rel="preload" href="/js/app.js?v=2026-04-08-29" as="script">
   <link rel="preload" href="/js/overrides.js?v=2026-04-08-26" as="script">
   <!-- Instant auth state + server wake-up (without forced reload loops) -->
   <script>
@@ -1538,7 +1539,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js?v=2026-04-08-26" defer></script>
-  <script src="/js/app.js?v=2026-04-08-28" defer></script>
+  <script src="/js/app.js?v=2026-04-08-29" defer></script>
   <script src="/js/overrides.js?v=2026-04-08-26" defer></script>
 
   <!-- Transfer confirmation bottom sheet -->

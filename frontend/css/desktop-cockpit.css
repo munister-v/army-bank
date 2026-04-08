@@ -1,0 +1,423 @@
+/* Desktop Cockpit rebuild (reference-style: left sidebar + right workspace) */
+@media (min-width: 1200px) {
+  html.desktop-cockpit body {
+    overflow: hidden !important;
+    background:
+      radial-gradient(120% 90% at 6% -12%, rgba(98, 136, 105, 0.18) 0%, rgba(98, 136, 105, 0) 58%),
+      radial-gradient(110% 95% at 94% 110%, rgba(199, 164, 95, 0.12) 0%, rgba(199, 164, 95, 0) 64%),
+      linear-gradient(180deg, #e8eee8 0%, #dfe6df 100%) !important;
+  }
+
+  html.desktop-cockpit #appScreen.app-shell {
+    display: grid !important;
+    grid-template-columns: 296px minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    gap: 18px !important;
+    width: min(1560px, calc(100vw - 30px)) !important;
+    height: calc(100vh - 30px) !important;
+    min-height: calc(100vh - 30px) !important;
+    margin: 15px auto !important;
+    padding: 18px !important;
+    border-radius: 24px !important;
+    border: 1px solid #d4ded3 !important;
+    box-shadow: 0 20px 50px rgba(23, 43, 29, 0.14) !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.58) 0%, rgba(255, 255, 255, 0.26) 100%) !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+
+  html.desktop-cockpit .app-header {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    position: relative !important;
+    top: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 12px !important;
+    border-radius: 20px !important;
+    border: 1px solid #dbe4dc !important;
+    background: linear-gradient(180deg, #f5f8f4 0%, #edf3ed 100%) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65) !important;
+    display: grid !important;
+    grid-template-rows: auto auto auto minmax(130px, 1fr) auto !important;
+    gap: 10px !important;
+    overflow: hidden !important;
+  }
+
+  html.desktop-cockpit .app-header > * {
+    min-width: 0 !important;
+  }
+
+  html.desktop-cockpit .header-top {
+    border-radius: 14px !important;
+    border: 1px solid rgba(46, 78, 59, 0.18) !important;
+    background: linear-gradient(135deg, #294734 0%, #315940 100%) !important;
+    box-shadow: 0 8px 16px rgba(21, 41, 28, 0.18) !important;
+    padding: 10px 11px !important;
+    min-height: 74px !important;
+  }
+
+  html.desktop-cockpit .header-user {
+    min-width: 0 !important;
+  }
+
+  html.desktop-cockpit .avatar {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 15px !important;
+    border: 1px solid rgba(235, 247, 236, 0.32) !important;
+  }
+
+  html.desktop-cockpit .header-info {
+    min-width: 0 !important;
+  }
+
+  html.desktop-cockpit .header-name {
+    font-size: 15px !important;
+    line-height: 1.2 !important;
+    color: #f3faf4 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  html.desktop-cockpit .header-role {
+    font-size: 12px !important;
+    color: rgba(233, 244, 234, 0.78) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  html.desktop-cockpit .header-actions {
+    gap: 6px !important;
+  }
+
+  html.desktop-cockpit .header-actions .icon-btn {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(240, 250, 241, 0.2) !important;
+    background: rgba(240, 250, 241, 0.1) !important;
+    color: #edf7ee !important;
+  }
+
+  html.desktop-cockpit .balance-block {
+    margin: 0 !important;
+    padding: 11px 12px !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(50, 78, 60, 0.2) !important;
+    background:
+      radial-gradient(95% 80% at 98% 0%, rgba(205, 171, 102, 0.24) 0%, rgba(205, 171, 102, 0) 66%),
+      linear-gradient(135deg, #365f43 0%, #2a4d37 100%) !important;
+    box-shadow: 0 8px 18px rgba(23, 41, 30, 0.2) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+  }
+
+  html.desktop-cockpit .balance-label,
+  html.desktop-cockpit .balance-amount,
+  html.desktop-cockpit #heroAccountCopyBtn {
+    color: #eef7ef !important;
+  }
+
+  html.desktop-cockpit .balance-label {
+    font-size: 10px !important;
+    letter-spacing: 0.1em !important;
+    text-align: left !important;
+    opacity: 0.8 !important;
+  }
+
+  html.desktop-cockpit .balance-label-row {
+    justify-content: flex-start !important;
+  }
+
+  html.desktop-cockpit .balance-amount {
+    font-size: clamp(1.35rem, 1.8vw, 1.86rem) !important;
+    line-height: 1.06 !important;
+    text-align: left !important;
+    text-shadow: none !important;
+  }
+
+  html.desktop-cockpit #heroAccountCopyBtn {
+    justify-content: flex-start !important;
+    font-size: 12px !important;
+    opacity: 0.92 !important;
+  }
+
+  html.desktop-cockpit #sidebar.bottom-nav {
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 6px !important;
+    border-radius: 14px !important;
+    border: 1px solid #d7e1d7 !important;
+    background: #ffffff !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+    transform: none !important;
+    opacity: 1 !important;
+    z-index: auto !important;
+  }
+
+  html.desktop-cockpit #sidebar.bottom-nav::before,
+  html.desktop-cockpit #sidebar.bottom-nav::after {
+    content: none !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item {
+    width: 100% !important;
+    min-height: 44px !important;
+    border-radius: 10px !important;
+    padding: 0 10px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 9px !important;
+    color: #4f5f54 !important;
+    border: 1px solid transparent !important;
+    background: transparent !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item svg {
+    width: 16px !important;
+    height: 16px !important;
+    opacity: 0.9 !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item span {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+    white-space: nowrap !important;
+    opacity: 1 !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item:hover {
+    background: #f2f6f1 !important;
+    color: #2f4938 !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item.active {
+    border-color: #d1ddd2 !important;
+    background: linear-gradient(180deg, #f7fbf7 0%, #edf4ee 100%) !important;
+    color: #23382a !important;
+    box-shadow: 0 4px 10px rgba(23, 41, 30, 0.08) !important;
+  }
+
+  html.desktop-cockpit .bank-cards-carousel {
+    display: block !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+  }
+
+  html.desktop-cockpit .bank-cards-track {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scroll-snap-type: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  html.desktop-cockpit .bank-card {
+    width: 100% !important;
+    flex: 0 0 auto !important;
+    margin: 0 !important;
+    min-height: 116px !important;
+    max-height: none !important;
+    height: auto !important;
+    aspect-ratio: auto !important;
+    border-radius: 14px !important;
+    scroll-snap-align: none !important;
+    box-shadow: 0 6px 14px rgba(25, 43, 31, 0.22) !important;
+  }
+
+  html.desktop-cockpit .bank-card-content {
+    padding: 10px 12px !important;
+  }
+
+  html.desktop-cockpit .bank-card-number {
+    font-size: 13px !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  html.desktop-cockpit .bank-card-name,
+  html.desktop-cockpit .bank-card-date {
+    font-size: 10px !important;
+  }
+
+  html.desktop-cockpit .bank-cards-dots {
+    display: none !important;
+  }
+
+  html.desktop-cockpit .quick-actions {
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  html.desktop-cockpit .qa-btn {
+    min-height: 74px !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(43, 72, 54, 0.2) !important;
+    background: linear-gradient(180deg, #f8fbf8 0%, #edf4ee 100%) !important;
+    color: #244033 !important;
+    box-shadow: 0 4px 8px rgba(21, 39, 28, 0.08) !important;
+  }
+
+  html.desktop-cockpit .qa-btn .qa-icon {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 11px !important;
+    border: 1px solid rgba(47, 77, 58, 0.18) !important;
+    background: #ffffff !important;
+    color: #2f5d43 !important;
+  }
+
+  html.desktop-cockpit .qa-label {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #2f4739 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+  }
+
+  html.desktop-cockpit .app-content {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: auto !important;
+    padding: 20px 24px 28px !important;
+    border-radius: 20px !important;
+    border: 1px solid #dbe4dc !important;
+    background: linear-gradient(180deg, #fcfdfb 0%, #f4f8f4 100%) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+    scrollbar-gutter: stable both-edges !important;
+  }
+
+  html.desktop-cockpit .app-content > .screen {
+    display: none !important;
+  }
+
+  html.desktop-cockpit .app-content > .screen.active-screen {
+    display: block !important;
+    margin: 0 !important;
+    max-width: none !important;
+    padding-bottom: 32px !important;
+  }
+
+  html.desktop-cockpit .section-title {
+    font-size: clamp(30px, 2.8vw, 38px) !important;
+    line-height: 1 !important;
+    margin-bottom: 14px !important;
+    color: #22382a !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  html.desktop-cockpit #dashboard.active-screen {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr) !important;
+    gap: 14px !important;
+    align-items: start !important;
+  }
+
+  html.desktop-cockpit #dashboard.active-screen > .section-title {
+    grid-column: 1 / -1 !important;
+    margin-bottom: 2px !important;
+  }
+
+  html.desktop-cockpit #dashboard.active-screen #recentTransactionsCard {
+    grid-column: 1 !important;
+    grid-row: 2 / span 2 !important;
+    min-height: 420px !important;
+  }
+
+  html.desktop-cockpit #dashboard.active-screen .month-strip {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    margin: 0 !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  html.desktop-cockpit #dashboard.active-screen #sparklineCard {
+    grid-column: 2 !important;
+    grid-row: 3 !important;
+    margin: 0 !important;
+  }
+
+  html.desktop-cockpit #dashboard.active-screen #velocityCard,
+  html.desktop-cockpit #dashboard.active-screen #topRecipientsCard,
+  html.desktop-cockpit #dashboard.active-screen #budgetProgressCard,
+  html.desktop-cockpit #dashboard.active-screen .currency-card,
+  html.desktop-cockpit #dashboard.active-screen #dashboardActionForms {
+    grid-column: 1 / -1 !important;
+  }
+
+  html.desktop-cockpit .card {
+    border-radius: 16px !important;
+    border: 1px solid #dfe7df !important;
+    background: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(20, 36, 25, 0.05) !important;
+  }
+
+  html.desktop-cockpit .section-header-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 14px !important;
+    flex-wrap: wrap !important;
+    margin-bottom: 10px !important;
+  }
+
+  html.desktop-cockpit #transactions .filters-row {
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    align-items: end !important;
+  }
+
+  html.desktop-cockpit #transactions .filters-row > button[type="submit"] {
+    grid-column: span 2 !important;
+    min-height: 42px !important;
+  }
+
+  html.desktop-cockpit .cards-row {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  html.desktop-cockpit #cards .cards-manage-list {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  html.desktop-cockpit #cards .card-manage-item {
+    border-radius: 14px !important;
+    border: 1px solid #dbe5dc !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+}
