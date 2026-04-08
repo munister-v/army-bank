@@ -7379,6 +7379,15 @@ body.app-scroll-locked .app-content {
     min-height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
     transform: translateY(0) !important;
   }
+
+  /* Keep nav compositing cheap on mobile to avoid long-frame jank. */
+  .bottom-nav {
+    will-change: auto !important;
+  }
+
+  .bottom-nav.nav-hidden {
+    will-change: transform !important;
+  }
 }
 
 @media (min-width: 1200px) {
@@ -7397,5 +7406,75 @@ body.app-scroll-locked .app-content {
     min-height: 0 !important;
     height: auto !important;
     overflow: auto !important;
+  }
+}
+
+/* Canonical 960-1199 layout guard to neutralize legacy cascade drift. */
+@media (min-width: 960px) and (max-width: 1199px) {
+  body {
+    overflow: hidden !important;
+  }
+
+  #appScreen.app-shell {
+    display: flex !important;
+    flex-direction: row !important;
+    min-height: 100dvh !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  .app-header {
+    width: 300px !important;
+    min-width: 300px !important;
+    height: 100dvh !important;
+    position: sticky !important;
+    top: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 20px 18px 14px !important;
+  }
+
+  #sidebar.bottom-nav {
+    position: sticky !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: auto !important;
+    right: auto !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin-top: auto !important;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    border-radius: 16px !important;
+    transform: none !important;
+  }
+
+  .quick-actions,
+  #dashboard .quick-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    padding: 8px 0 0 !important;
+  }
+
+  .quick-actions .qa-btn {
+    min-height: 84px !important;
+    padding: 12px 8px !important;
+  }
+
+  .quick-actions .qa-label,
+  #dashboard .quick-actions .qa-label {
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+    text-transform: none !important;
+  }
+
+  .app-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100dvh !important;
+    overflow: auto !important;
+    padding: 24px 28px 40px !important;
   }
 }

@@ -4,6 +4,14 @@
 (function () {
   'use strict';
 
+  function scheduleIdle(task) {
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(function () { task(); }, { timeout: 1200 });
+      return;
+    }
+    setTimeout(task, 220);
+  }
+
   function isReducedMotionContext() {
     var root = document.documentElement;
     var reduceByMedia = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -109,12 +117,12 @@
   }
 
   function init() {
-    initCarouselDepth();
-    initCarouselWheelSnap();
+    scheduleIdle(initCarouselDepth);
+    scheduleIdle(initCarouselWheelSnap);
 
     setTimeout(function () {
-      initCarouselDepth();
-      initCarouselWheelSnap();
+      scheduleIdle(initCarouselDepth);
+      scheduleIdle(initCarouselWheelSnap);
     }, 1200);
   }
 
