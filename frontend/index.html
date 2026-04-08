@@ -69,6 +69,12 @@
       } catch(_) {}
 
       try {
+        if (window.matchMedia && window.matchMedia('(min-width: 1200px)').matches) {
+          root.classList.add('desktop-classic');
+        }
+      } catch(_) {}
+
+      try {
         if (localStorage.getItem('army_bank_token')) {
           /* Hide login page immediately — no flash of auth screen for returning users */
           root.classList.add('ab-authed');

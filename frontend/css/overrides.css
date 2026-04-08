@@ -6724,295 +6724,288 @@ body.app-scroll-locked .app-content {
   }
 }
 
-/* ── Desktop Cockpit Layout v1 (PC PWA) ─────────────────────────────── */
+/* ── Desktop Classic Bank Layout (PC PWA) ───────────────────────────── */
 @media (min-width: 1200px) {
-  #appScreen.app-shell {
+  html.desktop-classic body {
+    overflow: hidden !important;
+    background: #eef2ec !important;
+  }
+
+  html.desktop-classic #appScreen.app-shell {
     display: grid !important;
-    grid-template-columns: 280px minmax(0, 1fr) 340px;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: 300px minmax(0, 1fr) 320px !important;
+    grid-template-rows: 154px 210px minmax(0, 1fr) !important;
     gap: 16px !important;
     padding: 16px !important;
     min-height: 100vh !important;
-    background:
-      radial-gradient(130% 90% at -20% -20%, rgba(70, 102, 74, 0.08) 0%, transparent 72%),
-      linear-gradient(180deg, #edf2e8 0%, #e5ebe0 100%) !important;
+    height: 100vh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    background: transparent !important;
   }
 
-  .app-header {
-    grid-column: 1 / 4 !important;
-    grid-row: 1 !important;
+  html.desktop-classic .app-header {
+    display: contents !important;
     position: static !important;
-    top: auto !important;
-    display: grid !important;
-    grid-template-columns: 280px minmax(0, 1fr) 340px;
-    grid-template-rows: 168px 222px;
-    grid-template-areas:
-      "user balance actions"
-      "nav cards actions";
-    gap: 16px !important;
-    padding: 0 !important;
-    width: 100% !important;
+    width: auto !important;
     min-width: 0 !important;
     height: auto !important;
-    min-height: 0 !important;
     max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
     overflow: visible !important;
-    border-right: none !important;
     background: transparent !important;
-    align-items: stretch !important;
-    justify-self: stretch !important;
   }
 
-  .header-top {
-    grid-area: user !important;
-    background: var(--mono-surface) !important;
-    border: 1px solid var(--mono-border-soft) !important;
-    border-radius: 26px !important;
-    box-shadow: var(--mono-card-shadow) !important;
+  html.desktop-classic .header-top {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    background: #ffffff !important;
+    border: 1px solid #d9e2d6 !important;
+    border-radius: 18px !important;
+    box-shadow: 0 4px 14px rgba(20, 34, 21, 0.06) !important;
     padding: 14px !important;
+    min-height: 0 !important;
     display: flex !important;
     flex-direction: column !important;
-    align-items: stretch !important;
-    justify-content: center !important;
-    gap: 14px !important;
-    min-height: 0 !important;
+    gap: 12px !important;
   }
 
-  .header-top .header-user {
-    width: 100% !important;
-  }
-
-  .header-top .header-actions {
-    width: 100% !important;
+  html.desktop-classic .header-top .header-actions {
     display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     gap: 8px !important;
-    justify-content: stretch !important;
   }
 
-  .header-top .icon-btn {
+  html.desktop-classic .header-top .icon-btn {
     width: 100% !important;
-    background: #eef3eb !important;
-    border-color: #d7e0d4 !important;
-    color: #455649 !important;
+    background: #f3f7f1 !important;
+    border: 1px solid #d9e2d6 !important;
+    color: #4a5b4b !important;
   }
 
-  .header-top .icon-btn svg {
-    stroke: currentColor !important;
-  }
+  html.desktop-classic .header-name { color: #233224 !important; font-size: 20px !important; }
+  html.desktop-classic .header-role { color: #6b7a6d !important; }
 
-  .header-info {
-    max-width: none !important;
-  }
-
-  .header-name {
-    color: #243128 !important;
-    font-size: 18px !important;
-  }
-
-  .header-role {
-    color: #657467 !important;
-  }
-
-  #sidebar.bottom-nav {
-    grid-area: nav !important;
+  html.desktop-classic #sidebar.bottom-nav {
+    grid-column: 1 !important;
+    grid-row: 2 / 4 !important;
     position: static !important;
-    left: auto !important;
-    right: auto !important;
-    bottom: auto !important;
     width: auto !important;
     max-width: none !important;
     margin: 0 !important;
     padding: 12px !important;
-    border-radius: 26px !important;
-    border: 1px solid var(--mono-border-soft) !important;
-    background: var(--mono-surface) !important;
-    box-shadow: var(--mono-card-shadow) !important;
-    display: grid !important;
+    border-radius: 18px !important;
+    border: 1px solid #d9e2d6 !important;
+    background: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(20, 34, 21, 0.05) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
     gap: 8px !important;
+    transform: none !important;
+    opacity: 1 !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav::before {
+    content: 'Навігація';
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .11em;
+    color: #6c7d6d;
+    font-weight: 800;
+    margin: 2px 2px 6px;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav::after {
+    content: 'Підтримка 24/7\A\A+380 (44) 000-00-00\Ahelp@armybank.ua';
+    white-space: pre-line;
+    margin-top: auto;
+    border: 1px dashed #cfddcf;
+    border-radius: 14px;
+    padding: 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #627562;
+    background: linear-gradient(180deg, #f7fbf6 0%, #edf5eb 100%);
+  }
+
+  html.desktop-classic #sidebar.bottom-nav.nav-hidden {
     transform: none !important;
     opacity: 1 !important;
   }
 
-  #sidebar.bottom-nav.nav-hidden {
-    transform: none !important;
-    opacity: 1 !important;
-  }
-
-  #sidebar .nav-item {
-    width: 100% !important;
-    min-height: 52px !important;
-    border-radius: 14px !important;
+  html.desktop-classic #sidebar .nav-item {
+    min-height: 50px !important;
+    flex: 0 0 auto !important;
+    border-radius: 12px !important;
     padding: 0 14px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: flex-start !important;
     gap: 10px !important;
-    color: #455649 !important;
+    color: #4a5b4b !important;
   }
 
-  #sidebar .nav-item span {
+  html.desktop-classic #sidebar .nav-item span {
     display: inline !important;
     font-size: 16px !important;
-    letter-spacing: 0.01em !important;
-    color: #455649 !important;
+    color: #4a5b4b !important;
     opacity: 1 !important;
   }
 
-  #sidebar .nav-item svg {
-    width: 20px !important;
-    height: 20px !important;
+  html.desktop-classic #sidebar .nav-item svg {
+    width: 19px !important;
+    height: 19px !important;
+    stroke: currentColor !important;
     opacity: 1 !important;
     margin: 0 !important;
-    stroke: currentColor !important;
   }
 
-  #sidebar .nav-item.active {
-    background: #e2eade !important;
-    border: 1px solid #cddac7 !important;
+  html.desktop-classic #sidebar .nav-item.active {
+    background: #edf4ea !important;
+    border: 1px solid #cfe0ce !important;
+    color: #2f4a37 !important;
   }
 
-  .balance-block {
-    grid-area: balance !important;
-    background: linear-gradient(180deg, #2f4a37 0%, #3f5f45 100%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.16) !important;
-    box-shadow: 0 14px 34px rgba(22, 37, 27, 0.22) !important;
-    border-radius: 28px !important;
-    padding: 18px 20px 16px !important;
+  html.desktop-classic .balance-block {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    background: linear-gradient(180deg, #f9fcf8 0%, #eef5ec 100%) !important;
+    border: 1px solid #cfdccd !important;
+    border-radius: 18px !important;
+    box-shadow: 0 4px 14px rgba(20, 34, 21, 0.05) !important;
+    padding: 16px 18px !important;
     min-height: 0 !important;
     height: 100% !important;
   }
 
-  .balance-label,
-  .balance-amount,
-  #heroAccount {
-    color: #f7fbf8 !important;
+  html.desktop-classic .balance-label,
+  html.desktop-classic .balance-amount,
+  html.desktop-classic #heroAccount {
+    color: #223526 !important;
   }
 
-  .balance-label {
+  html.desktop-classic #appScreen .balance-amount {
+    color: #1f3528 !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em !important;
+    text-shadow: none !important;
+  }
+
+  html.desktop-classic .balance-label {
     font-size: 11px !important;
-    letter-spacing: .12em !important;
+    letter-spacing: .1em !important;
+    opacity: .7 !important;
   }
 
-  .balance-amount {
-    font-size: clamp(2.1rem, 2.8vw, 3rem) !important;
-    line-height: 1.02 !important;
+  html.desktop-classic .balance-amount {
+    font-size: clamp(2rem, 2.6vw, 2.9rem) !important;
+    line-height: 1.03 !important;
   }
 
-  .bank-cards-carousel {
-    grid-area: cards !important;
+  html.desktop-classic .bank-cards-carousel {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
     display: block !important;
     margin: 0 !important;
-    padding: 12px !important;
-    border-radius: 24px !important;
-    border: 1px solid var(--mono-border-soft) !important;
-    background: var(--mono-surface) !important;
-    box-shadow: var(--mono-card-shadow) !important;
+    padding: 10px !important;
+    border-radius: 18px !important;
+    border: 1px solid #d9e2d6 !important;
+    background: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(20, 34, 21, 0.05) !important;
   }
 
-  .bank-cards-track {
-    justify-content: flex-start !important;
+  html.desktop-classic .bank-cards-track {
+    min-height: 176px !important;
+    height: 100% !important;
     align-items: center !important;
     gap: 10px !important;
-    height: 100% !important;
-    min-height: 186px !important;
-    padding: 2px 0 10px !important;
+    padding: 2px 0 8px !important;
   }
 
-  .bank-card {
+  html.desktop-classic .bank-card {
     flex: 0 0 min(500px, 100%) !important;
     width: min(500px, 100%) !important;
     margin-right: 0 !important;
   }
 
-  .quick-actions {
-    grid-area: actions !important;
+  html.desktop-classic .quick-actions {
+    grid-column: 3 !important;
+    grid-row: 1 / 3 !important;
     margin: 0 !important;
-    padding: 14px !important;
-    border-radius: 26px !important;
-    border: 1px solid var(--mono-border-soft) !important;
-    background: var(--mono-surface) !important;
-    box-shadow: var(--mono-card-shadow) !important;
+    padding: 12px !important;
+    border-radius: 18px !important;
+    border: 1px solid #d9e2d6 !important;
+    background: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(20, 34, 21, 0.05) !important;
     display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: auto 1fr 1fr !important;
     gap: 10px !important;
     align-content: stretch !important;
-    align-self: stretch !important;
-    min-height: 100% !important;
-    height: 100% !important;
-    position: static !important;
-    top: auto !important;
-    grid-template-rows: auto 1fr 1fr !important;
   }
 
-  .quick-actions::before {
-    content: 'Швидкі дії';
+  html.desktop-classic .quick-actions::before {
+    content: 'Операції';
     grid-column: 1 / -1;
     font-size: 12px;
     font-weight: 800;
-    color: #4b5b4d;
+    color: #5a6c5d;
     text-transform: uppercase;
-    letter-spacing: .09em;
+    letter-spacing: .08em;
     margin: 2px 2px 4px;
   }
 
-  .qa-btn {
+  html.desktop-classic .qa-btn {
     min-height: 0 !important;
     height: 100% !important;
-    border-radius: 16px !important;
-    border: 1px solid var(--mono-border-soft) !important;
-    background: #f1f5ee !important;
-    color: #405143 !important;
+    border-radius: 12px !important;
+    border: 1px solid #dce5dc !important;
+    background: #f7faf6 !important;
+    color: #2f4534 !important;
   }
 
-  .quick-actions .qa-icon {
-    background: #e2eade !important;
-    color: #3f5142 !important;
+  html.desktop-classic .quick-actions .qa-icon {
+    background: #dfeadf !important;
+    color: #35503a !important;
   }
 
-  .qa-label,
-  #dashboard .quick-actions .qa-label {
-    color: #405143 !important;
-    font-size: 14px !important;
+  html.desktop-classic .quick-actions .qa-btn svg,
+  html.desktop-classic .quick-actions .qa-icon svg {
+    stroke: currentColor !important;
     opacity: 1 !important;
   }
 
-  #appScreen.screen-dashboard .quick-actions .qa-btn .qa-label {
+  html.desktop-classic .quick-actions .qa-label {
     color: #405143 !important;
+    font-weight: 700 !important;
     opacity: 1 !important;
   }
 
-  .app-content {
-    grid-column: 1 / 4 !important;
-    grid-row: 2 !important;
-    height: auto !important;
-    max-height: calc(100vh - 32px) !important;
+  html.desktop-classic .app-content {
+    grid-column: 2 / 4 !important;
+    grid-row: 3 !important;
+    min-height: 0 !important;
+    max-height: none !important;
     overflow: auto !important;
     padding: 16px !important;
-    border-radius: 26px !important;
-    border: 1px solid #d9e2d7 !important;
-    background: rgba(247, 250, 245, 0.88) !important;
-    box-shadow: 0 12px 28px rgba(22, 37, 27, 0.11) !important;
-    scrollbar-gutter: stable both-edges !important;
+    border-radius: 18px !important;
+    border: 1px solid #d9e2d6 !important;
+    background: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(20, 34, 21, 0.05) !important;
   }
 
-  #dashboard > .cards-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 14px !important;
-  }
-
-  #appScreen .screen {
+  html.desktop-classic .screen {
     max-width: 1240px !important;
     margin: 0 auto !important;
-  }
-
-  #dashboard .card,
-  #transactions .card,
-  #profile .card,
-  #analytics .card,
-  #cards .card {
-    border-radius: 20px !important;
   }
 }

@@ -132,11 +132,12 @@ const api = {
   },
 
   async requestPushPermission() {
-    if (!('Notification' in window)) return false;
-    if (Notification.permission === 'granted') return this.subscribePush();
-    if (Notification.permission === 'denied') return false;
+    const NotificationAPI = (typeof window !== 'undefined' && window.Notification) ? window.Notification : null;
+    if (!NotificationAPI) return false;
+    if (NotificationAPI.permission === 'granted') return this.subscribePush();
+    if (NotificationAPI.permission === 'denied') return false;
     // requestPermission must be called synchronously from a user gesture
-    const perm = await Notification.requestPermission();
+    const perm = await NotificationAPI.requestPermission();
     if (perm === 'granted') return this.subscribePush();
     return false;
   },

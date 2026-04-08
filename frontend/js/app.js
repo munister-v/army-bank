@@ -110,33 +110,23 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
   }, { passive: true });
 })();
 
-const _desktopCockpitMql = window.matchMedia('(min-width: 1200px)');
+const _desktopClassicMql = window.matchMedia('(min-width: 1200px)');
 
-function syncDesktopCockpitMode() {
-  const app = document.getElementById('appScreen');
-  const desktop = _desktopCockpitMql.matches;
-  document.documentElement.classList.toggle('desktop-cockpit', desktop);
-  if (!app) return;
-
-  if (desktop) {
-    app.style.setProperty('display', 'grid', 'important');
-    app.style.setProperty('grid-template-columns', '280px minmax(0, 1fr) 340px', 'important');
-    app.style.setProperty('grid-template-rows', 'auto minmax(0, 1fr)', 'important');
-  } else {
-    app.style.removeProperty('display');
-    app.style.removeProperty('grid-template-columns');
-    app.style.removeProperty('grid-template-rows');
-  }
+function syncDesktopClassicMode() {
+  const desktop = _desktopClassicMql.matches;
+  const root = document.documentElement;
+  root.classList.toggle('desktop-classic', desktop);
+  if (!desktop) root.classList.remove('desktop-cockpit');
 }
 
-syncDesktopCockpitMode();
-if (typeof _desktopCockpitMql.addEventListener === 'function') {
-  _desktopCockpitMql.addEventListener('change', syncDesktopCockpitMode);
-} else if (typeof _desktopCockpitMql.addListener === 'function') {
-  _desktopCockpitMql.addListener(syncDesktopCockpitMode);
+syncDesktopClassicMode();
+if (typeof _desktopClassicMql.addEventListener === 'function') {
+  _desktopClassicMql.addEventListener('change', syncDesktopClassicMode);
+} else if (typeof _desktopClassicMql.addListener === 'function') {
+  _desktopClassicMql.addListener(syncDesktopClassicMode);
 }
-window.addEventListener('resize', syncDesktopCockpitMode, { passive: true });
-window.addEventListener('orientationchange', syncDesktopCockpitMode, { passive: true });
+window.addEventListener('resize', syncDesktopClassicMode, { passive: true });
+window.addEventListener('orientationchange', syncDesktopClassicMode, { passive: true });
 
 const _scrollLocks = new Set();
 
@@ -2728,16 +2718,22 @@ $('#logoutBtn')?.addEventListener('click', async () => {
 });
 
 // ── Push notification bell button ─────────────────────────
+function getNotificationApi() {
+  return (typeof window !== 'undefined' && window.Notification) ? window.Notification : null;
+}
+
 async function updatePushDot() {
-  if (!('Notification' in window) || !('PushManager' in window)) return;
-  const granted = Notification.permission === 'granted';
+  const NotificationAPI = getNotificationApi();
+  if (!NotificationAPI || !('PushManager' in window)) return;
+  const granted = NotificationAPI.permission === 'granted';
   const dot = $('#pushDot');
   if (dot) dot.style.display = granted ? 'block' : 'none';
 }
 
 $('#pushBtn')?.addEventListener('click', async () => {
   const btn = $('#pushBtn');
-  if (!('Notification' in window)) {
+  const NotificationAPI = getNotificationApi();
+  if (!NotificationAPI) {
     showToast('Браузер не підтримує сповіщення.');
     return;
   }
@@ -2745,16 +2741,16 @@ $('#pushBtn')?.addEventListener('click', async () => {
     showToast('Push API недоступний. На iPhone — додайте застосунок на Головний екран.');
     return;
   }
-  if (Notification.permission === 'denied') {
+  if (NotificationAPI.permission === 'denied') {
     showToast('Сповіщення заблоковані. Дозвольте в налаштуваннях браузера / системи.');
     return;
   }
 
   btn.disabled = true;
   try {
-    if (Notification.permission !== 'granted') {
+    if (NotificationAPI.permission !== 'granted') {
       showToast('Запит дозволу на сповіщення…');
-      const perm = await Notification.requestPermission();
+      const perm = await NotificationAPI.requestPermission();
       if (perm !== 'granted') {
         showToast('Сповіщення не дозволені.');
         return;
@@ -2861,7 +2857,7 @@ async function hydrateAuthenticatedApp() {
     startSessionEngine();
     updatePushDot();
     if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
-    if (window.Notification && window.Notification.permission === 'granted') api.subscribePush().catch(() => {});
+    if (getNotificationApi()?.permission === 'granted') api.subscribePush().catch(() => {});
   }
 }
 
