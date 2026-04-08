@@ -25,8 +25,13 @@ def _derive_key_from_secret(secret: str) -> str:
 @lru_cache(maxsize=1)
 def _cipher() -> MultiFernet:
     keys = _normalize_keys(MESSENGER_ENCRYPTION_KEYS)
+    legacy_key = _derive_key_from_secret(SECRET_KEY)
     if not keys:
-        keys = [_derive_key_from_secret(SECRET_KEY)]
+        keys = [legacy_key]
+    elif legacy_key not in keys:
+        # Keep backward-compatible decrypt support for messages encrypted
+        # before explicit MESSENGER_ENCRYPTION_KEYS was configured.
+        keys.append(legacy_key)
     fernets = [Fernet(k.encode('ascii')) for k in keys]
     return MultiFernet(fernets)
 
