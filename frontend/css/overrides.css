@@ -6774,7 +6774,7 @@ body.app-scroll-locked .app-content {
   html.desktop-classic #appScreen.app-shell {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) 332px !important;
-    grid-template-rows: 116px 64px 214px minmax(0, 1fr) !important;
+    grid-template-rows: 116px 64px minmax(0, 1fr) !important;
     gap: 14px !important;
     padding: 14px !important;
     min-height: 100vh !important;
@@ -6970,15 +6970,7 @@ body.app-scroll-locked .app-content {
   }
 
   html.desktop-classic .bank-cards-carousel {
-    grid-column: 1 !important;
-    grid-row: 3 !important;
-    display: block !important;
-    margin: 0 !important;
-    padding: 10px !important;
-    border-radius: 16px !important;
-    border: 1px solid #d7e2d8 !important;
-    background: #ffffff !important;
-    box-shadow: 0 3px 10px rgba(20, 34, 21, 0.05) !important;
+    display: none !important;
   }
 
   html.desktop-classic .bank-cards-track {
@@ -7047,8 +7039,8 @@ body.app-scroll-locked .app-content {
   }
 
   html.desktop-classic .app-content {
-    grid-column: 1 / 3 !important;
-    grid-row: 4 !important;
+    grid-column: 1 !important;
+    grid-row: 3 !important;
     min-height: 0 !important;
     max-height: none !important;
     overflow: auto !important;
@@ -7061,12 +7053,12 @@ body.app-scroll-locked .app-content {
     box-shadow: 0 3px 10px rgba(20, 34, 21, 0.05) !important;
   }
 
-  html.desktop-classic #appScreen.app-shell:not(.screen-dashboard) {
-    grid-template-rows: 116px 64px minmax(0, 1fr) !important;
+  html.desktop-classic #appScreen:not(.screen-dashboard) .quick-actions {
+    display: none !important;
   }
 
-  html.desktop-classic #appScreen.app-shell:not(.screen-dashboard) .app-content {
-    grid-row: 3 !important;
+  html.desktop-classic #appScreen:not(.screen-dashboard) .app-content {
+    grid-column: 1 / 3 !important;
   }
 
   html.desktop-classic .screen {
