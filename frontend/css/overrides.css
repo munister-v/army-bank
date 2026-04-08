@@ -8151,3 +8151,154 @@ body.app-scroll-locked .app-content {
     content: none !important;
   }
 }
+
+/* ── Desktop Signature 2026 (modern premium visual language) ───────────── */
+@media (min-width: 1200px) {
+  html.desktop-classic body {
+    background:
+      radial-gradient(120% 140% at 8% -10%, rgba(219, 184, 110, 0.2) 0%, rgba(219, 184, 110, 0) 56%),
+      radial-gradient(130% 160% at 100% 100%, rgba(44, 86, 62, 0.22) 0%, rgba(44, 86, 62, 0) 58%),
+      linear-gradient(180deg, #e7eee8 0%, #e1e9e2 100%) !important;
+  }
+
+  html.desktop-classic.ab-authed #appScreen {
+    width: min(1540px, calc(100vw - 24px)) !important;
+    min-height: calc(100vh - 24px) !important;
+    height: calc(100vh - 24px) !important;
+    margin: 12px auto !important;
+    padding: 14px !important;
+    gap: 14px !important;
+    border-radius: 26px !important;
+    border: 1px solid rgba(43, 74, 55, 0.15) !important;
+    box-shadow: 0 28px 54px rgba(15, 31, 22, 0.15) !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.18) 100%),
+      linear-gradient(180deg, #edf3ee 0%, #e4ebe5 100%) !important;
+    grid-template-columns: minmax(0, 1fr) 362px !important;
+    grid-template-rows: 114px 62px minmax(0, 1fr) !important;
+  }
+
+  html.desktop-classic .app-header {
+    border-radius: 18px !important;
+    background:
+      radial-gradient(130% 96% at 88% -28%, rgba(218, 182, 102, 0.24) 0%, rgba(218, 182, 102, 0) 56%),
+      linear-gradient(154deg, #173f2b 0%, #1f4f37 54%, #153826 100%) !important;
+    border: 1px solid rgba(238, 248, 239, 0.16) !important;
+    box-shadow: 0 16px 30px rgba(13, 29, 20, 0.24) !important;
+  }
+
+  html.desktop-classic .header-top .icon-btn {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+
+  html.desktop-classic .app-content {
+    border-radius: 18px !important;
+    border: 1px solid rgba(43, 73, 54, 0.14) !important;
+    background:
+      radial-gradient(112% 72% at 100% -10%, rgba(208, 176, 104, 0.12) 0%, rgba(208, 176, 104, 0) 56%),
+      linear-gradient(180deg, #f9fcf8 0%, #f3f7f3 100%) !important;
+    box-shadow: 0 12px 26px rgba(15, 31, 22, 0.1) !important;
+    padding: 20px !important;
+  }
+
+  html.desktop-classic .section-title {
+    font-size: clamp(34px, 2.6vw, 42px) !important;
+    line-height: 0.96 !important;
+    margin-bottom: 12px !important;
+    letter-spacing: 0.01em !important;
+    color: #1f3429 !important;
+  }
+
+  html.desktop-classic #dashboard {
+    grid-template-columns: minmax(0, 1.26fr) minmax(300px, 0.74fr) !important;
+    gap: 16px !important;
+  }
+
+  html.desktop-classic #dashboard .card {
+    border-radius: 16px !important;
+    border: 1px solid rgba(44, 75, 55, 0.1) !important;
+    box-shadow: 0 10px 20px rgba(15, 30, 22, 0.08) !important;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease !important;
+  }
+
+  html.desktop-classic #dashboard .card:hover {
+    transform: translateY(-2px) !important;
+    border-color: rgba(60, 94, 72, 0.2) !important;
+    box-shadow: 0 16px 30px rgba(15, 30, 22, 0.12) !important;
+  }
+
+  html.desktop-classic #dashboard .card::before {
+    height: 1px !important;
+    background: linear-gradient(90deg, rgba(54, 86, 66, 0.46) 0%, rgba(206, 175, 104, 0.56) 100%) !important;
+  }
+
+  html.desktop-classic #dashboard #recentTransactionsCard {
+    min-height: 420px !important;
+  }
+
+  html.desktop-classic .ms-item {
+    border-radius: 13px !important;
+    border: 1px solid rgba(45, 74, 54, 0.1) !important;
+    background: linear-gradient(180deg, #fbfdfb 0%, #f1f6f1 100%) !important;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav {
+    border-radius: 15px !important;
+    border: 1px solid rgba(40, 64, 49, 0.24) !important;
+    background: rgba(23, 39, 30, 0.72) !important;
+    box-shadow: 0 10px 20px rgba(15, 28, 20, 0.2) !important;
+    backdrop-filter: blur(10px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item {
+    border-radius: 11px !important;
+    border: 1px solid transparent !important;
+    min-height: 50px !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item:hover:not(.active) {
+    border-color: rgba(232, 244, 234, 0.2) !important;
+    background: rgba(240, 248, 241, 0.14) !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item.active {
+    background: linear-gradient(180deg, #fbfefb 0%, #eef5ef 100%) !important;
+    border: 1px solid rgba(46, 74, 55, 0.22) !important;
+    box-shadow: 0 8px 14px rgba(17, 30, 22, 0.14) !important;
+  }
+
+  html.desktop-classic .quick-actions {
+    border-radius: 16px !important;
+    border: 1px solid rgba(36, 60, 46, 0.3) !important;
+    background:
+      radial-gradient(120% 90% at 90% -20%, rgba(218, 184, 104, 0.18) 0%, rgba(218, 184, 104, 0) 56%),
+      linear-gradient(180deg, #1e3327 0%, #263d2f 100%) !important;
+    box-shadow: 0 14px 26px rgba(15, 29, 21, 0.24) !important;
+  }
+
+  html.desktop-classic .quick-actions::before {
+    color: rgba(232, 242, 233, 0.88) !important;
+    letter-spacing: 0.11em !important;
+  }
+
+  html.desktop-classic .qa-btn {
+    border-radius: 13px !important;
+    border: 1px solid rgba(242, 251, 243, 0.16) !important;
+    background: linear-gradient(180deg, rgba(242, 251, 243, 0.14) 0%, rgba(242, 251, 243, 0.08) 100%) !important;
+    box-shadow: none !important;
+  }
+
+  html.desktop-classic .qa-btn:hover {
+    transform: translateY(-1px) !important;
+    border-color: rgba(242, 251, 243, 0.28) !important;
+    background: linear-gradient(180deg, rgba(245, 253, 246, 0.2) 0%, rgba(245, 253, 246, 0.12) 100%) !important;
+  }
+
+  html.desktop-classic .qa-label {
+    font-size: 12px !important;
+    font-weight: 680 !important;
+    color: #f2faf3 !important;
+  }
+}
