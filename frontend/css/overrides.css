@@ -6762,19 +6762,21 @@ body.app-scroll-locked .app-content {
   }
 }
 
-/* ── Desktop Classic Bank Layout (PC PWA) ───────────────────────────── */
+/* ── Desktop Classic Bank Layout v2 (web-like desktop workspace) ───────── */
 @media (min-width: 1200px) {
   html.desktop-classic body {
     overflow: hidden !important;
-    background: #eef2ec !important;
+    background:
+      radial-gradient(115% 90% at 100% -10%, rgba(101, 132, 108, 0.12) 0%, transparent 60%),
+      linear-gradient(180deg, #edf2ec 0%, #e7eee8 100%) !important;
   }
 
   html.desktop-classic #appScreen.app-shell {
     display: grid !important;
-    grid-template-columns: 300px minmax(0, 1fr) 320px !important;
-    grid-template-rows: 154px 210px minmax(0, 1fr) !important;
-    gap: 16px !important;
-    padding: 16px !important;
+    grid-template-columns: minmax(0, 1fr) 332px !important;
+    grid-template-rows: 116px 64px 214px minmax(0, 1fr) !important;
+    gap: 14px !important;
+    padding: 14px !important;
     min-height: 100vh !important;
     height: 100vh !important;
     width: 100% !important;
@@ -6803,137 +6805,77 @@ body.app-scroll-locked .app-content {
   html.desktop-classic .header-top {
     grid-column: 1 !important;
     grid-row: 1 !important;
-    background: #ffffff !important;
-    border: 1px solid #d9e2d6 !important;
-    border-radius: 18px !important;
-    box-shadow: 0 4px 14px rgba(20, 34, 21, 0.06) !important;
-    padding: 14px !important;
-    min-height: 0 !important;
     display: flex !important;
-    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: space-between !important;
     gap: 12px !important;
+    padding: 14px 16px !important;
+    background: #ffffff !important;
+    border: 1px solid #d7e2d8 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 3px 10px rgba(20, 34, 21, 0.06) !important;
+    min-height: 0 !important;
+  }
+
+  html.desktop-classic .header-top .header-user {
+    min-width: 0 !important;
   }
 
   html.desktop-classic .header-top .header-actions {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    display: flex !important;
+    align-items: center !important;
     gap: 8px !important;
+    flex: 0 0 auto !important;
   }
 
   html.desktop-classic .header-top .icon-btn {
-    width: 100% !important;
-    background: #f3f7f1 !important;
-    border: 1px solid #d9e2d6 !important;
-    color: #4a5b4b !important;
-  }
-
-  html.desktop-classic .header-name { color: #233224 !important; font-size: 20px !important; }
-  html.desktop-classic .header-role { color: #6b7a6d !important; }
-
-  html.desktop-classic #sidebar.bottom-nav {
-    grid-column: 1 !important;
-    grid-row: 2 / 4 !important;
-    position: static !important;
-    width: auto !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 12px !important;
-    border-radius: 18px !important;
-    border: 1px solid #d9e2d6 !important;
-    background: #ffffff !important;
-    box-shadow: 0 4px 14px rgba(20, 34, 21, 0.05) !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    justify-content: flex-start !important;
-    gap: 8px !important;
-    transform: none !important;
-    opacity: 1 !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  html.desktop-classic #sidebar.bottom-nav::before {
-    content: 'Навігація';
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: .11em;
-    color: #6c7d6d;
-    font-weight: 800;
-    margin: 2px 2px 6px;
-  }
-
-  html.desktop-classic #sidebar.bottom-nav::after {
-    content: 'Підтримка 24/7\A\A+380 (44) 000-00-00\Ahelp@armybank.ua';
-    white-space: pre-line;
-    margin-top: auto;
-    border: 1px dashed #cfddcf;
-    border-radius: 14px;
-    padding: 12px;
-    font-size: 12px;
-    line-height: 1.45;
-    color: #627562;
-    background: linear-gradient(180deg, #f7fbf6 0%, #edf5eb 100%);
-  }
-
-  html.desktop-classic #sidebar.bottom-nav.nav-hidden {
-    transform: none !important;
-    opacity: 1 !important;
-  }
-
-  html.desktop-classic #sidebar .nav-item {
-    min-height: 50px !important;
-    flex: 0 0 auto !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
     border-radius: 12px !important;
-    padding: 0 14px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    gap: 10px !important;
-    color: #4a5b4b !important;
+    background: #f4f8f4 !important;
+    border: 1px solid #d7e2d8 !important;
+    color: #445748 !important;
   }
 
-  html.desktop-classic #sidebar .nav-item span {
-    display: inline !important;
-    font-size: 16px !important;
-    color: #4a5b4b !important;
-    opacity: 1 !important;
+  html.desktop-classic .header-name {
+    color: #203427 !important;
+    font-size: 24px !important;
+    line-height: 1.05 !important;
   }
 
-  html.desktop-classic #sidebar .nav-item svg {
-    width: 19px !important;
-    height: 19px !important;
-    stroke: currentColor !important;
-    opacity: 1 !important;
-    margin: 0 !important;
-  }
-
-  html.desktop-classic #sidebar .nav-item.active {
-    background: #edf4ea !important;
-    border: 1px solid #cfe0ce !important;
-    color: #2f4a37 !important;
+  html.desktop-classic .header-role {
+    color: #6a7c6d !important;
+    font-size: 14px !important;
   }
 
   html.desktop-classic .balance-block {
     grid-column: 2 !important;
     grid-row: 1 !important;
-    background: linear-gradient(180deg, #f9fcf8 0%, #eef5ec 100%) !important;
-    border: 1px solid #cfdccd !important;
-    border-radius: 18px !important;
-    box-shadow: 0 4px 14px rgba(20, 34, 21, 0.05) !important;
-    padding: 16px 18px !important;
+    background: linear-gradient(155deg, #2c4a37 0%, #3f5f46 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 26px rgba(26, 44, 31, 0.2) !important;
+    padding: 14px 16px !important;
     min-height: 0 !important;
     height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
   }
 
   html.desktop-classic .balance-label,
   html.desktop-classic .balance-amount,
   html.desktop-classic #heroAccount {
-    color: #223526 !important;
+    color: #f4fbf4 !important;
+  }
+
+  html.desktop-classic .balance-label-row {
+    justify-content: flex-start !important;
   }
 
   html.desktop-classic #appScreen .balance-amount {
-    color: #1f3528 !important;
+    color: #f6fff6 !important;
     font-weight: 800 !important;
     letter-spacing: -0.02em !important;
     text-shadow: none !important;
@@ -6942,31 +6884,101 @@ body.app-scroll-locked .app-content {
   html.desktop-classic #appScreen.app-loading #heroBalance,
   html.desktop-classic #appScreen.app-loading #userName,
   html.desktop-classic #appScreen.app-loading #heroAccount {
-    color: #2b4433 !important;
-    opacity: .76 !important;
+    opacity: 0.78 !important;
   }
 
   html.desktop-classic .balance-label {
-    font-size: 11px !important;
-    letter-spacing: .1em !important;
-    opacity: .7 !important;
+    font-size: 10px !important;
+    letter-spacing: .11em !important;
+    opacity: .8 !important;
   }
 
   html.desktop-classic .balance-amount {
-    font-size: clamp(2rem, 2.6vw, 2.9rem) !important;
-    line-height: 1.03 !important;
+    font-size: clamp(1.6rem, 1.95vw, 2.2rem) !important;
+    line-height: 1.04 !important;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav {
+    grid-column: 1 / 3 !important;
+    grid-row: 2 !important;
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 6px !important;
+    border-radius: 14px !important;
+    border: 1px solid #d7e2d8 !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    box-shadow: 0 3px 10px rgba(20, 34, 21, 0.05) !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    transform: none !important;
+    opacity: 1 !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav::before,
+  html.desktop-classic #sidebar.bottom-nav::after {
+    content: none !important;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav.nav-hidden {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item {
+    min-height: 48px !important;
+    border-radius: 10px !important;
+    padding: 0 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    color: #4a5f4e !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item span {
+    display: inline !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #4a5f4e !important;
+    opacity: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item svg {
+    width: 17px !important;
+    height: 17px !important;
+    stroke: currentColor !important;
+    opacity: 1 !important;
+    margin: 0 !important;
+    flex: 0 0 auto !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item.active {
+    background: #eaf2ea !important;
+    border: 1px solid #cfe0d0 !important;
+    color: #2f4a37 !important;
   }
 
   html.desktop-classic .bank-cards-carousel {
-    grid-column: 2 !important;
-    grid-row: 2 !important;
+    grid-column: 1 !important;
+    grid-row: 3 !important;
     display: block !important;
     margin: 0 !important;
     padding: 10px !important;
-    border-radius: 18px !important;
-    border: 1px solid #d9e2d6 !important;
+    border-radius: 16px !important;
+    border: 1px solid #d7e2d8 !important;
     background: #ffffff !important;
-    box-shadow: 0 4px 14px rgba(20, 34, 21, 0.05) !important;
+    box-shadow: 0 3px 10px rgba(20, 34, 21, 0.05) !important;
   }
 
   html.desktop-classic .bank-cards-track {
@@ -6984,43 +6996,36 @@ body.app-scroll-locked .app-content {
   }
 
   html.desktop-classic .quick-actions {
-    grid-column: 3 !important;
-    grid-row: 1 / 3 !important;
+    grid-column: 2 !important;
+    grid-row: 3 !important;
     margin: 0 !important;
-    padding: 12px !important;
-    border-radius: 18px !important;
-    border: 1px solid #d9e2d6 !important;
+    padding: 10px !important;
+    border-radius: 16px !important;
+    border: 1px solid #d7e2d8 !important;
     background: #ffffff !important;
-    box-shadow: 0 4px 14px rgba(20, 34, 21, 0.05) !important;
+    box-shadow: 0 3px 10px rgba(20, 34, 21, 0.05) !important;
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    grid-template-rows: auto 1fr 1fr !important;
-    gap: 10px !important;
+    grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
     align-content: stretch !important;
   }
 
   html.desktop-classic .quick-actions::before {
-    content: 'Операції';
-    grid-column: 1 / -1;
-    font-size: 12px;
-    font-weight: 800;
-    color: #5a6c5d;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-    margin: 2px 2px 4px;
+    content: none !important;
   }
 
   html.desktop-classic .qa-btn {
     min-height: 0 !important;
     height: 100% !important;
     border-radius: 12px !important;
-    border: 1px solid #dce5dc !important;
-    background: #f7faf6 !important;
+    border: 1px solid #dce6dc !important;
+    background: #f8fbf8 !important;
     color: #2f4534 !important;
   }
 
   html.desktop-classic .quick-actions .qa-icon {
-    background: #dfeadf !important;
+    background: #e0ebe0 !important;
     color: #35503a !important;
   }
 
@@ -7031,32 +7036,40 @@ body.app-scroll-locked .app-content {
   }
 
   html.desktop-classic .quick-actions .qa-label {
-    color: #405143 !important;
+    color: #3e5342 !important;
     font-weight: 700 !important;
     opacity: 1 !important;
   }
 
   html.desktop-classic .app-content {
-    grid-column: 2 / 4 !important;
-    grid-row: 3 !important;
+    grid-column: 1 / 3 !important;
+    grid-row: 4 !important;
     min-height: 0 !important;
     max-height: none !important;
     overflow: auto !important;
     overscroll-behavior: contain !important;
     scrollbar-gutter: stable both-edges !important;
     padding: 16px !important;
-    border-radius: 18px !important;
-    border: 1px solid #d9e2d6 !important;
+    border-radius: 16px !important;
+    border: 1px solid #d7e2d8 !important;
     background: #ffffff !important;
-    box-shadow: 0 4px 14px rgba(20, 34, 21, 0.05) !important;
+    box-shadow: 0 3px 10px rgba(20, 34, 21, 0.05) !important;
+  }
+
+  html.desktop-classic #appScreen.app-shell:not(.screen-dashboard) {
+    grid-template-rows: 116px 64px minmax(0, 1fr) !important;
+  }
+
+  html.desktop-classic #appScreen.app-shell:not(.screen-dashboard) .app-content {
+    grid-row: 3 !important;
   }
 
   html.desktop-classic .screen {
-    max-width: 1240px !important;
-    margin: 0 auto !important;
+    max-width: none !important;
+    margin: 0 !important;
   }
 
-  /* Cards screen (desktop): replace bulky issued-card tiles with compact rows */
+  /* Cards screen (desktop): compact list rows instead of glossy card tiles */
   html.desktop-classic #cards .cards-manage-list {
     gap: 8px !important;
   }
