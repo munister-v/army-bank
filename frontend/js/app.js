@@ -52,6 +52,61 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
   window.addEventListener("orientationchange", syncViewportUnit, { passive: true });
 })();
 
+(function initMobileKeyboardGuard() {
+  const root = document.documentElement;
+  const isMobileViewport = () => window.matchMedia('(max-width: 959px)').matches;
+  const isEditable = (el) => {
+    if (!el) return false;
+    if (el.isContentEditable) return true;
+    const tag = (el.tagName || '').toUpperCase();
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  };
+
+  let baseline = Math.max(window.innerHeight || 0, window.visualViewport?.height || 0);
+  const threshold = 140;
+
+  const recalcBaseline = () => {
+    baseline = Math.max(window.innerHeight || 0, window.visualViewport?.height || 0);
+  };
+
+  const update = () => {
+    if (!isMobileViewport()) {
+      root.classList.remove('keyboard-open');
+      recalcBaseline();
+      return;
+    }
+
+    const active = document.activeElement;
+    const h = window.visualViewport?.height || window.innerHeight || 0;
+    const delta = Math.max(0, baseline - h);
+    const opened = isEditable(active) && delta >= threshold;
+    root.classList.toggle('keyboard-open', opened);
+
+    if (!opened && !isEditable(active)) recalcBaseline();
+  };
+
+  recalcBaseline();
+  update();
+
+  window.addEventListener('focusin', update, { passive: true });
+  window.addEventListener('focusout', () => {
+    setTimeout(() => {
+      root.classList.remove('keyboard-open');
+      recalcBaseline();
+    }, 120);
+  }, { passive: true });
+
+  window.visualViewport?.addEventListener('resize', update, { passive: true });
+  window.addEventListener('resize', update, { passive: true });
+  window.addEventListener('orientationchange', () => {
+    root.classList.remove('keyboard-open');
+    setTimeout(() => {
+      recalcBaseline();
+      update();
+    }, 260);
+  }, { passive: true });
+})();
+
 const _scrollLocks = new Set();
 
 function _applyScrollLockState() {
@@ -101,10 +156,37 @@ function closeTransientLayers(options = {}) {
   const notifPanel = document.getElementById('notifPanel');
   if (notifPanel) notifPanel.classList.remove('open');
   const notifOverlay = document.getElementById('notifOverlay');
-  if (notifOverlay) notifOverlay.style.display = 'none';
+  if (notifOverlay) {
+    notifOverlay.style.display = 'none';
+    notifOverlay.style.pointerEvents = 'none';
+  }
 
   clearBodyScrollLocks({ keepPin });
 }
+
+function reconcileTransientState() {
+  const hasPanel = !!document.getElementById('notifPanel')?.classList.contains('open');
+  const hasPin = !!document.getElementById('pinLockOverlay') && !document.getElementById('pinLockOverlay').classList.contains('hidden');
+  const hasLayer = [
+    '#txDrawer', '#drawerBackdrop', '#receiptOverlay', '#statementOverlay',
+    '#transferConfirmOverlay', '#confirmDialog', '#confirmBackdrop', '#onboardingOverlay'
+  ].some((sel) => {
+    const el = document.querySelector(sel);
+    return !!el && !el.classList.contains('hidden');
+  });
+
+  if (!hasPanel && !hasLayer && !hasPin) {
+    clearBodyScrollLocks({ keepPin: false });
+  } else if (hasPin) {
+    clearBodyScrollLocks({ keepPin: true });
+  }
+}
+
+window.addEventListener('pageshow', reconcileTransientState);
+window.addEventListener('popstate', () => setTimeout(reconcileTransientState, 0));
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') reconcileTransientState();
+});
 
 function showToast(message, type = '') {
   const toast = $('#toast');

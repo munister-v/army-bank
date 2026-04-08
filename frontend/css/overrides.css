@@ -6648,3 +6648,42 @@ body.app-scroll-locked .app-content {
 #notifOverlay {
   pointer-events: none;
 }
+
+/* ── Layering + keyboard-open stabilization ─────────────────────────────── */
+:root {
+  --z-nav: 500;
+  --z-notif-panel: 520;
+  --z-modal: 3000;
+  --z-sheet: 4000;
+  --z-toast: 7000;
+}
+
+.bottom-nav { z-index: var(--z-nav) !important; }
+.notif-panel { z-index: var(--z-notif-panel) !important; }
+.modal-overlay { z-index: var(--z-modal) !important; }
+.tc-overlay,
+.pin-overlay,
+.onboarding-overlay { z-index: var(--z-sheet) !important; }
+.toast { z-index: var(--z-toast) !important; }
+
+.keyboard-open .bottom-nav,
+.keyboard-open .notif-panel,
+.keyboard-open #notifOverlay {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.keyboard-open .bottom-nav {
+  transform: translateY(130%) !important;
+}
+
+@media (max-width: 959px) {
+  .keyboard-open .app-content {
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .keyboard-open #appScreen.screen-dashboard .app-header {
+    padding-bottom: 18px !important;
+  }
+}
