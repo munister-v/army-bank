@@ -7739,3 +7739,166 @@ body.app-scroll-locked .app-content {
     margin-right: 0 !important;
   }
 }
+
+/* ── Premium Direction 1: Luxe Fintech pass ─────────────────────────────── */
+:root {
+  --ab-luxe-gold: #ceb06f;
+  --ab-luxe-gold-soft: rgba(206, 176, 111, 0.22);
+  --ab-luxe-ink: #223429;
+  --ab-luxe-surface: #f9fbf8;
+  --ab-luxe-surface-2: #f2f6f1;
+}
+
+#appScreen.screen-dashboard .card {
+  border-radius: 18px !important;
+  border: 1px solid rgba(45, 74, 54, 0.1) !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f7faf7 100%) !important;
+  box-shadow: 0 8px 20px rgba(15, 31, 21, 0.06) !important;
+}
+
+#appScreen.screen-dashboard .card-head h3,
+#appScreen.screen-dashboard .section-title {
+  color: var(--ab-luxe-ink) !important;
+}
+
+#appScreen.screen-dashboard .chip,
+#appScreen.screen-dashboard .badge,
+#appScreen.screen-dashboard .tag-chip {
+  border-radius: 999px !important;
+}
+
+@media (max-width: 959px) {
+  #appScreen.screen-dashboard .app-header {
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #appScreen.screen-dashboard .balance-block {
+    padding-bottom: 18px !important;
+  }
+
+  #appScreen.screen-dashboard .balance-label-row {
+    gap: 10px !important;
+  }
+
+  #appScreen.screen-dashboard #toggleBalanceBtn {
+    opacity: 0.8 !important;
+    color: rgba(242, 251, 244, 0.84) !important;
+  }
+
+  #appScreen.screen-dashboard .bank-card {
+    border: 1px solid rgba(245, 233, 198, 0.24) !important;
+  }
+
+  #appScreen.screen-dashboard .bank-card-gold {
+    box-shadow: 0 24px 46px rgba(11, 22, 15, 0.36), 0 0 0 1px rgba(214, 183, 109, 0.34) !important;
+  }
+
+  #appScreen.screen-dashboard .bank-card-dark,
+  #appScreen.screen-dashboard .bank-card-navy {
+    box-shadow: 0 24px 46px rgba(8, 18, 25, 0.36), 0 0 0 1px rgba(122, 150, 206, 0.28) !important;
+  }
+
+  #appScreen.screen-dashboard .quick-actions {
+    padding-inline: 4px !important;
+  }
+
+  #appScreen.screen-dashboard .qa-btn {
+    min-height: 92px !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar.bottom-nav .nav-item.active {
+    background: linear-gradient(180deg, #f7fbf7 0%, #edf4ee 100%) !important;
+    border: 1px solid rgba(46, 75, 55, 0.2) !important;
+    color: #22372a !important;
+    box-shadow: 0 4px 10px rgba(23, 41, 30, 0.12) !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar.bottom-nav .nav-item:not(.active) {
+    color: rgba(33, 54, 41, 0.68) !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  html.desktop-classic.ab-authed #appScreen {
+    grid-template-columns: minmax(0, 1fr) 356px !important;
+    grid-template-rows: 114px 60px minmax(0, 1fr) !important;
+    gap: 14px !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.2) 100%),
+      linear-gradient(180deg, #edf3ee 0%, #e6ece7 100%) !important;
+  }
+
+  html.desktop-classic .header-top .icon-btn {
+    border-radius: 12px !important;
+    border: 1px solid rgba(248, 253, 249, 0.22) !important;
+    background: linear-gradient(180deg, rgba(248, 253, 249, 0.16) 0%, rgba(248, 253, 249, 0.08) 100%) !important;
+  }
+
+  html.desktop-classic .balance-label {
+    color: rgba(239, 249, 240, 0.8) !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  html.desktop-classic .balance-amount {
+    font-size: clamp(1.75rem, 2.1vw, 2.36rem) !important;
+  }
+
+  html.desktop-classic #heroAccountCopyBtn {
+    border: 1px solid rgba(236, 247, 237, 0.24) !important;
+    border-radius: 10px !important;
+    padding: 5px 9px !important;
+    background: rgba(236, 247, 237, 0.08) !important;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav {
+    gap: 8px !important;
+    padding: 8px !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item {
+    min-height: 50px !important;
+    border-radius: 11px !important;
+    font-weight: 700 !important;
+    text-transform: none !important;
+    letter-spacing: 0.01em !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item.active {
+    background: linear-gradient(180deg, #f7fbf7 0%, #edf4ee 100%) !important;
+    border: 1px solid rgba(45, 74, 54, 0.24) !important;
+    box-shadow: 0 6px 12px rgba(19, 34, 25, 0.14) !important;
+  }
+
+  html.desktop-classic .app-content {
+    border-radius: 16px !important;
+    padding: 18px !important;
+    background:
+      radial-gradient(120% 80% at 98% -16%, var(--ab-luxe-gold-soft) 0%, rgba(206, 176, 111, 0) 58%),
+      var(--ab-luxe-surface) !important;
+  }
+
+  html.desktop-classic #dashboard {
+    grid-template-columns: minmax(0, 1.24fr) minmax(286px, 0.76fr) !important;
+    gap: 16px !important;
+  }
+
+  html.desktop-classic #dashboard #recentTransactionsCard {
+    min-height: 390px !important;
+  }
+
+  html.desktop-classic #dashboard .card {
+    border: 1px solid rgba(42, 70, 51, 0.1) !important;
+    box-shadow: 0 10px 22px rgba(16, 32, 23, 0.08) !important;
+  }
+
+  html.desktop-classic #dashboard .card::before {
+    height: 1px !important;
+    background: linear-gradient(90deg, rgba(68, 104, 79, 0.5) 0%, rgba(206, 176, 111, 0.56) 100%) !important;
+  }
+
+  html.desktop-classic .ms-item {
+    border-radius: 12px !important;
+    border: 1px solid rgba(44, 73, 53, 0.09) !important;
+    background: linear-gradient(180deg, var(--ab-luxe-surface) 0%, var(--ab-luxe-surface-2) 100%) !important;
+  }
+}
