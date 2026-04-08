@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ARM Bank">
-  <link rel="manifest" href="/manifest.json?v=2026-04-08-8">
+  <link rel="manifest" href="/manifest.json?v=2026-04-08-9">
   <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png">
@@ -44,11 +44,11 @@
     .app-loading #heroBalance,.app-loading #userName,.app-loading #heroAccount{animation:ab-shimmer 1.3s ease-in-out infinite}
   </style>
   <!-- Load core UI styles synchronously to avoid auth-screen flicker / design jumps -->
-  <link rel="stylesheet" href="/css/styles.css?v=2026-04-08-8">
-  <link rel="stylesheet" href="/css/overrides.css?v=2026-04-08-8">
+  <link rel="stylesheet" href="/css/styles.css?v=2026-04-08-9">
+  <link rel="stylesheet" href="/css/overrides.css?v=2026-04-08-9">
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
-  <link rel="preload" href="/js/api.js?v=2026-04-08-8" as="script">
-  <link rel="preload" href="/js/app.js?v=2026-04-08-8" as="script">
+  <link rel="preload" href="/js/api.js?v=2026-04-08-9" as="script">
+  <link rel="preload" href="/js/app.js?v=2026-04-08-9" as="script">
   <!-- Instant auth state + server wake-up (without forced reload loops) -->
   <script>
     (function(){
@@ -1510,9 +1510,9 @@
   <!-- Confetti canvas -->
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
-  <script src="/js/api.js?v=2026-04-08-8" defer></script>
-  <script src="/js/app.js?v=2026-04-08-8" defer></script>
-  <script src="/js/overrides.js?v=2026-04-08-8" defer></script>
+  <script src="/js/api.js?v=2026-04-08-9" defer></script>
+  <script src="/js/app.js?v=2026-04-08-9" defer></script>
+  <script src="/js/overrides.js?v=2026-04-08-9" defer></script>
 
   <!-- Transfer confirmation bottom sheet -->
   <div id="transferConfirmOverlay" class="tc-overlay hidden" role="dialog" aria-modal="true">
