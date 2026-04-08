@@ -50,7 +50,13 @@ body.api-status-page::before {
   margin: 0 auto;
   padding: clamp(16px, 3vw, 28px);
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
+}
+
+.api-status-shell > * {
+  width: 100%;
+  min-width: 0;
 }
 
 .card {
