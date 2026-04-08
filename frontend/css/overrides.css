@@ -6925,11 +6925,13 @@ body.app-scroll-locked .app-content {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px !important;
-    align-content: start !important;
-    min-height: auto !important;
-    align-self: start !important;
-    position: sticky !important;
-    top: 16px !important;
+    align-content: stretch !important;
+    align-self: stretch !important;
+    min-height: 100% !important;
+    height: 100% !important;
+    position: static !important;
+    top: auto !important;
+    grid-template-rows: auto 1fr 1fr !important;
   }
 
   .quick-actions::before {
@@ -6944,7 +6946,8 @@ body.app-scroll-locked .app-content {
   }
 
   .qa-btn {
-    min-height: 92px !important;
+    min-height: 0 !important;
+    height: 100% !important;
     border-radius: 16px !important;
     border: 1px solid var(--mono-border-soft) !important;
     background: #f1f5ee !important;
