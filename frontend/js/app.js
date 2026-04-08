@@ -371,6 +371,8 @@ function setListLoading(containerSelector, loading) {
   const container = $(containerSelector);
   if (!container) return;
   container.classList.toggle('loading', !!loading);
+  container.classList.toggle('is-loading', !!loading);
+  if (loading) container.classList.remove('is-empty');
 }
 
 function setButtonLoading(button, loading) {
@@ -395,11 +397,16 @@ function renderList(containerSelector, items, renderer, emptyText) {
   }
 
   container.classList.remove('loading');
+  container.classList.remove('is-loading');
   if (!items.length) {
+    container.classList.add('is-empty');
+    container.classList.remove('has-items');
     container.innerHTML = `<div class="empty-state"><strong>Нічого немає</strong>${emptyText || 'Даних поки немає.'}</div>`;
     return;
   }
 
+  container.classList.add('has-items');
+  container.classList.remove('is-empty');
   const html = items.map(renderer).join('');
   if (typeof requestAnimationFrame === 'function') {
     container._renderFrame = requestAnimationFrame(() => {
@@ -733,10 +740,16 @@ function renderTransactions(list, container = '#transactionsList') {
   const el = $(container);
   if (!el) return;
   el.classList.remove('loading');
+  el.classList.remove('is-loading');
   if (!list.length) {
+    el.classList.add('is-empty');
+    el.classList.remove('has-items');
     el.innerHTML = '<div class="empty-state"><strong>Нічого немає</strong>Транзакцій поки немає.</div>';
     return;
   }
+
+  el.classList.add('has-items');
+  el.classList.remove('is-empty');
 
   // Group by date
   const groups = {};
@@ -5431,19 +5444,27 @@ async function loadCards() {
   const list = $('#cardsList');
   const emptyEl = $('#cardsEmpty');
   if (!list) return;
+  list.classList.add('is-loading');
+  list.classList.remove('is-empty', 'has-items');
   list.innerHTML = '<div class="loading-spinner-sm"></div>';
   if (emptyEl) emptyEl.classList.add('hidden');
   try {
     const cards = await api.request('/api/cards');
     const active = cards.filter(c => c.status !== 'closed');
     if (!cards.length) {
+      list.classList.remove('is-loading', 'has-items');
+      list.classList.add('is-empty');
       list.innerHTML = '';
       if (emptyEl) emptyEl.classList.remove('hidden');
     } else {
+      list.classList.remove('is-loading', 'is-empty');
+      list.classList.add('has-items');
       list.innerHTML = cards.map(renderCardItem).join('');
       bindCardActions();
     }
   } catch (e) {
+    list.classList.remove('is-loading', 'has-items');
+    list.classList.add('is-empty');
     list.innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
   }
 }

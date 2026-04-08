@@ -638,6 +638,19 @@
     gap: 16px !important;
   }
 
+  html.desktop-cockpit #dashboard.active-screen > .card {
+    margin-bottom: 0 !important;
+  }
+
+  html.desktop-cockpit #dashboard.active-screen .month-strip {
+    gap: 12px !important;
+  }
+
+  html.desktop-cockpit #dashboard.active-screen .ms-item {
+    min-height: 96px !important;
+    border-radius: 15px !important;
+  }
+
   html.desktop-cockpit #transactions .section-header-row {
     margin-bottom: 14px !important;
   }
@@ -666,6 +679,53 @@
     border: 1px solid #d7e2d9 !important;
     padding: 16px !important;
     box-shadow: 0 6px 14px rgba(21, 38, 27, 0.04) !important;
+  }
+
+  html.desktop-cockpit .list.is-empty .empty-state,
+  html.desktop-cockpit #cardsList.is-empty + #cardsEmpty:not(.hidden) {
+    min-height: 120px !important;
+  }
+
+  html.desktop-cockpit #recentTransactions.list.is-empty .empty-state,
+  html.desktop-cockpit #transactionsList.list.is-empty .empty-state {
+    padding: 24px 16px !important;
+    font-size: 13px !important;
+    color: #738779 !important;
+    border-radius: 14px !important;
+    border: 1px dashed #d2ddd1 !important;
+    background: linear-gradient(180deg, #fdfffd 0%, #f3f8f3 100%) !important;
+  }
+
+  html.desktop-cockpit #cards .cards-manage-list {
+    min-height: 180px !important;
+  }
+
+  html.desktop-cockpit #cards .cards-manage-list.is-empty:not(.is-loading):empty::before {
+    content: "Немає активних карток. Натисніть «Випустити», щоб створити першу." !important;
+    display: block !important;
+    text-align: center !important;
+    padding: 26px 18px !important;
+    color: #6e8272 !important;
+    border: 1.5px dashed #cfdbcf !important;
+    border-radius: 14px !important;
+    background: linear-gradient(180deg, #fdfffd 0%, #f4f9f4 100%) !important;
+  }
+
+  html.desktop-cockpit #recentTransactionsCard .card-head,
+  html.desktop-cockpit #transactions .card .tx-search-row {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 2 !important;
+    background: #ffffff !important;
+  }
+
+  html.desktop-cockpit #recentTransactionsCard .card-head {
+    padding-top: 2px !important;
+  }
+
+  html.desktop-cockpit #transactions .card .tx-search-row {
+    padding-top: 2px !important;
+    margin-bottom: 10px !important;
   }
 
   html.desktop-cockpit #recentTransactions:empty::before,
