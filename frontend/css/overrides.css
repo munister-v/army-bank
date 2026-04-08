@@ -6304,7 +6304,7 @@ button.btn-primary:active {
   .bottom-nav {
     position: sticky !important;
     bottom: 0 !important;
-    margin-top: 14px !important;
+    margin-top: auto !important;
     padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
     height: auto !important;
     min-height: 0 !important;
@@ -6378,8 +6378,6 @@ button.btn-primary:active {
 }
 
 /* Smoother compositing for floating layers */
-.app-header,
-.bottom-nav,
 .notif-panel,
 .tc-sheet,
 .modal-box,
@@ -6388,9 +6386,12 @@ button.btn-primary:active {
   backface-visibility: hidden;
 }
 
+/* Do not transform app-header: it breaks fixed/sticky nav positioning */
+.app-header {
+  transform: none !important;
+}
+
 /* Auto quality profile for weaker devices */
-.render-lite .app-header,
-.render-lite .bottom-nav,
 .render-lite .notif-panel,
 .render-lite .modal-overlay,
 .render-lite .tc-overlay,
