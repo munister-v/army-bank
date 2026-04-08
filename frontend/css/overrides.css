@@ -7902,3 +7902,126 @@ body.app-scroll-locked .app-content {
     background: linear-gradient(180deg, var(--ab-luxe-surface) 0%, var(--ab-luxe-surface-2) 100%) !important;
   }
 }
+
+/* ── iPhone Fit & Finish (mobile dashboard) ─────────────────────────────── */
+@media (max-width: 767px) {
+  #appScreen.screen-dashboard.app-shell {
+    padding-top: 0 !important;
+  }
+
+  #appScreen.screen-dashboard .app-header {
+    padding-top: max(20px, env(safe-area-inset-top, 0px)) !important;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(16px, env(safe-area-inset-right, 0px)) !important;
+    padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px)) !important;
+    border-bottom-left-radius: 34px !important;
+    border-bottom-right-radius: 34px !important;
+  }
+
+  #appScreen.screen-dashboard .header-top {
+    align-items: flex-start !important;
+    gap: 8px !important;
+    padding: 6px 0 12px !important;
+  }
+
+  #appScreen.screen-dashboard .header-user {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    gap: 10px !important;
+  }
+
+  #appScreen.screen-dashboard .header-actions {
+    gap: 6px !important;
+    flex: 0 0 auto !important;
+  }
+
+  #appScreen.screen-dashboard .icon-btn {
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    border-radius: 11px !important;
+  }
+
+  #appScreen.screen-dashboard .header-info {
+    max-width: calc(100vw - 184px) !important;
+  }
+
+  #appScreen.screen-dashboard .header-name {
+    font-size: clamp(1.16rem, 5.2vw, 1.5rem) !important;
+    line-height: 1.06 !important;
+    letter-spacing: -0.014em !important;
+  }
+
+  #appScreen.screen-dashboard .header-role {
+    font-size: 12px !important;
+    opacity: 0.92 !important;
+  }
+
+  #appScreen.screen-dashboard .balance-label {
+    font-size: 11px !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  #appScreen.screen-dashboard .balance-amount {
+    font-size: clamp(2.6rem, 14.2vw, 4.2rem) !important;
+    line-height: 0.98 !important;
+  }
+
+  #appScreen.screen-dashboard #heroAccountCopyBtn {
+    margin-top: 10px !important;
+    padding: 7px 12px !important;
+    border-radius: 12px !important;
+    font-size: 12px !important;
+  }
+
+  /* Card clipping fix: remove conflicting vw math and align to header width. */
+  #appScreen.screen-dashboard .bank-cards-carousel {
+    margin: 10px 0 0 !important;
+    overflow: visible !important;
+  }
+
+  #appScreen.screen-dashboard .bank-cards-track {
+    gap: 12px !important;
+    padding: 2px 0 18px !important;
+    scroll-padding-left: 0 !important;
+    scroll-padding-right: 0 !important;
+  }
+
+  #appScreen.screen-dashboard .bank-cards-track .bank-card,
+  #appScreen.screen-dashboard .bank-card {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin-right: 0 !important;
+    aspect-ratio: 85.6 / 54 !important;
+    border-radius: 24px !important;
+  }
+
+  #appScreen.screen-dashboard .bank-card-content {
+    padding: 16px 18px 14px !important;
+  }
+
+  #appScreen.screen-dashboard .quick-actions {
+    margin-top: 10px !important;
+    padding-inline: 0 !important;
+    gap: 10px !important;
+  }
+
+  #appScreen.screen-dashboard .qa-btn {
+    min-height: 88px !important;
+    border-radius: 18px !important;
+    background: linear-gradient(180deg, rgba(245, 252, 247, 0.2) 0%, rgba(245, 252, 247, 0.12) 100%) !important;
+  }
+
+  #appScreen.screen-dashboard .qa-icon {
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 15px !important;
+  }
+
+  #appScreen.screen-dashboard .qa-label {
+    font-size: 10px !important;
+    font-weight: 650 !important;
+    letter-spacing: 0.01em !important;
+  }
+}
