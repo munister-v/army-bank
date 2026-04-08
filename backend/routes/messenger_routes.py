@@ -1,0 +1,383 @@
+"""Маршрути месенджера Army Bank."""
+from __future__ import annotations
+
+from flask import Blueprint, jsonify, request, g
+
+from ..database import get_connection
+from ..config import USE_PG
+from .helpers import api_error, auth_required
+
+messenger_bp = Blueprint('messenger', __name__, url_prefix='/api/messenger')
+
+_FALSE = False if USE_PG else 0  # boolean compatibility
+
+
+# ── Допоміжні функції ────────────────────────────────────────────────────────
+
+def _now_sql():
+    return 'NOW()' if USE_PG else "datetime('now')"
+
+
+def _like_op():
+    return 'ILIKE' if USE_PG else 'LIKE'
+
+
+def _get_or_create_conversation(user_a: int, user_b: int) -> int:
+    """Знаходить або створює чат між двома користувачами."""
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT cp1.conversation_id
+            FROM conversation_participants cp1
+            JOIN conversation_participants cp2
+              ON cp1.conversation_id = cp2.conversation_id
+            WHERE cp1.user_id = %s AND cp2.user_id = %s
+            GROUP BY cp1.conversation_id
+            HAVING COUNT(*) = 2
+            ORDER BY cp1.conversation_id ASC
+            LIMIT 1
+            """,
+            (user_a, user_b),
+        ).fetchone()
+
+        if row:
+            return row['conversation_id']
+
+        # Створюємо новий чат
+        if USE_PG:
+            cur = conn.execute('INSERT INTO conversations(created_at) VALUES(NOW()) RETURNING id')
+            conv_id = cur.fetchone()['id']
+        else:
+            conn.execute("INSERT INTO conversations(created_at) VALUES(datetime('now'))")
+            conv_id = conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
+
+        conn.execute(
+            'INSERT INTO conversation_participants (conversation_id, user_id) VALUES (%s, %s)',
+            (conv_id, user_a),
+        )
+        conn.execute(
+            'INSERT INTO conversation_participants (conversation_id, user_id) VALUES (%s, %s)',
+            (conv_id, user_b),
+        )
+        return conv_id
+
+
+def _conv_summary(conv_id: int, me_id: int) -> dict:
+    """Повертає summary діалогу для списку розмов."""
+    with get_connection() as conn:
+        conv = conn.execute(
+            'SELECT id, last_message_at, last_message_text FROM conversations WHERE id = %s',
+            (conv_id,),
+        ).fetchone()
+        if not conv:
+            return {}
+
+        partner = conn.execute(
+            """
+            SELECT u.id, u.full_name, u.phone, u.role
+            FROM conversation_participants cp
+            JOIN users u ON u.id = cp.user_id
+            WHERE cp.conversation_id = %s AND cp.user_id != %s
+            LIMIT 1
+            """,
+            (conv_id, me_id),
+        ).fetchone()
+
+        me_part = conn.execute(
+            'SELECT last_read_at FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
+            (conv_id, me_id),
+        ).fetchone()
+        last_read = (me_part or {}).get('last_read_at')
+
+        if last_read:
+            unread = conn.execute(
+                'SELECT COUNT(*) AS n FROM messages WHERE conversation_id = %s AND created_at > %s AND sender_id != %s AND is_deleted = %s',
+                (conv_id, last_read, me_id, _FALSE),
+            ).fetchone()['n']
+        else:
+            unread = conn.execute(
+                'SELECT COUNT(*) AS n FROM messages WHERE conversation_id = %s AND sender_id != %s AND is_deleted = %s',
+                (conv_id, me_id, _FALSE),
+            ).fetchone()['n']
+
+    return {
+        'id': conv['id'],
+        'last_message_at': conv['last_message_at'],
+        'last_message_text': conv['last_message_text'],
+        'partner': dict(partner) if partner else None,
+        'unread': unread,
+    }
+
+
+# ── Пошук користувачів ───────────────────────────────────────────────────────
+
+@messenger_bp.get('/users/search')
+@auth_required
+def search_users():
+    q = (request.args.get('q') or '').strip()
+    if len(q) < 2:
+        return api_error('Запит занадто короткий.', 400)
+
+    me_id = g.current_user['id']
+    like = f'%{q}%'
+    op = _like_op()
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT u.id, u.full_name, u.phone, u.role, a.account_number
+            FROM users u
+            LEFT JOIN accounts a ON a.user_id = u.id
+            WHERE u.id != %s
+              AND (u.full_name {op} %s OR u.phone LIKE %s OR a.account_number LIKE %s)
+            LIMIT 20
+            """,
+            (me_id, like, like, like),
+        ).fetchall()
+
+    return jsonify({'ok': True, 'data': [dict(r) for r in rows]})
+
+
+# ── Список розмов ────────────────────────────────────────────────────────────
+
+@messenger_bp.get('/conversations')
+@auth_required
+def list_conversations():
+    me_id = g.current_user['id']
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT cp.conversation_id
+            FROM conversation_participants cp
+            JOIN conversations c ON c.id = cp.conversation_id
+            WHERE cp.user_id = %s
+            ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
+            """,
+            (me_id,),
+        ).fetchall()
+
+    result = []
+    for row in rows:
+        summary = _conv_summary(row['conversation_id'], me_id)
+        if summary:
+            result.append(summary)
+
+    return jsonify({'ok': True, 'data': result})
+
+
+# ── Розпочати або знайти чат ──────────────────────────────────────────────────
+
+@messenger_bp.post('/conversations')
+@auth_required
+def open_conversation():
+    data = request.get_json(force=True) or {}
+    partner_id = data.get('user_id')
+    if not partner_id:
+        return api_error("user_id обов'язковий.")
+
+    me_id = g.current_user['id']
+    if int(partner_id) == me_id:
+        return api_error('Не можна писати самому собі.')
+
+    with get_connection() as conn:
+        partner = conn.execute('SELECT id FROM users WHERE id = %s', (partner_id,)).fetchone()
+    if not partner:
+        return api_error('Користувача не знайдено.', 404)
+
+    conv_id = _get_or_create_conversation(me_id, int(partner_id))
+    summary = _conv_summary(conv_id, me_id)
+    return jsonify({'ok': True, 'data': summary})
+
+
+# ── Повідомлення ─────────────────────────────────────────────────────────────
+
+@messenger_bp.get('/conversations/<int:conv_id>/messages')
+@auth_required
+def get_messages(conv_id: int):
+    me_id = g.current_user['id']
+    before_id = request.args.get('before_id', type=int)
+    limit = min(int(request.args.get('limit', 50)), 100)
+
+    with get_connection() as conn:
+        part = conn.execute(
+            'SELECT id FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
+            (conv_id, me_id),
+        ).fetchone()
+        if not part:
+            return api_error('Доступ заборонено.', 403)
+
+        if before_id:
+            rows = conn.execute(
+                """
+                SELECT m.id, m.sender_id, m.text, m.created_at, m.is_deleted,
+                       u.full_name AS sender_name
+                FROM messages m
+                JOIN users u ON u.id = m.sender_id
+                WHERE m.conversation_id = %s AND m.id < %s
+                ORDER BY m.id DESC
+                LIMIT %s
+                """,
+                (conv_id, before_id, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT m.id, m.sender_id, m.text, m.created_at, m.is_deleted,
+                       u.full_name AS sender_name
+                FROM messages m
+                JOIN users u ON u.id = m.sender_id
+                WHERE m.conversation_id = %s
+                ORDER BY m.id DESC
+                LIMIT %s
+                """,
+                (conv_id, limit),
+            ).fetchall()
+
+        _mark_read(conn, conv_id, me_id)
+
+    msgs = [dict(r) for r in rows]
+    msgs.reverse()
+    return jsonify({'ok': True, 'data': msgs})
+
+
+@messenger_bp.post('/conversations/<int:conv_id>/messages')
+@auth_required
+def send_message(conv_id: int):
+    me_id = g.current_user['id']
+    data = request.get_json(force=True) or {}
+    text = (data.get('text') or '').strip()
+    if not text:
+        return api_error('Повідомлення порожнє.')
+    if len(text) > 4000:
+        return api_error('Повідомлення занадто довге (макс. 4000 символів).')
+
+    with get_connection() as conn:
+        part = conn.execute(
+            'SELECT id FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
+            (conv_id, me_id),
+        ).fetchone()
+        if not part:
+            return api_error('Доступ заборонено.', 403)
+
+        if USE_PG:
+            cur = conn.execute(
+                'INSERT INTO messages (conversation_id, sender_id, text) VALUES (%s, %s, %s) RETURNING id, created_at',
+                (conv_id, me_id, text),
+            )
+            msg_row = cur.fetchone()
+            msg_id = msg_row['id']
+            created_at = msg_row['created_at']
+        else:
+            conn.execute(
+                'INSERT INTO messages (conversation_id, sender_id, text) VALUES (%s, %s, %s)',
+                (conv_id, me_id, text),
+            )
+            msg_id = conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
+            created_at = conn.execute(
+                'SELECT created_at FROM messages WHERE id = %s', (msg_id,)
+            ).fetchone()['created_at']
+
+        preview = text[:100]
+        conn.execute(
+            f'UPDATE conversations SET last_message_at = {_now_sql()}, last_message_text = %s WHERE id = %s',
+            (preview, conv_id),
+        )
+        _mark_read(conn, conv_id, me_id)
+
+    return jsonify({'ok': True, 'data': {
+        'id': msg_id,
+        'conversation_id': conv_id,
+        'sender_id': me_id,
+        'sender_name': g.current_user['full_name'],
+        'text': text,
+        'created_at': str(created_at),
+        'is_deleted': False,
+    }})
+
+
+# ── Polling ────────────────────────────────────────────────────────────────
+
+@messenger_bp.get('/conversations/<int:conv_id>/poll')
+@auth_required
+def poll_messages(conv_id: int):
+    me_id = g.current_user['id']
+    after_id = request.args.get('after_id', 0, type=int)
+
+    with get_connection() as conn:
+        part = conn.execute(
+            'SELECT id FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
+            (conv_id, me_id),
+        ).fetchone()
+        if not part:
+            return api_error('Доступ заборонено.', 403)
+
+        rows = conn.execute(
+            """
+            SELECT m.id, m.sender_id, m.text, m.created_at, m.is_deleted,
+                   u.full_name AS sender_name
+            FROM messages m
+            JOIN users u ON u.id = m.sender_id
+            WHERE m.conversation_id = %s AND m.id > %s
+            ORDER BY m.id ASC
+            LIMIT 50
+            """,
+            (conv_id, after_id),
+        ).fetchall()
+
+        if rows:
+            _mark_read(conn, conv_id, me_id)
+
+    return jsonify({'ok': True, 'data': [dict(r) for r in rows]})
+
+
+# ── Загальний unread count ────────────────────────────────────────────────────
+
+@messenger_bp.get('/unread')
+@auth_required
+def unread_count():
+    me_id = g.current_user['id']
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT COUNT(*) AS n
+            FROM messages m
+            JOIN conversation_participants cp
+              ON cp.conversation_id = m.conversation_id AND cp.user_id = %s
+            WHERE m.sender_id != %s
+              AND m.is_deleted = %s
+              AND (cp.last_read_at IS NULL OR m.created_at > cp.last_read_at)
+            """,
+            (me_id, me_id, _FALSE),
+        ).fetchone()
+    return jsonify({'ok': True, 'data': {'unread': row['n'] if row else 0}})
+
+
+# ── Видалення повідомлення ───────────────────────────────────────────────────
+
+@messenger_bp.delete('/messages/<int:msg_id>')
+@auth_required
+def delete_message(msg_id: int):
+    me_id = g.current_user['id']
+    _true = True if USE_PG else 1
+    with get_connection() as conn:
+        msg = conn.execute(
+            'SELECT id, sender_id FROM messages WHERE id = %s', (msg_id,)
+        ).fetchone()
+        if not msg:
+            return api_error('Повідомлення не знайдено.', 404)
+        if msg['sender_id'] != me_id:
+            return api_error('Можна видаляти лише свої повідомлення.', 403)
+        conn.execute(
+            'UPDATE messages SET is_deleted = %s, text = %s WHERE id = %s',
+            (_true, 'Повідомлення видалено', msg_id),
+        )
+    return jsonify({'ok': True})
+
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def _mark_read(conn, conv_id: int, user_id: int) -> None:
+    conn.execute(
+        f'UPDATE conversation_participants SET last_read_at = {_now_sql()} WHERE conversation_id = %s AND user_id = %s',
+        (conv_id, user_id),
+    )

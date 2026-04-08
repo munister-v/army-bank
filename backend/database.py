@@ -424,6 +424,60 @@ CREATE INDEX IF NOT EXISTS idx_api_idempotency_created ON api_idempotency(create
 """
 
 
+MESSENGER_DDL = """
+CREATE TABLE IF NOT EXISTS conversations (
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_message_at TIMESTAMPTZ,
+    last_message_text VARCHAR(200)
+);
+CREATE TABLE IF NOT EXISTS conversation_participants (
+    id SERIAL PRIMARY KEY,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_read_at TIMESTAMPTZ,
+    UNIQUE(conversation_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS messages (
+    id SERIAL PRIMARY KEY,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conv_participants_user ON conversation_participants(user_id);
+"""
+
+MESSENGER_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS conversations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_message_at TEXT,
+    last_message_text TEXT
+);
+CREATE TABLE IF NOT EXISTS conversation_participants (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_read_at TEXT,
+    UNIQUE(conversation_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_conv_participants_user ON conversation_participants(user_id);
+"""
+
 DOC_TEMPLATES_DDL = """
 CREATE TABLE IF NOT EXISTS document_templates (
     id SERIAL PRIMARY KEY,
@@ -628,6 +682,7 @@ def init_db() -> None:
             _pg_exec(IDEMPOTENCY_DDL, optional=True, label='api_idempotency')
             _pg_exec(DOC_TEMPLATES_DDL, optional=True, label='document_templates')
             _pg_exec(USER_DOCS_DDL, optional=True, label='user_documents')
+            _pg_exec(MESSENGER_DDL, optional=True, label='messenger')
             _pg_exec(
                 """CREATE TABLE IF NOT EXISTS compliance_profiles (
                     id SERIAL PRIMARY KEY,
@@ -658,6 +713,7 @@ def init_db() -> None:
             conn.executescript(IDEMPOTENCY_DDL_SQLITE)
             conn.executescript(DOC_TEMPLATES_DDL_SQLITE)
             conn.executescript(USER_DOCS_DDL_SQLITE)
+            conn.executescript(MESSENGER_DDL_SQLITE)
             try:
                 conn.execute('ALTER TABLE transactions ADD COLUMN payment_order_id INTEGER;')
             except Exception:

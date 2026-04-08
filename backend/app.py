@@ -40,6 +40,7 @@ from .routes.payment_audit_routes import payment_audit_bp
 from .routes.admin_cards_routes import admin_cards_bp
 from .routes.admin_compliance_routes import admin_compliance_bp
 from .routes.document_routes import doc_bp
+from .routes.messenger_routes import messenger_bp
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / 'frontend'
@@ -151,10 +152,10 @@ def create_app() -> Flask:
         if is_html:
             # Always fetch fresh HTML to prevent old auth/dashboard shell flashes.
             resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        elif norm_path.endswith('/sw.js') or norm_path == '/sw.js':
-            # Service Worker script must be revalidated every load to deliver updates immediately.
+        elif norm_path.endswith('/sw.js') or norm_path == '/sw.js' or norm_path.endswith('/sw-messenger.js'):
+            # Service Worker scripts must be revalidated every load to deliver updates immediately.
             resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        elif norm_path.endswith('/manifest.json') or norm_path == '/manifest.json':
+        elif norm_path.endswith('/manifest.json') or norm_path == '/manifest.json' or norm_path.endswith('/manifest-messenger.json'):
             resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
         elif norm_path.endswith(('.woff2', '.woff', '.ttf', '.png', '.jpg', '.ico', '.webp')):
             resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
@@ -214,6 +215,7 @@ def create_app() -> Flask:
     app.register_blueprint(admin_cards_bp, url_prefix=prefix + '/api/admin')
     app.register_blueprint(admin_compliance_bp, url_prefix=prefix + '/api/admin/compliance')
     app.register_blueprint(doc_bp, url_prefix=prefix + '/api/admin')
+    app.register_blueprint(messenger_bp, url_prefix=prefix + '/api/messenger')
 
     @app.get(prefix + '/api' if prefix else '/api')
     @app.get(prefix + '/api/' if prefix else '/api/')
@@ -334,6 +336,10 @@ def create_app() -> Flask:
     @app.get(prefix + '/api-status')
     def api_status_page():
         return send_html('api-status.html')
+
+    @app.get(prefix + '/messenger' if prefix else '/messenger')
+    def messenger_page():
+        return send_html('messenger.html')
 
     @app.get(prefix + '/health')
     def health():
