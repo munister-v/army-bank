@@ -522,8 +522,16 @@ body.api-status-page::before {
     grid-template-columns: repeat(3, minmax(130px, 1fr));
   }
 
+  .api-table-scroll {
+    overflow: hidden;
+    border: 0;
+    background: transparent;
+  }
+
   .table.api-table {
-    min-width: 100%;
+    display: block;
+    width: 100%;
+    min-width: 0;
     border-collapse: separate;
     border-spacing: 0;
   }
@@ -532,30 +540,35 @@ body.api-status-page::before {
     display: none;
   }
 
-  .api-table tbody,
-  .api-table tr,
-  .api-table td {
-    display: block;
+  .api-table tbody {
+    display: grid;
     width: 100%;
+    gap: 8px;
   }
 
   .api-table tbody tr {
+    display: grid;
+    width: 100%;
     padding: 10px;
-    border-bottom: 1px solid rgba(17, 39, 27, 0.1);
+    border: 1px solid rgba(17, 39, 27, 0.1);
+    border-radius: 14px;
     background: #ffffff;
   }
 
   .api-table tbody tr + tr {
-    margin-top: 8px;
+    margin-top: 0;
   }
 
   .api-table tbody td {
     border: 0;
-    padding: 5px 8px;
-    display: flex;
+    padding: 6px 8px;
+    display: grid;
+    grid-template-columns: minmax(82px, auto) minmax(0, 1fr);
     align-items: flex-start;
-    justify-content: space-between;
-    gap: 14px;
+    justify-content: stretch;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
   }
 
   .api-table tbody td::before {
@@ -564,13 +577,26 @@ body.api-status-page::before {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    min-width: 90px;
+    min-width: 0;
   }
 
   .api-path {
     white-space: normal;
-    text-align: right;
+    text-align: left;
     word-break: break-word;
+  }
+
+  .api-table tbody td > * {
+    min-width: 0;
+  }
+
+  .api-table tbody td[data-label="Action"] {
+    grid-template-columns: 1fr;
+    padding-top: 2px;
+  }
+
+  .api-table tbody td[data-label="Action"]::before {
+    display: none;
   }
 
   .api-run-btn {
