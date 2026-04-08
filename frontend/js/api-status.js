@@ -23,6 +23,10 @@
     sumWarn: document.getElementById('sumWarn'),
     sumFail: document.getElementById('sumFail'),
     sumIdle: document.getElementById('sumIdle'),
+    specName: document.getElementById('specName'),
+    specVersion: document.getElementById('specVersion'),
+    specServer: document.getElementById('specServer'),
+    specUpdatedAt: document.getElementById('specUpdatedAt'),
   };
 
   function getBase() {
@@ -50,6 +54,13 @@
     } catch {
       return rawText;
     }
+  }
+
+  function setSpecMeta(meta) {
+    if (els.specName) els.specName.textContent = meta.name || '—';
+    if (els.specVersion) els.specVersion.textContent = meta.version || '—';
+    if (els.specServer) els.specServer.textContent = meta.server || '—';
+    if (els.specUpdatedAt) els.specUpdatedAt.textContent = meta.updatedAt || '—';
   }
 
   function setRunProgress(done, total, label) {
@@ -195,18 +206,18 @@
       const rowCls = ep.status ? `api-row-${ep.status}` : '';
       return `
         <tr data-id="${escapeHtml(ep.id)}" class="${rowCls}">
-          <td><span class="api-pill api-method ${methodCls}">${escapeHtml(ep.method)}</span></td>
-          <td>
+          <td data-label="Method"><span class="api-pill api-method ${methodCls}">${escapeHtml(ep.method)}</span></td>
+          <td data-label="Path">
             <div class="api-path">${escapeHtml(ep.path)}</div>
             <div class="muted" style="margin-top:3px">${escapeHtml(ep.summary || '—')}</div>
           </td>
-          <td>${escapeHtml(ep.tag)}</td>
-          <td>${ep.requiresAuth ? 'Bearer' : 'Public'}</td>
-          <td>${escapeHtml(ep.strategy || '—')}</td>
-          <td>${rowStatusBadge(ep.status)}</td>
-          <td>${escapeHtml(ep.httpCode)}</td>
-          <td>${escapeHtml(ep.latencyMs)}</td>
-          <td><button class="api-run-btn" data-run-one="${escapeHtml(ep.id)}" ${state.running ? 'disabled' : ''}>Run</button></td>
+          <td data-label="Tag">${escapeHtml(ep.tag)}</td>
+          <td data-label="Auth">${ep.requiresAuth ? 'Bearer' : 'Public'}</td>
+          <td data-label="Strategy">${escapeHtml(ep.strategy || '—')}</td>
+          <td data-label="Status">${rowStatusBadge(ep.status)}</td>
+          <td data-label="HTTP">${escapeHtml(ep.httpCode)}</td>
+          <td data-label="ms">${escapeHtml(ep.latencyMs)}</td>
+          <td data-label="Action"><button class="api-run-btn" data-run-one="${escapeHtml(ep.id)}" ${state.running ? 'disabled' : ''}>Run</button></td>
         </tr>
       `;
     });
@@ -329,6 +340,12 @@
     if (state.running) return;
     toggleBusy(true);
     setRunProgress(0, 0, 'Завантаження OpenAPI...');
+    setSpecMeta({
+      name: 'Завантаження...',
+      version: '—',
+      server: withBase('/api'),
+      updatedAt: '—',
+    });
 
     try {
       const response = await fetch(withBase('/api/openapi.json'), {
@@ -342,6 +359,15 @@
 
       state.schema = await response.json();
       state.endpoints = buildEndpoints(state.schema);
+      const info = state.schema && state.schema.info ? state.schema.info : {};
+      const servers = state.schema && Array.isArray(state.schema.servers) ? state.schema.servers : [];
+      const primaryServer = servers[0] && servers[0].url ? servers[0].url : withBase('/api');
+      setSpecMeta({
+        name: info.title || 'Army Bank API',
+        version: info.version || '—',
+        server: primaryServer,
+        updatedAt: new Date().toLocaleString('uk-UA'),
+      });
       els.preview.textContent = 'OpenAPI завантажено. Можна запускати перевірку endpoint-ів.';
       setRunProgress(0, state.endpoints.length, `Завантажено ${state.endpoints.length} endpoint(ів)`);
       renderRows();
@@ -350,6 +376,12 @@
       renderRows();
       const message = String(err && err.message ? err.message : err);
       els.preview.textContent = `Не вдалося завантажити OpenAPI: ${message}`;
+      setSpecMeta({
+        name: 'OpenAPI недоступний',
+        version: '—',
+        server: withBase('/api'),
+        updatedAt: new Date().toLocaleString('uk-UA'),
+      });
       setRunProgress(0, 0, 'Помилка завантаження OpenAPI');
     } finally {
       toggleBusy(false);
