@@ -350,7 +350,7 @@
   html.desktop-cockpit #dashboard.active-screen #recentTransactionsCard {
     grid-column: 1 !important;
     grid-row: 2 / span 2 !important;
-    min-height: 420px !important;
+    min-height: 340px !important;
   }
 
   html.desktop-cockpit #dashboard.active-screen .month-strip {
@@ -419,5 +419,284 @@
     border: 1px solid #dbe5dc !important;
     box-shadow: none !important;
     background: #ffffff !important;
+  }
+}
+
+/* Desktop Cockpit — Premium refinement pass */
+@media (min-width: 1200px) {
+  html.desktop-cockpit {
+    --ab-cockpit-ink: #22362a;
+    --ab-cockpit-soft-ink: #5a6d5d;
+    --ab-cockpit-line: #dbe5dc;
+    --ab-cockpit-surface: #fbfdfb;
+    --ab-cockpit-surface-2: #f3f7f3;
+    --ab-cockpit-accent: #2b4b37;
+  }
+
+  html.desktop-cockpit #appScreen.app-shell::before {
+    content: "" !important;
+    position: absolute !important;
+    inset: 1px !important;
+    border-radius: 23px !important;
+    pointer-events: none !important;
+    background:
+      radial-gradient(120% 90% at 100% 0%, rgba(196, 158, 83, 0.09) 0%, rgba(196, 158, 83, 0) 54%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.05) 100%) !important;
+    z-index: 0 !important;
+  }
+
+  html.desktop-cockpit #appScreen.app-shell > * {
+    position: relative !important;
+    z-index: 1 !important;
+  }
+
+  html.desktop-cockpit .app-header {
+    padding: 14px !important;
+    gap: 12px !important;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto !important;
+  }
+
+  html.desktop-cockpit .balance-block {
+    grid-row: 2 !important;
+  }
+
+  html.desktop-cockpit #sidebar.bottom-nav {
+    grid-row: 3 !important;
+  }
+
+  html.desktop-cockpit .bank-cards-carousel {
+    grid-row: 4 !important;
+  }
+
+  html.desktop-cockpit .quick-actions {
+    grid-row: 5 !important;
+  }
+
+  html.desktop-cockpit .header-top {
+    min-height: 78px !important;
+    padding: 12px !important;
+  }
+
+  html.desktop-cockpit .header-name {
+    font-size: 16px !important;
+    font-weight: 750 !important;
+  }
+
+  html.desktop-cockpit .header-role {
+    font-size: 12px !important;
+    letter-spacing: 0.01em !important;
+  }
+
+  html.desktop-cockpit .balance-label {
+    font-size: 9px !important;
+    letter-spacing: 0.14em !important;
+  }
+
+  html.desktop-cockpit .balance-amount {
+    font-size: clamp(1.52rem, 1.92vw, 2rem) !important;
+    font-weight: 820 !important;
+  }
+
+  html.desktop-cockpit #heroAccountCopyBtn {
+    border-radius: 9px !important;
+    border: 1px solid rgba(235, 246, 236, 0.2) !important;
+    background: rgba(238, 249, 239, 0.08) !important;
+    padding: 4px 8px !important;
+  }
+
+  html.desktop-cockpit #sidebar.bottom-nav {
+    padding: 7px !important;
+    gap: 6px !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item {
+    min-height: 46px !important;
+    border-radius: 11px !important;
+    transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item:hover {
+    transform: translateX(1px) !important;
+  }
+
+  html.desktop-cockpit .bank-cards-carousel::before {
+    content: "Рахунки" !important;
+    display: block !important;
+    margin: 0 2px 8px !important;
+    color: #6a7f6d !important;
+    font-size: 10px !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+    font-weight: 800 !important;
+  }
+
+  html.desktop-cockpit .bank-cards-track {
+    max-height: 292px !important;
+    padding-right: 2px !important;
+    scrollbar-width: thin !important;
+  }
+
+  html.desktop-cockpit .bank-card {
+    min-height: 124px !important;
+    border-radius: 15px !important;
+  }
+
+  html.desktop-cockpit .quick-actions::before {
+    content: "Швидкі дії" !important;
+    grid-column: 1 / -1 !important;
+    margin: 0 2px 2px !important;
+    color: #68806d !important;
+    font-size: 10px !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+    font-weight: 800 !important;
+  }
+
+  html.desktop-cockpit .quick-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-auto-rows: minmax(74px, auto) !important;
+  }
+
+  html.desktop-cockpit .qa-btn {
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease !important;
+  }
+
+  html.desktop-cockpit .qa-btn:hover {
+    transform: translateY(-1px) !important;
+    border-color: rgba(44, 75, 55, 0.3) !important;
+    box-shadow: 0 8px 16px rgba(22, 39, 28, 0.12) !important;
+  }
+
+  html.desktop-cockpit .app-content {
+    padding: 24px 28px 30px !important;
+    background:
+      linear-gradient(180deg, #fcfefc 0%, #f5f9f5 100%) !important;
+  }
+
+  html.desktop-cockpit .app-content > .screen.active-screen:not(#dashboard) {
+    max-width: 1180px !important;
+    margin: 0 auto !important;
+  }
+
+  html.desktop-cockpit .section-title {
+    font-family: "Cormorant Garamond", serif !important;
+    font-size: clamp(34px, 2.8vw, 44px) !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.01em !important;
+    color: var(--ab-cockpit-ink) !important;
+  }
+
+  html.desktop-cockpit .card {
+    border-radius: 18px !important;
+    border: 1px solid var(--ab-cockpit-line) !important;
+    box-shadow:
+      0 10px 24px rgba(22, 39, 27, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.82) !important;
+  }
+
+  html.desktop-cockpit .card-head h3,
+  html.desktop-cockpit .card-title {
+    color: var(--ab-cockpit-ink) !important;
+    font-size: 1.02rem !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  html.desktop-cockpit .btn-ghost,
+  html.desktop-cockpit .btn-accent-sm,
+  html.desktop-cockpit .btn-accent,
+  html.desktop-cockpit .btn-primary {
+    border-radius: 12px !important;
+  }
+
+  html.desktop-cockpit .lbl input,
+  html.desktop-cockpit .lbl select,
+  html.desktop-cockpit input[type="search"],
+  html.desktop-cockpit input[type="date"],
+  html.desktop-cockpit input[type="number"],
+  html.desktop-cockpit input[type="text"],
+  html.desktop-cockpit input[type="tel"],
+  html.desktop-cockpit input[type="email"],
+  html.desktop-cockpit input[type="password"],
+  html.desktop-cockpit textarea {
+    border-radius: 12px !important;
+    border: 1px solid var(--ab-cockpit-line) !important;
+    background: var(--ab-cockpit-surface-2) !important;
+    color: #24382c !important;
+  }
+
+  html.desktop-cockpit .lbl input:focus,
+  html.desktop-cockpit .lbl select:focus,
+  html.desktop-cockpit input:focus,
+  html.desktop-cockpit textarea:focus {
+    border-color: #94b59d !important;
+    box-shadow: 0 0 0 3px rgba(64, 107, 78, 0.12) !important;
+    outline: none !important;
+  }
+
+  html.desktop-cockpit #dashboard.active-screen {
+    grid-template-columns: minmax(0, 1.14fr) minmax(340px, 0.86fr) !important;
+    gap: 16px !important;
+  }
+
+  html.desktop-cockpit #transactions .section-header-row {
+    margin-bottom: 14px !important;
+  }
+
+  html.desktop-cockpit #transactions .filters-row {
+    grid-template-columns: repeat(auto-fit, minmax(142px, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  html.desktop-cockpit #transactions .filters-row > button[type="submit"] {
+    grid-column: auto !important;
+    min-height: 44px !important;
+  }
+
+  html.desktop-cockpit .tx-qf-chip {
+    border-radius: 999px !important;
+  }
+
+  html.desktop-cockpit #cards .cards-manage-list {
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)) !important;
+    gap: 14px !important;
+  }
+
+  html.desktop-cockpit #cards .card-manage-item {
+    border-radius: 16px !important;
+    border: 1px solid #d7e2d9 !important;
+    padding: 16px !important;
+    box-shadow: 0 6px 14px rgba(21, 38, 27, 0.04) !important;
+  }
+
+  html.desktop-cockpit #recentTransactions:empty::before,
+  html.desktop-cockpit #transactionsList:empty::before,
+  html.desktop-cockpit #cardsList:empty::before {
+    content: "Дані завантажуються або поки відсутні" !important;
+    display: block !important;
+    text-align: center !important;
+    color: #6f8273 !important;
+    font-size: 14px !important;
+    padding: 24px 16px !important;
+    border-radius: 12px !important;
+    border: 1px dashed #cfdbd0 !important;
+    background: linear-gradient(180deg, #fcfffc 0%, #f2f7f2 100%) !important;
+    margin-top: 8px !important;
+  }
+
+  html.desktop-cockpit .empty-state {
+    border-radius: 18px !important;
+    border: 1px dashed #cddacb !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f5faf5 100%) !important;
+    color: var(--ab-cockpit-soft-ink) !important;
+    padding: 36px 26px !important;
+  }
+
+  html.desktop-cockpit .toast {
+    left: auto !important;
+    right: 26px !important;
+    bottom: 22px !important;
+    transform: none !important;
+    width: min(360px, calc(100vw - 56px)) !important;
+    border-radius: 14px !important;
   }
 }
