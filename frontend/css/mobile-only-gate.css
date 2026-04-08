@@ -30,18 +30,19 @@ html.ab-desktop-blocked #desktopBlockScreen {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 28px;
+  padding: 32px;
 }
 
 .desktop-block-card {
-  width: min(760px, calc(100vw - 64px));
-  border-radius: 22px;
-  border: 1px solid #d5def2;
-  background: linear-gradient(180deg, #f7faff 0%, #eff4ff 100%);
-  box-shadow: 0 20px 44px rgba(48, 72, 122, 0.18);
-  padding: 28px 28px 24px;
+  width: min(980px, calc(100vw - 64px));
+  border-radius: 24px;
+  border: 1px solid #d2dcf2;
+  background:
+    radial-gradient(70% 120% at 100% 0%, rgba(144, 172, 231, 0.25) 0%, rgba(144, 172, 231, 0) 58%),
+    linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  box-shadow: 0 24px 56px rgba(48, 72, 122, 0.2);
+  padding: 26px;
   color: #24375f;
-  text-align: center;
 }
 
 .desktop-block-badge {
@@ -55,30 +56,63 @@ html.ab-desktop-blocked #desktopBlockScreen {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 7px 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+}
+
+.desktop-block-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 22px;
+  align-items: stretch;
+}
+
+.desktop-block-hero {
+  border-radius: 18px;
+  border: 1px solid #d9e2f4;
+  background: linear-gradient(180deg, #ffffff 0%, #f5f9ff 100%);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .desktop-block-card h1 {
-  margin: 0 0 10px;
-  font-size: clamp(26px, 3.2vw, 38px);
-  line-height: 1.08;
-  color: #21365b;
+  margin: 0;
+  font-size: clamp(30px, 3.2vw, 42px);
+  line-height: 1.02;
+  color: #1d3259;
 }
 
 .desktop-block-text {
-  margin: 0 auto 18px;
-  max-width: 620px;
-  color: #536a96;
-  font-size: 16px;
-  line-height: 1.55;
+  margin: 0;
+  max-width: 640px;
+  color: #5972a1;
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+.desktop-block-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.desktop-block-pill {
+  border: 1px solid #d5e0f5;
+  border-radius: 999px;
+  background: #edf3ff;
+  color: #4d6698;
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .desktop-block-qr-wrap {
-  margin: 0 auto 14px;
-  width: 264px;
-  height: 264px;
-  border-radius: 18px;
-  border: 1px solid #d3def4;
+  width: 252px;
+  height: 252px;
+  border-radius: 20px;
+  border: 1px solid #ccdaf4;
   background: #ffffff;
   display: flex;
   align-items: center;
@@ -87,16 +121,35 @@ html.ab-desktop-blocked #desktopBlockScreen {
 }
 
 .desktop-block-qr-wrap img {
-  width: 236px;
-  height: 236px;
+  width: 222px;
+  height: 222px;
   object-fit: contain;
+}
+
+.desktop-block-qr-panel {
+  border-radius: 18px;
+  border: 1px solid #d8e2f6;
+  background: linear-gradient(180deg, #ffffff 0%, #f3f8ff 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px;
+}
+
+.desktop-block-qr-caption {
+  color: #6379a7;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .desktop-block-link {
   display: inline-block;
-  margin-bottom: 14px;
+  width: fit-content;
+  margin: 0;
   color: #3f66b0;
-  font-size: 15px;
+  font-size: 14px;
   text-decoration: none;
   border-bottom: 1px dashed #9bb2e2;
 }
@@ -109,12 +162,12 @@ html.ab-desktop-blocked #desktopBlockScreen {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  justify-content: center;
-  margin-bottom: 16px;
+  justify-content: flex-start;
+  margin-top: 2px;
 }
 
 .desktop-block-btn {
-  min-width: 210px;
+  min-width: 198px;
   min-height: 44px;
   border-radius: 10px;
   border: 1px solid #c9d8f4;
@@ -142,31 +195,86 @@ html.ab-desktop-blocked #desktopBlockScreen {
   box-shadow: 0 8px 18px rgba(70, 102, 171, 0.2);
 }
 
-.desktop-block-steps {
-  margin: 0 auto;
-  padding: 0;
-  list-style: none;
-  max-width: 560px;
-  text-align: left;
-  display: grid;
-  gap: 7px;
-  color: #5c7199;
-  font-size: 14px;
+.desktop-block-mini-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 2px;
 }
 
-.desktop-block-steps li {
-  position: relative;
-  padding-left: 22px;
-  line-height: 1.5;
+.desktop-block-mini-steps span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border-radius: 8px;
+  border: 1px solid #dae4f7;
+  background: rgba(239, 245, 255, 0.8);
+  color: #5c729f;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 11px;
 }
 
-.desktop-block-steps li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 8px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #5f84cf;
+@media (max-width: 980px) {
+  .desktop-block-card {
+    width: min(720px, calc(100vw - 40px));
+    padding: 20px;
+  }
+
+  .desktop-block-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .desktop-block-hero {
+    padding: 18px;
+  }
+
+  .desktop-block-actions {
+    justify-content: center;
+  }
+
+  .desktop-block-link {
+    margin-inline: auto;
+  }
+
+  .desktop-block-mini-steps {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 620px) {
+  html.ab-desktop-blocked #desktopBlockScreen {
+    padding: 16px;
+  }
+
+  .desktop-block-card {
+    width: calc(100vw - 22px);
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .desktop-block-card h1 {
+    font-size: 24px;
+  }
+
+  .desktop-block-text {
+    font-size: 14px;
+  }
+
+  .desktop-block-qr-wrap {
+    width: 210px;
+    height: 210px;
+    border-radius: 14px;
+  }
+
+  .desktop-block-qr-wrap img {
+    width: 188px;
+    height: 188px;
+  }
+
+  .desktop-block-btn {
+    width: 100%;
+    min-width: 0;
+  }
 }

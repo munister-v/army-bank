@@ -48,7 +48,7 @@
   <link rel="stylesheet" href="/css/styles.css?v=2026-04-08-26">
   <link rel="stylesheet" href="/css/overrides.css?v=2026-04-08-29">
   <link rel="stylesheet" href="/css/desktop-cockpit.css?v=2026-04-08-04">
-  <link rel="stylesheet" href="/css/mobile-only-gate.css?v=2026-04-08-01">
+  <link rel="stylesheet" href="/css/mobile-only-gate.css?v=2026-04-08-02">
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js?v=2026-04-08-26" as="script">
   <link rel="preload" href="/js/app.js?v=2026-04-08-31" as="script">
@@ -180,27 +180,37 @@
   <section id="desktopBlockScreen" class="desktop-block-screen" aria-labelledby="desktopBlockTitle">
     <div class="desktop-block-card">
       <div class="desktop-block-badge">ARM Bank · Mobile Only</div>
-      <h1 id="desktopBlockTitle">Цей застосунок працює тільки на телефоні</h1>
-      <p class="desktop-block-text">
-        Відкрийте ARM Bank зі смартфона та встановіть як PWA. На комп'ютері веб-версія вимкнена.
-      </p>
+      <div class="desktop-block-grid">
+        <div class="desktop-block-hero">
+          <h1 id="desktopBlockTitle">Відкрийте ARM Bank на телефоні</h1>
+          <p class="desktop-block-text">Скануйте QR та встановіть PWA на головний екран.</p>
 
-      <div class="desktop-block-qr-wrap">
-        <img id="desktopBlockQr" alt="QR-код для відкриття ARM Bank на телефоні" loading="lazy" decoding="async">
+          <div class="desktop-block-pills">
+            <span class="desktop-block-pill">iOS: «Поділитися» → «На головний екран»</span>
+            <span class="desktop-block-pill">Android: «Встановити застосунок»</span>
+          </div>
+
+          <a id="desktopBlockLink" class="desktop-block-link" href="https://army-bank.onrender.com/" target="_blank" rel="noopener">army-bank.onrender.com</a>
+
+          <div class="desktop-block-actions">
+            <button id="desktopCopyLinkBtn" type="button" class="desktop-block-btn primary">Скопіювати посилання</button>
+            <a class="desktop-block-btn" href="https://army-bank.onrender.com/" target="_blank" rel="noopener">Відкрити в браузері</a>
+          </div>
+
+          <div class="desktop-block-mini-steps">
+            <span>1. Скануйте QR</span>
+            <span>2. Встановіть PWA</span>
+            <span>3. Користуйтеся з телефона</span>
+          </div>
+        </div>
+
+        <div class="desktop-block-qr-panel">
+          <div class="desktop-block-qr-wrap">
+            <img id="desktopBlockQr" alt="QR-код для відкриття ARM Bank на телефоні" loading="lazy" decoding="async">
+          </div>
+          <div class="desktop-block-qr-caption">Наведіть камеру смартфона на QR</div>
+        </div>
       </div>
-
-      <a id="desktopBlockLink" class="desktop-block-link" href="https://army-bank.onrender.com/" target="_blank" rel="noopener">https://army-bank.onrender.com/</a>
-
-      <div class="desktop-block-actions">
-        <button id="desktopCopyLinkBtn" type="button" class="desktop-block-btn primary">Скопіювати посилання</button>
-        <a class="desktop-block-btn" href="https://army-bank.onrender.com/" target="_blank" rel="noopener">Відкрити посилання</a>
-      </div>
-
-      <ol class="desktop-block-steps">
-        <li>Скануйте QR-код камерою телефону.</li>
-        <li>У Safari/Chrome натисніть «Додати на головний екран».</li>
-        <li>Користуйтеся ARM Bank лише з телефона.</li>
-      </ol>
     </div>
   </section>
 
