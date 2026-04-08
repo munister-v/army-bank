@@ -6430,3 +6430,26 @@ button.btn-primary:active {
     transition: none !important;
   }
 }
+
+/* ── Hotfix: mobile dashboard nav overlap + extra desktop polish ─────────── */
+@media (max-width: 959px) {
+  #appScreen.screen-dashboard .app-header {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #appScreen.screen-dashboard .quick-actions,
+  #dashboard .quick-actions {
+    margin-bottom: 10px !important;
+  }
+}
+
+@media (min-width: 960px) {
+  .bank-cards-carousel {
+    margin-bottom: 10px !important;
+  }
+
+  .quick-actions,
+  #dashboard .quick-actions {
+    margin-top: 6px !important;
+  }
+}
