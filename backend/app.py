@@ -246,7 +246,7 @@ def create_app() -> Flask:
 
     @app.get(prefix + '/api/docs' if prefix else '/api/docs')
     def api_docs():
-        return Response(build_docs_html(prefix), mimetype='text/html')
+        return Response(build_docs_html(prefix, app), mimetype='text/html')
 
     # ── Bootstrap: одноразове підняття першого користувача до platform_admin ──
     @app.route('/api/bootstrap', methods=['POST'])
