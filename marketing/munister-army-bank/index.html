@@ -825,6 +825,115 @@ curl -X POST army-bank.onrender.com/api/transactions/transfer \
   </div>
 </section>
 
+<!-- SCENARIOS -->
+<section class="section-deep alt" id="scenarios">
+  <div class="container">
+    <p class="feat-label">Сценарії</p>
+    <h2>Практичне використання платформи</h2>
+    <p class="deep-lead">Окрім демонстрації інтерфейсу, Army Bank покриває операційні сценарії для кількох ролей. Це дозволяє команді використовувати один продукт як для щоденного банкінгу бійця, так і для службових задач підрозділу.</p>
+
+    <div class="deep-card-grid cols-4">
+      <div class="deep-card">
+        <h3>Боєць (soldier)</h3>
+        <ul class="deep-list-check">
+          <li>Швидкі перекази родині з історією та фільтрами</li>
+          <li>Контроль витрат і планування бюджету</li>
+          <li>Накопичення на особисті цілі та спорядження</li>
+          <li>Push-сповіщення про ключові фінансові події</li>
+        </ul>
+      </div>
+      <div class="deep-card">
+        <h3>Оператор (operator)</h3>
+        <ul class="deep-list-check">
+          <li>Нарахування виплат у службовому контурі</li>
+          <li>Окремі маршрути доступу через <code>/api/operator/*</code></li>
+          <li>Контроль цільових операцій без доступу до адмін-функцій</li>
+          <li>Прозора взаємодія з єдиною транзакційною БД</li>
+        </ul>
+      </div>
+      <div class="deep-card">
+        <h3>Адміністратор (admin)</h3>
+        <ul class="deep-list-check">
+          <li>Керування ролями й життєвим циклом користувачів</li>
+          <li>Операційна аналітика, аудит-логи, контроль ризиків</li>
+          <li>Push-розсилки для критичних інформувань</li>
+          <li>Моніторинг платіжних процесів і модерація дій</li>
+        </ul>
+      </div>
+      <div class="deep-card">
+        <h3>Платформений контур</h3>
+        <ul class="deep-list-check">
+          <li>Єдина кодова база для PWA, admin і operator UI</li>
+          <li>Документований API для зовнішніх інтеграцій</li>
+          <li>Розгортання через Render + CI/CD workflow</li>
+          <li>Готова основа для масштабування функціоналу</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="deep-note"><strong>KPI-рівень продукту:</strong> стабільний доступ до основних операцій, швидка адаптація нових користувачів, скорочення ручних дій операторів, прозорість адміністративного контролю та передбачувана підтримка через API-документацію.</div>
+  </div>
+</section>
+
+<!-- IMPLEMENTATION -->
+<section class="section-deep" id="implementation">
+  <div class="container">
+    <p class="feat-label">Впровадження</p>
+    <h2>План запуску та супроводу</h2>
+    <p class="deep-lead">Для команд, які хочуть запускати Army Bank як робочий сервіс, нижче наведено практичний план впровадження: від первинної інсталяції до підтримки в бойовому режимі.</p>
+
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="flow-num">01</div>
+        <div class="flow-body">
+          <h4>Інфраструктура</h4>
+          <p>Підняти середовище з PostgreSQL, налаштувати <code>DATABASE_URL</code>, <code>SECRET_KEY</code>, <code>BASE_PATH</code>, перевірити старт через <code>/health</code> та рольову модель доступів.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">02</div>
+        <div class="flow-body">
+          <h4>Інтеграція клієнтів</h4>
+          <p>Підключити PWA або Android-клієнт до <code>/api/auth/login</code> та базових маршрутів <code>/api/accounts/main</code>, <code>/api/transactions/*</code>, включити обробку Bearer-токена та оновлення сесії.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">03</div>
+        <div class="flow-body">
+          <h4>Безпека та ролі</h4>
+          <p>Розвести доступи для <code>soldier</code>/<code>operator</code>/<code>admin</code>/<code>platform_admin</code>, перевірити аудит дій і критичні сценарії операцій із балансом.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">04</div>
+        <div class="flow-body">
+          <h4>Експлуатація</h4>
+          <p>Увімкнути CI smoke-перевірки, моніторити <code>/api/admin/stats</code>, контролювати Push-підписки та періодично перевіряти кеш-оновлення PWA після деплоїв.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="deep-card-grid" style="margin-top:26px">
+      <div class="deep-card">
+        <h3>Що отримує команда</h3>
+        <ul class="deep-list-check">
+          <li>Швидкий старт із готовою архітектурою та документацією</li>
+          <li>Один продукт для користувацького та службового контурів</li>
+          <li>Модульна база для подальшого розвитку функцій</li>
+        </ul>
+      </div>
+      <div class="deep-card">
+        <h3>Наступні кроки розвитку</h3>
+        <ul class="deep-list-check">
+          <li>Підключення додаткових каналів сповіщень</li>
+          <li>Розширення аналітики та anti-fraud правил</li>
+          <li>Поглиблення інтеграцій із зовнішніми системами</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- FAQ -->
 <section class="section-faq" id="faq" aria-labelledby="faq-heading">
   <div class="container">
