@@ -1,5 +1,5 @@
 /* Army Bank Messenger — Service Worker */
-const CACHE = 'msng-v1';
+const CACHE = 'msng-v2';
 const STATIC = [
   '/messenger',
   '/css/messenger.css',
@@ -23,20 +23,44 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const { request } = e;
+  if (request.method !== 'GET') return;
+
   const url = new URL(request.url);
+  const isSameOrigin = url.origin === self.location.origin;
 
   // Never cache API calls
   if (url.pathname.startsWith('/api/')) return;
 
-  // Network-first for HTML (always fresh)
-  if (request.headers.get('accept')?.includes('text/html')) {
-    e.respondWith(
-      fetch(request).catch(() => caches.match('/messenger'))
-    );
+  const isHtml = request.headers.get('accept')?.includes('text/html');
+  const isCoreStatic = isSameOrigin && (
+    url.pathname.startsWith('/css/') ||
+    url.pathname.startsWith('/js/') ||
+    url.pathname === '/manifest-messenger.json' ||
+    url.pathname.startsWith('/icons/')
+  );
+
+  // Network-first for html + core static (prevents stale UI)
+  if (isHtml || isCoreStatic) {
+    e.respondWith((async () => {
+      const cache = await caches.open(CACHE);
+      try {
+        const fresh = await fetch(request);
+        if (isSameOrigin) await cache.put(request, fresh.clone());
+        return fresh;
+      } catch (err) {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        if (isHtml) {
+          const shell = await cache.match('/messenger');
+          if (shell) return shell;
+        }
+        throw err;
+      }
+    })());
     return;
   }
 
-  // Cache-first for static assets
+  // Cache-first fallback for other safe assets
   e.respondWith(
     caches.match(request).then(cached => cached || fetch(request))
   );
