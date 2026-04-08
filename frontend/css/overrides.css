@@ -322,6 +322,7 @@ body {
   /* ISO/IEC 7810 ID-1 credit card ratio 85.6×54mm */
   aspect-ratio: 85.6 / 54 !important;
   min-height: unset !important;
+  max-height: none !important;
   border-radius: 20px !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow:
@@ -2654,16 +2655,17 @@ textarea:focus,
 
   /* ── SIDEBAR (колишній app-header) ─────────────────────────── */
   .app-header {
-    width: 280px !important;
-    min-width: 280px !important;
+    width: 380px !important;
+    min-width: 380px !important;
     flex-shrink: 0 !important;
     height: 100vh !important;
     position: sticky !important;
     top: 0 !important;
-    overflow: hidden !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
     display: flex !important;
     flex-direction: column !important;
-    padding: 20px 20px 16px !important;
+    padding: 32px 20px 24px !important;
     border-radius: 0 !important;
     border-right: 1px solid rgba(255,255,255,.08) !important;
   }
@@ -2684,10 +2686,11 @@ textarea:focus,
     padding-bottom: 6px !important;
   }
   .bank-cards-track .bank-card {
-    flex: 0 0 calc(280px - 40px) !important;
-    width: calc(280px - 40px) !important;
-    max-height: 140px !important;
-    min-height: 120px !important;
+    flex: 0 0 340px !important;
+    width: 340px !important;
+    height: 214px !important;
+    min-height: 214px !important;
+    max-height: none !important;
     aspect-ratio: unset !important;
   }
 
@@ -5339,11 +5342,14 @@ input[type="number"] {
     max-width: none !important;
   }
   .bank-card {
-    flex: 0 0 340px !important;
+    flex: 0 0 auto !important;
     width: 340px !important;
+    height: 214px !important;
+    min-height: 214px !important;
     margin: 0 auto !important;
-    aspect-ratio: 85.6 / 54 !important;
+    aspect-ratio: unset !important;
     max-height: none !important;
+    flex-shrink: 0 !important;
   }
   .balance-amount {
     font-size: clamp(2rem, 2.5vw, 2.4rem) !important;
@@ -5645,6 +5651,8 @@ button.btn-primary:active {
 /* ╔══════════════════════════════════════════════════════════════╗
    ║  CARD CAROUSEL — DEPTH EFFECT + PEEK                         ║
    ╚══════════════════════════════════════════════════════════════╝ */
+/* Mobile-only carousel depth effect + peek */
+@media (max-width: 767px) {
 
 /* Ширина карток: трохи менше 100vw щоб показати сусідню           */
 .bank-cards-track {
@@ -5661,16 +5669,16 @@ button.btn-primary:active {
   width: calc(100vw - 56px) !important;
   scroll-snap-align: center !important;
   margin-right: 0 !important;
-  /* Початковий стан — scale буде оновлено JS, але перший активний одразу 1 */
   transform-origin: center center !important;
   will-change: transform, opacity !important;
 }
 
-/* Активна карта — без додаткового scale (JS керує) */
 .bank-cards-track .bank-card:first-child {
   transform: scale(1) !important;
   opacity: 1 !important;
 }
+
+} /* end @media max-width: 767px */
 
 /* Dots — більші, виразніші */
 .bc-dot {
