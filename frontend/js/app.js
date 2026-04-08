@@ -52,6 +52,60 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
   window.addEventListener("orientationchange", syncViewportUnit, { passive: true });
 })();
 
+const _scrollLocks = new Set();
+
+function _applyScrollLockState() {
+  const locked = _scrollLocks.size > 0;
+  document.documentElement.classList.toggle('app-scroll-locked', locked);
+  document.body.classList.toggle('app-scroll-locked', locked);
+  document.body.style.overflow = locked ? 'hidden' : '';
+}
+
+function lockBodyScroll(reason) {
+  const token = String(reason || 'global');
+  _scrollLocks.add(token);
+  _applyScrollLockState();
+  return token;
+}
+
+function unlockBodyScroll(reason) {
+  const token = String(reason || 'global');
+  _scrollLocks.delete(token);
+  _applyScrollLockState();
+}
+
+function clearBodyScrollLocks(options = {}) {
+  const keepPin = !!options.keepPin;
+  const pin = document.getElementById('pinLockOverlay');
+  const pinVisible = !!pin && !pin.classList.contains('hidden');
+  _scrollLocks.clear();
+  if (keepPin && pinVisible) _scrollLocks.add('pin-lock');
+  _applyScrollLockState();
+}
+
+function closeTransientLayers(options = {}) {
+  const keepPin = !!options.keepPin;
+  [
+    '#txDrawer', '#drawerBackdrop', '#receiptOverlay', '#statementOverlay',
+    '#transferConfirmOverlay', '#confirmDialog', '#confirmBackdrop', '#onboardingOverlay'
+  ].forEach((sel) => {
+    const el = document.querySelector(sel);
+    if (el) el.classList.add('hidden');
+  });
+
+  if (!keepPin) {
+    const pin = document.getElementById('pinLockOverlay');
+    if (pin) pin.classList.add('hidden');
+  }
+
+  const notifPanel = document.getElementById('notifPanel');
+  if (notifPanel) notifPanel.classList.remove('open');
+  const notifOverlay = document.getElementById('notifOverlay');
+  if (notifOverlay) notifOverlay.style.display = 'none';
+
+  clearBodyScrollLocks({ keepPin });
+}
+
 function showToast(message, type = '') {
   const toast = $('#toast');
   if (!toast) return;
@@ -123,6 +177,7 @@ async function performLogout(options = {}) {
   stopPolling();
   stopNotifPolling();
   clearBootstrapRetryTimer();
+  closeTransientLayers({ keepPin: false });
   stopSessionEngine();
   try { await api.request('/api/auth/logout', { method: 'POST' }); } catch (_) {}
   api.setToken('');
@@ -150,6 +205,7 @@ function setAuthenticated(authenticated) {
   $('#appScreen').classList.toggle('hidden', !authenticated);
   $('#sidebar')?.classList.toggle('hidden', !authenticated);
   document.body.classList.toggle('auth-mode', !authenticated);
+  if (!authenticated) closeTransientLayers({ keepPin: false });
 }
 
 function formatMoney(value) {
@@ -621,13 +677,13 @@ function renderSimpleList(container, list, mapFn, emptyText) {
 function openDrawer() {
   $('#txDrawer')?.classList.remove('hidden');
   $('#drawerBackdrop')?.classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
+  lockBodyScroll('drawer');
 }
 
 function closeDrawer() {
   $('#txDrawer')?.classList.add('hidden');
   $('#drawerBackdrop')?.classList.add('hidden');
-  document.body.style.overflow = '';
+  unlockBodyScroll('drawer');
 }
 
 async function openTxDrawer(txId) {
@@ -765,12 +821,14 @@ function confirmAction(title, msg, onOk) {
   $('#confirmMsg').textContent = msg;
   dialog?.classList.remove('hidden');
   backdrop?.classList.remove('hidden');
+  lockBodyScroll('confirm');
   _confirmCallback = onOk;
 }
 
 function closeConfirm() {
   $('#confirmDialog')?.classList.add('hidden');
   $('#confirmBackdrop')?.classList.add('hidden');
+  unlockBodyScroll('confirm');
   _confirmCallback = null;
 }
 
@@ -925,7 +983,7 @@ const receipt = (() => {
 
     $('#receiptDownloadBtn').disabled = !_txId;
     $('#receiptOverlay')?.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('receipt');
   }
 
   async function download() {
@@ -955,7 +1013,7 @@ const receipt = (() => {
 
   function close() {
     $('#receiptOverlay')?.classList.add('hidden');
-    document.body.style.overflow = '';
+    unlockBodyScroll('receipt');
   }
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -1157,13 +1215,13 @@ const receipt = (() => {
     if (curMonthBtn) { curMonthBtn.classList.add('active'); applyPeriod('cur_month'); }
 
     overlay()?.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('statement');
     loadRecentOrders().catch(() => {});
   }
 
   function closeStatementModal() {
     overlay()?.classList.add('hidden');
-    document.body.style.overflow = '';
+    unlockBodyScroll('statement');
   }
 
   async function downloadStatement() {
@@ -1405,6 +1463,8 @@ function getScreenIdFromPath() {
 
 function switchScreen(screenId) {
   const id = ALLOWED_SCREENS.includes(screenId) ? screenId : 'dashboard';
+
+  closeTransientLayers({ keepPin: true });
 
   $$('.screen').forEach((s) => s.classList.remove('active-screen'));
   const el = $(`#${id}`);
@@ -2343,7 +2403,7 @@ function _genIdempotencyKey() {
     }
 
     overlay.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('transfer-confirm');
     confirmBtn.focus();
   }
 
@@ -2351,7 +2411,7 @@ function _genIdempotencyKey() {
 
   function closeOverlay() {
     overlay.classList.add('hidden');
-    document.body.style.overflow = '';
+    unlockBodyScroll('transfer-confirm');
     confirmBtn.disabled = false;
     confirmBtn.textContent = 'Підтвердити';
     form._transferConfirmed = false;
@@ -3316,7 +3376,10 @@ function shareTransaction(tx) {
 
 function _showShareModal(text) {
   const existing = document.getElementById('_shareModal');
-  if (existing) existing.remove();
+  if (existing) {
+    existing.remove();
+    unlockBodyScroll('share-modal');
+  }
   const modal = document.createElement('div');
   modal.id = '_shareModal';
   modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px';
@@ -3329,15 +3392,22 @@ function _showShareModal(text) {
         <button id="_shareCloseBtn" class="btn-ghost">Закрити</button>
       </div>
     </div>`;
+  const closeShareModal = () => {
+    modal.remove();
+    unlockBodyScroll('share-modal');
+  };
+
   document.body.appendChild(modal);
+  lockBodyScroll('share-modal');
+
   document.getElementById('_shareCopyBtn')?.addEventListener('click', () => {
     const ta = document.getElementById('_shareText');
     ta.select(); ta.setSelectionRange(0, 99999);
     try { document.execCommand('copy'); showToast('Скопійовано!', 'success'); } catch(_) {}
-    modal.remove();
+    closeShareModal();
   });
-  document.getElementById('_shareCloseBtn')?.addEventListener('click', () => modal.remove());
-  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  document.getElementById('_shareCloseBtn')?.addEventListener('click', closeShareModal);
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeShareModal(); });
 }
 
 // ── SESSION MANAGEMENT ─────────────────────────────────
@@ -3765,7 +3835,7 @@ function showPinLock() {
   updatePinDots();
   const overlay = $('#pinLockOverlay');
   if (overlay) overlay.classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
+  lockBodyScroll('pin-lock');
 }
 
 function hidePinLock() {
@@ -3774,7 +3844,7 @@ function hidePinLock() {
   updatePinDots();
   const overlay = $('#pinLockOverlay');
   if (overlay) overlay.classList.add('hidden');
-  document.body.style.overflow = '';
+  unlockBodyScroll('pin-lock');
   resetInactivityTimer();
 }
 
@@ -4601,12 +4671,16 @@ console.log('[Army Bank] UX core modules loaded');
   function openNotifPanel() {
     notifPanel.classList.add('open');
     notifOverlay.style.display = 'block';
+    notifOverlay.style.pointerEvents = 'auto';
+    lockBodyScroll('notif-panel');
     loadNotifications();
   }
 
   function closeNotifPanel() {
     notifPanel.classList.remove('open');
     notifOverlay.style.display = 'none';
+    notifOverlay.style.pointerEvents = 'none';
+    unlockBodyScroll('notif-panel');
   }
 
   notifBtn.addEventListener('click', openNotifPanel);

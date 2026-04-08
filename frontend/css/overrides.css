@@ -6609,3 +6609,42 @@ button.btn-primary:active {
     color: #3c4a3f !important;
   }
 }
+
+/* ── Scroll/animation/overlay stability hardening ───────────────────────── */
+html.app-scroll-locked,
+body.app-scroll-locked {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+}
+
+body.app-scroll-locked .app-content {
+  overscroll-behavior-y: none !important;
+}
+
+.app-content {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-content {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Guard against stale overlay hitboxes after class/state races */
+#txDrawer.hidden,
+#drawerBackdrop.hidden,
+#receiptOverlay.hidden,
+#statementOverlay.hidden,
+#transferConfirmOverlay.hidden,
+#confirmDialog.hidden,
+#confirmBackdrop.hidden,
+#pinLockOverlay.hidden,
+#onboardingOverlay.hidden {
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+#notifOverlay {
+  pointer-events: none;
+}
