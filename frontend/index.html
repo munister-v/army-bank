@@ -50,10 +50,28 @@
   <!-- Instant auth state + server wake-up (without forced reload loops) -->
   <script>
     (function(){
+      var root = document.documentElement;
+
+      try {
+        var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        var saveData = !!conn && conn.saveData === true;
+        var slowNetwork = !!conn && /2g/i.test(String(conn.effectiveType || ''));
+        var cores = Number(navigator.hardwareConcurrency || 0);
+        var memory = Number(navigator.deviceMemory || 0);
+        var lowEnd = saveData || slowNetwork || (cores > 0 && cores <= 4) || (memory > 0 && memory <= 4);
+        if (lowEnd) root.classList.add('render-lite');
+      } catch(_) {}
+
+      try {
+        var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var animationsOff = localStorage.getItem('ab_animations') === 'false';
+        if (reducedMotion || animationsOff) root.classList.add('no-animations');
+      } catch(_) {}
+
       try {
         if (localStorage.getItem('army_bank_token')) {
           /* Hide login page immediately — no flash of auth screen for returning users */
-          document.documentElement.classList.add('ab-authed');
+          root.classList.add('ab-authed');
           /* Kick Render cold-start in parallel */
           fetch('/health', { method: 'GET', cache: 'no-store', keepalive: true }).catch(function(){});
         }
@@ -926,7 +944,7 @@
           <div id="accountQrWrap" class="qr-wrap hidden">
             <div class="qr-card">
               <div class="qr-frame">
-                <img id="accountQrImg" class="qr-img" alt="QR код рахунку" src="">
+                <img id="accountQrImg" class="qr-img" alt="QR код рахунку" src="" loading="lazy" decoding="async" fetchpriority="low">
               </div>
               <div class="qr-account-num" id="qrAccountNum">—</div>
               <div class="qr-caption">Скануйте для переказу на цей рахунок</div>

@@ -27,7 +27,10 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
   const cores = Number(navigator.hardwareConcurrency || 0);
   const memory = Number(navigator.deviceMemory || 0);
-  const lowEndDevice = (cores > 0 && cores <= 4) || (memory > 0 && memory <= 4);
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const saveData = !!conn && conn.saveData === true;
+  const slowNetwork = !!conn && /2g/i.test(String(conn.effectiveType || ""));
+  const lowEndDevice = saveData || slowNetwork || (cores > 0 && cores <= 4) || (memory > 0 && memory <= 4);
   root.classList.toggle("render-lite", lowEndDevice);
   root.classList.toggle("render-rich", !lowEndDevice);
 
@@ -225,9 +228,39 @@ async function _pollBalance() {
   } catch (_) {}
 }
 
+const BALANCE_POLL_VISIBLE_MS = 40_000;
+const BALANCE_POLL_BG_MS = 180_000;
+const BALANCE_POLL_SLOW_MS = 75_000;
+
+function _getBalancePollIntervalMs() {
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const saveData = !!conn && conn.saveData === true;
+  const slowNetwork = !!conn && /2g/i.test(String(conn.effectiveType || ""));
+  if (document.visibilityState !== 'visible') return BALANCE_POLL_BG_MS;
+  return (saveData || slowNetwork) ? BALANCE_POLL_SLOW_MS : BALANCE_POLL_VISIBLE_MS;
+}
+
+async function _runBalancePoll(force = false) {
+  if (!api.token || !state.account) return;
+  if (!force && document.visibilityState !== 'visible') return;
+  if (navigator.onLine === false) return;
+  await _pollBalance();
+}
+
+function _rescheduleBalancePolling() {
+  if (state._pollTimer) {
+    clearInterval(state._pollTimer);
+    state._pollTimer = null;
+  }
+  if (!api.token) return;
+  state._pollTimer = setInterval(() => {
+    _runBalancePoll(false).catch(() => {});
+  }, _getBalancePollIntervalMs());
+}
+
 function startPolling() {
-  stopPolling();
-  state._pollTimer = setInterval(_pollBalance, 40_000);
+  _rescheduleBalancePolling();
+  _runBalancePoll(true).catch(() => {});
 }
 
 function stopPolling() {
@@ -237,6 +270,18 @@ function stopPolling() {
   }
   state._lastBalance = null;
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (!api.token) return;
+  if (!state._pollTimer) return;
+  _rescheduleBalancePolling();
+  if (document.visibilityState === 'visible') _runBalancePoll(true).catch(() => {});
+});
+
+window.addEventListener('online', () => {
+  if (!api.token || !state._pollTimer) return;
+  _runBalancePoll(true).catch(() => {});
+});
 
 let _bootstrapRetryTimer = null;
 
@@ -2710,6 +2755,34 @@ $('#pushBtn')?.addEventListener('click', async () => {
 // ── SW update detection ───────────────────────────────────
 if ('serviceWorker' in navigator) {
   let _swReloading = false;
+  let _swUpdateTimer = null;
+
+  function _clearSwUpdateTimer() {
+    if (_swUpdateTimer) {
+      clearInterval(_swUpdateTimer);
+      _swUpdateTimer = null;
+    }
+  }
+
+  function _scheduleSwUpdates(reg) {
+    _clearSwUpdateTimer();
+    const SW_UPDATE_VISIBLE_MS = 180_000;
+    const updateNow = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (navigator.onLine === false) return;
+      reg.update().catch(() => {});
+    };
+
+    updateNow();
+    _swUpdateTimer = setInterval(updateNow, SW_UPDATE_VISIBLE_MS);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') updateNow();
+    });
+    window.addEventListener('online', updateNow, { passive: true });
+    window.addEventListener('pageshow', updateNow, { passive: true });
+  }
+
   function _swReload() {
     if (_swReloading) return;
     _swReloading = true;
@@ -2721,11 +2794,7 @@ if ('serviceWorker' in navigator) {
     // If update is already waiting, activate immediately.
     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
 
-    reg.update().catch(() => {});
-    setInterval(() => reg.update().catch(() => {}), 30_000);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') reg.update().catch(() => {});
-    });
+    _scheduleSwUpdates(reg);
 
     navigator.serviceWorker.addEventListener('message', e => {
       if (e.data?.type === 'SW_UPDATED') _swReload();
@@ -2742,6 +2811,8 @@ if ('serviceWorker' in navigator) {
 
     navigator.serviceWorker.addEventListener('controllerchange', _swReload);
   }).catch(() => {});
+
+  window.addEventListener('beforeunload', _clearSwUpdateTimer, { passive: true });
 }
 
 // ── BOOTSTRAP ────────────────────────────────────────────
@@ -4832,19 +4903,56 @@ console.log('[Army Bank] UX core modules loaded');
   }
 
   var notifPollTimer = null;
+  var notifVisibilityBound = false;
+
+  function getNotifPollDelay() {
+    var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    var saveData = !!conn && conn.saveData === true;
+    var slowNetwork = !!conn && /2g/i.test(String(conn.effectiveType || ''));
+    if (document.visibilityState !== 'visible') return 180000;
+    if (saveData || slowNetwork) return 120000;
+    return 60000;
+  }
+
+  function notifPollTick(force) {
+    if (!api.token) {
+      window._stopNotifPolling();
+      return;
+    }
+    if (!force && document.visibilityState !== 'visible') return;
+    if (navigator.onLine === false) return;
+    refreshBadge();
+  }
+
+  function rescheduleNotifPolling() {
+    if (notifPollTimer) {
+      clearInterval(notifPollTimer);
+      notifPollTimer = null;
+    }
+    if (!api.token) return;
+    notifPollTimer = setInterval(function() {
+      notifPollTick(false);
+    }, getNotifPollDelay());
+  }
 
   // Poll badge every 60 seconds once logged in
   window._startNotifPolling = function() {
     if (!api.token) return;
-    refreshBadge();
-    if (notifPollTimer) return;
-    notifPollTimer = setInterval(function() {
-      if (!api.token) {
-        window._stopNotifPolling();
-        return;
-      }
-      refreshBadge();
-    }, 60000);
+    notifPollTick(true);
+    rescheduleNotifPolling();
+
+    if (!notifVisibilityBound) {
+      notifVisibilityBound = true;
+      document.addEventListener('visibilitychange', function() {
+        if (!api.token || !notifPollTimer) return;
+        rescheduleNotifPolling();
+        if (document.visibilityState === 'visible') notifPollTick(true);
+      });
+      window.addEventListener('online', function() {
+        if (!api.token || !notifPollTimer) return;
+        notifPollTick(true);
+      }, { passive: true });
+    }
   };
 
   window._stopNotifPolling = function() {

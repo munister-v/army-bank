@@ -6414,7 +6414,43 @@ button.btn-primary:active {
   transition-duration: 120ms !important;
 }
 
+html.render-lite,
+html.render-lite body,
+html.render-lite .app-content,
+html.no-animations,
+html.no-animations body,
+html.no-animations .app-content {
+  scroll-behavior: auto !important;
+}
+
+.render-lite .bank-card,
+.render-lite .qa-btn,
+.render-lite .balance-amount,
+.render-lite .app-content .card,
+.no-animations .bank-card,
+.no-animations .qa-btn,
+.no-animations .balance-amount,
+.no-animations .app-content .card {
+  animation: none !important;
+}
+
+.render-lite .bank-card-gold .bank-card-front::before,
+.no-animations .bank-card-gold .bank-card-front::before {
+  animation: none !important;
+  opacity: 0.22 !important;
+}
+
+.render-lite .bank-card-inner {
+  transform: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  html,
+  body,
+  .app-content {
+    scroll-behavior: auto !important;
+  }
+
   .screen.active-screen > .section-header-row,
   .screen.active-screen > .card,
   .screen.active-screen > .cards-row,

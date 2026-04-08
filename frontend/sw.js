@@ -1,5 +1,5 @@
-/* Army Bank — Service Worker v44 */
-const CACHE = 'army-bank-v45';
+/* Army Bank — Service Worker v46 */
+const CACHE = 'army-bank-v46';
 
 /* Keep precache minimal to reduce stale-asset risk */
 const PRECACHE = [
@@ -28,15 +28,18 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll({ type: 'window' }))
-      .then((clients) => {
-        clients.forEach((client) => client.postMessage({ type: 'SW_UPDATED' }));
-      })
-  );
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+
+    if (self.registration.navigationPreload) {
+      try { await self.registration.navigationPreload.enable(); } catch (_) {}
+    }
+
+    await self.clients.claim();
+    const clients = await self.clients.matchAll({ type: 'window' });
+    clients.forEach((client) => client.postMessage({ type: 'SW_UPDATED' }));
+  })());
 });
 
 self.addEventListener('fetch', (e) => {
@@ -70,6 +73,13 @@ self.addEventListener('fetch', (e) => {
   if (e.request.mode === 'navigate') {
     e.respondWith((async () => {
       try {
+        const preloaded = await e.preloadResponse;
+        if (preloaded) {
+          const cache = await caches.open(CACHE);
+          cache.put(e.request, preloaded.clone());
+          return preloaded;
+        }
+
         const fresh = await fetch(asNoStore(e.request));
         if (fresh && fresh.ok) {
           const cache = await caches.open(CACHE);
