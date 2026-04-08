@@ -61,14 +61,43 @@ def get_connection_pg() -> Iterator:
     """Отримує з'єднання з пулу, повертає після використання."""
     pool = _get_pg_pool()
     conn = pool.getconn()
+    had_error = False
+
+    # Pool can return stale SSL connections after idle periods on Render.
+    # Validate once on checkout and replace dead connections immediately.
+    try:
+        cur = conn.cursor()
+        cur.execute('SELECT 1')
+        cur.fetchone()
+        cur.close()
+    except Exception:
+        try:
+            pool.putconn(conn, close=True)
+        except Exception:
+            pass
+        conn = pool.getconn()
+
     try:
         yield conn
         conn.commit()
     except Exception:
-        conn.rollback()
+        had_error = True
+        try:
+            if not getattr(conn, 'closed', 1):
+                conn.rollback()
+        except Exception:
+            # Ignore rollback failure on broken/closed connections.
+            pass
         raise
     finally:
-        pool.putconn(conn)
+        try:
+            is_closed = bool(getattr(conn, 'closed', 1))
+            if had_error or is_closed:
+                pool.putconn(conn, close=True)
+            else:
+                pool.putconn(conn)
+        except Exception:
+            pass
 
 
 class _SqliteConnWrapper:
