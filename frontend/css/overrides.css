@@ -8397,3 +8397,66 @@ body.app-scroll-locked .app-content {
     align-items: end !important;
   }
 }
+
+/* ── Mobile Nav Consistency (all tabs/screens) ─────────────────────────── */
+@media (max-width: 767px) {
+  /* Keep header clear from status bar on non-dashboard screens. */
+  #appScreen:not(.screen-dashboard) .app-header {
+    padding-top: max(18px, env(safe-area-inset-top, 0px)) !important;
+  }
+
+  /* Ensure content is never hidden under floating tab bar. */
+  #appScreen .app-content {
+    padding-bottom: calc(116px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(116px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #appScreen #sidebar.bottom-nav {
+    left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    bottom: max(6px, env(safe-area-inset-bottom, 0px)) !important;
+    min-height: 74px !important;
+    height: auto !important;
+    padding: 5px 6px max(6px, min(12px, env(safe-area-inset-bottom, 0px))) !important;
+    border-radius: 22px !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    align-items: stretch !important;
+  }
+
+  #appScreen #sidebar .nav-item,
+  #appScreen #sidebar .menu-btn.nav-item {
+    min-height: 48px !important;
+    border-radius: 12px !important;
+    padding: 4px 3px 5px !important;
+    gap: 3px !important;
+    justify-content: center !important;
+    border: 1px solid transparent !important;
+  }
+
+  #appScreen #sidebar .nav-item svg {
+    width: 21px !important;
+    height: 21px !important;
+  }
+
+  #appScreen #sidebar .nav-item span {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0 !important;
+  }
+
+  /* Unified active state for Dashboard / Operations / Cards / Profile. */
+  #appScreen #sidebar .nav-item.active,
+  #appScreen.screen-dashboard #sidebar .nav-item.active {
+    background: linear-gradient(180deg, #ffffff 0%, #f2f8f3 100%) !important;
+    border: 1px solid rgba(45, 73, 54, 0.2) !important;
+    color: #1e3529 !important;
+    box-shadow: 0 6px 12px rgba(16, 31, 23, 0.12) !important;
+  }
+
+  #appScreen #sidebar .nav-item.active::after,
+  #appScreen.screen-dashboard #sidebar .nav-item.active::after {
+    content: none !important;
+  }
+}
