@@ -77,6 +77,7 @@ def create_app() -> Flask:
     _ALLOWED_ORIGINS = {
         'https://munister.com.ua',
         'https://www.munister.com.ua',
+        'https://bank.munister.com.ua',
         'http://localhost:9099',
         'http://localhost:5173',
         'http://127.0.0.1:5500',
@@ -136,22 +137,33 @@ def create_app() -> Flask:
             _append_expose_header(resp, 'X-Request-Id')
         if _req.is_secure:
             resp.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
-        # Cache-Control for static assets (CSS, JS, fonts, images)
+        # Cache-Control policy (prefix-aware): avoids stale PWA shells and old bundles.
         path = _req.path
+        norm_path = path
+        if prefix and norm_path.startswith(prefix + '/'):
+            norm_path = norm_path[len(prefix):]
+        elif prefix and norm_path == prefix:
+            norm_path = '/'
+
         content_type = (resp.headers.get('Content-Type') or '').lower()
         is_html = 'text/html' in content_type
+        is_versioned_asset = bool((_req.args.get('v') or '').strip())
         if is_html:
-            resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
-        elif path.endswith('/sw.js') or path == '/sw.js':
+            # Always fetch fresh HTML to prevent old auth/dashboard shell flashes.
+            resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        elif norm_path.endswith('/sw.js') or norm_path == '/sw.js':
             # Service Worker script must be revalidated every load to deliver updates immediately.
             resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        elif path == '/manifest.json':
+        elif norm_path.endswith('/manifest.json') or norm_path == '/manifest.json':
             resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
-        elif path.endswith(('.woff2', '.woff', '.ttf', '.png', '.jpg', '.ico', '.webp')):
+        elif norm_path.endswith(('.woff2', '.woff', '.ttf', '.png', '.jpg', '.ico', '.webp')):
             resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
-        elif path.endswith(('.css', '.js', '.svg')):
-            resp.headers['Cache-Control'] = 'public, max-age=300, must-revalidate'
-        elif path.startswith('/api/'):
+        elif norm_path.endswith(('.css', '.js', '.mjs', '.svg')):
+            if is_versioned_asset:
+                resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+            else:
+                resp.headers['Cache-Control'] = 'public, max-age=300, must-revalidate'
+        elif norm_path.startswith('/api/'):
             resp.headers['Cache-Control'] = 'no-store'
         return resp
 
