@@ -6713,6 +6713,10 @@ body.app-scroll-locked .app-content {
   transform: translateY(130%) !important;
 }
 
+#appScreen.app-shell {
+  isolation: isolate;
+}
+
 @media (max-width: 959px) {
   .keyboard-open .app-content {
     padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)) !important;
@@ -6901,6 +6905,13 @@ body.app-scroll-locked .app-content {
     text-shadow: none !important;
   }
 
+  html.desktop-classic #appScreen.app-loading #heroBalance,
+  html.desktop-classic #appScreen.app-loading #userName,
+  html.desktop-classic #appScreen.app-loading #heroAccount {
+    color: #2b4433 !important;
+    opacity: .76 !important;
+  }
+
   html.desktop-classic .balance-label {
     font-size: 11px !important;
     letter-spacing: .1em !important;
@@ -6997,6 +7008,8 @@ body.app-scroll-locked .app-content {
     min-height: 0 !important;
     max-height: none !important;
     overflow: auto !important;
+    overscroll-behavior: contain !important;
+    scrollbar-gutter: stable both-edges !important;
     padding: 16px !important;
     border-radius: 18px !important;
     border: 1px solid #d9e2d6 !important;

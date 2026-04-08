@@ -111,15 +111,28 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 })();
 
 const _desktopClassicMql = window.matchMedia('(min-width: 1200px)');
+let _desktopClassicSyncFrame = 0;
 
-function syncDesktopClassicMode() {
+function applyDesktopClassicMode() {
   const desktop = _desktopClassicMql.matches;
   const root = document.documentElement;
   root.classList.toggle('desktop-classic', desktop);
   if (!desktop) root.classList.remove('desktop-cockpit');
 }
 
-syncDesktopClassicMode();
+function syncDesktopClassicMode() {
+  if (typeof requestAnimationFrame !== 'function') {
+    applyDesktopClassicMode();
+    return;
+  }
+  if (_desktopClassicSyncFrame) return;
+  _desktopClassicSyncFrame = requestAnimationFrame(() => {
+    _desktopClassicSyncFrame = 0;
+    applyDesktopClassicMode();
+  });
+}
+
+applyDesktopClassicMode();
 if (typeof _desktopClassicMql.addEventListener === 'function') {
   _desktopClassicMql.addEventListener('change', syncDesktopClassicMode);
 } else if (typeof _desktopClassicMql.addListener === 'function') {
@@ -2790,7 +2803,7 @@ if ('serviceWorker' in navigator) {
 
   function _scheduleSwUpdates(reg) {
     _clearSwUpdateTimer();
-    const SW_UPDATE_VISIBLE_MS = 180_000;
+    const SW_UPDATE_VISIBLE_MS = 60_000;
     const updateNow = () => {
       if (document.visibilityState !== 'visible') return;
       if (navigator.onLine === false) return;
@@ -2810,7 +2823,7 @@ if ('serviceWorker' in navigator) {
   function _swReload() {
     if (_swReloading) return;
     _swReloading = true;
-    setTimeout(() => location.reload(), 200);
+    setTimeout(() => location.reload(), 120);
   }
 
   navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
