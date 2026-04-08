@@ -178,7 +178,13 @@ def create_app() -> Flask:
 
     @app.errorhandler(404)
     def not_found(_e):
-        return jsonify({'ok': False, 'error': 'Не знайдено.'}), 404
+        from flask import request as _req
+        # Return JSON error for missing APIs
+        if _req.path.startswith(prefix + '/api/') or _req.path.startswith('/api/'):
+            return jsonify({'ok': False, 'error': 'Не знайдено.'}), 404
+        # For all other routes, assume it's the SPA and serve index.html
+        # Note: static files that don't exist will also get index.html, which is standard for SPA
+        return send_index(), 200
 
     @app.errorhandler(500)
     def server_error(_e):

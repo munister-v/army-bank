@@ -5914,13 +5914,19 @@ button.btn-primary:active {
 @media (max-width: 767px) {
 
 /* Ширина карток: трохи менше 100vw щоб показати сусідню           */
+.app-content {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+}
 .bank-cards-track {
   padding-left: max(20px, env(safe-area-inset-left, 0px)) !important;
   padding-right: max(20px, env(safe-area-inset-right, 0px)) !important;
   gap: 12px !important;
+  overflow-x: auto !important;
   scroll-snap-type: x mandatory !important;
   -webkit-overflow-scrolling: touch !important;
   scroll-padding-left: max(20px, env(safe-area-inset-left, 0px)) !important;
+  scroll-behavior: smooth !important;
+  overscroll-behavior-x: contain !important;
 }
 
 .bank-cards-track .bank-card {

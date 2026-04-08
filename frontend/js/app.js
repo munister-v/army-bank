@@ -4267,23 +4267,31 @@ window.refreshProfile = async function() {
 };
 
 // ── Extra data on refreshAllData ─────────────────────────
-var _wave5_origRefreshAll = window.refreshAllData || refreshAllData;
-window.refreshAllData = async function() {
-  await _wave5_origRefreshAll();
-  checkPinStatus().catch(function() {});
-  loadVelocity().catch(function() {});
-  loadTagsCloud().catch(function() {});
-  loadTopRecipients().catch(function() {});
-};
+if (!window._ab_refresh_patched) {
+  window._ab_refresh_patched = true;
+  var _wave5_origRefreshAll = window.refreshAllData || refreshAllData;
+  window.refreshAllData = async function() {
+    try {
+      await _wave5_origRefreshAll();
+    } catch(e) {
+      // Ignore inner fails if they already handled it
+      throw e;
+    }
+    checkPinStatus().catch(function() {});
+    loadVelocity().catch(function() {});
+    loadTagsCloud().catch(function() {});
+    loadTopRecipients().catch(function() {});
+  };
 
-// ── Onboarding check after auth ──────────────────────────
-var _wave5_origHandleAuth = window.handleAuth || handleAuth;
-window.handleAuth = async function(form, endpoint) {
-  await _wave5_origHandleAuth(form, endpoint);
-  if (!localStorage.getItem('army_bank_onboarded')) {
-    setTimeout(showOnboarding, 2000);
-  }
-};
+  // ── Onboarding check after auth ──────────────────────────
+  var _wave5_origHandleAuth = window.handleAuth || handleAuth;
+  window.handleAuth = async function(form, endpoint) {
+    await _wave5_origHandleAuth(form, endpoint);
+    if (!localStorage.getItem('army_bank_onboarded')) {
+      setTimeout(showOnboarding, 2000);
+    }
+  };
+}
 
 console.log('[Army Bank] UX core modules loaded');
 
