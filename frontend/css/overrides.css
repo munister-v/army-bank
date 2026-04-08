@@ -8535,3 +8535,139 @@ html.install-banner-visible #appScreen .app-content {
     height: 22px !important;
   }
 }
+
+/* ── Desktop Harmony Pass (final) ─────────────────────────────────────── */
+@media (min-width: 1200px) {
+  html.desktop-classic.ab-authed #appScreen.app-shell {
+    width: min(1540px, calc(100vw - 26px)) !important;
+    min-height: calc(100vh - 26px) !important;
+    height: calc(100vh - 26px) !important;
+    margin: 13px auto !important;
+    padding: 12px !important;
+    gap: 12px !important;
+    grid-template-columns: minmax(0, 1fr) 328px !important;
+    grid-template-rows: 98px 56px auto minmax(0, 1fr) !important;
+    border-radius: 24px !important;
+    border: 1px solid rgba(47, 75, 56, 0.15) !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.48) 0%, rgba(255, 255, 255, 0.2) 100%),
+      linear-gradient(180deg, #ecf2ed 0%, #e4ebe5 100%) !important;
+    box-shadow: 0 26px 50px rgba(15, 33, 23, 0.14) !important;
+  }
+
+  html.desktop-classic .header-top {
+    border-radius: 16px !important;
+    padding: 14px 16px !important;
+  }
+
+  html.desktop-classic .header-name {
+    font-size: clamp(1.95rem, 2.15vw, 2.4rem) !important;
+    letter-spacing: -0.016em !important;
+  }
+
+  html.desktop-classic .balance-block {
+    border-radius: 16px !important;
+    padding: 12px 14px !important;
+    background:
+      radial-gradient(140% 110% at 92% -10%, rgba(224, 191, 114, 0.2) 0%, rgba(224, 191, 114, 0) 58%),
+      linear-gradient(145deg, #244c35 0%, #2e5a3f 50%, #1c3d2a 100%) !important;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav {
+    padding: 7px !important;
+    gap: 8px !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(44, 67, 52, 0.26) !important;
+    background: rgba(33, 51, 39, 0.72) !important;
+    box-shadow: 0 10px 20px rgba(16, 30, 21, 0.16) !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item {
+    min-height: 42px !important;
+    border-radius: 10px !important;
+    padding: 0 10px !important;
+    gap: 7px !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item span {
+    font-size: 13px !important;
+    letter-spacing: 0.01em !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item.active {
+    background: linear-gradient(180deg, #ffffff 0%, #f2f7f2 100%) !important;
+    border: 1px solid rgba(43, 71, 52, 0.2) !important;
+    box-shadow: 0 7px 13px rgba(16, 31, 22, 0.14) !important;
+  }
+
+  html.desktop-classic .app-content {
+    grid-column: 1 / 3 !important;
+    grid-row: 4 !important;
+    border-radius: 16px !important;
+    padding: 14px 16px 18px !important;
+    border: 1px solid rgba(45, 73, 54, 0.14) !important;
+    background: linear-gradient(180deg, #fbfdfb 0%, #f4f8f4 100%) !important;
+    box-shadow: 0 10px 24px rgba(16, 33, 23, 0.08) !important;
+  }
+
+  html.desktop-classic #dashboard #recentTransactionsCard {
+    min-height: 280px !important;
+  }
+
+  html.desktop-classic .quick-actions {
+    grid-column: 1 / 3 !important;
+    grid-row: 3 !important;
+    align-self: stretch !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 10px 12px !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(36, 60, 46, 0.3) !important;
+    background:
+      radial-gradient(120% 92% at 90% -18%, rgba(216, 182, 102, 0.16) 0%, rgba(216, 182, 102, 0) 58%),
+      linear-gradient(180deg, #1f3327 0%, #263d2f 100%) !important;
+    box-shadow: 0 14px 28px rgba(15, 29, 21, 0.22) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-template-rows: auto minmax(78px, auto) !important;
+    gap: 8px !important;
+    align-content: stretch !important;
+  }
+
+  html.desktop-classic .quick-actions::before {
+    grid-column: 1 / -1 !important;
+    margin: 0 0 2px !important;
+    color: rgba(231, 242, 233, 0.88) !important;
+    letter-spacing: 0.1em !important;
+  }
+
+  html.desktop-classic .quick-actions::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  html.desktop-classic .quick-actions .qa-btn:nth-child(n) {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  html.desktop-classic .qa-btn {
+    min-height: 78px !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(242, 251, 243, 0.14) !important;
+    background: linear-gradient(180deg, rgba(242, 251, 243, 0.14) 0%, rgba(242, 251, 243, 0.08) 100%) !important;
+    padding: 8px 6px !important;
+  }
+
+  html.desktop-classic .qa-icon {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  html.desktop-classic .qa-label {
+    text-transform: none !important;
+    font-size: 11px !important;
+    font-weight: 680 !important;
+    letter-spacing: 0.01em !important;
+  }
+}
