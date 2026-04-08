@@ -4,6 +4,12 @@
 (function () {
   'use strict';
 
+  function isReducedMotionContext() {
+    var root = document.documentElement;
+    var reduceByMedia = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    return reduceByMedia || root.classList.contains('no-animations') || root.classList.contains('render-lite');
+  }
+
   function getTrack() {
     return document.querySelector('.bank-cards-track');
   }
@@ -16,6 +22,15 @@
     var track = getTrack();
     if (!track || track._depthInit) return;
     track._depthInit = true;
+
+    if (isReducedMotionContext()) {
+      track.querySelectorAll('.bank-card').forEach(function (card) {
+        card.style.transform = '';
+        card.style.opacity = '';
+        card.style.transition = '';
+      });
+      return;
+    }
 
     var raf = 0;
     function updateCardScale() {
@@ -59,6 +74,8 @@
     var track = getTrack();
     if (!track || track._wheelInit) return;
     track._wheelInit = true;
+
+    if (isReducedMotionContext()) return;
 
     var snapTimer = null;
     track.addEventListener('wheel', function (e) {
