@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '7';
+const MESSENGER_ASSET_VERSION = '8';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 
@@ -51,6 +51,10 @@ let recordCooldownToastAt = 0;
 let activePhotoItems = [];
 let activePhotoIndex = 0;
 const photosByMessageId = new Map();
+let photoSwipeActive = false;
+let photoSwipePointerId = null;
+let photoSwipeStartX = 0;
+let photoSwipeStartY = 0;
 
 // ── Call state ─────────────────────────────
 let activeCallId       = null;
@@ -300,6 +304,8 @@ async function doRegister() {
 
 function doLogout() {
   api('POST', '/auth/logout').catch(() => {});
+  closeNewChatModal();
+  closePhotoViewer();
   if (isRecording) stopRecording(false);
   token = null; me = null;
   localStorage.removeItem(TOKEN_KEY);
@@ -519,7 +525,7 @@ function buildBubble(msg) {
           ? `<span class="photo-more">+${imageItems.length - 4}</span>`
           : '';
         return `<button type="button" class="photo-tile" data-photo-msg="${msg.id}" data-photo-index="${idx}" aria-label="Фото ${idx + 1}">
-          <img src="${esc(src)}" alt="Фото ${idx + 1}" loading="lazy" decoding="async"/>
+          <img class="photo-img" src="${esc(src)}" alt="Фото ${idx + 1}" loading="lazy" decoding="async"/>
           ${tail}
         </button>`;
       }).join('');
@@ -532,7 +538,34 @@ function buildBubble(msg) {
   wrap.innerHTML = `
     ${!isMe ? `<div class="msg-sender-avatar">${esc(ini)}</div>` : ''}
     <div class="msg-inner">${content}<div class="msg-time">${timeStr}</div></div>`;
+  if (!deleted && msgType === 'image') hydratePhotoTiles(wrap);
   return wrap;
+}
+
+function hydratePhotoTiles(root) {
+  if (!root) return;
+  const tiles = root.querySelectorAll('.photo-tile');
+  tiles.forEach(tile => {
+    const img = tile.querySelector('img');
+    if (!(img instanceof HTMLImageElement)) return;
+    tile.classList.add('loading');
+    img.classList.remove('ready');
+    const done = () => {
+      tile.classList.remove('loading');
+      tile.classList.add('ready');
+      img.classList.add('ready');
+    };
+    const fail = () => {
+      tile.classList.remove('loading');
+      tile.classList.add('error');
+    };
+    if (img.complete && img.naturalWidth > 0) {
+      done();
+      return;
+    }
+    img.addEventListener('load', done, { once: true });
+    img.addEventListener('error', fail, { once: true });
+  });
 }
 
 async function sendMessage() {
@@ -660,6 +693,7 @@ const MAX_REC_SECONDS = 90;
 const MIN_REC_MS = 450;
 const RECORD_RESTART_COOLDOWN_MS = 420;
 const RECORD_COOLDOWN_TOAST_MS = 1200;
+const PHOTO_SWIPE_THRESHOLD_PX = 56;
 
 async function toggleRecording() {
   if (isRecording) { stopRecording(true); return; }
@@ -928,10 +962,12 @@ function updatePhotoViewer() {
   }
   const idx = Math.max(0, Math.min(activePhotoItems.length - 1, activePhotoIndex));
   activePhotoIndex = idx;
+  photoViewerImg.classList.add('loading');
   photoViewerImg.src = imageDataUrl(activePhotoItems[idx]);
   photoViewerCounter.textContent = `${idx + 1} / ${activePhotoItems.length}`;
   if (btnPhotoPrev) btnPhotoPrev.hidden = activePhotoItems.length < 2;
   if (btnPhotoNext) btnPhotoNext.hidden = activePhotoItems.length < 2;
+  prefetchPhotoAroundIndex(idx);
 }
 
 function openPhotoViewer(items, startIndex = 0) {
@@ -948,6 +984,8 @@ function closePhotoViewer() {
   photoViewer.hidden = true;
   activePhotoItems = [];
   activePhotoIndex = 0;
+  photoSwipeActive = false;
+  photoSwipePointerId = null;
   if (photoViewerImg) photoViewerImg.removeAttribute('src');
   syncOverlayLock();
 }
@@ -956,6 +994,53 @@ function stepPhotoViewer(step) {
   if (!activePhotoItems.length) return;
   activePhotoIndex = (activePhotoIndex + step + activePhotoItems.length) % activePhotoItems.length;
   updatePhotoViewer();
+  if (photoViewerImg) {
+    photoViewerImg.classList.remove('slide-left', 'slide-right');
+    void photoViewerImg.offsetWidth;
+    photoViewerImg.classList.add(step > 0 ? 'slide-left' : 'slide-right');
+  }
+}
+
+function prefetchPhotoAroundIndex(idx) {
+  if (!Array.isArray(activePhotoItems) || activePhotoItems.length < 2) return;
+  const prev = activePhotoItems[(idx - 1 + activePhotoItems.length) % activePhotoItems.length];
+  const next = activePhotoItems[(idx + 1) % activePhotoItems.length];
+  [prev, next].forEach(item => {
+    const img = new Image();
+    img.src = imageDataUrl(item);
+  });
+}
+
+function handlePhotoViewerPointerDown(e) {
+  if (!photoViewer || photoViewer.hidden) return;
+  if (!photoViewerImg || !(e.target instanceof Element) || !photoViewerImg.contains(e.target)) return;
+  if (e.button !== undefined && e.button !== 0) return;
+  photoSwipeActive = true;
+  photoSwipePointerId = e.pointerId ?? null;
+  photoSwipeStartX = Number(e.clientX || 0);
+  photoSwipeStartY = Number(e.clientY || 0);
+  if (photoViewerImg.setPointerCapture && photoSwipePointerId !== null) {
+    try { photoViewerImg.setPointerCapture(photoSwipePointerId); } catch (_) {}
+  }
+}
+
+function handlePhotoViewerPointerEnd(e) {
+  if (!photoSwipeActive) return;
+  if (photoSwipePointerId !== null && e.pointerId !== undefined && e.pointerId !== photoSwipePointerId) return;
+  const dx = Number(e.clientX || 0) - photoSwipeStartX;
+  const dy = Number(e.clientY || 0) - photoSwipeStartY;
+  photoSwipeActive = false;
+  photoSwipePointerId = null;
+  if (Math.abs(dx) < PHOTO_SWIPE_THRESHOLD_PX) return;
+  if (Math.abs(dx) <= Math.abs(dy) * 1.15) return;
+  stepPhotoViewer(dx < 0 ? 1 : -1);
+}
+
+function handlePhotoViewerPointerCancel(e) {
+  if (!photoSwipeActive) return;
+  if (photoSwipePointerId !== null && e.pointerId !== undefined && e.pointerId !== photoSwipePointerId) return;
+  photoSwipeActive = false;
+  photoSwipePointerId = null;
 }
 
 // ════════════════════════════════════════════
@@ -1493,6 +1578,22 @@ if (photoViewer) {
   photoViewer.addEventListener('click', e => {
     if (e.target === photoViewer) closePhotoViewer();
   });
+}
+if (photoViewerImg) {
+  photoViewerImg.addEventListener('load', () => {
+    photoViewerImg.classList.remove('loading');
+  });
+  photoViewerImg.addEventListener('error', () => {
+    photoViewerImg.classList.remove('loading');
+    showToast('Не вдалося відкрити фото.', true);
+  });
+  photoViewerImg.addEventListener('animationend', () => {
+    photoViewerImg.classList.remove('slide-left', 'slide-right');
+  });
+  photoViewerImg.addEventListener('pointerdown', handlePhotoViewerPointerDown);
+  photoViewerImg.addEventListener('pointerup', handlePhotoViewerPointerEnd);
+  photoViewerImg.addEventListener('pointercancel', handlePhotoViewerPointerCancel);
+  photoViewerImg.addEventListener('lostpointercapture', handlePhotoViewerPointerCancel);
 }
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
