@@ -163,8 +163,10 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   position: relative; overflow: hidden;
 }
 .auth-brand-logo {
-  font-size: 96px; font-weight: 800; color: rgba(255,255,255,.12);
-  letter-spacing: -4px; line-height: 1;
+  width: 128px;
+  height: 128px;
+  opacity: .9;
+  filter: drop-shadow(0 10px 22px rgba(0,0,0,.22));
 }
 .auth-brand-name {
   font-size: 24px; font-weight: 600; color: rgba(255,255,255,.35);
@@ -205,8 +207,20 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   color: #fff; font-weight: 800; font-size: 14px;
   box-shadow: 0 2px 8px rgba(74,124,250,.3);
 }
+.sidebar-logo-icon img {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
 .sidebar-title { font-size: 16px; font-weight: 700; color: var(--text); }
 .sidebar-header-right { display: flex; gap: 2px; }
+#btn-sidebar-logout {
+  color: #7e8f84;
+}
+#btn-sidebar-logout:hover {
+  color: #b5464a;
+  background: rgba(181,70,74,.1);
+}
 
 .sidebar-search { position: relative; padding: 0 12px 10px; }
 .search-icon {
@@ -479,6 +493,7 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
    CHAT HEADER ACTIONS (call button)
 ════════════════════════════════════════════ */
 .chat-header-actions { margin-left: auto; display: flex; gap: 4px; }
+#btn-chat-logout { display: none; }
 
 /* ════════════════════════════════════════════
    VOICE RECORD BUTTON
@@ -970,6 +985,11 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   .chat-area { position: absolute; inset: 0; z-index: 5; }
   .chat-topbar { display: none; }
   .back-btn { display: flex !important; }
+  #btn-chat-logout {
+    display: inline-flex;
+    color: #9c4549;
+  }
+  #btn-chat-logout:hover { background: rgba(181,70,74,.1); }
   .msg-bubble-wrap { max-width: 85%; }
   .messages-wrap { padding: 14px 12px; }
   .msg-input-bar { padding: 10px 12px; }

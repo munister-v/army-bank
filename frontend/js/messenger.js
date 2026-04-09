@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '9';
+const MESSENGER_ASSET_VERSION = '10';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 
@@ -124,6 +124,8 @@ const btnCancelRecord   = $('btn-cancel-record');
 const btnBack           = $('btn-back');
 const btnNewChat        = $('btn-new-chat');
 const btnLogout         = $('btn-logout');
+const btnSidebarLogout  = $('btn-sidebar-logout');
+const btnChatLogout     = $('btn-chat-logout');
 const btnCall           = $('btn-call');
 const topbarAvatar      = $('topbar-avatar');
 const unreadBadge       = $('unread-badge');
@@ -312,6 +314,12 @@ async function doRegister() {
     authError.textContent = err.message || 'Помилка реєстрації.';
     authError.hidden = false;
   } finally { setAuthLoading(false); }
+}
+
+function requestLogout() {
+  const ok = window.confirm('Вийти з аккаунту месенджера?');
+  if (!ok) return;
+  doLogout();
 }
 
 function doLogout() {
@@ -1773,7 +1781,9 @@ messagesWrap.addEventListener('scroll', async () => {
 // Event listeners
 // ════════════════════════════════════════════
 loginForm.addEventListener('submit', doLogin);
-btnLogout.addEventListener('click', doLogout);
+if (btnLogout) btnLogout.addEventListener('click', requestLogout);
+if (btnSidebarLogout) btnSidebarLogout.addEventListener('click', requestLogout);
+if (btnChatLogout) btnChatLogout.addEventListener('click', requestLogout);
 btnNewChat.addEventListener('click', openNewChatModal);
 btnCloseModal.addEventListener('click', closeNewChatModal);
 newChatModal.addEventListener('click', e => { if (e.target === newChatModal) closeNewChatModal(); });
