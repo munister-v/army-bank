@@ -2500,7 +2500,13 @@ function startCallQualityMonitor() {
 }
 
 function buildPeerConnection() {
-  const pc = new RTCPeerConnection(rtcConfig);
+  // Force relay-only mode: all media traffic goes through TURN server
+  // This works across different networks (WiFi ↔ LTE, different ISPs, etc.)
+  const config = {
+    ...rtcConfig,
+    iceTransportPolicy: 'relay',
+  };
+  const pc = new RTCPeerConnection(config);
 
   pc.ontrack = e => {
     if (remoteAudio.srcObject !== e.streams[0]) remoteAudio.srcObject = e.streams[0];
