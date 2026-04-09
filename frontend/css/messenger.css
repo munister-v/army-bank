@@ -775,6 +775,10 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   cursor: pointer;
 }
 .photo-viewer-img {
+  --pv-scale: 1;
+  --pv-tx: 0px;
+  --pv-ty: 0px;
+  --pv-drag-x: 0px;
   max-width: min(96vw, 980px);
   max-height: min(84dvh, 820px);
   width: auto;
@@ -782,24 +786,22 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   border-radius: 16px;
   object-fit: contain;
   box-shadow: 0 18px 42px rgba(0,0,0,.42);
-  transition: filter .26s ease, opacity .26s ease;
-  touch-action: pan-y;
+  transform: translate3d(var(--pv-drag-x), 0, 0) translate3d(var(--pv-tx), var(--pv-ty), 0) scale(var(--pv-scale));
+  transform-origin: center center;
+  transition: transform .22s ease, filter .26s ease, opacity .26s ease;
+  touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+}
+.photo-viewer-img.zoomed { cursor: grab; }
+.photo-viewer-img.zoomed:active { cursor: grabbing; }
+.photo-viewer-img.gesture-active { transition: filter .26s ease, opacity .26s ease; }
+.photo-viewer-img.drag-release {
+  transition: transform .2s cubic-bezier(.2, .8, .25, 1), filter .26s ease, opacity .26s ease;
 }
 .photo-viewer-img.loading {
   opacity: .84;
   filter: blur(14px) saturate(.88);
-}
-.photo-viewer-img.slide-left { animation: viewer-slide-left .22s ease; }
-.photo-viewer-img.slide-right { animation: viewer-slide-right .22s ease; }
-@keyframes viewer-slide-left {
-  from { transform: translateX(22px); opacity: .72; }
-  to { transform: translateX(0); opacity: 1; }
-}
-@keyframes viewer-slide-right {
-  from { transform: translateX(-22px); opacity: .72; }
-  to { transform: translateX(0); opacity: 1; }
 }
 @keyframes photo-shimmer {
   from { background-position: 0% 0; }
@@ -1001,7 +1003,6 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .photo-tile.loading,
-  .photo-viewer-img.slide-left,
-  .photo-viewer-img.slide-right { animation: none !important; }
+  .photo-tile.loading { animation: none !important; }
+  .photo-viewer-img { transition: none !important; }
 }

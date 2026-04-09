@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '8';
+const MESSENGER_ASSET_VERSION = '9';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 
@@ -51,10 +51,22 @@ let recordCooldownToastAt = 0;
 let activePhotoItems = [];
 let activePhotoIndex = 0;
 const photosByMessageId = new Map();
-let photoSwipeActive = false;
+let photoGestureMode = 'idle'; // idle | swipe | pan | pinch
 let photoSwipePointerId = null;
 let photoSwipeStartX = 0;
 let photoSwipeStartY = 0;
+let photoSwipeLastX = 0;
+let photoSwipeLastAt = 0;
+let photoScale = 1;
+let photoTranslateX = 0;
+let photoTranslateY = 0;
+let photoPanStartX = 0;
+let photoPanStartY = 0;
+let photoPanBaseX = 0;
+let photoPanBaseY = 0;
+let photoPinchStartDist = 0;
+let photoPinchStartScale = 1;
+const photoPointers = new Map();
 
 // ── Call state ─────────────────────────────
 let activeCallId       = null;
@@ -953,6 +965,66 @@ async function pollUnreadBadge() {
 // ════════════════════════════════════════════
 // Photo viewer
 // ════════════════════════════════════════════
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function photoDistance(a, b) {
+  return Math.hypot((a.x - b.x), (a.y - b.y));
+}
+
+function setPhotoDragX(px) {
+  if (!photoViewerImg) return;
+  photoViewerImg.style.setProperty('--pv-drag-x', `${Math.round(px)}px`);
+}
+
+function photoPanLimits() {
+  if (!photoViewerImg) return { x: 0, y: 0 };
+  const w = photoViewerImg.clientWidth || 0;
+  const h = photoViewerImg.clientHeight || 0;
+  const maxX = Math.max(0, ((w * photoScale) - w) * 0.5 + 10);
+  const maxY = Math.max(0, ((h * photoScale) - h) * 0.5 + 10);
+  return { x: maxX, y: maxY };
+}
+
+function clampPhotoPan() {
+  const lim = photoPanLimits();
+  photoTranslateX = clamp(photoTranslateX, -lim.x, lim.x);
+  photoTranslateY = clamp(photoTranslateY, -lim.y, lim.y);
+}
+
+function applyPhotoTransform() {
+  if (!photoViewerImg) return;
+  clampPhotoPan();
+  photoViewerImg.style.setProperty('--pv-scale', String(photoScale));
+  photoViewerImg.style.setProperty('--pv-tx', `${Math.round(photoTranslateX)}px`);
+  photoViewerImg.style.setProperty('--pv-ty', `${Math.round(photoTranslateY)}px`);
+  photoViewerImg.classList.toggle('zoomed', photoScale > 1.01);
+}
+
+function resetPhotoTransform() {
+  photoScale = 1;
+  photoTranslateX = 0;
+  photoTranslateY = 0;
+  setPhotoDragX(0);
+  applyPhotoTransform();
+}
+
+function setupPhotoPanFromPointer(pointerId) {
+  const p = photoPointers.get(pointerId);
+  if (!p) return;
+  photoGestureMode = (photoScale > 1.01) ? 'pan' : 'swipe';
+  photoSwipePointerId = pointerId;
+  photoPanStartX = p.x;
+  photoPanStartY = p.y;
+  photoPanBaseX = photoTranslateX;
+  photoPanBaseY = photoTranslateY;
+  photoSwipeStartX = p.x;
+  photoSwipeStartY = p.y;
+  photoSwipeLastX = p.x;
+  photoSwipeLastAt = Date.now();
+}
+
 function updatePhotoViewer() {
   if (!photoViewerImg || !photoViewerCounter) return;
   if (!activePhotoItems.length) {
@@ -962,6 +1034,8 @@ function updatePhotoViewer() {
   }
   const idx = Math.max(0, Math.min(activePhotoItems.length - 1, activePhotoIndex));
   activePhotoIndex = idx;
+  resetPhotoTransform();
+  photoViewerImg.classList.remove('gesture-active');
   photoViewerImg.classList.add('loading');
   photoViewerImg.src = imageDataUrl(activePhotoItems[idx]);
   photoViewerCounter.textContent = `${idx + 1} / ${activePhotoItems.length}`;
@@ -976,6 +1050,8 @@ function openPhotoViewer(items, startIndex = 0) {
   activePhotoIndex = startIndex;
   updatePhotoViewer();
   photoViewer.hidden = false;
+  photoGestureMode = 'idle';
+  photoPointers.clear();
   syncOverlayLock();
 }
 
@@ -984,9 +1060,14 @@ function closePhotoViewer() {
   photoViewer.hidden = true;
   activePhotoItems = [];
   activePhotoIndex = 0;
-  photoSwipeActive = false;
+  photoGestureMode = 'idle';
   photoSwipePointerId = null;
-  if (photoViewerImg) photoViewerImg.removeAttribute('src');
+  photoPointers.clear();
+  if (photoViewerImg) {
+    photoViewerImg.removeAttribute('src');
+    photoViewerImg.classList.remove('gesture-active', 'drag-release');
+  }
+  resetPhotoTransform();
   syncOverlayLock();
 }
 
@@ -994,11 +1075,6 @@ function stepPhotoViewer(step) {
   if (!activePhotoItems.length) return;
   activePhotoIndex = (activePhotoIndex + step + activePhotoItems.length) % activePhotoItems.length;
   updatePhotoViewer();
-  if (photoViewerImg) {
-    photoViewerImg.classList.remove('slide-left', 'slide-right');
-    void photoViewerImg.offsetWidth;
-    photoViewerImg.classList.add(step > 0 ? 'slide-left' : 'slide-right');
-  }
 }
 
 function prefetchPhotoAroundIndex(idx) {
@@ -1015,32 +1091,159 @@ function handlePhotoViewerPointerDown(e) {
   if (!photoViewer || photoViewer.hidden) return;
   if (!photoViewerImg || !(e.target instanceof Element) || !photoViewerImg.contains(e.target)) return;
   if (e.button !== undefined && e.button !== 0) return;
-  photoSwipeActive = true;
-  photoSwipePointerId = e.pointerId ?? null;
-  photoSwipeStartX = Number(e.clientX || 0);
-  photoSwipeStartY = Number(e.clientY || 0);
+  const pointerId = e.pointerId ?? 0;
+  photoPointers.set(pointerId, { x: Number(e.clientX || 0), y: Number(e.clientY || 0) });
+  photoSwipePointerId = pointerId;
+  setupPhotoPanFromPointer(pointerId);
+  photoViewerImg.classList.add('gesture-active');
   if (photoViewerImg.setPointerCapture && photoSwipePointerId !== null) {
     try { photoViewerImg.setPointerCapture(photoSwipePointerId); } catch (_) {}
+  }
+  if (photoPointers.size >= 2) {
+    const pts = Array.from(photoPointers.values());
+    photoGestureMode = 'pinch';
+    photoPinchStartDist = photoDistance(pts[0], pts[1]) || 1;
+    photoPinchStartScale = photoScale;
+    setPhotoDragX(0);
+  }
+}
+
+function handlePhotoViewerPointerMove(e) {
+  if (!photoViewer || photoViewer.hidden) return;
+  const pointerId = e.pointerId ?? 0;
+  if (!photoPointers.has(pointerId)) return;
+  photoPointers.set(pointerId, { x: Number(e.clientX || 0), y: Number(e.clientY || 0) });
+
+  if (photoPointers.size >= 2) {
+    photoGestureMode = 'pinch';
+  }
+
+  if (photoGestureMode === 'pinch' && photoPointers.size >= 2) {
+    e.preventDefault();
+    const pts = Array.from(photoPointers.values());
+    const dist = photoDistance(pts[0], pts[1]);
+    const nextScale = clamp(photoPinchStartScale * (dist / (photoPinchStartDist || 1)), 1, 4);
+    photoScale = nextScale;
+    if (photoScale <= 1.01) {
+      photoTranslateX = 0;
+      photoTranslateY = 0;
+    }
+    applyPhotoTransform();
+    return;
+  }
+
+  if (photoSwipePointerId !== pointerId) return;
+  const p = photoPointers.get(pointerId);
+  if (!p) return;
+
+  if (photoGestureMode === 'pan' && photoScale > 1.01) {
+    e.preventDefault();
+    photoTranslateX = photoPanBaseX + (p.x - photoPanStartX);
+    photoTranslateY = photoPanBaseY + (p.y - photoPanStartY);
+    applyPhotoTransform();
+    return;
+  }
+
+  if (photoGestureMode !== 'swipe') return;
+  const dx = p.x - photoSwipeStartX;
+  const dy = p.y - photoSwipeStartY;
+  if (Math.abs(dx) <= Math.abs(dy) * 0.92) return;
+  e.preventDefault();
+  const drag = clamp(dx, -180, 180);
+  setPhotoDragX(drag * 0.95);
+  photoSwipeLastX = p.x;
+  photoSwipeLastAt = Date.now();
+}
+
+function finishSwipeGesture(finalX, finalY) {
+  const now = Date.now();
+  const dx = Number(finalX || 0) - photoSwipeStartX;
+  const dy = Number(finalY || 0) - photoSwipeStartY;
+  const dt = Math.max(16, now - (photoSwipeLastAt || now));
+  const vx = (Number(finalX || 0) - Number(photoSwipeLastX || photoSwipeStartX)) / dt; // px/ms
+  let direction = 0;
+  if (Math.abs(dx) > Math.abs(dy) * 1.1) {
+    if (dx <= -PHOTO_SWIPE_THRESHOLD_PX || vx <= -0.55) direction = 1;
+    if (dx >= PHOTO_SWIPE_THRESHOLD_PX || vx >= 0.55) direction = -1;
+  }
+
+  if (direction !== 0 && activePhotoItems.length > 1) {
+    setPhotoDragX(direction > 0 ? -220 : 220);
+    requestAnimationFrame(() => stepPhotoViewer(direction));
+  } else {
+    if (photoViewerImg) {
+      photoViewerImg.classList.add('drag-release');
+      setTimeout(() => photoViewerImg.classList.remove('drag-release'), 220);
+    }
+    setPhotoDragX(0);
   }
 }
 
 function handlePhotoViewerPointerEnd(e) {
-  if (!photoSwipeActive) return;
-  if (photoSwipePointerId !== null && e.pointerId !== undefined && e.pointerId !== photoSwipePointerId) return;
-  const dx = Number(e.clientX || 0) - photoSwipeStartX;
-  const dy = Number(e.clientY || 0) - photoSwipeStartY;
-  photoSwipeActive = false;
-  photoSwipePointerId = null;
-  if (Math.abs(dx) < PHOTO_SWIPE_THRESHOLD_PX) return;
-  if (Math.abs(dx) <= Math.abs(dy) * 1.15) return;
-  stepPhotoViewer(dx < 0 ? 1 : -1);
+  const pointerId = e.pointerId ?? 0;
+  const p = photoPointers.get(pointerId) || { x: Number(e.clientX || 0), y: Number(e.clientY || 0) };
+  const wasPrimary = (photoSwipePointerId === pointerId);
+  photoPointers.delete(pointerId);
+
+  if (photoGestureMode === 'pinch') {
+    if (photoPointers.size >= 2) {
+      const pts = Array.from(photoPointers.values());
+      photoPinchStartDist = photoDistance(pts[0], pts[1]) || 1;
+      photoPinchStartScale = photoScale;
+      return;
+    }
+    if (photoPointers.size === 1) {
+      const remId = Array.from(photoPointers.keys())[0];
+      setupPhotoPanFromPointer(remId);
+      if (photoScale <= 1.01) photoGestureMode = 'swipe';
+      return;
+    }
+    if (photoScale <= 1.01) resetPhotoTransform();
+    photoGestureMode = 'idle';
+    photoSwipePointerId = null;
+    if (photoViewerImg) photoViewerImg.classList.remove('gesture-active');
+    return;
+  }
+
+  if (photoGestureMode === 'pan') {
+    if (photoPointers.size === 1) {
+      const remId = Array.from(photoPointers.keys())[0];
+      setupPhotoPanFromPointer(remId);
+      return;
+    }
+    photoGestureMode = 'idle';
+    photoSwipePointerId = null;
+    if (photoViewerImg) photoViewerImg.classList.remove('gesture-active');
+    return;
+  }
+
+  if (photoGestureMode === 'swipe' && wasPrimary) {
+    finishSwipeGesture(p.x, p.y);
+    photoGestureMode = 'idle';
+    photoSwipePointerId = null;
+    if (photoViewerImg) photoViewerImg.classList.remove('gesture-active');
+    return;
+  }
+
+  if (photoPointers.size === 0) {
+    photoGestureMode = 'idle';
+    photoSwipePointerId = null;
+    if (photoViewerImg) photoViewerImg.classList.remove('gesture-active');
+  }
 }
 
 function handlePhotoViewerPointerCancel(e) {
-  if (!photoSwipeActive) return;
-  if (photoSwipePointerId !== null && e.pointerId !== undefined && e.pointerId !== photoSwipePointerId) return;
-  photoSwipeActive = false;
-  photoSwipePointerId = null;
+  const pointerId = e.pointerId ?? 0;
+  photoPointers.delete(pointerId);
+  if (photoPointers.size === 0) {
+    if (photoGestureMode === 'swipe') {
+      setPhotoDragX(0);
+    }
+    photoGestureMode = 'idle';
+    photoSwipePointerId = null;
+    if (photoScale <= 1.01) resetPhotoTransform();
+    if (photoViewerImg) photoViewerImg.classList.remove('gesture-active');
+  }
 }
 
 // ════════════════════════════════════════════
@@ -1582,15 +1785,14 @@ if (photoViewer) {
 if (photoViewerImg) {
   photoViewerImg.addEventListener('load', () => {
     photoViewerImg.classList.remove('loading');
+    applyPhotoTransform();
   });
   photoViewerImg.addEventListener('error', () => {
     photoViewerImg.classList.remove('loading');
     showToast('Не вдалося відкрити фото.', true);
   });
-  photoViewerImg.addEventListener('animationend', () => {
-    photoViewerImg.classList.remove('slide-left', 'slide-right');
-  });
   photoViewerImg.addEventListener('pointerdown', handlePhotoViewerPointerDown);
+  photoViewerImg.addEventListener('pointermove', handlePhotoViewerPointerMove);
   photoViewerImg.addEventListener('pointerup', handlePhotoViewerPointerEnd);
   photoViewerImg.addEventListener('pointercancel', handlePhotoViewerPointerCancel);
   photoViewerImg.addEventListener('lostpointercapture', handlePhotoViewerPointerCancel);
