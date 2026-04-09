@@ -18,6 +18,7 @@ const DEFAULT_CALL_PREFS = Object.freeze({
   outgoingTimeoutSec: 35,
   incomingTimeoutSec: 45,
 });
+const HAS_POINTER_EVENTS = typeof window.PointerEvent !== 'undefined';
 
 // ── Auth state ─────────────────────────────
 let token = localStorage.getItem(TOKEN_KEY) || null;
@@ -1404,6 +1405,10 @@ async function startRecording() {
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
     showToast('Мікрофон доступний лише по HTTPS.', true); return;
   }
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    showToast('Браузер не дозволяє доступ до мікрофона.', true);
+    return;
+  }
   if (typeof window.MediaRecorder === 'undefined') {
     showToast('Запис голосових не підтримується цим браузером.', true);
     return;
@@ -1437,7 +1442,11 @@ async function startRecording() {
       if (recordingShouldSend) sendVoiceMessage();
       else audioChunks = [];
     };
-    mediaRecorder.start(200);
+    try {
+      mediaRecorder.start(200);
+    } catch (_) {
+      mediaRecorder.start();
+    }
     isRecording = true;
     recordingShouldSend = true;
     btnVoice.classList.add('recording');
@@ -1533,6 +1542,61 @@ function handleVoicePointerMove(e) {
     showToast('Запис скасовано');
     handleVoicePointerCancel(e);
   }
+}
+
+function makeHoldEvent(sourceEvent, clientX, pointerId = 1) {
+  return {
+    button: 0,
+    clientX,
+    pointerId,
+    preventDefault: () => {
+      if (sourceEvent?.cancelable) sourceEvent.preventDefault();
+    },
+  };
+}
+
+function handleVoiceTouchStart(e) {
+  if (HAS_POINTER_EVENTS) return;
+  const t = e.changedTouches?.[0];
+  if (!t) return;
+  handleVoicePointerDown(makeHoldEvent(e, Number(t.clientX || 0), Number(t.identifier || 1)));
+}
+
+function handleVoiceTouchMove(e) {
+  if (HAS_POINTER_EVENTS) return;
+  const t = e.changedTouches?.[0];
+  if (!t) return;
+  handleVoicePointerMove(makeHoldEvent(e, Number(t.clientX || 0), Number(t.identifier || 1)));
+}
+
+function handleVoiceTouchEnd(e) {
+  if (HAS_POINTER_EVENTS) return;
+  const t = e.changedTouches?.[0];
+  if (!t) return;
+  handleVoicePointerUp(makeHoldEvent(e, Number(t.clientX || 0), Number(t.identifier || 1)));
+}
+
+function handleVoiceTouchCancel(e) {
+  if (HAS_POINTER_EVENTS) return;
+  const t = e.changedTouches?.[0];
+  handleVoicePointerCancel(makeHoldEvent(e, Number(t?.clientX || 0), Number(t?.identifier || 1)));
+}
+
+function handleVoiceMouseDown(e) {
+  if (HAS_POINTER_EVENTS) return;
+  handleVoicePointerDown(makeHoldEvent(e, Number(e.clientX || 0), 1));
+}
+
+function handleVoiceMouseMove(e) {
+  if (HAS_POINTER_EVENTS) return;
+  if (!holdPointerActive) return;
+  handleVoicePointerMove(makeHoldEvent(e, Number(e.clientX || 0), 1));
+}
+
+function handleVoiceMouseUp(e) {
+  if (HAS_POINTER_EVENTS) return;
+  if (!holdPointerActive && !isRecording && !recordStartInFlight) return;
+  handleVoicePointerUp(makeHoldEvent(e, Number(e.clientX || 0), 1));
 }
 
 async function sendVoiceMessage() {
@@ -3325,11 +3389,21 @@ btnVoice.addEventListener('click', e => {
   if (e.detail !== 0) return;
   toggleRecording().catch(() => {});
 });
-btnVoice.addEventListener('pointerdown', handleVoicePointerDown);
-btnVoice.addEventListener('pointermove', handleVoicePointerMove);
-btnVoice.addEventListener('pointerup', handleVoicePointerUp);
-btnVoice.addEventListener('pointercancel', handleVoicePointerCancel);
-btnVoice.addEventListener('lostpointercapture', handleVoicePointerCancel);
+if (HAS_POINTER_EVENTS) {
+  btnVoice.addEventListener('pointerdown', handleVoicePointerDown);
+  btnVoice.addEventListener('pointermove', handleVoicePointerMove);
+  btnVoice.addEventListener('pointerup', handleVoicePointerUp);
+  btnVoice.addEventListener('pointercancel', handleVoicePointerCancel);
+  btnVoice.addEventListener('lostpointercapture', handleVoicePointerCancel);
+} else {
+  btnVoice.addEventListener('touchstart', handleVoiceTouchStart, { passive: false });
+  btnVoice.addEventListener('touchmove', handleVoiceTouchMove, { passive: false });
+  btnVoice.addEventListener('touchend', handleVoiceTouchEnd, { passive: false });
+  btnVoice.addEventListener('touchcancel', handleVoiceTouchCancel, { passive: false });
+  btnVoice.addEventListener('mousedown', handleVoiceMouseDown);
+  window.addEventListener('mousemove', handleVoiceMouseMove);
+  window.addEventListener('mouseup', handleVoiceMouseUp);
+}
 btnVoice.addEventListener('contextmenu', e => e.preventDefault());
 if (btnCancelRecord) btnCancelRecord.addEventListener('click', () => stopRecording(false));
 convSearch.addEventListener('input', () => renderConvList(convData));
