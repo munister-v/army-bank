@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '28';
+const MESSENGER_ASSET_VERSION = '29';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -100,6 +100,8 @@ let callQualityLabel = '';
 let callStatusBase = 'З\'єднання...';
 let callWakeLock = null;
 let callBackgroundNotifiedForId = null;
+let callIceRecoverTimer = null;
+let callAdaptiveAudioProfile = 'balanced';
 let turnHintShown = false;
 let bankSummaryCache = null;
 let bankProfileLinked = true;
@@ -2121,7 +2123,7 @@ const DEFAULT_ICE_SERVERS = [
     credential: 'openrelayproject',
   },
 ];
-let rtcConfig = { iceServers: [...DEFAULT_ICE_SERVERS] };
+let rtcConfig = buildRtcConfigFromIce(DEFAULT_ICE_SERVERS);
 let rtcConfigLoaded = false;
 
 function checkWebRTCSupport() {
@@ -2150,6 +2152,16 @@ function sanitizeIceServers(servers) {
   return out.length ? out : [...DEFAULT_ICE_SERVERS];
 }
 
+function buildRtcConfigFromIce(iceServers) {
+  return {
+    iceServers: sanitizeIceServers(iceServers),
+    bundlePolicy: 'max-bundle',
+    rtcpMuxPolicy: 'require',
+    iceTransportPolicy: 'all',
+    iceCandidatePoolSize: 6,
+  };
+}
+
 function hasTurnServer(config) {
   const list = Array.isArray(config?.iceServers) ? config.iceServers : [];
   return list.some(server => {
@@ -2163,9 +2175,9 @@ async function ensureRtcConfig() {
   rtcConfigLoaded = true;
   try {
     const cfg = await api('GET', '/messenger/calls/config');
-    rtcConfig = { iceServers: sanitizeIceServers(cfg?.ice_servers) };
+    rtcConfig = buildRtcConfigFromIce(cfg?.ice_servers);
   } catch (_) {
-    rtcConfig = { iceServers: [...DEFAULT_ICE_SERVERS] };
+    rtcConfig = buildRtcConfigFromIce(DEFAULT_ICE_SERVERS);
   }
   if (!turnHintShown && !hasTurnServer(rtcConfig)) {
     turnHintShown = true;
@@ -2225,6 +2237,8 @@ async function getCallAudioStream() {
       echoCancellation: { ideal: true },
       noiseSuppression: { ideal: true },
       autoGainControl: { ideal: true },
+      latency: { ideal: 0.02 },
+      voiceIsolation: { ideal: true },
       channelCount: { ideal: 1 },
       sampleRate: { ideal: 48000 },
       sampleSize: { ideal: 16 },
@@ -2236,7 +2250,13 @@ async function getCallAudioStream() {
   } catch (_) {}
   try {
     return await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        latency: 0.02,
+        channelCount: 1,
+      },
       video: false,
     });
   } catch (_) {}
@@ -2244,17 +2264,34 @@ async function getCallAudioStream() {
 }
 
 function optimizeOutgoingAudio(pc, stream) {
+  const profileMap = {
+    crisp: { maxBitrate: 56000, profile: 'crisp' },
+    balanced: { maxBitrate: 42000, profile: 'balanced' },
+    resilient: { maxBitrate: 26000, profile: 'resilient' },
+  };
+  const nextProfile = profileMap[callAdaptiveAudioProfile] || profileMap.balanced;
   try {
     const track = stream?.getAudioTracks?.()[0];
     if (track && 'contentHint' in track) track.contentHint = 'speech';
+    if (track?.applyConstraints) {
+      track.applyConstraints({
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1,
+      }).catch(() => {});
+    }
   } catch (_) {}
   try {
     const sender = pc?.getSenders?.().find(s => s?.track && s.track.kind === 'audio');
     if (!sender || typeof sender.getParameters !== 'function' || typeof sender.setParameters !== 'function') return;
     const params = sender.getParameters() || {};
     if (!Array.isArray(params.encodings) || !params.encodings.length) params.encodings = [{}];
-    params.encodings[0].maxBitrate = 40000;
+    params.encodings[0].maxBitrate = nextProfile.maxBitrate;
+    params.encodings[0].minBitrate = 14000;
+    params.encodings[0].networkPriority = 'high';
     params.encodings[0].priority = 'high';
+    params.degradationPreference = 'maintain-resolution';
     sender.setParameters(params).catch(() => {});
   } catch (_) {}
 }
@@ -2520,6 +2557,38 @@ function stopCallQualityMonitor() {
   callQualityLabel = '';
 }
 
+function clearIceRecoveryTimer() {
+  if (!callIceRecoverTimer) return;
+  clearTimeout(callIceRecoverTimer);
+  callIceRecoverTimer = null;
+}
+
+function scheduleIceRecovery(pc, delayMs = 2200) {
+  if (!pc || !activeCallId || callConnectedOnce === false && !remoteSdpSet) return;
+  if (callIceRecoverTimer) return;
+  callIceRecoverTimer = setTimeout(async () => {
+    callIceRecoverTimer = null;
+    if (!pc || pc !== peerConnection || !activeCallId) return;
+    if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') return;
+    try {
+      setCallStatusBase('Спроба відновлення мережі...');
+      if (typeof pc.restartIce === 'function' && pc.signalingState === 'stable') {
+        pc.restartIce();
+      }
+      startCallPoll(document.hidden ? 1700 : 900);
+      pollCall().catch(() => {});
+    } catch (_) {}
+  }, Math.max(900, Number(delayMs || 0)));
+}
+
+async function applyAdaptiveAudioProfile(profile = 'balanced') {
+  const next = String(profile || 'balanced');
+  if (!peerConnection || !activeCallId) return;
+  if (next === callAdaptiveAudioProfile) return;
+  callAdaptiveAudioProfile = next;
+  optimizeOutgoingAudio(peerConnection, localStream);
+}
+
 async function sampleCallQuality() {
   if (!peerConnection || !callConnectedOnce || typeof peerConnection.getStats !== 'function') return;
   try {
@@ -2540,18 +2609,23 @@ async function sampleCallQuality() {
     });
 
     let quality = '';
+    let profile = 'balanced';
     if ((lossRatio !== null && lossRatio > 0.08) || (jitter !== null && jitter > 0.04) || (rtt !== null && rtt > 0.35)) {
       quality = 'якість слабка';
+      profile = 'resilient';
     } else if ((lossRatio !== null && lossRatio > 0.03) || (jitter !== null && jitter > 0.02) || (rtt !== null && rtt > 0.2)) {
       quality = 'мережа нестабільна';
+      profile = 'balanced';
     } else if (lossRatio !== null || jitter !== null || rtt !== null) {
       quality = 'якість добра';
+      profile = 'crisp';
     }
 
     if (quality !== callQualityLabel) {
       callQualityLabel = quality;
       renderCallStatus();
     }
+    applyAdaptiveAudioProfile(profile).catch(() => {});
   } catch (_) {}
 }
 
@@ -2566,6 +2640,13 @@ function buildPeerConnection() {
 
   pc.ontrack = e => {
     if (remoteAudio.srcObject !== e.streams[0]) remoteAudio.srcObject = e.streams[0];
+    if (remoteAudio && typeof remoteAudio.play === 'function') {
+      remoteAudio.play().catch(() => {});
+    }
+    try {
+      const receiver = pc.getReceivers?.().find(r => r?.track && r.track.kind === 'audio');
+      if (receiver && 'playoutDelayHint' in receiver) receiver.playoutDelayHint = 0.12;
+    } catch (_) {}
   };
 
   // ICE candidates are embedded in the gathered SDP — no trickle needed
@@ -2575,6 +2656,7 @@ function buildPeerConnection() {
     const st = pc.iceConnectionState;
     if (st === 'connected' || st === 'completed') {
       setCallStatusBase('Підключено');
+      clearIceRecoveryTimer();
       stopAllCallTones();
       if (!callConnectedOnce) {
         callConnectedOnce = true;
@@ -2582,9 +2664,12 @@ function buildPeerConnection() {
       }
       if (!callWallTimer) startCallTimer();
       if (!callQualityTimer) startCallQualityMonitor();
+      startCallPoll(document.hidden ? 2200 : 1200);
       requestCallWakeLock().catch(() => {});
     } else if (st === 'disconnected') {
       setCallStatusBase('Відновлення...');
+      scheduleIceRecovery(pc, 1800);
+      startCallPoll(document.hidden ? 1800 : 950);
       pollCall().catch(() => {});
     } else if (st === 'failed') {
       showToast('З\'єднання перервано.', true);
@@ -2596,11 +2681,14 @@ function buildPeerConnection() {
     const st = pc.connectionState;
     if (st === 'connected') {
       setCallStatusBase('Підключено');
+      clearIceRecoveryTimer();
       if (!callWallTimer) startCallTimer();
       if (!callQualityTimer) startCallQualityMonitor();
+      startCallPoll(document.hidden ? 2200 : 1200);
       requestCallWakeLock().catch(() => {});
     } else if (st === 'disconnected') {
       setCallStatusBase('Відновлення...');
+      scheduleIceRecovery(pc, 1800);
     } else if (st === 'failed' || st === 'closed') {
       hangupCall(true, 'error');
     }
@@ -2778,9 +2866,14 @@ async function rejectCall() {
 }
 
 // ── Call polling ───────────────────────────
-function startCallPoll(intervalMs = (document.hidden ? 2500 : 1500)) {
+function callPollInterval() {
+  if (document.hidden) return callConnectedOnce ? 2500 : 1800;
+  return callConnectedOnce ? 1200 : 900;
+}
+
+function startCallPoll(intervalMs = callPollInterval()) {
   clearInterval(callPollTimer);
-  callPollTimer = setInterval(pollCall, intervalMs);
+  callPollTimer = setInterval(() => { pollCall().catch(() => {}); }, Math.max(700, Number(intervalMs || 0)));
 }
 
 async function pollCall() {
@@ -2855,6 +2948,7 @@ async function hangupCall(notify = true, reason = 'ended') {
   clearInterval(callPollTimer);
   clearInterval(callWallTimer);
   callWallTimer    = null;
+  clearIceRecoveryTimer();
   stopCallQualityMonitor();
   releaseCallWakeLock().catch(() => {});
   cleanupPeer();
@@ -2869,6 +2963,7 @@ async function hangupCall(notify = true, reason = 'ended') {
   callStartAtMs = 0;
   callStatusBase = 'З\'єднання...';
   callQualityLabel = '';
+  callAdaptiveAudioProfile = 'balanced';
   callBackgroundNotifiedForId = null;
   callScreen.hidden       = true;
   callScreenTimer.hidden  = true;
@@ -2882,7 +2977,7 @@ async function hangupCall(notify = true, reason = 'ended') {
 function handleVisibilityChange() {
   if (document.hidden) {
     if (activeCallId) {
-      startCallPoll(2500);
+      startCallPoll(callPollInterval());
       if (window.Notification && Notification.permission === 'granted' && callBackgroundNotifiedForId !== activeCallId) {
         try {
           const title = callConnectedOnce ? 'Дзвінок триває у фоні' : 'Підключення дзвінка у фоні';
@@ -2902,7 +2997,7 @@ function handleVisibilityChange() {
   }
 
   if (activeCallId) {
-    startCallPoll(1500);
+    startCallPoll(callPollInterval());
     pollCall().catch(() => {});
     requestCallWakeLock().catch(() => {});
     if (callConnectedOnce && !callWallTimer) startCallTimer();
