@@ -104,6 +104,7 @@ let callBackgroundNotifiedForId = null;
 let callIceRecoverTimer = null;
 let callAdaptiveAudioProfile = 'balanced';
 let callIceRestartInFlight = false;
+let callForceRelay = false;
 let activeCallRole = null; // 'caller' | 'callee'
 let lastAppliedRemoteOfferSdp = '';
 let lastAppliedRemoteAnswerSdp = '';
@@ -2220,12 +2221,17 @@ function sanitizeIceServers(servers) {
   return out.length ? out : [...DEFAULT_ICE_SERVERS];
 }
 
-function buildRtcConfigFromIce(iceServers) {
+function buildRtcConfigFromIce(iceServers, forceRelay = false) {
+  const sanitized = sanitizeIceServers(iceServers);
+  const hasTurn = sanitized.some(server => {
+    const urls = Array.isArray(server?.urls) ? server.urls : [server?.urls];
+    return urls.some(url => /^turns?:/i.test(String(url || '').trim()));
+  });
   return {
-    iceServers: sanitizeIceServers(iceServers),
+    iceServers: sanitized,
     bundlePolicy: 'max-bundle',
     rtcpMuxPolicy: 'require',
-    iceTransportPolicy: 'all',
+    iceTransportPolicy: (forceRelay && hasTurn) ? 'relay' : 'all',
     iceCandidatePoolSize: 6,
   };
 }
@@ -2243,9 +2249,11 @@ async function ensureRtcConfig() {
   rtcConfigLoaded = true;
   try {
     const cfg = await api('GET', '/messenger/calls/config');
-    rtcConfig = buildRtcConfigFromIce(cfg?.ice_servers);
+    callForceRelay = !!cfg?.force_relay;
+    rtcConfig = buildRtcConfigFromIce(cfg?.ice_servers, callForceRelay);
   } catch (_) {
-    rtcConfig = buildRtcConfigFromIce(DEFAULT_ICE_SERVERS);
+    callForceRelay = false;
+    rtcConfig = buildRtcConfigFromIce(DEFAULT_ICE_SERVERS, false);
   }
   if (!turnHintShown && !hasTurnServer(rtcConfig)) {
     turnHintShown = true;

@@ -7,6 +7,7 @@ from ..config import (
     USE_PG,
     MESSENGER_CALL_PENDING_TIMEOUT_SECONDS,
     MESSENGER_CALL_ACTIVE_STALE_SECONDS,
+    MESSENGER_CALL_FORCE_RELAY,
     MESSENGER_ICE_SERVERS,
 )
 from .helpers import api_error, auth_required
@@ -123,6 +124,7 @@ def call_config():
         'ok': True,
         'data': {
             'pending_timeout_seconds': max(15, int(MESSENGER_CALL_PENDING_TIMEOUT_SECONDS or 45)),
+            'force_relay': bool(MESSENGER_CALL_FORCE_RELAY),
             'ice_servers': MESSENGER_ICE_SERVERS,
         },
     })
