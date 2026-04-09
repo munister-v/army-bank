@@ -2684,11 +2684,17 @@ function hideIncoming() {
 
 // ── Accept / Reject ────────────────────────
 async function acceptCall() {
-  if (!incomingCallId || callAcceptInProgress) return;
+  console.log('[Accept] Button clicked, incomingCallId:', incomingCallId);
+  if (!incomingCallId || callAcceptInProgress) {
+    console.log('[Accept] Rejected: already in progress or no call');
+    return;
+  }
   callAcceptInProgress = true;
   const callId = incomingCallId;
+  console.log('[Accept] Accepting call #' + callId);
   hideIncoming();
   if (!checkWebRTCSupport()) {
+    console.log('[Accept] WebRTC not supported');
     callAcceptInProgress = false;
     api('PUT', `/messenger/calls/${callId}/reject`).catch(() => {}); return;
   }
@@ -2696,14 +2702,18 @@ async function acceptCall() {
   await ensureRtcConfig();
 
   try {
+    console.log('[Accept] Getting audio stream...');
     localStream = await getCallAudioStream();
+    console.log('[Accept] Audio stream obtained');
   } catch (err) {
+    console.error('[Accept] Mic error:', err.message);
     showToast(micError(err), true);
     callAcceptInProgress = false;
     api('PUT', `/messenger/calls/${callId}/reject`).catch(() => {}); return;
   }
 
   try {
+    console.log('[Accept] Fetching call data...');
     const callData = await api('GET', `/messenger/calls/${callId}`);
     peerConnection = buildPeerConnection();
     localStream.getTracks().forEach(t => peerConnection.addTrack(t, localStream));
@@ -2720,7 +2730,9 @@ async function acceptCall() {
 
     // Send answer immediately, don't wait for full ICE gathering
     const answerSdp = normalizeSdp(peerConnection.localDescription.sdp, 'SDP answer');
+    console.log('[Accept] Sending answer, length:', answerSdp.length);
     await api('PUT', `/messenger/calls/${callId}/answer`, { sdp_answer: answerSdp });
+    console.log('[Accept] Answer sent');
 
     activeCallId  = callId;
     icePollLastId = 0;
@@ -2729,12 +2741,15 @@ async function acceptCall() {
 
     // Show call screen immediately
     showCallScreen(callData.caller_name || 'Дзвінок', 'З\'єднання...');
+    console.log('[Accept] Call screen shown');
 
     // Continue gathering in background
     waitForIceGathering(peerConnection).catch(() => {});
 
     startCallPoll();
+    console.log('[Accept] ✓ Accept complete, polling started');
   } catch (err) {
+    console.error('[Accept] Error:', err.message);
     showToast(err.message || 'Помилка підключення дзвінка.', true);
     api('PUT', `/messenger/calls/${callId}/reject`).catch(() => {});
     cleanupPeer();
