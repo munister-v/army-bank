@@ -34,6 +34,7 @@ BOOTSTRAP_TOKEN = os.getenv('BOOTSTRAP_TOKEN', '').strip()
 # Messenger at-rest encryption keys (Fernet, base64 urlsafe, 32-byte).
 # Multiple keys allowed for rotation: "new_key,old_key".
 MESSENGER_ENCRYPTION_KEYS = os.getenv('MESSENGER_ENCRYPTION_KEYS', '').strip()
+MESSENGER_CALL_PENDING_TIMEOUT_SECONDS = int(os.getenv('MESSENGER_CALL_PENDING_TIMEOUT_SECONDS', '45'))
 
 # Примітивний anti-bruteforce rate-limit для auth endpoints
 AUTH_RATE_LIMIT_ENABLED = (os.getenv('AUTH_RATE_LIMIT_ENABLED', '1') == '1')

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from flask import Blueprint, jsonify, request, g
 from ..database import get_connection
-from ..config import USE_PG
+from ..config import USE_PG, MESSENGER_CALL_PENDING_TIMEOUT_SECONDS
 from .helpers import api_error, auth_required
 
 call_bp = Blueprint('calls', __name__, url_prefix='/api/messenger/calls')
@@ -22,6 +22,49 @@ def _is_participant(conn, conv_id: int, user_id: int) -> bool:
         (conv_id, user_id),
     ).fetchone()
     return bool(row)
+
+
+def _expire_stale_pending_calls(conn, conv_id: int | None = None) -> int:
+    timeout_sec = max(15, int(MESSENGER_CALL_PENDING_TIMEOUT_SECONDS or 45))
+    conv_sql = ''
+    params = [timeout_sec]
+    if conv_id is not None:
+        conv_sql = ' AND conversation_id = %s'
+        params.append(conv_id)
+
+    if USE_PG:
+        rows = conn.execute(
+            f"""
+            SELECT id
+            FROM calls
+            WHERE status = 'pending'
+              AND EXTRACT(EPOCH FROM (NOW() - created_at)) > %s
+              {conv_sql}
+            """,
+            tuple(params),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            f"""
+            SELECT id
+            FROM calls
+            WHERE status = 'pending'
+              AND (strftime('%s', 'now') - strftime('%s', created_at)) > %s
+              {conv_sql}
+            """,
+            tuple(params),
+        ).fetchall()
+
+    stale_ids = [int(r['id']) for r in rows if r and r.get('id') is not None]
+    if not stale_ids:
+        return 0
+
+    placeholders = ','.join(['%s'] * len(stale_ids))
+    conn.execute(
+        f"UPDATE calls SET status='missed', ended_at={_now_sql()} WHERE id IN ({placeholders})",
+        tuple(stale_ids),
+    )
+    return len(stale_ids)
 
 
 # ── Ініціювати дзвінок ────────────────────────────────────────────────────────
@@ -49,22 +92,7 @@ def start_call():
     with get_connection() as conn:
         if not _is_participant(conn, conv_id, me_id):
             return api_error('Доступ заборонено.', 403)
-
-        # Expire stale pending calls so they don't block new calls forever.
-        if USE_PG:
-            conn.execute(
-                "UPDATE calls SET status='missed', ended_at=NOW() "
-                "WHERE conversation_id = %s AND status = 'pending' "
-                "AND created_at < NOW() - INTERVAL '2 minutes'",
-                (conv_id,),
-            )
-        else:
-            conn.execute(
-                "UPDATE calls SET status='missed', ended_at=datetime('now') "
-                "WHERE conversation_id = %s AND status = 'pending' "
-                "AND created_at < datetime('now', '-2 minutes')",
-                (conv_id,),
-            )
+        _expire_stale_pending_calls(conn, conv_id)
 
         # Відхиляємо якщо вже є активний дзвінок у цій розмові
         active = conn.execute(
@@ -97,6 +125,7 @@ def incoming_calls():
     """Повертає pending дзвінки де я є учасником (не caller)."""
     me_id = g.current_user['id']
     with get_connection() as conn:
+        _expire_stale_pending_calls(conn)
         rows = conn.execute(
             """
             SELECT c.id, c.conversation_id, c.caller_id, c.status,
@@ -122,6 +151,7 @@ def incoming_calls():
 def get_call(call_id: int):
     me_id = g.current_user['id']
     with get_connection() as conn:
+        _expire_stale_pending_calls(conn)
         row = conn.execute(
             """
             SELECT c.id, c.conversation_id, c.caller_id, c.status,
@@ -153,11 +183,14 @@ def answer_call(call_id: int):
         return api_error('sdp_answer занадто великий.', 400)
 
     with get_connection() as conn:
+        _expire_stale_pending_calls(conn)
         row = conn.execute('SELECT * FROM calls WHERE id = %s', (call_id,)).fetchone()
         if not row:
             return api_error('Дзвінок не знайдено.', 404)
         if row['caller_id'] == me_id:
             return api_error('Caller не може відповідати на власний дзвінок.')
+        if row['status'] == 'missed':
+            return api_error('Дзвінок прострочено.', 410)
         if row['status'] != 'pending':
             return api_error('Дзвінок вже не очікує відповіді.')
         if not _is_participant(conn, row['conversation_id'], me_id):

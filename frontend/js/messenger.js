@@ -6,9 +6,17 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '13';
+const MESSENGER_ASSET_VERSION = '15';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
+const CALL_PREFS_KEY = 'msng_call_prefs_v1';
+const DEFAULT_CALL_PREFS = Object.freeze({
+  sounds: true,
+  vibration: true,
+  volume: 0.7,
+  outgoingTimeoutSec: 35,
+  incomingTimeoutSec: 45,
+});
 
 // ── Auth state ─────────────────────────────
 let token = localStorage.getItem(TOKEN_KEY) || null;
@@ -31,6 +39,9 @@ let groupSearchTimer   = null;
 let incomingCheckTimer = null;
 let callPollTimer      = null;
 let callWallTimer      = null;
+let outgoingNoAnswerTimer = null;
+let incomingAutoRejectTimer = null;
+let incomingCountdownTimer = null;
 
 // ── Voice recording ────────────────────────
 let mediaRecorder = null;
@@ -87,6 +98,7 @@ let callAudioCtx       = null;
 let incomingToneTimer  = null;
 let outgoingToneTimer  = null;
 let callAudioPrimed    = false;
+let callPrefs          = loadCallPrefs();
 
 // ── Group state ────────────────────────────
 let groupSelectedUsers = [];
@@ -151,6 +163,7 @@ const authSwitchBtn     = $('auth-switch-btn');
 const authSwitchHint    = $('auth-switch-hint');
 // Call UI
 const callIncoming      = $('call-incoming');
+const callIncomingLabel = $('call-incoming-label');
 const callCallerAvatar  = $('call-caller-avatar');
 const callCallerName    = $('call-caller-name');
 const btnAcceptCall     = $('btn-accept-call');
@@ -179,6 +192,17 @@ const groupUserSearch   = $('group-user-search');
 const groupUserResults  = $('group-user-results');
 const groupSelectedList = $('group-selected-list');
 const btnCreateGroup    = $('btn-create-group');
+const callSettingsModal = $('call-settings-modal');
+const btnCloseCallSettings = $('btn-close-call-settings');
+const callSoundsToggle = $('call-sounds-toggle');
+const callVibrateToggle = $('call-vibrate-toggle');
+const callVolumeRange = $('call-volume-range');
+const callVolumeValue = $('call-volume-value');
+const outgoingTimeoutRange = $('outgoing-timeout-range');
+const outgoingTimeoutValue = $('outgoing-timeout-value');
+const incomingTimeoutRange = $('incoming-timeout-range');
+const incomingTimeoutValue = $('incoming-timeout-value');
+const callSettingsButtons = Array.from(document.querySelectorAll('[data-open-call-settings]'));
 
 // ════════════════════════════════════════════
 // API helper
@@ -220,9 +244,64 @@ function showToast(msg, isError = false) {
   toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
 }
 
+function clampNumber(value, min, max, fallback) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.min(max, Math.max(min, num));
+}
+
+function loadCallPrefs() {
+  try {
+    const raw = localStorage.getItem(CALL_PREFS_KEY);
+    if (!raw) return { ...DEFAULT_CALL_PREFS };
+    const parsed = JSON.parse(raw);
+    return {
+      sounds: parsed?.sounds !== false,
+      vibration: parsed?.vibration !== false,
+      volume: clampNumber(parsed?.volume, 0, 1, DEFAULT_CALL_PREFS.volume),
+      outgoingTimeoutSec: Math.round(clampNumber(parsed?.outgoingTimeoutSec, 15, 90, DEFAULT_CALL_PREFS.outgoingTimeoutSec)),
+      incomingTimeoutSec: Math.round(clampNumber(parsed?.incomingTimeoutSec, 15, 90, DEFAULT_CALL_PREFS.incomingTimeoutSec)),
+    };
+  } catch (_) {
+    return { ...DEFAULT_CALL_PREFS };
+  }
+}
+
+function saveCallPrefs() {
+  try {
+    localStorage.setItem(CALL_PREFS_KEY, JSON.stringify(callPrefs));
+  } catch (_) {}
+}
+
+function renderCallSettings() {
+  if (callSoundsToggle) callSoundsToggle.checked = !!callPrefs.sounds;
+  if (callVibrateToggle) callVibrateToggle.checked = !!callPrefs.vibration;
+  if (callVolumeRange) callVolumeRange.value = String(Math.round(callPrefs.volume * 100));
+  if (callVolumeValue) callVolumeValue.textContent = `${Math.round(callPrefs.volume * 100)}%`;
+  if (outgoingTimeoutRange) outgoingTimeoutRange.value = String(callPrefs.outgoingTimeoutSec);
+  if (outgoingTimeoutValue) outgoingTimeoutValue.textContent = `${callPrefs.outgoingTimeoutSec}с`;
+  if (incomingTimeoutRange) incomingTimeoutRange.value = String(callPrefs.incomingTimeoutSec);
+  if (incomingTimeoutValue) incomingTimeoutValue.textContent = `${callPrefs.incomingTimeoutSec}с`;
+}
+
+function openCallSettingsModal() {
+  if (!callSettingsModal) return;
+  renderCallSettings();
+  callSettingsModal.hidden = false;
+  syncOverlayLock();
+}
+
+function closeCallSettingsModal() {
+  if (!callSettingsModal) return;
+  callSettingsModal.hidden = true;
+  syncOverlayLock();
+}
+
 function syncOverlayLock() {
   const locked = (
     !!newChatModal && !newChatModal.hidden
+  ) || (
+    !!callSettingsModal && !callSettingsModal.hidden
   ) || (
     !!callIncoming && !callIncoming.hidden
   ) || (
@@ -332,6 +411,7 @@ function requestLogout() {
 function doLogout() {
   api('POST', '/auth/logout').catch(() => {});
   closeNewChatModal();
+  closeCallSettingsModal();
   closePhotoViewer();
   if (isRecording) stopRecording(false);
   token = null; me = null;
@@ -339,6 +419,7 @@ function doLogout() {
   localStorage.removeItem(USER_KEY);
   clearPolling();
   clearInterval(incomingCheckTimer);
+  hideIncoming();
   hangupCall(false);
   showAuth();
 }
@@ -1435,9 +1516,10 @@ async function ensureCallAudioCtx() {
 
 function toneBeep(freq = 440, duration = 0.12, opts = {}) {
   const ctx = callAudioCtx;
-  if (!ctx || ctx.state !== 'running') return;
+  if (!ctx || ctx.state !== 'running' || !callPrefs.sounds) return;
   const waveform = opts.wave || 'sine';
-  const gainV = Number.isFinite(opts.gain) ? opts.gain : 0.028;
+  const baseGain = Number.isFinite(opts.gain) ? opts.gain : 0.028;
+  const gainV = Math.max(0.0001, baseGain * clampNumber(callPrefs.volume, 0, 1, 0.7));
   const delay = Number.isFinite(opts.delay) ? opts.delay : 0;
   const now = ctx.currentTime + Math.max(0, delay);
   const osc = ctx.createOscillator();
@@ -1460,7 +1542,7 @@ function stopIncomingTone() {
     clearInterval(incomingToneTimer);
     incomingToneTimer = null;
   }
-  if (navigator.vibrate) navigator.vibrate(0);
+  if (navigator.vibrate && callPrefs.vibration) navigator.vibrate(0);
 }
 
 function stopOutgoingTone() {
@@ -1476,11 +1558,13 @@ function stopAllCallTones() {
 }
 
 function playConnectedTone() {
+  if (!callPrefs.sounds) return;
   toneBeep(740, 0.09, { gain: 0.024 });
   toneBeep(980, 0.11, { gain: 0.024, delay: 0.11 });
 }
 
 function playEndTone(error = false) {
+  if (!callPrefs.sounds) return;
   if (error) {
     toneBeep(320, 0.12, { wave: 'square', gain: 0.03 });
     toneBeep(240, 0.14, { wave: 'square', gain: 0.03, delay: 0.14 });
@@ -1492,6 +1576,7 @@ function playEndTone(error = false) {
 
 async function startIncomingTone() {
   stopOutgoingTone();
+  if (!callPrefs.sounds && !callPrefs.vibration) return;
   await ensureCallAudioCtx();
 
   const ringBurst = () => {
@@ -1500,11 +1585,12 @@ async function startIncomingTone() {
   };
   ringBurst();
   incomingToneTimer = setInterval(ringBurst, 2200);
-  if (navigator.vibrate) navigator.vibrate([130, 90, 130]);
+  if (navigator.vibrate && callPrefs.vibration) navigator.vibrate([130, 90, 130]);
 }
 
 async function startOutgoingTone() {
   stopIncomingTone();
+  if (!callPrefs.sounds) return;
   await ensureCallAudioCtx();
 
   const ringback = () => {
@@ -1515,6 +1601,56 @@ async function startOutgoingTone() {
   outgoingToneTimer = setInterval(ringback, 1000);
 }
 
+function clearOutgoingNoAnswerTimer() {
+  if (outgoingNoAnswerTimer) {
+    clearTimeout(outgoingNoAnswerTimer);
+    outgoingNoAnswerTimer = null;
+  }
+}
+
+function clearIncomingTimeoutTimers() {
+  if (incomingAutoRejectTimer) {
+    clearTimeout(incomingAutoRejectTimer);
+    incomingAutoRejectTimer = null;
+  }
+  if (incomingCountdownTimer) {
+    clearInterval(incomingCountdownTimer);
+    incomingCountdownTimer = null;
+  }
+  if (callIncomingLabel) callIncomingLabel.textContent = 'Голосовий дзвінок';
+}
+
+function startOutgoingNoAnswerTimer(callId) {
+  clearOutgoingNoAnswerTimer();
+  const timeoutSec = Math.max(15, Number(callPrefs.outgoingTimeoutSec || 35));
+  outgoingNoAnswerTimer = setTimeout(() => {
+    if (!activeCallId || activeCallId !== callId) return;
+    if (remoteSdpSet || callConnectedOnce) return;
+    showToast('Абонент не відповідає.', true);
+    hangupCall(true, 'missed');
+  }, timeoutSec * 1000);
+}
+
+function startIncomingAutoRejectTimer(callId) {
+  clearIncomingTimeoutTimers();
+  const timeoutSec = Math.max(15, Number(callPrefs.incomingTimeoutSec || 45));
+  let remain = timeoutSec;
+  if (callIncomingLabel) callIncomingLabel.textContent = `Голосовий дзвінок · ${remain}с`;
+  incomingCountdownTimer = setInterval(() => {
+    remain = Math.max(0, remain - 1);
+    if (callIncomingLabel) callIncomingLabel.textContent = `Голосовий дзвінок · ${remain}с`;
+    if (remain <= 0) clearIncomingTimeoutTimers();
+  }, 1000);
+
+  incomingAutoRejectTimer = setTimeout(() => {
+    if (!incomingCallId || incomingCallId !== callId) return;
+    api('PUT', `/messenger/calls/${callId}/reject`).catch(() => {});
+    hideIncoming();
+    playEndTone(false);
+    showToast('Пропущений дзвінок.');
+  }, timeoutSec * 1000);
+}
+
 function normalizeSdp(raw, label = 'SDP') {
   let sdp = raw;
 
@@ -1523,7 +1659,7 @@ function normalizeSdp(raw, label = 'SDP') {
   }
 
   if (typeof sdp !== 'string') sdp = String(sdp || '');
-  sdp = sdp.trim();
+  sdp = sdp.replace(/^\uFEFF/, '').trim();
   if (!sdp) throw new Error(`${label} порожній.`);
 
   // Legacy compatibility: some clients stored JSON wrapper or escaped newlines.
@@ -1535,14 +1671,53 @@ function normalizeSdp(raw, label = 'SDP') {
     } catch (_) {}
   }
 
-  if (sdp.includes('\\r\\n')) sdp = sdp.replace(/\\r\\n/g, '\r\n');
+  if (sdp.includes('\\r\\n')) sdp = sdp.replace(/\\r\\n/g, '\n');
   if (sdp.includes('\\n') && !sdp.includes('\n')) sdp = sdp.replace(/\\n/g, '\n');
-  sdp = sdp.replace(/\r?\n/g, '\r\n').trim();
+  sdp = sdp.replace(/\r\n?/g, '\n').replace(/\u0000/g, '');
+
+  const rawLines = sdp
+    .split('\n')
+    .map(line => String(line || '').trim())
+    .filter(Boolean);
+  const start = rawLines.findIndex(line => line === 'v=0' || line.startsWith('v=0 '));
+  if (start > 0) rawLines.splice(0, start);
+  const filtered = rawLines.filter(line => /^[a-z]=/i.test(line));
+  sdp = filtered.join('\r\n');
+  if (sdp) sdp += '\r\n';
 
   if (!/^v=0(?:\r\n|\n)/.test(sdp)) {
     throw new Error(`Некоректний формат ${label.toLowerCase()}.`);
   }
   return sdp;
+}
+
+function normalizeIceCandidate(raw) {
+  let cand = raw;
+  if (typeof cand === 'string') {
+    const text = cand.trim();
+    if (!text) return null;
+    try {
+      cand = JSON.parse(text);
+    } catch (_) {
+      const line = text.startsWith('a=') ? text.slice(2) : text;
+      cand = { candidate: line, sdpMLineIndex: 0, sdpMid: '0' };
+    }
+  }
+  if (!cand || typeof cand !== 'object') return null;
+  let candidate = String(cand.candidate || '').trim();
+  if (!candidate) return null;
+  if (candidate.startsWith('a=')) candidate = candidate.slice(2);
+  const out = { candidate };
+  if (cand.sdpMid !== undefined && cand.sdpMid !== null && cand.sdpMid !== '') {
+    out.sdpMid = String(cand.sdpMid);
+  }
+  if (cand.sdpMLineIndex !== undefined && cand.sdpMLineIndex !== null && Number.isFinite(Number(cand.sdpMLineIndex))) {
+    out.sdpMLineIndex = Number(cand.sdpMLineIndex);
+  }
+  if (cand.usernameFragment !== undefined && cand.usernameFragment !== null && cand.usernameFragment !== '') {
+    out.usernameFragment = String(cand.usernameFragment);
+  }
+  return out;
 }
 
 function buildPeerConnection() {
@@ -1554,7 +1729,8 @@ function buildPeerConnection() {
 
   pc.onicecandidate = e => {
     if (!e.candidate) return;
-    const cand = e.candidate.toJSON();
+    const cand = normalizeIceCandidate(e.candidate?.toJSON ? e.candidate.toJSON() : e.candidate);
+    if (!cand) return;
     if (activeCallId) {
       api('POST', `/messenger/calls/${activeCallId}/ice`, { candidate: cand }).catch(() => {});
     } else {
@@ -1584,8 +1760,11 @@ function buildPeerConnection() {
 }
 
 async function flushLocalIce() {
-  for (const c of pendingLocalIce)
-    api('POST', `/messenger/calls/${activeCallId}/ice`, { candidate: c }).catch(() => {});
+  for (const c of pendingLocalIce) {
+    const cand = normalizeIceCandidate(c);
+    if (!cand) continue;
+    api('POST', `/messenger/calls/${activeCallId}/ice`, { candidate: cand }).catch(() => {});
+  }
   pendingLocalIce = [];
 }
 
@@ -1619,9 +1798,11 @@ async function initiateCall() {
     activeCallId  = call_id;
     remoteSdpSet  = false;
     icePollLastId = 0;
+    callConnectedOnce = false;
     await flushLocalIce();
     showCallScreen(activePartner.full_name, 'Виклик...');
     startOutgoingTone().catch(() => {});
+    startOutgoingNoAnswerTimer(call_id);
     startCallPoll();
   } catch (err) {
     stopAllCallTones();
@@ -1635,7 +1816,7 @@ async function initiateCall() {
 function startIncomingCallCheck() {
   clearInterval(incomingCheckTimer);
   checkIncoming().catch(() => {});
-  incomingCheckTimer = setInterval(checkIncoming, 4000);
+  incomingCheckTimer = setInterval(checkIncoming, 2000);
 }
 
 async function checkIncoming() {
@@ -1650,6 +1831,7 @@ async function checkIncoming() {
       callCallerName.textContent   = incomingCallerName;
       callIncoming.hidden = false;
       startIncomingTone().catch(() => {});
+      startIncomingAutoRejectTimer(c.id);
       syncOverlayLock();
     } else if (!calls?.length && incomingCallId) {
       hideIncoming(); // cancelled before answer
@@ -1658,6 +1840,7 @@ async function checkIncoming() {
 }
 
 function hideIncoming() {
+  clearIncomingTimeoutTimers();
   stopIncomingTone();
   callIncoming.hidden = true;
   incomingCallId = null;
@@ -1699,6 +1882,7 @@ async function acceptCall() {
     activeCallId  = callId;
     icePollLastId = 0;
     callConnectedOnce = false;
+    clearOutgoingNoAnswerTimer();
     await flushLocalIce();
     showCallScreen(callData.caller_name || 'Дзвінок', 'З\'єднання...');
     startCallPoll();
@@ -1713,6 +1897,7 @@ async function rejectCall() {
   const id = incomingCallId;
   hideIncoming();
   playEndTone(false);
+  clearOutgoingNoAnswerTimer();
   if (id) api('PUT', `/messenger/calls/${id}/reject`).catch(() => {});
 }
 
@@ -1741,6 +1926,7 @@ async function pollCall() {
         await peerConnection.setRemoteDescription({ type: 'answer', sdp: answerSdp });
         remoteSdpSet = true;
         stopOutgoingTone();
+        clearOutgoingNoAnswerTimer();
         callScreenStatus.textContent = 'З\'єднання...';
         await flushRemoteIce(peerConnection);
       }
@@ -1750,9 +1936,8 @@ async function pollCall() {
     const ices = await api('GET', `/messenger/calls/${activeCallId}/ice?after_id=${icePollLastId}`);
     if (ices?.length) {
       for (const ice of ices) {
-        let cand;
-        try { cand = typeof ice.candidate === 'string' ? JSON.parse(ice.candidate) : ice.candidate; }
-        catch (_) { continue; }
+        const cand = normalizeIceCandidate(ice.candidate);
+        if (!cand) continue;
         if (remoteSdpSet && peerConnection) {
           try { await peerConnection.addIceCandidate(cand); } catch (_) {}
         } else {
@@ -1791,6 +1976,8 @@ async function hangupCall(notify = true, reason = 'ended') {
   if (notify && activeCallId)
     api('PUT', `/messenger/calls/${activeCallId}/end`).catch(() => {});
   stopAllCallTones();
+  clearIncomingTimeoutTimers();
+  clearOutgoingNoAnswerTimer();
   clearInterval(callPollTimer);
   clearInterval(callWallTimer);
   callWallTimer    = null;
@@ -1951,6 +2138,53 @@ if (btnChatLogout) btnChatLogout.addEventListener('click', requestLogout);
 btnNewChat.addEventListener('click', openNewChatModal);
 btnCloseModal.addEventListener('click', closeNewChatModal);
 newChatModal.addEventListener('click', e => { if (e.target === newChatModal) closeNewChatModal(); });
+if (btnCloseCallSettings) btnCloseCallSettings.addEventListener('click', closeCallSettingsModal);
+if (callSettingsModal) {
+  callSettingsModal.addEventListener('click', e => {
+    if (e.target === callSettingsModal) closeCallSettingsModal();
+  });
+}
+callSettingsButtons.forEach(btn => {
+  btn.addEventListener('click', openCallSettingsModal);
+});
+if (callSoundsToggle) {
+  callSoundsToggle.addEventListener('change', () => {
+    callPrefs.sounds = !!callSoundsToggle.checked;
+    saveCallPrefs();
+    if (!callPrefs.sounds) stopAllCallTones();
+  });
+}
+if (callVibrateToggle) {
+  callVibrateToggle.addEventListener('change', () => {
+    callPrefs.vibration = !!callVibrateToggle.checked;
+    saveCallPrefs();
+    if (!callPrefs.vibration && navigator.vibrate) navigator.vibrate(0);
+  });
+}
+if (callVolumeRange) {
+  callVolumeRange.addEventListener('input', () => {
+    const v = clampNumber(callVolumeRange.value, 0, 100, 70);
+    callPrefs.volume = Math.round(v) / 100;
+    if (callVolumeValue) callVolumeValue.textContent = `${Math.round(v)}%`;
+    saveCallPrefs();
+  });
+}
+if (outgoingTimeoutRange) {
+  outgoingTimeoutRange.addEventListener('input', () => {
+    const v = Math.round(clampNumber(outgoingTimeoutRange.value, 15, 90, 35));
+    callPrefs.outgoingTimeoutSec = v;
+    if (outgoingTimeoutValue) outgoingTimeoutValue.textContent = `${v}с`;
+    saveCallPrefs();
+  });
+}
+if (incomingTimeoutRange) {
+  incomingTimeoutRange.addEventListener('input', () => {
+    const v = Math.round(clampNumber(incomingTimeoutRange.value, 15, 90, 45));
+    callPrefs.incomingTimeoutSec = v;
+    if (incomingTimeoutValue) incomingTimeoutValue.textContent = `${v}с`;
+    saveCallPrefs();
+  });
+}
 if (photoViewer) {
   photoViewer.addEventListener('click', e => {
     if (e.target === photoViewer) closePhotoViewer();
@@ -1974,6 +2208,7 @@ if (photoViewerImg) {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (photoViewer && !photoViewer.hidden) { closePhotoViewer(); return; }
+    if (callSettingsModal && !callSettingsModal.hidden) { closeCallSettingsModal(); return; }
     closeNewChatModal();
     return;
   }
@@ -2070,6 +2305,7 @@ window.addEventListener('keydown', primeCallAudioOnUserGesture, { once: true });
 // ════════════════════════════════════════════
 // Boot
 // ════════════════════════════════════════════
+renderCallSettings();
 if (token && me) showApp();
 else showAuth();
 
