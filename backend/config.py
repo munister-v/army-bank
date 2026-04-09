@@ -36,6 +36,7 @@ BOOTSTRAP_TOKEN = os.getenv('BOOTSTRAP_TOKEN', '').strip()
 # Multiple keys allowed for rotation: "new_key,old_key".
 MESSENGER_ENCRYPTION_KEYS = os.getenv('MESSENGER_ENCRYPTION_KEYS', '').strip()
 MESSENGER_CALL_PENDING_TIMEOUT_SECONDS = int(os.getenv('MESSENGER_CALL_PENDING_TIMEOUT_SECONDS', '45'))
+MESSENGER_CALL_ACTIVE_STALE_SECONDS = int(os.getenv('MESSENGER_CALL_ACTIVE_STALE_SECONDS', '21600'))
 _default_ice_servers = [
     {'urls': 'stun:stun.l.google.com:19302'},
     {'urls': 'stun:stun1.l.google.com:19302'},
