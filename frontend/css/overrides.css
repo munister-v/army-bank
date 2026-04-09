@@ -9154,3 +9154,200 @@ html.install-banner-visible #appScreen .app-content {
     display: none !important;
   }
 }
+
+/* ── Final Polish Pass (mobile nav + desktop sub-screens) ───────────────── */
+@media (max-width: 767px) {
+  #appScreen:not(.screen-dashboard) .app-header {
+    padding-top: max(46px, calc(env(safe-area-inset-top, 0px) + 10px)) !important;
+    padding-bottom: 6px !important;
+  }
+
+  #appScreen:not(.screen-dashboard) .header-top {
+    padding-top: 0 !important;
+  }
+
+  #appScreen .app-content {
+    padding-bottom: calc(118px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(118px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #appScreen #sidebar.bottom-nav {
+    left: max(8px, env(safe-area-inset-left, 0px)) !important;
+    right: max(8px, env(safe-area-inset-right, 0px)) !important;
+    bottom: max(6px, env(safe-area-inset-bottom, 0px)) !important;
+    min-height: 72px !important;
+    padding: 5px 7px max(7px, min(12px, env(safe-area-inset-bottom, 0px))) !important;
+    border-radius: 24px !important;
+    box-shadow: 0 12px 24px rgba(17, 34, 25, 0.15) !important;
+  }
+
+  #appScreen #sidebar .nav-item,
+  #appScreen #sidebar .menu-btn.nav-item {
+    min-height: 50px !important;
+    padding: 5px 4px 6px !important;
+    border-radius: 14px !important;
+    gap: 3px !important;
+  }
+
+  #appScreen #sidebar .nav-item svg {
+    width: 21px !important;
+    height: 21px !important;
+  }
+
+  #appScreen #sidebar .nav-item span {
+    font-size: 10px !important;
+    line-height: 1.08 !important;
+  }
+
+  #appScreen #sidebar .nav-item.active {
+    box-shadow: 0 8px 14px rgba(16, 31, 23, 0.12) !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  html.desktop-classic #appScreen .app-content,
+  html.desktop-cockpit #appScreen .app-content {
+    position: relative !important;
+    isolation: isolate !important;
+  }
+
+  html.desktop-classic #appScreen .screen,
+  html.desktop-cockpit #appScreen .screen {
+    display: none !important;
+    position: relative !important;
+    inset: auto !important;
+    opacity: 1 !important;
+    transform: none !important;
+    z-index: auto !important;
+    pointer-events: auto !important;
+  }
+
+  html.desktop-classic #appScreen .screen.active-screen,
+  html.desktop-cockpit #appScreen .screen.active-screen {
+    display: block !important;
+    z-index: 2 !important;
+  }
+
+  html.desktop-classic #appScreen .screen.screen-exit,
+  html.desktop-classic #appScreen .screen-exit,
+  html.desktop-classic #appScreen .screen-exit-ltr,
+  html.desktop-classic #appScreen .screen-exit-rtl,
+  html.desktop-cockpit #appScreen .screen.screen-exit,
+  html.desktop-cockpit #appScreen .screen-exit,
+  html.desktop-cockpit #appScreen .screen-exit-ltr,
+  html.desktop-cockpit #appScreen .screen-exit-rtl {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .app-content,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .app-content {
+    padding: 24px 30px 40px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen.active-screen,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .screen.active-screen {
+    max-width: 1120px !important;
+    margin: 0 auto !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen.active-screen > .section-header-row,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen.active-screen > .card,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen.active-screen > .cards-row,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .screen.active-screen > .section-header-row,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .screen.active-screen > .card,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .screen.active-screen > .cards-row {
+    max-width: 1080px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .cards-row,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .cards-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .card,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .card {
+    border-radius: 16px !important;
+    padding: 18px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .form-compact,
+  html.desktop-classic #appScreen:not(.screen-dashboard) form:not(.auth-form):not(#loginForm):not(#registerForm),
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .lbl,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .form-compact,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) form:not(.auth-form):not(#loginForm):not(#registerForm) {
+    max-width: 720px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl input,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl select,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl textarea,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .lbl input,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .lbl select,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .lbl textarea {
+    min-height: 46px !important;
+    border-radius: 11px !important;
+    padding: 11px 13px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .btn-primary,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .btn-accent,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .btn-ghost,
+  html.desktop-classic #appScreen:not(.screen-dashboard) button[type="submit"],
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .btn-primary,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .btn-accent,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .btn-ghost,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) button[type="submit"] {
+    width: auto !important;
+    min-width: 168px !important;
+    max-width: 320px !important;
+    min-height: 42px !important;
+    padding: 10px 16px !important;
+    border-radius: 11px !important;
+    align-self: flex-start !important;
+  }
+
+  html.desktop-classic #transactionsFilters.filters-row,
+  html.desktop-cockpit #transactionsFilters.filters-row {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto !important;
+    gap: 10px !important;
+    align-items: end !important;
+  }
+
+  html.desktop-classic #cards .cards-manage-list,
+  html.desktop-cockpit #cards .cards-manage-list {
+    gap: 8px !important;
+  }
+
+  html.desktop-classic #cards .card-manage-item,
+  html.desktop-cockpit #cards .card-manage-item {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+  }
+
+  html.desktop-classic #cards .cmi-chip,
+  html.desktop-classic #cards .cmi-design,
+  html.desktop-cockpit #cards .cmi-chip,
+  html.desktop-cockpit #cards .cmi-design {
+    display: none !important;
+  }
+
+  html.desktop-classic #cards .cmi-number,
+  html.desktop-cockpit #cards .cmi-number {
+    margin: 0 !important;
+    font-size: 18px !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0.02em !important;
+  }
+}
