@@ -88,6 +88,7 @@ let callSeconds        = 0;
 let icePollLastId      = 0;
 let isMuted            = false;
 let remoteSdpSet       = false;
+let lastProcessedOfferSdp = null;
 let pendingLocalIce    = [];
 let pendingRemoteIce   = [];
 let incomingCallId     = null;
@@ -2811,6 +2812,7 @@ async function acceptCall() {
 
     const offerSdp = normalizeSdp(callData.sdp_offer, 'SDP offer');
     await setRemoteDescriptionSafe(peerConnection, { type: 'offer', sdp: offerSdp }, 'SDP offer');
+    lastProcessedOfferSdp = offerSdp;
     remoteSdpSet = true;
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
@@ -2946,18 +2948,21 @@ async function pollCall() {
     }
 
     // Callee: handle ICE restart from caller (new offer with sdp_answer cleared)
+    // Only trigger if offer is genuinely different from what we last processed
     if (remoteSdpSet && cd.sdp_offer && !cd.sdp_answer) {
-      // New offer arrived, create new answer
       const newOfferSdp = normalizeSdp(cd.sdp_offer, 'New SDP offer (ICE restart)');
-      try {
-        await setRemoteDescriptionSafe(peerConnection, { type: 'offer', sdp: newOfferSdp }, 'New offer');
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        setCallStatusBase('Збір ICE...');
-        await waitForIceGathering(peerConnection);
-        const answerSdp = normalizeSdp(peerConnection.localDescription.sdp, 'SDP answer (ICE restart)');
-        await api('PUT', `/messenger/calls/${activeCallId}/answer`, { sdp_answer: answerSdp });
-      } catch (_) {}
+      if (newOfferSdp !== lastProcessedOfferSdp) {
+        lastProcessedOfferSdp = newOfferSdp;
+        try {
+          await setRemoteDescriptionSafe(peerConnection, { type: 'offer', sdp: newOfferSdp }, 'New offer');
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          setCallStatusBase('Збір ICE...');
+          await waitForIceGathering(peerConnection);
+          const answerSdp = normalizeSdp(peerConnection.localDescription.sdp, 'SDP answer (ICE restart)');
+          await api('PUT', `/messenger/calls/${activeCallId}/answer`, { sdp_answer: answerSdp });
+        } catch (_) {}
+      }
     }
 
   } catch (_) {}
@@ -3011,11 +3016,12 @@ async function hangupCall(notify = true, reason = 'ended') {
   stopCallQualityMonitor();
   releaseCallWakeLock().catch(() => {});
   cleanupPeer();
-  activeCallId     = null;
-  remoteSdpSet     = false;
-  icePollLastId    = 0;
-  pendingLocalIce  = [];
-  pendingRemoteIce = [];
+  activeCallId          = null;
+  remoteSdpSet          = false;
+  lastProcessedOfferSdp = null;
+  icePollLastId         = 0;
+  pendingLocalIce       = [];
+  pendingRemoteIce      = [];
   isMuted          = false;
   callConnectedOnce = false;
   callAcceptInProgress = false;
