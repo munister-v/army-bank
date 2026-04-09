@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '5';
+const MESSENGER_ASSET_VERSION = '6';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 
@@ -46,6 +46,8 @@ let holdPointerId = null;
 let cancelPendingStart = false;
 let holdStartX = 0;
 let holdCancelTriggered = false;
+let recordRestartCooldownUntil = 0;
+let recordCooldownToastAt = 0;
 
 // ── Call state ─────────────────────────────
 let activeCallId       = null;
@@ -525,15 +527,34 @@ function appendMessage(msg) {
 // ════════════════════════════════════════════
 const MAX_REC_SECONDS = 90;
 const MIN_REC_MS = 450;
-const HOLD_CANCEL_SWIPE_PX = 72;
+const RECORD_RESTART_COOLDOWN_MS = 420;
+const RECORD_COOLDOWN_TOAST_MS = 1200;
 
 async function toggleRecording() {
   if (isRecording) { stopRecording(true); return; }
   await startRecording();
 }
 
+function holdCancelSwipeThresholdPx() {
+  const vw = Math.max(320, Number(window.innerWidth || 0));
+  return Math.max(56, Math.min(96, Math.round(vw * 0.18)));
+}
+
+function vibrate(pattern) {
+  if (!navigator?.vibrate) return;
+  try { navigator.vibrate(pattern); } catch (_) {}
+}
+
+function notifyRecordCooldown() {
+  const now = Date.now();
+  if ((now - recordCooldownToastAt) < RECORD_COOLDOWN_TOAST_MS) return;
+  recordCooldownToastAt = now;
+  showToast('Зачекайте мить перед новим записом');
+}
+
 async function startRecording() {
   if (recordStartInFlight || isRecording) return;
+  if (Date.now() < recordRestartCooldownUntil) { notifyRecordCooldown(); return; }
   if (!activeConvId) { showToast('Спочатку відкрийте чат.', true); return; }
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
     showToast('Мікрофон доступний лише по HTTPS.', true); return;
@@ -569,6 +590,7 @@ async function startRecording() {
     recordingShouldSend = true;
     btnVoice.classList.add('recording');
     setRecordingUI(true);
+    vibrate(10);
 
     recTimer = setInterval(() => {
       recSeconds++;
@@ -593,6 +615,7 @@ function stopRecording(shouldSend = true) {
   clearInterval(recTimer);
   isRecording = false;
   recordingShouldSend = shouldSend;
+  recordRestartCooldownUntil = Date.now() + RECORD_RESTART_COOLDOWN_MS;
   holdPointerActive = false;
   holdPointerId = null;
   holdCancelTriggered = false;
@@ -600,11 +623,13 @@ function stopRecording(shouldSend = true) {
   btnVoice.classList.remove('recording');
   btnVoice.title = 'Утримуйте для запису';
   setRecordingUI(false);
+  if (!shouldSend) vibrate([10, 24, 10]);
   if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
 }
 
 function handleVoicePointerDown(e) {
   if (e.button !== undefined && e.button !== 0) return;
+  if (Date.now() < recordRestartCooldownUntil) { notifyRecordCooldown(); return; }
   e.preventDefault();
   holdPointerActive = true;
   holdPointerId = (e.pointerId ?? null);
@@ -649,7 +674,7 @@ function handleVoicePointerMove(e) {
   if (holdPointerId !== null && e.pointerId !== undefined && e.pointerId !== holdPointerId) return;
   const dx = Number(e.clientX || holdStartX) - holdStartX; // swipe left => negative
   const leftDistance = Math.max(0, -dx);
-  const progress = Math.min(1, leftDistance / HOLD_CANCEL_SWIPE_PX);
+  const progress = Math.min(1, leftDistance / holdCancelSwipeThresholdPx());
   setSwipeProgress(progress);
   if (progress >= 1 && !holdCancelTriggered) {
     holdCancelTriggered = true;
@@ -664,6 +689,7 @@ async function sendVoiceMessage() {
   const durationMs = Date.now() - (recStartedAtMs || Date.now());
   if (durationMs < MIN_REC_MS) {
     showToast('Утримуйте кнопку довше для голосового.', true);
+    vibrate([8, 22, 8]);
     return;
   }
   if (blob.size > 700_000) { showToast('Запис занадто великий (макс. ~90 с).', true); return; }
@@ -678,6 +704,7 @@ async function sendVoiceMessage() {
       last_message_text: conversationPreview(msg),
       last_message_at: msg.created_at,
     });
+    vibrate([12, 28, 18]);
   } catch (err) { showToast(err.message, true); }
 }
 
@@ -1285,6 +1312,7 @@ btnVoice.addEventListener('pointermove', handleVoicePointerMove);
 btnVoice.addEventListener('pointerup', handleVoicePointerUp);
 btnVoice.addEventListener('pointercancel', handleVoicePointerCancel);
 btnVoice.addEventListener('lostpointercapture', handleVoicePointerCancel);
+btnVoice.addEventListener('contextmenu', e => e.preventDefault());
 if (btnCancelRecord) btnCancelRecord.addEventListener('click', () => stopRecording(false));
 convSearch.addEventListener('input', () => renderConvList(convData));
 

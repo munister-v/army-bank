@@ -10,13 +10,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
   <meta name="apple-mobile-web-app-title" content="AB Chat"/>
   <title>Army Bank · Месенджер</title>
-  <link rel="manifest" href="/manifest-messenger.json?v=5"/>
+  <link rel="manifest" href="/manifest-messenger.json?v=6"/>
   <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg"/>
   <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=5"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=6"/>
 </head>
 <body>
 
@@ -199,8 +199,8 @@
         <div class="recording-indicator" id="recording-indicator" hidden>
           <span class="recording-dot" aria-hidden="true"></span>
           <span class="recording-label">Запис</span>
-          <span class="recording-time" id="recording-time">00:00</span>
-          <span class="recording-swipe" id="recording-swipe-hint">Свайп ← для скасування</span>
+          <span class="recording-time" id="recording-time" aria-live="off">00:00</span>
+          <span class="recording-swipe" id="recording-swipe-hint" aria-live="polite">Свайп ← для скасування</span>
           <div class="voice-wave" aria-hidden="true">
             <span></span><span></span><span></span><span></span><span></span>
           </div>
@@ -338,6 +338,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=5"></script>
+<script src="/js/messenger.js?v=6"></script>
 </body>
 </html>
