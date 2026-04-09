@@ -2578,15 +2578,24 @@ function buildPeerConnection() {
 
   pc.onconnectionstatechange = () => {
     const st = pc.connectionState;
+    console.log('[Connection] State changed:', st, '| ICE:', pc.iceConnectionState, '| Audio tracks:', localStream?.getAudioTracks().length || 0);
     if (st === 'connected') {
+      console.log('[Connection] ✓ CONNECTED! Audio should flow');
       setCallStatusBase('Підключено');
       if (!callWallTimer) startCallTimer();
       if (!callQualityTimer) startCallQualityMonitor();
       requestCallWakeLock().catch(() => {});
+    } else if (st === 'connecting') {
+      console.log('[Connection] ⏳ Connecting...');
+      setCallStatusBase('З\'єднання...');
     } else if (st === 'disconnected') {
+      console.log('[Connection] ⚠️ Disconnected, attempting to reconnect');
       setCallStatusBase('Відновлення...');
     } else if (st === 'failed' || st === 'closed') {
+      console.error('[Connection] ❌ Failed/Closed! ICE state:', pc.iceConnectionState);
       hangupCall(true, 'error');
+    } else if (st === 'new') {
+      console.log('[Connection] 🆕 New connection state');
     }
   };
 
@@ -2652,7 +2661,13 @@ async function initiateCall() {
   } catch (err) { showToast(micError(err), true); return; }
 
   peerConnection = buildPeerConnection();
-  localStream.getTracks().forEach(t => peerConnection.addTrack(t, localStream));
+  const trackCount = localStream.getTracks().length;
+  console.log(`[Initiate] Adding ${trackCount} tracks to peer connection`);
+  localStream.getTracks().forEach(t => {
+    console.log(`[Initiate] Adding track: ${t.kind} (${t.id})`);
+    peerConnection.addTrack(t, localStream);
+  });
+  console.log('[Initiate] Audio tracks added, optimizing audio');
   optimizeOutgoingAudio(peerConnection, localStream);
 
   try {
@@ -2776,7 +2791,13 @@ async function acceptCall() {
     console.log('[Accept] Fetching call data...');
     const callData = await api('GET', `/messenger/calls/${callId}`);
     peerConnection = buildPeerConnection();
-    localStream.getTracks().forEach(t => peerConnection.addTrack(t, localStream));
+    const trackCount = localStream.getTracks().length;
+    console.log(`[Accept] Adding ${trackCount} tracks to peer connection`);
+    localStream.getTracks().forEach(t => {
+      console.log(`[Accept] Adding track: ${t.kind} (${t.id})`);
+      peerConnection.addTrack(t, localStream);
+    });
+    console.log('[Accept] Audio tracks added, optimizing audio');
     optimizeOutgoingAudio(peerConnection, localStream);
     pendingLocalIce  = [];
     pendingRemoteIce = [];
