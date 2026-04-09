@@ -2598,26 +2598,37 @@ async function flushLocalIce() {
     console.log('[ICE] No local candidates to flush');
     return;
   }
-  console.log(`[ICE] 📤 Flushing ${pendingLocalIce.length} local candidates to server`);
+  if (!activeCallId) {
+    console.log('[ICE] ⚠️ Cannot flush: activeCallId not set yet');
+    return;
+  }
+  console.log(`[ICE] 📤 Flushing ${pendingLocalIce.length} local candidates to server (callId=${activeCallId})`);
   let sent = 0, failed = 0;
-  for (const c of pendingLocalIce) {
+  const toRemove = [];
+  for (let i = 0; i < pendingLocalIce.length; i++) {
+    const c = pendingLocalIce[i];
     const cand = normalizeIceCandidate(c);
     if (!cand) {
-      console.log('[ICE] ⚠️ Failed to normalize candidate:', c);
+      console.log('[ICE] ⚠️ Failed to normalize candidate');
+      toRemove.push(i);
       failed++;
       continue;
     }
     try {
       await api('POST', `/messenger/calls/${activeCallId}/ice`, { candidate: cand });
       console.log('[ICE] ✓ Sent candidate:', cand.candidate?.substring(0, 50));
+      toRemove.push(i);
       sent++;
     } catch (err) {
       console.error('[ICE] ❌ Failed to send candidate:', err.message);
       failed++;
     }
   }
-  console.log(`[ICE] Flush complete: ${sent} sent, ${failed} failed`);
-  pendingLocalIce = [];
+  // Only remove successfully sent candidates
+  for (let i = toRemove.length - 1; i >= 0; i--) {
+    pendingLocalIce.splice(toRemove[i], 1);
+  }
+  console.log(`[ICE] Flush complete: ${sent} sent, ${failed} failed, ${pendingLocalIce.length} remaining`);
 }
 
 async function flushRemoteIce(pc) {
@@ -2661,8 +2672,10 @@ async function initiateCall() {
     callConnectedOnce = false;
 
     // Flush any candidates that arrived before activeCallId was set
-    console.log('[ICE] 🔄 activeCallId set, flushing buffered candidates');
-    flushLocalIce().catch(() => {});
+    console.log(`[Initiate] 🔄 activeCallId set to ${call_id}, buffered candidates: ${pendingLocalIce.length}`);
+    await flushLocalIce().catch(err => {
+      console.error('[Initiate] Error flushing candidates:', err.message);
+    });
 
     // Show call screen immediately, not after 7s wait
     showCallScreen(activePartner.full_name, 'Виклик...');
@@ -2787,8 +2800,10 @@ async function acceptCall() {
     clearOutgoingNoAnswerTimer();
 
     // Flush any candidates that arrived before activeCallId was set
-    console.log('[ICE] 🔄 activeCallId set, flushing buffered candidates');
-    flushLocalIce().catch(() => {});
+    console.log(`[Accept] 🔄 activeCallId set to ${callId}, buffered candidates: ${pendingLocalIce.length}`);
+    await flushLocalIce().catch(err => {
+      console.error('[Accept] Error flushing candidates:', err.message);
+    });
 
     // Show call screen immediately
     showCallScreen(callData.caller_name || 'Дзвінок', 'З\'єднання...');
