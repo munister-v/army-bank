@@ -2528,8 +2528,15 @@ function buildPeerConnection() {
   // Queue ICE candidates as they arrive (trickle ICE)
   pc.onicecandidate = (evt) => {
     if (evt.candidate && activeCallId) {
+      console.log(`[ICE] 🔵 New local candidate: ${evt.candidate.candidate?.substring(0, 50)}`);
       pendingLocalIce.push(evt.candidate);
-      flushLocalIce().catch(() => {});
+      flushLocalIce().catch(err => {
+        console.error('[ICE] Error flushing candidates:', err.message);
+      });
+    } else if (!evt.candidate) {
+      console.log('[ICE] ✓ ICE gathering complete');
+    } else if (!activeCallId) {
+      console.log('[ICE] ⚠️ Candidate arrived but no active call');
     }
   };
 
@@ -2584,11 +2591,29 @@ function buildPeerConnection() {
 }
 
 async function flushLocalIce() {
+  if (!pendingLocalIce.length) {
+    console.log('[ICE] No local candidates to flush');
+    return;
+  }
+  console.log(`[ICE] 📤 Flushing ${pendingLocalIce.length} local candidates to server`);
+  let sent = 0, failed = 0;
   for (const c of pendingLocalIce) {
     const cand = normalizeIceCandidate(c);
-    if (!cand) continue;
-    api('POST', `/messenger/calls/${activeCallId}/ice`, { candidate: cand }).catch(() => {});
+    if (!cand) {
+      console.log('[ICE] ⚠️ Failed to normalize candidate:', c);
+      failed++;
+      continue;
+    }
+    try {
+      await api('POST', `/messenger/calls/${activeCallId}/ice`, { candidate: cand });
+      console.log('[ICE] ✓ Sent candidate:', cand.candidate?.substring(0, 50));
+      sent++;
+    } catch (err) {
+      console.error('[ICE] ❌ Failed to send candidate:', err.message);
+      failed++;
+    }
   }
+  console.log(`[ICE] Flush complete: ${sent} sent, ${failed} failed`);
   pendingLocalIce = [];
 }
 
@@ -2824,22 +2849,35 @@ async function pollCall() {
     // Fetch and add remote ICE candidates from server
     if (remoteSdpSet && activeCallId) {
       try {
-        const iceData = await api('GET', `/messenger/calls/${activeCallId}/ice?after_id=${icePollLastId}`);
+        const iceUrl = `/messenger/calls/${activeCallId}/ice?after_id=${icePollLastId}`;
+        console.log(`[ICE] 📥 Fetching remote candidates from ${iceUrl}`);
+        const iceData = await api('GET', iceUrl);
         if (iceData.data && Array.isArray(iceData.data)) {
+          console.log(`[ICE] Received ${iceData.data.length} remote candidates`);
+          let added = 0, failed = 0;
           for (const row of iceData.data) {
             icePollLastId = Math.max(icePollLastId, row.id || 0);
             if (row.candidate) {
               try {
                 const candidate = typeof row.candidate === 'string' ? JSON.parse(row.candidate) : row.candidate;
                 await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-                console.log('[ICE] ➕ Added remote candidate from server');
+                console.log('[ICE] ✓ Added remote candidate:', candidate.candidate?.substring(0, 50));
+                added++;
               } catch (err) {
-                console.log('[ICE] ⚠️ Failed to add candidate:', err.message);
+                console.error('[ICE] ❌ Failed to add candidate:', err.message, 'Data:', row.candidate?.substring(0, 50));
+                failed++;
               }
             }
           }
+          if (added > 0 || failed > 0) {
+            console.log(`[ICE] Fetch complete: ${added} added, ${failed} failed`);
+          }
+        } else {
+          console.log('[ICE] No candidates in response or invalid format');
         }
-      } catch (_) {}
+      } catch (err) {
+        console.error('[ICE] Error fetching remote candidates:', err.message);
+      }
     }
 
     // Caller ICE restart: send new offer if we initiated restart
