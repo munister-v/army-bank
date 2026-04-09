@@ -2049,14 +2049,27 @@ async function createGroup() {
 const DEFAULT_ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+  { urls: 'stun:stun3.l.google.com:19302' },
+  { urls: 'stun:stun4.l.google.com:19302' },
+  // Multiple TURN servers for redundancy when one is overloaded
   {
     urls: [
-      'turn:openrelay.metered.ca:80',
-      'turn:openrelay.metered.ca:443',
+      'turn:openrelay.metered.ca:80?transport=udp',
       'turn:openrelay.metered.ca:443?transport=tcp',
     ],
     username: 'openrelayproject',
     credential: 'openrelayproject',
+  },
+  {
+    urls: [
+      'turn:numb.viagenie.ca:3478?transport=udp',
+      'turn:numb.viagenie.ca:3478?transport=tcp',
+      'turn:numb.viagenie.ca:3479?transport=udp',
+      'turn:numb.viagenie.ca:3479?transport=tcp',
+    ],
+    username: 'webrtc@example.com',
+    credential: 'webrtc',
   },
 ];
 let rtcConfig = { iceServers: [...DEFAULT_ICE_SERVERS] };
