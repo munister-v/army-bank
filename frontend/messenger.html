@@ -10,14 +10,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
   <meta name="apple-mobile-web-app-title" content="AB Chat"/>
   <title>Army Bank · Месенджер</title>
-  <link rel="manifest" href="/manifest-messenger.json?v=24"/>
+  <link rel="manifest" href="/manifest-messenger.json?v=25"/>
   <link rel="icon" type="image/svg+xml" href="/icons/chat-favicon.svg"/>
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/chat-icon-32.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/chat-icon-180.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=24"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=25"/>
 </head>
 <body>
 
@@ -537,17 +537,24 @@
     <div class="call-avatar" id="call-caller-avatar"></div>
     <div class="call-caller-name" id="call-caller-name">Вхідний дзвінок</div>
     <div class="call-label" id="call-incoming-label">Голосовий дзвінок</div>
+    <div class="call-incoming-meta">Наскрізне шифрування активне</div>
     <div class="call-incoming-btns">
       <button class="btn-call-reject" id="btn-reject-call" title="Відхилити">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
-          <path d="M23.36 6.64l-3.06-3.06a2 2 0 00-2.83 0l-2.12 2.12a2 2 0 000 2.83l1.06 1.06c-1.04 2.04-2.7 3.7-4.74 4.74l-1.06-1.06a2 2 0 00-2.83 0L5.72 15.4a2 2 0 000 2.83l3.06 3.06"/>
-          <line x1="1" y1="1" x2="23" y2="23"/>
-        </svg>
+        <span class="call-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <path d="M23.36 6.64l-3.06-3.06a2 2 0 00-2.83 0l-2.12 2.12a2 2 0 000 2.83l1.06 1.06c-1.04 2.04-2.7 3.7-4.74 4.74l-1.06-1.06a2 2 0 00-2.83 0L5.72 15.4a2 2 0 000 2.83l3.06 3.06"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        </span>
+        <span class="call-action-label">Відхилити</span>
       </button>
       <button class="btn-call-accept" id="btn-accept-call" title="Прийняти">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
-          <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.01 2.18 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
-        </svg>
+        <span class="call-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.01 2.18 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+          </svg>
+        </span>
+        <span class="call-action-label">Прийняти</span>
       </button>
     </div>
   </div>
@@ -557,25 +564,36 @@
      ACTIVE CALL SCREEN
 ════════════════════════════════════════════ -->
 <div id="call-screen" class="call-screen" hidden>
-  <div class="call-screen-chip">ARMY BANK SECURE CALL</div>
-  <div class="call-screen-avatar" id="call-screen-avatar"></div>
-  <div class="call-screen-name" id="call-screen-name"></div>
-  <div class="call-screen-status" id="call-screen-status">З'єднання...</div>
-  <div class="call-screen-timer" id="call-screen-timer" hidden>00:00</div>
-  <div class="call-screen-btns">
-    <button class="btn-call-mute" id="btn-mute" title="Вимкнути мікрофон">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20">
-        <rect x="9" y="2" width="6" height="12" rx="3"/>
-        <path d="M5 10a7 7 0 0014 0"/>
-        <line x1="12" y1="19" x2="12" y2="23"/><line x1="9" y1="23" x2="15" y2="23"/>
-      </svg>
-    </button>
-    <button class="btn-call-end" id="btn-end-call" title="Завершити дзвінок">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
-        <path d="M23.36 6.64l-3.06-3.06a2 2 0 00-2.83 0l-2.12 2.12a2 2 0 000 2.83l1.06 1.06c-1.04 2.04-2.7 3.7-4.74 4.74l-1.06-1.06a2 2 0 00-2.83 0L5.72 15.4a2 2 0 000 2.83l3.06 3.06"/>
-        <line x1="1" y1="1" x2="23" y2="23"/>
-      </svg>
-    </button>
+  <div class="call-screen-shell">
+    <div class="call-screen-chip">ARMY BANK SECURE CALL</div>
+    <div class="call-screen-avatar-wrap">
+      <div class="call-screen-avatar" id="call-screen-avatar"></div>
+    </div>
+    <div class="call-screen-name" id="call-screen-name"></div>
+    <div class="call-screen-status" id="call-screen-status">З'єднання...</div>
+    <div class="call-screen-timer" id="call-screen-timer" hidden>00:00</div>
+    <div class="call-screen-btns">
+      <button class="btn-call-mute" id="btn-mute" title="Вимкнути мікрофон">
+        <span class="call-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20">
+            <rect x="9" y="2" width="6" height="12" rx="3"/>
+            <path d="M5 10a7 7 0 0014 0"/>
+            <line x1="12" y1="19" x2="12" y2="23"/><line x1="9" y1="23" x2="15" y2="23"/>
+          </svg>
+        </span>
+        <span class="call-action-label">Мікрофон</span>
+      </button>
+      <button class="btn-call-end" id="btn-end-call" title="Завершити дзвінок">
+        <span class="call-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <path d="M23.36 6.64l-3.06-3.06a2 2 0 00-2.83 0l-2.12 2.12a2 2 0 000 2.83l1.06 1.06c-1.04 2.04-2.7 3.7-4.74 4.74l-1.06-1.06a2 2 0 00-2.83 0L5.72 15.4a2 2 0 000 2.83l3.06 3.06"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        </span>
+        <span class="call-action-label">Завершити</span>
+      </button>
+    </div>
+    <div class="call-screen-footnote">Якість зв'язку адаптується автоматично</div>
   </div>
   <audio id="remote-audio" autoplay playsinline></audio>
 </div>
@@ -602,6 +620,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=24"></script>
+<script src="/js/messenger.js?v=25"></script>
 </body>
 </html>
