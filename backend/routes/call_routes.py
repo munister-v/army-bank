@@ -3,13 +3,7 @@ from __future__ import annotations
 import json
 from flask import Blueprint, jsonify, request, g
 from ..database import get_connection
-from ..config import (
-    USE_PG,
-    MESSENGER_CALL_PENDING_TIMEOUT_SECONDS,
-    MESSENGER_CALL_ACTIVE_STALE_SECONDS,
-    MESSENGER_CALL_FORCE_RELAY,
-    MESSENGER_ICE_SERVERS,
-)
+from ..config import USE_PG, MESSENGER_CALL_PENDING_TIMEOUT_SECONDS, MESSENGER_ICE_SERVERS
 from .helpers import api_error, auth_required
 
 call_bp = Blueprint('calls', __name__, url_prefix='/api/messenger/calls')
@@ -73,50 +67,6 @@ def _expire_stale_pending_calls(conn, conv_id: int | None = None) -> int:
     return len(stale_ids)
 
 
-def _expire_stale_active_calls(conn, conv_id: int | None = None) -> int:
-    # Safety net for zombie calls (tab/app crashed, no explicit hangup).
-    timeout_sec = max(300, int(MESSENGER_CALL_ACTIVE_STALE_SECONDS or 21600))
-    conv_sql = ''
-    params = [timeout_sec]
-    if conv_id is not None:
-        conv_sql = ' AND conversation_id = %s'
-        params.append(conv_id)
-
-    if USE_PG:
-        rows = conn.execute(
-            f"""
-            SELECT id
-            FROM calls
-            WHERE status = 'active'
-              AND EXTRACT(EPOCH FROM (NOW() - COALESCE(started_at, created_at))) > %s
-              {conv_sql}
-            """,
-            tuple(params),
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            f"""
-            SELECT id
-            FROM calls
-            WHERE status = 'active'
-              AND (strftime('%s', 'now') - strftime('%s', COALESCE(started_at, created_at))) > %s
-              {conv_sql}
-            """,
-            tuple(params),
-        ).fetchall()
-
-    stale_ids = [int(r['id']) for r in rows if r and r.get('id') is not None]
-    if not stale_ids:
-        return 0
-
-    placeholders = ','.join(['%s'] * len(stale_ids))
-    conn.execute(
-        f"UPDATE calls SET status='ended', ended_at={_now_sql()} WHERE id IN ({placeholders})",
-        tuple(stale_ids),
-    )
-    return len(stale_ids)
-
-
 @call_bp.get('/config')
 @auth_required
 def call_config():
@@ -124,7 +74,6 @@ def call_config():
         'ok': True,
         'data': {
             'pending_timeout_seconds': max(15, int(MESSENGER_CALL_PENDING_TIMEOUT_SECONDS or 45)),
-            'force_relay': bool(MESSENGER_CALL_FORCE_RELAY),
             'ice_servers': MESSENGER_ICE_SERVERS,
         },
     })
@@ -156,30 +105,14 @@ def start_call():
         if not _is_participant(conn, conv_id, me_id):
             return api_error('Доступ заборонено.', 403)
         _expire_stale_pending_calls(conn, conv_id)
-        _expire_stale_active_calls(conn, conv_id)
 
-        # If caller retries while own previous call is still pending, rotate it.
+        # Відхиляємо якщо вже є активний дзвінок у цій розмові
         active = conn.execute(
-            """
-            SELECT id, status, caller_id
-            FROM calls
-            WHERE conversation_id = %s AND status IN ('pending','active')
-            ORDER BY created_at DESC, id DESC
-            LIMIT 1
-            """,
+            "SELECT id FROM calls WHERE conversation_id = %s AND status IN ('pending','active')",
             (conv_id,),
         ).fetchone()
         if active:
-            active_status = str(active.get('status') or '')
-            active_caller_id = int(active.get('caller_id') or 0)
-            if active_status == 'pending' and active_caller_id == int(me_id):
-                conn.execute(
-                    f"UPDATE calls SET status='missed', ended_at={_now_sql()} WHERE id=%s",
-                    (active['id'],),
-                )
-            else:
-                label = 'очікування відповіді' if active_status == 'pending' else 'активний'
-                return api_error(f'Вже є дзвінок у цій розмові ({label}).', 409)
+            return api_error('Вже є активний дзвінок у цій розмові.', 409)
 
         if USE_PG:
             cur = conn.execute(
@@ -205,7 +138,6 @@ def incoming_calls():
     me_id = g.current_user['id']
     with get_connection() as conn:
         _expire_stale_pending_calls(conn)
-        _expire_stale_active_calls(conn)
         rows = conn.execute(
             """
             SELECT c.id, c.conversation_id, c.caller_id, c.status,
@@ -232,7 +164,6 @@ def get_call(call_id: int):
     me_id = g.current_user['id']
     with get_connection() as conn:
         _expire_stale_pending_calls(conn)
-        _expire_stale_active_calls(conn)
         row = conn.execute(
             """
             SELECT c.id, c.conversation_id, c.caller_id, c.status,
@@ -265,7 +196,6 @@ def answer_call(call_id: int):
 
     with get_connection() as conn:
         _expire_stale_pending_calls(conn)
-        _expire_stale_active_calls(conn)
         row = conn.execute('SELECT * FROM calls WHERE id = %s', (call_id,)).fetchone()
         if not row:
             return api_error('Дзвінок не знайдено.', 404)
@@ -274,28 +204,22 @@ def answer_call(call_id: int):
         if row['status'] == 'missed':
             return api_error('Дзвінок прострочено.', 410)
         if row['status'] not in ('pending', 'active'):
-            return api_error('Дзвінок недоступний для відповіді.')
+            return api_error('Дзвінок вже не очікує відповіді.')
         if not _is_participant(conn, row['conversation_id'], me_id):
             return api_error('Доступ заборонено.', 403)
 
-        if row['status'] == 'pending':
-            conn.execute(
-                f"UPDATE calls SET status='active', sdp_answer=%s, started_at={_now_sql()} WHERE id=%s",
-                (sdp_answer, call_id),
-            )
-        else:
-            # ICE restart / renegotiation while call remains active.
-            conn.execute(
-                "UPDATE calls SET sdp_answer=%s WHERE id=%s",
-                (sdp_answer, call_id),
-            )
+        conn.execute(
+            f"UPDATE calls SET status='active', sdp_answer=%s, started_at={_now_sql()} WHERE id=%s",
+            (sdp_answer, call_id),
+        )
     return jsonify({'ok': True})
 
 
-# ── Оновити SDP offer (ICE restart/renegotiation) ────────────────────────────
+# ── Оновлений offer (ICE restart) ──────────────────────────────────────────────
 @call_bp.put('/<int:call_id>/offer')
 @auth_required
 def update_offer(call_id: int):
+    """Caller надсилає новий offer при ICE restart."""
     me_id = g.current_user['id']
     data  = request.get_json(force=True) or {}
     sdp_offer = str(data.get('sdp_offer') or '').strip()
@@ -305,20 +229,19 @@ def update_offer(call_id: int):
         return api_error('sdp_offer занадто великий.', 400)
 
     with get_connection() as conn:
-        _expire_stale_pending_calls(conn)
-        _expire_stale_active_calls(conn)
         row = conn.execute('SELECT * FROM calls WHERE id = %s', (call_id,)).fetchone()
         if not row:
             return api_error('Дзвінок не знайдено.', 404)
+        if row['caller_id'] != me_id:
+            return api_error('Тільки caller може надсилати новий offer.', 403)
+        if row['status'] != 'active':
+            return api_error('Дзвінок не активний.', 400)
         if not _is_participant(conn, row['conversation_id'], me_id):
             return api_error('Доступ заборонено.', 403)
-        if int(row.get('caller_id') or 0) != int(me_id):
-            return api_error('Оновлювати offer може лише ініціатор дзвінка.', 403)
-        if row['status'] not in ('pending', 'active'):
-            return api_error('Дзвінок недоступний для оновлення offer.', 409)
 
+        # Clear answer so callee knows there's a new offer (ICE restart)
         conn.execute(
-            "UPDATE calls SET sdp_offer=%s WHERE id=%s",
+            f"UPDATE calls SET sdp_offer=%s, sdp_answer=NULL WHERE id=%s",
             (sdp_offer, call_id),
         )
     return jsonify({'ok': True})

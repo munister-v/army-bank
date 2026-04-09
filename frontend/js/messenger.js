@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '29';
+const MESSENGER_ASSET_VERSION = '27';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -18,7 +18,6 @@ const DEFAULT_CALL_PREFS = Object.freeze({
   outgoingTimeoutSec: 35,
   incomingTimeoutSec: 45,
 });
-const HAS_POINTER_EVENTS = typeof window.PointerEvent !== 'undefined';
 
 // ── Auth state ─────────────────────────────
 let token = localStorage.getItem(TOKEN_KEY) || null;
@@ -98,18 +97,9 @@ let callAcceptInProgress = false;
 let callStartAtMs = 0;
 let callQualityTimer = null;
 let callQualityLabel = '';
-let callRouteLabel = '';
-let callFailureReason = '';
 let callStatusBase = 'З\'єднання...';
 let callWakeLock = null;
 let callBackgroundNotifiedForId = null;
-let callIceRecoverTimer = null;
-let callAdaptiveAudioProfile = 'balanced';
-let callIceRestartInFlight = false;
-let callForceRelay = false;
-let activeCallRole = null; // 'caller' | 'callee'
-let lastAppliedRemoteOfferSdp = '';
-let lastAppliedRemoteAnswerSdp = '';
 let turnHintShown = false;
 let bankSummaryCache = null;
 let bankProfileLinked = true;
@@ -757,68 +747,6 @@ function renderNameWithVerified(name, isVerified = false) {
   return isVerified ? `${clean}${verifiedBadgeMarkup()}` : clean;
 }
 
-function convPreviewIconMarkup(kind = 'text') {
-  const icon = String(kind || 'text');
-  if (icon === 'voice') {
-    return `<span class="conv-preview-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="14" height="14">
-        <rect x="9" y="3" width="6" height="11" rx="3"/>
-        <path d="M5 11a7 7 0 0014 0"/>
-        <line x1="12" y1="19" x2="12" y2="22"/><line x1="9" y1="22" x2="15" y2="22"/>
-      </svg>
-    </span>`;
-  }
-  if (icon === 'image') {
-    return `<span class="conv-preview-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
-        <rect x="3" y="5" width="18" height="14" rx="2"/>
-        <circle cx="9" cy="10" r="1.5"/>
-        <path d="M21 15l-4.2-4.2a1.2 1.2 0 00-1.7 0L8 18"/>
-      </svg>
-    </span>`;
-  }
-  if (icon === 'pdf') {
-    return `<span class="conv-preview-icon" aria-hidden="true">📄</span>`;
-  }
-  if (icon === 'csv') {
-    return `<span class="conv-preview-icon" aria-hidden="true">🧾</span>`;
-  }
-  if (icon === 'deleted') {
-    return `<span class="conv-preview-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
-        <path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M7 6l1 14h8l1-14"/>
-        <line x1="10" y1="10" x2="10" y2="17"/><line x1="14" y1="10" x2="14" y2="17"/>
-      </svg>
-    </span>`;
-  }
-  if (icon === 'call') {
-    return `<span class="conv-preview-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
-        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.01 2.18 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
-      </svg>
-    </span>`;
-  }
-  return '';
-}
-
-function convPreviewDescriptor(rawText) {
-  const text = compactPreview(rawText);
-  const clean = String(text || '').replace(/^\s*[🖼🎤📄🧾]\s*/u, '').trim();
-  if (!clean) return { kind: 'text', label: 'Немає повідомлень' };
-  if (/голосове/i.test(clean)) return { kind: 'voice', label: clean };
-  if (/^фото$/i.test(clean) || /^зображення$/i.test(clean)) return { kind: 'image', label: clean };
-  if (/pdf[-\s]?виписк/i.test(clean)) return { kind: 'pdf', label: clean };
-  if (/csv[-\s]?виписк/i.test(clean)) return { kind: 'csv', label: clean };
-  if (/видалено/i.test(clean)) return { kind: 'deleted', label: clean };
-  if (/дзвінок|виклик|call/i.test(clean)) return { kind: 'call', label: clean };
-  return { kind: 'text', label: clean };
-}
-
-function renderConvPreviewHtml(rawText) {
-  const info = convPreviewDescriptor(rawText);
-  return `<span class="conv-preview-row">${convPreviewIconMarkup(info.kind)}<span class="conv-preview-text">${esc(info.label)}</span></span>`;
-}
-
 function syncAssistantUi(isAssistant) {
   if (chatView) chatView.classList.toggle('assistant-chat', !!isAssistant);
   if (assistantPanel) assistantPanel.hidden = !isAssistant;
@@ -847,14 +775,14 @@ function buildConvItem(conv) {
   const isGroup = !!conv.is_group;
   const isAssistant = !isGroup && isAssistantPartner(conv.partner);
   const name    = convName(conv);
-  const previewHtml = renderConvPreviewHtml(conv.last_message_text);
+  const preview = compactPreview(conv.last_message_text);
   const time    = conv.last_message_at ? formatTime(conv.last_message_at) : '';
   const unread  = conv.unread || 0;
   el.innerHTML = `
     <div class="conv-avatar${isGroup ? ' group' : ''}${isAssistant ? ' assistant' : ''}">${isAssistant ? assistantGlyphMarkup() : esc(initial(name))}</div>
     <div class="conv-info">
       <div class="conv-name${isAssistant ? ' with-verified' : ''}">${renderNameWithVerified(name, isAssistant)}</div>
-      <div class="conv-preview">${previewHtml}</div>
+      <div class="conv-preview">${esc(preview)}</div>
     </div>
     <div class="conv-meta">
       <span class="conv-time">${esc(time)}</span>
@@ -1050,7 +978,7 @@ function buildBubble(msg) {
 
   let content;
   if (deleted) {
-    content = `<div class="msg-bubble deleted"><span class="msg-deleted-icon" aria-hidden="true">🗑</span>${esc('Повідомлення видалено')}</div>`;
+    content = `<div class="msg-bubble deleted">${esc('Повідомлення видалено')}</div>`;
   } else if (msgType === 'voice') {
     const voice = parseVoicePayload(msg.text);
     if (!voice) {
@@ -1412,10 +1340,6 @@ async function startRecording() {
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
     showToast('Мікрофон доступний лише по HTTPS.', true); return;
   }
-  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-    showToast('Браузер не дозволяє доступ до мікрофона.', true);
-    return;
-  }
   if (typeof window.MediaRecorder === 'undefined') {
     showToast('Запис голосових не підтримується цим браузером.', true);
     return;
@@ -1449,11 +1373,7 @@ async function startRecording() {
       if (recordingShouldSend) sendVoiceMessage();
       else audioChunks = [];
     };
-    try {
-      mediaRecorder.start(200);
-    } catch (_) {
-      mediaRecorder.start();
-    }
+    mediaRecorder.start(200);
     isRecording = true;
     recordingShouldSend = true;
     btnVoice.classList.add('recording');
@@ -1549,61 +1469,6 @@ function handleVoicePointerMove(e) {
     showToast('Запис скасовано');
     handleVoicePointerCancel(e);
   }
-}
-
-function makeHoldEvent(sourceEvent, clientX, pointerId = 1) {
-  return {
-    button: 0,
-    clientX,
-    pointerId,
-    preventDefault: () => {
-      if (sourceEvent?.cancelable) sourceEvent.preventDefault();
-    },
-  };
-}
-
-function handleVoiceTouchStart(e) {
-  if (HAS_POINTER_EVENTS) return;
-  const t = e.changedTouches?.[0];
-  if (!t) return;
-  handleVoicePointerDown(makeHoldEvent(e, Number(t.clientX || 0), Number(t.identifier || 1)));
-}
-
-function handleVoiceTouchMove(e) {
-  if (HAS_POINTER_EVENTS) return;
-  const t = e.changedTouches?.[0];
-  if (!t) return;
-  handleVoicePointerMove(makeHoldEvent(e, Number(t.clientX || 0), Number(t.identifier || 1)));
-}
-
-function handleVoiceTouchEnd(e) {
-  if (HAS_POINTER_EVENTS) return;
-  const t = e.changedTouches?.[0];
-  if (!t) return;
-  handleVoicePointerUp(makeHoldEvent(e, Number(t.clientX || 0), Number(t.identifier || 1)));
-}
-
-function handleVoiceTouchCancel(e) {
-  if (HAS_POINTER_EVENTS) return;
-  const t = e.changedTouches?.[0];
-  handleVoicePointerCancel(makeHoldEvent(e, Number(t?.clientX || 0), Number(t?.identifier || 1)));
-}
-
-function handleVoiceMouseDown(e) {
-  if (HAS_POINTER_EVENTS) return;
-  handleVoicePointerDown(makeHoldEvent(e, Number(e.clientX || 0), 1));
-}
-
-function handleVoiceMouseMove(e) {
-  if (HAS_POINTER_EVENTS) return;
-  if (!holdPointerActive) return;
-  handleVoicePointerMove(makeHoldEvent(e, Number(e.clientX || 0), 1));
-}
-
-function handleVoiceMouseUp(e) {
-  if (HAS_POINTER_EVENTS) return;
-  if (!holdPointerActive && !isRecording && !recordStartInFlight) return;
-  handleVoicePointerUp(makeHoldEvent(e, Number(e.clientX || 0), 1));
 }
 
 async function sendVoiceMessage() {
@@ -2194,7 +2059,7 @@ const DEFAULT_ICE_SERVERS = [
     credential: 'openrelayproject',
   },
 ];
-let rtcConfig = buildRtcConfigFromIce(DEFAULT_ICE_SERVERS);
+let rtcConfig = { iceServers: [...DEFAULT_ICE_SERVERS] };
 let rtcConfigLoaded = false;
 
 function checkWebRTCSupport() {
@@ -2223,21 +2088,6 @@ function sanitizeIceServers(servers) {
   return out.length ? out : [...DEFAULT_ICE_SERVERS];
 }
 
-function buildRtcConfigFromIce(iceServers, forceRelay = false) {
-  const sanitized = sanitizeIceServers(iceServers);
-  const hasTurn = sanitized.some(server => {
-    const urls = Array.isArray(server?.urls) ? server.urls : [server?.urls];
-    return urls.some(url => /^turns?:/i.test(String(url || '').trim()));
-  });
-  return {
-    iceServers: sanitized,
-    bundlePolicy: 'max-bundle',
-    rtcpMuxPolicy: 'require',
-    iceTransportPolicy: (forceRelay && hasTurn) ? 'relay' : 'all',
-    iceCandidatePoolSize: 6,
-  };
-}
-
 function hasTurnServer(config) {
   const list = Array.isArray(config?.iceServers) ? config.iceServers : [];
   return list.some(server => {
@@ -2251,11 +2101,9 @@ async function ensureRtcConfig() {
   rtcConfigLoaded = true;
   try {
     const cfg = await api('GET', '/messenger/calls/config');
-    callForceRelay = !!cfg?.force_relay;
-    rtcConfig = buildRtcConfigFromIce(cfg?.ice_servers, callForceRelay);
+    rtcConfig = { iceServers: sanitizeIceServers(cfg?.ice_servers) };
   } catch (_) {
-    callForceRelay = false;
-    rtcConfig = buildRtcConfigFromIce(DEFAULT_ICE_SERVERS, false);
+    rtcConfig = { iceServers: [...DEFAULT_ICE_SERVERS] };
   }
   if (!turnHintShown && !hasTurnServer(rtcConfig)) {
     turnHintShown = true;
@@ -2278,14 +2126,7 @@ function waitForIceGathering(pc, timeoutMs = 7000) {
 }
 
 function renderCallStatus() {
-  const suffixParts = [];
-  if ((callStatusBase === 'Підключено' || callStatusBase.startsWith('Відновлення')) && callQualityLabel) {
-    suffixParts.push(callQualityLabel);
-  }
-  if ((callStatusBase === 'Підключено' || callStatusBase.startsWith('Відновлення')) && callRouteLabel) {
-    suffixParts.push(callRouteLabel);
-  }
-  const suffix = suffixParts.length ? ` · ${suffixParts.join(' · ')}` : '';
+  const suffix = (callStatusBase === 'Підключено' && callQualityLabel) ? ` · ${callQualityLabel}` : '';
   if (callScreenStatus) callScreenStatus.textContent = `${callStatusBase}${suffix}`;
 }
 
@@ -2322,8 +2163,6 @@ async function getCallAudioStream() {
       echoCancellation: { ideal: true },
       noiseSuppression: { ideal: true },
       autoGainControl: { ideal: true },
-      latency: { ideal: 0.02 },
-      voiceIsolation: { ideal: true },
       channelCount: { ideal: 1 },
       sampleRate: { ideal: 48000 },
       sampleSize: { ideal: 16 },
@@ -2335,13 +2174,7 @@ async function getCallAudioStream() {
   } catch (_) {}
   try {
     return await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        latency: 0.02,
-        channelCount: 1,
-      },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       video: false,
     });
   } catch (_) {}
@@ -2349,34 +2182,17 @@ async function getCallAudioStream() {
 }
 
 function optimizeOutgoingAudio(pc, stream) {
-  const profileMap = {
-    crisp: { maxBitrate: 56000, profile: 'crisp' },
-    balanced: { maxBitrate: 42000, profile: 'balanced' },
-    resilient: { maxBitrate: 26000, profile: 'resilient' },
-  };
-  const nextProfile = profileMap[callAdaptiveAudioProfile] || profileMap.balanced;
   try {
     const track = stream?.getAudioTracks?.()[0];
     if (track && 'contentHint' in track) track.contentHint = 'speech';
-    if (track?.applyConstraints) {
-      track.applyConstraints({
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        channelCount: 1,
-      }).catch(() => {});
-    }
   } catch (_) {}
   try {
     const sender = pc?.getSenders?.().find(s => s?.track && s.track.kind === 'audio');
     if (!sender || typeof sender.getParameters !== 'function' || typeof sender.setParameters !== 'function') return;
     const params = sender.getParameters() || {};
     if (!Array.isArray(params.encodings) || !params.encodings.length) params.encodings = [{}];
-    params.encodings[0].maxBitrate = nextProfile.maxBitrate;
-    params.encodings[0].minBitrate = 14000;
-    params.encodings[0].networkPriority = 'high';
+    params.encodings[0].maxBitrate = 40000;
     params.encodings[0].priority = 'high';
-    params.degradationPreference = 'maintain-resolution';
     sender.setParameters(params).catch(() => {});
   } catch (_) {}
 }
@@ -2640,75 +2456,6 @@ function stopCallQualityMonitor() {
     callQualityTimer = null;
   }
   callQualityLabel = '';
-  callRouteLabel = '';
-}
-
-function clearIceRecoveryTimer() {
-  if (!callIceRecoverTimer) return;
-  clearTimeout(callIceRecoverTimer);
-  callIceRecoverTimer = null;
-}
-
-async function requestIceRestartOffer(pc) {
-  if (!pc || pc !== peerConnection || !activeCallId) return false;
-  if (activeCallRole !== 'caller') return false;
-  if (pc.signalingState !== 'stable') return false;
-  if (callIceRestartInFlight) return false;
-  callIceRestartInFlight = true;
-  try {
-    const offer = await pc.createOffer({ iceRestart: true });
-    await pc.setLocalDescription(offer);
-    await waitForIceGathering(pc, 5000);
-    const offerSdp = normalizeSdp(pc.localDescription?.sdp, 'SDP offer');
-    await api('PUT', `/messenger/calls/${activeCallId}/offer`, { sdp_offer: offerSdp });
-    remoteSdpSet = false;
-    lastAppliedRemoteAnswerSdp = '';
-    setCallStatusBase('Переузгодження мережі...');
-    flushLocalIce().catch(() => {});
-    return true;
-  } catch (_) {
-    return false;
-  } finally {
-    callIceRestartInFlight = false;
-  }
-}
-
-function scheduleIceRecovery(pc, delayMs = 2200) {
-  if (!pc || !activeCallId || callConnectedOnce === false && !remoteSdpSet) return;
-  if (callIceRecoverTimer) return;
-  callIceRecoverTimer = setTimeout(async () => {
-    callIceRecoverTimer = null;
-    if (!pc || pc !== peerConnection || !activeCallId) return;
-    if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') return;
-    try {
-      setCallStatusBase('Спроба відновлення мережі...');
-      let restarted = false;
-      if (typeof pc.restartIce === 'function' && pc.signalingState === 'stable') {
-        try {
-          pc.restartIce();
-          restarted = true;
-        } catch (_) {}
-      }
-      if (activeCallRole === 'caller' && pc.signalingState === 'stable') {
-        const renegotiated = await requestIceRestartOffer(pc);
-        restarted = restarted || renegotiated;
-      }
-      if (!restarted && typeof pc.restartIce === 'function' && pc.signalingState === 'stable') {
-        try { pc.restartIce(); } catch (_) {}
-      }
-      startCallPoll(document.hidden ? 1700 : 900);
-      pollCallIce().catch(() => {});
-      pollCall().catch(() => {});
-    } catch (_) {}
-  }, Math.max(900, Number(delayMs || 0)));
-}
-
-async function applyAdaptiveAudioProfile(profile = 'balanced') {
-  const next = String(profile || 'balanced');
-  if (!peerConnection || !activeCallId) return;
-  if (next === callAdaptiveAudioProfile) return;
-  callAdaptiveAudioProfile = next;
-  optimizeOutgoingAudio(peerConnection, localStream);
 }
 
 async function sampleCallQuality() {
@@ -2718,7 +2465,6 @@ async function sampleCallQuality() {
     let jitter = null;
     let rtt = null;
     let lossRatio = null;
-    let selectedPair = null;
     stats.forEach(report => {
       if (report.type === 'remote-inbound-rtp' && report.kind === 'audio') {
         if (Number.isFinite(report.jitter)) jitter = report.jitter;
@@ -2728,42 +2474,22 @@ async function sampleCallQuality() {
         if (recv > 0 && lost >= 0) lossRatio = Math.max(0, lost / (recv + lost));
       } else if (report.type === 'candidate-pair' && report.state === 'succeeded') {
         if (Number.isFinite(report.currentRoundTripTime)) rtt = report.currentRoundTripTime;
-        if (report.selected || report.nominated || !selectedPair) selectedPair = report;
       }
     });
 
     let quality = '';
-    let profile = 'balanced';
     if ((lossRatio !== null && lossRatio > 0.08) || (jitter !== null && jitter > 0.04) || (rtt !== null && rtt > 0.35)) {
       quality = 'якість слабка';
-      profile = 'resilient';
     } else if ((lossRatio !== null && lossRatio > 0.03) || (jitter !== null && jitter > 0.02) || (rtt !== null && rtt > 0.2)) {
       quality = 'мережа нестабільна';
-      profile = 'balanced';
     } else if (lossRatio !== null || jitter !== null || rtt !== null) {
       quality = 'якість добра';
-      profile = 'crisp';
     }
 
     if (quality !== callQualityLabel) {
       callQualityLabel = quality;
       renderCallStatus();
     }
-    if (selectedPair) {
-      const localCand = stats.get(selectedPair.localCandidateId);
-      const remoteCand = stats.get(selectedPair.remoteCandidateId);
-      const localType = String(localCand?.candidateType || '').toLowerCase();
-      const remoteType = String(remoteCand?.candidateType || '').toLowerCase();
-      let route = '';
-      if (localType === 'relay' || remoteType === 'relay') route = 'маршрут: TURN relay';
-      else if (localType === 'host' && remoteType === 'host') route = 'маршрут: LAN';
-      else if (localType || remoteType) route = 'маршрут: P2P NAT';
-      if (route !== callRouteLabel) {
-        callRouteLabel = route;
-        renderCallStatus();
-      }
-    }
-    applyAdaptiveAudioProfile(profile).catch(() => {});
   } catch (_) {}
 }
 
@@ -2778,45 +2504,15 @@ function buildPeerConnection() {
 
   pc.ontrack = e => {
     if (remoteAudio.srcObject !== e.streams[0]) remoteAudio.srcObject = e.streams[0];
-    if (remoteAudio && typeof remoteAudio.play === 'function') {
-      remoteAudio.play().catch(() => {});
-    }
-    try {
-      const receiver = pc.getReceivers?.().find(r => r?.track && r.track.kind === 'audio');
-      if (receiver && 'playoutDelayHint' in receiver) receiver.playoutDelayHint = 0.12;
-    } catch (_) {}
   };
 
-  // Trickle ICE for cross-network reliability (NAT/mobile carriers).
-  pc.onicecandidate = e => {
-    const cand = normalizeIceCandidate(e?.candidate?.toJSON ? e.candidate.toJSON() : e?.candidate);
-    if (!cand) return;
-    if (!activeCallId) {
-      if (pendingLocalIce.length < 200) pendingLocalIce.push(cand);
-      return;
-    }
-    api('POST', `/messenger/calls/${activeCallId}/ice`, { candidate: cand })
-      .catch(() => {
-        if (pendingLocalIce.length < 200) pendingLocalIce.push(cand);
-      });
-  };
-
-  pc.onicecandidateerror = e => {
-    const code = Number(e?.errorCode || 0);
-    const text = String(e?.errorText || '').trim();
-    const url = String(e?.url || '').trim();
-    const bits = [];
-    if (code) bits.push(`ICE ${code}`);
-    if (text) bits.push(text);
-    if (url) bits.push(url.replace(/^turns?:\/\//i, 'turn://'));
-    if (bits.length) callFailureReason = bits.join(' · ');
-  };
+  // ICE candidates are embedded in the gathered SDP — no trickle needed
+  pc.onicecandidate = () => {};
 
   pc.oniceconnectionstatechange = () => {
     const st = pc.iceConnectionState;
     if (st === 'connected' || st === 'completed') {
       setCallStatusBase('Підключено');
-      clearIceRecoveryTimer();
       stopAllCallTones();
       if (!callConnectedOnce) {
         callConnectedOnce = true;
@@ -2824,15 +2520,18 @@ function buildPeerConnection() {
       }
       if (!callWallTimer) startCallTimer();
       if (!callQualityTimer) startCallQualityMonitor();
-      startCallPoll(document.hidden ? 2200 : 1200);
       requestCallWakeLock().catch(() => {});
     } else if (st === 'disconnected') {
       setCallStatusBase('Відновлення...');
-      scheduleIceRecovery(pc, 1800);
-      startCallPoll(document.hidden ? 1800 : 950);
+      // Force ICE restart via new offer
+      if (peerConnection && activeCallId) {
+        peerConnection.createOffer({ iceRestart: true })
+          .then(offer => peerConnection.setLocalDescription(offer))
+          .catch(() => {});
+      }
       pollCall().catch(() => {});
     } else if (st === 'failed') {
-      showToast(callFailureReason ? `З\'єднання перервано: ${callFailureReason}` : 'З\'єднання перервано.', true);
+      showToast('З\'єднання перервано.', true);
       hangupCall(true, 'error');
     }
   };
@@ -2841,18 +2540,12 @@ function buildPeerConnection() {
     const st = pc.connectionState;
     if (st === 'connected') {
       setCallStatusBase('Підключено');
-      clearIceRecoveryTimer();
       if (!callWallTimer) startCallTimer();
       if (!callQualityTimer) startCallQualityMonitor();
-      startCallPoll(document.hidden ? 2200 : 1200);
       requestCallWakeLock().catch(() => {});
     } else if (st === 'disconnected') {
       setCallStatusBase('Відновлення...');
-      scheduleIceRecovery(pc, 1800);
     } else if (st === 'failed' || st === 'closed') {
-      if (st === 'failed' && callFailureReason) {
-        showToast(`Помилка мережі: ${callFailureReason}`, true);
-      }
       hangupCall(true, 'error');
     }
   };
@@ -2874,27 +2567,6 @@ async function flushRemoteIce(pc) {
     try { await pc.addIceCandidate(c); } catch (_) {}
   }
   pendingRemoteIce = [];
-}
-
-async function pollCallIce() {
-  if (!activeCallId || !peerConnection) return;
-  try {
-    const rows = await api('GET', `/messenger/calls/${activeCallId}/ice?after_id=${icePollLastId}`);
-    if (!Array.isArray(rows) || !rows.length) return;
-    for (const row of rows) {
-      const rowId = Number(row?.id || 0);
-      if (rowId > icePollLastId) icePollLastId = rowId;
-      const cand = normalizeIceCandidate(row?.candidate);
-      if (!cand) continue;
-      if (!peerConnection.remoteDescription || !remoteSdpSet) {
-        if (pendingRemoteIce.length < 220) pendingRemoteIce.push(cand);
-        continue;
-      }
-      try {
-        await peerConnection.addIceCandidate(cand);
-      } catch (_) {}
-    }
-  } catch (_) {}
 }
 
 // ── Initiate call (caller) ─────────────────
@@ -2927,12 +2599,7 @@ async function initiateCall() {
     remoteSdpSet  = false;
     icePollLastId = 0;
     callConnectedOnce = false;
-    activeCallRole = 'caller';
-    callIceRestartInFlight = false;
-    lastAppliedRemoteOfferSdp = '';
-    lastAppliedRemoteAnswerSdp = '';
     showCallScreen(activePartner.full_name, 'Виклик...');
-    flushLocalIce().catch(() => {});
     startOutgoingTone().catch(() => {});
     startOutgoingNoAnswerTimer(call_id);
     startCallPoll();
@@ -3024,8 +2691,6 @@ async function acceptCall() {
     const offerSdp = normalizeSdp(callData.sdp_offer, 'SDP offer');
     await setRemoteDescriptionSafe(peerConnection, { type: 'offer', sdp: offerSdp }, 'SDP offer');
     remoteSdpSet = true;
-    lastAppliedRemoteOfferSdp = offerSdp;
-    lastAppliedRemoteAnswerSdp = '';
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
     setCallStatusBase('Збір ICE...');
@@ -3036,10 +2701,6 @@ async function acceptCall() {
     activeCallId  = callId;
     icePollLastId = 0;
     callConnectedOnce = false;
-    activeCallRole = 'callee';
-    callIceRestartInFlight = false;
-    flushLocalIce().catch(() => {});
-    flushRemoteIce(peerConnection).catch(() => {});
     clearOutgoingNoAnswerTimer();
     showCallScreen(callData.caller_name || 'Дзвінок', 'З\'єднання...');
     startCallPoll();
@@ -3061,24 +2722,15 @@ async function rejectCall() {
 }
 
 // ── Call polling ───────────────────────────
-function callPollInterval() {
-  if (document.hidden) return callConnectedOnce ? 2500 : 1800;
-  return callConnectedOnce ? 1200 : 900;
-}
-
-function startCallPoll(intervalMs = callPollInterval()) {
+function startCallPoll(intervalMs = (document.hidden ? 2500 : 1500)) {
   clearInterval(callPollTimer);
-  callPollTimer = setInterval(() => { pollCall().catch(() => {}); }, Math.max(700, Number(intervalMs || 0)));
+  callPollTimer = setInterval(pollCall, intervalMs);
 }
 
 async function pollCall() {
   if (!activeCallId || !peerConnection) return;
   try {
-    pollCallIce().catch(() => {});
     const cd = await api('GET', `/messenger/calls/${activeCallId}`);
-    if (!activeCallRole && me?.id !== undefined && cd?.caller_id !== undefined) {
-      activeCallRole = Number(cd.caller_id) === Number(me.id) ? 'caller' : 'callee';
-    }
     if (['rejected', 'ended', 'missed'].includes(cd.status)) {
       if (cd.status === 'rejected') showToast('Дзвінок відхилено.');
       if (cd.status === 'ended') showToast('Дзвінок завершено.');
@@ -3087,37 +2739,41 @@ async function pollCall() {
       return;
     }
 
-    if (activeCallRole === 'caller') {
-      const waitingAnswer = (peerConnection.signalingState === 'have-local-offer');
-      if (waitingAnswer && cd.status === 'active' && cd.sdp_answer) {
+    // Caller: wait for callee's answer
+    if (!remoteSdpSet && peerConnection.signalingState === 'have-local-offer') {
+      if (cd.status === 'active' && cd.sdp_answer) {
         const answerSdp = normalizeSdp(cd.sdp_answer, 'SDP answer');
-        if (answerSdp !== lastAppliedRemoteAnswerSdp) {
-          await setRemoteDescriptionSafe(peerConnection, { type: 'answer', sdp: answerSdp }, 'SDP answer');
-          lastAppliedRemoteAnswerSdp = answerSdp;
-          remoteSdpSet = true;
-          flushRemoteIce(peerConnection).catch(() => {});
-          stopOutgoingTone();
-          clearOutgoingNoAnswerTimer();
-          setCallStatusBase('З\'єднання...');
-        }
+        await setRemoteDescriptionSafe(peerConnection, { type: 'answer', sdp: answerSdp }, 'SDP answer');
+        remoteSdpSet = true;
+        stopOutgoingTone();
+        clearOutgoingNoAnswerTimer();
+        setCallStatusBase('З\'єднання...');
       }
-    } else if (activeCallRole === 'callee' && cd.status === 'active' && cd.sdp_offer) {
-      if (peerConnection.signalingState === 'stable') {
-        const offerSdp = normalizeSdp(cd.sdp_offer, 'SDP offer');
-        if (offerSdp !== lastAppliedRemoteOfferSdp) {
-          await setRemoteDescriptionSafe(peerConnection, { type: 'offer', sdp: offerSdp }, 'SDP offer');
-          lastAppliedRemoteOfferSdp = offerSdp;
-          remoteSdpSet = true;
-          const answer = await peerConnection.createAnswer();
-          await peerConnection.setLocalDescription(answer);
-          await waitForIceGathering(peerConnection, 5000);
-          const answerSdp = normalizeSdp(peerConnection.localDescription?.sdp, 'SDP answer');
-          await api('PUT', `/messenger/calls/${activeCallId}/answer`, { sdp_answer: answerSdp });
-          flushLocalIce().catch(() => {});
-          flushRemoteIce(peerConnection).catch(() => {});
-          setCallStatusBase('Відновлення з\'єднання...');
-        }
+    }
+
+    // Caller ICE restart: send new offer if we initiated restart
+    if (peerConnection.signalingState === 'have-local-offer' && remoteSdpSet) {
+      // We already have remote SDP but signaling state is 'have-local-offer' (ICE restart)
+      // Offer is already in localDescription, just update server with it
+      const offer = peerConnection.localDescription;
+      if (offer && offer.sdp) {
+        await api('PUT', `/messenger/calls/${activeCallId}/offer`, { sdp_offer: offer.sdp }).catch(() => {});
       }
+    }
+
+    // Callee: handle ICE restart from caller (new offer with sdp_answer cleared)
+    if (remoteSdpSet && cd.sdp_offer && !cd.sdp_answer) {
+      // New offer arrived, create new answer
+      const newOfferSdp = normalizeSdp(cd.sdp_offer, 'New SDP offer (ICE restart)');
+      try {
+        await setRemoteDescriptionSafe(peerConnection, { type: 'offer', sdp: newOfferSdp }, 'New offer');
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        setCallStatusBase('Збір ICE...');
+        await waitForIceGathering(peerConnection);
+        const answerSdp = normalizeSdp(peerConnection.localDescription.sdp, 'SDP answer (ICE restart)');
+        await api('PUT', `/messenger/calls/${activeCallId}/answer`, { sdp_answer: answerSdp });
+      } catch (_) {}
     }
 
   } catch (_) {}
@@ -3130,8 +2786,6 @@ function showCallScreen(name, status) {
   callScreenName.textContent   = name;
   callStatusBase = String(status || 'З\'єднання...');
   callQualityLabel = '';
-  callRouteLabel = '';
-  callFailureReason = '';
   renderCallStatus();
   callScreenTimer.hidden       = true;
   callScreen.hidden            = false;
@@ -3170,7 +2824,6 @@ async function hangupCall(notify = true, reason = 'ended') {
   clearInterval(callPollTimer);
   clearInterval(callWallTimer);
   callWallTimer    = null;
-  clearIceRecoveryTimer();
   stopCallQualityMonitor();
   releaseCallWakeLock().catch(() => {});
   cleanupPeer();
@@ -3185,13 +2838,6 @@ async function hangupCall(notify = true, reason = 'ended') {
   callStartAtMs = 0;
   callStatusBase = 'З\'єднання...';
   callQualityLabel = '';
-  callRouteLabel = '';
-  callFailureReason = '';
-  callAdaptiveAudioProfile = 'balanced';
-  callIceRestartInFlight = false;
-  activeCallRole = null;
-  lastAppliedRemoteOfferSdp = '';
-  lastAppliedRemoteAnswerSdp = '';
   callBackgroundNotifiedForId = null;
   callScreen.hidden       = true;
   callScreenTimer.hidden  = true;
@@ -3205,7 +2851,7 @@ async function hangupCall(notify = true, reason = 'ended') {
 function handleVisibilityChange() {
   if (document.hidden) {
     if (activeCallId) {
-      startCallPoll(callPollInterval());
+      startCallPoll(2500);
       if (window.Notification && Notification.permission === 'granted' && callBackgroundNotifiedForId !== activeCallId) {
         try {
           const title = callConnectedOnce ? 'Дзвінок триває у фоні' : 'Підключення дзвінка у фоні';
@@ -3225,7 +2871,7 @@ function handleVisibilityChange() {
   }
 
   if (activeCallId) {
-    startCallPoll(callPollInterval());
+    startCallPoll(1500);
     pollCall().catch(() => {});
     requestCallWakeLock().catch(() => {});
     if (callConnectedOnce && !callWallTimer) startCallTimer();
@@ -3553,21 +3199,11 @@ btnVoice.addEventListener('click', e => {
   if (e.detail !== 0) return;
   toggleRecording().catch(() => {});
 });
-if (HAS_POINTER_EVENTS) {
-  btnVoice.addEventListener('pointerdown', handleVoicePointerDown);
-  btnVoice.addEventListener('pointermove', handleVoicePointerMove);
-  btnVoice.addEventListener('pointerup', handleVoicePointerUp);
-  btnVoice.addEventListener('pointercancel', handleVoicePointerCancel);
-  btnVoice.addEventListener('lostpointercapture', handleVoicePointerCancel);
-} else {
-  btnVoice.addEventListener('touchstart', handleVoiceTouchStart, { passive: false });
-  btnVoice.addEventListener('touchmove', handleVoiceTouchMove, { passive: false });
-  btnVoice.addEventListener('touchend', handleVoiceTouchEnd, { passive: false });
-  btnVoice.addEventListener('touchcancel', handleVoiceTouchCancel, { passive: false });
-  btnVoice.addEventListener('mousedown', handleVoiceMouseDown);
-  window.addEventListener('mousemove', handleVoiceMouseMove);
-  window.addEventListener('mouseup', handleVoiceMouseUp);
-}
+btnVoice.addEventListener('pointerdown', handleVoicePointerDown);
+btnVoice.addEventListener('pointermove', handleVoicePointerMove);
+btnVoice.addEventListener('pointerup', handleVoicePointerUp);
+btnVoice.addEventListener('pointercancel', handleVoicePointerCancel);
+btnVoice.addEventListener('lostpointercapture', handleVoicePointerCancel);
 btnVoice.addEventListener('contextmenu', e => e.preventDefault());
 if (btnCancelRecord) btnCancelRecord.addEventListener('click', () => stopRecording(false));
 convSearch.addEventListener('input', () => renderConvList(convData));
