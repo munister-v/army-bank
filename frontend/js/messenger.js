@@ -2116,16 +2116,13 @@ async function ensureRtcConfig() {
   try {
     const cfg = await api('GET', '/messenger/calls/config');
     const backendServers = sanitizeIceServers(cfg?.ice_servers);
-    // If backend doesn't provide TURN, supplement with our built-in TURN servers
-    const hasTurn = backendServers.some(s => {
-      const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
-      return urls.some(u => String(u).startsWith('turn:') || String(u).startsWith('turns:'));
-    });
+    // Always include our built-in TURN servers (metered.ca) as they are reliable.
+    // Backend env var may point to stale/dead TURN servers, so we always append ours.
     const turnServers = DEFAULT_ICE_SERVERS.filter(s => {
       const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
       return urls.some(u => String(u).startsWith('turn:') || String(u).startsWith('turns:'));
     });
-    rtcConfig = { iceServers: hasTurn ? backendServers : [...backendServers, ...turnServers] };
+    rtcConfig = { iceServers: [...backendServers, ...turnServers] };
   } catch (_) {
     rtcConfig = { iceServers: [...DEFAULT_ICE_SERVERS] };
   }
