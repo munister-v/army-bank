@@ -7,9 +7,9 @@ html.ab-desktop-blocked body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(80% 60% at 5% -10%, rgba(118, 150, 220, 0.35) 0%, rgba(118, 150, 220, 0) 55%),
-    radial-gradient(90% 65% at 100% 110%, rgba(95, 122, 184, 0.22) 0%, rgba(95, 122, 184, 0) 65%),
-    linear-gradient(180deg, #e5ebf7 0%, #dce5f4 100%);
+    radial-gradient(82% 62% at 8% -14%, rgba(31, 107, 76, 0.34) 0%, rgba(31, 107, 76, 0) 54%),
+    radial-gradient(88% 64% at 100% 110%, rgba(196, 160, 100, 0.23) 0%, rgba(196, 160, 100, 0) 66%),
+    linear-gradient(180deg, #e8f0ea 0%, #dfe9e2 100%);
 }
 
 html.ab-desktop-blocked #authScreen,
@@ -36,27 +36,37 @@ html.ab-desktop-blocked #desktopBlockScreen {
 .desktop-block-card {
   width: min(980px, calc(100vw - 64px));
   border-radius: 24px;
-  border: 1px solid #d2dcf2;
+  border: 1px solid #cddfd5;
   background:
-    radial-gradient(70% 120% at 100% 0%, rgba(144, 172, 231, 0.25) 0%, rgba(144, 172, 231, 0) 58%),
-    linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
-  box-shadow: 0 24px 56px rgba(48, 72, 122, 0.2);
+    radial-gradient(70% 120% at 100% 0%, rgba(196, 160, 100, 0.20) 0%, rgba(196, 160, 100, 0) 58%),
+    linear-gradient(180deg, #f9fcfa 0%, #edf4ef 100%);
+  box-shadow: 0 24px 56px rgba(25, 53, 39, 0.18);
   padding: 26px;
-  color: #24375f;
+  color: #1f3528;
 }
 
 .desktop-block-badge {
-  display: inline-block;
-  border: 1px solid #c8d7f3;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #c7dacd;
   border-radius: 999px;
-  background: #e8f0ff;
-  color: #4b6aa8;
+  background: #edf5f0;
+  color: #2f5f47;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 7px 12px;
   margin-bottom: 14px;
+}
+.desktop-block-badge::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  background: url('/icons/icon-32.png') center/cover no-repeat;
+  box-shadow: 0 2px 8px rgba(20, 52, 38, 0.2);
 }
 
 .desktop-block-grid {
@@ -68,8 +78,8 @@ html.ab-desktop-blocked #desktopBlockScreen {
 
 .desktop-block-hero {
   border-radius: 18px;
-  border: 1px solid #d9e2f4;
-  background: linear-gradient(180deg, #ffffff 0%, #f5f9ff 100%);
+  border: 1px solid #d5e3d9;
+  background: linear-gradient(180deg, #ffffff 0%, #f4f9f5 100%);
   padding: 22px;
   display: flex;
   flex-direction: column;
@@ -80,13 +90,13 @@ html.ab-desktop-blocked #desktopBlockScreen {
   margin: 0;
   font-size: clamp(30px, 3.2vw, 42px);
   line-height: 1.02;
-  color: #1d3259;
+  color: #193223;
 }
 
 .desktop-block-text {
   margin: 0;
   max-width: 640px;
-  color: #5972a1;
+  color: #4e6a5a;
   font-size: 17px;
   line-height: 1.4;
 }
@@ -98,10 +108,10 @@ html.ab-desktop-blocked #desktopBlockScreen {
 }
 
 .desktop-block-pill {
-  border: 1px solid #d5e0f5;
+  border: 1px solid #d3e1d7;
   border-radius: 999px;
-  background: #edf3ff;
-  color: #4d6698;
+  background: #eff6f1;
+  color: #426252;
   padding: 7px 11px;
   font-size: 12px;
   font-weight: 600;
@@ -112,7 +122,7 @@ html.ab-desktop-blocked #desktopBlockScreen {
   width: 252px;
   height: 252px;
   border-radius: 20px;
-  border: 1px solid #ccdaf4;
+  border: 1px solid #cadcd1;
   background: #ffffff;
   display: flex;
   align-items: center;
@@ -128,8 +138,8 @@ html.ab-desktop-blocked #desktopBlockScreen {
 
 .desktop-block-qr-panel {
   border-radius: 18px;
-  border: 1px solid #d8e2f6;
-  background: linear-gradient(180deg, #ffffff 0%, #f3f8ff 100%);
+  border: 1px solid #d6e2d9;
+  background: linear-gradient(180deg, #ffffff 0%, #f2f8f4 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -139,7 +149,7 @@ html.ab-desktop-blocked #desktopBlockScreen {
 }
 
 .desktop-block-qr-caption {
-  color: #6379a7;
+  color: #56715f;
   font-size: 13px;
   font-weight: 600;
 }
@@ -148,14 +158,14 @@ html.ab-desktop-blocked #desktopBlockScreen {
   display: inline-block;
   width: fit-content;
   margin: 0;
-  color: #3f66b0;
+  color: #2d6b4a;
   font-size: 14px;
   text-decoration: none;
-  border-bottom: 1px dashed #9bb2e2;
+  border-bottom: 1px dashed #8cb89d;
 }
 
 .desktop-block-link:hover {
-  color: #2f56a1;
+  color: #1f5a3e;
 }
 
 .desktop-block-actions {
@@ -170,9 +180,9 @@ html.ab-desktop-blocked #desktopBlockScreen {
   min-width: 198px;
   min-height: 44px;
   border-radius: 10px;
-  border: 1px solid #c9d8f4;
-  background: #e8f0ff;
-  color: #3f65af;
+  border: 1px solid #c8dbcf;
+  background: #edf5f0;
+  color: #2f5f47;
   font-size: 14px;
   font-weight: 700;
   display: inline-flex;
@@ -185,14 +195,14 @@ html.ab-desktop-blocked #desktopBlockScreen {
 }
 
 .desktop-block-btn.primary {
-  background: linear-gradient(180deg, #5d8ef8 0%, #4e7fe8 100%);
-  border-color: #4c7de5;
+  background: linear-gradient(180deg, #2f7b56 0%, #1f6b4c 100%);
+  border-color: #1f6b4c;
   color: #ffffff;
 }
 
 .desktop-block-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(70, 102, 171, 0.2);
+  box-shadow: 0 8px 18px rgba(25, 63, 45, 0.18);
 }
 
 .desktop-block-mini-steps {
@@ -207,9 +217,9 @@ html.ab-desktop-blocked #desktopBlockScreen {
   align-items: center;
   min-height: 32px;
   border-radius: 8px;
-  border: 1px solid #dae4f7;
-  background: rgba(239, 245, 255, 0.8);
-  color: #5c729f;
+  border: 1px solid #d6e2d8;
+  background: rgba(239, 246, 241, 0.86);
+  color: #567160;
   font-size: 13px;
   font-weight: 600;
   padding: 0 11px;

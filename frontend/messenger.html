@@ -10,14 +10,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
   <meta name="apple-mobile-web-app-title" content="AB Chat"/>
   <title>Army Bank · Месенджер</title>
-  <link rel="manifest" href="/manifest-messenger.json?v=10"/>
+  <link rel="manifest" href="/manifest-messenger.json?v=11"/>
   <link rel="icon" type="image/svg+xml" href="/icons/chat-favicon.svg"/>
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/chat-icon-32.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/chat-icon-180.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=10"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=11"/>
 </head>
 <body>
 
@@ -28,6 +28,10 @@
   <!-- Left: login form -->
   <div class="auth-form-panel">
     <div class="auth-form-inner">
+      <div class="auth-form-kicker">
+        <img src="/icons/chat-icon-32.png" alt="" width="18" height="18" loading="eager" decoding="async"/>
+        <span>ARM BANK MESSENGER</span>
+      </div>
       <h1 class="auth-form-title" id="auth-form-title">Вхід</h1>
 
       <form id="login-form" novalidate>
@@ -83,22 +87,30 @@
 
   <!-- Right: branded gradient panel -->
   <div class="auth-brand-panel">
-    <div class="auth-brand-logo" aria-hidden="true">
-      <svg viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Army Bank Chat">
-        <defs>
-          <linearGradient id="abChatG" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#0f3b2d"/>
-            <stop offset="0.62" stop-color="#1f6b4c"/>
-            <stop offset="1" stop-color="#9d7a3f"/>
-          </linearGradient>
-        </defs>
-        <rect x="10" y="10" width="108" height="108" rx="28" fill="url(#abChatG)"/>
-        <circle cx="91" cy="37" r="13" fill="#d4b070"/>
-        <path d="M35 38h44a12 12 0 0112 12v21a12 12 0 01-12 12H53l-16 13 3-13h-5a12 12 0 01-12-12V50a12 12 0 0112-12z" fill="rgba(255,255,255,.96)"/>
-        <text x="57" y="67" text-anchor="middle" font-size="25" font-family="Manrope, Arial, sans-serif" font-weight="800" fill="#1d5a40">AB</text>
-      </svg>
+    <div class="auth-brand-shell">
+      <div class="auth-brand-logo" aria-hidden="true">
+        <svg viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Army Bank Chat">
+          <defs>
+            <linearGradient id="abChatG" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#0f3b2d"/>
+              <stop offset="0.62" stop-color="#1f6b4c"/>
+              <stop offset="1" stop-color="#9d7a3f"/>
+            </linearGradient>
+          </defs>
+          <rect x="10" y="10" width="108" height="108" rx="28" fill="url(#abChatG)"/>
+          <circle cx="91" cy="37" r="13" fill="#d4b070"/>
+          <path d="M35 38h44a12 12 0 0112 12v21a12 12 0 01-12 12H53l-16 13 3-13h-5a12 12 0 01-12-12V50a12 12 0 0112-12z" fill="rgba(255,255,255,.96)"/>
+          <text x="57" y="67" text-anchor="middle" font-size="25" font-family="Manrope, Arial, sans-serif" font-weight="800" fill="#1d5a40">AB</text>
+        </svg>
+      </div>
+      <div class="auth-brand-name">Army Bank Messenger</div>
+      <p class="auth-brand-sub">Безпечний банківський чат у єдиному стилі Army Bank: повідомлення, голосові, фото та службова підтримка.</p>
+      <div class="auth-brand-pills">
+        <span>Шифрування повідомлень</span>
+        <span>Голосові та фото</span>
+        <span>Єдина авторизація</span>
+      </div>
     </div>
-    <div class="auth-brand-name">Army Bank</div>
   </div>
 </div>
 
@@ -392,6 +404,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=10"></script>
+<script src="/js/messenger.js?v=11"></script>
 </body>
 </html>
