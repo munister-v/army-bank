@@ -2049,6 +2049,15 @@ async function createGroup() {
 const DEFAULT_ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  {
+    urls: [
+      'turn:openrelay.metered.ca:80',
+      'turn:openrelay.metered.ca:443',
+      'turn:openrelay.metered.ca:443?transport=tcp',
+    ],
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
 ];
 let rtcConfig = { iceServers: [...DEFAULT_ICE_SERVERS] };
 let rtcConfigLoaded = false;
@@ -2100,6 +2109,20 @@ async function ensureRtcConfig() {
     turnHintShown = true;
     showToast('Рекомендується налаштувати TURN у Render для стабільних дзвінків.');
   }
+}
+
+function waitForIceGathering(pc, timeoutMs = 7000) {
+  return new Promise(resolve => {
+    if (pc.iceGatheringState === 'complete') { resolve(); return; }
+    const check = () => {
+      if (pc.iceGatheringState === 'complete') {
+        pc.removeEventListener('icegatheringstatechange', check);
+        resolve();
+      }
+    };
+    pc.addEventListener('icegatheringstatechange', check);
+    setTimeout(resolve, timeoutMs);
+  });
 }
 
 function renderCallStatus() {
@@ -2483,16 +2506,8 @@ function buildPeerConnection() {
     if (remoteAudio.srcObject !== e.streams[0]) remoteAudio.srcObject = e.streams[0];
   };
 
-  pc.onicecandidate = e => {
-    if (!e.candidate) return;
-    const cand = normalizeIceCandidate(e.candidate?.toJSON ? e.candidate.toJSON() : e.candidate);
-    if (!cand) return;
-    if (activeCallId) {
-      api('POST', `/messenger/calls/${activeCallId}/ice`, { candidate: cand }).catch(() => {});
-    } else {
-      pendingLocalIce.push(cand);
-    }
-  };
+  // ICE candidates are embedded in the gathered SDP — no trickle needed
+  pc.onicecandidate = () => {};
 
   pc.oniceconnectionstatechange = () => {
     const st = pc.iceConnectionState;
@@ -2568,15 +2583,16 @@ async function initiateCall() {
   try {
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
+    setCallStatusBase('Збір ICE...');
+    await waitForIceGathering(peerConnection);
     const { call_id } = await api('POST', '/messenger/calls', {
       conversation_id: activeConvId,
-      sdp_offer: offer.sdp,
+      sdp_offer: peerConnection.localDescription.sdp,
     });
     activeCallId  = call_id;
     remoteSdpSet  = false;
     icePollLastId = 0;
     callConnectedOnce = false;
-    await flushLocalIce();
     showCallScreen(activePartner.full_name, 'Виклик...');
     startOutgoingTone().catch(() => {});
     startOutgoingNoAnswerTimer(call_id);
@@ -2671,14 +2687,15 @@ async function acceptCall() {
     remoteSdpSet = true;
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
-    const answerSdp = normalizeSdp(answer.sdp || peerConnection?.localDescription?.sdp || '', 'SDP answer');
+    setCallStatusBase('Збір ICE...');
+    await waitForIceGathering(peerConnection);
+    const answerSdp = normalizeSdp(peerConnection.localDescription.sdp, 'SDP answer');
     await api('PUT', `/messenger/calls/${callId}/answer`, { sdp_answer: answerSdp });
 
     activeCallId  = callId;
     icePollLastId = 0;
     callConnectedOnce = false;
     clearOutgoingNoAnswerTimer();
-    await flushLocalIce();
     showCallScreen(callData.caller_name || 'Дзвінок', 'З\'єднання...');
     startCallPoll();
   } catch (err) {
@@ -2725,24 +2742,9 @@ async function pollCall() {
         stopOutgoingTone();
         clearOutgoingNoAnswerTimer();
         setCallStatusBase('З\'єднання...');
-        await flushRemoteIce(peerConnection);
       }
     }
 
-    // Both: receive ICE candidates from the other peer
-    const ices = await api('GET', `/messenger/calls/${activeCallId}/ice?after_id=${icePollLastId}`);
-    if (ices?.length) {
-      for (const ice of ices) {
-        const cand = normalizeIceCandidate(ice.candidate);
-        if (!cand) continue;
-        if (remoteSdpSet && peerConnection) {
-          try { await peerConnection.addIceCandidate(cand); } catch (_) {}
-        } else {
-          pendingRemoteIce.push(cand);
-        }
-        icePollLastId = ice.id;
-      }
-    }
   } catch (_) {}
 }
 
