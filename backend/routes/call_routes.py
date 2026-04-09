@@ -325,15 +325,17 @@ def get_ice(call_id: int):
         if not _is_participant(conn, row['conversation_id'], me_id):
             return api_error('Доступ заборонено.', 403)
 
+        # Return all candidates for this call after after_id
+        # Client will add them to peer connection - browser handles duplicates gracefully
         rows = conn.execute(
             """
             SELECT id, user_id, candidate
             FROM call_ice
-            WHERE call_id = %s AND user_id != %s AND id > %s
+            WHERE call_id = %s AND id > %s
             ORDER BY id ASC
             LIMIT 50
             """,
-            (call_id, me_id, after_id),
+            (call_id, after_id),
         ).fetchall()
 
     return jsonify({'ok': True, 'data': [dict(r) for r in rows]})
