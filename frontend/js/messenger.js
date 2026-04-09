@@ -2513,13 +2513,9 @@ function startCallQualityMonitor() {
 }
 
 function buildPeerConnection() {
-  // Force relay-only mode: all media traffic goes through TURN server
-  // This works across different networks (WiFi ↔ LTE, different ISPs, etc.)
-  const config = {
-    ...rtcConfig,
-    iceTransportPolicy: 'relay',
-  };
-  const pc = new RTCPeerConnection(config);
+  // Use rtcConfig with multiple TURN servers + STUN fallback
+  // Browser will try: TURN relay → host candidates → reflexive (if NAT allows)
+  const pc = new RTCPeerConnection(rtcConfig);
 
   pc.ontrack = e => {
     if (remoteAudio.srcObject !== e.streams[0]) remoteAudio.srcObject = e.streams[0];
