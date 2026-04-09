@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '20';
+const MESSENGER_ASSET_VERSION = '21';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -724,12 +724,15 @@ async function openChat(conv) {
   noMoreOlder   = false;
 
   const isGroup = !!conv.is_group;
+  const isAssistant = !isGroup && (conv.partner?.role === 'assistant_bot');
   const name    = convName(conv);
   chatAvatar.textContent = esc(initial(name));
   chatAvatar.className   = 'chat-header-avatar' + (isGroup ? ' group' : '');
   chatPartnerName.textContent = name;
-  chatPartnerRole.textContent = isGroup ? 'Групова розмова' : '';
-  if (btnCall) btnCall.hidden = isGroup;
+  chatPartnerRole.textContent = isGroup
+    ? 'Групова розмова'
+    : (isAssistant ? 'Банківський асистент' : '');
+  if (btnCall) btnCall.hidden = isGroup || isAssistant;
 
   chatEmpty.hidden = true;
   chatView.hidden  = false;

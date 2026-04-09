@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date, timedelta
 from urllib.parse import urlencode
 
 from flask import Blueprint, jsonify, request, g
@@ -17,6 +18,7 @@ from ..services.messenger_crypto import (
     deleted_message_text,
     encrypt_message,
 )
+from ..utils.security import hash_password
 from .helpers import api_error, auth_required
 
 messenger_bp = Blueprint('messenger', __name__, url_prefix='/api/messenger')
@@ -25,6 +27,11 @@ _account_service = AccountService()
 
 _FALSE = False if USE_PG else 0  # boolean compatibility
 _B64_RE = re.compile(r'^[A-Za-z0-9+/=]+$')
+_ASSISTANT_ROLE = 'assistant_bot'
+_ASSISTANT_NAME = 'Army Bank Assistant'
+_ASSISTANT_PHONE = '+380990000001'
+_ASSISTANT_EMAIL = 'assistant@army-bank.bot'
+_ASSISTANT_PASSWORD = 'army-bank-assistant-system-only'
 
 
 # ── Допоміжні функції ────────────────────────────────────────────────────────
@@ -159,6 +166,225 @@ def _money_fmt(amount: float) -> str:
 
 def _period_label(from_date: str, to_date: str) -> str:
     return f'{from_date} → {to_date}'
+
+
+def _get_or_create_assistant_user(conn) -> int:
+    existing = conn.execute(
+        'SELECT id FROM users WHERE role = %s OR phone = %s OR LOWER(email) = LOWER(%s) ORDER BY id ASC LIMIT 1',
+        (_ASSISTANT_ROLE, _ASSISTANT_PHONE, _ASSISTANT_EMAIL),
+    ).fetchone()
+    if existing:
+        uid = int(existing['id'])
+        conn.execute(
+            'UPDATE users SET role = %s, full_name = %s WHERE id = %s',
+            (_ASSISTANT_ROLE, _ASSISTANT_NAME, uid),
+        )
+        return uid
+
+    pwd_hash = hash_password(_ASSISTANT_PASSWORD)
+    if USE_PG:
+        row = conn.execute(
+            """
+            INSERT INTO users(full_name, phone, email, password_hash, role)
+            VALUES(%s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (_ASSISTANT_NAME, _ASSISTANT_PHONE, _ASSISTANT_EMAIL, pwd_hash, _ASSISTANT_ROLE),
+        ).fetchone()
+        return int(row['id'])
+
+    conn.execute(
+        'INSERT INTO users(full_name, phone, email, password_hash, role) VALUES(%s, %s, %s, %s, %s)',
+        (_ASSISTANT_NAME, _ASSISTANT_PHONE, _ASSISTANT_EMAIL, pwd_hash, _ASSISTANT_ROLE),
+    )
+    row = conn.execute('SELECT last_insert_rowid() AS id').fetchone()
+    return int(row['id'])
+
+
+def _default_assistant_welcome() -> str:
+    return (
+        "Вітаю! Я Army Bank Assistant.\n"
+        "Допоможу по банкінгу прямо в чаті:\n"
+        "• баланс і останні операції\n"
+        "• виписка PDF/CSV\n"
+        "• підказки по переказах, картках, безпеці\n\n"
+        "Швидкі команди:\n"
+        "/баланс\n"
+        "/виписка pdf\n"
+        "/виписка csv"
+    )
+
+
+def _ensure_default_assistant_conversation(user_id: int) -> tuple[int, int]:
+    with get_connection() as conn:
+        assistant_id = _get_or_create_assistant_user(conn)
+
+        row = conn.execute(
+            """
+            SELECT c.id
+            FROM conversations c
+            JOIN conversation_participants cp1 ON cp1.conversation_id = c.id
+            JOIN conversation_participants cp2 ON cp2.conversation_id = c.id
+            WHERE COALESCE(c.is_group, %s) = %s
+              AND cp1.user_id = %s
+              AND cp2.user_id = %s
+            ORDER BY c.id ASC
+            LIMIT 1
+            """,
+            (_FALSE, _FALSE, user_id, assistant_id),
+        ).fetchone()
+
+        if row:
+            conv_id = int(row['id'])
+        else:
+            if USE_PG:
+                inserted = conn.execute(
+                    'INSERT INTO conversations(created_at, is_group) VALUES(NOW(), %s) RETURNING id',
+                    (_FALSE,),
+                ).fetchone()
+                conv_id = int(inserted['id'])
+            else:
+                conn.execute('INSERT INTO conversations(created_at, is_group) VALUES(datetime(\'now\'), %s)', (_FALSE,))
+                conv_id = int(conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id'])
+
+            conn.execute(
+                'INSERT INTO conversation_participants (conversation_id, user_id) VALUES (%s, %s)',
+                (conv_id, user_id),
+            )
+            conn.execute(
+                'INSERT INTO conversation_participants (conversation_id, user_id) VALUES (%s, %s)',
+                (conv_id, assistant_id),
+            )
+
+        msg_row = conn.execute(
+            'SELECT id FROM messages WHERE conversation_id = %s ORDER BY id ASC LIMIT 1',
+            (conv_id,),
+        ).fetchone()
+        if not msg_row:
+            welcome = _default_assistant_welcome()
+            encrypted = encrypt_message(welcome)
+            conn.execute(
+                'INSERT INTO messages (conversation_id, sender_id, text, msg_type) VALUES (%s, %s, %s, %s)',
+                (conv_id, assistant_id, encrypted, 'text'),
+            )
+            conn.execute(
+                f'UPDATE conversations SET last_message_at = {_now_sql()}, last_message_text = %s WHERE id = %s',
+                (welcome[:180], conv_id),
+            )
+
+        return conv_id, assistant_id
+
+
+def _assistant_id_for_conversation(conn, conv_id: int) -> int | None:
+    row = conn.execute(
+        """
+        SELECT u.id
+        FROM conversation_participants cp
+        JOIN users u ON u.id = cp.user_id
+        WHERE cp.conversation_id = %s AND u.role = %s
+        LIMIT 1
+        """,
+        (conv_id, _ASSISTANT_ROLE),
+    ).fetchone()
+    if not row:
+        return None
+    return int(row['id'])
+
+
+def _extract_dates(text: str) -> tuple[str | None, str | None]:
+    matches = re.findall(r'\b\d{4}-\d{2}-\d{2}\b', text or '')
+    if len(matches) >= 2:
+        return matches[0], matches[1]
+    if len(matches) == 1:
+        return matches[0], matches[0]
+    return None, None
+
+
+def _assistant_reply_text(user_id: int, user_text: str, script_root: str = '') -> str:
+    account, _ = _ensure_bank_account_context(user_id)
+    text = (user_text or '').strip()
+    low = text.lower()
+
+    def period_default() -> tuple[str, str]:
+        to_d = date.today()
+        from_d = to_d - timedelta(days=30)
+        return from_d.isoformat(), to_d.isoformat()
+
+    if any(k in low for k in ('прив', 'hello', 'help', 'допом', '/help', '/start')):
+        return (
+            "Я поруч. Допоможу по Army Bank.\n"
+            "Що можу зробити:\n"
+            "• Показати баланс і останні операції\n"
+            "• Підготувати виписку PDF/CSV\n"
+            "• Підказати по переказу, картках і безпеці\n\n"
+            "Спробуйте: /баланс, /виписка pdf, /виписка csv"
+        )
+
+    if any(k in low for k in ('баланс', '/баланс', 'balance', 'скільки на рахунку')):
+        recent = _account_service.list_transactions(user_id)[:3]
+        lines = [
+            f"Ваш рахунок: {account.get('account_number')}",
+            f"Поточний баланс: {_money_fmt(account.get('balance'))}",
+        ]
+        if recent:
+            lines.append('Останні операції:')
+            for tx in recent:
+                sign = '+' if tx.get('direction') == 'in' else '-'
+                lines.append(
+                    f"• {tx.get('created_at', '')[:16]} · {sign}{_money_fmt(tx.get('amount'))} · {tx.get('description') or 'Операція'}"
+                )
+        return '\n'.join(lines)
+
+    if any(k in low for k in ('випис', 'statement', '/виписка', 'pdf', 'csv')):
+        fmt = 'csv' if 'csv' in low else 'pdf'
+        from_date, to_date = _extract_dates(low)
+        if not from_date or not to_date:
+            from_date, to_date = period_default()
+        svc = StatementService()
+        from_date, to_date = svc.normalize_period(from_date, to_date)
+        base = script_root or ''
+        if fmt == 'pdf':
+            order = svc.create_statement_order(
+                user_id=user_id,
+                from_date=from_date,
+                to_date=to_date,
+                report_type='detailed',
+            )
+            download = f"{base}/api/transactions/statement?{order['download_query']}"
+            return (
+                f"Готово. Підготував запит на PDF-виписку ({_period_label(from_date, to_date)}).\n"
+                f"Завантажити: {download}\n"
+                "Також можна натиснути Bank Tools → «Завантажити PDF»."
+            )
+        query = urlencode({'from_date': from_date, 'to_date': to_date})
+        download = f"{base}/api/transactions/export?{query}"
+        return (
+            f"Готово. CSV-виписка за період {_period_label(from_date, to_date)}.\n"
+            f"Завантажити: {download}\n"
+            "Також можна натиснути Bank Tools → «Завантажити CSV»."
+        )
+
+    if any(k in low for k in ('переказ', 'перевод', 'transfer', 'на карт', 'iban')):
+        return (
+            "Переказ можна зробити так:\n"
+            "1) Відкрийте розділ «Операції» у банку.\n"
+            "2) Вкажіть рахунок/картку отримувача.\n"
+            "3) Введіть суму та підтвердьте.\n\n"
+            "Для безпеки: перевіряйте номер рахунку двічі перед підтвердженням."
+        )
+
+    if any(k in low for k in ('карт', 'card', 'заблок', 'block')):
+        return (
+            "По картках:\n"
+            "• Блокування/розблокування — у розділі «Картки».\n"
+            "• Випуск нової — кнопка «+ Випустити».\n"
+            "• Якщо підозра на шахрайство — одразу блокуйте картку і змінюйте пароль."
+        )
+
+    return (
+        "Я можу допомогти з банкінгом: баланс, виписки, перекази, картки, безпека.\n"
+        "Спробуйте команду /баланс або /виписка pdf."
+    )
 
 
 # ── Банківські інструменти в месенджері ─────────────────────────────────────
@@ -303,10 +529,11 @@ def search_users():
             FROM users u
             LEFT JOIN accounts a ON a.user_id = u.id
             WHERE u.id != %s
+              AND u.role != %s
               AND (u.full_name {op} %s OR u.phone LIKE %s OR a.account_number LIKE %s)
             LIMIT 20
             """,
-            (me_id, like, like, like),
+            (me_id, _ASSISTANT_ROLE, like, like, like),
         ).fetchall()
 
     return jsonify({'ok': True, 'data': [dict(r) for r in rows]})
@@ -320,6 +547,7 @@ def list_conversations():
     me_id = g.current_user['id']
     try:
         _ensure_bank_account_context(int(me_id))
+        assistant_conv_id, _assistant_id = _ensure_default_assistant_conversation(int(me_id))
     except Exception as exc:
         return api_error(str(exc), 409)
     with get_connection() as conn:
@@ -335,8 +563,18 @@ def list_conversations():
         ).fetchall()
 
     result = []
+    seen: set[int] = set()
     for row in rows:
-        summary = _conv_summary(row['conversation_id'], me_id)
+        conv_id = int(row['conversation_id'])
+        if conv_id in seen:
+            continue
+        seen.add(conv_id)
+        summary = _conv_summary(conv_id, me_id)
+        if summary:
+            result.append(summary)
+
+    if assistant_conv_id not in seen:
+        summary = _conv_summary(assistant_conv_id, me_id)
         if summary:
             result.append(summary)
 
@@ -532,6 +770,30 @@ def send_message(conv_id: int):
             (preview, conv_id),
         )
         _mark_read(conn, conv_id, me_id)
+
+        # Assistant auto-reply for default banking dialogue.
+        assistant_id = _assistant_id_for_conversation(conn, conv_id)
+        if assistant_id and int(assistant_id) != int(me_id) and msg_type == 'text':
+            try:
+                reply_text = _assistant_reply_text(
+                    user_id=int(me_id),
+                    user_text=text,
+                    script_root=(request.script_root or ''),
+                ).strip()
+            except Exception:
+                reply_text = (
+                    'Не вдалося обробити запит. Спробуйте ще раз або відкрийте Bank Tools.'
+                )
+            if reply_text:
+                encrypted_reply = encrypt_message(reply_text)
+                conn.execute(
+                    'INSERT INTO messages (conversation_id, sender_id, text, msg_type) VALUES (%s, %s, %s, %s)',
+                    (conv_id, assistant_id, encrypted_reply, 'text'),
+                )
+                conn.execute(
+                    f'UPDATE conversations SET last_message_at = {_now_sql()}, last_message_text = %s WHERE id = %s',
+                    (reply_text[:180], conv_id),
+                )
 
     return jsonify({'ok': True, 'data': {
         'id': msg_id,
