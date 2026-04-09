@@ -1,5 +1,6 @@
 """Конфігурація застосунку WeeGo Army Bank (з .env)."""
 from pathlib import Path
+import json
 import os
 
 from dotenv import load_dotenv
@@ -35,6 +36,22 @@ BOOTSTRAP_TOKEN = os.getenv('BOOTSTRAP_TOKEN', '').strip()
 # Multiple keys allowed for rotation: "new_key,old_key".
 MESSENGER_ENCRYPTION_KEYS = os.getenv('MESSENGER_ENCRYPTION_KEYS', '').strip()
 MESSENGER_CALL_PENDING_TIMEOUT_SECONDS = int(os.getenv('MESSENGER_CALL_PENDING_TIMEOUT_SECONDS', '45'))
+_default_ice_servers = [
+    {'urls': 'stun:stun.l.google.com:19302'},
+    {'urls': 'stun:stun1.l.google.com:19302'},
+]
+_ice_json = os.getenv('MESSENGER_ICE_SERVERS', '').strip()
+if _ice_json:
+    try:
+        _parsed_ice = json.loads(_ice_json)
+        if isinstance(_parsed_ice, list):
+            MESSENGER_ICE_SERVERS = _parsed_ice
+        else:
+            MESSENGER_ICE_SERVERS = _default_ice_servers
+    except Exception:
+        MESSENGER_ICE_SERVERS = _default_ice_servers
+else:
+    MESSENGER_ICE_SERVERS = _default_ice_servers
 
 # Примітивний anti-bruteforce rate-limit для auth endpoints
 AUTH_RATE_LIMIT_ENABLED = (os.getenv('AUTH_RATE_LIMIT_ENABLED', '1') == '1')

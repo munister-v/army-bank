@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '15';
+const MESSENGER_ASSET_VERSION = '16';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -1484,12 +1484,12 @@ async function createGroup() {
 // ════════════════════════════════════════════
 // WebRTC Calls
 // ════════════════════════════════════════════
-const STUN_SERVERS = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-  ],
-};
+const DEFAULT_ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+];
+let rtcConfig = { iceServers: [...DEFAULT_ICE_SERVERS] };
+let rtcConfigLoaded = false;
 
 function checkWebRTCSupport() {
   if (!window.RTCPeerConnection) {
@@ -1499,6 +1499,33 @@ function checkWebRTCSupport() {
     showToast('Дзвінки доступні лише по HTTPS.', true); return false;
   }
   return true;
+}
+
+function sanitizeIceServers(servers) {
+  if (!Array.isArray(servers)) return [...DEFAULT_ICE_SERVERS];
+  const out = [];
+  for (const server of servers) {
+    if (!server || typeof server !== 'object') continue;
+    const urlsRaw = server.urls;
+    const urls = Array.isArray(urlsRaw) ? urlsRaw.map(v => String(v || '').trim()).filter(Boolean) : [String(urlsRaw || '').trim()].filter(Boolean);
+    if (!urls.length) continue;
+    const item = { urls };
+    if (server.username !== undefined && server.username !== null) item.username = String(server.username);
+    if (server.credential !== undefined && server.credential !== null) item.credential = String(server.credential);
+    out.push(item);
+  }
+  return out.length ? out : [...DEFAULT_ICE_SERVERS];
+}
+
+async function ensureRtcConfig() {
+  if (rtcConfigLoaded || !token) return;
+  rtcConfigLoaded = true;
+  try {
+    const cfg = await api('GET', '/messenger/calls/config');
+    rtcConfig = { iceServers: sanitizeIceServers(cfg?.ice_servers) };
+  } catch (_) {
+    rtcConfig = { iceServers: [...DEFAULT_ICE_SERVERS] };
+  }
 }
 
 async function ensureCallAudioCtx() {
@@ -1721,7 +1748,7 @@ function normalizeIceCandidate(raw) {
 }
 
 function buildPeerConnection() {
-  const pc = new RTCPeerConnection(STUN_SERVERS);
+  const pc = new RTCPeerConnection(rtcConfig);
 
   pc.ontrack = e => {
     if (remoteAudio.srcObject !== e.streams[0]) remoteAudio.srcObject = e.streams[0];
@@ -1780,6 +1807,7 @@ async function initiateCall() {
   if (!activeConvId || !activePartner) return;
   if (activeCallId) { showToast('Дзвінок вже активний.'); return; }
   if (!checkWebRTCSupport()) return;
+  await ensureRtcConfig();
 
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -1856,6 +1884,7 @@ async function acceptCall() {
   if (!checkWebRTCSupport()) {
     api('PUT', `/messenger/calls/${callId}/reject`).catch(() => {}); return;
   }
+  await ensureRtcConfig();
 
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });

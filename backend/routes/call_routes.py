@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from flask import Blueprint, jsonify, request, g
 from ..database import get_connection
-from ..config import USE_PG, MESSENGER_CALL_PENDING_TIMEOUT_SECONDS
+from ..config import USE_PG, MESSENGER_CALL_PENDING_TIMEOUT_SECONDS, MESSENGER_ICE_SERVERS
 from .helpers import api_error, auth_required
 
 call_bp = Blueprint('calls', __name__, url_prefix='/api/messenger/calls')
@@ -65,6 +65,18 @@ def _expire_stale_pending_calls(conn, conv_id: int | None = None) -> int:
         tuple(stale_ids),
     )
     return len(stale_ids)
+
+
+@call_bp.get('/config')
+@auth_required
+def call_config():
+    return jsonify({
+        'ok': True,
+        'data': {
+            'pending_timeout_seconds': max(15, int(MESSENGER_CALL_PENDING_TIMEOUT_SECONDS or 45)),
+            'ice_servers': MESSENGER_ICE_SERVERS,
+        },
+    })
 
 
 # ── Ініціювати дзвінок ────────────────────────────────────────────────────────
