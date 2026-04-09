@@ -2527,7 +2527,7 @@ function buildPeerConnection() {
 
   // Queue ICE candidates as they arrive (trickle ICE)
   pc.onicecandidate = (evt) => {
-    if (evt.candidate) {
+    if (evt.candidate && activeCallId) {
       pendingLocalIce.push(evt.candidate);
       flushLocalIce().catch(() => {});
     }
