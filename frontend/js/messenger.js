@@ -2750,10 +2750,20 @@ async function pollCall() {
   if (!activeCallId || !peerConnection) return;
   try {
     const cd = await api('GET', `/messenger/calls/${activeCallId}`);
+    console.log(`[Status] Call #${activeCallId}: ${cd.status} | ICE: ${peerConnection.iceConnectionState} | Signaling: ${peerConnection.signalingState} | Connection: ${peerConnection.connectionState}`);
     if (['rejected', 'ended', 'missed'].includes(cd.status)) {
-      if (cd.status === 'rejected') showToast('Дзвінок відхилено.');
-      if (cd.status === 'ended') showToast('Дзвінок завершено.');
-      if (cd.status === 'missed') showToast('Пропущений дзвінок.');
+      if (cd.status === 'rejected') {
+        console.log('[Status] ❌ Call rejected');
+        showToast('Дзвінок відхилено.');
+      }
+      if (cd.status === 'ended') {
+        console.log('[Status] ✓ Call ended');
+        showToast('Дзвінок завершено.');
+      }
+      if (cd.status === 'missed') {
+        console.log('[Status] ⏱ Call missed');
+        showToast('Пропущений дзвінок.');
+      }
       hangupCall(false, cd.status);
       return;
     }
