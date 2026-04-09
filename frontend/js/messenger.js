@@ -2526,7 +2526,9 @@ function buildPeerConnection() {
 
   pc.oniceconnectionstatechange = () => {
     const st = pc.iceConnectionState;
+    console.log('[ICE] State changed:', st, '| Connection:', pc.connectionState, '| Candidates gathered:', pc.currentLocalDescription?.sdp.split('candidate:').length - 1);
     if (st === 'connected' || st === 'completed') {
+      console.log('[ICE] ✓ Connected!');
       setCallStatusBase('Підключено');
       stopAllCallTones();
       if (!callConnectedOnce) {
@@ -2537,6 +2539,7 @@ function buildPeerConnection() {
       if (!callQualityTimer) startCallQualityMonitor();
       requestCallWakeLock().catch(() => {});
     } else if (st === 'disconnected') {
+      console.log('[ICE] ⚠️ Disconnected, attempting restart');
       setCallStatusBase('Відновлення...');
       // Force ICE restart via new offer
       if (peerConnection && activeCallId) {
@@ -2546,8 +2549,11 @@ function buildPeerConnection() {
       }
       pollCall().catch(() => {});
     } else if (st === 'failed') {
+      console.error('[ICE] ❌ Failed!');
       showToast('З\'єднання перервано.', true);
       hangupCall(true, 'error');
+    } else if (st === 'checking') {
+      console.log('[ICE] 🔍 Checking candidates...');
     }
   };
 
