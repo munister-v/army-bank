@@ -151,7 +151,7 @@ def create_app() -> Flask:
         # Messenger needs microphone for voice messages and WebRTC calls
         is_messenger = norm_path in ('/messenger', '/messenger.html') or norm_path.startswith('/messenger/')
         if is_messenger:
-            resp.headers.setdefault('Permissions-Policy', 'microphone=self, camera=(), geolocation=(), payment=()')
+            resp.headers.setdefault('Permissions-Policy', 'microphone=(self), camera=(), geolocation=(), payment=()')
         else:
             resp.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
 

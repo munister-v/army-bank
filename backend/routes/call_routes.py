@@ -31,15 +31,40 @@ def start_call():
     """Caller надсилає SDP offer, зберігаємо запис в calls."""
     me_id = g.current_user['id']
     data  = request.get_json(force=True) or {}
-    conv_id   = data.get('conversation_id')
+    raw_conv_id = data.get('conversation_id')
     sdp_offer = data.get('sdp_offer')
 
-    if not conv_id or not sdp_offer:
+    if raw_conv_id is None or not sdp_offer:
         return api_error('conversation_id і sdp_offer обов\'язкові.')
+    try:
+        conv_id = int(raw_conv_id)
+    except (TypeError, ValueError):
+        return api_error('conversation_id має бути числом.', 400)
+    sdp_offer = str(sdp_offer).strip()
+    if not sdp_offer:
+        return api_error('sdp_offer порожній.', 400)
+    if len(sdp_offer) > 120_000:
+        return api_error('sdp_offer занадто великий.', 400)
 
     with get_connection() as conn:
-        if not _is_participant(conn, int(conv_id), me_id):
+        if not _is_participant(conn, conv_id, me_id):
             return api_error('Доступ заборонено.', 403)
+
+        # Expire stale pending calls so they don't block new calls forever.
+        if USE_PG:
+            conn.execute(
+                "UPDATE calls SET status='missed', ended_at=NOW() "
+                "WHERE conversation_id = %s AND status = 'pending' "
+                "AND created_at < NOW() - INTERVAL '2 minutes'",
+                (conv_id,),
+            )
+        else:
+            conn.execute(
+                "UPDATE calls SET status='missed', ended_at=datetime('now') "
+                "WHERE conversation_id = %s AND status = 'pending' "
+                "AND created_at < datetime('now', '-2 minutes')",
+                (conv_id,),
+            )
 
         # Відхиляємо якщо вже є активний дзвінок у цій розмові
         active = conn.execute(
@@ -69,7 +94,7 @@ def start_call():
 @call_bp.get('/incoming')
 @auth_required
 def incoming_calls():
-    """Повертає pending/active дзвінки де я є учасником (не caller)."""
+    """Повертає pending дзвінки де я є учасником (не caller)."""
     me_id = g.current_user['id']
     with get_connection() as conn:
         rows = conn.execute(
@@ -82,7 +107,7 @@ def incoming_calls():
             JOIN conversation_participants cp ON cp.conversation_id = c.conversation_id
             WHERE cp.user_id = %s
               AND c.caller_id != %s
-              AND c.status IN ('pending', 'active')
+              AND c.status = 'pending'
             ORDER BY c.created_at DESC
             LIMIT 5
             """,
@@ -121,9 +146,11 @@ def get_call(call_id: int):
 def answer_call(call_id: int):
     me_id = g.current_user['id']
     data  = request.get_json(force=True) or {}
-    sdp_answer = data.get('sdp_answer')
+    sdp_answer = str(data.get('sdp_answer') or '').strip()
     if not sdp_answer:
         return api_error('sdp_answer обов\'язковий.')
+    if len(sdp_answer) > 120_000:
+        return api_error('sdp_answer занадто великий.', 400)
 
     with get_connection() as conn:
         row = conn.execute('SELECT * FROM calls WHERE id = %s', (call_id,)).fetchone()
@@ -190,6 +217,9 @@ def add_ice(call_id: int):
     # Accept string or object
     if isinstance(candidate, dict):
         candidate = json.dumps(candidate)
+    candidate = str(candidate)
+    if len(candidate) > 20_000:
+        return api_error('candidate занадто великий.', 400)
 
     with get_connection() as conn:
         row = conn.execute('SELECT conversation_id FROM calls WHERE id = %s', (call_id,)).fetchone()

@@ -135,11 +135,25 @@ async function api(method, path, body) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (token) opts.headers['Authorization'] = 'Bearer ' + token;
   if (body !== undefined) opts.body = JSON.stringify(body);
-  const res = await fetch(API + path, opts);
+  let res;
+  try {
+    res = await fetch(API + path, opts);
+  } catch (_err) {
+    throw new Error('Мережа недоступна. Перевірте інтернет-з\'єднання.');
+  }
   const newTok = res.headers.get('X-Refresh-Token');
   if (newTok) { token = newTok; localStorage.setItem(TOKEN_KEY, token); }
-  const data = await res.json();
-  if (!data.ok) throw new Error(data.error || 'Помилка запиту');
+  const contentType = (res.headers.get('Content-Type') || '').toLowerCase();
+  let data = null;
+  if (contentType.includes('application/json')) {
+    try { data = await res.json(); } catch (_) { data = null; }
+  } else {
+    const text = await res.text().catch(() => '');
+    if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
+    return null;
+  }
+  if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+  if (!data?.ok) throw new Error(data?.error || 'Помилка запиту');
   return data.data;
 }
 
@@ -316,7 +330,7 @@ function buildConvItem(conv) {
   el.dataset.convId = conv.id;
   const isGroup = !!conv.is_group;
   const name    = convName(conv);
-  const preview = conv.last_message_text || 'Немає повідомлень';
+  const preview = compactPreview(conv.last_message_text);
   const time    = conv.last_message_at ? formatTime(conv.last_message_at) : '';
   const unread  = conv.unread || 0;
   el.innerHTML = `
@@ -456,7 +470,10 @@ async function sendMessage() {
     const msg = await api('POST', `/messenger/conversations/${activeConvId}/messages`, { text });
     appendMessage(msg);
     lastMsgId = msg.id;
-    updateConvItem(activeConvId, { last_message_text: text, last_message_at: msg.created_at });
+    updateConvItem(activeConvId, {
+      last_message_text: conversationPreview(msg),
+      last_message_at: msg.created_at,
+    });
   } catch (err) {
     showToast(err.message, true);
     msgInput.value = text;
@@ -547,6 +564,10 @@ async function sendVoiceMessage() {
     });
     appendMessage(msg);
     lastMsgId = msg.id;
+    updateConvItem(activeConvId, {
+      last_message_text: conversationPreview(msg),
+      last_message_at: msg.created_at,
+    });
   } catch (err) { showToast(err.message, true); }
 }
 
@@ -564,6 +585,8 @@ function blobToBase64(blob) {
 // ════════════════════════════════════════════
 function startGlobalPoll() {
   clearInterval(globalPollTimer);
+  loadConversations().catch(() => {});
+  pollUnreadBadge().catch(() => {});
   globalPollTimer = setInterval(async () => {
     try { await loadConversations(); } catch (_) {}
     try { await pollUnreadBadge(); }  catch (_) {}
@@ -572,6 +595,7 @@ function startGlobalPoll() {
 
 function startConvPoll() {
   clearInterval(convPollTimer);
+  pollNewMessages().catch(() => {});
   convPollTimer = setInterval(pollNewMessages, 3000);
 }
 
@@ -588,7 +612,7 @@ async function pollNewMessages() {
       msgs.forEach(msg => appendMessage(msg));
       lastMsgId = msgs[msgs.length - 1].id;
       updateConvItem(activeConvId, {
-        last_message_text: msgs[msgs.length - 1].text,
+        last_message_text: conversationPreview(msgs[msgs.length - 1]),
         last_message_at:   msgs[msgs.length - 1].created_at,
         unread: 0,
       });
@@ -839,6 +863,7 @@ async function initiateCall() {
 // ── Incoming call detection ────────────────
 function startIncomingCallCheck() {
   clearInterval(incomingCheckTimer);
+  checkIncoming().catch(() => {});
   incomingCheckTimer = setInterval(checkIncoming, 4000);
 }
 
@@ -1017,6 +1042,21 @@ function micError(err) {
 
 function initial(name) { return (name || '?').trim().charAt(0).toUpperCase(); }
 
+function compactPreview(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return 'Немає повідомлень';
+  if (/^[A-Za-z0-9+/=]{120,}$/.test(raw)) return '🎤 Голосове повідомлення';
+  if (raw.length > 180) return raw.slice(0, 177) + '...';
+  return raw;
+}
+
+function conversationPreview(msg) {
+  if (!msg) return 'Нове повідомлення';
+  if (msg.is_deleted) return 'Повідомлення видалено';
+  if ((msg.msg_type || 'text') === 'voice') return '🎤 Голосове повідомлення';
+  return compactPreview(msg.text || 'Нове повідомлення');
+}
+
 function esc(str) {
   return String(str || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -1112,6 +1152,17 @@ if (btnMute)       btnMute.addEventListener('click', toggleMute);
 if (btnAcceptCall) btnAcceptCall.addEventListener('click', acceptCall);
 if (btnRejectCall) btnRejectCall.addEventListener('click', rejectCall);
 
+function bestEffortEndActiveCall() {
+  if (!activeCallId || !token) return;
+  fetch(`${API}/messenger/calls/${activeCallId}/end`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    keepalive: true,
+  }).catch(() => {});
+}
+window.addEventListener('pagehide', bestEffortEndActiveCall);
+window.addEventListener('beforeunload', bestEffortEndActiveCall);
+
 // ════════════════════════════════════════════
 // Boot
 // ════════════════════════════════════════════
@@ -1120,5 +1171,5 @@ else showAuth();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () =>
-    navigator.serviceWorker.register('/sw-messenger.js').catch(() => {}));
+    navigator.serviceWorker.register(`${BASE}/sw-messenger.js`).catch(() => {}));
 }

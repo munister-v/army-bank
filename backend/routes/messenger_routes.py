@@ -72,22 +72,25 @@ def _conv_summary(conv_id: int, me_id: int) -> dict:
     """Повертає summary діалогу для списку розмов."""
     with get_connection() as conn:
         conv = conn.execute(
-            'SELECT id, last_message_at, last_message_text FROM conversations WHERE id = %s',
+            'SELECT id, last_message_at, last_message_text, is_group, group_name FROM conversations WHERE id = %s',
             (conv_id,),
         ).fetchone()
         if not conv:
             return {}
 
-        partner = conn.execute(
-            """
-            SELECT u.id, u.full_name, u.phone, u.role
-            FROM conversation_participants cp
-            JOIN users u ON u.id = cp.user_id
-            WHERE cp.conversation_id = %s AND cp.user_id != %s
-            LIMIT 1
-            """,
-            (conv_id, me_id),
-        ).fetchone()
+        is_group = bool(conv.get('is_group'))
+        partner = None
+        if not is_group:
+            partner = conn.execute(
+                """
+                SELECT u.id, u.full_name, u.phone, u.role
+                FROM conversation_participants cp
+                JOIN users u ON u.id = cp.user_id
+                WHERE cp.conversation_id = %s AND cp.user_id != %s
+                LIMIT 1
+                """,
+                (conv_id, me_id),
+            ).fetchone()
 
         me_part = conn.execute(
             'SELECT last_read_at FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
@@ -112,6 +115,8 @@ def _conv_summary(conv_id: int, me_id: int) -> dict:
 
     return {
         'id': conv['id'],
+        'is_group': is_group,
+        'group_name': conv.get('group_name'),
         'last_message_at': conv['last_message_at'],
         'last_message_text': preview,
         'partner': dict(partner) if partner else None,
@@ -194,12 +199,16 @@ def list_conversations():
 @auth_required
 def open_conversation():
     data = request.get_json(force=True) or {}
-    partner_id = data.get('user_id')
-    if not partner_id:
+    raw_partner_id = data.get('user_id')
+    if raw_partner_id is None:
         return api_error("user_id обов'язковий.")
+    try:
+        partner_id = int(raw_partner_id)
+    except (TypeError, ValueError):
+        return api_error('user_id має бути числом.', 400)
 
     me_id = g.current_user['id']
-    if int(partner_id) == me_id:
+    if partner_id == me_id:
         return api_error('Не можна писати самому собі.')
 
     with get_connection() as conn:
@@ -207,7 +216,7 @@ def open_conversation():
     if not partner:
         return api_error('Користувача не знайдено.', 404)
 
-    conv_id = _get_or_create_conversation(me_id, int(partner_id))
+    conv_id = _get_or_create_conversation(me_id, partner_id)
     summary = _conv_summary(conv_id, me_id)
     return jsonify({'ok': True, 'data': summary})
 
@@ -219,7 +228,10 @@ def open_conversation():
 def get_messages(conv_id: int):
     me_id = g.current_user['id']
     before_id = request.args.get('before_id', type=int)
-    limit = min(int(request.args.get('limit', 50)), 100)
+    limit = request.args.get('limit', default=50, type=int)
+    if limit is None or limit < 1:
+        limit = 50
+    limit = min(limit, 100)
 
     with get_connection() as conn:
         part = conn.execute(
@@ -314,6 +326,10 @@ def send_message(conv_id: int):
             ).fetchone()['created_at']
 
         preview = safe_preview() if msg_type == 'voice' else safe_preview()
+        if msg_type == 'voice':
+            preview = '🎤 Голосове повідомлення'
+        else:
+            preview = text[:180]
         conn.execute(
             f'UPDATE conversations SET last_message_at = {_now_sql()}, last_message_text = %s WHERE id = %s',
             (preview, conv_id),
@@ -429,6 +445,16 @@ def create_group():
 
     _true = True if USE_PG else 1
 
+    normalized_ids: list[int] = []
+    for uid in member_ids:
+        try:
+            user_id = int(uid)
+        except (TypeError, ValueError):
+            continue
+        if user_id != me_id and user_id not in normalized_ids:
+            normalized_ids.append(user_id)
+    normalized_ids = normalized_ids[:50]
+
     with get_connection() as conn:
         if USE_PG:
             cur = conn.execute(
@@ -448,19 +474,23 @@ def create_group():
             'INSERT INTO conversation_participants(conversation_id, user_id) VALUES(%s,%s)',
             (conv_id, me_id),
         )
-        # Add members (skip duplicates)
-        for uid in member_ids:
+        # Add members (skip missing users and duplicates)
+        for uid in normalized_ids:
+            user_exists = conn.execute('SELECT id FROM users WHERE id = %s', (uid,)).fetchone()
+            if not user_exists:
+                continue
             try:
-                uid = int(uid)
-                if uid != me_id:
-                    conn.execute(
-                        'INSERT INTO conversation_participants(conversation_id, user_id) VALUES(%s,%s)',
-                        (conv_id, uid),
-                    )
+                conn.execute(
+                    'INSERT INTO conversation_participants(conversation_id, user_id) VALUES(%s,%s)',
+                    (conv_id, uid),
+                )
             except Exception:
                 pass
 
-    return jsonify({'ok': True, 'data': {'id': conv_id, 'group_name': name, 'is_group': True}})
+    summary = _conv_summary(conv_id, me_id)
+    if not summary:
+        return api_error('Не вдалося створити групу.', 500)
+    return jsonify({'ok': True, 'data': summary})
 
 
 @messenger_bp.post('/conversations/<int:conv_id>/members')
@@ -473,12 +503,23 @@ def add_member(conv_id: int):
         return api_error("user_id обов'язковий.")
 
     with get_connection() as conn:
+        conv = conn.execute(
+            'SELECT is_group FROM conversations WHERE id = %s',
+            (conv_id,),
+        ).fetchone()
+        if not conv:
+            return api_error('Розмову не знайдено.', 404)
+        if not bool(conv.get('is_group')):
+            return api_error('Учасників можна додавати лише в групові чати.', 400)
         part = conn.execute(
             'SELECT id FROM conversation_participants WHERE conversation_id=%s AND user_id=%s',
             (conv_id, me_id),
         ).fetchone()
         if not part:
             return api_error('Доступ заборонено.', 403)
+        user_exists = conn.execute('SELECT id FROM users WHERE id = %s', (int(new_uid),)).fetchone()
+        if not user_exists:
+            return api_error('Користувача не знайдено.', 404)
         try:
             conn.execute(
                 'INSERT INTO conversation_participants(conversation_id, user_id) VALUES(%s,%s)',
@@ -495,12 +536,26 @@ def add_member(conv_id: int):
 def remove_member(conv_id: int, uid: int):
     me_id = g.current_user['id']
     with get_connection() as conn:
+        conv = conn.execute(
+            'SELECT is_group FROM conversations WHERE id = %s',
+            (conv_id,),
+        ).fetchone()
+        if not conv:
+            return api_error('Розмову не знайдено.', 404)
+        if not bool(conv.get('is_group')):
+            return api_error('Учасників можна видаляти лише з групового чату.', 400)
         part = conn.execute(
             'SELECT id FROM conversation_participants WHERE conversation_id=%s AND user_id=%s',
             (conv_id, me_id),
         ).fetchone()
         if not part:
             return api_error('Доступ заборонено.', 403)
+        member = conn.execute(
+            'SELECT id FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
+            (conv_id, uid),
+        ).fetchone()
+        if not member:
+            return api_error('Учасника не знайдено.', 404)
         conn.execute(
             'DELETE FROM conversation_participants WHERE conversation_id=%s AND user_id=%s',
             (conv_id, uid),
