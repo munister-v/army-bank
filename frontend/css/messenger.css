@@ -1112,6 +1112,53 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   }
   .photo-viewer-nav.prev { left: 8px; }
   .photo-viewer-nav.next { right: 8px; }
+
+  .call-incoming {
+    left: max(10px, env(safe-area-inset-left, 0px));
+    right: max(10px, env(safe-area-inset-right, 0px));
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    width: auto;
+    animation: fadeSlideUp .24s ease;
+  }
+
+  .call-incoming-card {
+    width: 100%;
+    min-width: 0;
+    border-radius: 18px;
+    padding: 18px 14px 16px;
+    gap: 8px;
+    box-shadow: 0 12px 28px rgba(15, 32, 24, .2);
+  }
+
+  .call-avatar {
+    width: 54px;
+    height: 54px;
+    font-size: 20px;
+  }
+
+  .call-caller-name {
+    font-size: 24px;
+    line-height: 1.12;
+    text-align: center;
+    word-break: break-word;
+  }
+
+  .call-label {
+    font-size: 15px;
+  }
+
+  .call-incoming-btns {
+    width: 100%;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 4px;
+  }
+
+  .btn-call-reject,
+  .btn-call-accept {
+    width: 66px;
+    height: 66px;
+  }
 }
 
 [hidden] { display: none !important; }

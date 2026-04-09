@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '11';
+const MESSENGER_ASSET_VERSION = '12';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 
@@ -1413,6 +1413,36 @@ function checkWebRTCSupport() {
   return true;
 }
 
+function normalizeSdp(raw, label = 'SDP') {
+  let sdp = raw;
+
+  if (sdp && typeof sdp === 'object' && typeof sdp.sdp === 'string') {
+    sdp = sdp.sdp;
+  }
+
+  if (typeof sdp !== 'string') sdp = String(sdp || '');
+  sdp = sdp.trim();
+  if (!sdp) throw new Error(`${label} порожній.`);
+
+  // Legacy compatibility: some clients stored JSON wrapper or escaped newlines.
+  if (sdp[0] === '{' || sdp[0] === '"') {
+    try {
+      const parsed = JSON.parse(sdp);
+      if (parsed && typeof parsed.sdp === 'string') sdp = parsed.sdp;
+      else if (typeof parsed === 'string') sdp = parsed;
+    } catch (_) {}
+  }
+
+  if (sdp.includes('\\r\\n')) sdp = sdp.replace(/\\r\\n/g, '\r\n');
+  if (sdp.includes('\\n') && !sdp.includes('\n')) sdp = sdp.replace(/\\n/g, '\n');
+  sdp = sdp.replace(/\r?\n/g, '\r\n').trim();
+
+  if (!/^v=0(?:\r\n|\n)/.test(sdp)) {
+    throw new Error(`Некоректний формат ${label.toLowerCase()}.`);
+  }
+  return sdp;
+}
+
 function buildPeerConnection() {
   const pc = new RTCPeerConnection(STUN_SERVERS);
 
@@ -1546,11 +1576,13 @@ async function acceptCall() {
     pendingLocalIce  = [];
     pendingRemoteIce = [];
 
-    await peerConnection.setRemoteDescription({ type: 'offer', sdp: callData.sdp_offer });
+    const offerSdp = normalizeSdp(callData.sdp_offer, 'SDP offer');
+    await peerConnection.setRemoteDescription({ type: 'offer', sdp: offerSdp });
     remoteSdpSet = true;
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
-    await api('PUT', `/messenger/calls/${callId}/answer`, { sdp_answer: answer.sdp });
+    const answerSdp = normalizeSdp(answer.sdp || peerConnection?.localDescription?.sdp || '', 'SDP answer');
+    await api('PUT', `/messenger/calls/${callId}/answer`, { sdp_answer: answerSdp });
 
     activeCallId  = callId;
     icePollLastId = 0;
@@ -1558,7 +1590,8 @@ async function acceptCall() {
     showCallScreen(callData.caller_name || 'Дзвінок', 'З\'єднання...');
     startCallPoll();
   } catch (err) {
-    showToast(err.message, true);
+    showToast(err.message || 'Помилка підключення дзвінка.', true);
+    api('PUT', `/messenger/calls/${callId}/reject`).catch(() => {});
     cleanupPeer();
   }
 }
@@ -1586,7 +1619,8 @@ async function pollCall() {
         hangupCall(false); return;
       }
       if (cd.status === 'active' && cd.sdp_answer) {
-        await peerConnection.setRemoteDescription({ type: 'answer', sdp: cd.sdp_answer });
+        const answerSdp = normalizeSdp(cd.sdp_answer, 'SDP answer');
+        await peerConnection.setRemoteDescription({ type: 'answer', sdp: answerSdp });
         remoteSdpSet = true;
         callScreenStatus.textContent = 'З\'єднання...';
         await flushRemoteIce(peerConnection);
