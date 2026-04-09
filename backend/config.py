@@ -41,6 +41,9 @@ _default_ice_servers = [
     {'urls': 'stun:stun1.l.google.com:19302'},
 ]
 _ice_json = os.getenv('MESSENGER_ICE_SERVERS', '').strip()
+_turn_urls_raw = os.getenv('MESSENGER_TURN_URLS', '').strip()
+_turn_username = os.getenv('MESSENGER_TURN_USERNAME', '').strip()
+_turn_credential = os.getenv('MESSENGER_TURN_CREDENTIAL', '').strip()
 if _ice_json:
     try:
         _parsed_ice = json.loads(_ice_json)
@@ -51,7 +54,18 @@ if _ice_json:
     except Exception:
         MESSENGER_ICE_SERVERS = _default_ice_servers
 else:
-    MESSENGER_ICE_SERVERS = _default_ice_servers
+    _turn_urls = [u.strip() for u in _turn_urls_raw.split(',') if u.strip()]
+    if _turn_urls and _turn_username and _turn_credential:
+        MESSENGER_ICE_SERVERS = [
+            *_default_ice_servers,
+            {
+                'urls': _turn_urls,
+                'username': _turn_username,
+                'credential': _turn_credential,
+            },
+        ]
+    else:
+        MESSENGER_ICE_SERVERS = _default_ice_servers
 
 # Примітивний anti-bruteforce rate-limit для auth endpoints
 AUTH_RATE_LIMIT_ENABLED = (os.getenv('AUTH_RATE_LIMIT_ENABLED', '1') == '1')

@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '18';
+const MESSENGER_ASSET_VERSION = '19';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -99,6 +99,7 @@ let callQualityLabel = '';
 let callStatusBase = 'З\'єднання...';
 let callWakeLock = null;
 let callBackgroundNotifiedForId = null;
+let turnHintShown = false;
 
 // ── Call audio state ───────────────────────
 let callAudioCtx       = null;
@@ -1526,6 +1527,14 @@ function sanitizeIceServers(servers) {
   return out.length ? out : [...DEFAULT_ICE_SERVERS];
 }
 
+function hasTurnServer(config) {
+  const list = Array.isArray(config?.iceServers) ? config.iceServers : [];
+  return list.some(server => {
+    const urls = Array.isArray(server?.urls) ? server.urls : [server?.urls];
+    return urls.some(url => /^turns?:/i.test(String(url || '').trim()));
+  });
+}
+
 async function ensureRtcConfig() {
   if (rtcConfigLoaded || !token) return;
   rtcConfigLoaded = true;
@@ -1534,6 +1543,10 @@ async function ensureRtcConfig() {
     rtcConfig = { iceServers: sanitizeIceServers(cfg?.ice_servers) };
   } catch (_) {
     rtcConfig = { iceServers: [...DEFAULT_ICE_SERVERS] };
+  }
+  if (!turnHintShown && !hasTurnServer(rtcConfig)) {
+    turnHintShown = true;
+    showToast('Рекомендується налаштувати TURN у Render для стабільних дзвінків.');
   }
 }
 
@@ -1555,6 +1568,12 @@ async function requestCallWakeLock() {
     callWakeLock = await navigator.wakeLock.request('screen');
     callWakeLock.addEventListener('release', () => { callWakeLock = null; });
   } catch (_) {}
+}
+
+async function ensureNotificationPermissionInteractive() {
+  if (!window.Notification) return;
+  if (Notification.permission !== 'default') return;
+  try { await Notification.requestPermission(); } catch (_) {}
 }
 
 async function releaseCallWakeLock() {
@@ -1983,6 +2002,7 @@ async function initiateCall() {
   if (activeCallId) { showToast('Дзвінок вже активний.'); return; }
   if (callAcceptInProgress) return;
   if (!checkWebRTCSupport()) return;
+  ensureNotificationPermissionInteractive().catch(() => {});
   await ensureRtcConfig();
 
   try {
@@ -2075,6 +2095,7 @@ async function acceptCall() {
     callAcceptInProgress = false;
     api('PUT', `/messenger/calls/${callId}/reject`).catch(() => {}); return;
   }
+  ensureNotificationPermissionInteractive().catch(() => {});
   await ensureRtcConfig();
 
   try {

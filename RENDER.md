@@ -68,6 +68,19 @@ git push -u origin main
 
 **DATABASE_URL** не потрібно — залишаємо SQLite.
 
+### Для стабільних дзвінків (WebRTC / TURN)
+
+Додай ще змінні (у Web Service → Environment):
+
+| Key | Value |
+|-----|-------|
+| `MESSENGER_CALL_PENDING_TIMEOUT_SECONDS` | `45` |
+| `MESSENGER_TURN_URLS` | `turn:your-turn-host:3478,turns:your-turn-host:5349?transport=tcp` |
+| `MESSENGER_TURN_USERNAME` | `your_turn_user` |
+| `MESSENGER_TURN_CREDENTIAL` | `your_turn_password` |
+
+Альтернатива: можна задати один JSON-параметр `MESSENGER_ICE_SERVERS`, але через окремі `MESSENGER_TURN_*` простіше не помилитися у форматі.
+
 ---
 
 ## 6. Деплой
