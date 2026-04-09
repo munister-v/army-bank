@@ -109,6 +109,12 @@ img { display: block; max-width: 100%; }
   border: 1px solid rgba(212,196,181,.3);
   display: flex; align-items: center; justify-content: center;
 }
+.auth-logo-mark img {
+  width: 46px;
+  height: 46px;
+  display: block;
+  border-radius: 14px;
+}
 .auth-logo h1 {
   font-family: var(--font-serif);
   font-size: 32px; font-weight: 300;
@@ -757,6 +763,13 @@ select option { background: #0d0d0d; color: #e5e5e5; }
   gap: 14px; padding: 36px 28px; max-width: 340px; width: 100%;
 }
 .pin-logo { font-size: 52px; line-height: 1; }
+.pin-logo img {
+  width: 52px;
+  height: 52px;
+  display: block;
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.26);
+}
 .pin-title { font-size: 28px; font-weight: 700; color: var(--text); }
 .pin-subtitle { font-size: 14px; color: var(--muted); text-align: center; }
 .pin-dots { display: flex; gap: 18px; margin: 10px 0; }

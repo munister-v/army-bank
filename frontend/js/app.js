@@ -330,6 +330,10 @@ function stopNotifPolling() {
 async function performLogout(options = {}) {
   const showMessage = options.showMessage !== false;
   const reason = options.reason || '';
+  if (options.confirm === true) {
+    const ok = window.confirm('Вийти з акаунту ARM Bank?');
+    if (!ok) return false;
+  }
   stopPolling();
   stopNotifPolling();
   clearBootstrapRetryTimer();
@@ -345,6 +349,10 @@ async function performLogout(options = {}) {
     else if (reason === 'expired') showToast('Термін дії сесії вичерпано. Увійдіть повторно.', 'warning');
     else showToast('Ви вийшли з системи.');
   }
+  if (options.broadcast !== false) {
+    try { window._bcChannel?.postMessage({ type: 'LOGOUT' }); } catch (_) {}
+  }
+  return true;
 }
 
 function isAuthErrorResponse(error) {
@@ -2771,7 +2779,7 @@ $$('.auth-tab').forEach((tab) => {
 
 // Logout (header button)
 $('#logoutBtn')?.addEventListener('click', async () => {
-  await performLogout();
+  await performLogout({ confirm: true });
 });
 
 // ── Push notification bell button ─────────────────────────
@@ -4043,13 +4051,6 @@ async function loadForecast() {
     await _origRefreshAllData();
     bc.postMessage({ type: 'DATA_UPDATED' });
   };
-
-  const logoutBtn = $('#logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      bc.postMessage({ type: 'LOGOUT' });
-    });
-  }
 })();
 
 // ═══════════════════════════════════════════════════════════
@@ -4160,7 +4161,7 @@ $('#pinBackBtn')?.addEventListener('click', function() {
 
 $('#pinLogoutBtn')?.addEventListener('click', async function() {
   hidePinLock();
-  await performLogout();
+  await performLogout({ confirm: true });
 });
 
 async function checkPinStatus() {
