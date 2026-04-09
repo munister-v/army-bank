@@ -438,6 +438,16 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   gap: 6px;
 }
 .chat-header-status { font-size: 12px; color: var(--text-2); font-family: var(--font-mono); margin-top: 1px; }
+.chat-header-info {
+  min-width: 0;
+  flex: 1;
+}
+.chat-header-name,
+.chat-header-status {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .assistant-panel {
   margin: 12px 24px 0;
@@ -549,6 +559,7 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .msg-bubble-wrap.me { align-self: flex-end; flex-direction: row-reverse; }
 .msg-bubble-wrap.them { align-self: flex-start; }
+.msg-bubble-wrap.them.assistant { max-width: min(78%, 760px); }
 
 .msg-sender-avatar {
   width: 28px; height: 28px; border-radius: 50%; background: var(--blue-light);
@@ -581,14 +592,17 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
-  word-break: break-all;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .msg-bubble-wrap.me .msg-link {
   color: rgba(255,255,255,.95);
 }
 
 .assistant-statement-bubble {
-  min-width: min(460px, 76vw);
+  min-width: min(420px, 100%);
+  width: min(100%, 520px);
+  max-width: 100%;
   border-radius: 16px;
   background: linear-gradient(152deg, #ffffff, #f4fbf7);
   border: 1px solid rgba(31,107,76,.2);
@@ -791,12 +805,13 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 
 /* Bank tools modal */
 .btn-primary.btn-secondary {
-  background: #eef4ff;
-  color: #284e9e;
-  border: 1px solid #c8d7f9;
+  background: #edf5f0;
+  color: #1f6b4c;
+  border: 1px solid #cfe0d6;
 }
 .btn-primary.btn-secondary:hover {
-  background: #deebff;
+  background: #e4efe8;
+  border-color: #bfd4c7;
 }
 .bank-tools-list {
   padding: 12px 16px 18px;
@@ -897,11 +912,13 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 .icon-btn:hover { background: var(--blue-light); color: var(--blue); }
 
 .toast {
-  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(12px);
+  position: fixed; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%) translateY(12px);
   background: var(--surface); border: 1px solid var(--border); color: var(--text);
   font-size: 13px; padding: 10px 20px; border-radius: 24px; box-shadow: var(--shadow-lg);
   opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s;
-  white-space: nowrap; z-index: 999; max-width: calc(100vw - 32px);
+  white-space: normal; text-align: center; line-height: 1.35;
+  z-index: 999; max-width: min(calc(100vw - 24px), 720px);
+  overflow-wrap: anywhere;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.error { border-color: rgba(239,68,68,.3); color: var(--red); }
@@ -1322,6 +1339,15 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   font-size: 11px;
   color: #5f786a;
 }
+.group-preview-info {
+  min-width: 0;
+}
+.group-preview-name,
+.group-preview-sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .group-preview-badges {
   display: flex;
   align-items: center;
@@ -1556,8 +1582,38 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   .msg-bubble-wrap { max-width: 85%; }
   .messages-wrap { padding: 14px 12px; }
   .messages-list { width: 100%; }
-  .msg-input-bar { padding: 10px 12px; }
-  .chat-header { padding: 12px 14px; }
+  .msg-input-bar {
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  .chat-header {
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 12px;
+    gap: 10px;
+  }
+  .sidebar-header {
+    padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  }
+  .chat-header-avatar {
+    width: 38px;
+    height: 38px;
+    font-size: 14px;
+  }
+  .chat-header-name {
+    font-size: 14px;
+  }
+  .chat-header-status {
+    font-size: 11px;
+  }
+  .chat-header-actions {
+    gap: 2px;
+  }
+  .chat-header-actions .icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+  .chat-header-actions [data-open-call-settings],
+  .chat-header-actions #btn-bank-tools {
+    display: none;
+  }
   .assistant-panel {
     margin: 8px 12px 0;
     padding: 12px;

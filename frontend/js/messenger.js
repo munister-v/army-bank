@@ -270,7 +270,16 @@ async function api(method, path, body) {
 // Toast
 // ════════════════════════════════════════════
 function showToast(msg, isError = false) {
-  toast.textContent = msg;
+  let text = String(msg ?? '').replace(/\s+/g, ' ').trim();
+  if (isError) {
+    if (/Invalid SDP line|Failed to parse SessionDescription|parse SessionDescription|OperationError/i.test(text)) {
+      text = 'Помилка сумісності дзвінка (SDP). Перезапустіть дзвінок або оновіть сторінку.';
+    } else if (text.length > 190) {
+      text = `${text.slice(0, 187)}...`;
+    }
+  }
+  if (!text) text = isError ? 'Сталася помилка.' : 'Готово';
+  toast.textContent = text;
   toast.classList.toggle('error', isError);
   toast.classList.add('show');
   clearTimeout(toastTimer);
@@ -923,7 +932,9 @@ function parseAssistantStatementInfo(rawText) {
   if (!linkMatch) return null;
   const cleaned = trimLinkTail(linkMatch[1]);
   const link = cleaned.value;
-  const periodMatch = text.match(/\((\d{4}-\d{2}-\d{2}\s*→\s*\d{4}-\d{2}-\d{2})\)/);
+  const periodMatch = text.match(
+    /(?:\(|Період:\s*)(\d{4}-\d{2}-\d{2}\s*(?:→|->)\s*\d{4}-\d{2}-\d{2})\)?/i
+  );
   const kind = /\/api\/transactions\/export\?/i.test(link) || /\bcsv\b/i.test(text) ? 'CSV' : 'PDF';
   const summaryRaw = text.split(/завантажити:/i)[0] || '';
   return {
@@ -948,7 +959,7 @@ function buildAssistantStatementBubble(rawText) {
       </div>
     </div>
     <div class="assistant-statement-summary">${formatMessageTextHtml(info.summary)}</div>
-    <a class="assistant-statement-btn" href="${escapeAttr(info.link)}" target="_blank" rel="noopener noreferrer">Відкрити ${esc(info.kind)}</a>
+    <a class="assistant-statement-btn" href="${escapeAttr(info.link)}" target="_blank" rel="noopener noreferrer" data-protected-download="1" data-file-kind="${esc(info.kind)}">Відкрити ${esc(info.kind)}</a>
     <div class="assistant-statement-note">Завантаження відкриється в захищеному режимі Army Bank.</div>
   </div>`;
 }
@@ -3113,6 +3124,35 @@ convSearch.addEventListener('input', () => renderConvList(convData));
 if (messagesList) {
   messagesList.addEventListener('click', e => {
     if (!(e.target instanceof Element)) return;
+    const dlBtn = e.target.closest('.assistant-statement-btn[data-protected-download="1"]');
+    if (dlBtn) {
+      e.preventDefault();
+      const href = String(dlBtn.getAttribute('href') || '').trim();
+      if (!href) {
+        showToast('Посилання на виписку недоступне.', true);
+        return;
+      }
+      const kind = String(dlBtn.getAttribute('data-file-kind') || 'PDF').toUpperCase();
+      const fallbackName = kind === 'CSV' ? 'armybank_statement.csv' : 'armybank_statement.pdf';
+      downloadProtectedFile(href, fallbackName)
+        .then(() => showToast(`${kind}-виписку завантажено.`))
+        .catch(err => showToast(err?.message || 'Не вдалося завантажити виписку.', true));
+      return;
+    }
+    const msgLink = e.target.closest('.msg-link');
+    if (msgLink) {
+      const href = String(msgLink.getAttribute('href') || '').trim();
+      if (/\/api\/transactions\/(?:statement|export)\?/i.test(href)) {
+        e.preventDefault();
+        const isCsv = /\/api\/transactions\/export\?/i.test(href);
+        const fallbackName = isCsv ? 'armybank_statement.csv' : 'armybank_statement.pdf';
+        const label = isCsv ? 'CSV' : 'PDF';
+        downloadProtectedFile(href, fallbackName)
+          .then(() => showToast(`${label}-виписку завантажено.`))
+          .catch(err => showToast(err?.message || 'Не вдалося завантажити виписку.', true));
+      }
+      return;
+    }
     const tile = e.target.closest('.photo-tile');
     if (!tile) return;
     const msgId = String(tile.dataset.photoMsg || '');
