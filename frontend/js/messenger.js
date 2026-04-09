@@ -44,6 +44,8 @@ let recordStartInFlight = false;
 let holdPointerActive = false;
 let holdPointerId = null;
 let cancelPendingStart = false;
+let holdStartX = 0;
+let holdCancelTriggered = false;
 
 // ── Call state ─────────────────────────────
 let activeCallId       = null;
@@ -94,6 +96,7 @@ const btnVoice          = $('btn-voice');
 const msgInputBar       = $('msg-input-bar');
 const recordingIndicator= $('recording-indicator');
 const recordingTime     = $('recording-time');
+const recordingSwipeHint= $('recording-swipe-hint');
 const btnCancelRecord   = $('btn-cancel-record');
 const btnBack           = $('btn-back');
 const btnNewChat        = $('btn-new-chat');
@@ -522,6 +525,7 @@ function appendMessage(msg) {
 // ════════════════════════════════════════════
 const MAX_REC_SECONDS = 90;
 const MIN_REC_MS = 450;
+const HOLD_CANCEL_SWIPE_PX = 72;
 
 async function toggleRecording() {
   if (isRecording) { stopRecording(true); return; }
@@ -591,6 +595,7 @@ function stopRecording(shouldSend = true) {
   recordingShouldSend = shouldSend;
   holdPointerActive = false;
   holdPointerId = null;
+  holdCancelTriggered = false;
   cancelPendingStart = false;
   btnVoice.classList.remove('recording');
   btnVoice.title = 'Утримуйте для запису';
@@ -603,10 +608,13 @@ function handleVoicePointerDown(e) {
   e.preventDefault();
   holdPointerActive = true;
   holdPointerId = (e.pointerId ?? null);
+  holdStartX = Number(e.clientX || 0);
+  holdCancelTriggered = false;
   cancelPendingStart = false;
   if (btnVoice.setPointerCapture && holdPointerId !== null) {
     try { btnVoice.setPointerCapture(holdPointerId); } catch (_) {}
   }
+  setSwipeProgress(0);
   startRecording().catch(() => {});
 }
 
@@ -616,6 +624,7 @@ function handleVoicePointerUp(e) {
   e.preventDefault();
   holdPointerActive = false;
   holdPointerId = null;
+  if (holdCancelTriggered) return;
   if (recordStartInFlight && !isRecording) {
     cancelPendingStart = true;
     return;
@@ -633,6 +642,20 @@ function handleVoicePointerCancel(e) {
     return;
   }
   if (isRecording) stopRecording(false);
+}
+
+function handleVoicePointerMove(e) {
+  if (!holdPointerActive) return;
+  if (holdPointerId !== null && e.pointerId !== undefined && e.pointerId !== holdPointerId) return;
+  const dx = Number(e.clientX || holdStartX) - holdStartX; // swipe left => negative
+  const leftDistance = Math.max(0, -dx);
+  const progress = Math.min(1, leftDistance / HOLD_CANCEL_SWIPE_PX);
+  setSwipeProgress(progress);
+  if (progress >= 1 && !holdCancelTriggered) {
+    holdCancelTriggered = true;
+    showToast('Запис скасовано');
+    handleVoicePointerCancel(e);
+  }
 }
 
 async function sendVoiceMessage() {
@@ -671,6 +694,21 @@ function setRecordingUI(on) {
   if (msgInputBar) msgInputBar.classList.toggle('recording-mode', on);
   if (recordingIndicator) recordingIndicator.hidden = !on;
   if (recordingTime && on) recordingTime.textContent = '00:00';
+  if (recordingSwipeHint && on) recordingSwipeHint.textContent = 'Свайп ← для скасування';
+  setSwipeProgress(0);
+}
+
+function setSwipeProgress(progress) {
+  const clamped = Math.max(0, Math.min(1, Number(progress || 0)));
+  if (recordingIndicator) {
+    recordingIndicator.style.setProperty('--swipe-progress', String(clamped));
+    recordingIndicator.classList.toggle('swiping', clamped > 0.01);
+  }
+  if (recordingSwipeHint) {
+    if (clamped >= 1) recordingSwipeHint.textContent = 'Скасування...';
+    else if (clamped > 0.2) recordingSwipeHint.textContent = 'Тягніть ще ←';
+    else recordingSwipeHint.textContent = 'Свайп ← для скасування';
+  }
 }
 
 // ════════════════════════════════════════════
@@ -1243,6 +1281,7 @@ btnVoice.addEventListener('click', e => {
   toggleRecording().catch(() => {});
 });
 btnVoice.addEventListener('pointerdown', handleVoicePointerDown);
+btnVoice.addEventListener('pointermove', handleVoicePointerMove);
 btnVoice.addEventListener('pointerup', handleVoicePointerUp);
 btnVoice.addEventListener('pointercancel', handleVoicePointerCancel);
 btnVoice.addEventListener('lostpointercapture', handleVoicePointerCancel);
