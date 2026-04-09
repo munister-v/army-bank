@@ -119,7 +119,7 @@ def create_app() -> Flask:
         resp.headers['X-Content-Type-Options'] = 'nosniff'
         resp.headers.setdefault('X-Frame-Options', 'DENY')
         resp.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
-        resp.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
+        # Permissions-Policy set below, after norm_path is known (messenger needs microphone)
         resp.headers.setdefault('Cross-Origin-Opener-Policy', 'same-origin')
         resp.headers.setdefault('Cross-Origin-Resource-Policy', 'same-origin')
         req_id = str(getattr(g, 'request_id', '') or '').strip()
@@ -147,6 +147,13 @@ def create_app() -> Flask:
             norm_path = norm_path[len(prefix):]
         elif prefix and norm_path == prefix:
             norm_path = '/'
+
+        # Messenger needs microphone for voice messages and WebRTC calls
+        is_messenger = norm_path in ('/messenger', '/messenger.html') or norm_path.startswith('/messenger/')
+        if is_messenger:
+            resp.headers.setdefault('Permissions-Policy', 'microphone=self, camera=(), geolocation=(), payment=()')
+        else:
+            resp.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
 
         content_type = (resp.headers.get('Content-Type') or '').lower()
         is_html = 'text/html' in content_type

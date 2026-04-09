@@ -136,6 +136,18 @@ html, body {
 
 .auth-hint { text-align: center; font-size: 13px; color: var(--muted); margin-top: 24px; }
 
+.auth-switch {
+  text-align: center; font-size: 13px; color: var(--text-2); margin-top: 20px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.auth-switch-link {
+  background: none; border: none; cursor: pointer;
+  color: var(--blue); font-size: 13px; font-weight: 600;
+  padding: 0; text-decoration: underline; text-underline-offset: 2px;
+  transition: color .15s;
+}
+.auth-switch-link:hover { color: var(--blue-hover); }
+
 /* Right branded panel */
 .auth-brand-panel {
   flex: 1;

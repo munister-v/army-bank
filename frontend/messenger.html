@@ -27,9 +27,23 @@
   <!-- Left: login form -->
   <div class="auth-form-panel">
     <div class="auth-form-inner">
-      <h1 class="auth-form-title">Вхід</h1>
+      <h1 class="auth-form-title" id="auth-form-title">Вхід</h1>
 
       <form id="login-form" novalidate>
+        <!-- Register-only fields -->
+        <div id="auth-register-fields" hidden>
+          <div class="field-group">
+            <label class="field-label" for="auth-full-name">Повне ім'я</label>
+            <input id="auth-full-name" class="field-input" type="text"
+                   placeholder="Іван Петренко" autocomplete="name"/>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="auth-phone">Телефон <span style="font-weight:400;opacity:.6">(необов'язково)</span></label>
+            <input id="auth-phone" class="field-input" type="tel"
+                   placeholder="+380XXXXXXXXX" autocomplete="tel" inputmode="tel"/>
+          </div>
+        </div>
+
         <div class="field-group">
           <label class="field-label" for="auth-identity">Телефон або Email</label>
           <input id="auth-identity" class="field-input" type="text"
@@ -59,7 +73,10 @@
         </button>
       </form>
 
-      <p class="auth-hint">Використовуйте дані від Army Bank.</p>
+      <p class="auth-switch">
+        <span id="auth-switch-hint">Немає акаунту?</span>
+        <button type="button" class="auth-switch-link" id="auth-switch-btn">Зареєструватися</button>
+      </p>
     </div>
   </div>
 
