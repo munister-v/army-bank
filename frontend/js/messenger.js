@@ -98,6 +98,8 @@ let callAcceptInProgress = false;
 let callStartAtMs = 0;
 let callQualityTimer = null;
 let callQualityLabel = '';
+let callRouteLabel = '';
+let callFailureReason = '';
 let callStatusBase = 'З\'єднання...';
 let callWakeLock = null;
 let callBackgroundNotifiedForId = null;
@@ -2276,7 +2278,14 @@ function waitForIceGathering(pc, timeoutMs = 7000) {
 }
 
 function renderCallStatus() {
-  const suffix = (callStatusBase === 'Підключено' && callQualityLabel) ? ` · ${callQualityLabel}` : '';
+  const suffixParts = [];
+  if ((callStatusBase === 'Підключено' || callStatusBase.startsWith('Відновлення')) && callQualityLabel) {
+    suffixParts.push(callQualityLabel);
+  }
+  if ((callStatusBase === 'Підключено' || callStatusBase.startsWith('Відновлення')) && callRouteLabel) {
+    suffixParts.push(callRouteLabel);
+  }
+  const suffix = suffixParts.length ? ` · ${suffixParts.join(' · ')}` : '';
   if (callScreenStatus) callScreenStatus.textContent = `${callStatusBase}${suffix}`;
 }
 
@@ -2631,6 +2640,7 @@ function stopCallQualityMonitor() {
     callQualityTimer = null;
   }
   callQualityLabel = '';
+  callRouteLabel = '';
 }
 
 function clearIceRecoveryTimer() {
@@ -2708,6 +2718,7 @@ async function sampleCallQuality() {
     let jitter = null;
     let rtt = null;
     let lossRatio = null;
+    let selectedPair = null;
     stats.forEach(report => {
       if (report.type === 'remote-inbound-rtp' && report.kind === 'audio') {
         if (Number.isFinite(report.jitter)) jitter = report.jitter;
@@ -2717,6 +2728,7 @@ async function sampleCallQuality() {
         if (recv > 0 && lost >= 0) lossRatio = Math.max(0, lost / (recv + lost));
       } else if (report.type === 'candidate-pair' && report.state === 'succeeded') {
         if (Number.isFinite(report.currentRoundTripTime)) rtt = report.currentRoundTripTime;
+        if (report.selected || report.nominated || !selectedPair) selectedPair = report;
       }
     });
 
@@ -2736,6 +2748,20 @@ async function sampleCallQuality() {
     if (quality !== callQualityLabel) {
       callQualityLabel = quality;
       renderCallStatus();
+    }
+    if (selectedPair) {
+      const localCand = stats.get(selectedPair.localCandidateId);
+      const remoteCand = stats.get(selectedPair.remoteCandidateId);
+      const localType = String(localCand?.candidateType || '').toLowerCase();
+      const remoteType = String(remoteCand?.candidateType || '').toLowerCase();
+      let route = '';
+      if (localType === 'relay' || remoteType === 'relay') route = 'маршрут: TURN relay';
+      else if (localType === 'host' && remoteType === 'host') route = 'маршрут: LAN';
+      else if (localType || remoteType) route = 'маршрут: P2P NAT';
+      if (route !== callRouteLabel) {
+        callRouteLabel = route;
+        renderCallStatus();
+      }
     }
     applyAdaptiveAudioProfile(profile).catch(() => {});
   } catch (_) {}
@@ -2775,6 +2801,17 @@ function buildPeerConnection() {
       });
   };
 
+  pc.onicecandidateerror = e => {
+    const code = Number(e?.errorCode || 0);
+    const text = String(e?.errorText || '').trim();
+    const url = String(e?.url || '').trim();
+    const bits = [];
+    if (code) bits.push(`ICE ${code}`);
+    if (text) bits.push(text);
+    if (url) bits.push(url.replace(/^turns?:\/\//i, 'turn://'));
+    if (bits.length) callFailureReason = bits.join(' · ');
+  };
+
   pc.oniceconnectionstatechange = () => {
     const st = pc.iceConnectionState;
     if (st === 'connected' || st === 'completed') {
@@ -2795,7 +2832,7 @@ function buildPeerConnection() {
       startCallPoll(document.hidden ? 1800 : 950);
       pollCall().catch(() => {});
     } else if (st === 'failed') {
-      showToast('З\'єднання перервано.', true);
+      showToast(callFailureReason ? `З\'єднання перервано: ${callFailureReason}` : 'З\'єднання перервано.', true);
       hangupCall(true, 'error');
     }
   };
@@ -2813,6 +2850,9 @@ function buildPeerConnection() {
       setCallStatusBase('Відновлення...');
       scheduleIceRecovery(pc, 1800);
     } else if (st === 'failed' || st === 'closed') {
+      if (st === 'failed' && callFailureReason) {
+        showToast(`Помилка мережі: ${callFailureReason}`, true);
+      }
       hangupCall(true, 'error');
     }
   };
@@ -3090,6 +3130,8 @@ function showCallScreen(name, status) {
   callScreenName.textContent   = name;
   callStatusBase = String(status || 'З\'єднання...');
   callQualityLabel = '';
+  callRouteLabel = '';
+  callFailureReason = '';
   renderCallStatus();
   callScreenTimer.hidden       = true;
   callScreen.hidden            = false;
@@ -3143,6 +3185,8 @@ async function hangupCall(notify = true, reason = 'ended') {
   callStartAtMs = 0;
   callStatusBase = 'З\'єднання...';
   callQualityLabel = '';
+  callRouteLabel = '';
+  callFailureReason = '';
   callAdaptiveAudioProfile = 'balanced';
   callIceRestartInFlight = false;
   activeCallRole = null;
