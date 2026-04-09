@@ -54,3 +54,33 @@ def test_assistant_replies_to_banking_question(client):
     last_reply = replies[-1]
     assert last_reply['sender_name'] == 'Army Bank Assistant'
     assert ('Баланс' in last_reply['text']) or ('рахунок' in last_reply['text'].lower())
+
+
+def test_assistant_capabilities_and_menu_command(client):
+    _uid, token = _register(client, '8104')
+    h = _auth(token)
+
+    caps = client.get('/api/messenger/assistant/capabilities', headers=h)
+    assert caps.status_code == 200
+    caps_data = caps.get_json()['data']
+    assert caps_data['assistant']['verified'] is True
+    assert len(caps_data['actions']) >= 10
+    assert any(a.get('command') == '/аналітика' for a in caps_data['actions'])
+
+    convs = client.get('/api/messenger/conversations', headers=h).get_json()['data']
+    assistant_conv = next(c for c in convs if (c.get('partner') or {}).get('role') == 'assistant_bot')
+    conv_id = int(assistant_conv['id'])
+
+    send = client.post(f'/api/messenger/conversations/{conv_id}/messages', headers=h, json={
+        'text': '/меню',
+    })
+    assert send.status_code == 200
+    sent_msg = send.get_json()['data']
+
+    poll = client.get(f'/api/messenger/conversations/{conv_id}/poll?after_id={sent_msg["id"]}', headers=h)
+    assert poll.status_code == 200
+    replies = poll.get_json()['data']
+    assert replies, 'Expected assistant menu response'
+    reply_text = replies[-1]['text']
+    assert '/баланс' in reply_text
+    assert '/аналітика' in reply_text

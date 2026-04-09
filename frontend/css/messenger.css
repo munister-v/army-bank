@@ -352,6 +352,12 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   font-size: 14px; font-weight: 600; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; color: var(--text); transition: color .15s;
 }
+.conv-name.with-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
 .conv-preview {
   font-size: 12px; color: var(--text-2); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; margin-top: 2px;
@@ -426,6 +432,11 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   color: var(--blue);
 }
 .chat-header-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.chat-header-name.with-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .chat-header-status { font-size: 12px; color: var(--text-2); font-family: var(--font-mono); margin-top: 1px; }
 
 .assistant-panel {
@@ -459,6 +470,9 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   font-size: 17px;
   font-weight: 760;
   letter-spacing: -.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 .assistant-panel-sub {
   margin-top: 2px;
@@ -1233,6 +1247,26 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   width: 72%;
   height: 72%;
   display: block;
+}
+
+.verified-inline {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(8,30,20,.18));
+}
+.verified-inline svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+.verified-inline.static {
+  width: 17px;
+  height: 17px;
 }
 
 /* ════════════════════════════════════════════

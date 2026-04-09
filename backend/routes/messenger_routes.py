@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections import defaultdict
 from datetime import date, timedelta
 from urllib.parse import urlencode
 
@@ -12,6 +13,8 @@ from ..database import get_connection
 from ..config import USE_PG
 from ..services.account_service import AccountService
 from ..services.auth_service import AuthService
+from ..services.card_service import CardService
+from ..services.feature_service import FeatureService
 from ..services.statement_service import StatementService
 from ..services.messenger_crypto import (
     decrypt_message,
@@ -24,6 +27,8 @@ from .helpers import api_error, auth_required
 messenger_bp = Blueprint('messenger', __name__, url_prefix='/api/messenger')
 _auth_service = AuthService()
 _account_service = AccountService()
+_card_service = CardService()
+_feature_service = FeatureService()
 
 _FALSE = False if USE_PG else 0  # boolean compatibility
 _B64_RE = re.compile(r'^[A-Za-z0-9+/=]+$')
@@ -129,13 +134,17 @@ def _conv_summary(conv_id: int, me_id: int) -> dict:
     if not preview:
         preview = conv.get('last_message_text') if conv else ''
 
+    partner_payload = dict(partner) if partner else None
+    if partner_payload and str(partner_payload.get('role') or '').lower() == _ASSISTANT_ROLE:
+        partner_payload['verified'] = True
+
     return {
         'id': conv['id'],
         'is_group': is_group,
         'group_name': conv.get('group_name'),
         'last_message_at': conv['last_message_at'],
         'last_message_text': preview,
-        'partner': dict(partner) if partner else None,
+        'partner': partner_payload,
         'unread': unread,
     }
 
@@ -203,15 +212,16 @@ def _get_or_create_assistant_user(conn) -> int:
 
 def _default_assistant_welcome() -> str:
     return (
-        "Вітаю! Я Army Bank Assistant.\n"
-        "Допоможу по банкінгу прямо в чаті:\n"
-        "• баланс і останні операції\n"
-        "• виписка PDF/CSV\n"
-        "• підказки по переказах, картках, безпеці\n\n"
-        "Швидкі команди:\n"
-        "/баланс\n"
-        "/виписка pdf\n"
-        "/виписка csv"
+        "Вітаю! Я Army Bank Assistant ✅\n"
+        "Я верифікований канал Army Bank і допомагаю з банківськими задачами прямо в чаті.\n\n"
+        "Спробуйте відразу:\n"
+        "• /меню\n"
+        "• /баланс\n"
+        "• /операції 7\n"
+        "• /аналітика\n"
+        "• /виписка pdf\n"
+        "• /карти\n"
+        "• /безпека"
     )
 
 
@@ -300,40 +310,316 @@ def _extract_dates(text: str) -> tuple[str | None, str | None]:
     return None, None
 
 
+def _extract_count(text: str, default: int = 5, min_v: int = 1, max_v: int = 20) -> int:
+    match = re.search(r'(?<!\d)(\d{1,2})(?!\d)', text or '')
+    if not match:
+        return default
+    value = int(match.group(1))
+    return max(min_v, min(max_v, value))
+
+
+def _fmt_tx_datetime(raw: str) -> str:
+    value = str(raw or '').replace('T', ' ').strip()
+    return value[:16] if len(value) >= 16 else value
+
+
+def _safe_float(value) -> float:
+    try:
+        return float(value or 0)
+    except Exception:
+        return 0.0
+
+
+def _assistant_commands_guide() -> str:
+    return (
+        "Army Bank Assistant · верифікований канал ✅\n"
+        "Доступні команди:\n"
+        "• /меню — повний список можливостей\n"
+        "• /баланс — рахунок + баланс + 3 останні операції\n"
+        "• /операції 7 — останні N операцій (1..20)\n"
+        "• /аналітика — підсумки за поточний та попередній місяць\n"
+        "• /інсайти — фінансові патерни та рекомендації\n"
+        "• /виписка pdf 2026-01-01 2026-01-31\n"
+        "• /виписка csv 2026-01-01 2026-01-31\n"
+        "• /карти — статус карток (active/blocked/closed)\n"
+        "• /реквізити — номер рахунку + IBAN-підказка\n"
+        "• /цілі — прогрес накопичень\n"
+        "• /шаблони — платіжні шаблони\n"
+        "• /контакти — сімейні/часті контакти\n"
+        "• /бюджет — ліміти та фактичні витрати\n"
+        "• /борги — контроль боргів\n"
+        "• /регулярні — регулярні платежі\n"
+        "• /досягнення — прогрес гейміфікації\n"
+        "• /безпека — чекліст захисту акаунта\n"
+        "• /переказ — інструкція безпечного переказу"
+    )
+
+
+def _assistant_recent_ops(user_id: int, count: int = 5) -> str:
+    txs = _account_service.list_transactions(user_id)[:count]
+    if not txs:
+        return 'Операцій поки немає.'
+    lines = [f"Останні операції ({len(txs)}):"]
+    for tx in txs:
+        direction = str(tx.get('direction') or '').lower()
+        sign = '+' if direction == 'in' else '-'
+        lines.append(
+            f"• {_fmt_tx_datetime(tx.get('created_at'))} · {sign}{_money_fmt(tx.get('amount'))} · {tx.get('description') or 'Операція'}"
+        )
+    return '\n'.join(lines)
+
+
+def _assistant_analytics(user_id: int) -> str:
+    analytics = _account_service.get_analytics(user_id) or {}
+    current = analytics.get('current_month') or {}
+    previous = analytics.get('prev_month') or {}
+    by_type_rows = analytics.get('by_type') or []
+    expense_by_type: dict[str, float] = defaultdict(float)
+    for row in by_type_rows:
+        if str(row.get('direction') or '').lower() != 'out':
+            continue
+        tx_type = str(row.get('tx_type') or 'other')
+        expense_by_type[tx_type] += _safe_float(row.get('total'))
+    top_expense = sorted(expense_by_type.items(), key=lambda item: item[1], reverse=True)[:3]
+
+    cur_in = _safe_float(current.get('total_in'))
+    cur_out = _safe_float(current.get('total_out'))
+    prev_in = _safe_float(previous.get('total_in'))
+    prev_out = _safe_float(previous.get('total_out'))
+    cur_net = cur_in - cur_out
+    prev_net = prev_in - prev_out
+    delta = cur_net - prev_net
+    trend = 'зростання' if delta > 0 else ('спад' if delta < 0 else 'без змін')
+    lines = [
+        'Аналітика рахунку:',
+        f"• Поточний місяць: прихід {_money_fmt(cur_in)}, витрати {_money_fmt(cur_out)}, чистий результат {_money_fmt(cur_net)}",
+        f"• Попередній місяць: прихід {_money_fmt(prev_in)}, витрати {_money_fmt(prev_out)}, чистий результат {_money_fmt(prev_net)}",
+        f"• Динаміка до попереднього місяця: {_money_fmt(delta)} ({trend})",
+    ]
+    if top_expense:
+        lines.append('Топ витрат за типом:')
+        type_labels = {
+            'transfer': 'Перекази',
+            'donation': 'Донати',
+            'savings': 'Накопичення',
+            'topup': 'Поповнення',
+            'payout': 'Виплати',
+        }
+        for tx_type, amount in top_expense:
+            lines.append(f"• {type_labels.get(tx_type, tx_type)}: {_money_fmt(amount)}")
+    lines.append('Порада: для деталей по днях використайте /інсайти.')
+    return '\n'.join(lines)
+
+
+def _assistant_cards(user_id: int) -> str:
+    cards = _card_service.list_cards(user_id)
+    if not cards:
+        return 'Карток поки немає. Ви можете випустити нову у розділі «Картки».'
+    total = len(cards)
+    active = sum(1 for c in cards if str(c.get('status')) == 'active')
+    blocked = sum(1 for c in cards if str(c.get('status')) == 'blocked')
+    closed = sum(1 for c in cards if str(c.get('status')) == 'closed')
+    lines = [
+        f"Картки: всього {total} · активні {active} · заблоковані {blocked} · закриті {closed}",
+    ]
+    for c in cards[:5]:
+        lines.append(
+            f"• {c.get('masked_number') or '••••'} · {c.get('card_type') or 'card'} · {c.get('status') or 'unknown'} · до {c.get('expiry_display') or '--/--'}"
+        )
+    lines.append('Керування картками: розділ «Картки» → блокування/розблокування/закриття.')
+    return '\n'.join(lines)
+
+
+def _assistant_goals(user_id: int) -> str:
+    goals = _feature_service.list_goals(user_id)
+    if not goals:
+        return 'Цілей накопичення поки немає. Додайте першу ціль у розділі «Накопичення».'
+    lines = [f'Цілі накопичення: {len(goals)}']
+    for goal in goals[:5]:
+        target = _safe_float(goal.get('target_amount'))
+        current = _safe_float(goal.get('current_amount'))
+        pct = min(100.0, round((current / target * 100), 1)) if target > 0 else 0.0
+        lines.append(
+            f"• {goal.get('title') or 'Ціль'}: {_money_fmt(current)} / {_money_fmt(target)} ({pct}%)"
+        )
+    lines.append('Порада: регулярні внески у цілі допомагають згладити великі витрати.')
+    return '\n'.join(lines)
+
+
+def _assistant_contacts(user_id: int) -> str:
+    contacts = _feature_service.list_contacts(user_id)
+    if not contacts:
+        return 'Сімейні/часті контакти ще не додані.'
+    lines = [f'Контакти: {len(contacts)}']
+    for item in contacts[:8]:
+        name = item.get('contact_name') or 'Контакт'
+        relation = item.get('relation_type') or 'контакт'
+        account = item.get('account_number') or 'без рахунку'
+        lines.append(f"• {name} ({relation}) · {account}")
+    return '\n'.join(lines)
+
+
+def _assistant_templates(user_id: int) -> str:
+    templates = _feature_service.list_payment_templates(user_id)
+    if not templates:
+        return 'Шаблонів платежів поки немає.'
+    lines = [f'Платіжні шаблони: {len(templates)}']
+    for tpl in templates[:8]:
+        amount = tpl.get('amount')
+        amount_label = _money_fmt(amount) if amount is not None else 'сума не задана'
+        lines.append(
+            f"• {tpl.get('name') or 'Шаблон'} → {tpl.get('recipient_account') or '—'} · {amount_label}"
+        )
+    lines.append('Шаблони прискорюють регулярні перекази в 1–2 кліки.')
+    return '\n'.join(lines)
+
+
+def _assistant_budget(user_id: int) -> str:
+    limits = _feature_service.list_budget_limits(user_id)
+    if not limits:
+        return (
+            "Лімітів бюджету поки немає.\n"
+            "Доступні категорії лімітів: transfer, donation, savings, topup."
+        )
+    labels = {
+        'transfer': 'Перекази',
+        'donation': 'Донати',
+        'savings': 'Накопичення',
+        'topup': 'Поповнення',
+    }
+    lines = ['Бюджетні ліміти (поточний місяць):']
+    for lim in limits:
+        tx_type = str(lim.get('tx_type') or 'other')
+        spent = _safe_float(lim.get('spent'))
+        monthly = _safe_float(lim.get('monthly_limit'))
+        pct = _safe_float(lim.get('pct'))
+        lines.append(
+            f"• {labels.get(tx_type, tx_type)}: {_money_fmt(spent)} / {_money_fmt(monthly)} ({pct:.1f}%)"
+        )
+    return '\n'.join(lines)
+
+
+def _assistant_debts(user_id: int) -> str:
+    debts = _feature_service.list_debts(user_id)
+    if not debts:
+        return 'Активних боргів немає.'
+    active = [d for d in debts if not d.get('is_settled')]
+    owed_to_me = sum(_safe_float(d.get('amount')) for d in active if d.get('direction') == 'owed_to_me')
+    i_owe = sum(_safe_float(d.get('amount')) for d in active if d.get('direction') == 'i_owe')
+    lines = [
+        f"Борги: активних {len(active)} (всього записів {len(debts)})",
+        f"• Мені винні: {_money_fmt(owed_to_me)}",
+        f"• Я винен: {_money_fmt(i_owe)}",
+    ]
+    for debt in active[:6]:
+        direction = 'мені винні' if debt.get('direction') == 'owed_to_me' else 'я винен'
+        lines.append(f"• {debt.get('contact_name') or 'Контакт'} · {_money_fmt(debt.get('amount'))} · {direction}")
+    return '\n'.join(lines)
+
+
+def _assistant_recurring(user_id: int) -> str:
+    recurring = _feature_service.list_recurring(user_id)
+    if not recurring:
+        return 'Регулярних платежів поки немає.'
+    active = [r for r in recurring if bool(r.get('is_active'))]
+    lines = [f'Регулярні платежі: активні {len(active)} з {len(recurring)}']
+    for item in active[:6]:
+        lines.append(
+            f"• {item.get('title') or 'Платіж'} · {_money_fmt(item.get('amount'))} · {item.get('frequency') or 'monthly'} · наступний {item.get('next_run_date') or '—'}"
+        )
+    return '\n'.join(lines)
+
+
+def _assistant_achievements(user_id: int) -> str:
+    payload = _account_service.get_achievements(user_id)
+    done = int(payload.get('done') or 0)
+    total = int(payload.get('total') or 0)
+    pending = [a for a in (payload.get('achievements') or []) if not a.get('done')]
+    lines = [f'Досягнення: виконано {done} з {total}']
+    if pending:
+        lines.append('Найближчі цілі:')
+        for ach in pending[:4]:
+            lines.append(f"• {ach.get('title')}: {ach.get('desc')}")
+    else:
+        lines.append('Усі досягнення відкриті. Відмінний результат!')
+    return '\n'.join(lines)
+
+
+def _assistant_security_tip(account_number: str) -> str:
+    return (
+        "Чекліст безпеки Army Bank:\n"
+        "• Нікому не повідомляйте OTP, CVV, PIN та паролі.\n"
+        "• Перевіряйте домен перед входом: army-bank.onrender.com.\n"
+        "• Для підозрілих операцій негайно блокуйте картку.\n"
+        "• Не переходьте за посиланнями з невідомих чатів.\n"
+        "• Для підтримки використовуйте тільки верифікований Assistant ✅.\n"
+        f"Ваш рахунок для перевірки: {account_number}."
+    )
+
+
 def _assistant_reply_text(user_id: int, user_text: str, script_root: str = '') -> str:
     account, _ = _ensure_bank_account_context(user_id)
     text = (user_text or '').strip()
     low = text.lower()
+    account_number = account.get('account_number') or '—'
 
     def period_default() -> tuple[str, str]:
         to_d = date.today()
         from_d = to_d - timedelta(days=30)
         return from_d.isoformat(), to_d.isoformat()
 
-    if any(k in low for k in ('прив', 'hello', 'help', 'допом', '/help', '/start')):
+    if not low:
+        return _assistant_commands_guide()
+
+    if any(k in low for k in (
+        'прив', 'hello', 'help', 'допом', '/help', '/start',
+        '/меню', '/команд', 'команд', 'можливост', 'що вмієш', 'what can you do',
+    )):
+        return _assistant_commands_guide()
+
+    if any(k in low for k in ('реквіз', '/iban', 'iban', 'номер рахунку', 'account number')):
         return (
-            "Я поруч. Допоможу по Army Bank.\n"
-            "Що можу зробити:\n"
-            "• Показати баланс і останні операції\n"
-            "• Підготувати виписку PDF/CSV\n"
-            "• Підказати по переказу, картках і безпеці\n\n"
-            "Спробуйте: /баланс, /виписка pdf, /виписка csv"
+            "Реквізити рахунку:\n"
+            f"• Номер рахунку: {account_number}\n"
+            f"• Баланс: {_money_fmt(account.get('balance'))}\n\n"
+            "Для переказів використовуйте номер рахунку отримувача або карту.\n"
+            "Порада: перед відправкою перевіряйте останні 4 символи рахунку."
         )
 
     if any(k in low for k in ('баланс', '/баланс', 'balance', 'скільки на рахунку')):
-        recent = _account_service.list_transactions(user_id)[:3]
         lines = [
-            f"Ваш рахунок: {account.get('account_number')}",
+            f"Ваш рахунок: {account_number}",
             f"Поточний баланс: {_money_fmt(account.get('balance'))}",
+            '',
         ]
-        if recent:
-            lines.append('Останні операції:')
-            for tx in recent:
-                sign = '+' if tx.get('direction') == 'in' else '-'
-                lines.append(
-                    f"• {tx.get('created_at', '')[:16]} · {sign}{_money_fmt(tx.get('amount'))} · {tx.get('description') or 'Операція'}"
-                )
+        lines.append(_assistant_recent_ops(user_id, 3))
         return '\n'.join(lines)
+
+    if any(k in low for k in ('/операції', '/history', '/recent', 'останні операц', 'історі', 'history', 'recent')):
+        count = _extract_count(low, default=7, min_v=1, max_v=20)
+        return _assistant_recent_ops(user_id, count)
+
+    if any(k in low for k in ('/аналітика', '/analytics', 'аналіт', 'доход', 'витрат', 'cashflow', 'грошовий потік')):
+        try:
+            return _assistant_analytics(user_id)
+        except Exception:
+            return 'Аналітика тимчасово недоступна. Спробуйте пізніше.'
+
+    if any(k in low for k in ('/інсайти', 'інсайт', 'insight', 'звички', 'патерн', 'тренд')):
+        try:
+            payload = _account_service.get_spending_insights(user_id) or {}
+            insights = payload.get('insights') or []
+            if not insights:
+                return 'Поки недостатньо даних для інсайтів. Виконайте кілька операцій.'
+            lines = ['Фінансові інсайти:']
+            for item in insights[:6]:
+                icon = item.get('icon') or '•'
+                txt = item.get('text') or ''
+                lines.append(f'{icon} {txt}')
+            lines.append('Рекомендація: перевіряйте /аналітика щотижня для контролю динаміки.')
+            return '\n'.join(lines)
+        except Exception:
+            return 'Інсайти тимчасово недоступні.'
 
     if any(k in low for k in ('випис', 'statement', '/виписка', 'pdf', 'csv')):
         fmt = 'csv' if 'csv' in low else 'pdf'
@@ -354,15 +640,73 @@ def _assistant_reply_text(user_id: int, user_text: str, script_root: str = '') -
             return (
                 f"Готово. Підготував запит на PDF-виписку ({_period_label(from_date, to_date)}).\n"
                 f"Завантажити: {download}\n"
-                "Також можна натиснути Bank Tools → «Завантажити PDF»."
+                "Також можна натиснути Bank Tools → «Завантажити PDF».\n"
+                "Порада: для короткої виписки виберіть report_type=summary у Bank Tools."
             )
         query = urlencode({'from_date': from_date, 'to_date': to_date})
         download = f"{base}/api/transactions/export?{query}"
         return (
             f"Готово. CSV-виписка за період {_period_label(from_date, to_date)}.\n"
             f"Завантажити: {download}\n"
-            "Також можна натиснути Bank Tools → «Завантажити CSV»."
+            "Також можна натиснути Bank Tools → «Завантажити CSV».\n"
+            "CSV зручно для Excel, Power BI та бухгалтерського звіту."
         )
+
+    if any(k in low for k in ('/карти', 'карт', 'card', 'заблок', 'block')):
+        try:
+            return _assistant_cards(user_id)
+        except Exception:
+            return (
+                "По картках:\n"
+                "• Блокування/розблокування — у розділі «Картки».\n"
+                "• Випуск нової — кнопка «+ Випустити».\n"
+                "• Якщо підозра на шахрайство — одразу блокуйте картку і змінюйте пароль."
+            )
+
+    if any(k in low for k in ('/цілі', 'накопич', 'goal', 'заощадж')):
+        try:
+            return _assistant_goals(user_id)
+        except Exception:
+            return 'Не вдалося отримати цілі накопичень.'
+
+    if any(k in low for k in ('/шаблони', 'шаблон', 'template')):
+        try:
+            return _assistant_templates(user_id)
+        except Exception:
+            return 'Не вдалося отримати шаблони платежів.'
+
+    if any(k in low for k in ('/контакти', 'контакт', 'family', 'родин')):
+        try:
+            return _assistant_contacts(user_id)
+        except Exception:
+            return 'Не вдалося отримати список контактів.'
+
+    if any(k in low for k in ('/бюджет', 'ліміт', 'budget')):
+        try:
+            return _assistant_budget(user_id)
+        except Exception:
+            return 'Не вдалося отримати бюджетні ліміти.'
+
+    if any(k in low for k in ('/борги', 'борг', 'debt')):
+        try:
+            return _assistant_debts(user_id)
+        except Exception:
+            return 'Не вдалося отримати інформацію по боргах.'
+
+    if any(k in low for k in ('/регулярні', 'регулярн', 'recurring', 'автоплатіж')):
+        try:
+            return _assistant_recurring(user_id)
+        except Exception:
+            return 'Не вдалося отримати регулярні платежі.'
+
+    if any(k in low for k in ('/досягнення', 'досягнен', 'achievement')):
+        try:
+            return _assistant_achievements(user_id)
+        except Exception:
+            return 'Не вдалося отримати прогрес досягнень.'
+
+    if any(k in low for k in ('/безпека', 'безпек', 'security', 'фішинг', 'шахрай')):
+        return _assistant_security_tip(account_number)
 
     if any(k in low for k in ('переказ', 'перевод', 'transfer', 'на карт', 'iban')):
         return (
@@ -370,20 +714,13 @@ def _assistant_reply_text(user_id: int, user_text: str, script_root: str = '') -
             "1) Відкрийте розділ «Операції» у банку.\n"
             "2) Вкажіть рахунок/картку отримувача.\n"
             "3) Введіть суму та підтвердьте.\n\n"
-            "Для безпеки: перевіряйте номер рахунку двічі перед підтвердженням."
-        )
-
-    if any(k in low for k in ('карт', 'card', 'заблок', 'block')):
-        return (
-            "По картках:\n"
-            "• Блокування/розблокування — у розділі «Картки».\n"
-            "• Випуск нової — кнопка «+ Випустити».\n"
-            "• Якщо підозра на шахрайство — одразу блокуйте картку і змінюйте пароль."
+            "Для безпеки: перевіряйте номер рахунку двічі перед підтвердженням.\n"
+            "Порада: спершу зробіть тестовий переказ на невелику суму."
         )
 
     return (
-        "Я можу допомогти з банкінгом: баланс, виписки, перекази, картки, безпека.\n"
-        "Спробуйте команду /баланс або /виписка pdf."
+        "Я можу допомогти з банкінгом: баланс, операції, аналітика, виписки, картки, бюджет, безпека.\n"
+        "Спробуйте /меню або /баланс."
     )
 
 
@@ -507,6 +844,42 @@ def messenger_bank_statement_order():
         }})
     except Exception as exc:
         return api_error(str(exc), 409)
+
+
+@messenger_bp.get('/assistant/capabilities')
+@auth_required
+def assistant_capabilities():
+    account, _auto_created = _ensure_bank_account_context(int(g.current_user['id']))
+    actions = [
+        {'id': 'menu', 'label': 'Усі команди', 'command': '/меню'},
+        {'id': 'balance', 'label': 'Баланс', 'command': '/баланс'},
+        {'id': 'recent', 'label': 'Останні операції', 'command': '/операції 7'},
+        {'id': 'analytics', 'label': 'Аналітика', 'command': '/аналітика'},
+        {'id': 'insights', 'label': 'Інсайти', 'command': '/інсайти'},
+        {'id': 'statement_pdf', 'label': 'Виписка PDF', 'command': '/виписка pdf'},
+        {'id': 'statement_csv', 'label': 'Виписка CSV', 'command': '/виписка csv'},
+        {'id': 'cards', 'label': 'Картки', 'command': '/карти'},
+        {'id': 'requisites', 'label': 'Реквізити', 'command': '/реквізити'},
+        {'id': 'goals', 'label': 'Цілі', 'command': '/цілі'},
+        {'id': 'templates', 'label': 'Шаблони', 'command': '/шаблони'},
+        {'id': 'contacts', 'label': 'Контакти', 'command': '/контакти'},
+        {'id': 'budget', 'label': 'Бюджет', 'command': '/бюджет'},
+        {'id': 'debts', 'label': 'Борги', 'command': '/борги'},
+        {'id': 'recurring', 'label': 'Регулярні', 'command': '/регулярні'},
+        {'id': 'achievements', 'label': 'Досягнення', 'command': '/досягнення'},
+        {'id': 'security', 'label': 'Безпека', 'command': '/безпека'},
+        {'id': 'transfer_help', 'label': 'Перекази', 'command': '/переказ'},
+    ]
+    return jsonify({'ok': True, 'data': {
+        'assistant': {
+            'name': _ASSISTANT_NAME,
+            'verified': True,
+            'role': _ASSISTANT_ROLE,
+        },
+        'account_number': account.get('account_number'),
+        'actions': actions,
+        'help': _assistant_commands_guide(),
+    }})
 
 
 # ── Пошук користувачів ───────────────────────────────────────────────────────

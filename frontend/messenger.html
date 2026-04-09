@@ -10,14 +10,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
   <meta name="apple-mobile-web-app-title" content="AB Chat"/>
   <title>Army Bank · Месенджер</title>
-  <link rel="manifest" href="/manifest-messenger.json?v=22"/>
+  <link rel="manifest" href="/manifest-messenger.json?v=23"/>
   <link rel="icon" type="image/svg+xml" href="/icons/chat-favicon.svg"/>
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/chat-icon-32.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/chat-icon-180.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=22"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=23"/>
 </head>
 <body>
 
@@ -268,14 +268,36 @@
             </svg>
           </div>
           <div class="assistant-panel-copy">
-            <p class="assistant-panel-title">Army Bank Assistant</p>
+            <p class="assistant-panel-title">
+              <span>Army Bank Assistant</span>
+              <span class="verified-inline static" title="Верифіковано Army Bank" aria-label="Верифіковано Army Bank">
+                <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <circle cx="8" cy="8" r="7" fill="#2e8a5f"/>
+                  <path d="M4.2 8.4 6.6 10.7 11.8 5.5" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+            </p>
             <p class="assistant-panel-sub">Швидкі банківські дії в один клік: баланс, виписки та сервісні інструменти.</p>
           </div>
         </div>
         <div class="assistant-quick-actions" id="assistant-quick-actions">
+          <button type="button" class="assistant-quick-btn" data-assistant-action="menu">Усі команди</button>
           <button type="button" class="assistant-quick-btn" data-assistant-action="balance">Баланс</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="recent">Останні операції</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="analytics">Аналітика</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="insights">Інсайти</button>
           <button type="button" class="assistant-quick-btn" data-assistant-action="statement_pdf">Виписка PDF</button>
           <button type="button" class="assistant-quick-btn" data-assistant-action="statement_csv">Виписка CSV</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="cards">Картки</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="requisites">Реквізити</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="goals">Цілі</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="templates">Шаблони</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="contacts">Контакти</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="budget">Бюджет</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="debts">Борги</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="recurring">Регулярні</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="achievements">Досягнення</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="security">Безпека</button>
           <button type="button" class="assistant-quick-btn" data-assistant-action="bank_tools">Bank Tools</button>
           <button type="button" class="assistant-quick-btn" data-assistant-action="transfer_help">Перекази</button>
         </div>
@@ -566,6 +588,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=22"></script>
+<script src="/js/messenger.js?v=23"></script>
 </body>
 </html>

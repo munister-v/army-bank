@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '22';
+const MESSENGER_ASSET_VERSION = '23';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -699,6 +699,20 @@ function assistantGlyphMarkup() {
   </span>`;
 }
 
+function verifiedBadgeMarkup() {
+  return `<span class="verified-inline" title="Верифіковано Army Bank" aria-label="Верифіковано Army Bank">
+    <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="8" cy="8" r="7" fill="#2e8a5f"/>
+      <path d="M4.2 8.4 6.6 10.7 11.8 5.5" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </span>`;
+}
+
+function renderNameWithVerified(name, isVerified = false) {
+  const clean = esc(name || '');
+  return isVerified ? `${clean}${verifiedBadgeMarkup()}` : clean;
+}
+
 function syncAssistantUi(isAssistant) {
   if (chatView) chatView.classList.toggle('assistant-chat', !!isAssistant);
   if (assistantPanel) assistantPanel.hidden = !isAssistant;
@@ -733,7 +747,7 @@ function buildConvItem(conv) {
   el.innerHTML = `
     <div class="conv-avatar${isGroup ? ' group' : ''}${isAssistant ? ' assistant' : ''}">${isAssistant ? assistantGlyphMarkup() : esc(initial(name))}</div>
     <div class="conv-info">
-      <div class="conv-name">${esc(name)}</div>
+      <div class="conv-name${isAssistant ? ' with-verified' : ''}">${renderNameWithVerified(name, isAssistant)}</div>
       <div class="conv-preview">${esc(preview)}</div>
     </div>
     <div class="conv-meta">
@@ -765,7 +779,8 @@ async function openChat(conv) {
   const name    = convName(conv);
   chatAvatar.innerHTML = isAssistant ? assistantGlyphMarkup() : esc(initial(name));
   chatAvatar.className = 'chat-header-avatar' + (isGroup ? ' group' : '') + (isAssistant ? ' assistant' : '');
-  chatPartnerName.textContent = name;
+  chatPartnerName.classList.toggle('with-verified', isAssistant);
+  chatPartnerName.innerHTML = renderNameWithVerified(name, isAssistant);
   chatPartnerRole.textContent = isGroup
     ? 'Групова розмова'
     : (isAssistant ? 'Банківський асистент · Швидкі дії зверху' : '');
@@ -953,16 +968,75 @@ async function runAssistantQuickAction(action, btnEl = null) {
   if (!activeConvId || !isAssistantPartner(activePartner)) return;
   if (btnEl) btnEl.disabled = true;
   try {
+    const sendCommand = async commandText => {
+      await sendTextToActiveChat(commandText);
+    };
     if (action === 'balance') {
-      await handleChatCommand('/баланс');
+      await sendCommand('/баланс');
+      return;
+    }
+    if (action === 'menu') {
+      await sendCommand('/меню');
+      return;
+    }
+    if (action === 'recent') {
+      await sendCommand('/операції 7');
+      return;
+    }
+    if (action === 'analytics') {
+      await sendCommand('/аналітика');
+      return;
+    }
+    if (action === 'insights') {
+      await sendCommand('/інсайти');
       return;
     }
     if (action === 'statement_pdf') {
-      await handleChatCommand('/виписка pdf');
+      await sendCommand('/виписка pdf');
       return;
     }
     if (action === 'statement_csv') {
-      await handleChatCommand('/виписка csv');
+      await sendCommand('/виписка csv');
+      return;
+    }
+    if (action === 'cards') {
+      await sendCommand('/карти');
+      return;
+    }
+    if (action === 'requisites') {
+      await sendCommand('/реквізити');
+      return;
+    }
+    if (action === 'goals') {
+      await sendCommand('/цілі');
+      return;
+    }
+    if (action === 'templates') {
+      await sendCommand('/шаблони');
+      return;
+    }
+    if (action === 'contacts') {
+      await sendCommand('/контакти');
+      return;
+    }
+    if (action === 'budget') {
+      await sendCommand('/бюджет');
+      return;
+    }
+    if (action === 'debts') {
+      await sendCommand('/борги');
+      return;
+    }
+    if (action === 'recurring') {
+      await sendCommand('/регулярні');
+      return;
+    }
+    if (action === 'achievements') {
+      await sendCommand('/досягнення');
+      return;
+    }
+    if (action === 'security') {
+      await sendCommand('/безпека');
       return;
     }
     if (action === 'bank_tools') {
@@ -970,9 +1044,10 @@ async function runAssistantQuickAction(action, btnEl = null) {
       return;
     }
     if (action === 'transfer_help') {
-      await sendTextToActiveChat('Потрібна допомога з переказом між рахунками та комісіями.');
-      showToast('Запит по переказах надіслано в чат.');
+      await sendCommand('/переказ');
+      return;
     }
+    await sendCommand(String(action || '/меню'));
   } catch (err) {
     showToast(err.message || 'Не вдалося виконати швидку дію.', true);
   } finally {
