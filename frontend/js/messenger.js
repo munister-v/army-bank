@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '23';
+const MESSENGER_ASSET_VERSION = '24';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -205,6 +205,10 @@ const groupNameInput    = $('group-name-input');
 const groupUserSearch   = $('group-user-search');
 const groupUserResults  = $('group-user-results');
 const groupSelectedList = $('group-selected-list');
+const groupPreviewAvatar = $('group-preview-avatar');
+const groupPreviewName = $('group-preview-name');
+const groupPreviewSub = $('group-preview-sub');
+const groupPreviewBadges = $('group-preview-badges');
 const btnCreateGroup    = $('btn-create-group');
 const callSettingsModal = $('call-settings-modal');
 const btnCloseCallSettings = $('btn-close-call-settings');
@@ -216,6 +220,8 @@ const outgoingTimeoutRange = $('outgoing-timeout-range');
 const outgoingTimeoutValue = $('outgoing-timeout-value');
 const incomingTimeoutRange = $('incoming-timeout-range');
 const incomingTimeoutValue = $('incoming-timeout-value');
+const btnCallTestSound = $('btn-call-test-sound');
+const btnCallReset = $('btn-call-reset');
 const callSettingsButtons = Array.from(document.querySelectorAll('[data-open-call-settings]'));
 const bankToolsModal = $('bank-tools-modal');
 const btnCloseBankTools = $('btn-close-bank-tools');
@@ -322,6 +328,25 @@ function closeCallSettingsModal() {
   if (!callSettingsModal) return;
   callSettingsModal.hidden = true;
   syncOverlayLock();
+}
+
+async function previewCallSignal() {
+  if (!callPrefs.sounds) {
+    showToast('Увімкніть звуки дзвінків, щоб прослухати сигнал.', true);
+    return;
+  }
+  await ensureCallAudioCtx();
+  toneBeep(670, 0.11, { gain: 0.03 });
+  toneBeep(830, 0.13, { gain: 0.028, delay: 0.13 });
+  toneBeep(980, 0.12, { gain: 0.025, delay: 0.28 });
+}
+
+function resetCallPrefsToDefaults() {
+  callPrefs = { ...DEFAULT_CALL_PREFS };
+  saveCallPrefs();
+  renderCallSettings();
+  stopAllCallTones();
+  showToast('Налаштування дзвінків скинуто до стандартних.');
 }
 
 function moneyFmt(amount, currency = 'UAH') {
@@ -849,6 +874,85 @@ function renderMessages(msgs, prepend = false) {
   else messagesList.appendChild(frag);
 }
 
+function escapeAttr(str) {
+  return esc(str).replace(/'/g, '&#39;');
+}
+
+function trimLinkTail(raw) {
+  let value = String(raw || '');
+  let tail = '';
+  while (value && /[),.;!?]$/.test(value)) {
+    tail = value.slice(-1) + tail;
+    value = value.slice(0, -1);
+  }
+  return { value, tail };
+}
+
+function normalizeMessageUrl(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return '';
+  if (/^https?:\/\//i.test(text)) return text;
+  if (text.startsWith('/')) return `${window.location.origin}${text}`;
+  return text;
+}
+
+function formatMessageTextHtml(rawText) {
+  const text = String(rawText || '');
+  const urlRe = /(https?:\/\/[^\s<]+|\/api\/transactions\/(?:statement|export)\?[^\s<]+)/gi;
+  let out = '';
+  let lastIdx = 0;
+  let match;
+  while ((match = urlRe.exec(text)) !== null) {
+    const rawUrl = String(match[0] || '');
+    const start = match.index || 0;
+    out += esc(text.slice(lastIdx, start));
+    const cleaned = trimLinkTail(rawUrl);
+    const href = normalizeMessageUrl(cleaned.value);
+    const label = cleaned.value.length > 86 ? `${cleaned.value.slice(0, 72)}...` : cleaned.value;
+    out += `<a class="msg-link" href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>${esc(cleaned.tail)}`;
+    lastIdx = start + rawUrl.length;
+  }
+  out += esc(text.slice(lastIdx));
+  return out.replace(/\n/g, '<br>');
+}
+
+function parseAssistantStatementInfo(rawText) {
+  const text = String(rawText || '');
+  if (!/виписк|statement/i.test(text)) return null;
+  const linkMatch = text.match(/(https?:\/\/[^\s]+|\/api\/transactions\/(?:statement|export)\?[^\s]+)/i);
+  if (!linkMatch) return null;
+  const cleaned = trimLinkTail(linkMatch[1]);
+  const link = cleaned.value;
+  const periodMatch = text.match(/\((\d{4}-\d{2}-\d{2}\s*→\s*\d{4}-\d{2}-\d{2})\)/);
+  const kind = /\/api\/transactions\/export\?/i.test(link) || /\bcsv\b/i.test(text) ? 'CSV' : 'PDF';
+  const summaryRaw = text.split(/завантажити:/i)[0] || '';
+  return {
+    link: normalizeMessageUrl(link),
+    kind,
+    period: periodMatch ? periodMatch[1] : '',
+    summary: summaryRaw.trim() || `${kind}-виписка підготовлена.`,
+  };
+}
+
+function buildAssistantStatementBubble(rawText) {
+  const info = parseAssistantStatementInfo(rawText);
+  if (!info?.link) return null;
+  const icon = info.kind === 'PDF' ? '📄' : '🧾';
+  const periodHtml = info.period ? `<div class="assistant-statement-period">Період: ${esc(info.period)}</div>` : '';
+  return `<div class="msg-bubble assistant-statement-bubble">
+    <div class="assistant-statement-head">
+      <span class="assistant-statement-icon" aria-hidden="true">${icon}</span>
+      <div>
+        <div class="assistant-statement-title">${esc(info.kind)}-виписка готова</div>
+        ${periodHtml}
+      </div>
+    </div>
+    <div class="assistant-statement-summary">${formatMessageTextHtml(info.summary)}</div>
+    <a class="assistant-statement-btn" href="${escapeAttr(info.link)}" target="_blank" rel="noopener noreferrer">Відкрити ${esc(info.kind)}</a>
+    <div class="assistant-statement-note">Завантаження відкриється в захищеному режимі Army Bank.</div>
+  </div>`;
+}
+
 function buildBubble(msg) {
   const isMe    = msg.sender_id === (me?.id);
   const wrap    = document.createElement('div');
@@ -899,7 +1003,8 @@ function buildBubble(msg) {
       content = `<div class="msg-bubble image-bubble"><div class="photo-stack ${countClass}">${tiles}</div></div>`;
     }
   } else {
-    content = `<div class="msg-bubble">${esc(msg.text)}</div>`;
+    const statementBubble = assistantIncoming ? buildAssistantStatementBubble(msg.text) : null;
+    content = statementBubble || `<div class="msg-bubble">${formatMessageTextHtml(msg.text)}</div>`;
   }
 
   wrap.innerHTML = `
@@ -1739,6 +1844,12 @@ function openNewChatModal() {
   userSearchResults.innerHTML = '';
   searchHint.hidden = false;
   userSearchResults.appendChild(searchHint);
+  if (groupNameInput) groupNameInput.value = '';
+  if (groupUserSearch) groupUserSearch.value = '';
+  if (groupUserResults) groupUserResults.innerHTML = '<p class="search-hint">Введіть ім\'я для пошуку</p>';
+  groupSelectedUsers = [];
+  renderGroupChips();
+  renderGroupPreview();
   setTimeout(() => userSearchInput.focus(), 50);
 }
 
@@ -1753,7 +1864,10 @@ function switchTab(tab) {
   tabGroup.classList.toggle('active', !isDirect);
   tabPanelDirect.hidden = !isDirect;
   tabPanelGroup.hidden  = isDirect;
-  if (!isDirect) setTimeout(() => groupNameInput.focus(), 50);
+  if (!isDirect) {
+    renderGroupPreview();
+    setTimeout(() => groupNameInput.focus(), 50);
+  }
 }
 
 tabDirect.addEventListener('click', () => switchTab('direct'));
@@ -1829,6 +1943,7 @@ function addGroupMember(u) {
   if (groupSelectedUsers.find(s => s.id === u.id)) return;
   groupSelectedUsers.push(u);
   renderGroupChips();
+  renderGroupPreview();
   groupUserSearch.value = '';
   groupUserResults.innerHTML = '<p class="search-hint">Введіть ім\'я для пошуку</p>';
 }
@@ -1836,6 +1951,7 @@ function addGroupMember(u) {
 function removeGroupMember(uid) {
   groupSelectedUsers = groupSelectedUsers.filter(u => u.id !== uid);
   renderGroupChips();
+  renderGroupPreview();
 }
 
 function renderGroupChips() {
@@ -1847,6 +1963,34 @@ function renderGroupChips() {
     chip.querySelector('button').addEventListener('click', () => removeGroupMember(u.id));
     groupSelectedList.appendChild(chip);
   });
+}
+
+function renderGroupPreview() {
+  const name = String(groupNameInput?.value || '').trim() || 'Нова група';
+  const count = groupSelectedUsers.length;
+  if (groupPreviewAvatar) groupPreviewAvatar.textContent = initial(name);
+  if (groupPreviewName) groupPreviewName.textContent = name;
+  if (groupPreviewSub) {
+    groupPreviewSub.textContent = count > 0
+      ? `${count} учасників · готово до створення`
+      : 'Додайте учасників для створення';
+  }
+  if (!groupPreviewBadges) return;
+  groupPreviewBadges.innerHTML = '';
+  const visible = groupSelectedUsers.slice(0, 3);
+  visible.forEach(user => {
+    const badge = document.createElement('span');
+    badge.className = 'group-preview-badge';
+    badge.title = user.full_name || 'Учасник';
+    badge.textContent = initial(user.full_name || '');
+    groupPreviewBadges.appendChild(badge);
+  });
+  if (count > visible.length) {
+    const more = document.createElement('span');
+    more.className = 'group-preview-badge more';
+    more.textContent = `+${count - visible.length}`;
+    groupPreviewBadges.appendChild(more);
+  }
 }
 
 async function createGroup() {
@@ -1861,6 +2005,7 @@ async function createGroup() {
     groupSelectedUsers = [];
     renderGroupChips();
     groupNameInput.value = '';
+    renderGroupPreview();
     if (!convData.find(c => c.id === conv.id)) convData.unshift(conv);
     renderConvList(convData);
     openChat(conv);
@@ -2703,6 +2848,8 @@ function initial(name) { return (name || '?').trim().charAt(0).toUpperCase(); }
 function compactPreview(text) {
   const raw = String(text || '').trim();
   if (!raw) return 'Немає повідомлень';
+  if (/\/api\/transactions\/statement\?/i.test(raw)) return '📄 PDF-виписка готова';
+  if (/\/api\/transactions\/export\?/i.test(raw)) return '🧾 CSV-виписка готова';
   if (/^[A-Za-z0-9+/=]{120,}$/.test(raw)) return '🎤 Голосове повідомлення';
   if (raw.length > 180) return raw.slice(0, 177) + '...';
   return raw;
@@ -2869,6 +3016,12 @@ if (incomingTimeoutRange) {
     saveCallPrefs();
   });
 }
+if (btnCallTestSound) {
+  btnCallTestSound.addEventListener('click', () => { previewCallSignal().catch(() => {}); });
+}
+if (btnCallReset) {
+  btnCallReset.addEventListener('click', resetCallPrefsToDefaults);
+}
 if (photoViewer) {
   photoViewer.addEventListener('click', e => {
     if (e.target === photoViewer) closePhotoViewer();
@@ -2911,6 +3064,9 @@ groupUserSearch.addEventListener('input', () => {
   clearTimeout(groupSearchTimer);
   groupSearchTimer = setTimeout(() => performGroupUserSearch(groupUserSearch.value.trim()), 350);
 });
+if (groupNameInput) {
+  groupNameInput.addEventListener('input', renderGroupPreview);
+}
 btnCreateGroup.addEventListener('click', createGroup);
 
 btnBack.addEventListener('click', () => {
@@ -3006,6 +3162,7 @@ window.addEventListener('keydown', primeCallAudioOnUserGesture, { once: true });
 // Boot
 // ════════════════════════════════════════════
 renderCallSettings();
+renderGroupPreview();
 if (token && me) showApp();
 else showAuth();
 

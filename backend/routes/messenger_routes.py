@@ -557,7 +557,7 @@ def _assistant_security_tip(account_number: str) -> str:
     )
 
 
-def _assistant_reply_text(user_id: int, user_text: str, script_root: str = '') -> str:
+def _assistant_reply_text(user_id: int, user_text: str, script_root: str = '', request_origin: str = '') -> str:
     account, _ = _ensure_bank_account_context(user_id)
     text = (user_text or '').strip()
     low = text.lower()
@@ -629,6 +629,16 @@ def _assistant_reply_text(user_id: int, user_text: str, script_root: str = '') -
         svc = StatementService()
         from_date, to_date = svc.normalize_period(from_date, to_date)
         base = script_root or ''
+        origin = str(request_origin or '').rstrip('/')
+
+        def _absolute(link: str) -> str:
+            raw = str(link or '')
+            if raw.startswith('http://') or raw.startswith('https://'):
+                return raw
+            if raw.startswith('/') and origin:
+                return f'{origin}{raw}'
+            return raw
+
         if fmt == 'pdf':
             order = svc.create_statement_order(
                 user_id=user_id,
@@ -636,17 +646,19 @@ def _assistant_reply_text(user_id: int, user_text: str, script_root: str = '') -
                 to_date=to_date,
                 report_type='detailed',
             )
-            download = f"{base}/api/transactions/statement?{order['download_query']}"
+            download = _absolute(f"{base}/api/transactions/statement?{order['download_query']}")
             return (
-                f"Готово. Підготував запит на PDF-виписку ({_period_label(from_date, to_date)}).\n"
+                "✅ PDF-виписка підготовлена.\n"
+                f"Період: {_period_label(from_date, to_date)}\n"
                 f"Завантажити: {download}\n"
                 "Також можна натиснути Bank Tools → «Завантажити PDF».\n"
                 "Порада: для короткої виписки виберіть report_type=summary у Bank Tools."
             )
         query = urlencode({'from_date': from_date, 'to_date': to_date})
-        download = f"{base}/api/transactions/export?{query}"
+        download = _absolute(f"{base}/api/transactions/export?{query}")
         return (
-            f"Готово. CSV-виписка за період {_period_label(from_date, to_date)}.\n"
+            "✅ CSV-виписка підготовлена.\n"
+            f"Період: {_period_label(from_date, to_date)}\n"
             f"Завантажити: {download}\n"
             "Також можна натиснути Bank Tools → «Завантажити CSV».\n"
             "CSV зручно для Excel, Power BI та бухгалтерського звіту."
@@ -1152,6 +1164,7 @@ def send_message(conv_id: int):
                     user_id=int(me_id),
                     user_text=text,
                     script_root=(request.script_root or ''),
+                    request_origin=(request.url_root or ''),
                 ).strip()
             except Exception:
                 reply_text = (

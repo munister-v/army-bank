@@ -10,14 +10,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
   <meta name="apple-mobile-web-app-title" content="AB Chat"/>
   <title>Army Bank · Месенджер</title>
-  <link rel="manifest" href="/manifest-messenger.json?v=23"/>
+  <link rel="manifest" href="/manifest-messenger.json?v=24"/>
   <link rel="icon" type="image/svg+xml" href="/icons/chat-favicon.svg"/>
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/chat-icon-32.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/chat-icon-180.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=23"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=24"/>
 </head>
 <body>
 
@@ -392,6 +392,14 @@
       <div class="modal-group-form">
         <input id="group-name-input" class="field-input" type="text"
                placeholder="Назва групи..." maxlength="100" autocomplete="off"/>
+        <div class="group-preview-card" id="group-preview-card">
+          <div class="group-preview-avatar" id="group-preview-avatar">Г</div>
+          <div class="group-preview-info">
+            <p class="group-preview-name" id="group-preview-name">Нова група</p>
+            <p class="group-preview-sub" id="group-preview-sub">Додайте учасників для створення</p>
+          </div>
+          <div class="group-preview-badges" id="group-preview-badges"></div>
+        </div>
         <div class="modal-search" style="padding-top:10px">
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -454,6 +462,10 @@
           <span id="incoming-timeout-value">45с</span>
         </div>
       </label>
+      <div class="call-settings-tools">
+        <button class="btn-primary btn-secondary" id="btn-call-test-sound" type="button">Тест сигналу</button>
+        <button class="btn-primary btn-secondary" id="btn-call-reset" type="button">Скинути налаштування</button>
+      </div>
     </div>
   </div>
 </div>
@@ -521,6 +533,7 @@
 ════════════════════════════════════════════ -->
 <div id="call-incoming" class="call-incoming" hidden>
   <div class="call-incoming-card">
+    <div class="call-secure-label">Secure Call · Army Bank</div>
     <div class="call-avatar" id="call-caller-avatar"></div>
     <div class="call-caller-name" id="call-caller-name">Вхідний дзвінок</div>
     <div class="call-label" id="call-incoming-label">Голосовий дзвінок</div>
@@ -544,6 +557,7 @@
      ACTIVE CALL SCREEN
 ════════════════════════════════════════════ -->
 <div id="call-screen" class="call-screen" hidden>
+  <div class="call-screen-chip">ARMY BANK SECURE CALL</div>
   <div class="call-screen-avatar" id="call-screen-avatar"></div>
   <div class="call-screen-name" id="call-screen-name"></div>
   <div class="call-screen-status" id="call-screen-status">З'єднання...</div>
@@ -588,6 +602,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=23"></script>
+<script src="/js/messenger.js?v=24"></script>
 </body>
 </html>
