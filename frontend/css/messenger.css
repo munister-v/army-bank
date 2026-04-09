@@ -36,6 +36,12 @@
   --red:         #ef4444;
   --orange:      #f59e0b;
   --gold:        #c4a064;
+  --assistant-badge: #f2f8f4;
+  --assistant-badge-ring: rgba(31,107,76,.2);
+  --assistant-card-start: #103b2d;
+  --assistant-card-mid: #1f6b4c;
+  --assistant-card-end: #9a7841;
+  --assistant-card-glow: rgba(15,59,45,.22);
 
   /* Shape */
   --radius:      12px;
@@ -414,8 +420,77 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   font-size: 15px; font-weight: 700; color: var(--blue);
   text-transform: uppercase; flex-shrink: 0;
 }
+.chat-header-avatar.assistant {
+  background: var(--assistant-badge);
+  border: 1px solid var(--assistant-badge-ring);
+  color: var(--blue);
+}
 .chat-header-name { font-size: 15px; font-weight: 700; color: var(--text); }
 .chat-header-status { font-size: 12px; color: var(--text-2); font-family: var(--font-mono); margin-top: 1px; }
+
+.assistant-panel {
+  margin: 12px 24px 0;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(21,66,49,.14);
+  box-shadow: 0 14px 28px var(--assistant-card-glow);
+  background:
+    radial-gradient(circle at 90% 12%, rgba(255,255,255,.24), transparent 30%),
+    linear-gradient(138deg, var(--assistant-card-start), var(--assistant-card-mid) 58%, var(--assistant-card-end));
+  color: #f2faf4;
+}
+.assistant-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.assistant-panel-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.13);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.assistant-panel-title {
+  font-size: 17px;
+  font-weight: 760;
+  letter-spacing: -.01em;
+}
+.assistant-panel-sub {
+  margin-top: 2px;
+  color: rgba(240, 251, 244, .84);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.assistant-quick-actions {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.assistant-quick-btn {
+  min-height: 34px;
+  border-radius: 11px;
+  border: 1px solid rgba(255,255,255,.22);
+  background: rgba(255,255,255,.14);
+  color: #f3fbf5;
+  font-size: 12px;
+  font-weight: 680;
+  letter-spacing: .01em;
+  padding: 0 11px;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, transform .1s ease;
+}
+.assistant-quick-btn:hover {
+  background: rgba(255,255,255,.22);
+  border-color: rgba(255,255,255,.34);
+}
+.assistant-quick-btn:active { transform: translateY(1px); }
+.assistant-quick-btn:disabled { opacity: .62; cursor: wait; }
 
 .messages-wrap {
   flex: 1; overflow-y: auto; padding: 20px 24px;
@@ -426,7 +501,21 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
     radial-gradient(circle at 92% 86%, rgba(196,160,100,.07), transparent 34%),
     linear-gradient(180deg, #f4f8f4, #f1f6f2);
 }
-.messages-list { display: flex; flex-direction: column; gap: 4px; flex: 1; justify-content: flex-end; }
+.chat-view.assistant-chat .messages-wrap {
+  background:
+    radial-gradient(circle at 8% 12%, rgba(31,107,76,.08), transparent 34%),
+    radial-gradient(circle at 92% 86%, rgba(196,160,100,.12), transparent 36%),
+    linear-gradient(180deg, #f2f7f3, #eef5f1);
+}
+.messages-list {
+  width: min(100%, 1140px);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  justify-content: flex-end;
+}
 .scroll-anchor { height: 1px; flex-shrink: 0; }
 
 .msg-date-divider {
@@ -452,6 +541,10 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 700; color: var(--blue); flex-shrink: 0; text-transform: uppercase;
 }
+.msg-sender-avatar.assistant {
+  background: var(--assistant-badge);
+  border: 1px solid var(--assistant-badge-ring);
+}
 
 .msg-bubble {
   padding: 10px 15px; border-radius: 16px; font-size: 14px;
@@ -461,6 +554,12 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 .msg-bubble-wrap.them .msg-bubble {
   background: var(--surface); color: var(--text); border-bottom-left-radius: 4px;
   border: 1px solid var(--border-soft); box-shadow: 0 1px 4px rgba(0,0,0,.04);
+}
+.msg-bubble-wrap.them.assistant .msg-bubble {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.98), rgba(240,249,244,.95));
+  border: 1px solid rgba(31,107,76,.18);
+  box-shadow: 0 10px 20px rgba(17,43,31,.08);
 }
 .msg-bubble.deleted { opacity: .45; font-style: italic; }
 
@@ -1118,6 +1217,24 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 .conv-item.active .conv-avatar.group { background: var(--blue-hover); }
 .chat-header-avatar.group { background: var(--blue); color: #fff; }
 
+.conv-avatar.assistant {
+  background: var(--assistant-badge);
+  color: var(--blue);
+  border: 1px solid var(--assistant-badge-ring);
+}
+.assistant-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.assistant-glyph svg {
+  width: 72%;
+  height: 72%;
+  display: block;
+}
+
 /* ════════════════════════════════════════════
    INCOMING CALL OVERLAY
 ════════════════════════════════════════════ */
@@ -1231,8 +1348,35 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   #btn-chat-logout:hover { background: rgba(181,70,74,.1); }
   .msg-bubble-wrap { max-width: 85%; }
   .messages-wrap { padding: 14px 12px; }
+  .messages-list { width: 100%; }
   .msg-input-bar { padding: 10px 12px; }
   .chat-header { padding: 12px 14px; }
+  .assistant-panel {
+    margin: 8px 12px 0;
+    padding: 12px;
+    border-radius: 14px;
+  }
+  .assistant-panel-avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+  }
+  .assistant-panel-title {
+    font-size: 15px;
+  }
+  .assistant-panel-sub {
+    font-size: 12px;
+  }
+  .assistant-quick-actions {
+    margin-top: 10px;
+    gap: 6px;
+  }
+  .assistant-quick-btn {
+    min-height: 32px;
+    font-size: 11px;
+    border-radius: 10px;
+    padding: 0 10px;
+  }
   .photo-stack { max-width: 74vw; }
   .btn-attach, .btn-voice, .btn-send { width: 40px; height: 40px; }
   .recording-label { display: none; }

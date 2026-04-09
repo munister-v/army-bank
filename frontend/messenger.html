@@ -10,14 +10,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
   <meta name="apple-mobile-web-app-title" content="AB Chat"/>
   <title>Army Bank · Месенджер</title>
-  <link rel="manifest" href="/manifest-messenger.json?v=21"/>
+  <link rel="manifest" href="/manifest-messenger.json?v=22"/>
   <link rel="icon" type="image/svg+xml" href="/icons/chat-favicon.svg"/>
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/chat-icon-32.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/chat-icon-180.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=21"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=22"/>
 </head>
 <body>
 
@@ -249,6 +249,37 @@
           </button>
         </div>
       </div>
+
+      <section class="assistant-panel" id="assistant-panel" hidden aria-label="Панель банківського асистента">
+        <div class="assistant-panel-head">
+          <div class="assistant-panel-avatar" aria-hidden="true">
+            <svg viewBox="0 0 64 64" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="assistantHeadG" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#0f3b2d"/>
+                  <stop offset="0.7" stop-color="#1f6b4c"/>
+                  <stop offset="1" stop-color="#b28a4d"/>
+                </linearGradient>
+              </defs>
+              <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#assistantHeadG)"/>
+              <circle cx="46" cy="18" r="6" fill="#d4b070"/>
+              <path d="M18 22h25a8 8 0 0 1 8 8v11a8 8 0 0 1-8 8H29l-9 7 2-7h-4a8 8 0 0 1-8-8V30a8 8 0 0 1 8-8z" fill="rgba(255,255,255,.96)"/>
+              <text x="31" y="38" text-anchor="middle" font-family="Manrope, Arial, sans-serif" font-size="14" font-weight="800" fill="#1d5a40">AB</text>
+            </svg>
+          </div>
+          <div class="assistant-panel-copy">
+            <p class="assistant-panel-title">Army Bank Assistant</p>
+            <p class="assistant-panel-sub">Швидкі банківські дії в один клік: баланс, виписки та сервісні інструменти.</p>
+          </div>
+        </div>
+        <div class="assistant-quick-actions" id="assistant-quick-actions">
+          <button type="button" class="assistant-quick-btn" data-assistant-action="balance">Баланс</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="statement_pdf">Виписка PDF</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="statement_csv">Виписка CSV</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="bank_tools">Bank Tools</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="transfer_help">Перекази</button>
+        </div>
+      </section>
 
       <div class="messages-wrap" id="messages-wrap">
         <div class="messages-list" id="messages-list"></div>
@@ -535,6 +566,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=21"></script>
+<script src="/js/messenger.js?v=22"></script>
 </body>
 </html>

@@ -6,10 +6,11 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '21';
+const MESSENGER_ASSET_VERSION = '22';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
+const DEFAULT_MSG_PLACEHOLDER = 'Напишіть повідомлення...';
 const DEFAULT_CALL_PREFS = Object.freeze({
   sounds: true,
   vibration: true,
@@ -137,6 +138,8 @@ const chatView          = $('chat-view');
 const chatAvatar        = $('chat-avatar');
 const chatPartnerName   = $('chat-partner-name');
 const chatPartnerRole   = $('chat-partner-role');
+const assistantPanel    = $('assistant-panel');
+const assistantQuickActions = $('assistant-quick-actions');
 const messagesWrap      = $('messages-wrap');
 const messagesList      = $('messages-list');
 const scrollAnchor      = $('scroll-anchor');
@@ -672,6 +675,39 @@ function convName(conv) {
   return conv.is_group ? (conv.group_name || 'Група') : (conv.partner?.full_name || 'Невідомий');
 }
 
+function isAssistantPartner(partner) {
+  if (!partner || typeof partner !== 'object') return false;
+  const role = String(partner.role || '').toLowerCase();
+  if (role === 'assistant_bot') return true;
+  const name = String(partner.full_name || '').toLowerCase();
+  return (
+    name.includes('army bank assistant') ||
+    name.includes('bank assistant') ||
+    name.includes('банківський асистент')
+  );
+}
+
+function assistantGlyphMarkup() {
+  return `<span class="assistant-glyph" aria-hidden="true">
+    <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="2" width="32" height="32" rx="10" fill="#1f6b4c"/>
+      <rect x="2" y="2" width="32" height="32" rx="10" fill="rgba(15,59,45,.45)"/>
+      <circle cx="27.5" cy="10.5" r="3.4" fill="#d4b070"/>
+      <path d="M11 12h14a4.5 4.5 0 0 1 4.5 4.5V21a4.5 4.5 0 0 1-4.5 4.5h-8l-5.5 4 1.2-4H11A4.5 4.5 0 0 1 6.5 21v-4.5A4.5 4.5 0 0 1 11 12z" fill="rgba(255,255,255,.96)"/>
+      <text x="18" y="20.3" text-anchor="middle" font-size="8.2" font-family="Manrope, Arial, sans-serif" font-weight="800" fill="#1d5a40">AB</text>
+    </svg>
+  </span>`;
+}
+
+function syncAssistantUi(isAssistant) {
+  if (chatView) chatView.classList.toggle('assistant-chat', !!isAssistant);
+  if (assistantPanel) assistantPanel.hidden = !isAssistant;
+  if (btnBankTools) btnBankTools.hidden = !isAssistant;
+  if (msgInput) msgInput.placeholder = isAssistant
+    ? 'Спробуйте: Баланс, виписка PDF/CSV, переказ...'
+    : DEFAULT_MSG_PLACEHOLDER;
+}
+
 function renderConvList(items) {
   const q = convSearch.value.trim().toLowerCase();
   const filtered = q ? items.filter(c => convName(c).toLowerCase().includes(q)) : items;
@@ -689,12 +725,13 @@ function buildConvItem(conv) {
   el.className = 'conv-item';
   el.dataset.convId = conv.id;
   const isGroup = !!conv.is_group;
+  const isAssistant = !isGroup && isAssistantPartner(conv.partner);
   const name    = convName(conv);
   const preview = compactPreview(conv.last_message_text);
   const time    = conv.last_message_at ? formatTime(conv.last_message_at) : '';
   const unread  = conv.unread || 0;
   el.innerHTML = `
-    <div class="conv-avatar${isGroup ? ' group' : ''}">${esc(initial(name))}</div>
+    <div class="conv-avatar${isGroup ? ' group' : ''}${isAssistant ? ' assistant' : ''}">${isAssistant ? assistantGlyphMarkup() : esc(initial(name))}</div>
     <div class="conv-info">
       <div class="conv-name">${esc(name)}</div>
       <div class="conv-preview">${esc(preview)}</div>
@@ -724,14 +761,15 @@ async function openChat(conv) {
   noMoreOlder   = false;
 
   const isGroup = !!conv.is_group;
-  const isAssistant = !isGroup && (conv.partner?.role === 'assistant_bot');
+  const isAssistant = !isGroup && isAssistantPartner(conv.partner);
   const name    = convName(conv);
-  chatAvatar.textContent = esc(initial(name));
-  chatAvatar.className   = 'chat-header-avatar' + (isGroup ? ' group' : '');
+  chatAvatar.innerHTML = isAssistant ? assistantGlyphMarkup() : esc(initial(name));
+  chatAvatar.className = 'chat-header-avatar' + (isGroup ? ' group' : '') + (isAssistant ? ' assistant' : '');
   chatPartnerName.textContent = name;
   chatPartnerRole.textContent = isGroup
     ? 'Групова розмова'
-    : (isAssistant ? 'Банківський асистент' : '');
+    : (isAssistant ? 'Банківський асистент · Швидкі дії зверху' : '');
+  syncAssistantUi(isAssistant);
   if (btnCall) btnCall.hidden = isGroup || isAssistant;
 
   chatEmpty.hidden = true;
@@ -799,7 +837,8 @@ function renderMessages(msgs, prepend = false) {
 function buildBubble(msg) {
   const isMe    = msg.sender_id === (me?.id);
   const wrap    = document.createElement('div');
-  wrap.className = `msg-bubble-wrap ${isMe ? 'me' : 'them'}`;
+  const assistantIncoming = (!isMe && isAssistantPartner(activePartner));
+  wrap.className = `msg-bubble-wrap ${isMe ? 'me' : 'them'}${assistantIncoming ? ' assistant' : ''}`;
   wrap.dataset.id = msg.id;
 
   const ini     = initial(msg.sender_name || '');
@@ -849,7 +888,7 @@ function buildBubble(msg) {
   }
 
   wrap.innerHTML = `
-    ${!isMe ? `<div class="msg-sender-avatar">${esc(ini)}</div>` : ''}
+    ${!isMe ? `<div class="msg-sender-avatar${assistantIncoming ? ' assistant' : ''}">${assistantIncoming ? assistantGlyphMarkup() : esc(ini)}</div>` : ''}
     <div class="msg-inner">${content}<div class="msg-time">${timeStr}</div></div>`;
   if (!deleted && msgType === 'image') hydratePhotoTiles(wrap);
   return wrap;
@@ -907,6 +946,39 @@ async function sendMessage() {
     showToast(err.message, true);
     msgInput.value = text;
     updateSendBtn();
+  }
+}
+
+async function runAssistantQuickAction(action, btnEl = null) {
+  if (!activeConvId || !isAssistantPartner(activePartner)) return;
+  if (btnEl) btnEl.disabled = true;
+  try {
+    if (action === 'balance') {
+      await handleChatCommand('/баланс');
+      return;
+    }
+    if (action === 'statement_pdf') {
+      await handleChatCommand('/виписка pdf');
+      return;
+    }
+    if (action === 'statement_csv') {
+      await handleChatCommand('/виписка csv');
+      return;
+    }
+    if (action === 'bank_tools') {
+      await openBankToolsModal();
+      return;
+    }
+    if (action === 'transfer_help') {
+      await sendTextToActiveChat('Потрібна допомога з переказом між рахунками та комісіями.');
+      showToast('Запит по переказах надіслано в чат.');
+    }
+  } catch (err) {
+    showToast(err.message || 'Не вдалося виконати швидку дію.', true);
+  } finally {
+    if (btnEl) {
+      setTimeout(() => { btnEl.disabled = false; }, 320);
+    }
   }
 }
 
@@ -2770,9 +2842,11 @@ btnBack.addEventListener('click', () => {
   if (isRecording) stopRecording(false);
   sidebar.classList.remove('hidden');
   activeConvId = null;
+  activePartner = null;
   clearInterval(convPollTimer);
   chatView.hidden = true;
   chatEmpty.hidden = false;
+  syncAssistantUi(false);
   document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('active'));
 });
 
@@ -2815,6 +2889,15 @@ if (messagesList) {
     const items = photosByMessageId.get(msgId) || [];
     if (!items.length) return;
     openPhotoViewer(items, idx);
+  });
+}
+if (assistantQuickActions) {
+  assistantQuickActions.addEventListener('click', e => {
+    const btn = e.target instanceof Element ? e.target.closest('.assistant-quick-btn') : null;
+    if (!btn) return;
+    const action = String(btn.dataset.assistantAction || '').trim();
+    if (!action) return;
+    runAssistantQuickAction(action, btn);
   });
 }
 if (btnPhotoClose) btnPhotoClose.addEventListener('click', closePhotoViewer);
