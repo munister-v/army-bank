@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '16';
+const MESSENGER_ASSET_VERSION = '17';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -1718,6 +1718,40 @@ function normalizeSdp(raw, label = 'SDP') {
   return sdp;
 }
 
+function cleanupSdpForFallback(sdp, errorMessage = '') {
+  const originalLines = String(sdp || '').split(/\r\n|\n|\r/).filter(Boolean);
+  if (!originalLines.length) return sdp;
+
+  const msg = String(errorMessage || '');
+  let lines = originalLines;
+  const lineMatch = msg.match(/([a-z]=[^\r\n]+)\s+Invalid SDP line/i);
+  if (lineMatch && lineMatch[1]) {
+    const badLine = lineMatch[1].trim();
+    lines = lines.filter(line => line.trim() !== badLine);
+  }
+
+  const compacted = lines.join('\r\n') + '\r\n';
+  if (compacted !== sdp) return compacted;
+
+  // Last-resort compatibility for strict parsers: drop legacy SSRC attributes.
+  const relaxed = originalLines.filter(line => !/^a=ssrc(?::|-group:)/i.test(String(line).trim()));
+  return (relaxed.join('\r\n') + '\r\n');
+}
+
+async function setRemoteDescriptionSafe(pc, desc, label) {
+  try {
+    await pc.setRemoteDescription(desc);
+  } catch (err) {
+    const msg = String(err?.message || err || '');
+    if (!/Invalid SDP line|Failed to parse SessionDescription|parse SessionDescription|OperationError/i.test(msg)) {
+      throw err;
+    }
+    const fallbackSdp = cleanupSdpForFallback(desc.sdp, msg);
+    if (!fallbackSdp || fallbackSdp === desc.sdp) throw err;
+    await pc.setRemoteDescription({ ...desc, sdp: fallbackSdp });
+  }
+}
+
 function normalizeIceCandidate(raw) {
   let cand = raw;
   if (typeof cand === 'string') {
@@ -1901,7 +1935,7 @@ async function acceptCall() {
     pendingRemoteIce = [];
 
     const offerSdp = normalizeSdp(callData.sdp_offer, 'SDP offer');
-    await peerConnection.setRemoteDescription({ type: 'offer', sdp: offerSdp });
+    await setRemoteDescriptionSafe(peerConnection, { type: 'offer', sdp: offerSdp }, 'SDP offer');
     remoteSdpSet = true;
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
@@ -1952,7 +1986,7 @@ async function pollCall() {
     if (!remoteSdpSet && peerConnection.signalingState === 'have-local-offer') {
       if (cd.status === 'active' && cd.sdp_answer) {
         const answerSdp = normalizeSdp(cd.sdp_answer, 'SDP answer');
-        await peerConnection.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+        await setRemoteDescriptionSafe(peerConnection, { type: 'answer', sdp: answerSdp }, 'SDP answer');
         remoteSdpSet = true;
         stopOutgoingTone();
         clearOutgoingNoAnswerTimer();
