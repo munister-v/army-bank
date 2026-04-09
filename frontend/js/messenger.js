@@ -2049,31 +2049,26 @@ async function createGroup() {
 const DEFAULT_ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' },
-  { urls: 'stun:stun3.l.google.com:19302' },
-  { urls: 'stun:stun4.l.google.com:19302' },
-  // Public TURN servers - at least one should work
+  { urls: 'stun:stun.cloudflare.com:3478' },
+  // Open Relay Project (metered.ca) - free TURN
   {
     urls: [
-      'turn:openrelay.metered.ca:80?transport=udp',
+      'turn:openrelay.metered.ca:80',
+      'turn:openrelay.metered.ca:80?transport=tcp',
       'turn:openrelay.metered.ca:443?transport=tcp',
+      'turns:openrelay.metered.ca:443?transport=tcp',
     ],
     username: 'openrelayproject',
     credential: 'openrelayproject',
   },
+  // freestun.net - free TURN backup
   {
     urls: [
-      'turn:numb.viagenie.ca:3478?transport=udp',
-      'turn:numb.viagenie.ca:3478?transport=tcp',
+      'turn:freestun.net:3478',
+      'turns:freestun.net:5349',
     ],
-    username: 'webrtc@example.com',
-    credential: 'webrtc',
-  },
-  // Fallback: relay.webrtc.org
-  {
-    urls: ['turn:relay.webrtc.org:3478?transport=udp'],
-    username: 'webrtc',
-    credential: 'webrtc',
+    username: 'free',
+    credential: 'free',
   },
 ];
 let rtcConfig = { iceServers: [...DEFAULT_ICE_SERVERS] };
@@ -2545,9 +2540,11 @@ function buildPeerConnection() {
 
   pc.oniceconnectionstatechange = () => {
     const st = pc.iceConnectionState;
-    console.log('[ICE] State changed:', st, '| Connection:', pc.connectionState, '| Candidates gathered:', pc.currentLocalDescription?.sdp.split('candidate:').length - 1);
+    const gathering = pc.iceGatheringState;
+    const connState = pc.connectionState;
+    console.log(`[ICE] State: ${st} | Gathering: ${gathering} | Connection: ${connState} | Audio tracks: ${localStream?.getAudioTracks().length || 0}`);
     if (st === 'connected' || st === 'completed') {
-      console.log('[ICE] ✓ Connected!');
+      console.log('[ICE] ✓✓✓ CONNECTED! Audio should flow now!');
       setCallStatusBase('Підключено');
       stopAllCallTones();
       if (!callConnectedOnce) {
@@ -2558,9 +2555,8 @@ function buildPeerConnection() {
       if (!callQualityTimer) startCallQualityMonitor();
       requestCallWakeLock().catch(() => {});
     } else if (st === 'disconnected') {
-      console.log('[ICE] ⚠️ Disconnected, attempting restart');
+      console.log('[ICE] ⚠️ Disconnected - was working before, attempting ICE restart');
       setCallStatusBase('Відновлення...');
-      // Force ICE restart via new offer
       if (peerConnection && activeCallId) {
         peerConnection.createOffer({ iceRestart: true })
           .then(offer => peerConnection.setLocalDescription(offer))
@@ -2568,11 +2564,15 @@ function buildPeerConnection() {
       }
       pollCall().catch(() => {});
     } else if (st === 'failed') {
-      console.error('[ICE] ❌ Failed!');
+      console.error('[ICE] ❌ FAILED - no working candidate pairs found!');
       showToast('З\'єднання перервано.', true);
       hangupCall(true, 'error');
     } else if (st === 'checking') {
-      console.log('[ICE] 🔍 Checking candidates...');
+      console.log('[ICE] 🔍 Checking candidates... (testing connectivity)');
+    } else if (st === 'new') {
+      console.log('[ICE] 🆕 New state - gathering candidates');
+    } else if (st === 'closed') {
+      console.log('[ICE] 🔒 Closed');
     }
   };
 
