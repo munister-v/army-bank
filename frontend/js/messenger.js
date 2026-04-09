@@ -2525,8 +2525,13 @@ function buildPeerConnection() {
     if (remoteAudio.srcObject !== e.streams[0]) remoteAudio.srcObject = e.streams[0];
   };
 
-  // ICE candidates are embedded in the gathered SDP — no trickle needed
-  pc.onicecandidate = () => {};
+  // Queue ICE candidates as they arrive (trickle ICE)
+  pc.onicecandidate = (evt) => {
+    if (evt.candidate) {
+      pendingLocalIce.push(evt.candidate);
+      flushLocalIce().catch(() => {});
+    }
+  };
 
   pc.oniceconnectionstatechange = () => {
     const st = pc.iceConnectionState;
@@ -2814,6 +2819,27 @@ async function pollCall() {
         clearOutgoingNoAnswerTimer();
         setCallStatusBase('З\'єднання...');
       }
+    }
+
+    // Fetch and add remote ICE candidates from server
+    if (remoteSdpSet && activeCallId) {
+      try {
+        const iceData = await api('GET', `/messenger/calls/${activeCallId}/ice?after_id=${icePollLastId}`);
+        if (iceData.data && Array.isArray(iceData.data)) {
+          for (const row of iceData.data) {
+            icePollLastId = Math.max(icePollLastId, row.id || 0);
+            if (row.candidate) {
+              try {
+                const candidate = typeof row.candidate === 'string' ? JSON.parse(row.candidate) : row.candidate;
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                console.log('[ICE] ➕ Added remote candidate from server');
+              } catch (err) {
+                console.log('[ICE] ⚠️ Failed to add candidate:', err.message);
+              }
+            }
+          }
+        }
+      } catch (_) {}
     }
 
     // Caller ICE restart: send new offer if we initiated restart
