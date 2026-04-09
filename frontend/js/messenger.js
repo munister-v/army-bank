@@ -2604,8 +2604,10 @@ async function initiateCall() {
   try {
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
-    setCallStatusBase('Збір ICE...');
-    await waitForIceGathering(peerConnection);
+    setCallStatusBase('Запуск...');
+
+    // Send offer immediately with early ICE candidates
+    // Don't wait for full gathering (saves 5-7 seconds)
     const { call_id } = await api('POST', '/messenger/calls', {
       conversation_id: activeConvId,
       sdp_offer: peerConnection.localDescription.sdp,
@@ -2614,9 +2616,15 @@ async function initiateCall() {
     remoteSdpSet  = false;
     icePollLastId = 0;
     callConnectedOnce = false;
+
+    // Show call screen immediately, not after 7s wait
     showCallScreen(activePartner.full_name, 'Виклик...');
     startOutgoingTone().catch(() => {});
     startOutgoingNoAnswerTimer(call_id);
+
+    // Continue gathering candidates in background (will arrive via ICE)
+    waitForIceGathering(peerConnection).catch(() => {});
+
     startCallPoll();
   } catch (err) {
     stopAllCallTones();
@@ -2708,8 +2716,9 @@ async function acceptCall() {
     remoteSdpSet = true;
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
-    setCallStatusBase('Збір ICE...');
-    await waitForIceGathering(peerConnection);
+    setCallStatusBase('Прийняття...');
+
+    // Send answer immediately, don't wait for full ICE gathering
     const answerSdp = normalizeSdp(peerConnection.localDescription.sdp, 'SDP answer');
     await api('PUT', `/messenger/calls/${callId}/answer`, { sdp_answer: answerSdp });
 
@@ -2717,7 +2726,13 @@ async function acceptCall() {
     icePollLastId = 0;
     callConnectedOnce = false;
     clearOutgoingNoAnswerTimer();
+
+    // Show call screen immediately
     showCallScreen(callData.caller_name || 'Дзвінок', 'З\'єднання...');
+
+    // Continue gathering in background
+    waitForIceGathering(peerConnection).catch(() => {});
+
     startCallPoll();
   } catch (err) {
     showToast(err.message || 'Помилка підключення дзвінка.', true);
