@@ -2052,7 +2052,7 @@ const DEFAULT_ICE_SERVERS = [
   { urls: 'stun:stun2.l.google.com:19302' },
   { urls: 'stun:stun3.l.google.com:19302' },
   { urls: 'stun:stun4.l.google.com:19302' },
-  // Multiple TURN servers for redundancy when one is overloaded
+  // Public TURN servers - at least one should work
   {
     urls: [
       'turn:openrelay.metered.ca:80?transport=udp',
@@ -2065,10 +2065,14 @@ const DEFAULT_ICE_SERVERS = [
     urls: [
       'turn:numb.viagenie.ca:3478?transport=udp',
       'turn:numb.viagenie.ca:3478?transport=tcp',
-      'turn:numb.viagenie.ca:3479?transport=udp',
-      'turn:numb.viagenie.ca:3479?transport=tcp',
     ],
     username: 'webrtc@example.com',
+    credential: 'webrtc',
+  },
+  // Fallback: relay.webrtc.org
+  {
+    urls: ['turn:relay.webrtc.org:3478?transport=udp'],
+    username: 'webrtc',
     credential: 'webrtc',
   },
 ];
