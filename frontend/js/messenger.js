@@ -2527,16 +2527,19 @@ function buildPeerConnection() {
 
   // Queue ICE candidates as they arrive (trickle ICE)
   pc.onicecandidate = (evt) => {
-    if (evt.candidate && activeCallId) {
+    if (evt.candidate) {
       console.log(`[ICE] 🔵 New local candidate: ${evt.candidate.candidate?.substring(0, 50)}`);
       pendingLocalIce.push(evt.candidate);
-      flushLocalIce().catch(err => {
-        console.error('[ICE] Error flushing candidates:', err.message);
-      });
-    } else if (!evt.candidate) {
+      // Only flush if we have activeCallId (candidates will be buffered until then)
+      if (activeCallId) {
+        flushLocalIce().catch(err => {
+          console.error('[ICE] Error flushing candidates:', err.message);
+        });
+      } else {
+        console.log('[ICE] ⏳ Buffering candidate (waiting for activeCallId)');
+      }
+    } else {
       console.log('[ICE] ✓ ICE gathering complete');
-    } else if (!activeCallId) {
-      console.log('[ICE] ⚠️ Candidate arrived but no active call');
     }
   };
 
@@ -2656,6 +2659,10 @@ async function initiateCall() {
     remoteSdpSet  = false;
     icePollLastId = 0;
     callConnectedOnce = false;
+
+    // Flush any candidates that arrived before activeCallId was set
+    console.log('[ICE] 🔄 activeCallId set, flushing buffered candidates');
+    flushLocalIce().catch(() => {});
 
     // Show call screen immediately, not after 7s wait
     showCallScreen(activePartner.full_name, 'Виклик...');
@@ -2778,6 +2785,10 @@ async function acceptCall() {
     icePollLastId = 0;
     callConnectedOnce = false;
     clearOutgoingNoAnswerTimer();
+
+    // Flush any candidates that arrived before activeCallId was set
+    console.log('[ICE] 🔄 activeCallId set, flushing buffered candidates');
+    flushLocalIce().catch(() => {});
 
     // Show call screen immediately
     showCallScreen(callData.caller_name || 'Дзвінок', 'З\'єднання...');
