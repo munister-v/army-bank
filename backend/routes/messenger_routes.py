@@ -3,11 +3,15 @@ from __future__ import annotations
 
 import json
 import re
+from urllib.parse import urlencode
 
 from flask import Blueprint, jsonify, request, g
 
 from ..database import get_connection
 from ..config import USE_PG
+from ..services.account_service import AccountService
+from ..services.auth_service import AuthService
+from ..services.statement_service import StatementService
 from ..services.messenger_crypto import (
     decrypt_message,
     deleted_message_text,
@@ -16,6 +20,8 @@ from ..services.messenger_crypto import (
 from .helpers import api_error, auth_required
 
 messenger_bp = Blueprint('messenger', __name__, url_prefix='/api/messenger')
+_auth_service = AuthService()
+_account_service = AccountService()
 
 _FALSE = False if USE_PG else 0  # boolean compatibility
 _B64_RE = re.compile(r'^[A-Za-z0-9+/=]+$')
@@ -140,6 +146,143 @@ def _serialize_message_row(row: dict) -> dict:
     return item
 
 
+def _ensure_bank_account_context(user_id: int) -> tuple[dict, bool]:
+    account, auto_created = _auth_service.ensure_user_bank_account(user_id)
+    if not account:
+        raise ValueError('Банківський рахунок не знайдено. Зверніться до підтримки.')
+    return account, auto_created
+
+
+def _money_fmt(amount: float) -> str:
+    return f"₴{float(amount or 0):,.2f}".replace(',', ' ')
+
+
+def _period_label(from_date: str, to_date: str) -> str:
+    return f'{from_date} → {to_date}'
+
+
+# ── Банківські інструменти в месенджері ─────────────────────────────────────
+
+@messenger_bp.get('/bank/status')
+@auth_required
+def messenger_bank_status():
+    user_id = int(g.current_user['id'])
+    try:
+        account, auto_created = _ensure_bank_account_context(user_id)
+    except Exception as exc:
+        return api_error(str(exc), 409)
+    return jsonify({'ok': True, 'data': {
+        'linked': bool(account),
+        'auto_linked': bool(auto_created),
+        'account_number': account.get('account_number'),
+        'balance': float(account.get('balance') or 0),
+        'currency': account.get('currency') or 'UAH',
+        'notice': (
+            'Банківський рахунок створено автоматично. '
+            'Тепер Bank і Messenger працюють як єдиний акаунт.'
+        ) if auto_created else None,
+    }})
+
+
+@messenger_bp.get('/bank/summary')
+@auth_required
+def messenger_bank_summary():
+    user_id = int(g.current_user['id'])
+    try:
+        account, auto_created = _ensure_bank_account_context(user_id)
+        recent = _account_service.list_transactions(user_id)[:5]
+        quick_text_lines = [
+            f"Рахунок: {account.get('account_number')}",
+            f"Баланс: {_money_fmt(account.get('balance'))}",
+        ]
+        if recent:
+            quick_text_lines.append('Останні операції:')
+            for tx in recent[:3]:
+                sign = '+' if (tx.get('direction') == 'in') else '-'
+                quick_text_lines.append(
+                    f"• {tx.get('created_at', '')[:16]} · {sign}{_money_fmt(tx.get('amount'))} · {tx.get('description') or 'Операція'}"
+                )
+        else:
+            quick_text_lines.append('Операцій поки немає.')
+        return jsonify({'ok': True, 'data': {
+            'linked': True,
+            'auto_linked': bool(auto_created),
+            'account': {
+                'id': account.get('id'),
+                'account_number': account.get('account_number'),
+                'balance': float(account.get('balance') or 0),
+                'currency': account.get('currency') or 'UAH',
+            },
+            'recent_transactions': recent,
+            'share_text': '\n'.join(quick_text_lines),
+        }})
+    except Exception as exc:
+        return api_error(str(exc), 409)
+
+
+@messenger_bp.post('/bank/statement/order')
+@auth_required
+def messenger_bank_statement_order():
+    user_id = int(g.current_user['id'])
+    data = request.get_json(silent=True) or {}
+    fmt = (data.get('format') or 'pdf').strip().lower()
+    report_type = (data.get('report_type') or 'detailed').strip().lower()
+    from_date = data.get('from_date') or None
+    to_date = data.get('to_date') or None
+
+    if fmt not in ('pdf', 'csv'):
+        return api_error("format має бути 'pdf' або 'csv'.")
+    try:
+        account, auto_created = _ensure_bank_account_context(user_id)
+        svc = StatementService()
+        norm_from, norm_to = svc.normalize_period(from_date, to_date)
+        base = request.script_root or ''
+
+        if fmt == 'pdf':
+            order = svc.create_statement_order(
+                user_id=user_id,
+                from_date=norm_from,
+                to_date=norm_to,
+                report_type=report_type,
+            )
+            download_path = f"{base}/api/transactions/statement?{order['download_query']}"
+            share_text = (
+                f"Сформовано запит на PDF-виписку ({_period_label(norm_from, norm_to)}). "
+                "Завантаження доступне в розділі Bank Tools."
+            )
+            return jsonify({'ok': True, 'data': {
+                'linked': True,
+                'auto_linked': bool(auto_created),
+                'format': 'pdf',
+                'period': {'from_date': norm_from, 'to_date': norm_to},
+                'report_type': report_type,
+                'order': order,
+                'download_path': download_path,
+                'share_text': share_text,
+                'account_number': account.get('account_number'),
+            }})
+
+        # CSV
+        qs = urlencode({'from_date': norm_from, 'to_date': norm_to})
+        download_path = f"{base}/api/transactions/export?{qs}"
+        share_text = (
+            f"Підготовлено CSV-виписку ({_period_label(norm_from, norm_to)}). "
+            "Завантаження доступне в розділі Bank Tools."
+        )
+        return jsonify({'ok': True, 'data': {
+            'linked': True,
+            'auto_linked': bool(auto_created),
+            'format': 'csv',
+            'period': {'from_date': norm_from, 'to_date': norm_to},
+            'report_type': report_type,
+            'download_path': download_path,
+            'share_text': share_text,
+            'account_number': account.get('account_number'),
+        }})
+    except Exception as exc:
+        return api_error(str(exc), 409)
+
+
 # ── Пошук користувачів ───────────────────────────────────────────────────────
 
 @messenger_bp.get('/users/search')
@@ -175,6 +318,10 @@ def search_users():
 @auth_required
 def list_conversations():
     me_id = g.current_user['id']
+    try:
+        _ensure_bank_account_context(int(me_id))
+    except Exception as exc:
+        return api_error(str(exc), 409)
     with get_connection() as conn:
         rows = conn.execute(
             """

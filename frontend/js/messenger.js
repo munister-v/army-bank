@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '19';
+const MESSENGER_ASSET_VERSION = '20';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -100,6 +100,8 @@ let callStatusBase = 'З\'єднання...';
 let callWakeLock = null;
 let callBackgroundNotifiedForId = null;
 let turnHintShown = false;
+let bankSummaryCache = null;
+let bankProfileLinked = true;
 
 // ── Call audio state ───────────────────────
 let callAudioCtx       = null;
@@ -154,6 +156,7 @@ const btnLogout         = $('btn-logout');
 const btnSidebarLogout  = $('btn-sidebar-logout');
 const btnChatLogout     = $('btn-chat-logout');
 const btnCall           = $('btn-call');
+const btnBankTools      = $('btn-bank-tools');
 const topbarAvatar      = $('topbar-avatar');
 const unreadBadge       = $('unread-badge');
 const newChatModal      = $('new-chat-modal');
@@ -211,6 +214,19 @@ const outgoingTimeoutValue = $('outgoing-timeout-value');
 const incomingTimeoutRange = $('incoming-timeout-range');
 const incomingTimeoutValue = $('incoming-timeout-value');
 const callSettingsButtons = Array.from(document.querySelectorAll('[data-open-call-settings]'));
+const bankToolsModal = $('bank-tools-modal');
+const btnCloseBankTools = $('btn-close-bank-tools');
+const bankLinkStatus = $('bank-link-status');
+const bankAccountNumber = $('bank-account-number');
+const bankBalance = $('bank-balance');
+const bankFromDate = $('bank-from-date');
+const bankToDate = $('bank-to-date');
+const bankReportType = $('bank-report-type');
+const btnBankRefresh = $('btn-bank-refresh');
+const btnBankSendSummary = $('btn-bank-send-summary');
+const btnBankDownloadPdf = $('btn-bank-download-pdf');
+const btnBankDownloadCsv = $('btn-bank-download-csv');
+const btnBankSendOrderMsg = $('btn-bank-send-order-msg');
 
 // ════════════════════════════════════════════
 // API helper
@@ -305,9 +321,173 @@ function closeCallSettingsModal() {
   syncOverlayLock();
 }
 
+function moneyFmt(amount, currency = 'UAH') {
+  const value = Number(amount || 0);
+  const symbol = (String(currency || 'UAH').toUpperCase() === 'UAH') ? '₴' : String(currency || 'UAH') + ' ';
+  return `${symbol}${value.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysAgoIso(days) {
+  const d = new Date();
+  d.setDate(d.getDate() - Math.max(0, Number(days || 0)));
+  return d.toISOString().slice(0, 10);
+}
+
+function setBankLinkStatus(text, isWarn = false) {
+  if (!bankLinkStatus) return;
+  bankLinkStatus.textContent = text;
+  bankLinkStatus.classList.toggle('warn', !!isWarn);
+}
+
+function closeBankToolsModal() {
+  if (!bankToolsModal) return;
+  bankToolsModal.hidden = true;
+  syncOverlayLock();
+}
+
+async function ensureMessengerBankStatus() {
+  if (!token) return null;
+  try {
+    const status = await api('GET', '/messenger/bank/status');
+    bankProfileLinked = !!status?.linked;
+    if (status?.notice) showToast(status.notice);
+    return status;
+  } catch (err) {
+    bankProfileLinked = false;
+    showToast(err.message || 'Банківський профіль недоступний.', true);
+    return null;
+  }
+}
+
+async function loadBankSummary() {
+  const summary = await api('GET', '/messenger/bank/summary');
+  bankSummaryCache = summary;
+  const account = summary?.account || {};
+  if (bankAccountNumber) bankAccountNumber.textContent = account.account_number || '—';
+  if (bankBalance) bankBalance.textContent = moneyFmt(account.balance, account.currency || 'UAH');
+  if (summary?.auto_linked) {
+    setBankLinkStatus('Рахунок був створений автоматично і вже синхронізований з месенджером.');
+  } else {
+    setBankLinkStatus('Bank + Messenger синхронізовано. Можна запитувати виписки та дані по рахунку.');
+  }
+  return summary;
+}
+
+async function openBankToolsModal() {
+  if (!bankToolsModal) return;
+  if (!token) {
+    showToast('Спочатку виконайте вхід.', true);
+    return;
+  }
+  if (!bankFromDate?.value) bankFromDate.value = daysAgoIso(30);
+  if (!bankToDate?.value) bankToDate.value = todayIso();
+  setBankLinkStatus('Оновлюю банківські дані…');
+  bankToolsModal.hidden = false;
+  syncOverlayLock();
+  const status = await ensureMessengerBankStatus();
+  if (!status?.linked) {
+    setBankLinkStatus('Банківський профіль не знайдено. Зверніться до підтримки.', true);
+    return;
+  }
+  try {
+    await loadBankSummary();
+  } catch (err) {
+    setBankLinkStatus(err.message || 'Не вдалося завантажити дані банку.', true);
+  }
+}
+
+function parseFilenameFromDisposition(disposition, fallbackName) {
+  const raw = String(disposition || '');
+  const utf8Match = raw.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match && utf8Match[1]) {
+    try { return decodeURIComponent(utf8Match[1]); } catch (_) {}
+  }
+  const plainMatch = raw.match(/filename=\"?([^\";]+)\"?/i);
+  if (plainMatch && plainMatch[1]) return plainMatch[1];
+  return fallbackName;
+}
+
+async function downloadProtectedFile(path, fallbackName) {
+  if (!token) throw new Error('Потрібна авторизація.');
+  const res = await fetch(path, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const j = await res.json();
+      message = j?.error || message;
+    } catch (_) {}
+    throw new Error(message);
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const filename = parseFilenameFromDisposition(disposition, fallbackName);
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 1500);
+}
+
+async function createStatementOrder(format = 'pdf') {
+  const from_date = bankFromDate?.value || daysAgoIso(30);
+  const to_date = bankToDate?.value || todayIso();
+  if (from_date > to_date) throw new Error('Дата "з" не може бути пізніше дати "по".');
+  const report_type = (bankReportType?.value || 'detailed');
+  return api('POST', '/messenger/bank/statement/order', { format, from_date, to_date, report_type });
+}
+
+async function sendTextToActiveChat(text) {
+  if (!activeConvId) throw new Error('Спочатку відкрийте чат, куди надіслати повідомлення.');
+  const msg = await api('POST', `/messenger/conversations/${activeConvId}/messages`, { text });
+  appendMessage(msg);
+  lastMsgId = msg.id;
+  updateConvItem(activeConvId, {
+    last_message_text: conversationPreview(msg),
+    last_message_at: msg.created_at,
+  });
+}
+
+async function refreshBankPanel() {
+  if (!bankToolsModal || bankToolsModal.hidden) return;
+  setBankLinkStatus('Оновлюю банківські дані…');
+  await loadBankSummary();
+}
+
+async function handleBankSummaryShare() {
+  const summary = bankSummaryCache || await loadBankSummary();
+  const text = summary?.share_text || 'Не вдалося сформувати зведення по рахунку.';
+  await sendTextToActiveChat(text);
+  showToast('Банківське зведення надіслано в чат.');
+}
+
+async function handleBankDownload(format) {
+  const order = await createStatementOrder(format);
+  const fallbackName = format === 'csv' ? 'armybank_statement.csv' : 'armybank_statement.pdf';
+  await downloadProtectedFile(order.download_path, fallbackName);
+  showToast(`Виписку ${String(format).toUpperCase()} завантажено.`);
+  return order;
+}
+
+async function handleBankOrderShare() {
+  const order = await createStatementOrder('pdf');
+  await sendTextToActiveChat(order.share_text || 'Запит на виписку сформовано.');
+  showToast('Запит на виписку надіслано в чат.');
+}
+
 function syncOverlayLock() {
   const locked = (
     !!newChatModal && !newChatModal.hidden
+  ) || (
+    !!bankToolsModal && !bankToolsModal.hidden
   ) || (
     !!callSettingsModal && !callSettingsModal.hidden
   ) || (
@@ -348,6 +528,20 @@ function setAuthLoading(on) {
   btnLoginSpin.hidden = !on;
 }
 
+function applyAuthPayload(data) {
+  token = data?.token || null;
+  me = data?.user || null;
+  if (!token || !me) throw new Error('Некоректна відповідь сервера авторизації.');
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_KEY, JSON.stringify(me));
+  const linked = me?.bank_account_linked !== false;
+  bankProfileLinked = linked;
+  if (data?.bank_notice) showToast(data.bank_notice);
+  if (!linked) {
+    throw new Error('Банківський профіль не знайдено. Зверніться до підтримки.');
+  }
+}
+
 async function doLogin(e) {
   e.preventDefault();
   authError.hidden = true;
@@ -363,9 +557,7 @@ async function doLogin(e) {
   setAuthLoading(true);
   try {
     const data = await api('POST', '/auth/login', { identity, password });
-    token = data.token; me = data.user;
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify(me));
+    applyAuthPayload(data);
     showApp();
   } catch (err) {
     authError.textContent = err.message || 'Невірний логін або пароль.';
@@ -399,9 +591,7 @@ async function doRegister() {
       ...(phone && !isEmail ? {} : phone ? { phone } : {}),
     };
     const data = await api('POST', '/auth/register', body);
-    token = data.token; me = data.user;
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify(me));
+    applyAuthPayload(data);
     showToast('Акаунт створено! Ласкаво просимо.');
     showApp();
   } catch (err) {
@@ -419,6 +609,7 @@ function requestLogout() {
 function doLogout() {
   api('POST', '/auth/logout').catch(() => {});
   closeNewChatModal();
+  closeBankToolsModal();
   closeCallSettingsModal();
   closePhotoViewer();
   if (isRecording) stopRecording(false);
@@ -457,6 +648,7 @@ function showApp() {
   authScreen.hidden = true;
   appEl.hidden = false;
   if (me && topbarAvatar) topbarAvatar.textContent = initial(me.full_name);
+  ensureMessengerBankStatus().catch(() => {});
   loadConversations();
   startGlobalPoll();
   pollUnreadBadge();
@@ -689,22 +881,56 @@ function hydratePhotoTiles(root) {
 async function sendMessage() {
   const text = msgInput.value.trim();
   if (!text || !activeConvId) return;
+  if (text.startsWith('/')) {
+    try {
+      const handled = await handleChatCommand(text);
+      if (handled) {
+        msgInput.value = '';
+        msgInput.style.height = 'auto';
+        updateSendBtn();
+        return;
+      }
+    } catch (err) {
+      showToast(err.message || 'Не вдалося виконати команду.', true);
+      return;
+    }
+  }
   msgInput.value = '';
   msgInput.style.height = 'auto';
   updateSendBtn();
   try {
-    const msg = await api('POST', `/messenger/conversations/${activeConvId}/messages`, { text });
-    appendMessage(msg);
-    lastMsgId = msg.id;
-    updateConvItem(activeConvId, {
-      last_message_text: conversationPreview(msg),
-      last_message_at: msg.created_at,
-    });
+    await sendTextToActiveChat(text);
   } catch (err) {
     showToast(err.message, true);
     msgInput.value = text;
     updateSendBtn();
   }
+}
+
+async function handleChatCommand(rawText) {
+  const cmd = String(rawText || '').trim().toLowerCase();
+  if (!cmd) return false;
+  if (cmd === '/банк' || cmd === '/bank') {
+    await openBankToolsModal();
+    return true;
+  }
+  if (cmd === '/баланс' || cmd === '/balance') {
+    const summary = await api('GET', '/messenger/bank/summary');
+    await sendTextToActiveChat(summary.share_text || 'Не вдалося сформувати зведення по рахунку.');
+    return true;
+  }
+  if (cmd.startsWith('/виписка') || cmd.startsWith('/statement')) {
+    const fmt = cmd.includes('csv') ? 'csv' : 'pdf';
+    const order = await createStatementOrder(fmt);
+    await sendTextToActiveChat(order.share_text || 'Запит виписки створено.');
+    await downloadProtectedFile(
+      order.download_path,
+      fmt === 'csv' ? 'armybank_statement.csv' : 'armybank_statement.pdf',
+    );
+    showToast(`Виписку ${fmt.toUpperCase()} підготовлено.`);
+    return true;
+  }
+  return false;
 }
 
 async function sendPhotos(files) {
@@ -2434,6 +2660,18 @@ if (btnChatLogout) btnChatLogout.addEventListener('click', requestLogout);
 btnNewChat.addEventListener('click', openNewChatModal);
 btnCloseModal.addEventListener('click', closeNewChatModal);
 newChatModal.addEventListener('click', e => { if (e.target === newChatModal) closeNewChatModal(); });
+if (btnBankTools) btnBankTools.addEventListener('click', () => { openBankToolsModal().catch(err => showToast(err.message, true)); });
+if (btnCloseBankTools) btnCloseBankTools.addEventListener('click', closeBankToolsModal);
+if (bankToolsModal) {
+  bankToolsModal.addEventListener('click', e => {
+    if (e.target === bankToolsModal) closeBankToolsModal();
+  });
+}
+if (btnBankRefresh) btnBankRefresh.addEventListener('click', () => { refreshBankPanel().catch(err => showToast(err.message, true)); });
+if (btnBankSendSummary) btnBankSendSummary.addEventListener('click', () => { handleBankSummaryShare().catch(err => showToast(err.message, true)); });
+if (btnBankDownloadPdf) btnBankDownloadPdf.addEventListener('click', () => { handleBankDownload('pdf').catch(err => showToast(err.message, true)); });
+if (btnBankDownloadCsv) btnBankDownloadCsv.addEventListener('click', () => { handleBankDownload('csv').catch(err => showToast(err.message, true)); });
+if (btnBankSendOrderMsg) btnBankSendOrderMsg.addEventListener('click', () => { handleBankOrderShare().catch(err => showToast(err.message, true)); });
 if (btnCloseCallSettings) btnCloseCallSettings.addEventListener('click', closeCallSettingsModal);
 if (callSettingsModal) {
   callSettingsModal.addEventListener('click', e => {
@@ -2504,6 +2742,7 @@ if (photoViewerImg) {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (photoViewer && !photoViewer.hidden) { closePhotoViewer(); return; }
+    if (bankToolsModal && !bankToolsModal.hidden) { closeBankToolsModal(); return; }
     if (callSettingsModal && !callSettingsModal.hidden) { closeCallSettingsModal(); return; }
     closeNewChatModal();
     return;

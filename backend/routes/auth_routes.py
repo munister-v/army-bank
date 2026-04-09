@@ -63,6 +63,7 @@ def logout():
 def me():
     try:
         user = g.current_user
+        account, auto_created = auth_service.ensure_user_bank_account(user['id'])
         return jsonify({'ok': True, 'data': {
             'id': user['id'],
             'full_name': user['full_name'],
@@ -70,6 +71,9 @@ def me():
             'email': user['email'],
             'role': user['role'],
             'military_status': user['military_status'],
+            'bank_account_linked': bool(account),
+            'bank_account_number': account.get('account_number') if account else None,
+            'bank_notice': 'Банківський рахунок створено автоматично для синхронізації з месенджером.' if auto_created else None,
         }})
     except Exception as exc:
         return api_error(str(exc))

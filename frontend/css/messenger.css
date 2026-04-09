@@ -596,6 +596,102 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   font-weight: 700;
 }
 
+/* Bank tools modal */
+.btn-primary.btn-secondary {
+  background: #eef4ff;
+  color: #284e9e;
+  border: 1px solid #c8d7f9;
+}
+.btn-primary.btn-secondary:hover {
+  background: #deebff;
+}
+.bank-tools-list {
+  padding: 12px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bank-link-status {
+  font-size: 12px;
+  color: var(--text-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+}
+.bank-link-status.warn {
+  border-color: rgba(239, 68, 68, .22);
+  color: #b42335;
+  background: #fff5f5;
+}
+.bank-account-chip {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(15,59,45,.95), rgba(44,98,72,.95));
+  color: #effbf4;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+.bank-chip-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.bank-chip-line strong {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: .02em;
+}
+.bank-tools-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.bank-period-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.bank-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.bank-field input,
+.bank-field select {
+  width: 100%;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
+  padding: 10px 11px;
+  outline: none;
+}
+.bank-field input:focus,
+.bank-field select:focus {
+  border-color: var(--blue);
+}
+.bank-tools-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.45;
+}
+.bank-tools-hint code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: #f2f4fa;
+  border: 1px solid #dce4f3;
+  border-radius: 7px;
+  padding: 1px 5px;
+}
+
 /* ════════════════════════════════════════════
    COMMON
 ════════════════════════════════════════════ */
@@ -1210,6 +1306,13 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 
   .call-settings-list {
     padding: 10px 12px 14px;
+  }
+  .bank-tools-list {
+    padding: 10px 12px 14px;
+  }
+  .bank-tools-actions,
+  .bank-period-grid {
+    grid-template-columns: 1fr;
   }
 }
 
