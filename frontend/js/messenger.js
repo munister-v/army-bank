@@ -2049,26 +2049,27 @@ async function createGroup() {
 const DEFAULT_ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun.cloudflare.com:3478' },
-  // Open Relay Project (metered.ca) - free TURN
+  { urls: 'stun:stun.relay.metered.ca:80' },
+  // Metered.ca TURN — real credentials, global relay
   {
-    urls: [
-      'turn:openrelay.metered.ca:80',
-      'turn:openrelay.metered.ca:80?transport=tcp',
-      'turn:openrelay.metered.ca:443?transport=tcp',
-      'turns:openrelay.metered.ca:443?transport=tcp',
-    ],
-    username: 'openrelayproject',
-    credential: 'openrelayproject',
+    urls: 'turn:global.relay.metered.ca:80',
+    username: '666665992002713148080e90',
+    credential: 'cG2MBiReuuliDYQB',
   },
-  // freestun.net - free TURN backup
   {
-    urls: [
-      'turn:freestun.net:3478',
-      'turns:freestun.net:5349',
-    ],
-    username: 'free',
-    credential: 'free',
+    urls: 'turn:global.relay.metered.ca:80?transport=tcp',
+    username: '666665992002713148080e90',
+    credential: 'cG2MBiReuuliDYQB',
+  },
+  {
+    urls: 'turn:global.relay.metered.ca:443',
+    username: '666665992002713148080e90',
+    credential: 'cG2MBiReuuliDYQB',
+  },
+  {
+    urls: 'turns:global.relay.metered.ca:443?transport=tcp',
+    username: '666665992002713148080e90',
+    credential: 'cG2MBiReuuliDYQB',
   },
 ];
 let rtcConfig = { iceServers: [...DEFAULT_ICE_SERVERS] };
