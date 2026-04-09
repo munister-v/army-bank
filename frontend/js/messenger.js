@@ -2852,10 +2852,11 @@ async function pollCall() {
         const iceUrl = `/messenger/calls/${activeCallId}/ice?after_id=${icePollLastId}`;
         console.log(`[ICE] 📥 Fetching remote candidates from ${iceUrl}`);
         const iceData = await api('GET', iceUrl);
-        if (iceData.data && Array.isArray(iceData.data)) {
-          console.log(`[ICE] Received ${iceData.data.length} remote candidates`);
+        // api() already returns data.data, so iceData is the array directly
+        if (Array.isArray(iceData)) {
+          console.log(`[ICE] Received ${iceData.length} remote candidates`);
           let added = 0, failed = 0;
-          for (const row of iceData.data) {
+          for (const row of iceData) {
             icePollLastId = Math.max(icePollLastId, row.id || 0);
             if (row.candidate) {
               try {
@@ -2873,7 +2874,7 @@ async function pollCall() {
             console.log(`[ICE] Fetch complete: ${added} added, ${failed} failed`);
           }
         } else {
-          console.log('[ICE] No candidates in response or invalid format');
+          console.log('[ICE] No candidates in response or invalid format. Got:', iceData);
         }
       } catch (err) {
         console.error('[ICE] Error fetching remote candidates:', err.message);
