@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '26';
+const MESSENGER_ASSET_VERSION = '27';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -980,19 +980,25 @@ function buildBubble(msg) {
   if (deleted) {
     content = `<div class="msg-bubble deleted">${esc('Повідомлення видалено')}</div>`;
   } else if (msgType === 'voice') {
-    const src = `data:audio/webm;base64,${msg.text}`;
-    content = `<div class="msg-bubble voice-bubble">
-      <div class="voice-player">
-        <div class="voice-player-head">
-          <span class="voice-icon" aria-hidden="true">🎤</span>
-          <span class="voice-title">Голосове повідомлення</span>
+    const voice = parseVoicePayload(msg.text);
+    if (!voice) {
+      content = `<div class="msg-bubble">${esc('Голосове недоступне')}</div>`;
+    } else {
+      const src = voiceDataUrl(voice);
+      const dur = voice.durationMs > 0 ? ` · ${Math.round(voice.durationMs / 1000)}с` : '';
+      content = `<div class="msg-bubble voice-bubble">
+        <div class="voice-player">
+          <div class="voice-player-head">
+            <span class="voice-icon" aria-hidden="true">🎤</span>
+            <span class="voice-title">Голосове повідомлення${dur}</span>
+          </div>
+          <div class="voice-wave" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <audio controls playsinline preload="metadata" src="${src}"></audio>
         </div>
-        <div class="voice-wave" aria-hidden="true">
-          <span></span><span></span><span></span><span></span><span></span>
-        </div>
-        <audio controls src="${src}" preload="metadata"></audio>
-      </div>
-    </div>`;
+      </div>`;
+    }
   } else if (msgType === 'image') {
     const imageItems = parseImagePayload(msg.text || '');
     photosByMessageId.set(String(msg.id), imageItems);
@@ -1334,16 +1340,11 @@ async function startRecording() {
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
     showToast('Мікрофон доступний лише по HTTPS.', true); return;
   }
-  recordStartInFlight = true;
-
-  // Pre-check permission
-  try {
-    const s = await navigator.mediaDevices.getUserMedia({ audio: true });
-    s.getTracks().forEach(t => t.stop());
-  } catch (err) {
-    recordStartInFlight = false;
-    showToast(micError(err), true); return;
+  if (typeof window.MediaRecorder === 'undefined') {
+    showToast('Запис голосових не підтримується цим браузером.', true);
+    return;
   }
+  recordStartInFlight = true;
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -1351,8 +1352,20 @@ async function startRecording() {
     recSeconds   = 0;
     recStartedAtMs = Date.now();
 
-    const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg']
-      .find(t => MediaRecorder.isTypeSupported(t)) || '';
+    const canCheck = typeof MediaRecorder.isTypeSupported === 'function';
+    const preferredTypes = [
+      'audio/mp4;codecs=mp4a.40.2',
+      'audio/mp4',
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/ogg',
+      'audio/aac',
+      'audio/x-m4a',
+    ];
+    const mimeType = canCheck
+      ? (preferredTypes.find(t => MediaRecorder.isTypeSupported(t)) || '')
+      : '';
     mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
     mediaRecorder.onstop = () => {
@@ -1460,7 +1473,8 @@ function handleVoicePointerMove(e) {
 
 async function sendVoiceMessage() {
   if (!audioChunks.length || !activeConvId) return;
-  const blob = new Blob(audioChunks, { type: mediaRecorder?.mimeType || 'audio/webm' });
+  const blobMime = normalizeVoiceMime(mediaRecorder?.mimeType || audioChunks[0]?.type || 'audio/webm');
+  const blob = new Blob(audioChunks, { type: blobMime });
   const durationMs = Date.now() - (recStartedAtMs || Date.now());
   if (durationMs < MIN_REC_MS) {
     showToast('Утримуйте кнопку довше для голосового.', true);
@@ -1469,9 +1483,15 @@ async function sendVoiceMessage() {
   }
   if (blob.size > 700_000) { showToast('Запис занадто великий (макс. ~90 с).', true); return; }
   const b64 = await blobToBase64(blob);
+  const payload = JSON.stringify({
+    v: 1,
+    mime: blobMime,
+    data: b64,
+    duration_ms: Math.round(durationMs),
+  });
   try {
     const msg = await api('POST', `/messenger/conversations/${activeConvId}/messages`, {
-      text: b64, msg_type: 'voice',
+      text: payload, msg_type: 'voice',
     });
     appendMessage(msg);
     lastMsgId = msg.id;
@@ -2896,6 +2916,39 @@ function imageDataUrl(item) {
   const mime = String(item?.mime || 'image/jpeg').toLowerCase();
   const data = String(item?.data || '');
   return `data:${mime};base64,${data}`;
+}
+
+function normalizeVoiceMime(rawMime) {
+  const base = String(rawMime || '').toLowerCase().split(';')[0].trim();
+  if (!base) return 'audio/webm';
+  if (base === 'audio/x-m4a') return 'audio/mp4';
+  const allowed = new Set(['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/aac', 'audio/wav']);
+  return allowed.has(base) ? base : 'audio/webm';
+}
+
+function parseVoicePayload(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      const data = String(parsed.data || '').trim();
+      if (!/^[A-Za-z0-9+/=]+$/.test(data)) return null;
+      if (data.length < 64 || data.length > 800_000) return null;
+      return {
+        mime: normalizeVoiceMime(parsed.mime || ''),
+        data,
+        durationMs: Math.max(0, Number(parsed.duration_ms || 0) || 0),
+      };
+    }
+  } catch (_) {}
+  if (!/^[A-Za-z0-9+/=]+$/.test(raw)) return null;
+  if (raw.length < 64 || raw.length > 800_000) return null;
+  return { mime: 'audio/webm', data: raw, durationMs: 0 };
+}
+
+function voiceDataUrl(item) {
+  return `data:${item.mime};base64,${item.data}`;
 }
 
 function conversationPreview(msg) {
