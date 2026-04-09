@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '12';
+const MESSENGER_ASSET_VERSION = '13';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 
@@ -80,6 +80,13 @@ let pendingLocalIce    = [];
 let pendingRemoteIce   = [];
 let incomingCallId     = null;
 let incomingCallerName = '';
+let callConnectedOnce  = false;
+
+// ── Call audio state ───────────────────────
+let callAudioCtx       = null;
+let incomingToneTimer  = null;
+let outgoingToneTimer  = null;
+let callAudioPrimed    = false;
 
 // ── Group state ────────────────────────────
 let groupSelectedUsers = [];
@@ -1413,6 +1420,101 @@ function checkWebRTCSupport() {
   return true;
 }
 
+async function ensureCallAudioCtx() {
+  if (!window.AudioContext && !window.webkitAudioContext) return null;
+  if (!callAudioCtx) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    callAudioCtx = new Ctx();
+  }
+  if (callAudioCtx.state === 'suspended') {
+    try { await callAudioCtx.resume(); } catch (_) {}
+  }
+  callAudioPrimed = callAudioCtx.state === 'running';
+  return callAudioCtx;
+}
+
+function toneBeep(freq = 440, duration = 0.12, opts = {}) {
+  const ctx = callAudioCtx;
+  if (!ctx || ctx.state !== 'running') return;
+  const waveform = opts.wave || 'sine';
+  const gainV = Number.isFinite(opts.gain) ? opts.gain : 0.028;
+  const delay = Number.isFinite(opts.delay) ? opts.delay : 0;
+  const now = ctx.currentTime + Math.max(0, delay);
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = waveform;
+  osc.frequency.setValueAtTime(freq, now);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(gainV, now + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + duration + 0.03);
+}
+
+function stopIncomingTone() {
+  if (incomingToneTimer) {
+    clearInterval(incomingToneTimer);
+    incomingToneTimer = null;
+  }
+  if (navigator.vibrate) navigator.vibrate(0);
+}
+
+function stopOutgoingTone() {
+  if (outgoingToneTimer) {
+    clearInterval(outgoingToneTimer);
+    outgoingToneTimer = null;
+  }
+}
+
+function stopAllCallTones() {
+  stopIncomingTone();
+  stopOutgoingTone();
+}
+
+function playConnectedTone() {
+  toneBeep(740, 0.09, { gain: 0.024 });
+  toneBeep(980, 0.11, { gain: 0.024, delay: 0.11 });
+}
+
+function playEndTone(error = false) {
+  if (error) {
+    toneBeep(320, 0.12, { wave: 'square', gain: 0.03 });
+    toneBeep(240, 0.14, { wave: 'square', gain: 0.03, delay: 0.14 });
+    return;
+  }
+  toneBeep(520, 0.11, { gain: 0.024 });
+  toneBeep(390, 0.13, { gain: 0.024, delay: 0.12 });
+}
+
+async function startIncomingTone() {
+  stopOutgoingTone();
+  await ensureCallAudioCtx();
+
+  const ringBurst = () => {
+    toneBeep(760, 0.12, { gain: 0.03 });
+    toneBeep(930, 0.15, { gain: 0.03, delay: 0.18 });
+  };
+  ringBurst();
+  incomingToneTimer = setInterval(ringBurst, 2200);
+  if (navigator.vibrate) navigator.vibrate([130, 90, 130]);
+}
+
+async function startOutgoingTone() {
+  stopIncomingTone();
+  await ensureCallAudioCtx();
+
+  const ringback = () => {
+    toneBeep(430, 0.32, { wave: 'triangle', gain: 0.022 });
+    toneBeep(480, 0.32, { wave: 'triangle', gain: 0.016, delay: 0.02 });
+  };
+  ringback();
+  outgoingToneTimer = setInterval(ringback, 1000);
+}
+
 function normalizeSdp(raw, label = 'SDP') {
   let sdp = raw;
 
@@ -1464,12 +1566,17 @@ function buildPeerConnection() {
     const st = pc.iceConnectionState;
     if (st === 'connected' || st === 'completed') {
       callScreenStatus.textContent = 'Підключено';
+      stopAllCallTones();
+      if (!callConnectedOnce) {
+        callConnectedOnce = true;
+        playConnectedTone();
+      }
       if (!callWallTimer) startCallTimer();
     } else if (st === 'disconnected') {
       callScreenStatus.textContent = 'Відновлення...';
     } else if (st === 'failed') {
       showToast('З\'єднання перервано.', true);
-      hangupCall(true);
+      hangupCall(true, 'error');
     }
   };
 
@@ -1514,8 +1621,11 @@ async function initiateCall() {
     icePollLastId = 0;
     await flushLocalIce();
     showCallScreen(activePartner.full_name, 'Виклик...');
+    startOutgoingTone().catch(() => {});
     startCallPoll();
   } catch (err) {
+    stopAllCallTones();
+    playEndTone(true);
     showToast(err.message, true);
     cleanupPeer();
   }
@@ -1539,6 +1649,7 @@ async function checkIncoming() {
       callCallerAvatar.textContent = initial(incomingCallerName);
       callCallerName.textContent   = incomingCallerName;
       callIncoming.hidden = false;
+      startIncomingTone().catch(() => {});
       syncOverlayLock();
     } else if (!calls?.length && incomingCallId) {
       hideIncoming(); // cancelled before answer
@@ -1547,6 +1658,7 @@ async function checkIncoming() {
 }
 
 function hideIncoming() {
+  stopIncomingTone();
   callIncoming.hidden = true;
   incomingCallId = null;
   incomingCallerName = '';
@@ -1586,6 +1698,7 @@ async function acceptCall() {
 
     activeCallId  = callId;
     icePollLastId = 0;
+    callConnectedOnce = false;
     await flushLocalIce();
     showCallScreen(callData.caller_name || 'Дзвінок', 'З\'єднання...');
     startCallPoll();
@@ -1599,6 +1712,7 @@ async function acceptCall() {
 async function rejectCall() {
   const id = incomingCallId;
   hideIncoming();
+  playEndTone(false);
   if (id) api('PUT', `/messenger/calls/${id}/reject`).catch(() => {});
 }
 
@@ -1611,17 +1725,22 @@ function startCallPoll() {
 async function pollCall() {
   if (!activeCallId || !peerConnection) return;
   try {
+    const cd = await api('GET', `/messenger/calls/${activeCallId}`);
+    if (['rejected', 'ended', 'missed'].includes(cd.status)) {
+      if (cd.status === 'rejected') showToast('Дзвінок відхилено.');
+      if (cd.status === 'ended') showToast('Дзвінок завершено.');
+      if (cd.status === 'missed') showToast('Пропущений дзвінок.');
+      hangupCall(false, cd.status);
+      return;
+    }
+
     // Caller: wait for callee's answer
     if (!remoteSdpSet && peerConnection.signalingState === 'have-local-offer') {
-      const cd = await api('GET', `/messenger/calls/${activeCallId}`);
-      if (['rejected', 'ended'].includes(cd.status)) {
-        if (cd.status === 'rejected') showToast('Дзвінок відхилено.');
-        hangupCall(false); return;
-      }
       if (cd.status === 'active' && cd.sdp_answer) {
         const answerSdp = normalizeSdp(cd.sdp_answer, 'SDP answer');
         await peerConnection.setRemoteDescription({ type: 'answer', sdp: answerSdp });
         remoteSdpSet = true;
+        stopOutgoingTone();
         callScreenStatus.textContent = 'З\'єднання...';
         await flushRemoteIce(peerConnection);
       }
@@ -1652,6 +1771,7 @@ function showCallScreen(name, status) {
   callScreenStatus.textContent = status;
   callScreenTimer.hidden       = true;
   callScreen.hidden            = false;
+  callConnectedOnce            = false;
   syncOverlayLock();
 }
 
@@ -1666,9 +1786,11 @@ function startCallTimer() {
   }, 1000);
 }
 
-async function hangupCall(notify = true) {
+async function hangupCall(notify = true, reason = 'ended') {
+  const hadVisibleCall = !callScreen.hidden || !!activeCallId || callConnectedOnce;
   if (notify && activeCallId)
     api('PUT', `/messenger/calls/${activeCallId}/end`).catch(() => {});
+  stopAllCallTones();
   clearInterval(callPollTimer);
   clearInterval(callWallTimer);
   callWallTimer    = null;
@@ -1679,9 +1801,13 @@ async function hangupCall(notify = true) {
   pendingLocalIce  = [];
   pendingRemoteIce = [];
   isMuted          = false;
+  callConnectedOnce = false;
   callScreen.hidden       = true;
   callScreenTimer.hidden  = true;
   if (btnMute) btnMute.classList.remove('muted');
+  if (hadVisibleCall) {
+    playEndTone(reason === 'error');
+  }
   syncOverlayLock();
 }
 
@@ -1689,6 +1815,10 @@ function cleanupPeer() {
   if (peerConnection) { try { peerConnection.close(); } catch (_) {} peerConnection = null; }
   if (localStream)    { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
   if (remoteAudio)    remoteAudio.srcObject = null;
+}
+
+function primeCallAudioOnUserGesture() {
+  ensureCallAudioCtx().catch(() => {});
 }
 
 function toggleMute() {
@@ -1934,6 +2064,8 @@ function bestEffortEndActiveCall() {
 }
 window.addEventListener('pagehide', bestEffortEndActiveCall);
 window.addEventListener('beforeunload', bestEffortEndActiveCall);
+window.addEventListener('pointerdown', primeCallAudioOnUserGesture, { once: true, passive: true });
+window.addEventListener('keydown', primeCallAudioOnUserGesture, { once: true });
 
 // ════════════════════════════════════════════
 // Boot
