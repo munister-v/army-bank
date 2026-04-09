@@ -396,6 +396,35 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   font-size: 12px; color: #5f7267; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; margin-top: 2px;
 }
+.conv-preview-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+.conv-preview-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #4f6f5f;
+  background: rgba(31,107,76,.09);
+  flex-shrink: 0;
+  font-size: 11px;
+  line-height: 1;
+}
+.conv-preview-icon svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+}
+.conv-preview-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .conv-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
 .conv-time { font-size: 11px; color: var(--muted); font-family: var(--font-mono); }
 .conv-unread {
@@ -638,6 +667,13 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   box-shadow: 0 10px 20px rgba(17,43,31,.08);
 }
 .msg-bubble.deleted { opacity: .45; font-style: italic; }
+.msg-deleted-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+  font-style: normal;
+}
 .msg-link {
   color: #2a6dba;
   text-decoration: underline;

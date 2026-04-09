@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '27';
+const MESSENGER_ASSET_VERSION = '28';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -747,6 +747,68 @@ function renderNameWithVerified(name, isVerified = false) {
   return isVerified ? `${clean}${verifiedBadgeMarkup()}` : clean;
 }
 
+function convPreviewIconMarkup(kind = 'text') {
+  const icon = String(kind || 'text');
+  if (icon === 'voice') {
+    return `<span class="conv-preview-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="14" height="14">
+        <rect x="9" y="3" width="6" height="11" rx="3"/>
+        <path d="M5 11a7 7 0 0014 0"/>
+        <line x1="12" y1="19" x2="12" y2="22"/><line x1="9" y1="22" x2="15" y2="22"/>
+      </svg>
+    </span>`;
+  }
+  if (icon === 'image') {
+    return `<span class="conv-preview-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
+        <rect x="3" y="5" width="18" height="14" rx="2"/>
+        <circle cx="9" cy="10" r="1.5"/>
+        <path d="M21 15l-4.2-4.2a1.2 1.2 0 00-1.7 0L8 18"/>
+      </svg>
+    </span>`;
+  }
+  if (icon === 'pdf') {
+    return `<span class="conv-preview-icon" aria-hidden="true">📄</span>`;
+  }
+  if (icon === 'csv') {
+    return `<span class="conv-preview-icon" aria-hidden="true">🧾</span>`;
+  }
+  if (icon === 'deleted') {
+    return `<span class="conv-preview-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
+        <path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M7 6l1 14h8l1-14"/>
+        <line x1="10" y1="10" x2="10" y2="17"/><line x1="14" y1="10" x2="14" y2="17"/>
+      </svg>
+    </span>`;
+  }
+  if (icon === 'call') {
+    return `<span class="conv-preview-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
+        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.01 2.18 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+      </svg>
+    </span>`;
+  }
+  return '';
+}
+
+function convPreviewDescriptor(rawText) {
+  const text = compactPreview(rawText);
+  const clean = String(text || '').replace(/^\s*[🖼🎤📄🧾]\s*/u, '').trim();
+  if (!clean) return { kind: 'text', label: 'Немає повідомлень' };
+  if (/голосове/i.test(clean)) return { kind: 'voice', label: clean };
+  if (/^фото$/i.test(clean) || /^зображення$/i.test(clean)) return { kind: 'image', label: clean };
+  if (/pdf[-\s]?виписк/i.test(clean)) return { kind: 'pdf', label: clean };
+  if (/csv[-\s]?виписк/i.test(clean)) return { kind: 'csv', label: clean };
+  if (/видалено/i.test(clean)) return { kind: 'deleted', label: clean };
+  if (/дзвінок|виклик|call/i.test(clean)) return { kind: 'call', label: clean };
+  return { kind: 'text', label: clean };
+}
+
+function renderConvPreviewHtml(rawText) {
+  const info = convPreviewDescriptor(rawText);
+  return `<span class="conv-preview-row">${convPreviewIconMarkup(info.kind)}<span class="conv-preview-text">${esc(info.label)}</span></span>`;
+}
+
 function syncAssistantUi(isAssistant) {
   if (chatView) chatView.classList.toggle('assistant-chat', !!isAssistant);
   if (assistantPanel) assistantPanel.hidden = !isAssistant;
@@ -775,14 +837,14 @@ function buildConvItem(conv) {
   const isGroup = !!conv.is_group;
   const isAssistant = !isGroup && isAssistantPartner(conv.partner);
   const name    = convName(conv);
-  const preview = compactPreview(conv.last_message_text);
+  const previewHtml = renderConvPreviewHtml(conv.last_message_text);
   const time    = conv.last_message_at ? formatTime(conv.last_message_at) : '';
   const unread  = conv.unread || 0;
   el.innerHTML = `
     <div class="conv-avatar${isGroup ? ' group' : ''}${isAssistant ? ' assistant' : ''}">${isAssistant ? assistantGlyphMarkup() : esc(initial(name))}</div>
     <div class="conv-info">
       <div class="conv-name${isAssistant ? ' with-verified' : ''}">${renderNameWithVerified(name, isAssistant)}</div>
-      <div class="conv-preview">${esc(preview)}</div>
+      <div class="conv-preview">${previewHtml}</div>
     </div>
     <div class="conv-meta">
       <span class="conv-time">${esc(time)}</span>
@@ -978,7 +1040,7 @@ function buildBubble(msg) {
 
   let content;
   if (deleted) {
-    content = `<div class="msg-bubble deleted">${esc('Повідомлення видалено')}</div>`;
+    content = `<div class="msg-bubble deleted"><span class="msg-deleted-icon" aria-hidden="true">🗑</span>${esc('Повідомлення видалено')}</div>`;
   } else if (msgType === 'voice') {
     const voice = parseVoicePayload(msg.text);
     if (!voice) {
