@@ -103,6 +103,10 @@ let callWakeLock = null;
 let callBackgroundNotifiedForId = null;
 let callIceRecoverTimer = null;
 let callAdaptiveAudioProfile = 'balanced';
+let callIceRestartInFlight = false;
+let activeCallRole = null; // 'caller' | 'callee'
+let lastAppliedRemoteOfferSdp = '';
+let lastAppliedRemoteAnswerSdp = '';
 let turnHintShown = false;
 let bankSummaryCache = null;
 let bankProfileLinked = true;
@@ -2627,6 +2631,30 @@ function clearIceRecoveryTimer() {
   callIceRecoverTimer = null;
 }
 
+async function requestIceRestartOffer(pc) {
+  if (!pc || pc !== peerConnection || !activeCallId) return false;
+  if (activeCallRole !== 'caller') return false;
+  if (pc.signalingState !== 'stable') return false;
+  if (callIceRestartInFlight) return false;
+  callIceRestartInFlight = true;
+  try {
+    const offer = await pc.createOffer({ iceRestart: true });
+    await pc.setLocalDescription(offer);
+    await waitForIceGathering(pc, 5000);
+    const offerSdp = normalizeSdp(pc.localDescription?.sdp, 'SDP offer');
+    await api('PUT', `/messenger/calls/${activeCallId}/offer`, { sdp_offer: offerSdp });
+    remoteSdpSet = false;
+    lastAppliedRemoteAnswerSdp = '';
+    setCallStatusBase('Переузгодження мережі...');
+    flushLocalIce().catch(() => {});
+    return true;
+  } catch (_) {
+    return false;
+  } finally {
+    callIceRestartInFlight = false;
+  }
+}
+
 function scheduleIceRecovery(pc, delayMs = 2200) {
   if (!pc || !activeCallId || callConnectedOnce === false && !remoteSdpSet) return;
   if (callIceRecoverTimer) return;
@@ -2636,10 +2664,22 @@ function scheduleIceRecovery(pc, delayMs = 2200) {
     if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') return;
     try {
       setCallStatusBase('Спроба відновлення мережі...');
+      let restarted = false;
       if (typeof pc.restartIce === 'function' && pc.signalingState === 'stable') {
-        pc.restartIce();
+        try {
+          pc.restartIce();
+          restarted = true;
+        } catch (_) {}
+      }
+      if (activeCallRole === 'caller' && pc.signalingState === 'stable') {
+        const renegotiated = await requestIceRestartOffer(pc);
+        restarted = restarted || renegotiated;
+      }
+      if (!restarted && typeof pc.restartIce === 'function' && pc.signalingState === 'stable') {
+        try { pc.restartIce(); } catch (_) {}
       }
       startCallPoll(document.hidden ? 1700 : 900);
+      pollCallIce().catch(() => {});
       pollCall().catch(() => {});
     } catch (_) {}
   }, Math.max(900, Number(delayMs || 0)));
@@ -2839,6 +2879,10 @@ async function initiateCall() {
     remoteSdpSet  = false;
     icePollLastId = 0;
     callConnectedOnce = false;
+    activeCallRole = 'caller';
+    callIceRestartInFlight = false;
+    lastAppliedRemoteOfferSdp = '';
+    lastAppliedRemoteAnswerSdp = '';
     showCallScreen(activePartner.full_name, 'Виклик...');
     flushLocalIce().catch(() => {});
     startOutgoingTone().catch(() => {});
@@ -2932,6 +2976,8 @@ async function acceptCall() {
     const offerSdp = normalizeSdp(callData.sdp_offer, 'SDP offer');
     await setRemoteDescriptionSafe(peerConnection, { type: 'offer', sdp: offerSdp }, 'SDP offer');
     remoteSdpSet = true;
+    lastAppliedRemoteOfferSdp = offerSdp;
+    lastAppliedRemoteAnswerSdp = '';
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
     setCallStatusBase('Збір ICE...');
@@ -2942,6 +2988,8 @@ async function acceptCall() {
     activeCallId  = callId;
     icePollLastId = 0;
     callConnectedOnce = false;
+    activeCallRole = 'callee';
+    callIceRestartInFlight = false;
     flushLocalIce().catch(() => {});
     flushRemoteIce(peerConnection).catch(() => {});
     clearOutgoingNoAnswerTimer();
@@ -2980,6 +3028,9 @@ async function pollCall() {
   try {
     pollCallIce().catch(() => {});
     const cd = await api('GET', `/messenger/calls/${activeCallId}`);
+    if (!activeCallRole && me?.id !== undefined && cd?.caller_id !== undefined) {
+      activeCallRole = Number(cd.caller_id) === Number(me.id) ? 'caller' : 'callee';
+    }
     if (['rejected', 'ended', 'missed'].includes(cd.status)) {
       if (cd.status === 'rejected') showToast('Дзвінок відхилено.');
       if (cd.status === 'ended') showToast('Дзвінок завершено.');
@@ -2988,16 +3039,36 @@ async function pollCall() {
       return;
     }
 
-    // Caller: wait for callee's answer
-    if (!remoteSdpSet && peerConnection.signalingState === 'have-local-offer') {
-      if (cd.status === 'active' && cd.sdp_answer) {
+    if (activeCallRole === 'caller') {
+      const waitingAnswer = (peerConnection.signalingState === 'have-local-offer');
+      if (waitingAnswer && cd.status === 'active' && cd.sdp_answer) {
         const answerSdp = normalizeSdp(cd.sdp_answer, 'SDP answer');
-        await setRemoteDescriptionSafe(peerConnection, { type: 'answer', sdp: answerSdp }, 'SDP answer');
-        remoteSdpSet = true;
-        flushRemoteIce(peerConnection).catch(() => {});
-        stopOutgoingTone();
-        clearOutgoingNoAnswerTimer();
-        setCallStatusBase('З\'єднання...');
+        if (answerSdp !== lastAppliedRemoteAnswerSdp) {
+          await setRemoteDescriptionSafe(peerConnection, { type: 'answer', sdp: answerSdp }, 'SDP answer');
+          lastAppliedRemoteAnswerSdp = answerSdp;
+          remoteSdpSet = true;
+          flushRemoteIce(peerConnection).catch(() => {});
+          stopOutgoingTone();
+          clearOutgoingNoAnswerTimer();
+          setCallStatusBase('З\'єднання...');
+        }
+      }
+    } else if (activeCallRole === 'callee' && cd.status === 'active' && cd.sdp_offer) {
+      if (peerConnection.signalingState === 'stable') {
+        const offerSdp = normalizeSdp(cd.sdp_offer, 'SDP offer');
+        if (offerSdp !== lastAppliedRemoteOfferSdp) {
+          await setRemoteDescriptionSafe(peerConnection, { type: 'offer', sdp: offerSdp }, 'SDP offer');
+          lastAppliedRemoteOfferSdp = offerSdp;
+          remoteSdpSet = true;
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          await waitForIceGathering(peerConnection, 5000);
+          const answerSdp = normalizeSdp(peerConnection.localDescription?.sdp, 'SDP answer');
+          await api('PUT', `/messenger/calls/${activeCallId}/answer`, { sdp_answer: answerSdp });
+          flushLocalIce().catch(() => {});
+          flushRemoteIce(peerConnection).catch(() => {});
+          setCallStatusBase('Відновлення з\'єднання...');
+        }
       }
     }
 
@@ -3065,6 +3136,10 @@ async function hangupCall(notify = true, reason = 'ended') {
   callStatusBase = 'З\'єднання...';
   callQualityLabel = '';
   callAdaptiveAudioProfile = 'balanced';
+  callIceRestartInFlight = false;
+  activeCallRole = null;
+  lastAppliedRemoteOfferSdp = '';
+  lastAppliedRemoteAnswerSdp = '';
   callBackgroundNotifiedForId = null;
   callScreen.hidden       = true;
   callScreenTimer.hidden  = true;

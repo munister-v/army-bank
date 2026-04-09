@@ -40,6 +40,18 @@ def _offer() -> str:
     )
 
 
+def _answer() -> str:
+    return (
+        'v=0\r\n'
+        'o=- 2 2 IN IP4 127.0.0.1\r\n'
+        's=-\r\n'
+        't=0 0\r\n'
+        'm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n'
+        'c=IN IP4 0.0.0.0\r\n'
+        'a=rtpmap:111 opus/48000/2\r\n'
+    )
+
+
 def test_retry_pending_call_from_same_caller_is_allowed(client):
     uid_a, token_a = _register(client, '9101')
     uid_b, token_b = _register(client, '9102')
@@ -89,3 +101,57 @@ def test_pending_call_from_other_user_returns_pending_conflict_label(client):
     payload = second.get_json() or {}
     msg = str(payload.get('error') or payload.get('message') or '')
     assert 'очікування відповіді' in msg
+
+
+def test_offer_restart_and_active_answer_update_are_supported(client):
+    uid_a, token_a = _register(client, '9105')
+    uid_b, token_b = _register(client, '9106')
+    conv_id = _open_conv(client, token_a, uid_b)
+    _open_conv(client, token_b, uid_a)
+
+    start = client.post('/api/messenger/calls', headers=_auth(token_a), json={
+        'conversation_id': conv_id,
+        'sdp_offer': _offer(),
+    })
+    assert start.status_code == 200
+    call_id = int(start.get_json()['data']['call_id'])
+
+    first_answer = client.put(f'/api/messenger/calls/{call_id}/answer', headers=_auth(token_b), json={
+        'sdp_answer': _answer(),
+    })
+    assert first_answer.status_code == 200
+
+    restart_offer = client.put(f'/api/messenger/calls/{call_id}/offer', headers=_auth(token_a), json={
+        'sdp_offer': _offer().replace('o=- 1 1', 'o=- 3 3'),
+    })
+    assert restart_offer.status_code == 200
+
+    restart_answer = client.put(f'/api/messenger/calls/{call_id}/answer', headers=_auth(token_b), json={
+        'sdp_answer': _answer().replace('o=- 2 2', 'o=- 4 4'),
+    })
+    assert restart_answer.status_code == 200
+
+    with get_connection() as conn:
+        row = conn.execute('SELECT status, sdp_offer, sdp_answer FROM calls WHERE id = %s', (call_id,)).fetchone()
+    assert row and row['status'] == 'active'
+    assert 'o=- 3 3' in str(row.get('sdp_offer') or '')
+    assert 'o=- 4 4' in str(row.get('sdp_answer') or '')
+
+
+def test_only_caller_can_update_offer(client):
+    uid_a, token_a = _register(client, '9107')
+    uid_b, token_b = _register(client, '9108')
+    conv_id = _open_conv(client, token_a, uid_b)
+    _open_conv(client, token_b, uid_a)
+
+    start = client.post('/api/messenger/calls', headers=_auth(token_a), json={
+        'conversation_id': conv_id,
+        'sdp_offer': _offer(),
+    })
+    assert start.status_code == 200
+    call_id = int(start.get_json()['data']['call_id'])
+
+    forbidden = client.put(f'/api/messenger/calls/{call_id}/offer', headers=_auth(token_b), json={
+        'sdp_offer': _offer().replace('o=- 1 1', 'o=- 9 9'),
+    })
+    assert forbidden.status_code == 403

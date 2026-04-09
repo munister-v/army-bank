@@ -271,14 +271,53 @@ def answer_call(call_id: int):
             return api_error('Caller не може відповідати на власний дзвінок.')
         if row['status'] == 'missed':
             return api_error('Дзвінок прострочено.', 410)
-        if row['status'] != 'pending':
-            return api_error('Дзвінок вже не очікує відповіді.')
+        if row['status'] not in ('pending', 'active'):
+            return api_error('Дзвінок недоступний для відповіді.')
         if not _is_participant(conn, row['conversation_id'], me_id):
             return api_error('Доступ заборонено.', 403)
 
+        if row['status'] == 'pending':
+            conn.execute(
+                f"UPDATE calls SET status='active', sdp_answer=%s, started_at={_now_sql()} WHERE id=%s",
+                (sdp_answer, call_id),
+            )
+        else:
+            # ICE restart / renegotiation while call remains active.
+            conn.execute(
+                "UPDATE calls SET sdp_answer=%s WHERE id=%s",
+                (sdp_answer, call_id),
+            )
+    return jsonify({'ok': True})
+
+
+# ── Оновити SDP offer (ICE restart/renegotiation) ────────────────────────────
+@call_bp.put('/<int:call_id>/offer')
+@auth_required
+def update_offer(call_id: int):
+    me_id = g.current_user['id']
+    data  = request.get_json(force=True) or {}
+    sdp_offer = str(data.get('sdp_offer') or '').strip()
+    if not sdp_offer:
+        return api_error('sdp_offer обов\'язковий.')
+    if len(sdp_offer) > 120_000:
+        return api_error('sdp_offer занадто великий.', 400)
+
+    with get_connection() as conn:
+        _expire_stale_pending_calls(conn)
+        _expire_stale_active_calls(conn)
+        row = conn.execute('SELECT * FROM calls WHERE id = %s', (call_id,)).fetchone()
+        if not row:
+            return api_error('Дзвінок не знайдено.', 404)
+        if not _is_participant(conn, row['conversation_id'], me_id):
+            return api_error('Доступ заборонено.', 403)
+        if int(row.get('caller_id') or 0) != int(me_id):
+            return api_error('Оновлювати offer може лише ініціатор дзвінка.', 403)
+        if row['status'] not in ('pending', 'active'):
+            return api_error('Дзвінок недоступний для оновлення offer.', 409)
+
         conn.execute(
-            f"UPDATE calls SET status='active', sdp_answer=%s, started_at={_now_sql()} WHERE id=%s",
-            (sdp_answer, call_id),
+            "UPDATE calls SET sdp_offer=%s WHERE id=%s",
+            (sdp_offer, call_id),
         )
     return jsonify({'ok': True})
 
