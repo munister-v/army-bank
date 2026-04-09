@@ -42,6 +42,7 @@ from .routes.admin_cards_routes import admin_cards_bp
 from .routes.admin_compliance_routes import admin_compliance_bp
 from .routes.document_routes import doc_bp
 from .routes.messenger_routes import messenger_bp
+from .routes.call_routes import call_bp
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / 'frontend'
@@ -217,6 +218,7 @@ def create_app() -> Flask:
     app.register_blueprint(admin_compliance_bp, url_prefix=prefix + '/api/admin/compliance')
     app.register_blueprint(doc_bp, url_prefix=prefix + '/api/admin')
     app.register_blueprint(messenger_bp, url_prefix=prefix + '/api/messenger')
+    app.register_blueprint(call_bp,      url_prefix=prefix + '/api/messenger/calls')
 
     @app.get(prefix + '/api' if prefix else '/api')
     @app.get(prefix + '/api/' if prefix else '/api/')

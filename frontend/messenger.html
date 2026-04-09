@@ -157,6 +157,13 @@
           <div class="chat-header-name" id="chat-partner-name"></div>
           <div class="chat-header-status" id="chat-partner-role"></div>
         </div>
+        <div class="chat-header-actions">
+          <button class="icon-btn" id="btn-call" title="Голосовий дзвінок">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.01 2.18 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="messages-wrap" id="messages-wrap">
@@ -165,6 +172,13 @@
       </div>
 
       <div class="msg-input-bar">
+        <button class="btn-voice" id="btn-voice" title="Голосове повідомлення" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20">
+            <rect x="9" y="2" width="6" height="12" rx="3"/>
+            <path d="M5 10a7 7 0 0014 0"/>
+            <line x1="12" y1="19" x2="12" y2="23"/><line x1="9" y1="23" x2="15" y2="23"/>
+          </svg>
+        </button>
         <textarea
           id="msg-input"
           class="msg-input"
@@ -197,18 +211,99 @@
         </svg>
       </button>
     </div>
-    <div class="modal-search">
-      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
-        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      </svg>
-      <input id="user-search-input" class="search-input" type="text"
-             placeholder="Пошук за ім'ям, телефоном або рахунком..."
-             autocomplete="off"/>
+    <!-- Tabs -->
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tab-direct" data-tab="direct">Особисто</button>
+      <button class="modal-tab" id="tab-group" data-tab="group">Група</button>
     </div>
-    <div class="user-search-results" id="user-search-results">
-      <p class="search-hint" id="search-hint">Введіть мінімум 2 символи</p>
+
+    <!-- Tab: Direct -->
+    <div id="tab-panel-direct">
+      <div class="modal-search">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input id="user-search-input" class="search-input" type="text"
+               placeholder="Пошук за ім'ям, телефоном або рахунком..."
+               autocomplete="off"/>
+      </div>
+      <div class="user-search-results" id="user-search-results">
+        <p class="search-hint" id="search-hint">Введіть мінімум 2 символи</p>
+      </div>
+    </div>
+
+    <!-- Tab: Group -->
+    <div id="tab-panel-group" hidden>
+      <div class="modal-group-form">
+        <input id="group-name-input" class="field-input" type="text"
+               placeholder="Назва групи..." maxlength="100" autocomplete="off"/>
+        <div class="modal-search" style="padding-top:10px">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input id="group-user-search" class="search-input" type="text"
+                 placeholder="Додати учасників..." autocomplete="off"/>
+        </div>
+        <div id="group-selected-list" class="group-selected-list"></div>
+        <div id="group-user-results" class="user-search-results">
+          <p class="search-hint">Введіть ім'я для пошуку</p>
+        </div>
+        <div class="modal-group-footer">
+          <button class="btn-primary" id="btn-create-group" style="padding:11px">Створити групу</button>
+        </div>
+      </div>
     </div>
   </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     INCOMING CALL OVERLAY
+════════════════════════════════════════════ -->
+<div id="call-incoming" class="call-incoming" hidden>
+  <div class="call-incoming-card">
+    <div class="call-avatar" id="call-caller-avatar"></div>
+    <div class="call-caller-name" id="call-caller-name">Вхідний дзвінок</div>
+    <div class="call-label">Голосовий дзвінок</div>
+    <div class="call-incoming-btns">
+      <button class="btn-call-reject" id="btn-reject-call" title="Відхилити">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+          <path d="M23.36 6.64l-3.06-3.06a2 2 0 00-2.83 0l-2.12 2.12a2 2 0 000 2.83l1.06 1.06c-1.04 2.04-2.7 3.7-4.74 4.74l-1.06-1.06a2 2 0 00-2.83 0L5.72 15.4a2 2 0 000 2.83l3.06 3.06"/>
+          <line x1="1" y1="1" x2="23" y2="23"/>
+        </svg>
+      </button>
+      <button class="btn-call-accept" id="btn-accept-call" title="Прийняти">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+          <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.01 2.18 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     ACTIVE CALL SCREEN
+════════════════════════════════════════════ -->
+<div id="call-screen" class="call-screen" hidden>
+  <div class="call-screen-avatar" id="call-screen-avatar"></div>
+  <div class="call-screen-name" id="call-screen-name"></div>
+  <div class="call-screen-status" id="call-screen-status">З'єднання...</div>
+  <div class="call-screen-timer" id="call-screen-timer" hidden>00:00</div>
+  <div class="call-screen-btns">
+    <button class="btn-call-mute" id="btn-mute" title="Вимкнути мікрофон">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20">
+        <rect x="9" y="2" width="6" height="12" rx="3"/>
+        <path d="M5 10a7 7 0 0014 0"/>
+        <line x1="12" y1="19" x2="12" y2="23"/><line x1="9" y1="23" x2="15" y2="23"/>
+      </svg>
+    </button>
+    <button class="btn-call-end" id="btn-end-call" title="Завершити дзвінок">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+        <path d="M23.36 6.64l-3.06-3.06a2 2 0 00-2.83 0l-2.12 2.12a2 2 0 000 2.83l1.06 1.06c-1.04 2.04-2.7 3.7-4.74 4.74l-1.06-1.06a2 2 0 00-2.83 0L5.72 15.4a2 2 0 000 2.83l3.06 3.06"/>
+        <line x1="1" y1="1" x2="23" y2="23"/>
+      </svg>
+    </button>
+  </div>
+  <audio id="remote-audio" autoplay playsinline></audio>
 </div>
 
 <!-- ════════════════════════════════════════════

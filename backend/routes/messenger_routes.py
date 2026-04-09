@@ -122,8 +122,11 @@ def _conv_summary(conv_id: int, me_id: int) -> dict:
 def _serialize_message_row(row: dict) -> dict:
     item = dict(row)
     is_deleted = bool(item.get('is_deleted'))
+    msg_type = item.get('msg_type', 'text') or 'text'
     if is_deleted:
         item['text'] = deleted_message_text()
+    elif msg_type == 'voice':
+        pass  # base64 audio stored as-is
     else:
         item['text'] = decrypt_message(item.get('text', ''), fallback='')
     return item
@@ -265,13 +268,24 @@ def get_messages(conv_id: int):
 def send_message(conv_id: int):
     me_id = g.current_user['id']
     data = request.get_json(force=True) or {}
-    text = (data.get('text') or '').strip()
-    if not text:
-        return api_error('Повідомлення порожнє.')
-    if len(text) > 4000:
-        return api_error('Повідомлення занадто довге (макс. 4000 символів).')
+    msg_type = (data.get('msg_type') or 'text').strip()
+    if msg_type not in ('text', 'voice'):
+        msg_type = 'text'
 
-    encrypted_text = encrypt_message(text)
+    if msg_type == 'voice':
+        text = (data.get('text') or '').strip()
+        if not text:
+            return api_error('Голосове повідомлення порожнє.')
+        if len(text) > 800_000:
+            return api_error('Голосове повідомлення занадто велике.')
+        stored_text = text  # base64 audio, store as-is (no encryption)
+    else:
+        text = (data.get('text') or '').strip()
+        if not text:
+            return api_error('Повідомлення порожнє.')
+        if len(text) > 4000:
+            return api_error('Повідомлення занадто довге (макс. 4000 символів).')
+        stored_text = encrypt_message(text)
 
     with get_connection() as conn:
         part = conn.execute(
@@ -283,25 +297,26 @@ def send_message(conv_id: int):
 
         if USE_PG:
             cur = conn.execute(
-                'INSERT INTO messages (conversation_id, sender_id, text) VALUES (%s, %s, %s) RETURNING id, created_at',
-                (conv_id, me_id, encrypted_text),
+                'INSERT INTO messages (conversation_id, sender_id, text, msg_type) VALUES (%s, %s, %s, %s) RETURNING id, created_at',
+                (conv_id, me_id, stored_text, msg_type),
             )
             msg_row = cur.fetchone()
             msg_id = msg_row['id']
             created_at = msg_row['created_at']
         else:
             conn.execute(
-                'INSERT INTO messages (conversation_id, sender_id, text) VALUES (%s, %s, %s)',
-                (conv_id, me_id, encrypted_text),
+                'INSERT INTO messages (conversation_id, sender_id, text, msg_type) VALUES (%s, %s, %s, %s)',
+                (conv_id, me_id, stored_text, msg_type),
             )
             msg_id = conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
             created_at = conn.execute(
                 'SELECT created_at FROM messages WHERE id = %s', (msg_id,)
             ).fetchone()['created_at']
 
+        preview = safe_preview() if msg_type == 'voice' else safe_preview()
         conn.execute(
             f'UPDATE conversations SET last_message_at = {_now_sql()}, last_message_text = %s WHERE id = %s',
-            (safe_preview(), conv_id),
+            (preview, conv_id),
         )
         _mark_read(conn, conv_id, me_id)
 
@@ -311,6 +326,7 @@ def send_message(conv_id: int):
         'sender_id': me_id,
         'sender_name': g.current_user['full_name'],
         'text': text,
+        'msg_type': msg_type,
         'created_at': str(created_at),
         'is_deleted': False,
     }})
@@ -393,6 +409,127 @@ def delete_message(msg_id: int):
             (_true, encrypt_message(deleted_message_text()), msg_id),
         )
     return jsonify({'ok': True})
+
+
+# ── Групи ────────────────────────────────────────────────────────────────────
+
+@messenger_bp.post('/groups')
+@auth_required
+def create_group():
+    """Створити груповий чат."""
+    me_id = g.current_user['id']
+    data  = request.get_json(force=True) or {}
+    name  = (data.get('name') or '').strip()
+    member_ids = data.get('member_ids') or []
+
+    if not name:
+        return api_error("Назва групи обов'язкова.")
+    if len(name) > 60:
+        return api_error('Назва групи занадто довга.')
+
+    _true = True if USE_PG else 1
+
+    with get_connection() as conn:
+        if USE_PG:
+            cur = conn.execute(
+                'INSERT INTO conversations(is_group, group_name) VALUES(%s,%s) RETURNING id',
+                (_true, name),
+            )
+            conv_id = cur.fetchone()['id']
+        else:
+            conn.execute(
+                'INSERT INTO conversations(is_group, group_name) VALUES(%s,%s)',
+                (1, name),
+            )
+            conv_id = conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
+
+        # Add creator
+        conn.execute(
+            'INSERT INTO conversation_participants(conversation_id, user_id) VALUES(%s,%s)',
+            (conv_id, me_id),
+        )
+        # Add members (skip duplicates)
+        for uid in member_ids:
+            try:
+                uid = int(uid)
+                if uid != me_id:
+                    conn.execute(
+                        'INSERT INTO conversation_participants(conversation_id, user_id) VALUES(%s,%s)',
+                        (conv_id, uid),
+                    )
+            except Exception:
+                pass
+
+    return jsonify({'ok': True, 'data': {'id': conv_id, 'group_name': name, 'is_group': True}})
+
+
+@messenger_bp.post('/conversations/<int:conv_id>/members')
+@auth_required
+def add_member(conv_id: int):
+    me_id  = g.current_user['id']
+    data   = request.get_json(force=True) or {}
+    new_uid = data.get('user_id')
+    if not new_uid:
+        return api_error("user_id обов'язковий.")
+
+    with get_connection() as conn:
+        part = conn.execute(
+            'SELECT id FROM conversation_participants WHERE conversation_id=%s AND user_id=%s',
+            (conv_id, me_id),
+        ).fetchone()
+        if not part:
+            return api_error('Доступ заборонено.', 403)
+        try:
+            conn.execute(
+                'INSERT INTO conversation_participants(conversation_id, user_id) VALUES(%s,%s)',
+                (conv_id, int(new_uid)),
+            )
+        except Exception:
+            return api_error('Учасник вже є в групі.')
+
+    return jsonify({'ok': True})
+
+
+@messenger_bp.delete('/conversations/<int:conv_id>/members/<int:uid>')
+@auth_required
+def remove_member(conv_id: int, uid: int):
+    me_id = g.current_user['id']
+    with get_connection() as conn:
+        part = conn.execute(
+            'SELECT id FROM conversation_participants WHERE conversation_id=%s AND user_id=%s',
+            (conv_id, me_id),
+        ).fetchone()
+        if not part:
+            return api_error('Доступ заборонено.', 403)
+        conn.execute(
+            'DELETE FROM conversation_participants WHERE conversation_id=%s AND user_id=%s',
+            (conv_id, uid),
+        )
+    return jsonify({'ok': True})
+
+
+@messenger_bp.get('/conversations/<int:conv_id>/members')
+@auth_required
+def list_members(conv_id: int):
+    me_id = g.current_user['id']
+    with get_connection() as conn:
+        part = conn.execute(
+            'SELECT id FROM conversation_participants WHERE conversation_id=%s AND user_id=%s',
+            (conv_id, me_id),
+        ).fetchone()
+        if not part:
+            return api_error('Доступ заборонено.', 403)
+        rows = conn.execute(
+            """
+            SELECT u.id, u.full_name, u.phone, u.role
+            FROM conversation_participants cp
+            JOIN users u ON u.id = cp.user_id
+            WHERE cp.conversation_id = %s
+            ORDER BY u.full_name
+            """,
+            (conv_id,),
+        ).fetchall()
+    return jsonify({'ok': True, 'data': [dict(r) for r in rows]})
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
