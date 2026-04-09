@@ -6,6 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
+const MESSENGER_ASSET_VERSION = '5';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 
@@ -1199,6 +1200,12 @@ if (token && me) showApp();
 else showAuth();
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () =>
-    navigator.serviceWorker.register(`${BASE}/sw-messenger.js`).catch(() => {}));
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register(
+        `${BASE}/sw-messenger.js?v=${MESSENGER_ASSET_VERSION}`
+      );
+      reg.update().catch(() => {});
+    } catch (_) {}
+  });
 }

@@ -1,12 +1,14 @@
 /* Army Bank Messenger — Service Worker */
-const CACHE = 'msng-v3';
+const SW_VERSION = new URL(self.location.href).searchParams.get('v') || '5';
+const CACHE = `msng-v${SW_VERSION}`;
 const SCOPE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
 const withBase = (path) => `${SCOPE_PATH}${path}`.replace(/\/{2,}/g, '/');
+const withVersion = (path) => `${withBase(path)}?v=${encodeURIComponent(SW_VERSION)}`;
 const STATIC = [
   withBase('/messenger'),
-  withBase('/css/messenger.css'),
-  withBase('/js/messenger.js'),
-  withBase('/manifest-messenger.json'),
+  withVersion('/css/messenger.css'),
+  withVersion('/js/messenger.js'),
+  withVersion('/manifest-messenger.json'),
 ];
 
 self.addEventListener('install', e => {
