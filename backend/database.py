@@ -507,6 +507,55 @@ CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, create
 CREATE INDEX IF NOT EXISTS idx_conv_participants_user ON conversation_participants(user_id);
 """
 
+MESSENGER_GROUPS_DDL = """
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_group BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS group_name VARCHAR(100);
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS msg_type VARCHAR(20) NOT NULL DEFAULT 'text';
+CREATE TABLE IF NOT EXISTS calls (
+    id SERIAL PRIMARY KEY,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    caller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    sdp_offer TEXT,
+    sdp_answer TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at TIMESTAMPTZ,
+    ended_at TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS call_ice (
+    id SERIAL PRIMARY KEY,
+    call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    candidate TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_calls_conv ON calls(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_call_ice_call ON call_ice(call_id, created_at);
+"""
+
+MESSENGER_GROUPS_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS calls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    caller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'pending',
+    sdp_offer TEXT,
+    sdp_answer TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    started_at TEXT,
+    ended_at TEXT
+);
+CREATE TABLE IF NOT EXISTS call_ice (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    candidate TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_calls_conv ON calls(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_call_ice_call ON call_ice(call_id);
+"""
+
 DOC_TEMPLATES_DDL = """
 CREATE TABLE IF NOT EXISTS document_templates (
     id SERIAL PRIMARY KEY,
@@ -712,6 +761,33 @@ def init_db() -> None:
             _pg_exec(DOC_TEMPLATES_DDL, optional=True, label='document_templates')
             _pg_exec(USER_DOCS_DDL, optional=True, label='user_documents')
             _pg_exec(MESSENGER_DDL, optional=True, label='messenger')
+            # messenger_groups_calls — each statement individually (psycopg2 execute() is single-statement)
+            _pg_exec("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_group BOOLEAN NOT NULL DEFAULT FALSE;",
+                     optional=True, label='conversations.is_group')
+            _pg_exec("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS group_name VARCHAR(100);",
+                     optional=True, label='conversations.group_name')
+            _pg_exec("ALTER TABLE messages ADD COLUMN IF NOT EXISTS msg_type VARCHAR(20) NOT NULL DEFAULT 'text';",
+                     optional=True, label='messages.msg_type')
+            _pg_exec("""CREATE TABLE IF NOT EXISTS calls (
+                id SERIAL PRIMARY KEY,
+                conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+                caller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                sdp_offer TEXT, sdp_answer TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                started_at TIMESTAMPTZ, ended_at TIMESTAMPTZ
+            );""", optional=True, label='calls')
+            _pg_exec("""CREATE TABLE IF NOT EXISTS call_ice (
+                id SERIAL PRIMARY KEY,
+                call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                candidate TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );""", optional=True, label='call_ice')
+            _pg_exec("CREATE INDEX IF NOT EXISTS idx_calls_conv ON calls(conversation_id);",
+                     optional=True, label='idx_calls_conv')
+            _pg_exec("CREATE INDEX IF NOT EXISTS idx_call_ice_call ON call_ice(call_id, created_at);",
+                     optional=True, label='idx_call_ice_call')
             _pg_exec(
                 """CREATE TABLE IF NOT EXISTS compliance_profiles (
                     id SERIAL PRIMARY KEY,
@@ -743,6 +819,20 @@ def init_db() -> None:
             conn.executescript(DOC_TEMPLATES_DDL_SQLITE)
             conn.executescript(USER_DOCS_DDL_SQLITE)
             conn.executescript(MESSENGER_DDL_SQLITE)
+            conn.executescript(MESSENGER_GROUPS_DDL_SQLITE)
+            # Alter messenger tables (idempotent tries)
+            try:
+                conn.execute("ALTER TABLE conversations ADD COLUMN is_group INTEGER NOT NULL DEFAULT 0;")
+            except Exception:
+                pass
+            try:
+                conn.execute("ALTER TABLE conversations ADD COLUMN group_name TEXT;")
+            except Exception:
+                pass
+            try:
+                conn.execute("ALTER TABLE messages ADD COLUMN msg_type TEXT NOT NULL DEFAULT 'text';")
+            except Exception:
+                pass
             try:
                 conn.execute('ALTER TABLE transactions ADD COLUMN payment_order_id INTEGER;')
             except Exception:

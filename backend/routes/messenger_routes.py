@@ -232,7 +232,7 @@ def get_messages(conv_id: int):
         if before_id:
             rows = conn.execute(
                 """
-                SELECT m.id, m.sender_id, m.text, m.created_at, m.is_deleted,
+                SELECT m.id, m.sender_id, m.text, m.msg_type, m.created_at, m.is_deleted,
                        u.full_name AS sender_name
                 FROM messages m
                 JOIN users u ON u.id = m.sender_id
@@ -245,7 +245,7 @@ def get_messages(conv_id: int):
         else:
             rows = conn.execute(
                 """
-                SELECT m.id, m.sender_id, m.text, m.created_at, m.is_deleted,
+                SELECT m.id, m.sender_id, m.text, m.msg_type, m.created_at, m.is_deleted,
                        u.full_name AS sender_name
                 FROM messages m
                 JOIN users u ON u.id = m.sender_id
@@ -350,7 +350,7 @@ def poll_messages(conv_id: int):
 
         rows = conn.execute(
             """
-            SELECT m.id, m.sender_id, m.text, m.created_at, m.is_deleted,
+            SELECT m.id, m.sender_id, m.text, m.msg_type, m.created_at, m.is_deleted,
                    u.full_name AS sender_name
             FROM messages m
             JOIN users u ON u.id = m.sender_id
