@@ -39,6 +39,11 @@ let isRecording   = false;
 let recSeconds    = 0;
 let recTimer      = null;
 let recordingShouldSend = true;
+let recStartedAtMs = 0;
+let recordStartInFlight = false;
+let holdPointerActive = false;
+let holdPointerId = null;
+let cancelPendingStart = false;
 
 // ── Call state ─────────────────────────────
 let activeCallId       = null;
@@ -516,19 +521,27 @@ function appendMessage(msg) {
 // Voice Recording
 // ════════════════════════════════════════════
 const MAX_REC_SECONDS = 90;
+const MIN_REC_MS = 450;
 
 async function toggleRecording() {
   if (isRecording) { stopRecording(true); return; }
+  await startRecording();
+}
+
+async function startRecording() {
+  if (recordStartInFlight || isRecording) return;
   if (!activeConvId) { showToast('Спочатку відкрийте чат.', true); return; }
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
     showToast('Мікрофон доступний лише по HTTPS.', true); return;
   }
+  recordStartInFlight = true;
 
   // Pre-check permission
   try {
     const s = await navigator.mediaDevices.getUserMedia({ audio: true });
     s.getTracks().forEach(t => t.stop());
   } catch (err) {
+    recordStartInFlight = false;
     showToast(micError(err), true); return;
   }
 
@@ -536,6 +549,7 @@ async function toggleRecording() {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     audioChunks  = [];
     recSeconds   = 0;
+    recStartedAtMs = Date.now();
 
     const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg']
       .find(t => MediaRecorder.isTypeSupported(t)) || '';
@@ -562,6 +576,12 @@ async function toggleRecording() {
     }, 1000);
   } catch (err) {
     showToast(micError(err), true);
+  } finally {
+    recordStartInFlight = false;
+    if (cancelPendingStart && isRecording) {
+      cancelPendingStart = false;
+      stopRecording(false);
+    }
   }
 }
 
@@ -569,15 +589,60 @@ function stopRecording(shouldSend = true) {
   clearInterval(recTimer);
   isRecording = false;
   recordingShouldSend = shouldSend;
+  holdPointerActive = false;
+  holdPointerId = null;
+  cancelPendingStart = false;
   btnVoice.classList.remove('recording');
-  btnVoice.title = 'Голосове повідомлення';
+  btnVoice.title = 'Утримуйте для запису';
   setRecordingUI(false);
   if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+}
+
+function handleVoicePointerDown(e) {
+  if (e.button !== undefined && e.button !== 0) return;
+  e.preventDefault();
+  holdPointerActive = true;
+  holdPointerId = (e.pointerId ?? null);
+  cancelPendingStart = false;
+  if (btnVoice.setPointerCapture && holdPointerId !== null) {
+    try { btnVoice.setPointerCapture(holdPointerId); } catch (_) {}
+  }
+  startRecording().catch(() => {});
+}
+
+function handleVoicePointerUp(e) {
+  if (!holdPointerActive) return;
+  if (holdPointerId !== null && e.pointerId !== undefined && e.pointerId !== holdPointerId) return;
+  e.preventDefault();
+  holdPointerActive = false;
+  holdPointerId = null;
+  if (recordStartInFlight && !isRecording) {
+    cancelPendingStart = true;
+    return;
+  }
+  if (isRecording) stopRecording(true);
+}
+
+function handleVoicePointerCancel(e) {
+  if (!holdPointerActive && !isRecording && !recordStartInFlight) return;
+  if (holdPointerId !== null && e.pointerId !== undefined && e.pointerId !== holdPointerId) return;
+  holdPointerActive = false;
+  holdPointerId = null;
+  if (recordStartInFlight && !isRecording) {
+    cancelPendingStart = true;
+    return;
+  }
+  if (isRecording) stopRecording(false);
 }
 
 async function sendVoiceMessage() {
   if (!audioChunks.length || !activeConvId) return;
   const blob = new Blob(audioChunks, { type: mediaRecorder?.mimeType || 'audio/webm' });
+  const durationMs = Date.now() - (recStartedAtMs || Date.now());
+  if (durationMs < MIN_REC_MS) {
+    showToast('Утримуйте кнопку довше для голосового.', true);
+    return;
+  }
   if (blob.size > 700_000) { showToast('Запис занадто великий (макс. ~90 с).', true); return; }
   const b64 = await blobToBase64(blob);
   try {
@@ -1172,7 +1237,15 @@ msgInput.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
 btnSend.addEventListener('click', sendMessage);
-btnVoice.addEventListener('click', toggleRecording);
+btnVoice.addEventListener('click', e => {
+  // detail===0 => keyboard activation (Enter/Space), keep accessible toggle fallback
+  if (e.detail !== 0) return;
+  toggleRecording().catch(() => {});
+});
+btnVoice.addEventListener('pointerdown', handleVoicePointerDown);
+btnVoice.addEventListener('pointerup', handleVoicePointerUp);
+btnVoice.addEventListener('pointercancel', handleVoicePointerCancel);
+btnVoice.addEventListener('lostpointercapture', handleVoicePointerCancel);
 if (btnCancelRecord) btnCancelRecord.addEventListener('click', () => stopRecording(false));
 convSearch.addEventListener('input', () => renderConvList(convData));
 
