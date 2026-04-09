@@ -37,6 +37,7 @@ let audioChunks   = [];
 let isRecording   = false;
 let recSeconds    = 0;
 let recTimer      = null;
+let recordingShouldSend = true;
 
 // ── Call state ─────────────────────────────
 let activeCallId       = null;
@@ -84,6 +85,10 @@ const scrollAnchor      = $('scroll-anchor');
 const msgInput          = $('msg-input');
 const btnSend           = $('btn-send');
 const btnVoice          = $('btn-voice');
+const msgInputBar       = $('msg-input-bar');
+const recordingIndicator= $('recording-indicator');
+const recordingTime     = $('recording-time');
+const btnCancelRecord   = $('btn-cancel-record');
 const btnBack           = $('btn-back');
 const btnNewChat        = $('btn-new-chat');
 const btnLogout         = $('btn-logout');
@@ -259,6 +264,7 @@ async function doRegister() {
 
 function doLogout() {
   api('POST', '/auth/logout').catch(() => {});
+  if (isRecording) stopRecording(false);
   token = null; me = null;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
@@ -447,8 +453,17 @@ function buildBubble(msg) {
     content = `<div class="msg-bubble deleted">${esc('Повідомлення видалено')}</div>`;
   } else if (msgType === 'voice') {
     const src = `data:audio/webm;base64,${msg.text}`;
-    content = `<div class="msg-bubble" style="padding:8px 12px">
-      <div class="voice-player"><audio controls src="${src}" preload="none"></audio></div>
+    content = `<div class="msg-bubble voice-bubble">
+      <div class="voice-player">
+        <div class="voice-player-head">
+          <span class="voice-icon" aria-hidden="true">🎤</span>
+          <span class="voice-title">Голосове повідомлення</span>
+        </div>
+        <div class="voice-wave" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <audio controls src="${src}" preload="metadata"></audio>
+      </div>
     </div>`;
   } else {
     content = `<div class="msg-bubble">${esc(msg.text)}</div>`;
@@ -502,7 +517,7 @@ function appendMessage(msg) {
 const MAX_REC_SECONDS = 90;
 
 async function toggleRecording() {
-  if (isRecording) { stopRecording(); return; }
+  if (isRecording) { stopRecording(true); return; }
   if (!activeConvId) { showToast('Спочатку відкрийте чат.', true); return; }
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
     showToast('Мікрофон доступний лише по HTTPS.', true); return;
@@ -527,29 +542,35 @@ async function toggleRecording() {
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
     mediaRecorder.onstop = () => {
       stream.getTracks().forEach(t => t.stop());
-      sendVoiceMessage();
+      if (recordingShouldSend) sendVoiceMessage();
+      else audioChunks = [];
     };
     mediaRecorder.start(200);
     isRecording = true;
+    recordingShouldSend = true;
     btnVoice.classList.add('recording');
+    setRecordingUI(true);
 
     recTimer = setInterval(() => {
       recSeconds++;
       const m = String(Math.floor(recSeconds / 60)).padStart(2, '0');
       const s = String(recSeconds % 60).padStart(2, '0');
+      if (recordingTime) recordingTime.textContent = `${m}:${s}`;
       btnVoice.title = `Зупинити · ${m}:${s}`;
-      if (recSeconds >= MAX_REC_SECONDS) stopRecording();
+      if (recSeconds >= MAX_REC_SECONDS) stopRecording(true);
     }, 1000);
   } catch (err) {
     showToast(micError(err), true);
   }
 }
 
-function stopRecording() {
+function stopRecording(shouldSend = true) {
   clearInterval(recTimer);
   isRecording = false;
+  recordingShouldSend = shouldSend;
   btnVoice.classList.remove('recording');
   btnVoice.title = 'Голосове повідомлення';
+  setRecordingUI(false);
   if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
 }
 
@@ -578,6 +599,12 @@ function blobToBase64(blob) {
     r.onerror = rej;
     r.readAsDataURL(blob);
   });
+}
+
+function setRecordingUI(on) {
+  if (msgInputBar) msgInputBar.classList.toggle('recording-mode', on);
+  if (recordingIndicator) recordingIndicator.hidden = !on;
+  if (recordingTime && on) recordingTime.textContent = '00:00';
 }
 
 // ════════════════════════════════════════════
@@ -1130,6 +1157,7 @@ groupUserSearch.addEventListener('input', () => {
 btnCreateGroup.addEventListener('click', createGroup);
 
 btnBack.addEventListener('click', () => {
+  if (isRecording) stopRecording(false);
   sidebar.classList.remove('hidden');
   activeConvId = null;
   clearInterval(convPollTimer);
@@ -1144,6 +1172,7 @@ msgInput.addEventListener('keydown', e => {
 });
 btnSend.addEventListener('click', sendMessage);
 btnVoice.addEventListener('click', toggleRecording);
+if (btnCancelRecord) btnCancelRecord.addEventListener('click', () => stopRecording(false));
 convSearch.addEventListener('input', () => renderConvList(convData));
 
 if (btnCall)       btnCall.addEventListener('click', initiateCall);

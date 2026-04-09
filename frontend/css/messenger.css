@@ -1,40 +1,41 @@
 /* ════════════════════════════════════════════
    Army Bank — Messenger PWA
-   Style ref: Nummus Bank Desktop App (Behance)
-   Light theme · Blue accent · Lavender sidebar
+   Army Bank visual system
+   Light bank theme · Emerald + Gold accents
 ════════════════════════════════════════════ */
 
 :root {
-  /* ── Reference palette ────────────────── */
-  --blue:        #4A7CFA;
-  --blue-hover:  #3968e0;
-  --blue-light:  #eef3ff;
-  --blue-dim:    rgba(74,124,250,.10);
-  --blue-glow:   rgba(74,124,250,.18);
-
-  /* Sidebar lavender from reference */
-  --sidebar-bg:  #e4e9f7;
-  --sidebar-active: #ffffff;
-  --sidebar-text: #6e7191;
-  --sidebar-text-active: #4A7CFA;
+  /* ── Bank palette ─────────────────────── */
+  --blue:        #1f6b4c;
+  --blue-hover:  #18553d;
+  --blue-light:  #e7f2ec;
+  --blue-dim:    rgba(31,107,76,.12);
+  --blue-glow:   rgba(31,107,76,.2);
+  --sand:        #c4a064;
+  --sand-light:  #f1e7d4;
 
   /* Surfaces */
-  --bg:          #f0f4fc;
+  --sidebar-bg:  #edf2ef;
+  --sidebar-active: #ffffff;
+  --sidebar-text: #5f7267;
+  --sidebar-text-active: #1f6b4c;
+
+  --bg:          #f3f7f3;
   --surface:     #ffffff;
-  --surface-2:   #f7f9fd;
-  --border:      #e2e8f4;
-  --border-soft: #eef2fa;
+  --surface-2:   #f6faf7;
+  --border:      #d8e4dd;
+  --border-soft: #e7efe9;
 
   /* Text */
-  --text:        #1a1d2e;
-  --text-2:      #6e7191;
-  --muted:       #a0a5bd;
+  --text:        #122419;
+  --text-2:      #4f6558;
+  --muted:       #8ea194;
 
   /* Status */
   --green:       #22c55e;
   --red:         #ef4444;
   --orange:      #f59e0b;
-  --gold:        #c4a87d;
+  --gold:        #c4a064;
 
   /* Shape */
   --radius:      12px;
@@ -151,7 +152,7 @@ html, body {
 /* Right branded panel */
 .auth-brand-panel {
   flex: 1;
-  background: linear-gradient(135deg, #5b8def 0%, #3a5bd9 50%, #2845b3 100%);
+  background: linear-gradient(140deg, #0f3b2d 0%, #1f6b4c 58%, #9d7a3f 120%);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   position: relative; overflow: hidden;
 }
@@ -380,7 +381,7 @@ html, body {
   width: 42px; height: 42px; border-radius: 50%; background: var(--blue); border: none;
   color: #fff; display: flex; align-items: center; justify-content: center;
   cursor: pointer; flex-shrink: 0; transition: background .15s, transform .1s;
-  box-shadow: 0 2px 8px rgba(74,124,250,.3);
+  box-shadow: 0 2px 10px var(--blue-glow);
 }
 .btn-send:hover { background: var(--blue-hover); }
 .btn-send:active { transform: scale(.93); }
@@ -471,11 +472,127 @@ html, body {
 }
 
 /* Voice message bubble */
+.voice-bubble { min-width: 220px; }
 .voice-player {
-  display: flex; align-items: center; gap: 10px; min-width: 180px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 220px;
 }
-.voice-player audio { height: 32px; width: 180px; outline: none; }
-.msg-bubble-wrap.me .voice-player audio { filter: invert(1) brightness(1.5); }
+.voice-player-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+.voice-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,.16);
+}
+.voice-title { opacity: .94; }
+.voice-wave {
+  display: flex;
+  align-items: end;
+  gap: 3px;
+  height: 16px;
+}
+.voice-wave span {
+  width: 4px;
+  border-radius: 6px;
+  background: currentColor;
+  opacity: .7;
+}
+.voice-wave span:nth-child(1) { height: 5px; }
+.voice-wave span:nth-child(2) { height: 12px; }
+.voice-wave span:nth-child(3) { height: 8px; }
+.voice-wave span:nth-child(4) { height: 14px; }
+.voice-wave span:nth-child(5) { height: 6px; }
+.recording-indicator .voice-wave span {
+  animation: rec-wave 1s ease-in-out infinite;
+}
+.recording-indicator .voice-wave span:nth-child(2) { animation-delay: .08s; }
+.recording-indicator .voice-wave span:nth-child(3) { animation-delay: .16s; }
+.recording-indicator .voice-wave span:nth-child(4) { animation-delay: .24s; }
+.recording-indicator .voice-wave span:nth-child(5) { animation-delay: .32s; }
+@keyframes rec-wave {
+  0%,100% { transform: scaleY(.72); opacity: .55; }
+  50% { transform: scaleY(1.28); opacity: .9; }
+}
+.voice-player audio {
+  height: 34px;
+  width: 100%;
+  outline: none;
+  border-radius: 12px;
+}
+.msg-bubble-wrap.me .voice-player audio {
+  filter: saturate(.85) brightness(1.04);
+}
+.msg-bubble-wrap.them .voice-icon {
+  background: var(--blue-light);
+}
+.msg-bubble-wrap.them .voice-title {
+  color: var(--text-2);
+}
+
+/* Recording mode strip */
+.recording-indicator {
+  flex: 1;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1.5px solid rgba(239,68,68,.32);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(239,68,68,.10), rgba(239,68,68,.06));
+}
+.recording-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--red);
+  flex-shrink: 0;
+  animation: rec-dot 1s ease infinite;
+}
+@keyframes rec-dot {
+  0%,100% { transform: scale(1); opacity: .95; }
+  50% { transform: scale(1.24); opacity: .55; }
+}
+.recording-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #8f1f24;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.recording-time {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #8f1f24;
+  min-width: 44px;
+}
+.recording-cancel {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: #8f1f24;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+.recording-cancel:hover {
+  background: rgba(143,31,36,.1);
+}
+.msg-input-bar.recording-mode .msg-input,
+.msg-input-bar.recording-mode .btn-send {
+  display: none;
+}
 
 /* ════════════════════════════════════════════
    MODAL TABS
@@ -565,7 +682,7 @@ html, body {
 ════════════════════════════════════════════ */
 .call-screen {
   position: fixed; inset: 0; z-index: 400;
-  background: linear-gradient(160deg, #1a2550 0%, #2845b3 100%);
+  background: linear-gradient(160deg, #0f3b2d 0%, #1f6b4c 64%, #324f40 100%);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 14px; color: #fff;
 }

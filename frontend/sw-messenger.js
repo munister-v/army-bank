@@ -1,10 +1,12 @@
 /* Army Bank Messenger — Service Worker */
-const CACHE = 'msng-v2';
+const CACHE = 'msng-v3';
+const SCOPE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
+const withBase = (path) => `${SCOPE_PATH}${path}`.replace(/\/{2,}/g, '/');
 const STATIC = [
-  '/messenger',
-  '/css/messenger.css',
-  '/js/messenger.js',
-  '/manifest-messenger.json',
+  withBase('/messenger'),
+  withBase('/css/messenger.css'),
+  withBase('/js/messenger.js'),
+  withBase('/manifest-messenger.json'),
 ];
 
 self.addEventListener('install', e => {
@@ -29,14 +31,18 @@ self.addEventListener('fetch', e => {
   const isSameOrigin = url.origin === self.location.origin;
 
   // Never cache API calls
-  if (url.pathname.startsWith('/api/')) return;
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith(withBase('/api/'))) return;
 
   const isHtml = request.headers.get('accept')?.includes('text/html');
   const isCoreStatic = isSameOrigin && (
     url.pathname.startsWith('/css/') ||
     url.pathname.startsWith('/js/') ||
+    url.pathname.startsWith(withBase('/css/')) ||
+    url.pathname.startsWith(withBase('/js/')) ||
     url.pathname === '/manifest-messenger.json' ||
-    url.pathname.startsWith('/icons/')
+    url.pathname === withBase('/manifest-messenger.json') ||
+    url.pathname.startsWith('/icons/') ||
+    url.pathname.startsWith(withBase('/icons/'))
   );
 
   // Network-first for html + core static (prevents stale UI)
@@ -51,7 +57,7 @@ self.addEventListener('fetch', e => {
         const cached = await cache.match(request);
         if (cached) return cached;
         if (isHtml) {
-          const shell = await cache.match('/messenger');
+          const shell = await cache.match(withBase('/messenger'));
           if (shell) return shell;
         }
         throw err;
