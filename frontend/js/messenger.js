@@ -2114,13 +2114,19 @@ async function ensureRtcConfig() {
   rtcConfigLoaded = true;
   try {
     const cfg = await api('GET', '/messenger/calls/config');
-    rtcConfig = { iceServers: sanitizeIceServers(cfg?.ice_servers) };
+    const backendServers = sanitizeIceServers(cfg?.ice_servers);
+    // If backend doesn't provide TURN, supplement with our built-in TURN servers
+    const hasTurn = backendServers.some(s => {
+      const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
+      return urls.some(u => String(u).startsWith('turn:') || String(u).startsWith('turns:'));
+    });
+    const turnServers = DEFAULT_ICE_SERVERS.filter(s => {
+      const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
+      return urls.some(u => String(u).startsWith('turn:') || String(u).startsWith('turns:'));
+    });
+    rtcConfig = { iceServers: hasTurn ? backendServers : [...backendServers, ...turnServers] };
   } catch (_) {
     rtcConfig = { iceServers: [...DEFAULT_ICE_SERVERS] };
-  }
-  if (!turnHintShown && !hasTurnServer(rtcConfig)) {
-    turnHintShown = true;
-    showToast('Рекомендується налаштувати TURN у Render для стабільних дзвінків.');
   }
 }
 
