@@ -2713,8 +2713,19 @@ function buildPeerConnection() {
     } catch (_) {}
   };
 
-  // ICE candidates are embedded in the gathered SDP — no trickle needed
-  pc.onicecandidate = () => {};
+  // Trickle ICE for cross-network reliability (NAT/mobile carriers).
+  pc.onicecandidate = e => {
+    const cand = normalizeIceCandidate(e?.candidate?.toJSON ? e.candidate.toJSON() : e?.candidate);
+    if (!cand) return;
+    if (!activeCallId) {
+      if (pendingLocalIce.length < 200) pendingLocalIce.push(cand);
+      return;
+    }
+    api('POST', `/messenger/calls/${activeCallId}/ice`, { candidate: cand })
+      .catch(() => {
+        if (pendingLocalIce.length < 200) pendingLocalIce.push(cand);
+      });
+  };
 
   pc.oniceconnectionstatechange = () => {
     const st = pc.iceConnectionState;
@@ -2777,6 +2788,27 @@ async function flushRemoteIce(pc) {
   pendingRemoteIce = [];
 }
 
+async function pollCallIce() {
+  if (!activeCallId || !peerConnection) return;
+  try {
+    const rows = await api('GET', `/messenger/calls/${activeCallId}/ice?after_id=${icePollLastId}`);
+    if (!Array.isArray(rows) || !rows.length) return;
+    for (const row of rows) {
+      const rowId = Number(row?.id || 0);
+      if (rowId > icePollLastId) icePollLastId = rowId;
+      const cand = normalizeIceCandidate(row?.candidate);
+      if (!cand) continue;
+      if (!peerConnection.remoteDescription || !remoteSdpSet) {
+        if (pendingRemoteIce.length < 220) pendingRemoteIce.push(cand);
+        continue;
+      }
+      try {
+        await peerConnection.addIceCandidate(cand);
+      } catch (_) {}
+    }
+  } catch (_) {}
+}
+
 // ── Initiate call (caller) ─────────────────
 async function initiateCall() {
   if (!activeConvId || !activePartner) return;
@@ -2808,6 +2840,7 @@ async function initiateCall() {
     icePollLastId = 0;
     callConnectedOnce = false;
     showCallScreen(activePartner.full_name, 'Виклик...');
+    flushLocalIce().catch(() => {});
     startOutgoingTone().catch(() => {});
     startOutgoingNoAnswerTimer(call_id);
     startCallPoll();
@@ -2909,6 +2942,8 @@ async function acceptCall() {
     activeCallId  = callId;
     icePollLastId = 0;
     callConnectedOnce = false;
+    flushLocalIce().catch(() => {});
+    flushRemoteIce(peerConnection).catch(() => {});
     clearOutgoingNoAnswerTimer();
     showCallScreen(callData.caller_name || 'Дзвінок', 'З\'єднання...');
     startCallPoll();
@@ -2943,6 +2978,7 @@ function startCallPoll(intervalMs = callPollInterval()) {
 async function pollCall() {
   if (!activeCallId || !peerConnection) return;
   try {
+    pollCallIce().catch(() => {});
     const cd = await api('GET', `/messenger/calls/${activeCallId}`);
     if (['rejected', 'ended', 'missed'].includes(cd.status)) {
       if (cd.status === 'rejected') showToast('Дзвінок відхилено.');
@@ -2958,6 +2994,7 @@ async function pollCall() {
         const answerSdp = normalizeSdp(cd.sdp_answer, 'SDP answer');
         await setRemoteDescriptionSafe(peerConnection, { type: 'answer', sdp: answerSdp }, 'SDP answer');
         remoteSdpSet = true;
+        flushRemoteIce(peerConnection).catch(() => {});
         stopOutgoingTone();
         clearOutgoingNoAnswerTimer();
         setCallStatusBase('З\'єднання...');
