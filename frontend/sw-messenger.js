@@ -1,5 +1,5 @@
 /* Army Bank Messenger — Service Worker */
-const SW_VERSION = new URL(self.location.href).searchParams.get('v') || '6';
+const SW_VERSION = new URL(self.location.href).searchParams.get('v') || '7';
 const CACHE = `msng-v${SW_VERSION}`;
 const SCOPE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
 const withBase = (path) => `${SCOPE_PATH}${path}`.replace(/\/{2,}/g, '/');

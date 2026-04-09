@@ -1,6 +1,9 @@
 """Маршрути месенджера Army Bank."""
 from __future__ import annotations
 
+import json
+import re
+
 from flask import Blueprint, jsonify, request, g
 
 from ..database import get_connection
@@ -9,13 +12,13 @@ from ..services.messenger_crypto import (
     decrypt_message,
     deleted_message_text,
     encrypt_message,
-    safe_preview,
 )
 from .helpers import api_error, auth_required
 
 messenger_bp = Blueprint('messenger', __name__, url_prefix='/api/messenger')
 
 _FALSE = False if USE_PG else 0  # boolean compatibility
+_B64_RE = re.compile(r'^[A-Za-z0-9+/=]+$')
 
 
 # ── Допоміжні функції ────────────────────────────────────────────────────────
@@ -281,7 +284,7 @@ def send_message(conv_id: int):
     me_id = g.current_user['id']
     data = request.get_json(force=True) or {}
     msg_type = (data.get('msg_type') or 'text').strip()
-    if msg_type not in ('text', 'voice'):
+    if msg_type not in ('text', 'voice', 'image'):
         msg_type = 'text'
 
     if msg_type == 'voice':
@@ -291,6 +294,52 @@ def send_message(conv_id: int):
         if len(text) > 800_000:
             return api_error('Голосове повідомлення занадто велике.')
         stored_text = text  # base64 audio, store as-is (no encryption)
+    elif msg_type == 'image':
+        raw_text = (data.get('text') or '').strip()
+        if not raw_text:
+            return api_error('Фото-повідомлення порожнє.')
+        if len(raw_text) > 2_300_000:
+            return api_error('Фото занадто велике.')
+        try:
+            payload = json.loads(raw_text)
+        except Exception:
+            return api_error('Некоректний формат фото-повідомлення.')
+
+        src_items = payload.get('items') if isinstance(payload, dict) else None
+        if not isinstance(src_items, list) or not src_items:
+            return api_error('Фото-повідомлення не містить зображень.')
+
+        normalized = []
+        allowed_mimes = {'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/avif'}
+        for item in src_items[:12]:
+            if not isinstance(item, dict):
+                continue
+            mime = str(item.get('mime') or '').strip().lower()
+            b64 = str(item.get('data') or '').strip()
+            if mime not in allowed_mimes:
+                continue
+            if mime == 'image/jpg':
+                mime = 'image/jpeg'
+            if not b64 or len(b64) > 1_500_000:
+                continue
+            if not _B64_RE.fullmatch(b64):
+                continue
+            record = {'mime': mime, 'data': b64}
+            try:
+                w = int(item.get('w') or 0)
+                h = int(item.get('h') or 0)
+            except (TypeError, ValueError):
+                w, h = 0, 0
+            if 0 < w <= 5000 and 0 < h <= 5000:
+                record['w'] = w
+                record['h'] = h
+            normalized.append(record)
+
+        if not normalized:
+            return api_error('Не вдалося обробити фото-повідомлення.')
+
+        text = json.dumps({'v': 1, 'items': normalized}, ensure_ascii=False, separators=(',', ':'))
+        stored_text = encrypt_message(text)
     else:
         text = (data.get('text') or '').strip()
         if not text:
@@ -325,9 +374,10 @@ def send_message(conv_id: int):
                 'SELECT created_at FROM messages WHERE id = %s', (msg_id,)
             ).fetchone()['created_at']
 
-        preview = safe_preview() if msg_type == 'voice' else safe_preview()
         if msg_type == 'voice':
             preview = '🎤 Голосове повідомлення'
+        elif msg_type == 'image':
+            preview = '🖼️ Фото'
         else:
             preview = text[:180]
         conn.execute(

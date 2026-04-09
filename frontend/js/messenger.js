@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '6';
+const MESSENGER_ASSET_VERSION = '7';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 
@@ -48,6 +48,9 @@ let holdStartX = 0;
 let holdCancelTriggered = false;
 let recordRestartCooldownUntil = 0;
 let recordCooldownToastAt = 0;
+let activePhotoItems = [];
+let activePhotoIndex = 0;
+const photosByMessageId = new Map();
 
 // ── Call state ─────────────────────────────
 let activeCallId       = null;
@@ -95,6 +98,8 @@ const scrollAnchor      = $('scroll-anchor');
 const msgInput          = $('msg-input');
 const btnSend           = $('btn-send');
 const btnVoice          = $('btn-voice');
+const btnAttachPhoto    = $('btn-attach-photo');
+const inputPhoto        = $('input-photo');
 const msgInputBar       = $('msg-input-bar');
 const recordingIndicator= $('recording-indicator');
 const recordingTime     = $('recording-time');
@@ -133,6 +138,12 @@ const callScreenTimer   = $('call-screen-timer');
 const btnMute           = $('btn-mute');
 const btnEndCall        = $('btn-end-call');
 const remoteAudio       = $('remote-audio');
+const photoViewer       = $('photo-viewer');
+const photoViewerImg    = $('photo-viewer-img');
+const photoViewerCounter= $('photo-viewer-counter');
+const btnPhotoClose     = $('btn-photo-close');
+const btnPhotoPrev      = $('btn-photo-prev');
+const btnPhotoNext      = $('btn-photo-next');
 // Group / Modal UI
 const tabDirect         = $('tab-direct');
 const tabGroup          = $('tab-group');
@@ -182,6 +193,20 @@ function showToast(msg, isError = false) {
   toast.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+function syncOverlayLock() {
+  const locked = (
+    !!newChatModal && !newChatModal.hidden
+  ) || (
+    !!callIncoming && !callIncoming.hidden
+  ) || (
+    !!callScreen && !callScreen.hidden
+  ) || (
+    !!photoViewer && !photoViewer.hidden
+  );
+  document.documentElement.classList.toggle('overlay-lock', locked);
+  document.body.classList.toggle('overlay-lock', locked);
 }
 
 // ════════════════════════════════════════════
@@ -301,6 +326,7 @@ function showAuth() {
   if (authPhone)    authPhone.value = '';
   authError.hidden = true;
   setAuthMode('login');
+  syncOverlayLock();
 }
 
 function showApp() {
@@ -311,6 +337,7 @@ function showApp() {
   startGlobalPoll();
   pollUnreadBadge();
   startIncomingCallCheck();
+  syncOverlayLock();
 }
 
 // ════════════════════════════════════════════
@@ -394,6 +421,7 @@ async function openChat(conv) {
     el.classList.toggle('active', +el.dataset.convId === activeConvId));
 
   messagesList.innerHTML = '';
+  photosByMessageId.clear();
   msgInput.value = '';
   updateSendBtn();
   await fetchMessages();
@@ -411,6 +439,7 @@ async function fetchMessages(prepend = false) {
     const msgs   = await api('GET', `/messenger/conversations/${activeConvId}/messages${params}`);
     if (!prepend) {
       messagesList.innerHTML = '';
+      photosByMessageId.clear();
       renderMessages(msgs, false);
       if (msgs.length) lastMsgId = msgs[msgs.length - 1].id;
       scrollToBottom(true);
@@ -476,6 +505,26 @@ function buildBubble(msg) {
         <audio controls src="${src}" preload="metadata"></audio>
       </div>
     </div>`;
+  } else if (msgType === 'image') {
+    const imageItems = parseImagePayload(msg.text || '');
+    photosByMessageId.set(String(msg.id), imageItems);
+    if (!imageItems.length) {
+      content = `<div class="msg-bubble">${esc('Фото недоступне')}</div>`;
+    } else {
+      const visibleItems = imageItems.slice(0, 4);
+      const countClass = `count-${Math.min(visibleItems.length, 4)}`;
+      const tiles = visibleItems.map((item, idx) => {
+        const src = imageDataUrl(item);
+        const tail = idx === 3 && imageItems.length > 4
+          ? `<span class="photo-more">+${imageItems.length - 4}</span>`
+          : '';
+        return `<button type="button" class="photo-tile" data-photo-msg="${msg.id}" data-photo-index="${idx}" aria-label="Фото ${idx + 1}">
+          <img src="${esc(src)}" alt="Фото ${idx + 1}" loading="lazy" decoding="async"/>
+          ${tail}
+        </button>`;
+      }).join('');
+      content = `<div class="msg-bubble image-bubble"><div class="photo-stack ${countClass}">${tiles}</div></div>`;
+    }
   } else {
     content = `<div class="msg-bubble">${esc(msg.text)}</div>`;
   }
@@ -505,6 +554,88 @@ async function sendMessage() {
     msgInput.value = text;
     updateSendBtn();
   }
+}
+
+async function sendPhotos(files) {
+  if (!activeConvId) { showToast('Спочатку відкрийте чат.', true); return; }
+  const list = Array.from(files || [])
+    .filter(f => /^image\//i.test(f.type || ''))
+    .slice(0, 6);
+  if (!list.length) return;
+  showToast('Опрацьовую фото...');
+  try {
+    const items = [];
+    for (const file of list) {
+      const item = await preparePhotoItem(file);
+      if (item) items.push(item);
+    }
+    if (!items.length) {
+      showToast('Не вдалося підготувати фото.', true);
+      return;
+    }
+    const payload = JSON.stringify({ v: 1, items });
+    if (payload.length > 2_300_000) {
+      showToast('Фото занадто важкі. Оберіть менше або менший розмір.', true);
+      return;
+    }
+    const msg = await api('POST', `/messenger/conversations/${activeConvId}/messages`, {
+      text: payload,
+      msg_type: 'image',
+    });
+    appendMessage(msg);
+    lastMsgId = msg.id;
+    updateConvItem(activeConvId, {
+      last_message_text: conversationPreview(msg),
+      last_message_at: msg.created_at,
+    });
+    showToast('Фото надіслано');
+  } catch (err) {
+    showToast(err.message || 'Не вдалося надіслати фото.', true);
+  }
+}
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+async function preparePhotoItem(file) {
+  const rawDataUrl = await readFileAsDataURL(file);
+  const img = await loadImage(rawDataUrl);
+  const maxSide = 1600;
+  const scale = Math.min(1, maxSide / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+  const width = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
+  const height = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(img, 0, 0, width, height);
+
+  let quality = 0.86;
+  let out = canvas.toDataURL('image/jpeg', quality);
+  while (out.length > 750_000 && quality > 0.56) {
+    quality -= 0.1;
+    out = canvas.toDataURL('image/jpeg', quality);
+  }
+  const base64 = out.split(',')[1] || '';
+  if (!base64) return null;
+  return { mime: 'image/jpeg', data: base64, w: width, h: height };
 }
 
 function appendMessage(msg) {
@@ -786,10 +917,53 @@ async function pollUnreadBadge() {
 }
 
 // ════════════════════════════════════════════
+// Photo viewer
+// ════════════════════════════════════════════
+function updatePhotoViewer() {
+  if (!photoViewerImg || !photoViewerCounter) return;
+  if (!activePhotoItems.length) {
+    photoViewerImg.removeAttribute('src');
+    photoViewerCounter.textContent = '0 / 0';
+    return;
+  }
+  const idx = Math.max(0, Math.min(activePhotoItems.length - 1, activePhotoIndex));
+  activePhotoIndex = idx;
+  photoViewerImg.src = imageDataUrl(activePhotoItems[idx]);
+  photoViewerCounter.textContent = `${idx + 1} / ${activePhotoItems.length}`;
+  if (btnPhotoPrev) btnPhotoPrev.hidden = activePhotoItems.length < 2;
+  if (btnPhotoNext) btnPhotoNext.hidden = activePhotoItems.length < 2;
+}
+
+function openPhotoViewer(items, startIndex = 0) {
+  if (!photoViewer || !Array.isArray(items) || !items.length) return;
+  activePhotoItems = items;
+  activePhotoIndex = startIndex;
+  updatePhotoViewer();
+  photoViewer.hidden = false;
+  syncOverlayLock();
+}
+
+function closePhotoViewer() {
+  if (!photoViewer || photoViewer.hidden) return;
+  photoViewer.hidden = true;
+  activePhotoItems = [];
+  activePhotoIndex = 0;
+  if (photoViewerImg) photoViewerImg.removeAttribute('src');
+  syncOverlayLock();
+}
+
+function stepPhotoViewer(step) {
+  if (!activePhotoItems.length) return;
+  activePhotoIndex = (activePhotoIndex + step + activePhotoItems.length) % activePhotoItems.length;
+  updatePhotoViewer();
+}
+
+// ════════════════════════════════════════════
 // New chat modal
 // ════════════════════════════════════════════
 function openNewChatModal() {
   newChatModal.hidden = false;
+  syncOverlayLock();
   switchTab('direct');
   userSearchInput.value = '';
   userSearchResults.innerHTML = '';
@@ -798,7 +972,10 @@ function openNewChatModal() {
   setTimeout(() => userSearchInput.focus(), 50);
 }
 
-function closeNewChatModal() { newChatModal.hidden = true; }
+function closeNewChatModal() {
+  newChatModal.hidden = true;
+  syncOverlayLock();
+}
 
 function switchTab(tab) {
   const isDirect = tab === 'direct';
@@ -1036,6 +1213,7 @@ async function checkIncoming() {
       callCallerAvatar.textContent = initial(incomingCallerName);
       callCallerName.textContent   = incomingCallerName;
       callIncoming.hidden = false;
+      syncOverlayLock();
     } else if (!calls?.length && incomingCallId) {
       hideIncoming(); // cancelled before answer
     }
@@ -1046,6 +1224,7 @@ function hideIncoming() {
   callIncoming.hidden = true;
   incomingCallId = null;
   incomingCallerName = '';
+  syncOverlayLock();
 }
 
 // ── Accept / Reject ────────────────────────
@@ -1143,6 +1322,7 @@ function showCallScreen(name, status) {
   callScreenStatus.textContent = status;
   callScreenTimer.hidden       = true;
   callScreen.hidden            = false;
+  syncOverlayLock();
 }
 
 function startCallTimer() {
@@ -1172,6 +1352,7 @@ async function hangupCall(notify = true) {
   callScreen.hidden       = true;
   callScreenTimer.hidden  = true;
   if (btnMute) btnMute.classList.remove('muted');
+  syncOverlayLock();
 }
 
 function cleanupPeer() {
@@ -1208,10 +1389,43 @@ function compactPreview(text) {
   return raw;
 }
 
+function parseImagePayload(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return [];
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch (_) { return []; }
+
+  const srcItems = Array.isArray(parsed?.items)
+    ? parsed.items
+    : (parsed && parsed.data ? [parsed] : []);
+  const out = [];
+  srcItems.slice(0, 12).forEach(item => {
+    const mime = String(item?.mime || '').toLowerCase().trim();
+    const data = String(item?.data || '').trim();
+    if (!/^image\/(jpeg|jpg|png|webp|gif|avif)$/i.test(mime)) return;
+    if (!/^[A-Za-z0-9+/=]+$/.test(data)) return;
+    if (data.length < 64 || data.length > 1_500_000) return;
+    out.push({
+      mime: mime === 'image/jpg' ? 'image/jpeg' : mime,
+      data,
+      w: Number(item?.w || 0),
+      h: Number(item?.h || 0),
+    });
+  });
+  return out;
+}
+
+function imageDataUrl(item) {
+  const mime = String(item?.mime || 'image/jpeg').toLowerCase();
+  const data = String(item?.data || '');
+  return `data:${mime};base64,${data}`;
+}
+
 function conversationPreview(msg) {
   if (!msg) return 'Нове повідомлення';
   if (msg.is_deleted) return 'Повідомлення видалено';
   if ((msg.msg_type || 'text') === 'voice') return '🎤 Голосове повідомлення';
+  if ((msg.msg_type || 'text') === 'image') return '🖼️ Фото';
   return compactPreview(msg.text || 'Нове повідомлення');
 }
 
@@ -1275,7 +1489,22 @@ btnLogout.addEventListener('click', doLogout);
 btnNewChat.addEventListener('click', openNewChatModal);
 btnCloseModal.addEventListener('click', closeNewChatModal);
 newChatModal.addEventListener('click', e => { if (e.target === newChatModal) closeNewChatModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNewChatModal(); });
+if (photoViewer) {
+  photoViewer.addEventListener('click', e => {
+    if (e.target === photoViewer) closePhotoViewer();
+  });
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (photoViewer && !photoViewer.hidden) { closePhotoViewer(); return; }
+    closeNewChatModal();
+    return;
+  }
+  if (photoViewer && !photoViewer.hidden) {
+    if (e.key === 'ArrowLeft') { e.preventDefault(); stepPhotoViewer(-1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); stepPhotoViewer(1); }
+  }
+});
 
 userSearchInput.addEventListener('input', () => {
   clearTimeout(searchTimer);
@@ -1302,6 +1531,17 @@ msgInput.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
 btnSend.addEventListener('click', sendMessage);
+if (btnAttachPhoto && inputPhoto) {
+  btnAttachPhoto.addEventListener('click', () => {
+    if (!activeConvId) { showToast('Спочатку відкрийте чат.', true); return; }
+    inputPhoto.value = '';
+    inputPhoto.click();
+  });
+  inputPhoto.addEventListener('change', async e => {
+    await sendPhotos(e.target.files);
+    e.target.value = '';
+  });
+}
 btnVoice.addEventListener('click', e => {
   // detail===0 => keyboard activation (Enter/Space), keep accessible toggle fallback
   if (e.detail !== 0) return;
@@ -1315,6 +1555,21 @@ btnVoice.addEventListener('lostpointercapture', handleVoicePointerCancel);
 btnVoice.addEventListener('contextmenu', e => e.preventDefault());
 if (btnCancelRecord) btnCancelRecord.addEventListener('click', () => stopRecording(false));
 convSearch.addEventListener('input', () => renderConvList(convData));
+if (messagesList) {
+  messagesList.addEventListener('click', e => {
+    if (!(e.target instanceof Element)) return;
+    const tile = e.target.closest('.photo-tile');
+    if (!tile) return;
+    const msgId = String(tile.dataset.photoMsg || '');
+    const idx = Number(tile.dataset.photoIndex || 0);
+    const items = photosByMessageId.get(msgId) || [];
+    if (!items.length) return;
+    openPhotoViewer(items, idx);
+  });
+}
+if (btnPhotoClose) btnPhotoClose.addEventListener('click', closePhotoViewer);
+if (btnPhotoPrev) btnPhotoPrev.addEventListener('click', () => stepPhotoViewer(-1));
+if (btnPhotoNext) btnPhotoNext.addEventListener('click', () => stepPhotoViewer(1));
 
 if (btnCall)       btnCall.addEventListener('click', initiateCall);
 if (btnEndCall)    btnEndCall.addEventListener('click', () => hangupCall(true));
