@@ -353,6 +353,10 @@ def create_app() -> Flask:
     def messenger_page():
         return send_html('messenger.html')
 
+    @app.get(prefix + '/turn-test.html' if prefix else '/turn-test.html')
+    def turn_test_page():
+        return send_html('turn-test.html')
+
     @app.get(prefix + '/health')
     def health():
         return {
