@@ -1778,6 +1778,16 @@ function _initCarouselInteraction(track) {
     var idx = cw > 0 ? Math.round(track.scrollLeft / cw) : 0;
     idx = Math.max(0, Math.min(idx, dots.length - 1));
     dots.forEach(function(d, i) { d.classList.toggle('active', i === idx); });
+    updateDeckState(idx);
+  }
+
+  function updateDeckState(activeIdx) {
+    var cards = Array.from(track.querySelectorAll('.bank-card'));
+    cards.forEach(function(card, i) {
+      card.classList.toggle('is-active', i === activeIdx);
+      card.classList.toggle('is-prev', i === activeIdx - 1);
+      card.classList.toggle('is-next', i === activeIdx + 1);
+    });
   }
 
   function updateDots() {
@@ -1863,7 +1873,10 @@ async function _updateBankCards() {
 
   // Try to load real issued cards
   var cards = [];
-  try { const r = await api.request('/api/cards'); cards = (Array.isArray(r) ? r : []); }
+  try {
+    const r = await api.request('/api/cards');
+    cards = Array.isArray(r) ? r : (Array.isArray(r && r.data) ? r.data : []);
+  }
   catch(_) {}
 
   if (!cards.length) {

@@ -9526,3 +9526,82 @@ html.install-banner-visible #appScreen .app-content {
     scroll-padding-bottom: calc(116px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+/* ── Mobile Dashboard: stable lower area + swipe depth animation (final) ── */
+@media (max-width: 767px) {
+  #dashboard .quick-actions,
+  .quick-actions {
+    margin-top: 10px !important;
+    margin-bottom: 12px !important;
+    gap: 10px !important;
+  }
+
+  #dashboard .quick-actions .qa-btn,
+  .quick-actions .qa-btn {
+    min-height: 92px !important;
+    border-radius: 17px !important;
+    padding: 9px 8px !important;
+    background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.11) 100%) !important;
+    border: 1px solid rgba(255,255,255,0.23) !important;
+    box-shadow: 0 8px 16px rgba(8, 22, 14, 0.15), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+  }
+
+  .bottom-nav {
+    left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    bottom: max(6px, env(safe-area-inset-bottom, 0px)) !important;
+    height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 7px 8px calc(7px + env(safe-area-inset-bottom, 0px)) !important;
+    border-radius: 24px !important;
+    background: linear-gradient(180deg, rgba(244,249,244,.96), rgba(233,241,234,.94)) !important;
+    border: 1px solid rgba(35, 63, 45, 0.11) !important;
+    box-shadow: 0 10px 24px rgba(10, 24, 16, 0.14), 0 2px 8px rgba(10,24,16,0.08) !important;
+  }
+
+  .bottom-nav .nav-item,
+  .bottom-nav .menu-btn.nav-item {
+    min-height: 54px !important;
+    border-radius: 16px !important;
+    padding: 6px 4px 7px !important;
+  }
+
+  .bottom-nav .nav-item.active,
+  .bottom-nav .menu-btn.nav-item.active {
+    background: linear-gradient(180deg, #ffffff 0%, #f2f8f3 100%) !important;
+    box-shadow: 0 4px 10px rgba(18, 34, 24, 0.12) !important;
+  }
+
+  .app-content {
+    padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .bank-cards-track {
+    scroll-snap-type: x mandatory !important;
+  }
+
+  .bank-cards-track .bank-card {
+    transition: transform .24s ease, opacity .24s ease, filter .24s ease !important;
+    transform: scale(.965) !important;
+    opacity: .88 !important;
+    filter: saturate(.94) !important;
+  }
+
+  .bank-cards-track .bank-card.is-active {
+    transform: scale(1) !important;
+    opacity: 1 !important;
+    filter: saturate(1) !important;
+  }
+
+  .bank-cards-track .bank-card.is-prev,
+  .bank-cards-track .bank-card.is-next {
+    transform: scale(.978) !important;
+    opacity: .95 !important;
+  }
+
+  html.no-animations .bank-cards-track .bank-card,
+  body.no-animations .bank-cards-track .bank-card {
+    transition: transform .18s ease, opacity .18s ease, filter .18s ease !important;
+  }
+}
