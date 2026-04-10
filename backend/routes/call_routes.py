@@ -1,10 +1,27 @@
 """Сигналінг для WebRTC дзвінків — Army Bank Messenger."""
 from __future__ import annotations
 import json
+import os
+import urllib.request
 from flask import Blueprint, jsonify, request, g
 from ..database import get_connection
 from ..config import USE_PG, MESSENGER_CALL_PENDING_TIMEOUT_SECONDS, MESSENGER_ICE_SERVERS
 from .helpers import api_error, auth_required
+
+_METERED_API_KEY = os.getenv('METERED_API_KEY', '7c67a9a42814a9d646b83f6b3f805d0a84f4')
+_METERED_APP_DOMAIN = os.getenv('METERED_APP_DOMAIN', 'army')
+
+def _get_metered_ice_servers():
+    """Fetch fresh ICE servers from Metered.ca API."""
+    try:
+        url = f'https://{_METERED_APP_DOMAIN}.metered.live/api/v1/turn/credentials?apiKey={_METERED_API_KEY}'
+        with urllib.request.urlopen(url, timeout=3) as resp:
+            data = json.loads(resp.read())
+            if isinstance(data, list) and data:
+                return data
+    except Exception:
+        pass
+    return None
 
 call_bp = Blueprint('calls', __name__, url_prefix='/api/messenger/calls')
 
@@ -70,11 +87,13 @@ def _expire_stale_pending_calls(conn, conv_id: int | None = None) -> int:
 @call_bp.get('/config')
 @auth_required
 def call_config():
+    # Try Metered.ca dynamic credentials first, fall back to static config
+    ice_servers = _get_metered_ice_servers() or MESSENGER_ICE_SERVERS
     return jsonify({
         'ok': True,
         'data': {
             'pending_timeout_seconds': max(15, int(MESSENGER_CALL_PENDING_TIMEOUT_SECONDS or 45)),
-            'ice_servers': MESSENGER_ICE_SERVERS,
+            'ice_servers': ice_servers,
         },
     })
 
