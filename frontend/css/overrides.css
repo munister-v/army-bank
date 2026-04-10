@@ -9800,6 +9800,13 @@ html.install-banner-visible #appScreen .app-content {
     opacity: 0 !important;
     pointer-events: none !important;
   }
+
+  /* Browser mode: nav must stay visible to avoid "missing tabbar" UX */
+  html.app-browser-mode #appScreen #sidebar.bottom-nav.nav-hidden {
+    transform: none !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
 }
 
 /* ── HOTFIX 2026-04-10-2: stable true card back (Safari/iOS-safe) ─────── */

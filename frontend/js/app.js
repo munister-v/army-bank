@@ -5312,13 +5312,26 @@ console.log('[Army Bank] UX core modules loaded');
     nav.classList.remove('nav-hidden');
   }
 
+  function isBrowserMode() {
+    return document.documentElement.classList.contains('app-browser-mode');
+  }
+
   function hideNav() {
+    if (isBrowserMode()) {
+      showNav();
+      return;
+    }
     nav.classList.add('nav-hidden');
   }
 
   function updateNav() {
     ticking = false;
     if (!isMobileLayout()) return;
+    if (isBrowserMode()) {
+      showNav();
+      lastY = content.scrollTop || 0;
+      return;
+    }
     var y = content.scrollTop || 0;
     var dy = y - lastY;
     var nearTop = y < 8;
