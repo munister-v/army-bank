@@ -5321,12 +5321,12 @@ console.log('[Army Bank] UX core modules loaded');
     if (!isMobileLayout()) return;
     var y = content.scrollTop || 0;
     var dy = y - lastY;
-    var nearTop = y < 14;
+    var nearTop = y < 8;
     var nearBottom = (content.scrollHeight - (y + content.clientHeight)) < 18;
 
-    if (nearTop || nearBottom || dy < -4) {
+    if (nearTop || nearBottom || dy < -2) {
       showNav();
-    } else if (dy > 8 && y > 36) {
+    } else if (dy > 3 && y > 8) {
       hideNav();
     }
 

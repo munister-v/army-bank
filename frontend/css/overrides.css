@@ -9723,9 +9723,6 @@ html.install-banner-visible #appScreen .app-content {
     padding: 6px 7px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
-  #appScreen #sidebar.bottom-nav.nav-hidden {
-    transform: none !important;
-  }
 }
 
 /* ── HOTFIX 2026-04-10: mobile main scroll + bottom overlap stability ──── */
