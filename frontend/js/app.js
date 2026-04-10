@@ -5111,6 +5111,13 @@ console.log('[Army Bank] UX core modules loaded');
       showNav();
       return;
     }
+    var activeEl = document.querySelector('.screen.active-screen');
+    var activeId = activeEl ? activeEl.id : '';
+    if (activeId === 'dashboard') {
+      showNav();
+      lastY = content.scrollTop || 0;
+      return;
+    }
     var y = content.scrollTop || 0;
     var dy = y - lastY;
     var notifOpen = document.getElementById('notifPanel')?.classList.contains('open');

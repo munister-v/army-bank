@@ -9792,14 +9792,24 @@ html.install-banner-visible #appScreen .app-content {
     min-height: 100dvh !important;
     height: 100dvh !important;
     overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   #appScreen .app-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
     padding-bottom: calc(126px + env(safe-area-inset-bottom, 0px)) !important;
     scroll-padding-bottom: calc(130px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   #appScreen #sidebar.bottom-nav {
+    position: fixed !important;
+    z-index: 120 !important;
     left: max(8px, env(safe-area-inset-left, 0px)) !important;
     right: max(8px, env(safe-area-inset-right, 0px)) !important;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
