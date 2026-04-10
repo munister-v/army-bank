@@ -9796,6 +9796,13 @@ html.install-banner-visible #appScreen .app-content {
       env(safe-area-inset-bottom, 0px)
     ) !important;
   }
+
+  /* Re-enable hide-on-scroll behavior for bottom nav */
+  #appScreen #sidebar.bottom-nav.nav-hidden {
+    transform: translateY(calc(132% + var(--browser-ui-bottom, 0px))) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
 }
 
 /* ── HOTFIX 2026-04-10-2: stable true card back (Safari/iOS-safe) ─────── */
