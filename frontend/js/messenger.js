@@ -104,6 +104,10 @@ let callQualityLabel = '';
 let callStatusBase = 'З\'єднання...';
 let callWakeLock = null;
 let callBackgroundNotifiedForId = null;
+let callIceRecoverTimer = null;
+let callIceRecoverAttempts = 0;
+let callIceRestartInFlight = false;
+let callForceRelay = false;
 let turnHintShown = false;
 let bankSummaryCache = null;
 let bankProfileLinked = true;
@@ -2368,7 +2372,7 @@ function patchOpusSdp(sdp) {
   const pt = opusMatch[1];
   // Find existing fmtp line for Opus
   const fmtpRe = new RegExp(`(a=fmtp:${pt} .*)`, 'm');
-  const newFmtp = `a=fmtp:${pt} minptime=10;useinbandfec=1;usedtx=1;maxaveragebitrate=64000;stereo=0`;
+  const newFmtp = `a=fmtp:${pt} minptime=10;ptime=20;maxplaybackrate=48000;useinbandfec=1;usedtx=0;maxaveragebitrate=96000;stereo=0`;
   if (fmtpRe.test(sdp)) {
     return sdp.replace(fmtpRe, newFmtp);
   }
@@ -2377,6 +2381,60 @@ function patchOpusSdp(sdp) {
     new RegExp(`(a=rtpmap:${pt} opus/48000/2)`),
     `$1\r\n${newFmtp}`
   );
+}
+
+function clearCallIceRecoverTimer() {
+  if (callIceRecoverTimer) {
+    clearTimeout(callIceRecoverTimer);
+    callIceRecoverTimer = null;
+  }
+}
+
+function scheduleCallRecovery({ delayMs = 2100, forceRelay = false } = {}) {
+  if (!activeCallId || !peerConnection) return;
+  clearCallIceRecoverTimer();
+  callIceRecoverTimer = setTimeout(() => {
+    if (!activeCallId || !peerConnection) return;
+    if (peerConnection.iceConnectionState === 'connected' || peerConnection.iceConnectionState === 'completed') return;
+    triggerIceRecovery({ forceRelay }).catch(() => {});
+  }, Math.max(300, Number(delayMs || 0)));
+}
+
+async function triggerIceRecovery({ forceRelay = false } = {}) {
+  if (!peerConnection || !activeCallId || callIceRestartInFlight) return;
+  const canTry = callIceRecoverAttempts < 3;
+  if (!canTry) return;
+  callIceRestartInFlight = true;
+  callIceRecoverAttempts += 1;
+  clearCallIceRecoverTimer();
+
+  try {
+    if (forceRelay && !callForceRelay) {
+      callForceRelay = true;
+      try {
+        peerConnection.setConfiguration({ ...rtcConfig, iceTransportPolicy: 'relay' });
+      } catch (_) {}
+      setCallStatusBase('Перепідключення через relay...');
+    } else {
+      setCallStatusBase('Відновлення...');
+    }
+
+    const offer = await peerConnection.createOffer({ iceRestart: true });
+    const patchedOffer = { type: offer.type, sdp: patchOpusSdp(offer.sdp) };
+    await peerConnection.setLocalDescription(patchedOffer);
+    await api('PUT', `/messenger/calls/${activeCallId}/offer`, {
+      sdp_offer: peerConnection.localDescription?.sdp || patchedOffer.sdp,
+    });
+    startCallPoll(document.hidden ? 1400 : 900);
+    pollCall().catch(() => {});
+  } catch (err) {
+    if (callIceRecoverAttempts >= 3) {
+      showToast('Не вдалося відновити з\'єднання.', true);
+      hangupCall(true, 'error');
+    }
+  } finally {
+    callIceRestartInFlight = false;
+  }
 }
 
 async function ensureCallAudioCtx() {
@@ -2713,7 +2771,12 @@ function startCallQualityMonitor() {
 function buildPeerConnection() {
   // Use rtcConfig with multiple TURN servers + STUN fallback
   // Browser will try: TURN relay → host candidates → reflexive (if NAT allows)
-  const pc = new RTCPeerConnection(rtcConfig);
+  const pc = new RTCPeerConnection({
+    ...rtcConfig,
+    iceTransportPolicy: callForceRelay ? 'relay' : 'all',
+    bundlePolicy: 'max-bundle',
+    iceCandidatePoolSize: callForceRelay ? 0 : 2,
+  });
 
   pc.ontrack = e => {
     if (remoteAudio.srcObject !== e.streams[0]) remoteAudio.srcObject = e.streams[0];
@@ -2744,6 +2807,8 @@ function buildPeerConnection() {
     console.log(`[ICE] State: ${st} | Gathering: ${gathering} | Connection: ${connState} | Audio tracks: ${localStream?.getAudioTracks().length || 0}`);
     if (st === 'connected' || st === 'completed') {
       console.log('[ICE] ✓✓✓ CONNECTED! Audio should flow now!');
+      callIceRecoverAttempts = 0;
+      clearCallIceRecoverTimer();
       setCallStatusBase('Підключено');
       stopAllCallTones();
       if (!callConnectedOnce) {
@@ -2756,18 +2821,20 @@ function buildPeerConnection() {
     } else if (st === 'disconnected') {
       console.log('[ICE] ⚠️ Disconnected - was working before, attempting ICE restart');
       setCallStatusBase('Відновлення...');
-      if (peerConnection && activeCallId) {
-        peerConnection.createOffer({ iceRestart: true })
-          .then(offer => peerConnection.setLocalDescription(offer))
-          .catch(() => {});
-      }
+      scheduleCallRecovery({ delayMs: 2000, forceRelay: false });
+      startCallPoll(document.hidden ? 1400 : 900);
       pollCall().catch(() => {});
     } else if (st === 'failed') {
-      console.error('[ICE] ❌ FAILED - no working candidate pairs found!');
-      showToast('З\'єднання перервано.', true);
-      hangupCall(true, 'error');
+      console.error('[ICE] ❌ FAILED - no working candidate pairs found, trying relay recovery');
+      if (callIceRecoverAttempts >= 2 && callForceRelay) {
+        showToast('З\'єднання перервано.', true);
+        hangupCall(true, 'error');
+        return;
+      }
+      triggerIceRecovery({ forceRelay: true }).catch(() => {});
     } else if (st === 'checking') {
       console.log('[ICE] 🔍 Checking candidates... (testing connectivity)');
+      startCallPoll(document.hidden ? 1300 : 850);
     } else if (st === 'new') {
       console.log('[ICE] 🆕 New state - gathering candidates');
     } else if (st === 'closed') {
@@ -2780,6 +2847,8 @@ function buildPeerConnection() {
     console.log('[Connection] State changed:', st, '| ICE:', pc.iceConnectionState, '| Audio tracks:', localStream?.getAudioTracks().length || 0);
     if (st === 'connected') {
       console.log('[Connection] ✓ CONNECTED! Audio should flow');
+      callIceRecoverAttempts = 0;
+      clearCallIceRecoverTimer();
       setCallStatusBase('Підключено');
       if (!callWallTimer) startCallTimer();
       if (!callQualityTimer) startCallQualityMonitor();
@@ -2790,9 +2859,14 @@ function buildPeerConnection() {
     } else if (st === 'disconnected') {
       console.log('[Connection] ⚠️ Disconnected, attempting to reconnect');
       setCallStatusBase('Відновлення...');
+      scheduleCallRecovery({ delayMs: 1800, forceRelay: false });
     } else if (st === 'failed' || st === 'closed') {
       console.error('[Connection] ❌ Failed/Closed! ICE state:', pc.iceConnectionState);
-      hangupCall(true, 'error');
+      if (st === 'failed') {
+        triggerIceRecovery({ forceRelay: true }).catch(() => {});
+      } else {
+        hangupCall(true, 'error');
+      }
     } else if (st === 'new') {
       console.log('[Connection] 🆕 New connection state');
     }
@@ -2811,31 +2885,26 @@ async function flushLocalIce() {
     return;
   }
   console.log(`[ICE] 📤 Flushing ${pendingLocalIce.length} local candidates to server (callId=${activeCallId})`);
-  let sent = 0, failed = 0;
-  const toRemove = [];
-  for (let i = 0; i < pendingLocalIce.length; i++) {
-    const c = pendingLocalIce[i];
+  const queue = [...pendingLocalIce];
+  pendingLocalIce = [];
+  let sent = 0;
+  let failed = 0;
+  const unsent = [];
+  await Promise.all(queue.map(async (c) => {
     const cand = normalizeIceCandidate(c);
     if (!cand) {
-      console.log('[ICE] ⚠️ Failed to normalize candidate');
-      toRemove.push(i);
       failed++;
-      continue;
+      return;
     }
     try {
       await api('POST', `/messenger/calls/${activeCallId}/ice`, { candidate: cand });
-      console.log('[ICE] ✓ Sent candidate:', cand.candidate?.substring(0, 50));
-      toRemove.push(i);
       sent++;
     } catch (err) {
-      console.error('[ICE] ❌ Failed to send candidate:', err.message);
       failed++;
+      unsent.push(c);
     }
-  }
-  // Only remove successfully sent candidates
-  for (let i = toRemove.length - 1; i >= 0; i--) {
-    pendingLocalIce.splice(toRemove[i], 1);
-  }
+  }));
+  if (unsent.length) pendingLocalIce.push(...unsent);
   console.log(`[ICE] Flush complete: ${sent} sent, ${failed} failed, ${pendingLocalIce.length} remaining`);
 }
 
@@ -2885,6 +2954,9 @@ async function initiateCall() {
     remoteSdpSet  = false;
     icePollLastId = 0;
     callConnectedOnce = false;
+    callIceRecoverAttempts = 0;
+    callForceRelay = false;
+    clearCallIceRecoverTimer();
 
     // Flush any candidates that arrived before activeCallId was set
     console.log(`[Initiate] 🔄 activeCallId set to ${call_id}, buffered candidates: ${pendingLocalIce.length}`);
@@ -3020,6 +3092,9 @@ async function acceptCall() {
     activeCallId  = callId;
     icePollLastId = 0;
     callConnectedOnce = false;
+    callIceRecoverAttempts = 0;
+    callForceRelay = false;
+    clearCallIceRecoverTimer();
     clearOutgoingNoAnswerTimer();
 
     // Flush any candidates that arrived before activeCallId was set
@@ -3057,8 +3132,10 @@ async function rejectCall() {
 
 // ── Call polling ───────────────────────────
 function startCallPoll(intervalMs = (document.hidden ? 2500 : 1500)) {
+  const minimum = document.hidden ? 900 : 700;
+  const safeInterval = Math.max(minimum, Number(intervalMs || 0));
   clearInterval(callPollTimer);
-  callPollTimer = setInterval(pollCall, intervalMs);
+  callPollTimer = setInterval(pollCall, safeInterval);
 }
 
 async function pollCall() {
@@ -3173,6 +3250,10 @@ function showCallScreen(name, status) {
   callScreen.hidden            = false;
   callConnectedOnce            = false;
   callStartAtMs                = 0;
+  callIceRecoverAttempts       = 0;
+  callForceRelay               = false;
+  callIceRestartInFlight       = false;
+  clearCallIceRecoverTimer();
   callBackgroundNotifiedForId  = null;
   requestCallWakeLock().catch(() => {});
   syncOverlayLock();
@@ -3203,6 +3284,7 @@ async function hangupCall(notify = true, reason = 'ended') {
   stopAllCallTones();
   clearIncomingTimeoutTimers();
   clearOutgoingNoAnswerTimer();
+  clearCallIceRecoverTimer();
   clearInterval(callPollTimer);
   clearInterval(callWallTimer);
   callWallTimer    = null;
@@ -3222,6 +3304,9 @@ async function hangupCall(notify = true, reason = 'ended') {
   callStatusBase = 'З\'єднання...';
   callQualityLabel = '';
   callBackgroundNotifiedForId = null;
+  callIceRecoverAttempts = 0;
+  callForceRelay = false;
+  callIceRestartInFlight = false;
   callScreen.hidden       = true;
   callScreenTimer.hidden  = true;
   if (btnMute) btnMute.classList.remove('muted');
