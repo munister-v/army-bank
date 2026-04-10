@@ -8495,70 +8495,6 @@ body.app-scroll-locked .app-content {
   }
 }
 
-/* ── Mobile Nav Consistency (all tabs/screens) ─────────────────────────── */
-@media (max-width: 767px) {
-  /* Keep header clear from status bar on non-dashboard screens. */
-  #appScreen:not(.screen-dashboard) .app-header {
-    padding-top: max(44px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
-  }
-
-  /* Ensure content is never hidden under floating tab bar. */
-  #appScreen .app-content {
-    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)) !important;
-    scroll-padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-
-  #appScreen #sidebar.bottom-nav {
-    left: max(10px, env(safe-area-inset-left, 0px)) !important;
-    right: max(10px, env(safe-area-inset-right, 0px)) !important;
-    bottom: max(6px, env(safe-area-inset-bottom, 0px)) !important;
-    min-height: 68px !important;
-    height: auto !important;
-    padding: 4px 6px max(5px, min(10px, env(safe-area-inset-bottom, 0px))) !important;
-    border-radius: 20px !important;
-    display: grid !important;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    gap: 4px !important;
-    align-items: stretch !important;
-  }
-
-  #appScreen #sidebar .nav-item,
-  #appScreen #sidebar .menu-btn.nav-item {
-    min-height: 42px !important;
-    border-radius: 10px !important;
-    padding: 3px 3px 4px !important;
-    gap: 2px !important;
-    justify-content: center !important;
-    border: 1px solid transparent !important;
-  }
-
-  #appScreen #sidebar .nav-item svg {
-    width: 20px !important;
-    height: 20px !important;
-  }
-
-  #appScreen #sidebar .nav-item span {
-    font-size: 9.5px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0 !important;
-  }
-
-  /* Unified active state for Dashboard / Operations / Cards / Profile. */
-  #appScreen #sidebar .nav-item.active,
-  #appScreen.screen-dashboard #sidebar .nav-item.active {
-    background: linear-gradient(180deg, #ffffff 0%, #f2f8f3 100%) !important;
-    border: 1px solid rgba(45, 73, 54, 0.2) !important;
-    color: #1e3529 !important;
-    box-shadow: 0 6px 12px rgba(16, 31, 23, 0.12) !important;
-  }
-
-  #appScreen #sidebar .nav-item.active::after,
-  #appScreen.screen-dashboard #sidebar .nav-item.active::after {
-    content: none !important;
-    display: none !important;
-  }
-}
-
 /* ── Desktop Screen-Stack Guard (prevents mixed-screen overlays) ───────── */
 @media (min-width: 1200px) {
   html.desktop-classic #appScreen .app-content {
@@ -9258,55 +9194,6 @@ html.install-banner-visible #appScreen .app-content {
   }
 }
 
-/* ── Final Polish Pass (mobile nav + desktop sub-screens) ───────────────── */
-@media (max-width: 767px) {
-  #appScreen:not(.screen-dashboard) .app-header {
-    padding-top: max(46px, calc(env(safe-area-inset-top, 0px) + 10px)) !important;
-    padding-bottom: 6px !important;
-  }
-
-  #appScreen:not(.screen-dashboard) .header-top {
-    padding-top: 0 !important;
-  }
-
-  #appScreen .app-content {
-    padding-bottom: calc(118px + env(safe-area-inset-bottom, 0px)) !important;
-    scroll-padding-bottom: calc(118px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-
-  #appScreen #sidebar.bottom-nav {
-    left: max(8px, env(safe-area-inset-left, 0px)) !important;
-    right: max(8px, env(safe-area-inset-right, 0px)) !important;
-    bottom: max(6px, env(safe-area-inset-bottom, 0px)) !important;
-    min-height: 72px !important;
-    padding: 5px 7px max(7px, min(12px, env(safe-area-inset-bottom, 0px))) !important;
-    border-radius: 24px !important;
-    box-shadow: 0 12px 24px rgba(17, 34, 25, 0.15) !important;
-  }
-
-  #appScreen #sidebar .nav-item,
-  #appScreen #sidebar .menu-btn.nav-item {
-    min-height: 50px !important;
-    padding: 5px 4px 6px !important;
-    border-radius: 14px !important;
-    gap: 3px !important;
-  }
-
-  #appScreen #sidebar .nav-item svg {
-    width: 21px !important;
-    height: 21px !important;
-  }
-
-  #appScreen #sidebar .nav-item span {
-    font-size: 10px !important;
-    line-height: 1.08 !important;
-  }
-
-  #appScreen #sidebar .nav-item.active {
-    box-shadow: 0 8px 14px rgba(16, 31, 23, 0.12) !important;
-  }
-}
-
 @media (min-width: 1200px) {
   html.desktop-classic #appScreen .app-content,
   html.desktop-cockpit #appScreen .app-content {
@@ -9776,53 +9663,6 @@ html.install-banner-visible #appScreen .app-content {
   padding: 6px 12px !important;
 }
 
-/* ── Mobile bottom area final fix: browser bar overlap + blank tail ── */
-@media (max-width: 767px) {
-  html,
-  body {
-    min-height: 100dvh !important;
-    height: 100dvh !important;
-  }
-
-  html.ab-authed body {
-    background: radial-gradient(140% 120% at 50% 100%, #0f6a46 0%, #0d5b3d 42%, #0a4a33 100%) !important;
-  }
-
-  #appScreen.app-shell {
-    min-height: 100dvh !important;
-    height: 100dvh !important;
-    overflow: hidden !important;
-    display: flex !important;
-    flex-direction: column !important;
-  }
-
-  #appScreen .app-content {
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    -webkit-overflow-scrolling: touch !important;
-    overscroll-behavior-y: contain !important;
-    padding-bottom: calc(126px + env(safe-area-inset-bottom, 0px)) !important;
-    scroll-padding-bottom: calc(130px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-
-  #appScreen #sidebar.bottom-nav {
-    position: fixed !important;
-    z-index: 120 !important;
-    left: max(8px, env(safe-area-inset-left, 0px)) !important;
-    right: max(8px, env(safe-area-inset-right, 0px)) !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
-    min-height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
-    height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
-    padding: 6px 7px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-
-  #appScreen #sidebar.bottom-nav.nav-hidden {
-    transform: translateY(calc(130% + env(safe-area-inset-bottom, 0px))) !important;
-  }
-}
-
 /* ── Dashboard gesture balance: vertical page scroll + horizontal card swipe ── */
 @media (max-width: 767px) {
   #appScreen.screen-dashboard .bank-cards-track {
@@ -9842,6 +9682,10 @@ html.install-banner-visible #appScreen .app-content {
   body {
     height: 100% !important;
     min-height: 100% !important;
+  }
+
+  html.ab-authed body {
+    background: radial-gradient(140% 120% at 50% 100%, #0f6a46 0%, #0d5b3d 42%, #0a4a33 100%) !important;
   }
 
   #appScreen.app-shell {
