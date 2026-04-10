@@ -1885,33 +1885,19 @@ async function _updateBankCards() {
   catch(_) {}
 
   if (!cards.length) {
-    // No real cards — update placeholder fields and keep static HTML
-    var el1 = document.getElementById('bankCardNumber');
-    var acct = state.account && state.account.account_number ? state.account.account_number : '';
-    var digits = acct.replace(/\D/g, '').padStart(16, '0').slice(-16);
-    if (el1) el1.textContent = digits.replace(/(.{4})/g, '$1 ').trim();
-    var el2 = document.getElementById('bankCardName');
-    if (el2) el2.textContent = holderName;
-    var el3 = document.getElementById('bankCardSavingsNumber');
-    if (el3) el3.textContent = '•••• •••• •••• ••••';
-    var el4 = document.getElementById('bankCardSavingsName');
-    if (el4) el4.textContent = holderName;
-
-    // Add CTA card "Issue your first card"
-    if (!track.querySelector('.bank-card-cta')) {
-      var ctaCard = document.createElement('div');
-      ctaCard.className = 'bank-card bank-card-cta';
-      ctaCard.innerHTML = '<div class="bank-card-inner"><div class="bank-card-front" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px">'
-        + '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(100,120,100,.5)" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="3"/><line x1="1" y1="10" x2="23" y2="10"/></svg>'
-        + '<div style="font-size:13px;color:rgba(60,80,60,.6);line-height:1.4">Картки ще не випущені<br><span style="font-size:11px;color:rgba(70,100,74,.5)">Перейдіть до розділу «Картки»</span></div>'
-        + '</div></div>';
-      ctaCard.addEventListener('click', function() {
-        window.history.pushState(null, '', (getBasePath()||'') + '/cards');
-        switchScreen('cards');
-      });
-      track.appendChild(ctaCard);
-      if (dotsEl) dotsEl.innerHTML += '<span class="bc-dot"></span>';
-    }
+    track._bankCardsInit = false;
+    track.innerHTML = ''
+      + '<div class="bank-cards-empty" id="bankCardsEmpty">'
+      +   '<div class="bank-cards-empty-title">Картки ще не випущені</div>'
+      +   '<div class="bank-cards-empty-sub">Відкрийте розділ «Картки» і випустіть першу картку.</div>'
+      +   '<button type="button" class="bank-cards-empty-btn" id="issueFirstCardBtn">Випустити картку</button>'
+      + '</div>';
+    if (dotsEl) dotsEl.innerHTML = '';
+    var issueBtn = document.getElementById('issueFirstCardBtn');
+    issueBtn?.addEventListener('click', function() {
+      window.history.pushState(null, '', (getBasePath() || '') + '/cards');
+      switchScreen('cards');
+    });
     _initCarouselInteraction(track);
     return;
   }

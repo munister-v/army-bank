@@ -9735,3 +9735,43 @@ html.install-banner-visible #appScreen .app-content {
     scroll-padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+/* ── No fake cards state ─────────────────────────────────────────────── */
+#bankCardsTrack .bank-cards-empty {
+  width: 100% !important;
+  min-height: 148px !important;
+  border-radius: 20px !important;
+  border: 1px dashed rgba(236, 247, 238, 0.28) !important;
+  background: linear-gradient(180deg, rgba(241, 250, 243, 0.12) 0%, rgba(241, 250, 243, 0.06) 100%) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 16px !important;
+  text-align: center !important;
+}
+
+#bankCardsTrack .bank-cards-empty-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: rgba(239, 248, 241, 0.92) !important;
+}
+
+#bankCardsTrack .bank-cards-empty-sub {
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+  color: rgba(222, 238, 226, 0.78) !important;
+}
+
+#bankCardsTrack .bank-cards-empty-btn {
+  margin-top: 2px !important;
+  min-height: 34px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(236, 247, 238, 0.28) !important;
+  background: rgba(242, 251, 244, 0.14) !important;
+  color: rgba(244, 251, 246, 0.95) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  padding: 6px 12px !important;
+}
