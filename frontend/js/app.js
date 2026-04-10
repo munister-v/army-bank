@@ -1853,6 +1853,67 @@ function _initCarouselInteraction(track) {
     });
   }
 
+  function formatFullCardNumber(raw) {
+    var digits = String(raw || '').replace(/\D/g, '').slice(0, 19);
+    if (!digits) return '';
+    return digits.replace(/(.{4})/g, '$1 ').trim();
+  }
+
+  function revealCardSecrets(cardEl, cardId) {
+    var cvvEl = cardEl.querySelector('.bank-card-cvv-value');
+    var numEl = cardEl.querySelector('.bank-card-full-number');
+    if (!cvvEl) return;
+
+    cvvEl.classList.remove('cvv-error');
+
+    if (_cvvCache[cardId]) {
+      cvvEl.textContent = String(_cvvCache[cardId].cvv || '•••').slice(0, 3);
+      cvvEl.classList.remove('bc-loading');
+      if (numEl) numEl.textContent = formatFullCardNumber(_cvvCache[cardId].card_number || '');
+      return;
+    }
+
+    cvvEl.classList.add('bc-loading');
+    api.request('/api/cards/' + cardId + '/reveal')
+      .then(function(data) {
+        _cvvCache[cardId] = data || {};
+        if (cvvEl.isConnected) {
+          cvvEl.textContent = String((data && data.cvv) || '•••').slice(0, 3);
+          cvvEl.classList.remove('bc-loading');
+          cvvEl.classList.remove('cvv-error');
+        }
+        if (numEl && numEl.isConnected) {
+          numEl.textContent = formatFullCardNumber((data && data.card_number) || '');
+        }
+      })
+      .catch(function() {
+        if (cvvEl.isConnected) {
+          cvvEl.textContent = '•••';
+          cvvEl.classList.remove('bc-loading');
+          cvvEl.classList.add('cvv-error');
+        }
+        if (numEl && numEl.isConnected) {
+          numEl.textContent = '';
+        }
+      });
+  }
+
+  function toggleCardFlipFromTarget(target) {
+    var cardEl = target && target.closest ? target.closest('.bank-card[data-card-id]') : null;
+    if (!cardEl) return false;
+
+    var cardId = parseInt(cardEl.dataset.cardId, 10);
+    if (!cardId) return false;
+
+    var nextFlipped = !cardEl.classList.contains('is-flipped');
+    track.querySelectorAll('.bank-card.is-flipped').forEach(function(c) {
+      if (c !== cardEl) c.classList.remove('is-flipped');
+    });
+    cardEl.classList.toggle('is-flipped', nextFlipped);
+    if (nextFlipped) revealCardSecrets(cardEl, cardId);
+    return true;
+  }
+
   track.addEventListener('scroll', updateDots, { passive: true });
   window.addEventListener('resize', updateDotsImmediate, { passive: true });
 
@@ -1876,48 +1937,17 @@ function _initCarouselInteraction(track) {
     var dy = Math.abs(e.clientY - (track._flipStartY || e.clientY));
     var ds = Math.abs(track.scrollLeft - (track._flipStartScrollLeft || track.scrollLeft));
     if (dx > 10 || dy > 10 || ds > 8) return; // swipe/scroll — ignore
+    toggleCardFlipFromTarget(e.target);
+    track._lastFlipTs = Date.now();
+  });
 
+  // Safari fallback: sometimes pointerup may be swallowed after momentum touch.
+  track.addEventListener('click', function(e) {
+    if ((Date.now() - (track._lastFlipTs || 0)) < 260) return;
     var cardEl = e.target.closest('.bank-card[data-card-id]');
     if (!cardEl) return;
-
-    var cardId = parseInt(cardEl.dataset.cardId, 10);
-    if (!cardId) return;
-
-    var nextFlipped = !cardEl.classList.contains('is-flipped');
-    track.querySelectorAll('.bank-card.is-flipped').forEach(function(c) {
-      if (c !== cardEl) c.classList.remove('is-flipped');
-    });
-    cardEl.classList.toggle('is-flipped', nextFlipped);
-
-    if (!nextFlipped) return;
-
-    var cvvEl = cardEl.querySelector('.bank-card-cvv-value');
-    var numEl = cardEl.querySelector('.bank-card-full-number');
-    if (!cvvEl) return;
-
-    if (_cvvCache[cardId]) {
-      cvvEl.textContent = _cvvCache[cardId].cvv || '•••';
-      if (numEl) numEl.textContent = _cvvCache[cardId].card_number || '';
-      return;
-    }
-
-    cvvEl.classList.add('bc-loading');
-    api.request('/api/cards/' + cardId + '/reveal')
-      .then(function(data) {
-        _cvvCache[cardId] = data;
-        if (cvvEl.isConnected) {
-          cvvEl.textContent = data.cvv || '•••';
-          cvvEl.classList.remove('bc-loading');
-        }
-        if (numEl && numEl.isConnected) numEl.textContent = data.card_number || '';
-      })
-      .catch(function() {
-        if (cvvEl.isConnected) {
-          cvvEl.textContent = '•••';
-          cvvEl.classList.remove('bc-loading');
-        }
-      });
-  });
+    toggleCardFlipFromTarget(e.target);
+  }, { passive: true });
 
   // Keep active indicator in sync on first render too.
   updateDotsImmediate();
