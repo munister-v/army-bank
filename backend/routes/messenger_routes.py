@@ -104,7 +104,7 @@ def _conv_summary(conv_id: int, me_id: int) -> dict:
         if not is_group:
             partner = conn.execute(
                 """
-                SELECT u.id, u.full_name, u.phone, u.role
+                SELECT u.id, u.full_name, u.phone, u.role, u.last_seen_at
                 FROM conversation_participants cp
                 JOIN users u ON u.id = cp.user_id
                 WHERE cp.conversation_id = %s AND cp.user_id != %s
@@ -138,6 +138,11 @@ def _conv_summary(conv_id: int, me_id: int) -> dict:
     if partner_payload and str(partner_payload.get('role') or '').lower() == _ASSISTANT_ROLE:
         partner_payload['verified'] = True
 
+    partner_last_seen = None
+    if partner_payload:
+        lsa = partner_payload.get('last_seen_at')
+        partner_last_seen = lsa.isoformat() if hasattr(lsa, 'isoformat') else lsa
+
     return {
         'id': conv['id'],
         'is_group': is_group,
@@ -145,6 +150,7 @@ def _conv_summary(conv_id: int, me_id: int) -> dict:
         'last_message_at': conv['last_message_at'],
         'last_message_text': preview,
         'partner': partner_payload,
+        'partner_last_seen': partner_last_seen,
         'unread': unread,
     }
 
@@ -1430,6 +1436,31 @@ def list_members(conv_id: int):
             (conv_id,),
         ).fetchall()
     return jsonify({'ok': True, 'data': [dict(r) for r in rows]})
+
+
+# ── Presence ─────────────────────────────────────────────────────────────────
+
+@messenger_bp.get('/presence')
+@auth_required
+def get_presence():
+    """Return last_seen_at for given user IDs."""
+    ids_param = request.args.get('ids', '')
+    if not ids_param:
+        return jsonify({'ok': True, 'data': {}})
+    ids = [int(x) for x in ids_param.split(',') if x.strip().isdigit()]
+    if not ids or len(ids) > 50:
+        return jsonify({'ok': True, 'data': {}})
+    with get_connection() as conn:
+        placeholders = ','.join(['%s'] * len(ids))
+        rows = conn.execute(
+            f"SELECT id, last_seen_at FROM users WHERE id IN ({placeholders})",
+            tuple(ids),
+        ).fetchall()
+    result = {}
+    for row in rows:
+        lsa = row['last_seen_at']
+        result[str(row['id'])] = lsa.isoformat() if hasattr(lsa, 'isoformat') else lsa
+    return jsonify({'ok': True, 'data': result})
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────

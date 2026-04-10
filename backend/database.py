@@ -651,6 +651,11 @@ def init_db() -> None:
                 label='users.pin_hash',
             )
             _pg_exec(
+                'ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ DEFAULT NULL;',
+                optional=True,
+                label='users.last_seen_at',
+            )
+            _pg_exec(
                 "ALTER TABLE cards ADD COLUMN IF NOT EXISTS design VARCHAR(20) NOT NULL DEFAULT 'gold';",
                 optional=True,
                 label='cards.design',
@@ -847,6 +852,10 @@ def init_db() -> None:
                 pass
             try:
                 conn.execute('ALTER TABLE users ADD COLUMN pin_hash TEXT;')
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE users ADD COLUMN last_seen_at TEXT DEFAULT NULL;')
             except Exception:
                 pass
             try:

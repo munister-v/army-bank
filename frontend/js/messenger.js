@@ -34,6 +34,7 @@ let noMoreOlder    = false;
 // ── Timers ─────────────────────────────────
 let globalPollTimer    = null;
 let convPollTimer      = null;
+let presencePollTimer  = null;
 let searchTimer        = null;
 let toastTimer         = null;
 let groupSearchTimer   = null;
@@ -111,6 +112,9 @@ let incomingToneTimer  = null;
 let outgoingToneTimer  = null;
 let callAudioPrimed    = false;
 let callPrefs          = loadCallPrefs();
+
+// ── Presence cache ─────────────────────────
+let presenceCache = {};
 
 // ── Group state ────────────────────────────
 let groupSelectedUsers = [];
@@ -779,8 +783,12 @@ function buildConvItem(conv) {
   const preview = compactPreview(conv.last_message_text);
   const time    = conv.last_message_at ? formatTime(conv.last_message_at) : '';
   const unread  = conv.unread || 0;
+  const partnerId = !isGroup && conv.partner ? conv.partner.id : null;
   el.innerHTML = `
-    <div class="conv-avatar${isGroup ? ' group' : ''}${isAssistant ? ' assistant' : ''}">${isAssistant ? assistantGlyphMarkup() : esc(initial(name))}</div>
+    <div class="conv-avatar-wrap" style="position:relative;display:inline-flex;flex-shrink:0;">
+      <div class="conv-avatar${isGroup ? ' group' : ''}${isAssistant ? ' assistant' : ''}">${isAssistant ? assistantGlyphMarkup() : esc(initial(name))}</div>
+      ${partnerId && isOnline(partnerId) ? '<span class="presence-dot"></span>' : ''}
+    </div>
     <div class="conv-info">
       <div class="conv-name${isAssistant ? ' with-verified' : ''}">${renderNameWithVerified(name, isAssistant)}</div>
       <div class="conv-preview">${esc(preview)}</div>
@@ -1020,6 +1028,26 @@ function buildBubble(msg) {
       }).join('');
       content = `<div class="msg-bubble image-bubble"><div class="photo-stack ${countClass}">${tiles}</div></div>`;
     }
+  } else if (msgType === 'call') {
+    const data = (() => { try { return typeof msg.text === 'string' ? JSON.parse(msg.text) : (msg.text || {}); } catch (_) { return {}; } })();
+    const isCaller = data.caller_id === me?.id;
+    const callStatus = data.call_status || '';
+    const dur = data.duration;
+    let icon = '📞', label = '';
+    if (callStatus === 'ended' && dur) {
+      const m = Math.floor(dur / 60), s = dur % 60;
+      label = `Дзвінок · ${m}:${String(s).padStart(2, '0')}`;
+      icon = '📞';
+    } else if (callStatus === 'missed') {
+      label = isCaller ? 'Без відповіді' : 'Пропущений дзвінок';
+      icon = '📵';
+    } else if (callStatus === 'rejected') {
+      label = 'Дзвінок відхилено';
+      icon = '📵';
+    } else {
+      label = 'Дзвінок';
+    }
+    content = `<div class="msg-bubble call-bubble"><span class="call-icon">${icon}</span> ${esc(label)}</div>`;
   } else {
     const statementBubble = assistantIncoming ? buildAssistantStatementBubble(msg.text) : null;
     content = statementBubble || `<div class="msg-bubble">${formatMessageTextHtml(msg.text)}</div>`;
@@ -1537,6 +1565,14 @@ function setSwipeProgress(progress) {
 // ════════════════════════════════════════════
 // Polling
 // ════════════════════════════════════════════
+function _globalPollInterval() {
+  return document.hidden ? 20000 : 8000;
+}
+
+function _convPollInterval() {
+  return document.hidden ? 5000 : 2000;
+}
+
 function startGlobalPoll() {
   clearInterval(globalPollTimer);
   loadConversations().catch(() => {});
@@ -1544,19 +1580,61 @@ function startGlobalPoll() {
   globalPollTimer = setInterval(async () => {
     try { await loadConversations(); } catch (_) {}
     try { await pollUnreadBadge(); }  catch (_) {}
-  }, 15000);
+  }, _globalPollInterval());
 }
 
 function startConvPoll() {
   clearInterval(convPollTimer);
   pollNewMessages().catch(() => {});
-  convPollTimer = setInterval(pollNewMessages, 3000);
+  convPollTimer = setInterval(pollNewMessages, _convPollInterval());
+  startPresencePoll();
 }
 
 function clearPolling() {
   clearInterval(globalPollTimer);
   clearInterval(convPollTimer);
+  clearInterval(presencePollTimer);
+  presencePollTimer = null;
 }
+
+// ── Presence ───────────────────────────────
+function isOnline(userId) {
+  const ts = presenceCache[userId];
+  if (!ts) return false;
+  return (Date.now() - new Date(ts).getTime()) < 3 * 60 * 1000;
+}
+
+async function pollPresence() {
+  if (!activeConvId || !activePartner?.id) return;
+  try {
+    const data = await api('GET', `/messenger/presence?ids=${activePartner.id}`);
+    if (data && typeof data === 'object') {
+      Object.assign(presenceCache, data);
+      renderConvList(convData);
+    }
+  } catch (_) {}
+}
+
+function startPresencePoll() {
+  clearInterval(presencePollTimer);
+  pollPresence().catch(() => {});
+  presencePollTimer = setInterval(pollPresence, 30000);
+}
+
+// ── Visibility change — reset poll intervals ──
+document.addEventListener('visibilitychange', () => {
+  if (globalPollTimer) {
+    clearInterval(globalPollTimer);
+    globalPollTimer = setInterval(async () => {
+      try { await loadConversations(); } catch (_) {}
+      try { await pollUnreadBadge(); }  catch (_) {}
+    }, _globalPollInterval());
+  }
+  if (convPollTimer) {
+    clearInterval(convPollTimer);
+    convPollTimer = setInterval(pollNewMessages, _convPollInterval());
+  }
+});
 
 async function pollNewMessages() {
   if (!activeConvId) return;
@@ -3208,6 +3286,7 @@ function conversationPreview(msg) {
   if (msg.is_deleted) return 'Повідомлення видалено';
   if ((msg.msg_type || 'text') === 'voice') return '🎤 Голосове повідомлення';
   if ((msg.msg_type || 'text') === 'image') return '🖼️ Фото';
+  if ((msg.msg_type || 'text') === 'call') return '📞 Дзвінок';
   return compactPreview(msg.text || 'Нове повідомлення');
 }
 

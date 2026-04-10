@@ -33,6 +33,44 @@ def _now_sql():
     return 'NOW()' if USE_PG else "datetime('now')"
 
 
+def _insert_call_message(conn, call_id: int, status: str) -> None:
+    """Insert a call record as a system message in the conversation."""
+    try:
+        call = conn.execute(
+            "SELECT conversation_id, caller_id, started_at, ended_at FROM calls WHERE id = %s",
+            (call_id,),
+        ).fetchone()
+        if not call:
+            return
+        conv_id = call['conversation_id']
+        caller_id = call['caller_id']
+        duration = None
+        if call.get('started_at') and call.get('ended_at'):
+            try:
+                if USE_PG:
+                    dur_row = conn.execute(
+                        "SELECT EXTRACT(EPOCH FROM (ended_at - started_at))::int AS dur FROM calls WHERE id = %s",
+                        (call_id,),
+                    ).fetchone()
+                    duration = dur_row['dur'] if dur_row else None
+                else:
+                    dur_row = conn.execute(
+                        "SELECT CAST((strftime('%s', ended_at) - strftime('%s', started_at)) AS INTEGER) as dur FROM calls WHERE id = %s",
+                        (call_id,),
+                    ).fetchone()
+                    duration = dur_row['dur'] if dur_row else None
+            except Exception:
+                pass
+        content = {'call_status': status, 'duration': duration, 'caller_id': caller_id}
+        import json as _json
+        conn.execute(
+            f"INSERT INTO messages (conversation_id, sender_id, msg_type, text, created_at) VALUES (%s, %s, 'call', %s, {_now_sql()})",
+            (conv_id, caller_id, _json.dumps(content)),
+        )
+    except Exception:
+        pass
+
+
 def _is_participant(conn, conv_id: int, user_id: int) -> bool:
     row = conn.execute(
         'SELECT id FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
@@ -280,6 +318,7 @@ def reject_call(call_id: int):
         conn.execute(
             f"UPDATE calls SET status='rejected', ended_at={_now_sql()} WHERE id=%s", (call_id,)
         )
+        _insert_call_message(conn, call_id, 'rejected')
     return jsonify({'ok': True})
 
 
@@ -297,6 +336,7 @@ def end_call(call_id: int):
         conn.execute(
             f"UPDATE calls SET status='ended', ended_at={_now_sql()} WHERE id=%s", (call_id,)
         )
+        _insert_call_message(conn, call_id, 'ended')
     return jsonify({'ok': True})
 
 

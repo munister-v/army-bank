@@ -2125,6 +2125,30 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 [hidden] { display: none !important; }
 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
+/* ── Presence dot ── */
+.presence-dot {
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid var(--bg, #fff);
+  pointer-events: none;
+}
+
+/* ── Call bubble ── */
+.call-bubble {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+  color: var(--text-secondary, #666);
+  font-style: italic;
+}
+.call-icon { font-style: normal; }
+
 @media (prefers-reduced-motion: reduce) {
   .photo-tile.loading { animation: none !important; }
   .photo-viewer-img { transition: none !important; }
