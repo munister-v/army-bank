@@ -9655,3 +9655,83 @@ html.install-banner-visible #appScreen .app-content {
     transition: transform .2s ease, width .2s ease, opacity .18s ease !important;
   }
 }
+
+/* ── Dashboard card flip restored (monobank-inspired back face) ─────────── */
+#bankCardsTrack .bank-card {
+  perspective: 1200px !important;
+}
+
+#bankCardsTrack .bank-card-inner {
+  transform-style: preserve-3d !important;
+  transition: transform .52s cubic-bezier(.22,.68,0,1.02) !important;
+}
+
+#bankCardsTrack .bank-card.is-flipped .bank-card-inner {
+  transform: rotateY(180deg) !important;
+}
+
+#bankCardsTrack .bank-card-front,
+#bankCardsTrack .bank-card-back {
+  position: absolute !important;
+  inset: 0 !important;
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  border-radius: 22px !important;
+  overflow: hidden !important;
+}
+
+#bankCardsTrack .bank-card-back {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  transform: rotateY(180deg) !important;
+  background: linear-gradient(158deg, #11171f 0%, #1b2430 52%, #0f141b 100%) !important;
+  border: 1px solid rgba(237, 244, 246, 0.14) !important;
+}
+
+#bankCardsTrack .bank-card-mag-stripe {
+  margin-top: 14px !important;
+  height: 34px !important;
+  background: linear-gradient(180deg, #0a0e12 0%, #05070a 100%) !important;
+}
+
+#bankCardsTrack .bank-card-back-body {
+  padding: 10px 14px 12px !important;
+}
+
+#bankCardsTrack .bank-card-sig-strip {
+  margin-top: 8px !important;
+  background: linear-gradient(90deg, #e7e8df 0%, #f2f3ec 100%) !important;
+  border-radius: 8px !important;
+}
+
+#bankCardsTrack .bank-card-cvv-box {
+  background: #f7f8f2 !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(17, 24, 39, 0.18) !important;
+}
+
+#bankCardsTrack .bank-card-cvv-label {
+  color: rgba(35, 46, 62, 0.75) !important;
+}
+
+#bankCardsTrack .bank-card-cvv-value {
+  color: #121a24 !important;
+  letter-spacing: .08em !important;
+}
+
+@media (max-width: 767px) {
+  html.ab-authed body {
+    overflow: hidden !important;
+  }
+
+  #appScreen.screen-dashboard .bank-cards-track {
+    touch-action: pan-x !important;
+    overflow-x: auto !important;
+  }
+
+  #appScreen.screen-dashboard .app-content {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}

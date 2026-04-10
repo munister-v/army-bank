@@ -1809,7 +1809,60 @@ function _initCarouselInteraction(track) {
     if (i >= 0) track.scrollTo({ left: i * getCardWidth(), behavior: 'smooth' });
   });
 
-  // Dashboard carousel: flip is disabled to avoid front/back layering glitches.
+  // Tap-to-flip: distinguish tap from horizontal swipe.
+  track.addEventListener('pointerdown', function(e) {
+    track._flipStartX = e.clientX;
+    track._flipStartY = e.clientY;
+    track._flipStartScrollLeft = track.scrollLeft;
+  }, { passive: true });
+
+  track.addEventListener('pointerup', function(e) {
+    var dx = Math.abs(e.clientX - (track._flipStartX || e.clientX));
+    var dy = Math.abs(e.clientY - (track._flipStartY || e.clientY));
+    var ds = Math.abs(track.scrollLeft - (track._flipStartScrollLeft || track.scrollLeft));
+    if (dx > 10 || dy > 10 || ds > 8) return; // swipe/scroll — ignore
+
+    var cardEl = e.target.closest('.bank-card[data-card-id]');
+    if (!cardEl) return;
+
+    var cardId = parseInt(cardEl.dataset.cardId, 10);
+    if (!cardId) return;
+
+    var nextFlipped = !cardEl.classList.contains('is-flipped');
+    track.querySelectorAll('.bank-card.is-flipped').forEach(function(c) {
+      if (c !== cardEl) c.classList.remove('is-flipped');
+    });
+    cardEl.classList.toggle('is-flipped', nextFlipped);
+
+    if (!nextFlipped) return;
+
+    var cvvEl = cardEl.querySelector('.bank-card-cvv-value');
+    var numEl = cardEl.querySelector('.bank-card-full-number');
+    if (!cvvEl) return;
+
+    if (_cvvCache[cardId]) {
+      cvvEl.textContent = _cvvCache[cardId].cvv || '•••';
+      if (numEl) numEl.textContent = _cvvCache[cardId].card_number || '';
+      return;
+    }
+
+    cvvEl.classList.add('bc-loading');
+    api.request('/api/cards/' + cardId + '/reveal')
+      .then(function(data) {
+        _cvvCache[cardId] = data;
+        if (cvvEl.isConnected) {
+          cvvEl.textContent = data.cvv || '•••';
+          cvvEl.classList.remove('bc-loading');
+        }
+        if (numEl && numEl.isConnected) numEl.textContent = data.card_number || '';
+      })
+      .catch(function() {
+        if (cvvEl.isConnected) {
+          cvvEl.textContent = '•••';
+          cvvEl.classList.remove('bc-loading');
+        }
+      });
+  });
 
   // Keep active indicator in sync on first render too.
   updateDotsImmediate();
@@ -1826,7 +1879,7 @@ async function _updateBankCards() {
   // Try to load real issued cards
   var cards = [];
   try {
-    const r = await api.request('/api/cards');
+    const r = await api.request('/api/cards?_=' + Date.now());
     cards = Array.isArray(r) ? r : (Array.isArray(r && r.data) ? r.data : []);
   }
   catch(_) {}
