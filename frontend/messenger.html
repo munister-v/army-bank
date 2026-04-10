@@ -10,14 +10,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
   <meta name="apple-mobile-web-app-title" content="AB Chat"/>
   <title>ARM Bank · Месенджер</title>
-  <link rel="manifest" href="/manifest-messenger.json?v=41"/>
+  <link rel="manifest" href="/manifest-messenger.json?v=42"/>
   <link rel="icon" type="image/svg+xml" href="/icons/chat-favicon.svg"/>
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/chat-icon-32.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/chat-icon-180.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=41"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=42"/>
 </head>
 <body>
 
@@ -181,6 +181,11 @@
         </div>
       </div>
       <p class="diag-note" id="diag-note">Перевірка...</p>
+      <div class="diag-actions">
+        <button class="diag-action-btn" id="btn-push-enable" type="button">Увімкнути push</button>
+        <button class="diag-action-btn" id="btn-push-resubscribe" type="button">Оновити підписку</button>
+        <button class="diag-action-btn" id="btn-push-test" type="button">Тест push</button>
+      </div>
     </section>
 
     <div class="conv-list" id="conv-list">
@@ -674,6 +679,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=41"></script>
+<script src="/js/messenger.js?v=42"></script>
 </body>
 </html>

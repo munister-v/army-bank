@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '41';
+const MESSENGER_ASSET_VERSION = '42';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -55,6 +55,7 @@ let pollBusyMessages = false;
 let pollBusyPresence = false;
 let pollBusyConvPresence = false;
 let pollBusyIncoming = false;
+let pushActionInFlight = false;
 
 // ── Voice recording ────────────────────────
 let mediaRecorder = null;
@@ -193,6 +194,9 @@ const diagPush          = $('diag-push');
 const diagMic           = $('diag-mic');
 const diagCall          = $('diag-call');
 const diagNote          = $('diag-note');
+const btnPushEnable     = $('btn-push-enable');
+const btnPushResubscribe= $('btn-push-resubscribe');
+const btnPushTest       = $('btn-push-test');
 const newChatModal      = $('new-chat-modal');
 const btnCloseModal     = $('btn-close-modal');
 const userSearchInput   = $('user-search-input');
@@ -488,6 +492,18 @@ async function subscribeWebPush() {
   return true;
 }
 
+async function forceResubscribeWebPush() {
+  if (!token) return false;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  const reg = await navigator.serviceWorker.ready;
+  const oldSub = await reg.pushManager.getSubscription();
+  if (oldSub) {
+    try { await oldSub.unsubscribe(); } catch (_) {}
+  }
+  setPermFlag('push_subscribed', false);
+  return subscribeWebPush();
+}
+
 async function ensureNotificationPermission(interactive = false) {
   if (!window.Notification) return false;
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
@@ -548,6 +564,19 @@ function setDiagRow(el, state, label) {
   if (t && label) t.textContent = label;
 }
 
+function setPushActionBusy(busy) {
+  pushActionInFlight = !!busy;
+  [btnPushEnable, btnPushResubscribe, btnPushTest].forEach(btn => {
+    if (btn) btn.disabled = !!busy;
+  });
+}
+
+function updatePushActionButtons({ notifPerm, swReady, pushSubscribed }) {
+  if (btnPushEnable) btnPushEnable.hidden = notifPerm === 'granted' && !!pushSubscribed;
+  if (btnPushResubscribe) btnPushResubscribe.hidden = notifPerm !== 'granted' || !swReady;
+  if (btnPushTest) btnPushTest.hidden = notifPerm !== 'granted' || !swReady || !pushSubscribed;
+}
+
 async function runClientDiagnostics(showDoneToast = false) {
   const secureContext = location.protocol === 'https:' || location.hostname === 'localhost';
   const rtcSupported = !!(window.RTCPeerConnection && navigator?.mediaDevices?.getUserMedia);
@@ -582,13 +611,16 @@ async function runClientDiagnostics(showDoneToast = false) {
 
   if (diagNote) {
     let note = 'Усе готово до дзвінків і пуш-сповіщень.';
-    if (!secureContext) note = 'Потрібен HTTPS для мікрофона та дзвінків.';
-    else if (!notifGranted) note = 'Увімкніть сповіщення через кнопку дзвіночка.';
-    else if (!pushSubscribed) note = 'Дозвольте push і оновіть перевірку.';
+    if (!secureContext) note = 'Потрібен HTTPS для мікрофона, дзвінків і push.';
+    else if (!notifGranted) note = 'Push вимкнено: натисніть "Увімкнути push".';
+    else if (!swReady) note = 'Service Worker ще не готовий. Зачекайте 2-3 секунди й натисніть "Оновити".';
+    else if (!pushSubscribed) note = 'Push не підписано. Натисніть "Оновити підписку".';
     else if (!micGranted) note = 'Дозвольте доступ до мікрофона у браузері.';
     else if (!online) note = 'Немає мережі. Перевірте інтернет-зʼєднання.';
     diagNote.textContent = note;
   }
+
+  updatePushActionButtons({ notifPerm, swReady, pushSubscribed });
 
   if (showDoneToast) showToast(overallOk ? 'Стан системи: готово' : 'Перевірка завершена');
 }
@@ -4481,6 +4513,58 @@ if (btnUnread) {
       pollUnreadBadge().catch(() => {});
     }
     runClientDiagnostics().catch(() => {});
+  });
+}
+if (btnPushEnable) {
+  btnPushEnable.addEventListener('click', async () => {
+    if (pushActionInFlight) return;
+    setPushActionBusy(true);
+    try {
+      const ok = await ensureNotificationPermission(true);
+      if (ok) showToast('Push-сповіщення увімкнено.');
+      else showToast('Не вдалося увімкнути push. Перевірте доступ у браузері.', true);
+      await runClientDiagnostics();
+    } finally {
+      setPushActionBusy(false);
+    }
+  });
+}
+if (btnPushResubscribe) {
+  btnPushResubscribe.addEventListener('click', async () => {
+    if (pushActionInFlight) return;
+    setPushActionBusy(true);
+    try {
+      const notifOk = await ensureNotificationPermission(true);
+      if (!notifOk) {
+        showToast('Спочатку дозвольте сповіщення.', true);
+      } else {
+        const ok = await forceResubscribeWebPush();
+        if (ok) showToast('Push-підписку оновлено.');
+        else showToast('Не вдалося оновити push-підписку.', true);
+      }
+      await runClientDiagnostics();
+    } finally {
+      setPushActionBusy(false);
+    }
+  });
+}
+if (btnPushTest) {
+  btnPushTest.addEventListener('click', async () => {
+    if (pushActionInFlight) return;
+    setPushActionBusy(true);
+    try {
+      const ok = await notifyViaServiceWorker({
+        title: 'ARM Bank',
+        body: 'Тест push працює коректно.',
+        tag: 'ab-push-test',
+        data: { type: 'push_test', url: '/messenger' },
+      });
+      if (ok) showToast('Тестове push-сповіщення відправлено.');
+      else showToast('Тест push не вдався. Оновіть підписку.', true);
+      await runClientDiagnostics();
+    } finally {
+      setPushActionBusy(false);
+    }
   });
 }
 if (btnDiagRefresh) {

@@ -407,6 +407,31 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   color: #5f7267;
   line-height: 1.35;
 }
+.diag-actions {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+.diag-action-btn {
+  min-height: 32px;
+  border-radius: 9px;
+  border: 1px solid rgba(31,107,76,.16);
+  background: rgba(255,255,255,.78);
+  color: #1f5a41;
+  font-size: 12px;
+  font-weight: 680;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.diag-action-btn:hover {
+  background: rgba(239,248,243,.95);
+  border-color: rgba(31,107,76,.28);
+}
+.diag-action-btn:disabled {
+  opacity: .58;
+  cursor: wait;
+}
 
 .conv-list { flex: 1; overflow-y: auto; padding: 8px 8px 10px; }
 .conv-empty {
