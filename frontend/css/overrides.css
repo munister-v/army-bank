@@ -10115,3 +10115,18 @@ html.install-banner-visible #appScreen .app-content {
     ) !important;
   }
 }
+
+/* ── HOTFIX 2026-04-11-08: anti-stuck vertical scroll safeguard ───────── */
+@media (max-width: 959px) {
+  html.ab-authed:not(.app-scroll-locked) body {
+    overflow-y: auto !important;
+    overscroll-behavior-y: auto !important;
+  }
+
+  html.ab-authed:not(.app-scroll-locked) #appScreen .app-content {
+    overflow-y: auto !important;
+    overscroll-behavior-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+  }
+}

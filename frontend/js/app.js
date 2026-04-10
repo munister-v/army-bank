@@ -155,6 +155,85 @@ const DESKTOP_MOBILE_ONLY_BLOCKED = document.documentElement.classList.contains(
   }, { passive: true });
 })();
 
+// ── Mobile scroll stability watchdog ───────────────────────
+(function initMobileScrollWatchdog() {
+  const root = document.documentElement;
+  const isMobileViewport = () => window.matchMedia('(max-width: 959px)').matches;
+  const isEditable = (el) => {
+    if (!el) return false;
+    if (el.isContentEditable) return true;
+    const tag = (el.tagName || '').toUpperCase();
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  };
+
+  function hasVisibleBlockingLayers() {
+    const ids = [
+      'txDrawer', 'drawerBackdrop', 'receiptOverlay', 'statementOverlay',
+      'transferConfirmOverlay', 'confirmDialog', 'confirmBackdrop',
+      'pinLockOverlay', 'onboardingOverlay',
+    ];
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (el && !el.classList.contains('hidden')) return true;
+    }
+    const notifPanel = document.getElementById('notifPanel');
+    if (notifPanel && notifPanel.classList.contains('open')) return true;
+    return false;
+  }
+
+  function syncNavHeightVar() {
+    const nav = document.querySelector('#appScreen #sidebar.bottom-nav');
+    if (!nav) return;
+    const h = Math.max(64, Math.round(nav.getBoundingClientRect().height || 0));
+    root.style.setProperty('--ab-mobile-nav-height', `${h}px`);
+  }
+
+  function enforceScrollableState() {
+    if (!isMobileViewport()) return;
+    const body = document.body;
+    const content = document.querySelector('#appScreen .app-content');
+    if (!body || !content) return;
+
+    // If lock class got stale while no overlays are visible, recover.
+    if (root.classList.contains('app-scroll-locked') && !hasVisibleBlockingLayers()) {
+      clearBodyScrollLocks({ keepPin: false });
+    }
+    if (root.classList.contains('keyboard-open') && !isEditable(document.activeElement)) {
+      root.classList.remove('keyboard-open');
+    }
+
+    if (!root.classList.contains('app-scroll-locked')) {
+      body.style.setProperty('overflow-y', 'auto', 'important');
+      body.style.setProperty('overflow-x', 'hidden', 'important');
+      content.style.setProperty('overflow-y', 'auto', 'important');
+      content.style.setProperty('overflow-x', 'hidden', 'important');
+      content.style.setProperty('-webkit-overflow-scrolling', 'touch', 'important');
+      content.style.setProperty('touch-action', 'pan-y', 'important');
+    }
+  }
+
+  let raf = 0;
+  const schedule = () => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      syncNavHeightVar();
+      enforceScrollableState();
+    });
+  };
+
+  window.addEventListener('resize', schedule, { passive: true });
+  window.addEventListener('orientationchange', schedule, { passive: true });
+  window.addEventListener('pageshow', schedule, { passive: true });
+  window.addEventListener('ab:screen-changed', schedule);
+  window.addEventListener('focus', schedule, { passive: true });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') schedule();
+  });
+
+  schedule();
+})();
+
 const _desktopClassicMql = window.matchMedia('(min-width: 1200px)');
 let _desktopClassicSyncFrame = 0;
 
