@@ -1638,6 +1638,7 @@ const ALLOWED_SCREENS = [
   'donations', 'savings', 'analytics',
   'contacts', 'calendar', 'recurring', 'debts', 'tax',
 ];
+const _screenScrollMemory = Object.create(null);
 
 function getBasePath() {
   return (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
@@ -1653,6 +1654,12 @@ function getScreenIdFromPath() {
 
 function switchScreen(screenId) {
   const id = ALLOWED_SCREENS.includes(screenId) ? screenId : 'dashboard';
+  const content = document.querySelector('.app-content');
+  const prevActive = document.querySelector('.screen.active-screen');
+  const prevId = prevActive ? prevActive.id : '';
+  if (content && prevId) {
+    _screenScrollMemory[prevId] = content.scrollTop || 0;
+  }
 
   closeTransientLayers({ keepPin: true });
 
@@ -1683,6 +1690,10 @@ function switchScreen(screenId) {
     appShell.dataset.screen = id;
   }
   $('.bottom-nav')?.classList.remove('nav-hidden');
+  if (content) {
+    var remembered = Number(_screenScrollMemory[id] || 0);
+    content.scrollTop = Number.isFinite(remembered) ? remembered : 0;
+  }
   try {
     window.dispatchEvent(new CustomEvent('ab:screen-changed', { detail: { screen: id } }));
   } catch (_) {
@@ -2721,6 +2732,13 @@ $$('.nav-item.nav-link, .nav-link').forEach((btn) => {
     const screen = btn.dataset.screen;
     if (screen) {
       event.preventDefault();
+      const activeScreen = document.querySelector('.screen.active-screen')?.id || '';
+      const content = document.querySelector('.app-content');
+      if (activeScreen === screen && content) {
+        content.scrollTo({ top: 0, behavior: 'smooth' });
+        if (typeof navigator.vibrate === 'function') navigator.vibrate(8);
+        return;
+      }
       const base = getBasePath();
       window.history.pushState(null, '', base ? base + '/' + screen : '/' + screen);
       switchScreen(screen);
@@ -5033,7 +5051,8 @@ console.log('[Army Bank] UX core modules loaded');
   var content = document.querySelector('.app-content');
   if (!content) return;
   var startX = 0, startY = 0, swipeEligible = false;
-  var EDGE_GUTTER = 28;
+  var EDGE_GUTTER = 20;
+  var NAV_GUARD_ZONE = 132; // ignore gestures near bottom nav area
 
   function isInteractiveTarget(target) {
     if (!target || !target.closest) return false;
@@ -5054,6 +5073,11 @@ console.log('[Army Bank] UX core modules loaded');
   content.addEventListener('touchstart', function(e) {
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
+    var fromBottomNavZone = startY >= (window.innerHeight - NAV_GUARD_ZONE);
+    if (fromBottomNavZone) {
+      swipeEligible = false;
+      return;
+    }
     var fromEdge = startX <= EDGE_GUTTER || startX >= (window.innerWidth - EDGE_GUTTER);
     swipeEligible = fromEdge && !isInteractiveTarget(e.target) && !hasOpenOverlay();
   }, { passive: true });
@@ -5107,31 +5131,9 @@ console.log('[Army Bank] UX core modules loaded');
 
   function updateNav() {
     ticking = false;
-    if (!isMobileLayout()) {
-      showNav();
-      return;
-    }
-    var activeEl = document.querySelector('.screen.active-screen');
-    var activeId = activeEl ? activeEl.id : '';
-    if (activeId === 'dashboard') {
-      showNav();
-      lastY = content.scrollTop || 0;
-      return;
-    }
-    var y = content.scrollTop || 0;
-    var dy = y - lastY;
-    var notifOpen = document.getElementById('notifPanel')?.classList.contains('open');
-    if (notifOpen) {
-      showNav();
-      lastY = y;
-      return;
-    }
-    if (y < 20 || dy < -6) {
-      showNav();
-    } else if (dy > 8) {
-      nav.classList.add('nav-hidden');
-    }
-    lastY = y < 0 ? 0 : y;
+    showNav();
+    lastY = content.scrollTop || 0;
+    if (!isMobileLayout()) return;
   }
 
   content.addEventListener('scroll', function() {
