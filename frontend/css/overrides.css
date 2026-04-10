@@ -2712,59 +2712,54 @@ textarea:focus,
 
 .nav-item,
 .menu-btn {
-  color: var(--mono-muted-2) !important;
+  color: #7f9485 !important;
   border: none !important;
   background: transparent !important;
-  border-radius: 16px !important;
-  font-size: 12px !important;
+  border-radius: 20px !important;
+  font-size: 10px !important;
   font-weight: 600 !important;
   letter-spacing: 0 !important;
   text-transform: none !important;
-  padding: 7px 4px 8px !important;
+  padding: 6px 10px 7px !important;
   position: relative !important;
-  transition: color var(--mono-motion-fast) ease, transform var(--mono-motion-fast) ease !important;
+  transition: color 160ms ease, background 160ms ease, transform 130ms ease !important;
+  min-width: 52px !important;
 }
 
 .nav-item svg,
 .menu-btn svg {
-  stroke: var(--mono-muted-2) !important;
+  stroke: #7f9485 !important;
+  transition: stroke 160ms ease !important;
 }
 
 .nav-item.active,
 .nav-link.active,
 .menu-btn.active {
-  color: var(--mono-blue-top) !important;
-  background: transparent !important;
+  color: #1f6b4c !important;
+  background: rgba(31, 107, 76, 0.11) !important;
 }
 
 .nav-item:active,
 .menu-btn:active {
-  transform: scale(0.88) !important;
+  transform: scale(0.86) !important;
 }
 
 .nav-item:focus-visible,
 .menu-btn:focus-visible {
   outline: none !important;
-  box-shadow: var(--mono-focus-ring) !important;
+  box-shadow: 0 0 0 2px rgba(31,107,76,.3) !important;
 }
 
+/* Remove old dot indicator */
 .nav-item.active::after,
 .menu-btn.active::after {
-  content: "" !important;
-  position: absolute !important;
-  bottom: 2px !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: 20px !important;
-  height: 3px !important;
-  border-radius: 999px !important;
-  background: var(--mono-blue-top) !important;
+  display: none !important;
 }
 
 .nav-item.active svg,
 .nav-link.active svg,
 .menu-btn.active svg {
-  stroke: var(--mono-blue-top) !important;
+  stroke: #1f6b4c !important;
 }
 
 .screen.active-screen > .section-header-row,

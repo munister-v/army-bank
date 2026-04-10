@@ -1,7 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ARM Bank">
-<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0e3528"/><stop offset="0.62" stop-color="#1f6b4c"/><stop offset="1" stop-color="#a78343"/></linearGradient></defs>
-<rect x="4" y="4" width="56" height="56" rx="14" fill="url(#g)"/>
-<polygon points="20,17 44,17 48,23 46,41 32,50 18,41 16,23" fill="#f7fbf7"/>
-<text x="32" y="33.5" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="Arial, sans-serif" font-weight="800" fill="#1a563d">AB</text>
-<circle cx="48" cy="18" r="4.8" fill="#d0ab62"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0"    stop-color="#0c3526"/>
+      <stop offset="0.55" stop-color="#1f6b4c"/>
+      <stop offset="1"    stop-color="#2e7a55"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"   stop-color="#ffffff" stop-opacity="0.97"/>
+      <stop offset="1"   stop-color="#e8f5ee" stop-opacity="0.92"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded square -->
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#bg)"/>
+  <!-- Subtle inner glow at top -->
+  <rect x="4" y="4" width="56" height="28" rx="14" fill="rgba(255,255,255,0.04)"/>
+  <!-- Shield shape -->
+  <path d="M32 14 L46 20 L46 33 Q46 43 32 50 Q18 43 18 33 L18 20 Z" fill="url(#shield)"/>
+  <!-- AB text inside shield -->
+  <text x="32" y="34.5" text-anchor="middle" dominant-baseline="middle"
+        font-size="13" font-family="Arial, sans-serif" font-weight="800"
+        fill="#1a5c3a" letter-spacing="-0.5">AB</text>
+  <!-- Gold notification dot -->
+  <circle cx="47" cy="18" r="5.5" fill="#d0ab62"/>
+  <circle cx="47" cy="18" r="3.5" fill="#e8c47a"/>
 </svg>
