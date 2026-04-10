@@ -9777,3 +9777,16 @@ html.install-banner-visible #appScreen .app-content {
     height: calc(var(--ab-mobile-nav-height) + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+/* ── HOTFIX 2026-04-10-2: card flip blank state on mobile ─────────────── */
+#bankCardsTrack .bank-card-inner {
+  /* The 3D wrapper itself must stay visible when rotated. */
+  backface-visibility: visible !important;
+  -webkit-backface-visibility: visible !important;
+  transform-style: preserve-3d !important;
+}
+
+#bankCardsTrack .bank-card-front,
+#bankCardsTrack .bank-card-back {
+  z-index: 1 !important;
+}
