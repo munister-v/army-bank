@@ -8605,16 +8605,22 @@ html.install-banner-visible #appScreen .app-content {
   }
 
   .install-banner-text b {
-    font-size: 12px !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
   }
 
   .install-banner-text span {
-    display: none !important;
+    display: block !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    margin-top: 2px !important;
+    color: rgba(226, 239, 231, 0.9) !important;
   }
 
   .install-banner-btn {
-    padding: 8px 12px !important;
+    padding: 9px 12px !important;
     font-size: 12px !important;
+    font-weight: 800 !important;
     border-radius: 10px !important;
   }
 

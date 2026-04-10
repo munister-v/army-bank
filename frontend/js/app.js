@@ -4765,9 +4765,12 @@ console.log('[Army Bank] UX core modules loaded');
   var banner = document.getElementById('installBanner');
   var installBtn = document.getElementById('installBtn');
   var dismissBtn = document.getElementById('installDismiss');
+  var bannerTitle = document.getElementById('installBannerTitle');
+  var bannerSub = document.getElementById('installBannerSub');
   if (!banner) return;
 
   var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var isAndroid = /android/i.test(navigator.userAgent);
   var isInStandalone = ('standalone' in window.navigator) && window.navigator.standalone;
 
   function getActiveScreenForInstall() {
@@ -4782,6 +4785,28 @@ console.log('[Army Bank] UX core modules loaded');
   function setInstallBannerVisible(visible) {
     banner.classList.toggle('hidden', !visible);
     document.documentElement.classList.toggle('install-banner-visible', !!visible);
+  }
+
+  function applyInstallBannerPlatformContent() {
+    if (!installBtn) return;
+    if (isIOS && !isInStandalone && !deferredPrompt) {
+      banner.dataset.platform = 'ios';
+      if (bannerTitle) bannerTitle.textContent = 'Додайте ARM Bank на iPhone';
+      if (bannerSub) bannerSub.textContent = 'Safari: Поділитися → На екран Додому';
+      installBtn.textContent = 'Як додати';
+      return;
+    }
+    if (isAndroid) {
+      banner.dataset.platform = 'android';
+      if (bannerTitle) bannerTitle.textContent = 'Встановіть ARM Bank на Android';
+      if (bannerSub) bannerSub.textContent = 'Одне натискання — і застосунок на головному екрані';
+      installBtn.textContent = 'Встановити';
+      return;
+    }
+    banner.dataset.platform = 'other';
+    if (bannerTitle) bannerTitle.textContent = 'Встановіть ARM Bank';
+    if (bannerSub) bannerSub.textContent = 'Швидкий доступ і робота як застосунок';
+    installBtn.textContent = 'Встановити';
   }
 
   function refreshInstallBanner() {
@@ -4806,9 +4831,7 @@ console.log('[Army Bank] UX core modules loaded');
       return;
     }
     setInstallBannerVisible(true);
-    if (installBtn) {
-      installBtn.textContent = (isIOS && !isInStandalone && !deferredPrompt) ? '+ Додати' : 'Встановити';
-    }
+    applyInstallBannerPlatformContent();
   }
 
   // Don't show if already installed or dismissed
@@ -4828,12 +4851,15 @@ console.log('[Army Bank] UX core modules loaded');
   if (installBtn) {
     installBtn.addEventListener('click', function() {
       if (isIOS && !isInStandalone && !deferredPrompt) {
-        showToast('Натисніть "Поділитися" → "На головний екран"', '');
-        setInstallBannerVisible(false);
-        localStorage.setItem('ab_install_dismissed', '1');
+        showToast('Safari: Поділитися → На екран Додому → Додати', '');
         return;
       }
-      if (!deferredPrompt) return;
+      if (!deferredPrompt) {
+        if (isAndroid) {
+          showToast('Відкрийте меню браузера і натисніть "Встановити застосунок".', '');
+        }
+        return;
+      }
       deferredPrompt.prompt();
       deferredPrompt.userChoice.then(function(choice) {
         deferredPrompt = null;

@@ -1577,11 +1577,11 @@
   </div>
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-  <div id="installBanner" class="install-banner hidden" role="status" aria-live="polite">
+  <div id="installBanner" class="install-banner hidden" role="status" aria-live="polite" data-platform="unknown">
     <div class="install-banner-icon" aria-hidden="true">📲</div>
     <div class="install-banner-text">
-      <b>Встановіть ARM Bank</b>
-      <span>Швидкий доступ і робота як застосунок</span>
+      <b id="installBannerTitle">Встановіть ARM Bank</b>
+      <span id="installBannerSub">Швидкий доступ і робота як застосунок</span>
     </div>
     <button id="installBtn" type="button" class="install-banner-btn">Встановити</button>
     <button id="installDismiss" type="button" class="install-banner-close" aria-label="Закрити">×</button>
@@ -1604,7 +1604,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js?v=2026-04-08-26" defer></script>
-  <script src="/js/app.js?v=2026-04-08-31" defer></script>
+  <script src="/js/app.js?v=2026-04-10-32" defer></script>
   <script src="/js/overrides.js?v=2026-04-08-26" defer></script>
   <script>
     (function() {
