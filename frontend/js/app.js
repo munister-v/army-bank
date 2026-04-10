@@ -1760,13 +1760,19 @@ function _initCarouselInteraction(track) {
   if (!track || track._bankCardsInit) return;
   track._bankCardsInit = true;
 
+  var dotsHost = document.getElementById('bankCardsDots');
+  var rafId = 0;
+
   function getCardWidth() {
     var first = track.querySelector('.bank-card');
-    return first ? first.offsetWidth + 12 : track.clientWidth;
+    if (!first) return track.clientWidth || 1;
+    var styles = window.getComputedStyle(track);
+    var gap = parseFloat(styles.columnGap || styles.gap || '0') || 0;
+    return first.getBoundingClientRect().width + gap;
   }
 
-  function updateDots() {
-    var dots = document.querySelectorAll('.bc-dot');
+  function updateDotsImmediate() {
+    var dots = dotsHost ? dotsHost.querySelectorAll('.bc-dot') : [];
     if (!dots.length) return;
     var cw = getCardWidth();
     var idx = cw > 0 ? Math.round(track.scrollLeft / cw) : 0;
@@ -1774,12 +1780,21 @@ function _initCarouselInteraction(track) {
     dots.forEach(function(d, i) { d.classList.toggle('active', i === idx); });
   }
 
-  track.addEventListener('scroll', updateDots, { passive: true });
+  function updateDots() {
+    if (rafId) return;
+    rafId = window.requestAnimationFrame(function() {
+      rafId = 0;
+      updateDotsImmediate();
+    });
+  }
 
-  document.getElementById('bankCardsDots')?.addEventListener('click', function(e) {
+  track.addEventListener('scroll', updateDots, { passive: true });
+  window.addEventListener('resize', updateDotsImmediate, { passive: true });
+
+  dotsHost?.addEventListener('click', function(e) {
     var dot = e.target.closest('.bc-dot');
     if (!dot) return;
-    var dots = Array.from(document.querySelectorAll('.bc-dot'));
+    var dots = Array.from(dotsHost.querySelectorAll('.bc-dot'));
     var i = dots.indexOf(dot);
     if (i >= 0) track.scrollTo({ left: i * getCardWidth(), behavior: 'smooth' });
   });
@@ -1833,6 +1848,9 @@ function _initCarouselInteraction(track) {
       }
     }
   });
+
+  // Keep active indicator in sync on first render too.
+  updateDotsImmediate();
 }
 
 async function _updateBankCards() {
@@ -1845,7 +1863,7 @@ async function _updateBankCards() {
 
   // Try to load real issued cards
   var cards = [];
-  try { const r = await api.request('/api/cards'); cards = (Array.isArray(r) ? r : []).filter(function(c){ return c.status !== 'closed'; }); }
+  try { const r = await api.request('/api/cards'); cards = (Array.isArray(r) ? r : []); }
   catch(_) {}
 
   if (!cards.length) {

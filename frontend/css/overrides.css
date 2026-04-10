@@ -556,7 +556,8 @@ body {
   border-radius: 20px !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.22),
+    0 8px 24px rgba(4, 16, 10, 0.20),
+    0 2px 8px rgba(4, 16, 10, 0.10),
     inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
   overflow: hidden !important;
   position: relative !important;
@@ -762,7 +763,8 @@ body {
 .bank-card-slate {
   background: none !important;
   box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.22),
+    0 8px 24px rgba(4, 16, 10, 0.20),
+    0 2px 8px rgba(4, 16, 10, 0.10),
     inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
 .bank-card-gold::before,
@@ -815,7 +817,7 @@ body {
   inset: 0 !important;
   pointer-events: none !important;
   z-index: 2 !important;
-  background: radial-gradient(ellipse 60% 50% at 88% 94%, rgba(0,0,0,0.16) 0%, transparent 55%) !important;
+  background: radial-gradient(ellipse 62% 54% at 88% 94%, rgba(0,0,0,0.08) 0%, transparent 60%) !important;
   border-radius: 20px !important;
 }
 /* Gold sheen override */
@@ -6068,7 +6070,7 @@ button.btn-primary:active {
   height: 6px !important;
   border-radius: 50% !important;
   background: rgba(255,255,255,.25) !important;
-  transition: all .22s cubic-bezier(.22,.68,0,1.2) !important;
+  transition: transform .24s cubic-bezier(.22,.68,0,1.2), width .24s cubic-bezier(.22,.68,0,1.2), background .2s ease !important;
   display: inline-block !important;
   cursor: pointer !important;
 }
@@ -6076,6 +6078,13 @@ button.btn-primary:active {
   background: rgba(255,255,255,.90) !important;
   width: 18px !important;
   border-radius: 3px !important;
+  animation: bankDotPulse .42s cubic-bezier(.22,.68,0,1.2) !important;
+}
+
+@keyframes bankDotPulse {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  55% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 /* Контейнер dots — centered */

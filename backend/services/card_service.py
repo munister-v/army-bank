@@ -9,7 +9,7 @@ from ..repositories.card_repository import CardRepository
 from ..repositories.account_repository import AccountRepository
 from ..repositories.feature_repository import FeatureRepository
 
-_MAX_CARDS_PER_ACCOUNT = 3
+_MAX_CARDS_PER_ACCOUNT = 8
 # Virtual card BIN prefix (Army Bank virtual cards start with 4721)
 _BIN_PREFIX = '4721'
 
