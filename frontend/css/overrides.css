@@ -10070,3 +10070,48 @@ html.install-banner-visible #appScreen .app-content {
   0%,100% { opacity: .56; }
   50% { opacity: .95; }
 }
+
+/* ── HOTFIX 2026-04-11-07: reliable vertical scroll on mobile main ────── */
+@media (max-width: 959px) {
+  html.ab-authed,
+  html.ab-authed body {
+    height: 100% !important;
+    min-height: 100% !important;
+  }
+
+  html.ab-authed body {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  #appScreen.app-shell {
+    min-height: 100dvh !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  #appScreen .app-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+    padding-bottom: calc(
+      var(--ab-mobile-nav-height, 72px) +
+      26px +
+      env(safe-area-inset-bottom, 0px) +
+      max(0px, var(--browser-ui-bottom, 0px))
+    ) !important;
+    scroll-padding-bottom: calc(
+      var(--ab-mobile-nav-height, 72px) +
+      30px +
+      env(safe-area-inset-bottom, 0px) +
+      max(0px, var(--browser-ui-bottom, 0px))
+    ) !important;
+  }
+}
