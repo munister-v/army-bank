@@ -9470,9 +9470,15 @@ html.install-banner-visible #appScreen .app-content {
     min-height: 96px !important;
     border-radius: 18px !important;
     padding: 10px 8px !important;
-    background: linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.11) 100%) !important;
+    background: linear-gradient(180deg, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0.12) 100%) !important;
     border: 1px solid rgba(255,255,255,0.24) !important;
-    box-shadow: 0 8px 18px rgba(8, 20, 14, 0.17), inset 0 1px 0 rgba(255,255,255,0.16) !important;
+    box-shadow: 0 10px 22px rgba(8, 20, 14, 0.18), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+  }
+
+  .quick-actions .qa-icon,
+  #dashboard .quick-actions .qa-icon {
+    box-shadow: 0 6px 14px rgba(10, 28, 18, 0.24), inset 0 1px 0 rgba(255,255,255,.22) !important;
+    border: 1px solid rgba(255,255,255,.22) !important;
   }
 
   .bottom-nav {
@@ -9483,9 +9489,9 @@ html.install-banner-visible #appScreen .app-content {
     min-height: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
     padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
     border-radius: 26px !important;
-    background: rgba(236, 243, 237, 0.94) !important;
+    background: linear-gradient(180deg, rgba(244, 250, 245, 0.96) 0%, rgba(232, 241, 234, 0.94) 100%) !important;
     border: 1px solid rgba(40, 65, 48, 0.12) !important;
-    box-shadow: 0 12px 30px rgba(9, 21, 15, 0.16), 0 2px 8px rgba(9, 21, 15, 0.09) !important;
+    box-shadow: 0 14px 34px rgba(9, 21, 15, 0.17), 0 2px 8px rgba(9, 21, 15, 0.1) !important;
     backdrop-filter: blur(12px) saturate(120%) !important;
     -webkit-backdrop-filter: blur(12px) saturate(120%) !important;
   }
@@ -9499,8 +9505,20 @@ html.install-banner-visible #appScreen .app-content {
 
   .bottom-nav .nav-item.active,
   .bottom-nav .menu-btn.nav-item.active {
-    background: #f7fbf7 !important;
-    box-shadow: 0 4px 10px rgba(19, 35, 24, 0.12) !important;
+    background: linear-gradient(180deg, #fcfffc 0%, #f2f8f3 100%) !important;
+    box-shadow: 0 6px 14px rgba(19, 35, 24, 0.14), inset 0 1px 0 rgba(255,255,255,.8) !important;
+  }
+
+  .bottom-nav .nav-item.active svg,
+  .bottom-nav .menu-btn.nav-item.active svg {
+    transform: translateY(-1px) scale(1.04) !important;
+    color: #1d422e !important;
+  }
+
+  .bottom-nav .nav-item.active span,
+  .bottom-nav .menu-btn.nav-item.active span {
+    color: #1d422e !important;
+    font-weight: 700 !important;
   }
 
   .app-content {
