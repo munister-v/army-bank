@@ -5116,7 +5116,9 @@ console.log('[Army Bank] UX core modules loaded');
 
   function isDashboard() {
     var activeEl = document.querySelector('.screen.active-screen');
-    return !!activeEl && activeEl.id === 'dashboard';
+    if (activeEl) return activeEl.id === 'dashboard';
+    var shell = document.getElementById('appScreen');
+    return (shell?.dataset?.screen || '').toLowerCase() === 'dashboard' || shell?.classList.contains('screen-dashboard');
   }
 
   function isInteractiveTarget(target) {
@@ -5140,6 +5142,7 @@ console.log('[Army Bank] UX core modules loaded');
 
   header.addEventListener('touchmove', function(e) {
     if (!touchActive || !isMobileLayout() || !isDashboard()) return;
+    if (!content || (content.scrollHeight - content.clientHeight) <= 1) return;
     var x = e.touches[0].clientX;
     var y = e.touches[0].clientY;
     var absDx = Math.abs(x - startX);
@@ -5148,7 +5151,10 @@ console.log('[Army Bank] UX core modules loaded');
     if (absDx > absDy * 1.08) return;
     var dy = y - lastY;
     if (Math.abs(dy) < 1.5) return;
-    content.scrollTop = Math.max(0, content.scrollTop - dy);
+    var maxTop = Math.max(0, content.scrollHeight - content.clientHeight);
+    var nextTop = Math.max(0, Math.min(maxTop, content.scrollTop - dy));
+    if (Math.abs(nextTop - content.scrollTop) < 0.5) return;
+    content.scrollTop = nextTop;
     lastY = y;
     e.preventDefault();
   }, { passive: false });

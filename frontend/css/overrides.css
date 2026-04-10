@@ -9778,15 +9778,37 @@ html.install-banner-visible #appScreen .app-content {
   }
 }
 
-/* ── HOTFIX 2026-04-10-2: card flip blank state on mobile ─────────────── */
+/* ── HOTFIX 2026-04-10-2: stable true card back (Safari/iOS-safe) ─────── */
 #bankCardsTrack .bank-card-inner {
-  /* The 3D wrapper itself must stay visible when rotated. */
-  backface-visibility: visible !important;
-  -webkit-backface-visibility: visible !important;
+  transform: none !important;
   transform-style: preserve-3d !important;
+  transition: none !important;
 }
 
 #bankCardsTrack .bank-card-front,
 #bankCardsTrack .bank-card-back {
+  position: absolute !important;
+  inset: 0 !important;
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  transform-style: preserve-3d !important;
+  transition: transform .46s cubic-bezier(.22,.68,0,1.02) !important;
   z-index: 1 !important;
+}
+
+#bankCardsTrack .bank-card-front {
+  transform: rotateY(0deg) translateZ(0.1px) !important;
+}
+
+#bankCardsTrack .bank-card-back {
+  transform: rotateY(180deg) translateZ(0.1px) !important;
+  display: flex !important;
+}
+
+#bankCardsTrack .bank-card.is-flipped .bank-card-front {
+  transform: rotateY(-180deg) translateZ(0.1px) !important;
+}
+
+#bankCardsTrack .bank-card.is-flipped .bank-card-back {
+  transform: rotateY(0deg) translateZ(0.1px) !important;
 }
