@@ -43,6 +43,99 @@
   --border-2: rgba(20, 34, 21, 0.2);
 }
 
+/* ── Messenger promo card ───────────────────────────────────────── */
+.messenger-promo-card {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(30, 99, 71, 0.24) !important;
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(46, 132, 92, 0.11) 0%, rgba(46, 132, 92, 0) 62%),
+    linear-gradient(180deg, rgba(255,255,255,.96), rgba(247,251,248,.98));
+}
+.messenger-promo-head {
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(38, 87, 65, 0.12);
+}
+.messenger-promo-icon {
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 16px !important;
+  background: linear-gradient(145deg, rgba(31,107,76,.14), rgba(52,143,102,.2)) !important;
+  color: #1f6b4c !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.75);
+}
+.messenger-promo-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.messenger-promo-title-wrap {
+  display: grid;
+  gap: 6px;
+}
+.messenger-promo-chip {
+  display: inline-flex;
+  width: fit-content;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(29, 99, 71, 0.11);
+  border: 1px solid rgba(29, 99, 71, 0.2);
+  color: #2b6a50;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.messenger-promo-card .card-head h3 {
+  margin: 0 !important;
+  letter-spacing: -.01em;
+}
+.messenger-promo-text {
+  color: var(--mono-muted);
+  margin: 12px 0 12px;
+  line-height: 1.45;
+  font-size: 16px;
+}
+.messenger-promo-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.messenger-promo-points span {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2d5e49;
+  background: rgba(231, 242, 235, 0.95);
+  border: 1px solid rgba(55, 116, 87, 0.18);
+  border-radius: 999px;
+  padding: 5px 10px;
+}
+.messenger-promo-btn {
+  min-height: 48px;
+  border-radius: 14px !important;
+  border-color: rgba(30, 99, 71, 0.34) !important;
+  background: linear-gradient(135deg, #245f45, #2f7a56) !important;
+  color: #f2f7f3 !important;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.messenger-promo-btn:hover {
+  background: linear-gradient(135deg, #2b6e4f, #378763) !important;
+}
+
+@media (max-width: 720px) {
+  .messenger-promo-text {
+    font-size: 15px;
+  }
+  .messenger-promo-btn {
+    width: 100%;
+    min-height: 46px;
+  }
+}
+
 html,
 body {
   background: var(--mono-bg) !important;

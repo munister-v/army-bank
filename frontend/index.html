@@ -47,7 +47,7 @@
   </style>
   <!-- Load core UI styles synchronously to avoid auth-screen flicker / design jumps -->
   <link rel="stylesheet" href="/css/styles.css?v=2026-04-08-26">
-  <link rel="stylesheet" href="/css/overrides.css?v=2026-04-10-02">
+  <link rel="stylesheet" href="/css/overrides.css?v=2026-04-10-03">
   <link rel="stylesheet" href="/css/desktop-cockpit.css?v=2026-04-08-04">
   <link rel="stylesheet" href="/css/mobile-only-gate.css?v=2026-04-08-02">
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
@@ -522,19 +522,29 @@
           <div id="recentTransactions" class="list"></div>
         </div>
 
-        <div class="card">
-          <div class="card-head">
-            <div class="card-icon-wrap blue">
+        <div class="card messenger-promo-card">
+          <div class="card-head messenger-promo-head">
+            <div class="card-icon-wrap blue messenger-promo-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5A8.3 8.3 0 0 1 8 18.8L3 20l1.3-4.8A8.5 8.5 0 1 1 21 11.5z"/>
               </svg>
             </div>
-            <h3>Army Bank Messenger</h3>
+            <div class="messenger-promo-title-wrap">
+              <span class="messenger-promo-chip">Secure channel</span>
+              <h3>ARM Bank Messenger</h3>
+            </div>
           </div>
-          <p style="color:var(--mono-muted);margin:6px 0 12px">
-            Оперативна комунікація з підтримкою та безпечні банківські чати в одному просторі.
+          <p class="messenger-promo-text">
+            Безпечні банківські чати, голосові повідомлення та дзвінки з миттєвими push-сповіщеннями в одному просторі.
           </p>
-          <button type="button" class="btn-ghost" data-open-messenger>Відкрити месенджер</button>
+          <div class="messenger-promo-points">
+            <span>Підтримка 24/7</span>
+            <span>Шифрування</span>
+            <span>Push у фоні PWA</span>
+          </div>
+          <button type="button" class="btn-ghost messenger-promo-btn" data-open-messenger>
+            Відкрити месенджер
+          </button>
         </div>
 
         <!-- Month overview strip -->
