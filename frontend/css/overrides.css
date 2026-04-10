@@ -9605,3 +9605,21 @@ html.install-banner-visible #appScreen .app-content {
     transition: transform .18s ease, opacity .18s ease, filter .18s ease !important;
   }
 }
+
+/* ── Card layer hotfix: keep dashboard cards strictly front-face only ── */
+#bankCardsTrack .bank-card-inner,
+#bankCardsTrack .bank-card.is-flipped .bank-card-inner {
+  transform: none !important;
+  transform-style: flat !important;
+}
+
+#bankCardsTrack .bank-card-back,
+#bankCardsTrack .bank-card.is-flipped .bank-card-back {
+  display: none !important;
+}
+
+#bankCardsTrack .bank-card-front {
+  transform: none !important;
+  backface-visibility: visible !important;
+  -webkit-backface-visibility: visible !important;
+}

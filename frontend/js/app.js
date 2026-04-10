@@ -1809,55 +1809,7 @@ function _initCarouselInteraction(track) {
     if (i >= 0) track.scrollTo({ left: i * getCardWidth(), behavior: 'smooth' });
   });
 
-  // Tap-to-flip: distinguish tap from horizontal swipe
-  track.addEventListener('pointerdown', function(e) {
-    track._flipStartX = e.clientX;
-    track._flipStartY = e.clientY;
-  }, { passive: true });
-
-  track.addEventListener('pointerup', function(e) {
-    var dx = Math.abs(e.clientX - (track._flipStartX || e.clientX));
-    var dy = Math.abs(e.clientY - (track._flipStartY || e.clientY));
-    if (dx > 10 || dy > 10) return; // swipe — ignore
-
-    var cardEl = e.target.closest('.bank-card[data-card-id]');
-    if (!cardEl) return;
-
-    var cardId = parseInt(cardEl.dataset.cardId, 10);
-    if (!cardId) return;
-
-    var isFlipped = cardEl.classList.toggle('is-flipped');
-
-    // On first flip: fetch CVV
-    if (isFlipped) {
-      var cvvEl = cardEl.querySelector('.bank-card-cvv-value');
-      var numEl = cardEl.querySelector('.bank-card-full-number');
-      if (!cvvEl) return;
-
-      if (_cvvCache[cardId]) {
-        cvvEl.textContent = _cvvCache[cardId].cvv || '•••';
-        if (numEl) numEl.textContent = _cvvCache[cardId].card_number || '';
-      } else {
-        cvvEl.classList.add('bc-loading');
-        api.request('/api/cards/' + cardId + '/reveal')
-          .then(function(data) {
-            _cvvCache[cardId] = data;
-            /* Guard: card may have been re-rendered while request was in-flight */
-            if (cvvEl.isConnected) {
-              cvvEl.textContent = data.cvv || '•••';
-              cvvEl.classList.remove('bc-loading');
-            }
-            if (numEl && numEl.isConnected) numEl.textContent = data.card_number || '';
-          })
-          .catch(function() {
-            if (cvvEl.isConnected) {
-              cvvEl.textContent = '•••';
-              cvvEl.classList.remove('bc-loading');
-            }
-          });
-      }
-    }
-  });
+  // Dashboard carousel: flip is disabled to avoid front/back layering glitches.
 
   // Keep active indicator in sync on first render too.
   updateDotsImmediate();
