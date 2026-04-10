@@ -71,9 +71,11 @@ const DESKTOP_MOBILE_ONLY_BLOCKED = document.documentElement.classList.contains(
       const vvHeight = window.visualViewport?.height || window.innerHeight || 0;
       const innerHeight = window.innerHeight || vvHeight;
       const dynamicInset = Math.max(0, Math.round(innerHeight - vvHeight));
-      // iOS Safari (browser mode) bottom toolbar fallback.
-      inset = Math.max(58, dynamicInset);
+      // iOS Safari (browser mode): use real viewport delta only.
+      // Hard minimum caused a persistent phantom gap when toolbar collapsed.
+      inset = dynamicInset > 6 ? Math.min(dynamicInset, 120) : 0;
     }
+    root.classList.toggle("browser-ui-visible", inset > 0);
     root.style.setProperty("--browser-ui-bottom", `${inset}px`);
   };
 
