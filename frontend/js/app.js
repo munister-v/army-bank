@@ -4927,12 +4927,44 @@ console.log('[Army Bank] UX core modules loaded');
   var content = document.querySelector('.app-content');
   var indicator = document.getElementById('pullRefreshIndicator');
   if (!content || !indicator) return;
-  var startY = 0, pulling = false, pullDistance = 0, threshold = 70;
+  var indicatorText = indicator.querySelector('span');
+  var startY = 0, pulling = false, pullDistance = 0;
+  var SOFT_THRESHOLD = 72;
+  var HARD_THRESHOLD = 132;
+  var refreshing = false;
+
+  function setIndicatorText(txt) {
+    if (indicatorText) indicatorText.textContent = txt;
+  }
+
+  async function hardRefresh() {
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+        var regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(function(reg) {
+          return reg.update().catch(function() {});
+        }));
+        regs.forEach(function(reg) {
+          if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        });
+      }
+    } catch (_) {}
+
+    try {
+      var url = new URL(window.location.href);
+      url.searchParams.set('_r', String(Date.now()));
+      window.location.replace(url.toString());
+    } catch (_) {
+      window.location.reload();
+    }
+  }
 
   content.addEventListener('touchstart', function(e) {
+    if (refreshing) return;
     if (content.scrollTop <= 0) {
       startY = e.touches[0].clientY;
       pullDistance = 0;
+      setIndicatorText('Потягніть вниз для оновлення');
       return;
     }
     startY = 0;
@@ -4940,7 +4972,7 @@ console.log('[Army Bank] UX core modules loaded');
   }, { passive: true });
 
   content.addEventListener('touchmove', function(e) {
-    if (!startY) return;
+    if (!startY || refreshing) return;
     var dy = e.touches[0].clientY - startY;
     if (dy <= 0) return;
     pullDistance = dy;
@@ -4948,16 +4980,47 @@ console.log('[Army Bank] UX core modules loaded');
       pulling = true;
       indicator.classList.add('visible');
     }
+    if (dy >= HARD_THRESHOLD) {
+      setIndicatorText('Відпустіть для повного перезавантаження');
+    } else if (dy >= SOFT_THRESHOLD) {
+      setIndicatorText('Відпустіть для оновлення даних');
+    } else {
+      setIndicatorText('Потягніть ще трохи');
+    }
   }, { passive: true });
 
-  content.addEventListener('touchend', function() {
-    if (pulling && pullDistance >= threshold) {
-      refreshAllData().finally(function() {
-        indicator.classList.remove('visible');
-      });
-    } else {
+  content.addEventListener('touchend', async function() {
+    if (refreshing) return;
+    if (!(pulling && pullDistance >= SOFT_THRESHOLD)) {
       indicator.classList.remove('visible');
+      setIndicatorText('Оновлення…');
+      pulling = false;
+      pullDistance = 0;
+      startY = 0;
+      return;
     }
+
+    refreshing = true;
+    setIndicatorText(pullDistance >= HARD_THRESHOLD
+      ? 'Перезавантаження сторінки…'
+      : 'Оновлення даних…'
+    );
+
+    try {
+      if (pullDistance >= HARD_THRESHOLD) {
+        await hardRefresh();
+        return;
+      }
+      await refreshAllData();
+      showToast('Оновлено', 'success');
+    } catch (_) {
+      showToast('Помилка оновлення', 'error');
+    } finally {
+      refreshing = false;
+      indicator.classList.remove('visible');
+      setIndicatorText('Оновлення…');
+    }
+
     pulling = false;
     pullDistance = 0;
     startY = 0;
