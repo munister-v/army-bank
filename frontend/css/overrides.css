@@ -9775,3 +9775,40 @@ html.install-banner-visible #appScreen .app-content {
   font-weight: 700 !important;
   padding: 6px 12px !important;
 }
+
+/* ── Mobile bottom area final fix: browser bar overlap + blank tail ── */
+@media (max-width: 767px) {
+  html,
+  body {
+    min-height: 100dvh !important;
+    height: 100dvh !important;
+  }
+
+  html.ab-authed body {
+    background: radial-gradient(140% 120% at 50% 100%, #0f6a46 0%, #0d5b3d 42%, #0a4a33 100%) !important;
+  }
+
+  #appScreen.app-shell {
+    min-height: 100dvh !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  #appScreen .app-content {
+    padding-bottom: calc(126px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(130px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #appScreen #sidebar.bottom-nav {
+    left: max(8px, env(safe-area-inset-left, 0px)) !important;
+    right: max(8px, env(safe-area-inset-right, 0px)) !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
+    min-height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 6px 7px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #appScreen #sidebar.bottom-nav.nav-hidden {
+    transform: translateY(calc(130% + env(safe-area-inset-bottom, 0px))) !important;
+  }
+}
