@@ -2015,18 +2015,21 @@ async function _updateBankCards() {
     // ── Back side HTML ──
     var backHtml =
         '<div class="bank-card-back">'
+      + '<div class="bank-card-back-topline">This card is property of ARM Bank</div>'
       + '<div class="bank-card-mag-stripe"></div>'
       + '<div class="bank-card-back-body">'
-      +   '<div class="bank-card-sig-strip">'
+      +   '<div class="bank-card-sig-row">'
+      +     '<div class="bank-card-sig-strip"><span class="bank-card-sig-text">' + holderName + '</span></div>'
       +     '<div class="bank-card-cvv-box">'
       +       '<div class="bank-card-cvv-label">CVV</div>'
       +       '<div class="bank-card-cvv-value bc-loading">•••</div>'
       +     '</div>'
       +   '</div>'
-      +   '<div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.06em;font-variant-numeric:tabular-nums" class="bank-card-full-number"></div>'
+      +   '<div class="bank-card-security-note">Security code (CVV/CVC) is required for online purchases. Never share this code.</div>'
+      +   '<div class="bank-card-full-number"></div>'
       +   '<div class="bank-card-back-footer">'
-      +     '<div class="bank-card-back-info">ARM<strong>Bank</strong><br>' + location.hostname + '</div>'
-      +     '<div>' + s.network + '</div>'
+      +     '<div class="bank-card-back-info">ARM<strong>Bank</strong> · ' + location.hostname + '</div>'
+      +     '<div class="bank-card-back-network">' + s.network + '</div>'
       +   '</div>'
       + '</div>'
       + '</div>';
@@ -4991,6 +4994,53 @@ console.log('[Army Bank] UX core modules loaded');
 
   // Initial post-auth reconciliation.
   setTimeout(refreshInstallBanner, 1200);
+})();
+
+// ── Account block drag-to-scroll proxy (mobile dashboard) ──────────────
+(function() {
+  var accountBtn = document.getElementById('heroAccountCopyBtn');
+  var content = document.querySelector('.app-content');
+  if (!accountBtn || !content) return;
+
+  var active = false;
+  var startY = 0;
+  var lastY = 0;
+  var moved = false;
+  var mobileMql = window.matchMedia('(max-width: 959px)');
+
+  function isMobileLayout() {
+    return !!mobileMql.matches;
+  }
+
+  accountBtn.addEventListener('touchstart', function(e) {
+    if (!isMobileLayout()) return;
+    active = true;
+    moved = false;
+    startY = e.touches[0].clientY;
+    lastY = startY;
+  }, { passive: true });
+
+  accountBtn.addEventListener('touchmove', function(e) {
+    if (!active || !isMobileLayout()) return;
+    var y = e.touches[0].clientY;
+    var dy = y - lastY;
+    if (Math.abs(y - startY) > 5) moved = true;
+
+    var maxTop = Math.max(0, content.scrollHeight - content.clientHeight);
+    var nextTop = Math.max(0, Math.min(maxTop, content.scrollTop - dy));
+    content.scrollTop = nextTop;
+    lastY = y;
+
+    if (moved) e.preventDefault();
+  }, { passive: false });
+
+  accountBtn.addEventListener('touchend', function() {
+    active = false;
+  }, { passive: true });
+
+  accountBtn.addEventListener('touchcancel', function() {
+    active = false;
+  }, { passive: true });
 })();
 
 // ── Pull-to-refresh ───────────────────────────────────────

@@ -9812,3 +9812,127 @@ html.install-banner-visible #appScreen .app-content {
 #bankCardsTrack .bank-card.is-flipped .bank-card-back {
   transform: rotateY(0deg) translateZ(0.1px) !important;
 }
+
+/* ── HOTFIX 2026-04-10-3: realistic bank-card back composition ────────── */
+#bankCardsTrack .bank-card-back {
+  border: 1px solid rgba(235, 242, 238, 0.2) !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
+}
+
+#bankCardsTrack .bank-card-gold .bank-card-back {
+  background: linear-gradient(140deg, #b17f1b 0%, #d8a63a 46%, #8f6620 100%) !important;
+}
+
+#bankCardsTrack .bank-card-navy .bank-card-back,
+#bankCardsTrack .bank-card-dark .bank-card-back,
+#bankCardsTrack .bank-card-slate .bank-card-back {
+  background: linear-gradient(148deg, #1a2434 0%, #243249 52%, #131c2b 100%) !important;
+}
+
+#bankCardsTrack .bank-card-forest .bank-card-back,
+#bankCardsTrack .bank-card-camo .bank-card-back {
+  background: linear-gradient(145deg, #2a5a42 0%, #3f7858 52%, #1d4331 100%) !important;
+}
+
+#bankCardsTrack .bank-card-rose .bank-card-back {
+  background: linear-gradient(145deg, #6c2f43 0%, #934663 50%, #512234 100%) !important;
+}
+
+#bankCardsTrack .bank-card-back-topline {
+  height: 16px !important;
+  padding: 3px 12px 0 !important;
+  font-size: 7px !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+#bankCardsTrack .bank-card-mag-stripe {
+  margin-top: 2px !important;
+  height: 30px !important;
+  background: linear-gradient(180deg, #090b0f 0%, #1a1e24 100%) !important;
+}
+
+#bankCardsTrack .bank-card-back-body {
+  padding: 10px 12px 10px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 7px !important;
+}
+
+#bankCardsTrack .bank-card-sig-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+
+#bankCardsTrack .bank-card-sig-strip {
+  height: 24px !important;
+  margin-top: 0 !important;
+  border-radius: 4px !important;
+  padding: 0 8px !important;
+  justify-content: flex-start !important;
+  background: repeating-linear-gradient(
+    90deg,
+    #efeee9 0px, #efeee9 8px,
+    #e4e2db 8px, #e4e2db 16px
+  ) !important;
+}
+
+#bankCardsTrack .bank-card-sig-text {
+  font-size: 8px !important;
+  font-family: "JetBrains Mono", monospace !important;
+  color: rgba(31, 38, 49, 0.82) !important;
+  letter-spacing: 0.04em !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#bankCardsTrack .bank-card-cvv-box {
+  min-width: 52px !important;
+  border-radius: 4px !important;
+  padding: 2px 8px 3px !important;
+}
+
+#bankCardsTrack .bank-card-cvv-label {
+  font-size: 6px !important;
+  line-height: 1.1 !important;
+}
+
+#bankCardsTrack .bank-card-cvv-value {
+  font-size: 13px !important;
+  line-height: 1.1 !important;
+}
+
+#bankCardsTrack .bank-card-security-note {
+  font-size: 7px !important;
+  line-height: 1.32 !important;
+  color: rgba(248, 251, 249, 0.82) !important;
+}
+
+#bankCardsTrack .bank-card-full-number {
+  min-height: 11px !important;
+  margin-top: 1px !important;
+  font-size: 9px !important;
+  letter-spacing: 0.12em !important;
+  color: rgba(243, 249, 245, 0.9) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+#bankCardsTrack .bank-card-back-footer {
+  margin-top: auto !important;
+  align-items: center !important;
+}
+
+#bankCardsTrack .bank-card-back-info {
+  font-size: 8px !important;
+  color: rgba(244, 250, 246, 0.8) !important;
+}
+
+#bankCardsTrack .bank-card-back-network svg {
+  width: 32px !important;
+  height: 20px !important;
+}
