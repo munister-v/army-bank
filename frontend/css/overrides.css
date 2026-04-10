@@ -9822,3 +9822,16 @@ html.install-banner-visible #appScreen .app-content {
     transform: translateY(calc(130% + env(safe-area-inset-bottom, 0px))) !important;
   }
 }
+
+/* ── Dashboard gesture balance: vertical page scroll + horizontal card swipe ── */
+@media (max-width: 767px) {
+  #appScreen.screen-dashboard .bank-cards-track {
+    touch-action: auto !important;
+    overscroll-behavior-x: contain !important;
+    overscroll-behavior-y: auto !important;
+  }
+
+  #appScreen.screen-dashboard .quick-actions {
+    touch-action: pan-y !important;
+  }
+}

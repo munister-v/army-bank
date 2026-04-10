@@ -5052,6 +5052,8 @@ console.log('[Army Bank] UX core modules loaded');
   if (!header || !content) return;
 
   var touchActive = false;
+  var startX = 0;
+  var startY = 0;
   var lastY = 0;
   var mobileMql = window.matchMedia('(max-width: 959px)');
 
@@ -5068,7 +5070,7 @@ console.log('[Army Bank] UX core modules loaded');
     if (!target || !target.closest) return false;
     return !!target.closest(
       'button, a, input, textarea, select, ' +
-      '.icon-btn, .qa-btn, .quick-actions, .bank-cards-track, .bank-card, [data-no-header-scroll-proxy]'
+      '.icon-btn, [data-no-header-scroll-proxy]'
     );
   }
 
@@ -5078,12 +5080,19 @@ console.log('[Army Bank] UX core modules loaded');
       return;
     }
     touchActive = true;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
     lastY = e.touches[0].clientY;
   }, { passive: true });
 
   header.addEventListener('touchmove', function(e) {
     if (!touchActive || !isMobileLayout() || !isDashboard()) return;
+    var x = e.touches[0].clientX;
     var y = e.touches[0].clientY;
+    var absDx = Math.abs(x - startX);
+    var absDy = Math.abs(y - startY);
+    // Keep native horizontal gestures for card carousel.
+    if (absDx > absDy * 1.08) return;
     var dy = y - lastY;
     if (Math.abs(dy) < 1.5) return;
     content.scrollTop = Math.max(0, content.scrollTop - dy);
