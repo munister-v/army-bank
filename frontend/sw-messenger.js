@@ -1,5 +1,5 @@
 /* Army Bank Messenger — Service Worker */
-const SW_VERSION = new URL(self.location.href).searchParams.get('v') || '36';
+const SW_VERSION = new URL(self.location.href).searchParams.get('v') || '37';
 const CACHE = `msng-v${SW_VERSION}`;
 const SCOPE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
 const withBase = (path) => `${SCOPE_PATH}${path}`.replace(/\/{2,}/g, '/');
@@ -72,4 +72,55 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     caches.match(request).then(cached => cached || fetch(request))
   );
+});
+
+self.addEventListener('push', event => {
+  const fallback = {
+    title: 'Army Bank',
+    body: 'Нове сповіщення',
+    url: '/messenger',
+    type: 'default',
+  };
+
+  let payload = fallback;
+  try {
+    const data = event.data?.json?.();
+    if (data && typeof data === 'object') payload = { ...fallback, ...data };
+  } catch (_) {}
+
+  event.waitUntil(
+    self.registration.showNotification(String(payload.title || fallback.title), {
+      body: String(payload.body || ''),
+      icon: '/icons/chat-icon-180.png',
+      badge: '/icons/chat-icon-32.png',
+      tag: payload.type ? `ab-${String(payload.type)}` : 'ab-default',
+      renotify: true,
+      data: {
+        url: String(payload.url || '/messenger'),
+        type: String(payload.type || 'default'),
+      },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const targetPath = String(event.notification?.data?.url || '/messenger');
+  event.waitUntil((async () => {
+    const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const targetUrl = new URL(targetPath, self.location.origin).href;
+    for (const client of allClients) {
+      if (client.url === targetUrl && 'focus' in client) {
+        await client.focus();
+        return;
+      }
+    }
+    if (allClients.length && 'focus' in allClients[0]) {
+      await allClients[0].focus();
+      return;
+    }
+    if ('openWindow' in self.clients) {
+      await self.clients.openWindow(targetUrl);
+    }
+  })());
 });

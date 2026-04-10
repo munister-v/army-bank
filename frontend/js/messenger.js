@@ -6,10 +6,11 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '36';
+const MESSENGER_ASSET_VERSION = '37';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
+const PERM_STATE_KEY = 'msng_permission_state_v1';
 const DEFAULT_MSG_PLACEHOLDER = 'Напишіть повідомлення...';
 const DEFAULT_CALL_PREFS = Object.freeze({
   sounds: true,
@@ -121,6 +122,7 @@ let callPrefs          = loadCallPrefs();
 
 // ── Presence cache ─────────────────────────
 let presenceCache = {};
+let permState = loadPermState();
 
 // ── Group state ────────────────────────────
 let groupSelectedUsers = [];
@@ -174,6 +176,7 @@ const btnChatLogout     = $('btn-chat-logout');
 const btnCall           = $('btn-call');
 const btnBankTools      = $('btn-bank-tools');
 const topbarAvatar      = $('topbar-avatar');
+const btnUnread         = $('btn-unread');
 const unreadBadge       = $('unread-badge');
 const newChatModal      = $('new-chat-modal');
 const btnCloseModal     = $('btn-close-modal');
@@ -277,6 +280,174 @@ async function api(method, path, body) {
   if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
   if (!data?.ok) throw new Error(data?.error || 'Помилка запиту');
   return data.data;
+}
+
+function loadPermState() {
+  try {
+    const raw = localStorage.getItem(PERM_STATE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function savePermState() {
+  try { localStorage.setItem(PERM_STATE_KEY, JSON.stringify(permState || {})); } catch (_) {}
+}
+
+function setPermFlag(key, value) {
+  if (!permState || typeof permState !== 'object') permState = {};
+  permState[key] = value;
+  savePermState();
+}
+
+async function queryPermissionState(name) {
+  try {
+    if (!navigator?.permissions?.query) return 'unknown';
+    const status = await navigator.permissions.query({ name });
+    return String(status?.state || 'unknown');
+  } catch (_) {
+    return 'unknown';
+  }
+}
+
+function canPromptAgain(flagKey, cooldownMs = 12 * 60 * 60 * 1000) {
+  const ts = Number(permState?.[flagKey] || 0);
+  if (!ts) return true;
+  return (Date.now() - ts) > cooldownMs;
+}
+
+async function ensureMicrophonePermission(interactive = false) {
+  const cached = String(permState?.microphone || '');
+  if (cached === 'granted') return true;
+
+  const current = await queryPermissionState('microphone');
+  if (current === 'granted') {
+    setPermFlag('microphone', 'granted');
+    return true;
+  }
+  if (current === 'denied') {
+    setPermFlag('microphone', 'denied');
+    if (interactive) showToast('Мікрофон заблоковано. Дозвольте доступ у налаштуваннях браузера.', true);
+    return false;
+  }
+  if (!interactive) return false;
+  if (!canPromptAgain('microphone_prompted_at', 3 * 60 * 1000)) return false;
+  setPermFlag('microphone_prompted_at', Date.now());
+
+  if (!(navigator?.mediaDevices?.getUserMedia)) {
+    showToast('Браузер не підтримує доступ до мікрофона.', true);
+    return false;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    stream.getTracks().forEach(track => track.stop());
+    setPermFlag('microphone', 'granted');
+    return true;
+  } catch (err) {
+    setPermFlag('microphone', 'denied');
+    showToast(micError(err), true);
+    return false;
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(ch => ch.charCodeAt(0)));
+}
+
+async function getVapidPublicKey() {
+  try {
+    const key = await api('GET', '/push/vapid-public-key');
+    return typeof key === 'string' ? key : String(key?.key || '');
+  } catch (_) {
+    return '';
+  }
+}
+
+async function subscribeWebPush() {
+  if (!token) return false;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  const reg = await navigator.serviceWorker.ready;
+  const vapid = await getVapidPublicKey();
+  if (!vapid) return false;
+
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapid),
+    });
+  }
+
+  const p256dhKey = sub.getKey('p256dh');
+  const authKey = sub.getKey('auth');
+  if (!p256dhKey || !authKey) return false;
+  await api('POST', '/push/subscribe', {
+    endpoint: sub.endpoint,
+    p256dh: btoa(String.fromCharCode(...new Uint8Array(p256dhKey))),
+    auth: btoa(String.fromCharCode(...new Uint8Array(authKey))),
+  });
+  setPermFlag('push_subscribed', true);
+  return true;
+}
+
+async function ensureNotificationPermission(interactive = false) {
+  if (!window.Notification) return false;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+
+  const perm = Notification.permission;
+  if (perm === 'granted') {
+    setPermFlag('notifications', 'granted');
+    try { await subscribeWebPush(); } catch (_) {}
+    return true;
+  }
+  if (perm === 'denied') {
+    setPermFlag('notifications', 'denied');
+    if (interactive) showToast('Сповіщення заблоковані. Дозвольте їх у налаштуваннях браузера.', true);
+    return false;
+  }
+  if (!interactive) return false;
+  if (!canPromptAgain('notifications_prompted_at', 5 * 60 * 1000)) return false;
+  setPermFlag('notifications_prompted_at', Date.now());
+
+  try {
+    const requested = await Notification.requestPermission();
+    if (requested !== 'granted') {
+      setPermFlag('notifications', 'denied');
+      return false;
+    }
+    setPermFlag('notifications', 'granted');
+    await subscribeWebPush();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function notifyViaServiceWorker({ title, body = '', tag = '', data = {}, renotify = false, silent = false }) {
+  try {
+    const reg = await navigator.serviceWorker?.ready;
+    if (!reg?.showNotification || Notification.permission !== 'granted') return false;
+    await reg.showNotification(String(title || 'Army Bank'), {
+      body: String(body || ''),
+      tag: tag || undefined,
+      icon: '/icons/chat-icon-180.png',
+      badge: '/icons/chat-icon-32.png',
+      renotify: !!renotify,
+      requireInteraction: false,
+      silent: !!silent,
+      data: { ...(data || {}), url: '/messenger' },
+    });
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 // ════════════════════════════════════════════
@@ -1498,6 +1669,8 @@ async function startRecording() {
     showToast('Запис голосових не підтримується цим браузером.', true);
     return;
   }
+  const micGranted = await ensureMicrophonePermission(true);
+  if (!micGranted) return;
   recordStartInFlight = true;
 
   try {
@@ -2394,9 +2567,7 @@ async function requestCallWakeLock() {
 }
 
 async function ensureNotificationPermissionInteractive() {
-  if (!window.Notification) return;
-  if (Notification.permission !== 'default') return;
-  try { await Notification.requestPermission(); } catch (_) {}
+  await ensureNotificationPermission(true);
 }
 
 async function releaseCallWakeLock() {
@@ -3014,6 +3185,8 @@ async function initiateCall() {
   if (callAcceptInProgress) return;
   if (!checkWebRTCSupport()) return;
   ensureNotificationPermissionInteractive().catch(() => {});
+  const micGranted = await ensureMicrophonePermission(true);
+  if (!micGranted) return;
   await ensureRtcConfig();
 
   try {
@@ -3094,15 +3267,13 @@ async function checkIncoming() {
       startIncomingTone().catch(() => {});
       startIncomingAutoRejectTimer(c.id);
       if (document.hidden && window.Notification && Notification.permission === 'granted') {
-        try {
-          const n = new Notification('Вхідний дзвінок', {
-            body: incomingCallerName,
-            tag: `ab-incoming-${c.id}`,
-            icon: '/icons/chat-icon-180.png',
-          });
-          n.onclick = () => { try { window.focus(); } catch (_) {} n.close(); };
-          setTimeout(() => n.close(), 9000);
-        } catch (_) {}
+        notifyViaServiceWorker({
+          title: 'Вхідний дзвінок',
+          body: incomingCallerName,
+          tag: `ab-incoming-${c.id}`,
+          data: { call_id: c.id, type: 'call_incoming', url: '/messenger' },
+          renotify: true,
+        }).catch(() => {});
       }
       syncOverlayLock();
     } else if (!calls?.length && incomingCallId) {
@@ -3138,6 +3309,12 @@ async function acceptCall() {
     api('PUT', `/messenger/calls/${callId}/reject`).catch(() => {}); return;
   }
   ensureNotificationPermissionInteractive().catch(() => {});
+  const micGranted = await ensureMicrophonePermission(true);
+  if (!micGranted) {
+    callAcceptInProgress = false;
+    api('PUT', `/messenger/calls/${callId}/reject`).catch(() => {});
+    return;
+  }
   await ensureRtcConfig();
 
   try {
@@ -3413,18 +3590,18 @@ function handleVisibilityChange() {
     if (activeCallId) {
       startCallPoll(2500);
       if (window.Notification && Notification.permission === 'granted' && callBackgroundNotifiedForId !== activeCallId) {
-        try {
-          const title = callConnectedOnce ? 'Дзвінок триває у фоні' : 'Підключення дзвінка у фоні';
-          const body = activePartner?.full_name || callScreenName?.textContent || 'Месенджер';
-          const n = new Notification(title, {
-            body,
-            tag: `ab-call-${activeCallId}`,
-            icon: '/icons/chat-icon-180.png',
-          });
-          n.onclick = () => { try { window.focus(); } catch (_) {} n.close(); };
-          setTimeout(() => n.close(), 8000);
-          callBackgroundNotifiedForId = activeCallId;
-        } catch (_) {}
+        const title = callConnectedOnce ? 'Дзвінок триває у фоні' : 'Підключення дзвінка у фоні';
+        const body = activePartner?.full_name || callScreenName?.textContent || 'Месенджер';
+        notifyViaServiceWorker({
+          title,
+          body,
+          tag: `ab-call-${activeCallId}`,
+          data: { call_id: activeCallId, type: 'call_background', url: '/messenger' },
+          renotify: false,
+          silent: true,
+        }).then(ok => {
+          if (ok) callBackgroundNotifiedForId = activeCallId;
+        }).catch(() => {});
       }
     }
     return;
@@ -4034,6 +4211,15 @@ window.addEventListener('keydown', primeCallAudioOnUserGesture, { once: true });
 if (btnScrollBottom) {
   btnScrollBottom.addEventListener('click', () => {
     scrollToBottom(false);
+  });
+}
+if (btnUnread) {
+  btnUnread.addEventListener('click', async () => {
+    const ok = await ensureNotificationPermission(true);
+    if (ok) {
+      showToast('Push-сповіщення активовано');
+      pollUnreadBadge().catch(() => {});
+    }
   });
 }
 

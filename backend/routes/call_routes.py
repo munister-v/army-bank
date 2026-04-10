@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, request, g
 from ..database import get_connection
 from ..config import USE_PG, MESSENGER_CALL_PENDING_TIMEOUT_SECONDS, MESSENGER_ICE_SERVERS
 from .helpers import api_error, auth_required
+from .push_routes import send_push
 
 _METERED_API_KEY = os.getenv('METERED_API_KEY', '7c67a9a42814a9d646b83f6b3f805d0a84f4')
 _METERED_APP_DOMAIN = os.getenv('METERED_APP_DOMAIN', 'army')
@@ -71,6 +72,39 @@ def _insert_call_message(conn, call_id: int, status: str) -> None:
         pass
 
 
+def _conv_participant_ids(conn, conv_id: int) -> list[int]:
+    rows = conn.execute(
+        'SELECT user_id FROM conversation_participants WHERE conversation_id = %s',
+        (conv_id,),
+    ).fetchall()
+    out: list[int] = []
+    for row in rows:
+        try:
+            uid = int(row['user_id'])
+        except Exception:
+            continue
+        if uid not in out:
+            out.append(uid)
+    return out
+
+
+def _user_name(conn, user_id: int) -> str:
+    row = conn.execute('SELECT full_name FROM users WHERE id = %s', (user_id,)).fetchone()
+    name = (row or {}).get('full_name') if row else None
+    return str(name or 'Користувач')
+
+
+def _notify_call_participants(conn, conv_id: int, sender_id: int, title: str, body: str, push_type: str) -> None:
+    participants = _conv_participant_ids(conn, conv_id)
+    for uid in participants:
+        if uid == sender_id:
+            continue
+        try:
+            send_push(uid, title, body, '/messenger', push_type)
+        except Exception:
+            pass
+
+
 def _is_participant(conn, conv_id: int, user_id: int) -> bool:
     row = conn.execute(
         'SELECT id FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
@@ -119,6 +153,24 @@ def _expire_stale_pending_calls(conn, conv_id: int | None = None) -> int:
         f"UPDATE calls SET status='missed', ended_at={_now_sql()} WHERE id IN ({placeholders})",
         tuple(stale_ids),
     )
+    try:
+        for sid in stale_ids:
+            row = conn.execute(
+                'SELECT conversation_id, caller_id FROM calls WHERE id = %s',
+                (sid,),
+            ).fetchone()
+            if not row:
+                continue
+            caller_id = int(row['caller_id'])
+            send_push(
+                caller_id,
+                'Пропущений дзвінок',
+                'Абонент не відповів у заданий час.',
+                '/messenger',
+                'call_missed',
+            )
+    except Exception:
+        pass
     return len(stale_ids)
 
 
@@ -183,6 +235,15 @@ def start_call():
                 (conv_id, me_id, sdp_offer),
             )
             call_id = conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
+        caller_name = _user_name(conn, me_id)
+        _notify_call_participants(
+            conn,
+            conv_id,
+            me_id,
+            'Вхідний дзвінок',
+            f'{caller_name} телефонує вам у Messenger.',
+            'call_incoming',
+        )
 
     return jsonify({'ok': True, 'data': {'call_id': call_id}})
 
@@ -269,6 +330,17 @@ def answer_call(call_id: int):
             f"UPDATE calls SET status='active', sdp_answer=%s, started_at={_now_sql()} WHERE id=%s",
             (sdp_answer, call_id),
         )
+        callee_name = _user_name(conn, me_id)
+        try:
+            send_push(
+                int(row['caller_id']),
+                'Дзвінок прийнято',
+                f'{callee_name} приєднався до дзвінка.',
+                '/messenger',
+                'call_answered',
+            )
+        except Exception:
+            pass
     return jsonify({'ok': True})
 
 
@@ -319,6 +391,17 @@ def reject_call(call_id: int):
             f"UPDATE calls SET status='rejected', ended_at={_now_sql()} WHERE id=%s", (call_id,)
         )
         _insert_call_message(conn, call_id, 'rejected')
+        rejecter = _user_name(conn, me_id)
+        try:
+            send_push(
+                int(row['caller_id']),
+                'Дзвінок відхилено',
+                f'{rejecter} відхилив(ла) виклик.',
+                '/messenger',
+                'call_rejected',
+            )
+        except Exception:
+            pass
     return jsonify({'ok': True})
 
 
@@ -337,6 +420,15 @@ def end_call(call_id: int):
             f"UPDATE calls SET status='ended', ended_at={_now_sql()} WHERE id=%s", (call_id,)
         )
         _insert_call_message(conn, call_id, 'ended')
+        ender = _user_name(conn, me_id)
+        _notify_call_participants(
+            conn,
+            int(row['conversation_id']),
+            me_id,
+            'Дзвінок завершено',
+            f'{ender} завершив(ла) дзвінок.',
+            'call_ended',
+        )
     return jsonify({'ok': True})
 
 
