@@ -10,14 +10,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
   <meta name="apple-mobile-web-app-title" content="AB Chat"/>
   <title>Army Bank · Месенджер</title>
-  <link rel="manifest" href="/manifest-messenger.json?v=33"/>
+  <link rel="manifest" href="/manifest-messenger.json?v=34"/>
   <link rel="icon" type="image/svg+xml" href="/icons/chat-favicon.svg"/>
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/chat-icon-32.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/chat-icon-180.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=33"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=34"/>
 </head>
 <body>
 
@@ -224,6 +224,7 @@
           <div class="chat-header-status" id="chat-partner-role"></div>
         </div>
         <div class="chat-header-actions">
+          <button id="group-info-btn" class="icon-btn" hidden title="Учасники групи">👥</button>
           <button class="icon-btn" data-open-call-settings title="Налаштування дзвінків">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="18" height="18">
               <line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2.1"/>
@@ -616,10 +617,30 @@
 </div>
 
 <!-- ════════════════════════════════════════════
+     GROUP INFO PANEL
+════════════════════════════════════════════ -->
+<!-- Group Info Panel -->
+<div id="group-panel" hidden>
+  <div class="group-panel-header">
+    <button id="group-panel-close" class="icon-btn" aria-label="Закрити">✕</button>
+    <h3 id="group-panel-name" class="group-panel-title"></h3>
+    <button id="group-rename-btn" class="icon-btn" title="Перейменувати" aria-label="Перейменувати">✏️</button>
+  </div>
+  <div class="group-panel-body">
+    <div class="group-section-label">Учасники</div>
+    <ul id="group-members-list" class="group-members-list"></ul>
+    <div class="group-actions">
+      <button id="group-add-member-btn" class="btn-secondary">+ Додати учасника</button>
+      <button id="group-leave-btn" class="btn-danger">Вийти з групи</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
      TOAST
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=33"></script>
+<script src="/js/messenger.js?v=34"></script>
 </body>
 </html>

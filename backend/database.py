@@ -466,6 +466,7 @@ CREATE TABLE IF NOT EXISTS conversation_participants (
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_read_at TIMESTAMPTZ,
+    is_admin BOOLEAN NOT NULL DEFAULT FALSE,
     UNIQUE(conversation_id, user_id)
 );
 CREATE TABLE IF NOT EXISTS messages (
@@ -493,6 +494,7 @@ CREATE TABLE IF NOT EXISTS conversation_participants (
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     joined_at TEXT NOT NULL DEFAULT (datetime('now')),
     last_read_at TEXT,
+    is_admin INTEGER NOT NULL DEFAULT 0,
     UNIQUE(conversation_id, user_id)
 );
 CREATE TABLE IF NOT EXISTS messages (
@@ -810,6 +812,8 @@ def init_db() -> None:
                 'CREATE INDEX IF NOT EXISTS idx_compliance_user ON compliance_profiles(user_id);',
                 optional=True, label='idx_compliance_user'
             )
+            _pg_exec('ALTER TABLE conversation_participants ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE;',
+                     optional=True, label='participants.is_admin')
     else:
         schema_sql = Path(SCHEMA_PATH).read_text(encoding='utf-8')
         with get_connection_sqlite() as conn:
@@ -856,6 +860,10 @@ def init_db() -> None:
                 pass
             try:
                 conn.execute('ALTER TABLE users ADD COLUMN last_seen_at TEXT DEFAULT NULL;')
+            except Exception:
+                pass
+            try:
+                conn.execute("ALTER TABLE conversation_participants ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
             except Exception:
                 pass
             try:

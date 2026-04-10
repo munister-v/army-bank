@@ -829,6 +829,9 @@ async function openChat(conv) {
     : (isAssistant ? 'Банківський асистент · Швидкі дії зверху' : '');
   syncAssistantUi(isAssistant);
   if (btnCall) btnCall.hidden = isGroup || isAssistant;
+  const groupInfoBtn = document.getElementById('group-info-btn');
+  if (groupInfoBtn) groupInfoBtn.hidden = !isGroup;
+  if (groupPanelOpen) closeGroupPanel();
 
   chatEmpty.hidden = true;
   chatView.hidden  = false;
@@ -837,6 +840,7 @@ async function openChat(conv) {
 
   messagesList.innerHTML = '';
   photosByMessageId.clear();
+  window._lastRenderKey = null;
   msgInput.value = '';
   updateSendBtn();
   await fetchMessages();
@@ -874,6 +878,12 @@ function firstMsgId() {
 }
 
 function renderMessages(msgs, prepend = false) {
+  // Skip re-render if same messages
+  if (!prepend) {
+    const newKey = msgs.map(m => m.id).join(',');
+    if (window._lastRenderKey === newKey) return;
+    window._lastRenderKey = newKey;
+  }
   let prevDate = null;
   const frag = document.createDocumentFragment();
   msgs.forEach(msg => {
@@ -1053,9 +1063,15 @@ function buildBubble(msg) {
     content = statementBubble || `<div class="msg-bubble">${formatMessageTextHtml(msg.text)}</div>`;
   }
 
+  const activeConvData = convData.find(c => c.id === activeConvId);
+  const showSenderName = !isMe && activeConvData?.is_group;
+  const senderNameHtml = showSenderName && msg.sender_name
+    ? `<div class="msg-sender-name">${esc(msg.sender_name)}</div>`
+    : '';
+
   wrap.innerHTML = `
     ${!isMe ? `<div class="msg-sender-avatar${assistantIncoming ? ' assistant' : ''}">${assistantIncoming ? assistantGlyphMarkup() : esc(ini)}</div>` : ''}
-    <div class="msg-inner">${content}<div class="msg-time">${timeStr}</div></div>`;
+    <div class="msg-inner">${senderNameHtml}${content}<div class="msg-time">${timeStr}</div></div>`;
   if (!deleted && msgType === 'image') hydratePhotoTiles(wrap);
   return wrap;
 }
@@ -2615,6 +2631,28 @@ async function sampleCallQuality() {
       callQualityLabel = quality;
       renderCallStatus();
     }
+
+    // Adaptive bitrate based on network quality
+    try {
+      const sender = peerConnection?.getSenders?.().find(s => s?.track?.kind === 'audio');
+      if (sender && typeof sender.getParameters === 'function') {
+        const params = sender.getParameters();
+        if (params?.encodings?.[0]) {
+          let targetBitrate;
+          if (quality === 'якість слабка') {
+            targetBitrate = 24000; // Drop to 24kbps on poor network
+          } else if (quality === 'мережа нестабільна') {
+            targetBitrate = 40000; // 40kbps on unstable
+          } else {
+            targetBitrate = 64000; // 64kbps on good network
+          }
+          if (params.encodings[0].maxBitrate !== targetBitrate) {
+            params.encodings[0].maxBitrate = targetBitrate;
+            sender.setParameters(params).catch(() => {});
+          }
+        }
+      }
+    } catch (_) {}
   } catch (_) {}
 }
 
@@ -3437,6 +3475,130 @@ if (photoViewerImg) {
   photoViewerImg.addEventListener('pointercancel', handlePhotoViewerPointerCancel);
   photoViewerImg.addEventListener('lostpointercapture', handlePhotoViewerPointerCancel);
 }
+// ── Group panel ──────────────────────────
+let groupPanelOpen = false;
+let groupMembers   = [];
+
+async function openGroupPanel() {
+  if (!activeConvId) return;
+  const panel = document.getElementById('group-panel');
+  const nameEl = document.getElementById('group-panel-name');
+  nameEl.textContent = activePartner?.full_name || 'Група';
+  panel.hidden = false;
+  groupPanelOpen = true;
+  await refreshGroupMembers();
+}
+
+function closeGroupPanel() {
+  document.getElementById('group-panel').hidden = true;
+  groupPanelOpen = false;
+}
+
+async function refreshGroupMembers() {
+  if (!activeConvId) return;
+  try {
+    const members = await api('GET', `/messenger/conversations/${activeConvId}/members`);
+    groupMembers = Array.isArray(members) ? members : [];
+    renderGroupMembers();
+  } catch (_) {}
+}
+
+function renderGroupMembers() {
+  const list = document.getElementById('group-members-list');
+  if (!list) return;
+  const myId = me?.id;
+  const amAdmin = groupMembers.some(m => m.id === myId && m.is_admin);
+
+  list.innerHTML = groupMembers.map(m => {
+    const onlineNow = isOnline(m.id);
+    const statusText = onlineNow ? 'онлайн' : (m.last_seen_at ? `${relativeTime(m.last_seen_at)}` : '');
+    const canRemove = amAdmin && m.id !== myId;
+    return `<li class="group-member-item" data-uid="${m.id}">
+      <div class="group-member-avatar" style="position:relative">
+        ${escHtml(initial(m.full_name))}
+        ${onlineNow ? '<span class="presence-dot"></span>' : ''}
+      </div>
+      <div class="group-member-info">
+        <div class="group-member-name">${escHtml(m.full_name)}${m.id === myId ? ' <span style="color:var(--text-muted,#6b7280);font-size:11px">(ви)</span>' : ''}</div>
+        ${statusText ? `<div class="group-member-status">${escHtml(statusText)}</div>` : ''}
+      </div>
+      ${m.is_admin ? '<span class="group-member-badge">адмін</span>' : ''}
+      ${canRemove ? `<button class="group-member-remove" onclick="removeMember(${m.id})" title="Видалити">✕</button>` : ''}
+    </li>`;
+  }).join('');
+}
+
+async function removeMember(userId) {
+  if (!activeConvId) return;
+  if (!confirm('Видалити учасника з групи?')) return;
+  try {
+    await api('DELETE', `/messenger/conversations/${activeConvId}/members/${userId}`);
+    await refreshGroupMembers();
+  } catch (err) { showToast(err.message, true); }
+}
+
+async function addMemberToGroup() {
+  if (!activeConvId) return;
+  const phone = prompt('Телефон учасника (+380...)');
+  if (!phone) return;
+  try {
+    // Search user by phone first
+    const users = await api('GET', `/messenger/users/search?q=${encodeURIComponent(phone)}`);
+    const found = Array.isArray(users) ? users.find(u => u.phone === phone || u.phone === phone.replace(/\s/g, '')) : null;
+    if (!found) { showToast('Користувача не знайдено.', true); return; }
+    await api('POST', `/messenger/conversations/${activeConvId}/members`, { user_id: found.id });
+    await refreshGroupMembers();
+    showToast(`${found.full_name} доданий.`);
+  } catch (err) { showToast(err.message, true); }
+}
+
+async function leaveGroup() {
+  if (!activeConvId) return;
+  if (!confirm('Вийти з групи?')) return;
+  try {
+    await api('DELETE', `/messenger/conversations/${activeConvId}/leave`);
+    closeGroupPanel();
+    activeConvId = null;
+    await loadConversations();
+    showToast('Ви вийшли з групи.');
+  } catch (err) { showToast(err.message, true); }
+}
+
+async function renameGroup() {
+  if (!activeConvId) return;
+  const current = activePartner?.full_name || '';
+  const newName = prompt('Нова назва групи:', current);
+  if (!newName || newName.trim() === current) return;
+  try {
+    await api('PUT', `/messenger/conversations/${activeConvId}/group-name`, { group_name: newName.trim() });
+    if (activePartner) activePartner.full_name = newName.trim();
+    document.getElementById('group-panel-name').textContent = newName.trim();
+    const convNameEl = document.getElementById('conv-name');
+    if (convNameEl) convNameEl.textContent = newName.trim();
+    await loadConversations();
+    showToast('Назву змінено.');
+  } catch (err) { showToast(err.message, true); }
+}
+
+function relativeTime(ts) {
+  if (!ts) return '';
+  const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+  if (diff < 60) return 'щойно';
+  if (diff < 3600) return `${Math.floor(diff / 60)} хв тому`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} год тому`;
+  return `${Math.floor(diff / 86400)} дн тому`;
+}
+
+function escHtml(str) {
+  return esc(String(str || ''));
+}
+
+document.getElementById('group-info-btn')?.addEventListener('click', openGroupPanel);
+document.getElementById('group-panel-close')?.addEventListener('click', closeGroupPanel);
+document.getElementById('group-add-member-btn')?.addEventListener('click', addMemberToGroup);
+document.getElementById('group-leave-btn')?.addEventListener('click', leaveGroup);
+document.getElementById('group-rename-btn')?.addEventListener('click', renameGroup);
+
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (photoViewer && !photoViewer.hidden) { closePhotoViewer(); return; }

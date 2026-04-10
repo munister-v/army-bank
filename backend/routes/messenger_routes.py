@@ -1320,10 +1320,11 @@ def create_group():
             )
             conv_id = conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
 
-        # Add creator
+        # Add creator (as admin)
+        _TRUE = True if USE_PG else 1
         conn.execute(
-            'INSERT INTO conversation_participants(conversation_id, user_id) VALUES(%s,%s)',
-            (conv_id, me_id),
+            'INSERT INTO conversation_participants(conversation_id, user_id, is_admin) VALUES(%s,%s,%s)',
+            (conv_id, me_id, _TRUE),
         )
         # Add members (skip missing users and duplicates)
         for uid in normalized_ids:
@@ -1395,12 +1396,13 @@ def remove_member(conv_id: int, uid: int):
             return api_error('Розмову не знайдено.', 404)
         if not bool(conv.get('is_group')):
             return api_error('Учасників можна видаляти лише з групового чату.', 400)
-        part = conn.execute(
-            'SELECT id FROM conversation_participants WHERE conversation_id=%s AND user_id=%s',
+        # Check if current user is admin
+        admin_check = conn.execute(
+            'SELECT is_admin FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
             (conv_id, me_id),
         ).fetchone()
-        if not part:
-            return api_error('Доступ заборонено.', 403)
+        if not admin_check or not admin_check['is_admin']:
+            return api_error('Тільки адмін може видаляти учасників.', 403)
         member = conn.execute(
             'SELECT id FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
             (conv_id, uid),
@@ -1427,15 +1429,77 @@ def list_members(conv_id: int):
             return api_error('Доступ заборонено.', 403)
         rows = conn.execute(
             """
-            SELECT u.id, u.full_name, u.phone, u.role
+            SELECT u.id, u.full_name, u.last_seen_at, cp.is_admin, cp.joined_at
             FROM conversation_participants cp
             JOIN users u ON u.id = cp.user_id
             WHERE cp.conversation_id = %s
-            ORDER BY u.full_name
+            ORDER BY cp.is_admin DESC, cp.joined_at ASC
             """,
             (conv_id,),
         ).fetchall()
-    return jsonify({'ok': True, 'data': [dict(r) for r in rows]})
+    return jsonify([
+        {
+            'id': row['id'],
+            'full_name': row['full_name'],
+            'last_seen_at': row['last_seen_at'].isoformat() if hasattr(row['last_seen_at'], 'isoformat') else row['last_seen_at'],
+            'is_admin': bool(row['is_admin']),
+            'joined_at': row['joined_at'].isoformat() if hasattr(row['joined_at'], 'isoformat') else row['joined_at'],
+        }
+        for row in rows
+    ])
+
+
+@messenger_bp.put('/conversations/<int:conv_id>/group-name')
+@auth_required
+def rename_group(conv_id):
+    data = request.get_json(silent=True) or {}
+    new_name = str(data.get('group_name', '')).strip()[:100]
+    if not new_name:
+        return api_error('Назва не може бути порожньою.', 400)
+    with get_connection() as conn:
+        # Check admin
+        row = conn.execute(
+            'SELECT is_admin FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
+            (conv_id, g.current_user['id']),
+        ).fetchone()
+        if not row or not row['is_admin']:
+            return api_error('Тільки адмін може перейменовувати групу.', 403)
+        conn.execute(
+            'UPDATE conversations SET group_name = %s WHERE id = %s AND is_group = %s',
+            (new_name, conv_id, True if USE_PG else 1),
+        )
+    return jsonify({'ok': True})
+
+
+@messenger_bp.delete('/conversations/<int:conv_id>/leave')
+@auth_required
+def leave_group(conv_id):
+    me_id = g.current_user['id']
+    with get_connection() as conn:
+        # Check participation
+        row = conn.execute(
+            'SELECT is_admin FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
+            (conv_id, me_id),
+        ).fetchone()
+        if not row:
+            return api_error('Ви не учасник цієї групи.', 403)
+        # If last admin, transfer admin to oldest member
+        if row['is_admin']:
+            others = conn.execute(
+                'SELECT user_id FROM conversation_participants WHERE conversation_id = %s AND user_id != %s ORDER BY joined_at ASC LIMIT 1',
+                (conv_id, me_id),
+            ).fetchone()
+            if others:
+                _TRUE = True if USE_PG else 1
+                conn.execute(
+                    'UPDATE conversation_participants SET is_admin = %s WHERE conversation_id = %s AND user_id = %s',
+                    (_TRUE, conv_id, others['user_id']),
+                )
+        conn.execute(
+            'DELETE FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
+            (conv_id, me_id),
+        )
+    return jsonify({'ok': True})
 
 
 # ── Presence ─────────────────────────────────────────────────────────────────

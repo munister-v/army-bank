@@ -2159,3 +2159,62 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
     animation: none !important;
   }
 }
+
+/* Group Panel */
+#group-panel {
+  position: fixed;
+  top: 0; right: 0;
+  width: min(340px, 100vw);
+  height: 100%;
+  background: var(--surface, #fff);
+  border-left: 1px solid var(--border, #e5e7eb);
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0,0,0,.12);
+  animation: slideInRight .2s ease;
+}
+#group-panel[hidden] { display: none; }
+@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.group-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+.group-panel-title { flex: 1; font-size: 16px; font-weight: 600; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.group-panel-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.group-section-label { font-size: 12px; font-weight: 600; color: var(--text-muted, #6b7280); text-transform: uppercase; letter-spacing: .05em; }
+.group-members-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.group-member-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background .15s;
+}
+.group-member-item:hover { background: var(--hover, #f3f4f6); }
+.group-member-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--accent, #3b82f6);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700;
+  flex-shrink: 0;
+  position: relative;
+}
+.group-member-info { flex: 1; min-width: 0; }
+.group-member-name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.group-member-status { font-size: 11px; color: var(--text-muted, #6b7280); }
+.group-member-badge { font-size: 10px; background: var(--accent, #3b82f6); color: #fff; border-radius: 4px; padding: 1px 5px; }
+.group-member-remove { background: none; border: none; cursor: pointer; color: var(--text-muted, #6b7280); font-size: 16px; padding: 4px; border-radius: 4px; }
+.group-member-remove:hover { background: #fee2e2; color: #ef4444; }
+.group-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 16px; }
+.btn-secondary { padding: 10px; border-radius: 8px; border: 1px solid var(--border, #e5e7eb); background: var(--surface, #fff); cursor: pointer; font-size: 14px; font-weight: 500; transition: background .15s; }
+.btn-secondary:hover { background: var(--hover, #f3f4f6); }
+.btn-danger { padding: 10px; border-radius: 8px; border: none; background: #fee2e2; color: #ef4444; cursor: pointer; font-size: 14px; font-weight: 500; }
+.btn-danger:hover { background: #fecaca; }
+.msg-sender-name { font-size: 11px; font-weight: 600; color: var(--accent, #3b82f6); margin-bottom: 2px; }
