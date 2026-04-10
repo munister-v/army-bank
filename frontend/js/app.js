@@ -5045,6 +5045,71 @@ console.log('[Army Bank] UX core modules loaded');
   }, { passive: true });
 })();
 
+// ── Dashboard header scroll proxy (mobile) ───────────────
+(function() {
+  var header = document.querySelector('#appScreen .app-header');
+  var content = document.querySelector('.app-content');
+  if (!header || !content) return;
+
+  var touchActive = false;
+  var lastY = 0;
+  var mobileMql = window.matchMedia('(max-width: 959px)');
+
+  function isMobileLayout() {
+    return !!mobileMql.matches;
+  }
+
+  function isDashboard() {
+    var activeEl = document.querySelector('.screen.active-screen');
+    return !!activeEl && activeEl.id === 'dashboard';
+  }
+
+  function isInteractiveTarget(target) {
+    if (!target || !target.closest) return false;
+    return !!target.closest(
+      'button, a, input, textarea, select, ' +
+      '.icon-btn, .qa-btn, .quick-actions, .bank-cards-track, .bank-card, [data-no-header-scroll-proxy]'
+    );
+  }
+
+  header.addEventListener('touchstart', function(e) {
+    if (!isMobileLayout() || !isDashboard() || isInteractiveTarget(e.target)) {
+      touchActive = false;
+      return;
+    }
+    touchActive = true;
+    lastY = e.touches[0].clientY;
+  }, { passive: true });
+
+  header.addEventListener('touchmove', function(e) {
+    if (!touchActive || !isMobileLayout() || !isDashboard()) return;
+    var y = e.touches[0].clientY;
+    var dy = y - lastY;
+    if (Math.abs(dy) < 1.5) return;
+    content.scrollTop = Math.max(0, content.scrollTop - dy);
+    lastY = y;
+    e.preventDefault();
+  }, { passive: false });
+
+  header.addEventListener('touchend', function() {
+    touchActive = false;
+  }, { passive: true });
+
+  header.addEventListener('touchcancel', function() {
+    touchActive = false;
+  }, { passive: true });
+
+  header.addEventListener('wheel', function(e) {
+    if (!isDashboard() || isInteractiveTarget(e.target)) return;
+    content.scrollTop = Math.max(0, content.scrollTop + e.deltaY);
+    e.preventDefault();
+  }, { passive: false });
+
+  window.addEventListener('ab:screen-changed', function() {
+    touchActive = false;
+  });
+})();
+
 // ── Swipe between screens ─────────────────────────────────
 (function() {
   var SCREENS_ORDER = ['dashboard', 'transactions', 'cards', 'profile'];
