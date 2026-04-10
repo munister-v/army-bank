@@ -5366,6 +5366,43 @@ console.log('[Army Bank] UX core modules loaded');
   }
 })();
 
+// ── Dashboard scroll state (mobile polish) ─────────────────────────────
+(function() {
+  var content = document.querySelector('.app-content');
+  var shell = document.getElementById('appScreen');
+  if (!content || !shell) return;
+
+  var mql = window.matchMedia('(max-width: 959px)');
+  var ticking = false;
+
+  function isDashboard() {
+    var active = document.querySelector('.screen.active-screen');
+    if (active) return active.id === 'dashboard';
+    return shell.classList.contains('screen-dashboard');
+  }
+
+  function applyState() {
+    ticking = false;
+    if (!mql.matches || !isDashboard()) {
+      shell.classList.remove('dashboard-scrolled');
+      return;
+    }
+    var y = content.scrollTop || 0;
+    shell.classList.toggle('dashboard-scrolled', y > 18);
+  }
+
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(applyState);
+  }
+
+  content.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('ab:screen-changed', applyState);
+  window.addEventListener('resize', applyState, { passive: true });
+  applyState();
+})();
+
 // ── NOTIFICATION CENTER ────────────────────────────────────────
 (function() {
   var notifBtn    = document.getElementById('notifBtn');
