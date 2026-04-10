@@ -1817,6 +1817,7 @@ function _initCarouselInteraction(track) {
 
   var dotsHost = document.getElementById('bankCardsDots');
   var rafId = 0;
+  var revealControllers = Object.create(null);
 
   function getCardWidth() {
     var first = track.querySelector('.bank-card');
@@ -1845,6 +1846,10 @@ function _initCarouselInteraction(track) {
       // Keep only active card flippable/visible on back side.
       if (i !== activeIdx && card.classList.contains('is-flipped')) {
         card.classList.remove('is-flipped');
+        if (card._flipAutoHideTimer) {
+          clearTimeout(card._flipAutoHideTimer);
+          card._flipAutoHideTimer = null;
+        }
       }
     });
   }
@@ -1866,6 +1871,7 @@ function _initCarouselInteraction(track) {
   function revealCardSecrets(cardEl, cardId) {
     var cvvEl = cardEl.querySelector('.bank-card-cvv-value');
     var numEl = cardEl.querySelector('.bank-card-full-number');
+    var hintEl = cardEl.querySelector('.bank-card-cvv-hint');
     if (!cvvEl) return;
 
     cvvEl.classList.remove('cvv-error');
@@ -1874,12 +1880,24 @@ function _initCarouselInteraction(track) {
       cvvEl.textContent = String(_cvvCache[cardId].cvv || '•••').slice(0, 3);
       cvvEl.classList.remove('bc-loading');
       if (numEl) numEl.textContent = formatFullCardNumber(_cvvCache[cardId].card_number || '');
+      if (hintEl) hintEl.textContent = 'Захищено';
       return;
     }
 
+    if (revealControllers[cardId]) {
+      try { revealControllers[cardId].abort(); } catch (_) {}
+      revealControllers[cardId] = null;
+    }
+    var controller = new AbortController();
+    revealControllers[cardId] = controller;
+
     cvvEl.classList.add('bc-loading');
-    api.request('/api/cards/' + cardId + '/reveal')
+    if (hintEl) hintEl.textContent = 'Завантаження…';
+    api.request('/api/cards/' + cardId + '/reveal?_=' + Date.now(), {
+      signal: controller.signal
+    })
       .then(function(data) {
+        if (controller.signal.aborted) return;
         _cvvCache[cardId] = data || {};
         if (cvvEl.isConnected) {
           cvvEl.textContent = String((data && data.cvv) || '•••').slice(0, 3);
@@ -1889,8 +1907,10 @@ function _initCarouselInteraction(track) {
         if (numEl && numEl.isConnected) {
           numEl.textContent = formatFullCardNumber((data && data.card_number) || '');
         }
+        if (hintEl && hintEl.isConnected) hintEl.textContent = 'Захищено';
       })
       .catch(function() {
+        if (controller.signal.aborted) return;
         if (cvvEl.isConnected) {
           cvvEl.textContent = '•••';
           cvvEl.classList.remove('bc-loading');
@@ -1899,6 +1919,7 @@ function _initCarouselInteraction(track) {
         if (numEl && numEl.isConnected) {
           numEl.textContent = '';
         }
+        if (hintEl && hintEl.isConnected) hintEl.textContent = 'Повторити';
         var now = Date.now();
         if (!track._lastCvvErrorTs || (now - track._lastCvvErrorTs) > 2200) {
           track._lastCvvErrorTs = now;
@@ -1907,6 +1928,17 @@ function _initCarouselInteraction(track) {
           }
         }
       });
+  }
+
+  function scheduleAutoHide(cardEl) {
+    if (!cardEl) return;
+    if (cardEl._flipAutoHideTimer) {
+      clearTimeout(cardEl._flipAutoHideTimer);
+    }
+    cardEl._flipAutoHideTimer = setTimeout(function() {
+      cardEl.classList.remove('is-flipped');
+      cardEl._flipAutoHideTimer = null;
+    }, 15000);
   }
 
   function toggleCardFlipFromTarget(target) {
@@ -1918,10 +1950,22 @@ function _initCarouselInteraction(track) {
 
     var nextFlipped = !cardEl.classList.contains('is-flipped');
     track.querySelectorAll('.bank-card.is-flipped').forEach(function(c) {
-      if (c !== cardEl) c.classList.remove('is-flipped');
+      if (c !== cardEl) {
+        c.classList.remove('is-flipped');
+        if (c._flipAutoHideTimer) {
+          clearTimeout(c._flipAutoHideTimer);
+          c._flipAutoHideTimer = null;
+        }
+      }
     });
     cardEl.classList.toggle('is-flipped', nextFlipped);
-    if (nextFlipped) revealCardSecrets(cardEl, cardId);
+    if (nextFlipped) {
+      revealCardSecrets(cardEl, cardId);
+      scheduleAutoHide(cardEl);
+    } else if (cardEl._flipAutoHideTimer) {
+      clearTimeout(cardEl._flipAutoHideTimer);
+      cardEl._flipAutoHideTimer = null;
+    }
     return true;
   }
 
@@ -1958,6 +2002,19 @@ function _initCarouselInteraction(track) {
     var cardEl = e.target.closest('.bank-card[data-card-id]');
     if (!cardEl) return;
     toggleCardFlipFromTarget(e.target);
+  }, { passive: true });
+
+  // Tap outside carousel closes any opened back side.
+  document.addEventListener('pointerdown', function(e) {
+    if (!track.isConnected) return;
+    if (track.contains(e.target)) return;
+    track.querySelectorAll('.bank-card.is-flipped').forEach(function(c) {
+      c.classList.remove('is-flipped');
+      if (c._flipAutoHideTimer) {
+        clearTimeout(c._flipAutoHideTimer);
+        c._flipAutoHideTimer = null;
+      }
+    });
   }, { passive: true });
 
   // Keep active indicator in sync on first render too.
@@ -2064,6 +2121,7 @@ async function _updateBankCards() {
       +     '<div class="bank-card-cvv-box">'
       +       '<div class="bank-card-cvv-label">CVV</div>'
       +       '<div class="bank-card-cvv-value bc-loading">•••</div>'
+      +       '<div class="bank-card-cvv-hint">Торкніться</div>'
       +     '</div>'
       +   '</div>'
       +   '<div class="bank-card-security-note">Security code (CVV/CVC) is required for online purchases. Never share this code.</div>'
