@@ -50,10 +50,52 @@ const DESKTOP_MOBILE_ONLY_BLOCKED = document.documentElement.classList.contains(
     if (vh > 0) root.style.setProperty("--app-vh", String(vh) + "px");
   };
 
+  const isStandaloneMode = () => {
+    try {
+      return !!(
+        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+        window.navigator.standalone === true
+      );
+    } catch (_) {
+      return window.navigator.standalone === true;
+    }
+  };
+
+  const syncBrowserUiInset = () => {
+    const standalone = isStandaloneMode();
+    root.classList.toggle("app-standalone", standalone);
+    root.classList.toggle("app-browser-mode", !standalone);
+
+    let inset = 0;
+    if (!standalone && isIOS && isSafari) {
+      const vvHeight = window.visualViewport?.height || window.innerHeight || 0;
+      const innerHeight = window.innerHeight || vvHeight;
+      const dynamicInset = Math.max(0, Math.round(innerHeight - vvHeight));
+      // iOS Safari (browser mode) bottom toolbar fallback.
+      inset = Math.max(58, dynamicInset);
+    }
+    root.style.setProperty("--browser-ui-bottom", `${inset}px`);
+  };
+
   syncViewportUnit();
+  syncBrowserUiInset();
   window.addEventListener("resize", syncViewportUnit, { passive: true });
   window.visualViewport?.addEventListener("resize", syncViewportUnit, { passive: true });
   window.addEventListener("orientationchange", syncViewportUnit, { passive: true });
+  window.addEventListener("resize", syncBrowserUiInset, { passive: true });
+  window.visualViewport?.addEventListener("resize", syncBrowserUiInset, { passive: true });
+  window.visualViewport?.addEventListener("scroll", syncBrowserUiInset, { passive: true });
+  window.addEventListener("orientationchange", syncBrowserUiInset, { passive: true });
+  window.addEventListener("pageshow", syncBrowserUiInset, { passive: true });
+
+  if (window.matchMedia) {
+    const standaloneMql = window.matchMedia('(display-mode: standalone)');
+    if (typeof standaloneMql.addEventListener === 'function') {
+      standaloneMql.addEventListener('change', syncBrowserUiInset);
+    } else if (typeof standaloneMql.addListener === 'function') {
+      standaloneMql.addListener(syncBrowserUiInset);
+    }
+  }
 })();
 
 (function initMobileKeyboardGuard() {
