@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '35';
+const MESSENGER_ASSET_VERSION = '36';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -716,6 +716,7 @@ async function loadConversations() {
   try {
     convData = await api('GET', '/messenger/conversations');
     renderConvList(convData);
+    pollConversationsPresence().catch(() => {});
   } catch (err) {
     if (err.message.includes('401')) doLogout();
   }
@@ -776,6 +777,79 @@ function setChatHeaderStatus(text, isOnline = false) {
   if (!chatPartnerRole) return;
   chatPartnerRole.textContent = String(text || '');
   chatPartnerRole.classList.toggle('online', !!isOnline);
+}
+
+function normalizePresenceTimestamp(value) {
+  if (value === null || value === undefined || value === false) return null;
+  if (value === true) return new Date().toISOString();
+  if (typeof value === 'object') {
+    const nested = value.last_seen_at ?? value.lastSeenAt ?? value.last_seen ?? value.ts ?? value.updated_at ?? null;
+    if (nested !== null && nested !== undefined) return normalizePresenceTimestamp(nested);
+    return null;
+  }
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+function applyPresencePayload(payload) {
+  if (!payload) return;
+  if (Array.isArray(payload)) {
+    payload.forEach(item => {
+      const uid = Number(item?.user_id ?? item?.id);
+      if (!Number.isFinite(uid)) return;
+      const ts = normalizePresenceTimestamp(item?.last_seen_at ?? item?.lastSeenAt ?? item?.ts ?? item?.online);
+      if (!ts) return;
+      presenceCache[uid] = ts;
+    });
+  } else if (typeof payload === 'object') {
+    Object.entries(payload).forEach(([key, val]) => {
+      const uid = Number(key);
+      if (!Number.isFinite(uid)) return;
+      const ts = normalizePresenceTimestamp(val);
+      if (!ts) return;
+      presenceCache[uid] = ts;
+    });
+  }
+
+  convData.forEach(conv => {
+    if (conv?.is_group || !conv?.partner?.id) return;
+    const uid = Number(conv.partner.id);
+    const ts = presenceCache[uid];
+    if (ts) conv.partner.last_seen_at = ts;
+  });
+
+  if (activePartner?.id) {
+    const ts = presenceCache[Number(activePartner.id)];
+    if (ts) activePartner.last_seen_at = ts;
+  }
+}
+
+function updateActivePartnerPresenceStatus() {
+  if (!activePartner || isAssistantPartner(activePartner)) return;
+  const uid = Number(activePartner.id);
+  const knownTs = presenceCache[uid] || activePartner.last_seen_at || null;
+  const onlineNow = isOnline(uid);
+  if (onlineNow) {
+    setChatHeaderStatus('онлайн', true);
+    return;
+  }
+  if (knownTs) {
+    setChatHeaderStatus(`востаннє ${relativeTime(knownTs)}`, false);
+    return;
+  }
+  setChatHeaderStatus('статус уточнюється…', false);
+}
+
+function collectConversationPartnerIds(limit = 50) {
+  const ids = [];
+  convData.forEach(conv => {
+    if (conv?.is_group || !conv?.partner?.id) return;
+    const uid = Number(conv.partner.id);
+    if (!Number.isFinite(uid)) return;
+    if (!ids.includes(uid)) ids.push(uid);
+  });
+  return ids.slice(0, Math.max(1, Number(limit || 1)));
 }
 
 function renderConvList(items) {
@@ -846,7 +920,7 @@ async function openChat(conv) {
   } else if (isAssistant) {
     setChatHeaderStatus('Банківський асистент · Швидкі дії зверху');
   } else {
-    setChatHeaderStatus('онлайн', true);
+    updateActivePartnerPresenceStatus();
   }
   syncAssistantUi(isAssistant);
   if (btnCall) btnCall.hidden = isGroup || isAssistant;
@@ -869,6 +943,7 @@ async function openChat(conv) {
   updateSendBtn();
   await fetchMessages();
   startConvPoll();
+  if (!isGroup && !isAssistant) pollPresence().catch(() => {});
   if (window.innerWidth >= 1024 && msgInput) {
     setTimeout(() => {
       try { msgInput.focus(); } catch (_) {}
@@ -1652,7 +1727,8 @@ function clearPolling() {
 
 // ── Presence ───────────────────────────────
 function isOnline(userId) {
-  const ts = presenceCache[userId];
+  const uid = Number(userId);
+  const ts = presenceCache[uid];
   if (!ts) return false;
   return (Date.now() - new Date(ts).getTime()) < 3 * 60 * 1000;
 }
@@ -1661,17 +1737,27 @@ async function pollPresence() {
   if (!activeConvId || !activePartner?.id) return;
   try {
     const data = await api('GET', `/messenger/presence?ids=${activePartner.id}`);
-    if (data && typeof data === 'object') {
-      Object.assign(presenceCache, data);
-      renderConvList(convData);
-    }
+    applyPresencePayload(data);
+    updateActivePartnerPresenceStatus();
+    renderConvList(convData);
+  } catch (_) {}
+}
+
+async function pollConversationsPresence() {
+  const ids = collectConversationPartnerIds(50);
+  if (!ids.length) return;
+  try {
+    const data = await api('GET', `/messenger/presence?ids=${ids.join(',')}`);
+    applyPresencePayload(data);
+    updateActivePartnerPresenceStatus();
+    renderConvList(convData);
   } catch (_) {}
 }
 
 function startPresencePoll() {
   clearInterval(presencePollTimer);
   pollPresence().catch(() => {});
-  presencePollTimer = setInterval(pollPresence, 30000);
+  presencePollTimer = setInterval(pollPresence, document.hidden ? 26000 : 12000);
 }
 
 // ── Visibility change — reset poll intervals ──
@@ -1686,6 +1772,12 @@ document.addEventListener('visibilitychange', () => {
   if (convPollTimer) {
     clearInterval(convPollTimer);
     convPollTimer = setInterval(pollNewMessages, _convPollInterval());
+  }
+  if (activeConvId && activePartner?.id) {
+    startPresencePoll();
+  }
+  if (!document.hidden) {
+    pollConversationsPresence().catch(() => {});
   }
 });
 
@@ -3929,6 +4021,8 @@ window.addEventListener('focus', () => {
   if (!token || !me) return;
   loadConversations().catch(() => {});
   pollUnreadBadge().catch(() => {});
+  pollConversationsPresence().catch(() => {});
+  if (activePartner?.id) pollPresence().catch(() => {});
   if (activeConvId) pollNewMessages().catch(() => {});
 });
 document.addEventListener('visibilitychange', handleVisibilityChange);
