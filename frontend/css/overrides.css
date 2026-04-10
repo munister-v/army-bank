@@ -9454,3 +9454,57 @@ html.install-banner-visible #appScreen .app-content {
     letter-spacing: 0.02em !important;
   }
 }
+
+/* ── Mobile Bottom Area Final Fix (single source of truth) ───────────── */
+@media (max-width: 767px) {
+  #dashboard .quick-actions,
+  .quick-actions {
+    margin-top: 8px !important;
+    margin-bottom: 8px !important;
+    gap: 8px !important;
+    padding: 0 !important;
+  }
+
+  #dashboard .quick-actions .qa-btn,
+  .quick-actions .qa-btn {
+    min-height: 96px !important;
+    border-radius: 18px !important;
+    padding: 10px 8px !important;
+    background: linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.11) 100%) !important;
+    border: 1px solid rgba(255,255,255,0.24) !important;
+    box-shadow: 0 8px 18px rgba(8, 20, 14, 0.17), inset 0 1px 0 rgba(255,255,255,0.16) !important;
+  }
+
+  .bottom-nav {
+    left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    bottom: max(6px, env(safe-area-inset-bottom, 0px)) !important;
+    height: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    border-radius: 26px !important;
+    background: rgba(236, 243, 237, 0.94) !important;
+    border: 1px solid rgba(40, 65, 48, 0.12) !important;
+    box-shadow: 0 12px 30px rgba(9, 21, 15, 0.16), 0 2px 8px rgba(9, 21, 15, 0.09) !important;
+    backdrop-filter: blur(12px) saturate(120%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(120%) !important;
+  }
+
+  .bottom-nav .nav-item,
+  .bottom-nav .menu-btn.nav-item {
+    min-height: 56px !important;
+    border-radius: 18px !important;
+    padding: 7px 4px 8px !important;
+  }
+
+  .bottom-nav .nav-item.active,
+  .bottom-nav .menu-btn.nav-item.active {
+    background: #f7fbf7 !important;
+    box-shadow: 0 4px 10px rgba(19, 35, 24, 0.12) !important;
+  }
+
+  .app-content {
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(116px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
