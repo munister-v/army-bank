@@ -2094,6 +2094,9 @@ async function refreshAllData() {
 
     const { transactions, payouts, donations, goals, contacts } = d;
 
+    // Always sync dashboard carousel with actual issued cards.
+    _updateBankCards().catch(function() {});
+
     renderTransactions(transactions.slice(0, 5), '#recentTransactions');
     renderTransactions(transactions, '#transactionsList');
     renderTransferQuickRecipients(buildQuickRecipients(contacts, transactions));

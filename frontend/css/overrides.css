@@ -9623,3 +9623,35 @@ html.install-banner-visible #appScreen .app-content {
   backface-visibility: visible !important;
   -webkit-backface-visibility: visible !important;
 }
+
+/* ── Mobile final: dots animation + no blank tail under app ────────────── */
+@media (max-width: 767px) {
+  #appScreen.app-shell {
+    min-height: 100svh !important;
+    height: 100svh !important;
+  }
+
+  body.ab-authed {
+    overflow: hidden !important;
+  }
+
+  #appScreen.screen-dashboard .app-content {
+    padding-bottom: calc(94px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(98px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #bankCardsDots .bc-dot {
+    transition: transform .26s ease, width .26s ease, opacity .2s ease !important;
+    opacity: .72 !important;
+  }
+
+  #bankCardsDots .bc-dot.active {
+    opacity: 1 !important;
+    animation: bankDotPulse .44s cubic-bezier(.22,.68,0,1.2) !important;
+  }
+
+  html.no-animations #bankCardsDots .bc-dot,
+  body.no-animations #bankCardsDots .bc-dot {
+    transition: transform .2s ease, width .2s ease, opacity .18s ease !important;
+  }
+}
