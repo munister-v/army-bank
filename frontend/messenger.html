@@ -10,14 +10,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
   <meta name="apple-mobile-web-app-title" content="AB Chat"/>
   <title>Army Bank · Месенджер</title>
-  <link rel="manifest" href="/manifest-messenger.json?v=34"/>
+  <link rel="manifest" href="/manifest-messenger.json?v=35"/>
   <link rel="icon" type="image/svg+xml" href="/icons/chat-favicon.svg"/>
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/chat-icon-32.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/chat-icon-180.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=34"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=35"/>
 </head>
 <body>
 
@@ -308,6 +308,11 @@
         <div class="messages-list" id="messages-list"></div>
         <div class="scroll-anchor" id="scroll-anchor"></div>
       </div>
+      <button class="scroll-bottom-fab" id="btn-scroll-bottom" type="button" title="До нових повідомлень" hidden>
+        <span class="scroll-bottom-icon" aria-hidden="true">↓</span>
+        <span class="scroll-bottom-label">Донизу</span>
+        <span class="scroll-bottom-unread" id="scroll-bottom-unread" hidden></span>
+      </button>
 
       <div class="msg-input-bar" id="msg-input-bar">
         <button class="btn-attach" id="btn-attach-photo" title="Додати фото" type="button" aria-label="Додати фото">
@@ -641,6 +646,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=34"></script>
+<script src="/js/messenger.js?v=35"></script>
 </body>
 </html>

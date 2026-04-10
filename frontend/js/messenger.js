@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '27';
+const MESSENGER_ASSET_VERSION = '35';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -30,6 +30,8 @@ let lastMsgId      = 0;
 let convData       = [];
 let isLoadingOlder = false;
 let noMoreOlder    = false;
+let unreadWhileScrolledUp = 0;
+let isNearBottom = true;
 
 // ── Timers ─────────────────────────────────
 let globalPollTimer    = null;
@@ -148,6 +150,8 @@ const assistantQuickActions = $('assistant-quick-actions');
 const messagesWrap      = $('messages-wrap');
 const messagesList      = $('messages-list');
 const scrollAnchor      = $('scroll-anchor');
+const btnScrollBottom   = $('btn-scroll-bottom');
+const scrollBottomUnread = $('scroll-bottom-unread');
 const msgInput          = $('msg-input');
 const btnSend           = $('btn-send');
 const btnVoice          = $('btn-voice');
@@ -492,10 +496,13 @@ async function sendTextToActiveChat(text) {
   const msg = await api('POST', `/messenger/conversations/${activeConvId}/messages`, { text });
   appendMessage(msg);
   lastMsgId = msg.id;
+  unreadWhileScrolledUp = 0;
+  updateScrollBottomFab();
   updateConvItem(activeConvId, {
     last_message_text: conversationPreview(msg),
     last_message_at: msg.created_at,
   });
+  playSendTone().catch(() => {});
 }
 
 async function refreshBankPanel() {
@@ -761,6 +768,12 @@ function syncAssistantUi(isAssistant) {
     : DEFAULT_MSG_PLACEHOLDER;
 }
 
+function setChatHeaderStatus(text, isOnline = false) {
+  if (!chatPartnerRole) return;
+  chatPartnerRole.textContent = String(text || '');
+  chatPartnerRole.classList.toggle('online', !!isOnline);
+}
+
 function renderConvList(items) {
   const q = convSearch.value.trim().toLowerCase();
   const filtered = q ? items.filter(c => convName(c).toLowerCase().includes(q)) : items;
@@ -824,9 +837,13 @@ async function openChat(conv) {
   chatAvatar.className = 'chat-header-avatar' + (isGroup ? ' group' : '') + (isAssistant ? ' assistant' : '');
   chatPartnerName.classList.toggle('with-verified', isAssistant);
   chatPartnerName.innerHTML = renderNameWithVerified(name, isAssistant);
-  chatPartnerRole.textContent = isGroup
-    ? 'Групова розмова'
-    : (isAssistant ? 'Банківський асистент · Швидкі дії зверху' : '');
+  if (isGroup) {
+    setChatHeaderStatus('Групова розмова');
+  } else if (isAssistant) {
+    setChatHeaderStatus('Банківський асистент · Швидкі дії зверху');
+  } else {
+    setChatHeaderStatus('онлайн', true);
+  }
   syncAssistantUi(isAssistant);
   if (btnCall) btnCall.hidden = isGroup || isAssistant;
   const groupInfoBtn = document.getElementById('group-info-btn');
@@ -842,9 +859,17 @@ async function openChat(conv) {
   photosByMessageId.clear();
   window._lastRenderKey = null;
   msgInput.value = '';
+  unreadWhileScrolledUp = 0;
+  isNearBottom = true;
+  updateScrollBottomFab();
   updateSendBtn();
   await fetchMessages();
   startConvPoll();
+  if (window.innerWidth >= 1024 && msgInput) {
+    setTimeout(() => {
+      try { msgInput.focus(); } catch (_) {}
+    }, 40);
+  }
 }
 
 // ════════════════════════════════════════════
@@ -862,11 +887,13 @@ async function fetchMessages(prepend = false) {
       renderMessages(msgs, false);
       if (msgs.length) lastMsgId = msgs[msgs.length - 1].id;
       scrollToBottom(true);
+      refreshScrollState();
     } else {
       if (!msgs.length) { noMoreOlder = true; return; }
       const prevFirst = messagesList.firstElementChild;
       renderMessages(msgs, true);
       if (prevFirst) prevFirst.scrollIntoView({ block: 'start' });
+      refreshScrollState();
     }
     updateConvItem(activeConvId, { unread: 0 });
   } catch (err) { console.error('[msg] fetch', err); }
@@ -1278,10 +1305,13 @@ async function sendPhotos(files) {
     });
     appendMessage(msg);
     lastMsgId = msg.id;
+    unreadWhileScrolledUp = 0;
+    updateScrollBottomFab();
     updateConvItem(activeConvId, {
       last_message_text: conversationPreview(msg),
       last_message_at: msg.created_at,
     });
+    playSendTone().catch(() => {});
     showToast('Фото надіслано');
   } catch (err) {
     showToast(err.message || 'Не вдалося надіслати фото.', true);
@@ -1332,7 +1362,7 @@ async function preparePhotoItem(file) {
   return { mime: 'image/jpeg', data: base64, w: width, h: height };
 }
 
-function appendMessage(msg) {
+function appendMessage(msg, autoScroll = true) {
   const frag = document.createDocumentFragment();
   const ds   = formatDate(new Date(msg.created_at));
   const last = messagesList.querySelector('.msg-date-divider:last-of-type');
@@ -1344,7 +1374,7 @@ function appendMessage(msg) {
   }
   frag.appendChild(buildBubble(msg));
   messagesList.appendChild(frag);
-  scrollToBottom(false);
+  if (autoScroll) scrollToBottom(false);
 }
 
 // ════════════════════════════════════════════
@@ -1540,11 +1570,14 @@ async function sendVoiceMessage() {
     });
     appendMessage(msg);
     lastMsgId = msg.id;
+    unreadWhileScrolledUp = 0;
+    updateScrollBottomFab();
     updateConvItem(activeConvId, {
       last_message_text: conversationPreview(msg),
       last_message_at: msg.created_at,
     });
     vibrate([12, 28, 18]);
+    playSendTone().catch(() => {});
   } catch (err) { showToast(err.message, true); }
 }
 
@@ -1657,8 +1690,16 @@ async function pollNewMessages() {
   try {
     const msgs = await api('GET', `/messenger/conversations/${activeConvId}/poll?after_id=${lastMsgId}`);
     if (msgs?.length > 0) {
-      msgs.forEach(msg => appendMessage(msg));
+      const shouldAutoScroll = isScrolledNearBottom();
+      msgs.forEach(msg => appendMessage(msg, shouldAutoScroll));
       lastMsgId = msgs[msgs.length - 1].id;
+      if (!shouldAutoScroll) {
+        const incomingCount = msgs.filter(msg => Number(msg.sender_id) !== Number(me?.id)).length;
+        unreadWhileScrolledUp += Math.max(0, incomingCount);
+      } else {
+        unreadWhileScrolledUp = 0;
+      }
+      refreshScrollState();
       updateConvItem(activeConvId, {
         last_message_text: conversationPreview(msgs[msgs.length - 1]),
         last_message_at:   msgs[msgs.length - 1].created_at,
@@ -2409,6 +2450,13 @@ function playEndTone(error = false) {
   }
   toneBeep(520, 0.11, { gain: 0.024 });
   toneBeep(390, 0.13, { gain: 0.024, delay: 0.12 });
+}
+
+async function playSendTone() {
+  if (!callPrefs.sounds) return;
+  await ensureCallAudioCtx();
+  toneBeep(900, 0.045, { gain: 0.015, wave: 'triangle' });
+  toneBeep(1180, 0.052, { gain: 0.012, wave: 'triangle', delay: 0.05 });
 }
 
 async function startIncomingTone() {
@@ -3322,10 +3370,11 @@ function voiceDataUrl(item) {
 function conversationPreview(msg) {
   if (!msg) return 'Нове повідомлення';
   if (msg.is_deleted) return 'Повідомлення видалено';
-  if ((msg.msg_type || 'text') === 'voice') return '🎤 Голосове повідомлення';
-  if ((msg.msg_type || 'text') === 'image') return '🖼️ Фото';
-  if ((msg.msg_type || 'text') === 'call') return '📞 Дзвінок';
-  return compactPreview(msg.text || 'Нове повідомлення');
+  const ownPrefix = Number(msg.sender_id) === Number(me?.id) ? 'Ви: ' : '';
+  if ((msg.msg_type || 'text') === 'voice') return `${ownPrefix}🎤 Голосове повідомлення`;
+  if ((msg.msg_type || 'text') === 'image') return `${ownPrefix}🖼️ Фото`;
+  if ((msg.msg_type || 'text') === 'call') return `${ownPrefix}📞 Дзвінок`;
+  return ownPrefix + compactPreview(msg.text || 'Нове повідомлення');
 }
 
 function esc(str) {
@@ -3341,8 +3390,36 @@ function autoResizeInput() {
   msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
 }
 
+function isScrolledNearBottom() {
+  if (!messagesWrap) return true;
+  const tail = messagesWrap.scrollHeight - messagesWrap.clientHeight - messagesWrap.scrollTop;
+  return tail <= 84;
+}
+
+function updateScrollBottomFab() {
+  if (!btnScrollBottom) return;
+  const show = !!activeConvId && !chatView.hidden && !isNearBottom;
+  btnScrollBottom.hidden = !show;
+  btnScrollBottom.classList.toggle('visible', show);
+  if (scrollBottomUnread) {
+    const count = Math.max(0, Number(unreadWhileScrolledUp || 0));
+    scrollBottomUnread.hidden = !(show && count > 0);
+    scrollBottomUnread.textContent = count > 99 ? '99+' : String(count);
+  }
+}
+
+function refreshScrollState() {
+  const nearBottomNow = isScrolledNearBottom();
+  isNearBottom = nearBottomNow;
+  if (nearBottomNow && unreadWhileScrolledUp) unreadWhileScrolledUp = 0;
+  updateScrollBottomFab();
+}
+
 function scrollToBottom(instant = false) {
   scrollAnchor.scrollIntoView({ behavior: instant ? 'auto' : 'smooth' });
+  isNearBottom = true;
+  unreadWhileScrolledUp = 0;
+  updateScrollBottomFab();
 }
 
 function formatTime(iso) {
@@ -3373,6 +3450,7 @@ function formatDate(d) {
 // Scroll-to-load older
 // ════════════════════════════════════════════
 messagesWrap.addEventListener('scroll', async () => {
+  refreshScrollState();
   if (messagesWrap.scrollTop < 80 && !isLoadingOlder && !noMoreOlder) {
     isLoadingOlder = true;
     await fetchMessages(true);
@@ -3631,6 +3709,9 @@ btnBack.addEventListener('click', () => {
   sidebar.classList.remove('hidden');
   activeConvId = null;
   activePartner = null;
+  unreadWhileScrolledUp = 0;
+  isNearBottom = true;
+  updateScrollBottomFab();
   clearInterval(convPollTimer);
   chatView.hidden = true;
   chatEmpty.hidden = false;
@@ -3641,6 +3722,17 @@ btnBack.addEventListener('click', () => {
 msgInput.addEventListener('input',   () => { autoResizeInput(); updateSendBtn(); });
 msgInput.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+msgInput.addEventListener('paste', e => {
+  if (!activeConvId) return;
+  const items = Array.from(e.clipboardData?.items || []);
+  const imageFiles = items
+    .filter(item => /^image\//i.test(String(item.type || '')))
+    .map(item => item.getAsFile())
+    .filter(Boolean);
+  if (!imageFiles.length) return;
+  e.preventDefault();
+  sendPhotos(imageFiles).catch(() => {});
 });
 btnSend.addEventListener('click', sendMessage);
 if (btnAttachPhoto && inputPhoto) {
@@ -3707,6 +3799,17 @@ if (messagesList) {
     if (!items.length) return;
     openPhotoViewer(items, idx);
   });
+  messagesList.addEventListener('contextmenu', e => {
+    if (!(e.target instanceof Element)) return;
+    const bubble = e.target.closest('.msg-bubble');
+    if (!bubble) return;
+    const text = String(bubble.textContent || '').trim();
+    if (!text) return;
+    e.preventDefault();
+    navigator.clipboard?.writeText(text)
+      .then(() => showToast('Текст повідомлення скопійовано'))
+      .catch(() => showToast('Не вдалося скопіювати текст', true));
+  });
 }
 if (assistantQuickActions) {
   assistantQuickActions.addEventListener('click', e => {
@@ -3737,12 +3840,23 @@ function bestEffortEndActiveCall() {
 }
 window.addEventListener('pagehide', bestEffortEndActiveCall);
 window.addEventListener('beforeunload', bestEffortEndActiveCall);
+window.addEventListener('focus', () => {
+  if (!token || !me) return;
+  loadConversations().catch(() => {});
+  pollUnreadBadge().catch(() => {});
+  if (activeConvId) pollNewMessages().catch(() => {});
+});
 document.addEventListener('visibilitychange', handleVisibilityChange);
 window.addEventListener('pageshow', () => {
   handleVisibilityChange();
 });
 window.addEventListener('pointerdown', primeCallAudioOnUserGesture, { once: true, passive: true });
 window.addEventListener('keydown', primeCallAudioOnUserGesture, { once: true });
+if (btnScrollBottom) {
+  btnScrollBottom.addEventListener('click', () => {
+    scrollToBottom(false);
+  });
+}
 
 // ════════════════════════════════════════════
 // Boot
