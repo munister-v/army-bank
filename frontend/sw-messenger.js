@@ -1,5 +1,5 @@
-/* Army Bank Messenger — Service Worker */
-const SW_VERSION = new URL(self.location.href).searchParams.get('v') || '39';
+/* ARM Bank Messenger — Service Worker */
+const SW_VERSION = new URL(self.location.href).searchParams.get('v') || '41';
 const CACHE = `msng-v${SW_VERSION}`;
 const SCOPE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
 const withBase = (path) => `${SCOPE_PATH}${path}`.replace(/\/{2,}/g, '/');
@@ -76,7 +76,7 @@ self.addEventListener('fetch', e => {
 
 self.addEventListener('push', event => {
   const fallback = {
-    title: 'Army Bank',
+    title: 'ARM Bank',
     body: 'Нове сповіщення',
     url: '/messenger',
     type: 'default',

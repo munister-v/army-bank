@@ -1,7 +1,7 @@
 {
-  "name": "Army Bank — Месенджер",
+  "name": "ARM Bank — Месенджер",
   "short_name": "AB Chat",
-  "description": "Захищений месенджер Army Bank для військовослужбовців",
+  "description": "Захищений месенджер ARM Bank для військовослужбовців",
   "start_url": "/messenger",
   "scope": "/messenger",
   "display": "standalone",

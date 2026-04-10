@@ -1,12 +1,12 @@
 /* ════════════════════════════════════════════
-   Army Bank — Messenger PWA
+   ARM Bank — Messenger PWA
    groups · voice messages · WebRTC calls
 ════════════════════════════════════════════ */
 'use strict';
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '40';
+const MESSENGER_ASSET_VERSION = '41';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -525,7 +525,7 @@ async function notifyViaServiceWorker({ title, body = '', tag = '', data = {}, r
   try {
     const reg = await navigator.serviceWorker?.ready;
     if (!reg?.showNotification || Notification.permission !== 'granted') return false;
-    await reg.showNotification(String(title || 'Army Bank'), {
+    await reg.showNotification(String(title || 'ARM Bank'), {
       body: String(body || ''),
       tag: tag || undefined,
       icon: '/icons/chat-icon-180.png',
@@ -672,9 +672,9 @@ async function previewCallSignal() {
     return;
   }
   await ensureCallAudioCtx();
-  toneBeep(670, 0.11, { gain: 0.03 });
-  toneBeep(830, 0.13, { gain: 0.028, delay: 0.13 });
-  toneBeep(980, 0.12, { gain: 0.025, delay: 0.28 });
+  toneBeep(560, 0.13, { gain: 0.024, wave: 'triangle' });
+  toneBeep(700, 0.15, { gain: 0.022, wave: 'triangle', delay: 0.14 });
+  toneBeep(840, 0.17, { gain: 0.02, wave: 'triangle', delay: 0.31 });
 }
 
 function resetCallPrefsToDefaults() {
@@ -1052,6 +1052,7 @@ function isAssistantPartner(partner) {
   if (role === 'assistant_bot') return true;
   const name = String(partner.full_name || '').toLowerCase();
   return (
+    name.includes('arm bank assistant') ||
     name.includes('army bank assistant') ||
     name.includes('bank assistant') ||
     name.includes('банківський асистент')
@@ -1071,7 +1072,7 @@ function assistantGlyphMarkup() {
 }
 
 function verifiedBadgeMarkup() {
-  return `<span class="verified-inline" title="Верифіковано Army Bank" aria-label="Верифіковано Army Bank">
+  return `<span class="verified-inline" title="Верифіковано ARM Bank" aria-label="Верифіковано ARM Bank">
     <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <circle cx="8" cy="8" r="7" fill="#2e8a5f"/>
       <path d="M4.2 8.4 6.6 10.7 11.8 5.5" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1405,7 +1406,7 @@ function buildAssistantStatementBubble(rawText) {
     </div>
     <div class="assistant-statement-summary">${formatMessageTextHtml(info.summary)}</div>
     <a class="assistant-statement-btn" href="${escapeAttr(info.link)}" target="_blank" rel="noopener noreferrer" data-protected-download="1" data-file-kind="${esc(info.kind)}">Відкрити ${esc(info.kind)}</a>
-    <div class="assistant-statement-note">Завантаження відкриється в захищеному режимі Army Bank.</div>
+    <div class="assistant-statement-note">Завантаження відкриється в захищеному режимі ARM Bank.</div>
   </div>`;
 }
 
@@ -2923,19 +2924,26 @@ function toneBeep(freq = 440, duration = 0.12, opts = {}) {
   const gainV = Math.max(0.0001, baseGain * clampNumber(callPrefs.volume, 0, 1, 0.7));
   const delay = Number.isFinite(opts.delay) ? opts.delay : 0;
   const now = ctx.currentTime + Math.max(0, delay);
-  const osc = ctx.createOscillator();
+  const osc1 = ctx.createOscillator();
+  const osc2 = ctx.createOscillator();
   const gain = ctx.createGain();
 
-  osc.type = waveform;
-  osc.frequency.setValueAtTime(freq, now);
+  osc1.type = waveform;
+  osc2.type = waveform === 'square' ? 'triangle' : waveform;
+  osc1.frequency.setValueAtTime(freq, now);
+  osc2.frequency.setValueAtTime(freq * 2.01, now);
   gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(gainV, now + 0.015);
+  gain.gain.exponentialRampToValueAtTime(gainV, now + 0.018);
+  gain.gain.exponentialRampToValueAtTime(gainV * 0.58, now + Math.max(0.04, duration * 0.45));
   gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
-  osc.connect(gain);
+  osc1.connect(gain);
+  osc2.connect(gain);
   gain.connect(ctx.destination);
-  osc.start(now);
-  osc.stop(now + duration + 0.03);
+  osc1.start(now);
+  osc2.start(now);
+  osc1.stop(now + duration + 0.03);
+  osc2.stop(now + duration + 0.03);
 }
 
 function stopIncomingTone() {
@@ -2960,19 +2968,19 @@ function stopAllCallTones() {
 
 function playConnectedTone() {
   if (!callPrefs.sounds) return;
-  toneBeep(740, 0.09, { gain: 0.024 });
-  toneBeep(980, 0.11, { gain: 0.024, delay: 0.11 });
+  toneBeep(660, 0.11, { gain: 0.02, wave: 'triangle' });
+  toneBeep(880, 0.14, { gain: 0.019, wave: 'triangle', delay: 0.12 });
 }
 
 function playEndTone(error = false) {
   if (!callPrefs.sounds) return;
   if (error) {
-    toneBeep(320, 0.12, { wave: 'square', gain: 0.03 });
-    toneBeep(240, 0.14, { wave: 'square', gain: 0.03, delay: 0.14 });
+    toneBeep(300, 0.13, { wave: 'square', gain: 0.024 });
+    toneBeep(220, 0.16, { wave: 'square', gain: 0.024, delay: 0.15 });
     return;
   }
-  toneBeep(520, 0.11, { gain: 0.024 });
-  toneBeep(390, 0.13, { gain: 0.024, delay: 0.12 });
+  toneBeep(540, 0.1, { gain: 0.019, wave: 'triangle' });
+  toneBeep(420, 0.13, { gain: 0.018, wave: 'triangle', delay: 0.11 });
 }
 
 async function playSendTone() {
@@ -2988,11 +2996,12 @@ async function startIncomingTone() {
   await ensureCallAudioCtx();
 
   const ringBurst = () => {
-    toneBeep(760, 0.12, { gain: 0.03 });
-    toneBeep(930, 0.15, { gain: 0.03, delay: 0.18 });
+    toneBeep(640, 0.16, { gain: 0.022, wave: 'triangle' });
+    toneBeep(804, 0.16, { gain: 0.021, wave: 'triangle', delay: 0.2 });
+    toneBeep(960, 0.14, { gain: 0.018, wave: 'triangle', delay: 0.38 });
   };
   ringBurst();
-  incomingToneTimer = setInterval(ringBurst, 2200);
+  incomingToneTimer = setInterval(ringBurst, 2600);
   if (navigator.vibrate && callPrefs.vibration) navigator.vibrate([130, 90, 130]);
 }
 
@@ -3002,11 +3011,11 @@ async function startOutgoingTone() {
   await ensureCallAudioCtx();
 
   const ringback = () => {
-    toneBeep(430, 0.32, { wave: 'triangle', gain: 0.022 });
-    toneBeep(480, 0.32, { wave: 'triangle', gain: 0.016, delay: 0.02 });
+    toneBeep(425, 0.26, { wave: 'triangle', gain: 0.016 });
+    toneBeep(510, 0.24, { wave: 'triangle', gain: 0.013, delay: 0.03 });
   };
   ringback();
-  outgoingToneTimer = setInterval(ringback, 1000);
+  outgoingToneTimer = setInterval(ringback, 1300);
 }
 
 function clearOutgoingNoAnswerTimer() {
