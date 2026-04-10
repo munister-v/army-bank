@@ -2735,7 +2735,8 @@ $$('.nav-item.nav-link, .nav-link').forEach((btn) => {
       const activeScreen = document.querySelector('.screen.active-screen')?.id || '';
       const content = document.querySelector('.app-content');
       if (activeScreen === screen && content) {
-        content.scrollTo({ top: content.scrollHeight, behavior: 'smooth' });
+        const nearTop = (content.scrollTop || 0) < 24;
+        content.scrollTo({ top: nearTop ? content.scrollHeight : 0, behavior: 'smooth' });
         if (typeof navigator.vibrate === 'function') navigator.vibrate(8);
         return;
       }
@@ -4074,12 +4075,18 @@ async function loadForecast() {
   if (!('BroadcastChannel' in window)) return;
   const bc = new BroadcastChannel('army_bank_sync');
   window._bcChannel = bc;
+  const tabId = `tab_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  let suppressBroadcast = false;
 
   bc.addEventListener('message', e => {
-    if (e.data?.type === 'DATA_UPDATED' && api.token) {
-      refreshAllData().catch(() => {});
+    if (!e.data || e.data.from === tabId) return;
+    if (e.data.type === 'DATA_UPDATED' && api.token) {
+      suppressBroadcast = true;
+      Promise.resolve(window.refreshAllData ? window.refreshAllData() : refreshAllData())
+        .catch(() => {})
+        .finally(() => { suppressBroadcast = false; });
     }
-    if (e.data?.type === 'LOGOUT') {
+    if (e.data.type === 'LOGOUT') {
       stopPolling();
       stopNotifPolling();
       clearBootstrapRetryTimer();
@@ -4092,7 +4099,9 @@ async function loadForecast() {
   const _origRefreshAllData = window.refreshAllData || refreshAllData;
   window.refreshAllData = async function() {
     await _origRefreshAllData();
-    bc.postMessage({ type: 'DATA_UPDATED' });
+    if (!suppressBroadcast) {
+      bc.postMessage({ type: 'DATA_UPDATED', from: tabId, at: Date.now() });
+    }
   };
 })();
 
