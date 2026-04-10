@@ -2735,7 +2735,7 @@ $$('.nav-item.nav-link, .nav-link').forEach((btn) => {
       const activeScreen = document.querySelector('.screen.active-screen')?.id || '';
       const content = document.querySelector('.app-content');
       if (activeScreen === screen && content) {
-        content.scrollTo({ top: 0, behavior: 'smooth' });
+        content.scrollTo({ top: content.scrollHeight, behavior: 'smooth' });
         if (typeof navigator.vibrate === 'function') navigator.vibrate(8);
         return;
       }
