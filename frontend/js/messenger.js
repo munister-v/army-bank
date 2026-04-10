@@ -6,11 +6,12 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '38';
+const MESSENGER_ASSET_VERSION = '39';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
 const PERM_STATE_KEY = 'msng_permission_state_v1';
+const API_DEFAULT_TIMEOUT_MS = 12000;
 const DEFAULT_MSG_PLACEHOLDER = 'Напишіть повідомлення...';
 const DEFAULT_CALL_PREFS = Object.freeze({
   sounds: true,
@@ -47,6 +48,13 @@ let callWallTimer      = null;
 let outgoingNoAnswerTimer = null;
 let incomingAutoRejectTimer = null;
 let incomingCountdownTimer = null;
+let isAppOnline = navigator.onLine !== false;
+let pollBusyConversations = false;
+let pollBusyUnread = false;
+let pollBusyMessages = false;
+let pollBusyPresence = false;
+let pollBusyConvPresence = false;
+let pollBusyIncoming = false;
 
 // ── Voice recording ────────────────────────
 let mediaRecorder = null;
@@ -262,15 +270,32 @@ const btnBankSendOrderMsg = $('btn-bank-send-order-msg');
 // ════════════════════════════════════════════
 // API helper
 // ════════════════════════════════════════════
-async function api(method, path, body) {
+async function api(method, path, body, options = {}) {
+  const timeoutMs = Math.max(3000, Number(options?.timeoutMs || API_DEFAULT_TIMEOUT_MS));
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    try { controller.abort('timeout'); } catch (_) {}
+  }, timeoutMs);
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (token) opts.headers['Authorization'] = 'Bearer ' + token;
   if (body !== undefined) opts.body = JSON.stringify(body);
+  opts.signal = controller.signal;
   let res;
   try {
     res = await fetch(API + path, opts);
-  } catch (_err) {
-    throw new Error('Мережа недоступна. Перевірте інтернет-з\'єднання.');
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      const timeoutErr = new Error('Час очікування відповіді вичерпано. Спробуйте ще раз.');
+      timeoutErr.code = 'timeout';
+      timeoutErr.retryable = true;
+      throw timeoutErr;
+    }
+    const netErr = new Error('Мережа недоступна. Перевірте інтернет-з\'єднання.');
+    netErr.code = 'network';
+    netErr.retryable = true;
+    throw netErr;
+  } finally {
+    clearTimeout(timeoutId);
   }
   const newTok = res.headers.get('X-Refresh-Token');
   if (newTok) { token = newTok; localStorage.setItem(TOKEN_KEY, token); }
@@ -280,12 +305,69 @@ async function api(method, path, body) {
     try { data = await res.json(); } catch (_) { data = null; }
   } else {
     const text = await res.text().catch(() => '');
-    if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
+    if (!res.ok) {
+      const httpErr = new Error(text || `HTTP ${res.status}`);
+      httpErr.status = res.status;
+      httpErr.retryable = res.status === 429 || res.status >= 500;
+      throw httpErr;
+    }
     return null;
   }
-  if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const httpErr = new Error(data?.error || `HTTP ${res.status}`);
+    httpErr.status = res.status;
+    httpErr.retryable = res.status === 429 || res.status >= 500;
+    throw httpErr;
+  }
   if (!data?.ok) throw new Error(data?.error || 'Помилка запиту');
   return data.data;
+}
+
+function isUnauthorizedError(err) {
+  return Number(err?.status || 0) === 401 || /\b401\b/.test(String(err?.message || ''));
+}
+
+function waitMs(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function apiGetRetry(path, { retries = 1, timeoutMs = 9000, baseDelayMs = 450 } = {}) {
+  let attempt = 0;
+  while (attempt <= retries) {
+    try {
+      return await api('GET', path, undefined, { timeoutMs });
+    } catch (err) {
+      if (attempt >= retries || !err?.retryable) throw err;
+      await waitMs(baseDelayMs * (attempt + 1));
+      attempt++;
+    }
+  }
+  return null;
+}
+
+function handleConnectivityChange() {
+  const online = navigator.onLine !== false;
+  if (online === isAppOnline) return;
+  isAppOnline = online;
+  if (!online) {
+    showToast('Немає інтернету. Працюємо в offline-режимі.', true);
+    runClientDiagnostics().catch(() => {});
+    return;
+  }
+  showToast('З\'єднання відновлено');
+  if (token && me) {
+    loadConversations().catch(() => {});
+    pollUnreadBadge().catch(() => {});
+    if (activeConvId) pollNewMessages().catch(() => {});
+    checkIncoming().catch(() => {});
+  }
+  runClientDiagnostics().catch(() => {});
+}
+
+async function ensurePushSubscriptionSilent() {
+  if (!token) return;
+  if (!window.Notification || Notification.permission !== 'granted') return;
+  try { await subscribeWebPush(); } catch (_) {}
 }
 
 function loadPermState() {
@@ -932,6 +1014,7 @@ function showApp() {
   if (me && topbarAvatar) topbarAvatar.textContent = initial(me.full_name);
   ensureMessengerBankStatus().catch(() => {});
   loadConversations();
+  ensurePushSubscriptionSilent().catch(() => {});
   startGlobalPoll();
   pollUnreadBadge();
   runClientDiagnostics().catch(() => {});
@@ -943,12 +1026,16 @@ function showApp() {
 // Conversations
 // ════════════════════════════════════════════
 async function loadConversations() {
+  if (pollBusyConversations) return;
+  pollBusyConversations = true;
   try {
-    convData = await api('GET', '/messenger/conversations');
+    convData = await apiGetRetry('/messenger/conversations', { retries: 1, timeoutMs: 9000 });
     renderConvList(convData);
     pollConversationsPresence().catch(() => {});
   } catch (err) {
-    if (err.message.includes('401')) doLogout();
+    if (isUnauthorizedError(err)) doLogout();
+  } finally {
+    pollBusyConversations = false;
   }
 }
 
@@ -1967,23 +2054,33 @@ function isOnline(userId) {
 
 async function pollPresence() {
   if (!activeConvId || !activePartner?.id) return;
+  if (pollBusyPresence) return;
+  pollBusyPresence = true;
   try {
-    const data = await api('GET', `/messenger/presence?ids=${activePartner.id}`);
+    const data = await apiGetRetry(`/messenger/presence?ids=${activePartner.id}`, { retries: 1, timeoutMs: 8500 });
     applyPresencePayload(data);
     updateActivePartnerPresenceStatus();
     renderConvList(convData);
-  } catch (_) {}
+  } catch (_) {
+  } finally {
+    pollBusyPresence = false;
+  }
 }
 
 async function pollConversationsPresence() {
   const ids = collectConversationPartnerIds(50);
   if (!ids.length) return;
+  if (pollBusyConvPresence) return;
+  pollBusyConvPresence = true;
   try {
-    const data = await api('GET', `/messenger/presence?ids=${ids.join(',')}`);
+    const data = await apiGetRetry(`/messenger/presence?ids=${ids.join(',')}`, { retries: 1, timeoutMs: 8500 });
     applyPresencePayload(data);
     updateActivePartnerPresenceStatus();
     renderConvList(convData);
-  } catch (_) {}
+  } catch (_) {
+  } finally {
+    pollBusyConvPresence = false;
+  }
 }
 
 function startPresencePoll() {
@@ -2015,8 +2112,10 @@ document.addEventListener('visibilitychange', () => {
 
 async function pollNewMessages() {
   if (!activeConvId) return;
+  if (pollBusyMessages) return;
+  pollBusyMessages = true;
   try {
-    const msgs = await api('GET', `/messenger/conversations/${activeConvId}/poll?after_id=${lastMsgId}`);
+    const msgs = await apiGetRetry(`/messenger/conversations/${activeConvId}/poll?after_id=${lastMsgId}`, { retries: 1, timeoutMs: 9000 });
     if (msgs?.length > 0) {
       const shouldAutoScroll = isScrolledNearBottom();
       msgs.forEach(msg => appendMessage(msg, shouldAutoScroll));
@@ -2034,14 +2133,23 @@ async function pollNewMessages() {
         unread: 0,
       });
     }
-  } catch (err) { if (err.message.includes('401')) doLogout(); }
+  } catch (err) {
+    if (isUnauthorizedError(err)) doLogout();
+  } finally {
+    pollBusyMessages = false;
+  }
 }
 
 async function pollUnreadBadge() {
+  if (pollBusyUnread) return;
+  pollBusyUnread = true;
   try {
-    const data = await api('GET', '/messenger/unread');
+    const data = await apiGetRetry('/messenger/unread', { retries: 1, timeoutMs: 8000 });
     unreadBadge.hidden = !data?.unread;
-  } catch (_) {}
+  } catch (_) {
+  } finally {
+    pollBusyUnread = false;
+  }
 }
 
 // ════════════════════════════════════════════
@@ -3314,8 +3422,10 @@ function startIncomingCallCheck() {
 
 async function checkIncoming() {
   if (activeCallId || callAcceptInProgress || (callScreen && !callScreen.hidden)) return;
+  if (pollBusyIncoming) return;
+  pollBusyIncoming = true;
   try {
-    const calls = await api('GET', '/messenger/calls/incoming');
+    const calls = await apiGetRetry('/messenger/calls/incoming', { retries: 1, timeoutMs: 9000 });
     if (calls?.length && !incomingCallId) {
       const c = calls[0];
       incomingCallId     = c.id;
@@ -3338,7 +3448,11 @@ async function checkIncoming() {
     } else if (!calls?.length && incomingCallId) {
       hideIncoming(); // cancelled before answer
     }
-  } catch (_) {}
+  } catch (err) {
+    if (isUnauthorizedError(err)) doLogout();
+  } finally {
+    pollBusyIncoming = false;
+  }
 }
 
 function hideIncoming() {
@@ -4257,11 +4371,14 @@ window.addEventListener('focus', () => {
   if (!token || !me) return;
   loadConversations().catch(() => {});
   pollUnreadBadge().catch(() => {});
+  ensurePushSubscriptionSilent().catch(() => {});
   pollConversationsPresence().catch(() => {});
   if (activePartner?.id) pollPresence().catch(() => {});
   if (activeConvId) pollNewMessages().catch(() => {});
   runClientDiagnostics().catch(() => {});
 });
+window.addEventListener('online', handleConnectivityChange);
+window.addEventListener('offline', handleConnectivityChange);
 document.addEventListener('visibilitychange', handleVisibilityChange);
 window.addEventListener('pageshow', () => {
   handleVisibilityChange();
