@@ -10008,6 +10008,7 @@ html.install-banner-visible #appScreen .app-content {
   background: #fdfefe !important;
   border: 1px solid rgba(10, 18, 22, 0.22) !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.8) !important;
+  position: relative !important;
 }
 
 #bankCardsTrack .bank-card-cvv-value {
@@ -10017,6 +10018,17 @@ html.install-banner-visible #appScreen .app-content {
   letter-spacing: .14em !important;
   min-width: 3ch !important;
   text-align: center !important;
+}
+
+#bankCardsTrack .bank-card-cvv-box::after {
+  content: "SEC"; /* subtle security mark */
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 6px;
+  letter-spacing: .12em;
+  color: rgba(16, 30, 39, 0.38);
+  font-weight: 700;
 }
 
 #bankCardsTrack .bank-card-cvv-value.bc-loading {
@@ -10033,6 +10045,15 @@ html.install-banner-visible #appScreen .app-content {
   font-family: "JetBrains Mono", monospace !important;
   font-weight: 600 !important;
   letter-spacing: .16em !important;
+  opacity: .96 !important;
+}
+
+#bankCardsTrack .bank-card.is-flipped .bank-card-front {
+  pointer-events: none !important;
+}
+
+#bankCardsTrack .bank-card.is-flipped .bank-card-back {
+  pointer-events: auto !important;
 }
 
 @keyframes cvvPulse {

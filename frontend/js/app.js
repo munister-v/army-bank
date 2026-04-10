@@ -1842,6 +1842,10 @@ function _initCarouselInteraction(track) {
       card.classList.toggle('is-active', i === activeIdx);
       card.classList.toggle('is-prev', i === activeIdx - 1);
       card.classList.toggle('is-next', i === activeIdx + 1);
+      // Keep only active card flippable/visible on back side.
+      if (i !== activeIdx && card.classList.contains('is-flipped')) {
+        card.classList.remove('is-flipped');
+      }
     });
   }
 
@@ -1894,6 +1898,13 @@ function _initCarouselInteraction(track) {
         }
         if (numEl && numEl.isConnected) {
           numEl.textContent = '';
+        }
+        var now = Date.now();
+        if (!track._lastCvvErrorTs || (now - track._lastCvvErrorTs) > 2200) {
+          track._lastCvvErrorTs = now;
+          if (typeof showToast === 'function') {
+            showToast('Не вдалося завантажити CVV. Спробуйте ще раз.', 'error');
+          }
         }
       });
   }
