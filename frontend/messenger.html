@@ -10,14 +10,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
   <meta name="apple-mobile-web-app-title" content="AB Chat"/>
   <title>Army Bank · Месенджер</title>
-  <link rel="manifest" href="/manifest-messenger.json?v=39"/>
+  <link rel="manifest" href="/manifest-messenger.json?v=40"/>
   <link rel="icon" type="image/svg+xml" href="/icons/chat-favicon.svg"/>
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/chat-icon-32.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/chat-icon-180.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=39"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=40"/>
 </head>
 <body>
 
@@ -603,17 +603,19 @@
     </div>
     <div class="call-screen-name" id="call-screen-name"></div>
     <div class="call-screen-status" id="call-screen-status">З'єднання...</div>
+    <div class="call-screen-mic-state" id="call-screen-mic-state">Вас чути</div>
     <div class="call-screen-timer" id="call-screen-timer" hidden>00:00</div>
     <div class="call-screen-btns">
-      <button class="btn-call-mute" id="btn-mute" title="Вимкнути мікрофон">
+      <button class="btn-call-mute" id="btn-mute" title="Вимкнути мікрофон" aria-pressed="false">
         <span class="call-action-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20">
             <rect x="9" y="2" width="6" height="12" rx="3"/>
             <path d="M5 10a7 7 0 0014 0"/>
             <line x1="12" y1="19" x2="12" y2="23"/><line x1="9" y1="23" x2="15" y2="23"/>
+            <line class="mic-off-slash" x1="4" y1="4" x2="20" y2="20"/>
           </svg>
         </span>
-        <span class="call-action-label">Мікрофон</span>
+        <span class="call-action-label" id="call-mute-label">Мікрофон увімкнено</span>
       </button>
       <button class="btn-call-end" id="btn-end-call" title="Завершити дзвінок">
         <span class="call-action-icon" aria-hidden="true">
@@ -672,6 +674,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=39"></script>
+<script src="/js/messenger.js?v=40"></script>
 </body>
 </html>

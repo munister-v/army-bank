@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '39';
+const MESSENGER_ASSET_VERSION = '40';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -107,6 +107,7 @@ let incomingCallId     = null;
 let incomingCallerName = '';
 let callConnectedOnce  = false;
 let callAcceptInProgress = false;
+let callDialInProgress = false;
 let callStartAtMs = 0;
 let callQualityTimer = null;
 let callQualityLabel = '';
@@ -216,8 +217,10 @@ const callScreen        = $('call-screen');
 const callScreenAvatar  = $('call-screen-avatar');
 const callScreenName    = $('call-screen-name');
 const callScreenStatus  = $('call-screen-status');
+const callScreenMicState= $('call-screen-mic-state');
 const callScreenTimer   = $('call-screen-timer');
 const btnMute           = $('btn-mute');
+const callMuteLabel     = $('call-mute-label');
 const btnEndCall        = $('btn-end-call');
 const remoteAudio       = $('remote-audio');
 const photoViewer       = $('photo-viewer');
@@ -2723,6 +2726,38 @@ function setCallStatusBase(text) {
   renderCallStatus();
 }
 
+function syncMuteUi() {
+  const muted = !!isMuted;
+  if (btnMute) {
+    btnMute.classList.toggle('muted', muted);
+    btnMute.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    btnMute.title = muted ? 'Увімкнути мікрофон' : 'Вимкнути мікрофон';
+  }
+  if (callMuteLabel) {
+    callMuteLabel.textContent = muted ? 'Мікрофон вимкнено' : 'Мікрофон увімкнено';
+  }
+  if (callScreenMicState) {
+    callScreenMicState.textContent = muted ? 'Вас не чути' : 'Вас чути';
+  }
+}
+
+function syncCallButtonState() {
+  if (!btnCall) return;
+  const hasVisibleCall = !!(callScreen && !callScreen.hidden);
+  const hasActiveCall = !!activeCallId || hasVisibleCall;
+  const isBusy = !!callDialInProgress || !!callAcceptInProgress;
+  btnCall.classList.toggle('active-call', hasActiveCall);
+  btnCall.classList.toggle('busy', isBusy && !hasActiveCall);
+  btnCall.setAttribute('aria-pressed', hasActiveCall ? 'true' : 'false');
+  if (hasActiveCall) {
+    btnCall.title = 'Повернутися до дзвінка';
+  } else if (isBusy) {
+    btnCall.title = 'Підготовка дзвінка...';
+  } else {
+    btnCall.title = 'Голосовий дзвінок';
+  }
+}
+
 async function requestCallWakeLock() {
   if (!activeCallId && callScreen.hidden) return;
   if (!('wakeLock' in navigator) || document.hidden) return;
@@ -3349,67 +3384,74 @@ async function flushRemoteIce(pc) {
 async function initiateCall() {
   if (!activeConvId || !activePartner) return;
   if (activeCallId) { showToast('Дзвінок вже активний.'); return; }
-  if (callAcceptInProgress) return;
-  if (!checkWebRTCSupport()) return;
-  ensureNotificationPermissionInteractive().catch(() => {});
-  const micGranted = await ensureMicrophonePermission(true);
-  if (!micGranted) return;
-  await ensureRtcConfig();
-
+  if (callAcceptInProgress || callDialInProgress) return;
+  callDialInProgress = true;
+  syncCallButtonState();
   try {
-    localStream = await getCallAudioStream();
-  } catch (err) { showToast(micError(err), true); return; }
+    if (!checkWebRTCSupport()) return;
+    ensureNotificationPermissionInteractive().catch(() => {});
+    const micGranted = await ensureMicrophonePermission(true);
+    if (!micGranted) return;
+    await ensureRtcConfig();
 
-  peerConnection = buildPeerConnection();
-  const trackCount = localStream.getTracks().length;
-  console.log(`[Initiate] Adding ${trackCount} tracks to peer connection`);
-  localStream.getTracks().forEach(t => {
-    console.log(`[Initiate] Adding track: ${t.kind} (${t.id})`);
-    peerConnection.addTrack(t, localStream);
-  });
-  console.log('[Initiate] Audio tracks added, optimizing audio');
-  optimizeOutgoingAudio(peerConnection, localStream);
+    try {
+      localStream = await getCallAudioStream();
+    } catch (err) { showToast(micError(err), true); return; }
 
-  try {
-    const offer = await peerConnection.createOffer();
-    const patchedOffer = { type: offer.type, sdp: patchOpusSdp(offer.sdp) };
-    await peerConnection.setLocalDescription(patchedOffer);
-    setCallStatusBase('Запуск...');
-
-    // Send offer immediately with early ICE candidates
-    // Don't wait for full gathering (saves 5-7 seconds)
-    const { call_id } = await api('POST', '/messenger/calls', {
-      conversation_id: activeConvId,
-      sdp_offer: peerConnection.localDescription.sdp,
+    peerConnection = buildPeerConnection();
+    const trackCount = localStream.getTracks().length;
+    console.log(`[Initiate] Adding ${trackCount} tracks to peer connection`);
+    localStream.getTracks().forEach(t => {
+      console.log(`[Initiate] Adding track: ${t.kind} (${t.id})`);
+      peerConnection.addTrack(t, localStream);
     });
-    activeCallId  = call_id;
-    remoteSdpSet  = false;
-    icePollLastId = 0;
-    callConnectedOnce = false;
-    callIceRecoverAttempts = 0;
-    callForceRelay = false;
-    clearCallIceRecoverTimer();
+    console.log('[Initiate] Audio tracks added, optimizing audio');
+    optimizeOutgoingAudio(peerConnection, localStream);
 
-    // Flush any candidates that arrived before activeCallId was set
-    console.log(`[Initiate] 🔄 activeCallId set to ${call_id}, buffered candidates: ${pendingLocalIce.length}`);
-    await flushLocalIce().catch(err => {
-      console.error('[Initiate] Error flushing candidates:', err.message);
-    });
+    try {
+      const offer = await peerConnection.createOffer();
+      const patchedOffer = { type: offer.type, sdp: patchOpusSdp(offer.sdp) };
+      await peerConnection.setLocalDescription(patchedOffer);
+      setCallStatusBase('Запуск...');
 
-    // Show call screen immediately, not after 7s wait
-    showCallScreen(activePartner.full_name, 'Виклик...');
-    startOutgoingTone().catch(() => {});
-    startOutgoingNoAnswerTimer(call_id);
+      // Send offer immediately with early ICE candidates
+      // Don't wait for full gathering (saves 5-7 seconds)
+      const { call_id } = await api('POST', '/messenger/calls', {
+        conversation_id: activeConvId,
+        sdp_offer: peerConnection.localDescription.sdp,
+      });
+      activeCallId  = call_id;
+      remoteSdpSet  = false;
+      icePollLastId = 0;
+      callConnectedOnce = false;
+      callIceRecoverAttempts = 0;
+      callForceRelay = false;
+      clearCallIceRecoverTimer();
 
-    // Continue gathering candidates in background (will arrive via ICE)
-    waitForIceGathering(peerConnection).catch(() => {});
+      // Flush any candidates that arrived before activeCallId was set
+      console.log(`[Initiate] 🔄 activeCallId set to ${call_id}, buffered candidates: ${pendingLocalIce.length}`);
+      await flushLocalIce().catch(err => {
+        console.error('[Initiate] Error flushing candidates:', err.message);
+      });
 
-    startCallPoll();
-  } catch (err) {
-    stopAllCallTones();
-    playEndTone(true);
-    showToast(err.message, true);
-    cleanupPeer();
+      // Show call screen immediately, not after 7s wait
+      showCallScreen(activePartner.full_name, 'Виклик...');
+      startOutgoingTone().catch(() => {});
+      startOutgoingNoAnswerTimer(call_id);
+
+      // Continue gathering candidates in background (will arrive via ICE)
+      waitForIceGathering(peerConnection).catch(() => {});
+
+      startCallPoll();
+    } catch (err) {
+      stopAllCallTones();
+      playEndTone(true);
+      showToast(err.message, true);
+      cleanupPeer();
+    }
+  } finally {
+    callDialInProgress = false;
+    syncCallButtonState();
   }
 }
 
@@ -3421,7 +3463,7 @@ function startIncomingCallCheck() {
 }
 
 async function checkIncoming() {
-  if (activeCallId || callAcceptInProgress || (callScreen && !callScreen.hidden)) return;
+  if (activeCallId || callAcceptInProgress || callDialInProgress || peerConnection || localStream || (callScreen && !callScreen.hidden)) return;
   if (pollBusyIncoming) return;
   pollBusyIncoming = true;
   try {
@@ -3462,6 +3504,7 @@ function hideIncoming() {
   callIncoming.hidden = true;
   incomingCallId = null;
   incomingCallerName = '';
+  syncCallButtonState();
   syncOverlayLock();
 }
 
@@ -3473,18 +3516,21 @@ async function acceptCall() {
     return;
   }
   callAcceptInProgress = true;
+  syncCallButtonState();
   const callId = incomingCallId;
   console.log('[Accept] Accepting call #' + callId);
   hideIncoming();
   if (!checkWebRTCSupport()) {
     console.log('[Accept] WebRTC not supported');
     callAcceptInProgress = false;
+    syncCallButtonState();
     api('PUT', `/messenger/calls/${callId}/reject`).catch(() => {}); return;
   }
   ensureNotificationPermissionInteractive().catch(() => {});
   const micGranted = await ensureMicrophonePermission(true);
   if (!micGranted) {
     callAcceptInProgress = false;
+    syncCallButtonState();
     api('PUT', `/messenger/calls/${callId}/reject`).catch(() => {});
     return;
   }
@@ -3498,6 +3544,7 @@ async function acceptCall() {
     console.error('[Accept] Mic error:', err.message);
     showToast(micError(err), true);
     callAcceptInProgress = false;
+    syncCallButtonState();
     api('PUT', `/messenger/calls/${callId}/reject`).catch(() => {}); return;
   }
 
@@ -3561,6 +3608,7 @@ async function acceptCall() {
     cleanupPeer();
   } finally {
     callAcceptInProgress = false;
+    syncCallButtonState();
   }
 }
 
@@ -3570,6 +3618,22 @@ async function rejectCall() {
   playEndTone(false);
   clearOutgoingNoAnswerTimer();
   if (id) api('PUT', `/messenger/calls/${id}/reject`).catch(() => {});
+}
+
+async function handleCallButtonClick() {
+  if (callDialInProgress || callAcceptInProgress) {
+    showToast('Триває підготовка дзвінка...');
+    return;
+  }
+  if (activeCallId || (callScreen && !callScreen.hidden)) {
+    if (callScreen && callScreen.hidden) {
+      callScreen.hidden = false;
+      syncOverlayLock();
+    }
+    syncCallButtonState();
+    return;
+  }
+  await initiateCall();
 }
 
 // ── Call polling ───────────────────────────
@@ -3695,8 +3759,11 @@ function showCallScreen(name, status) {
   callIceRecoverAttempts       = 0;
   callForceRelay               = false;
   callIceRestartInFlight       = false;
+  isMuted                      = false;
   clearCallIceRecoverTimer();
   callBackgroundNotifiedForId  = null;
+  syncMuteUi();
+  syncCallButtonState();
   requestCallWakeLock().catch(() => {});
   syncOverlayLock();
 }
@@ -3740,6 +3807,7 @@ async function hangupCall(notify = true, reason = 'ended') {
   pendingLocalIce       = [];
   pendingRemoteIce      = [];
   isMuted          = false;
+  callDialInProgress = false;
   callConnectedOnce = false;
   callAcceptInProgress = false;
   callStartAtMs = 0;
@@ -3751,7 +3819,8 @@ async function hangupCall(notify = true, reason = 'ended') {
   callIceRestartInFlight = false;
   callScreen.hidden       = true;
   callScreenTimer.hidden  = true;
-  if (btnMute) btnMute.classList.remove('muted');
+  syncMuteUi();
+  syncCallButtonState();
   if (hadVisibleCall) {
     playEndTone(reason === 'error');
   }
@@ -3801,10 +3870,15 @@ function primeCallAudioOnUserGesture() {
 
 function toggleMute() {
   if (!localStream) return;
+  const tracks = localStream.getAudioTracks();
+  if (!tracks.length) {
+    showToast('Мікрофон недоступний.', true);
+    return;
+  }
   isMuted = !isMuted;
-  localStream.getAudioTracks().forEach(t => { t.enabled = !isMuted; });
-  btnMute.classList.toggle('muted', isMuted);
-  btnMute.title = isMuted ? 'Увімкнути мікрофон' : 'Вимкнути мікрофон';
+  tracks.forEach(t => { t.enabled = !isMuted; });
+  syncMuteUi();
+  showToast(isMuted ? 'Мікрофон вимкнено' : 'Мікрофон увімкнено');
 }
 
 // ════════════════════════════════════════════
@@ -4351,7 +4425,7 @@ if (btnPhotoClose) btnPhotoClose.addEventListener('click', closePhotoViewer);
 if (btnPhotoPrev) btnPhotoPrev.addEventListener('click', () => stepPhotoViewer(-1));
 if (btnPhotoNext) btnPhotoNext.addEventListener('click', () => stepPhotoViewer(1));
 
-if (btnCall)       btnCall.addEventListener('click', initiateCall);
+if (btnCall)       btnCall.addEventListener('click', handleCallButtonClick);
 if (btnEndCall)    btnEndCall.addEventListener('click', () => hangupCall(true));
 if (btnMute)       btnMute.addEventListener('click', toggleMute);
 if (btnAcceptCall) btnAcceptCall.addEventListener('click', acceptCall);
@@ -4411,6 +4485,8 @@ if (btnDiagRefresh) {
 // ════════════════════════════════════════════
 renderCallSettings();
 renderGroupPreview();
+syncMuteUi();
+syncCallButtonState();
 if (token && me) showApp();
 else showAuth();
 

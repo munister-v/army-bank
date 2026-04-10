@@ -1179,6 +1179,15 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 ════════════════════════════════════════════ */
 .chat-header-actions { margin-left: auto; display: flex; gap: 4px; }
 #btn-chat-logout { display: none; }
+#btn-call.active-call {
+  background: rgba(31,107,76,.14);
+  color: #1f6b4c;
+  box-shadow: inset 0 0 0 1px rgba(31,107,76,.22);
+}
+#btn-call.busy {
+  opacity: .62;
+  pointer-events: none;
+}
 
 /* ════════════════════════════════════════════
    VOICE RECORD BUTTON
@@ -1919,6 +1928,13 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   color: rgba(255,255,255,.72);
   min-height: 22px;
 }
+.call-screen-mic-state {
+  margin-top: -2px;
+  font-size: 12px;
+  color: rgba(236,249,240,.88);
+  min-height: 18px;
+  font-family: var(--font-mono);
+}
 .call-screen-timer {
   font-size: 30px;
   font-family: var(--font-mono);
@@ -1949,6 +1965,13 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 }
 .btn-call-mute:hover { background: rgba(255,255,255,.22); }
 .btn-call-mute.muted { background: rgba(255,255,255,.85); color: var(--text); }
+.btn-call-mute .mic-off-slash {
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+.btn-call-mute.muted .mic-off-slash {
+  opacity: 1;
+}
 .btn-call-mute .call-action-icon,
 .btn-call-end .call-action-icon {
   width: 30px;
@@ -2257,6 +2280,9 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 
   .call-screen-status {
     font-size: 14px;
+  }
+  .call-screen-mic-state {
+    font-size: 11px;
   }
 
   .call-screen-timer {
