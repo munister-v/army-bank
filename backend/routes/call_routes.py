@@ -94,13 +94,28 @@ def _user_name(conn, user_id: int) -> str:
     return str(name or 'Користувач')
 
 
-def _notify_call_participants(conn, conv_id: int, sender_id: int, title: str, body: str, push_type: str) -> None:
+def _notify_call_participants(
+    conn,
+    conv_id: int,
+    sender_id: int,
+    title: str,
+    body: str,
+    push_type: str,
+    call_id: int | None = None,
+) -> None:
     participants = _conv_participant_ids(conn, conv_id)
     for uid in participants:
         if uid == sender_id:
             continue
         try:
-            send_push(uid, title, body, '/messenger', push_type)
+            send_push(
+                uid,
+                title,
+                body,
+                f'/messenger?conv={conv_id}',
+                push_type,
+                meta={'conversation_id': int(conv_id), 'call_id': int(call_id or 0)},
+            )
         except Exception:
             pass
 
@@ -166,8 +181,9 @@ def _expire_stale_pending_calls(conn, conv_id: int | None = None) -> int:
                 caller_id,
                 'Пропущений дзвінок',
                 'Абонент не відповів у заданий час.',
-                '/messenger',
+                f'/messenger?conv={int(row["conversation_id"])}',
                 'call_missed',
+                meta={'conversation_id': int(row['conversation_id']), 'call_id': int(sid)},
             )
     except Exception:
         pass
@@ -243,6 +259,7 @@ def start_call():
             'Вхідний дзвінок',
             f'{caller_name} телефонує вам у Messenger.',
             'call_incoming',
+            call_id=int(call_id),
         )
 
     return jsonify({'ok': True, 'data': {'call_id': call_id}})
@@ -336,8 +353,9 @@ def answer_call(call_id: int):
                 int(row['caller_id']),
                 'Дзвінок прийнято',
                 f'{callee_name} приєднався до дзвінка.',
-                '/messenger',
+                f'/messenger?conv={int(row["conversation_id"])}',
                 'call_answered',
+                meta={'conversation_id': int(row['conversation_id']), 'call_id': int(call_id)},
             )
         except Exception:
             pass
@@ -397,8 +415,9 @@ def reject_call(call_id: int):
                 int(row['caller_id']),
                 'Дзвінок відхилено',
                 f'{rejecter} відхилив(ла) виклик.',
-                '/messenger',
+                f'/messenger?conv={int(row["conversation_id"])}',
                 'call_rejected',
+                meta={'conversation_id': int(row['conversation_id']), 'call_id': int(call_id)},
             )
         except Exception:
             pass
@@ -428,6 +447,7 @@ def end_call(call_id: int):
             'Дзвінок завершено',
             f'{ender} завершив(ла) дзвінок.',
             'call_ended',
+            call_id=int(call_id),
         )
     return jsonify({'ok': True})
 

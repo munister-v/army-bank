@@ -23,6 +23,7 @@ from ..services.messenger_crypto import (
 )
 from ..utils.security import hash_password
 from .helpers import api_error, auth_required
+from .push_routes import send_push
 
 messenger_bp = Blueprint('messenger', __name__, url_prefix='/api/messenger')
 _auth_service = AuthService()
@@ -1124,6 +1125,8 @@ def send_message(conv_id: int):
             return api_error('Повідомлення занадто довге (макс. 4000 символів).')
         stored_text = encrypt_message(text)
 
+    push_events: list[tuple[int, str, str, str, str, dict]] = []
+
     with get_connection() as conn:
         part = conn.execute(
             'SELECT id FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
@@ -1131,6 +1134,14 @@ def send_message(conv_id: int):
         ).fetchone()
         if not part:
             return api_error('Доступ заборонено.', 403)
+
+        conv_row = conn.execute(
+            'SELECT COALESCE(is_group, %s) AS is_group, group_name FROM conversations WHERE id = %s',
+            (_FALSE, conv_id),
+        ).fetchone()
+        is_group = bool((conv_row or {}).get('is_group'))
+        group_name = str((conv_row or {}).get('group_name') or '').strip()
+        sender_name = str(g.current_user.get('full_name') or 'Користувач')
 
         if USE_PG:
             cur = conn.execute(
@@ -1162,6 +1173,49 @@ def send_message(conv_id: int):
         )
         _mark_read(conn, conv_id, me_id)
 
+        participant_rows = conn.execute(
+            """
+            SELECT u.id, u.role
+            FROM conversation_participants cp
+            JOIN users u ON u.id = cp.user_id
+            WHERE cp.conversation_id = %s AND cp.user_id != %s
+            """,
+            (conv_id, me_id),
+        ).fetchall()
+
+        msg_push_type = 'message_text'
+        msg_push_body = text[:140]
+        if msg_type == 'voice':
+            msg_push_type = 'message_voice'
+            msg_push_body = '🎤 Голосове повідомлення'
+        elif msg_type == 'image':
+            msg_push_type = 'message_image'
+            msg_push_body = '🖼️ Фото'
+
+        msg_push_title = f'ARM Bank · {group_name}' if (is_group and group_name) else sender_name
+        msg_push_meta = {
+            'conversation_id': int(conv_id),
+            'sender_id': int(me_id),
+            'sender_name': sender_name,
+            'msg_type': msg_type,
+        }
+        for row in participant_rows:
+            try:
+                uid = int(row['id'])
+            except Exception:
+                continue
+            role = str(row.get('role') or '').lower()
+            if role == _ASSISTANT_ROLE:
+                continue
+            push_events.append((
+                uid,
+                msg_push_title,
+                msg_push_body,
+                f'/messenger?conv={conv_id}',
+                msg_push_type,
+                msg_push_meta,
+            ))
+
         # Assistant auto-reply for default banking dialogue.
         assistant_id = _assistant_id_for_conversation(conn, conv_id)
         if assistant_id and int(assistant_id) != int(me_id) and msg_type == 'text':
@@ -1186,6 +1240,20 @@ def send_message(conv_id: int):
                     f'UPDATE conversations SET last_message_at = {_now_sql()}, last_message_text = %s WHERE id = %s',
                     (reply_text[:180], conv_id),
                 )
+                push_events.append((
+                    int(me_id),
+                    'ARM Bank Assistant',
+                    reply_text[:150],
+                    f'/messenger?conv={conv_id}',
+                    'assistant_reply',
+                    {'conversation_id': int(conv_id), 'sender_id': int(assistant_id), 'sender_name': _ASSISTANT_NAME},
+                ))
+
+    for uid, title, body, push_url, push_type, meta in push_events:
+        try:
+            send_push(uid, title, body, push_url, push_type, meta=meta)
+        except Exception:
+            pass
 
     return jsonify({'ok': True, 'data': {
         'id': msg_id,

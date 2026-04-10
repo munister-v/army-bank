@@ -36,7 +36,14 @@ def _get_public_key() -> str:
     )
 
 
-def send_push(user_id: int, title: str, body: str, url: str = '/dashboard', push_type: str = 'default') -> None:
+def send_push(
+    user_id: int,
+    title: str,
+    body: str,
+    url: str = '/dashboard',
+    push_type: str = 'default',
+    meta: dict | None = None,
+) -> None:
     """Send Web Push to all active subscriptions of a user. Never raises."""
     pem = _get_private_pem()
     if not pem:
@@ -52,7 +59,11 @@ def send_push(user_id: int, title: str, body: str, url: str = '/dashboard', push
         if not subs:
             logger.info('send_push: no subscriptions for user_id=%s', user_id)
             return
-        payload = json.dumps({'title': title, 'body': body, 'url': url, 'type': push_type})
+        payload_obj = {'title': title, 'body': body, 'url': url, 'type': push_type}
+        if isinstance(meta, dict):
+            for key, value in meta.items():
+                payload_obj[str(key)] = value
+        payload = json.dumps(payload_obj, ensure_ascii=False)
         for sub in subs:
             try:
                 webpush(
@@ -131,7 +142,7 @@ def test_push():
             ).fetchall()
         if not subs:
             return api_error('Немає активних push-підписок. Спочатку підпишіться на сповіщення.')
-        send_push(uid, '🔔 Тест', 'Push-сповіщення працює!', '/dashboard')
+        send_push(uid, '🔔 ARM Bank', 'Тест push працює коректно.', '/messenger', 'push_test')
         return jsonify({'ok': True, 'data': {'sent_to': len(subs)}})
     except Exception as exc:
         return api_error(str(exc))

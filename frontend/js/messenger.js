@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '42';
+const MESSENGER_ASSET_VERSION = '43';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -610,7 +610,7 @@ async function runClientDiagnostics(showDoneToast = false) {
   setDiagRow(diagOverall, overallOk ? 'ok' : 'warn', `Загальний стан: ${overallOk ? 'готово' : 'потребує уваги'}`);
 
   if (diagNote) {
-    let note = 'Усе готово до дзвінків і пуш-сповіщень.';
+    let note = 'Усе готово: push для повідомлень і дзвінків працює у фоні PWA.';
     if (!secureContext) note = 'Потрібен HTTPS для мікрофона, дзвінків і push.';
     else if (!notifGranted) note = 'Push вимкнено: натисніть "Увімкнути push".';
     else if (!swReady) note = 'Service Worker ще не готовий. Зачекайте 2-3 секунди й натисніть "Оновити".';
@@ -690,6 +690,7 @@ function openCallSettingsModal() {
   renderCallSettings();
   callSettingsModal.hidden = false;
   syncOverlayLock();
+  runClientDiagnostics().catch(() => {});
 }
 
 function closeCallSettingsModal() {
@@ -4553,15 +4554,16 @@ if (btnPushTest) {
     if (pushActionInFlight) return;
     setPushActionBusy(true);
     try {
-      const ok = await notifyViaServiceWorker({
-        title: 'ARM Bank',
-        body: 'Тест push працює коректно.',
-        tag: 'ab-push-test',
-        data: { type: 'push_test', url: '/messenger' },
-      });
-      if (ok) showToast('Тестове push-сповіщення відправлено.');
-      else showToast('Тест push не вдався. Оновіть підписку.', true);
+      const data = await api('POST', '/push/test', {});
+      const sentTo = Number(data?.sent_to || 0);
+      if (sentTo > 0) {
+        showToast(`Тестовий push надіслано (${sentTo}).`);
+      } else {
+        showToast('Тестовий push надіслано.');
+      }
       await runClientDiagnostics();
+    } catch (err) {
+      showToast(err?.message || 'Тест push не вдався. Оновіть підписку.', true);
     } finally {
       setPushActionBusy(false);
     }

@@ -1032,6 +1032,7 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow-y: auto;
 }
 .call-setting-row,
 .call-setting-block {
@@ -1077,6 +1078,46 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+.call-settings-advanced {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.call-settings-advanced-summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.call-settings-advanced-summary::-webkit-details-marker {
+  display: none;
+}
+.call-settings-advanced-summary::after {
+  content: '▾';
+  font-size: 12px;
+  color: var(--text-2);
+  transition: transform .18s ease;
+}
+.call-settings-advanced[open] .call-settings-advanced-summary::after {
+  transform: rotate(180deg);
+}
+.diag-card-in-settings {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--border-soft);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 10px 12px 12px;
 }
 
 /* Bank tools modal */
@@ -2075,6 +2116,10 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   }
   .diag-card {
     margin: 0 10px 10px;
+  }
+  .diag-card-in-settings {
+    margin: 0;
+    padding: 10px 10px 12px;
   }
   .sidebar-search .search-input {
     min-height: 42px;
