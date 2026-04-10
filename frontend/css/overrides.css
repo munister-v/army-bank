@@ -9708,6 +9708,10 @@ html.install-banner-visible #appScreen .app-content {
     scroll-padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px) + var(--browser-ui-bottom, 0px)) !important;
   }
 
+  #appScreen.screen-dashboard .app-header {
+    padding-bottom: calc(126px + env(safe-area-inset-bottom, 0px) + var(--browser-ui-bottom, 0px)) !important;
+  }
+
   #appScreen #sidebar.bottom-nav {
     position: fixed !important;
     z-index: 120 !important;

@@ -5120,8 +5120,8 @@ console.log('[Army Bank] UX core modules loaded');
   function isInteractiveTarget(target) {
     if (!target || !target.closest) return false;
     return !!target.closest(
-      'button, a, input, textarea, select, ' +
-      '.icon-btn, [data-no-header-scroll-proxy]'
+      'input, textarea, select, ' +
+      '.icon-btn, .bottom-nav, .nav-item, [data-no-header-scroll-proxy]'
     );
   }
 
