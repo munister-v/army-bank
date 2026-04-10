@@ -2183,6 +2183,15 @@ async function getCallAudioStream() {
       channelCount: { ideal: 1 },
       sampleRate: { ideal: 48000 },
       sampleSize: { ideal: 16 },
+      latency: { ideal: 0.01 },
+      // Chrome-specific flags for better AEC
+      googEchoCancellation: true,
+      googEchoCancellation2: true,
+      googNoiseSuppression: true,
+      googNoiseSuppression2: true,
+      googAutoGainControl: true,
+      googHighpassFilter: true,
+      googTypingNoiseDetection: true,
     },
     video: false,
   };
@@ -2208,10 +2217,31 @@ function optimizeOutgoingAudio(pc, stream) {
     if (!sender || typeof sender.getParameters !== 'function' || typeof sender.setParameters !== 'function') return;
     const params = sender.getParameters() || {};
     if (!Array.isArray(params.encodings) || !params.encodings.length) params.encodings = [{}];
-    params.encodings[0].maxBitrate = 40000;
-    params.encodings[0].priority = 'high';
+    params.encodings[0].maxBitrate   = 64000;  // 64kbps — достатньо для якісної мови
+    params.encodings[0].priority     = 'high';
+    params.encodings[0].networkPriority = 'high';
     sender.setParameters(params).catch(() => {});
   } catch (_) {}
+}
+
+// Modify SDP to add Opus parameters for better voice quality
+function patchOpusSdp(sdp) {
+  if (!sdp) return sdp;
+  // Find Opus payload type
+  const opusMatch = sdp.match(/a=rtpmap:(\d+) opus\/48000\/2/);
+  if (!opusMatch) return sdp;
+  const pt = opusMatch[1];
+  // Find existing fmtp line for Opus
+  const fmtpRe = new RegExp(`(a=fmtp:${pt} .*)`, 'm');
+  const newFmtp = `a=fmtp:${pt} minptime=10;useinbandfec=1;usedtx=1;maxaveragebitrate=64000;stereo=0`;
+  if (fmtpRe.test(sdp)) {
+    return sdp.replace(fmtpRe, newFmtp);
+  }
+  // Insert after rtpmap line
+  return sdp.replace(
+    new RegExp(`(a=rtpmap:${pt} opus/48000/2)`),
+    `$1\r\n${newFmtp}`
+  );
 }
 
 async function ensureCallAudioCtx() {
@@ -2677,7 +2707,8 @@ async function initiateCall() {
 
   try {
     const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
+    const patchedOffer = { type: offer.type, sdp: patchOpusSdp(offer.sdp) };
+    await peerConnection.setLocalDescription(patchedOffer);
     setCallStatusBase('Запуск...');
 
     // Send offer immediately with early ICE candidates
@@ -2812,7 +2843,8 @@ async function acceptCall() {
     lastProcessedOfferSdp = offerSdp;
     remoteSdpSet = true;
     const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
+    const patchedAnswer = { type: answer.type, sdp: patchOpusSdp(answer.sdp) };
+    await peerConnection.setLocalDescription(patchedAnswer);
     setCallStatusBase('Прийняття...');
 
     // Send answer immediately, don't wait for full ICE gathering
