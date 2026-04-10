@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '37';
+const MESSENGER_ASSET_VERSION = '38';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -178,6 +178,12 @@ const btnBankTools      = $('btn-bank-tools');
 const topbarAvatar      = $('topbar-avatar');
 const btnUnread         = $('btn-unread');
 const unreadBadge       = $('unread-badge');
+const btnDiagRefresh    = $('btn-diag-refresh');
+const diagOverall       = $('diag-overall');
+const diagPush          = $('diag-push');
+const diagMic           = $('diag-mic');
+const diagCall          = $('diag-call');
+const diagNote          = $('diag-note');
 const newChatModal      = $('new-chat-modal');
 const btnCloseModal     = $('btn-close-modal');
 const userSearchInput   = $('user-search-input');
@@ -448,6 +454,58 @@ async function notifyViaServiceWorker({ title, body = '', tag = '', data = {}, r
   } catch (_) {
     return false;
   }
+}
+
+function setDiagRow(el, state, label) {
+  if (!el) return;
+  el.dataset.state = state;
+  const t = el.querySelector('.diag-label');
+  if (t && label) t.textContent = label;
+}
+
+async function runClientDiagnostics(showDoneToast = false) {
+  const secureContext = location.protocol === 'https:' || location.hostname === 'localhost';
+  const rtcSupported = !!(window.RTCPeerConnection && navigator?.mediaDevices?.getUserMedia);
+  const online = navigator.onLine !== false;
+
+  const notifPerm = window.Notification ? Notification.permission : 'unsupported';
+  const notifGranted = notifPerm === 'granted';
+
+  const micPerm = await queryPermissionState('microphone');
+  const micGranted =
+    micPerm === 'granted' ||
+    (micPerm === 'unknown' && String(permState?.microphone || '') === 'granted');
+
+  let swReady = false;
+  let pushSubscribed = false;
+  if ('serviceWorker' in navigator && 'PushManager' in window) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      swReady = !!reg;
+      const sub = await reg.pushManager.getSubscription();
+      pushSubscribed = !!sub;
+    } catch (_) {}
+  }
+  const pushReady = notifGranted && swReady && pushSubscribed;
+  const callReady = secureContext && rtcSupported && micGranted && online;
+  const overallOk = callReady && pushReady;
+
+  setDiagRow(diagPush, pushReady ? 'ok' : (notifPerm === 'denied' ? 'bad' : 'warn'), `Push: ${pushReady ? 'готово' : 'потрібно налаштувати'}`);
+  setDiagRow(diagMic, micGranted ? 'ok' : (micPerm === 'denied' ? 'bad' : 'warn'), `Мікрофон: ${micGranted ? 'доступ є' : 'немає доступу'}`);
+  setDiagRow(diagCall, callReady ? 'ok' : 'warn', `Дзвінки: ${callReady ? 'готово' : 'є обмеження'}`);
+  setDiagRow(diagOverall, overallOk ? 'ok' : 'warn', `Загальний стан: ${overallOk ? 'готово' : 'потребує уваги'}`);
+
+  if (diagNote) {
+    let note = 'Усе готово до дзвінків і пуш-сповіщень.';
+    if (!secureContext) note = 'Потрібен HTTPS для мікрофона та дзвінків.';
+    else if (!notifGranted) note = 'Увімкніть сповіщення через кнопку дзвіночка.';
+    else if (!pushSubscribed) note = 'Дозвольте push і оновіть перевірку.';
+    else if (!micGranted) note = 'Дозвольте доступ до мікрофона у браузері.';
+    else if (!online) note = 'Немає мережі. Перевірте інтернет-зʼєднання.';
+    diagNote.textContent = note;
+  }
+
+  if (showDoneToast) showToast(overallOk ? 'Стан системи: готово' : 'Перевірка завершена');
 }
 
 // ════════════════════════════════════════════
@@ -876,6 +934,7 @@ function showApp() {
   loadConversations();
   startGlobalPoll();
   pollUnreadBadge();
+  runClientDiagnostics().catch(() => {});
   startIncomingCallCheck();
   syncOverlayLock();
 }
@@ -4201,6 +4260,7 @@ window.addEventListener('focus', () => {
   pollConversationsPresence().catch(() => {});
   if (activePartner?.id) pollPresence().catch(() => {});
   if (activeConvId) pollNewMessages().catch(() => {});
+  runClientDiagnostics().catch(() => {});
 });
 document.addEventListener('visibilitychange', handleVisibilityChange);
 window.addEventListener('pageshow', () => {
@@ -4220,6 +4280,12 @@ if (btnUnread) {
       showToast('Push-сповіщення активовано');
       pollUnreadBadge().catch(() => {});
     }
+    runClientDiagnostics().catch(() => {});
+  });
+}
+if (btnDiagRefresh) {
+  btnDiagRefresh.addEventListener('click', () => {
+    runClientDiagnostics(true).catch(() => showToast('Не вдалося оновити стан', true));
   });
 }
 

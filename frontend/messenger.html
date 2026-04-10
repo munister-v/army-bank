@@ -10,14 +10,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
   <meta name="apple-mobile-web-app-title" content="AB Chat"/>
   <title>Army Bank · Месенджер</title>
-  <link rel="manifest" href="/manifest-messenger.json?v=37"/>
+  <link rel="manifest" href="/manifest-messenger.json?v=38"/>
   <link rel="icon" type="image/svg+xml" href="/icons/chat-favicon.svg"/>
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/chat-icon-32.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/chat-icon-180.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=37"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=38"/>
 </head>
 <body>
 
@@ -156,6 +156,32 @@
       </svg>
       <input id="conv-search" class="search-input" type="text" placeholder="Пошук розмов..."/>
     </div>
+
+    <section class="diag-card" id="diag-card" aria-label="Стан системи">
+      <div class="diag-head">
+        <p class="diag-title">Стан системи</p>
+        <button class="diag-refresh" id="btn-diag-refresh" type="button">Оновити</button>
+      </div>
+      <div class="diag-grid">
+        <div class="diag-row" id="diag-overall" data-state="warn">
+          <span class="diag-dot" aria-hidden="true"></span>
+          <span class="diag-label">Загальний стан</span>
+        </div>
+        <div class="diag-row" id="diag-push" data-state="warn">
+          <span class="diag-dot" aria-hidden="true"></span>
+          <span class="diag-label">Push</span>
+        </div>
+        <div class="diag-row" id="diag-mic" data-state="warn">
+          <span class="diag-dot" aria-hidden="true"></span>
+          <span class="diag-label">Мікрофон</span>
+        </div>
+        <div class="diag-row" id="diag-call" data-state="warn">
+          <span class="diag-dot" aria-hidden="true"></span>
+          <span class="diag-label">Дзвінки</span>
+        </div>
+      </div>
+      <p class="diag-note" id="diag-note">Перевірка...</p>
+    </section>
 
     <div class="conv-list" id="conv-list">
       <div class="conv-empty" id="conv-empty" hidden>
@@ -646,6 +672,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=37"></script>
+<script src="/js/messenger.js?v=38"></script>
 </body>
 </html>
