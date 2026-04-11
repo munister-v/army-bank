@@ -1,11 +1,15 @@
 """Admin compliance management routes for Army Bank."""
 from __future__ import annotations
 
+import base64
+import binascii
+import hashlib
+import re
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request, g
 
-from ..database import get_connection
+from ..database import get_connection, USE_PG
 from ..repositories.feature_repository import FeatureRepository
 from .helpers import api_error, auth_required, role_required
 
@@ -15,6 +19,12 @@ feature_repo = FeatureRepository()
 
 _KYC_STATUSES  = ('not_started', 'pending', 'in_review', 'verified', 'rejected')
 _RISK_LEVELS   = ('low', 'medium', 'high', 'critical')
+_PASSPORT_NUMBER_RE = re.compile(r'^(?:[A-Z]{2}\d{6}|\d{9})$')
+_ALLOWED_SCAN_MIME = (
+    'image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'image/heic', 'image/heif'
+)
+_MIN_SCAN_BYTES = 20 * 1024
+_MAX_SCAN_BYTES = 8 * 1024 * 1024
 
 
 def _row_to_dict(row) -> dict:
@@ -26,6 +36,65 @@ def _row_to_dict(row) -> dict:
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _normalize_name(value: str) -> set[str]:
+    cleaned = re.sub(r'[^0-9A-Za-zА-Яа-яІіЇїЄєҐґ ]+', ' ', value or '').lower().strip()
+    return {token for token in cleaned.split() if len(token) >= 2}
+
+
+def _name_match_score(user_name: str, document_name: str) -> float:
+    user_tokens = _normalize_name(user_name)
+    doc_tokens = _normalize_name(document_name)
+    if not user_tokens or not doc_tokens:
+        return 0.0
+    intersection = len(user_tokens & doc_tokens)
+    base = max(len(user_tokens), len(doc_tokens), 1)
+    return intersection / base
+
+
+def _mask_doc_number(number: str) -> str:
+    number = (number or '').strip()
+    if not number:
+        return '—'
+    if len(number) <= 4:
+        return '*' * len(number)
+    return ('*' * (len(number) - 4)) + number[-4:]
+
+
+def _as_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    text = str(value or '').strip().lower()
+    return text in ('1', 'true', 'yes', 'on')
+
+
+def _decode_scan_payload(scan_data: str, mime_hint: str | None) -> tuple[bytes, str]:
+    raw = (scan_data or '').strip()
+    if not raw:
+        raise ValueError('scan_data is required.')
+
+    mime = (mime_hint or '').strip().lower()
+    if raw.startswith('data:'):
+        header, _, payload = raw.partition(',')
+        if not payload:
+            raise ValueError('Invalid data URL payload.')
+        if ';base64' not in header:
+            raise ValueError('scan_data must be base64 encoded.')
+        header_mime = header[5:].split(';', 1)[0].strip().lower()
+        if header_mime:
+            mime = header_mime
+        raw = payload.strip()
+
+    if not mime:
+        mime = 'application/octet-stream'
+
+    try:
+        blob = base64.b64decode(raw, validate=True)
+    except (ValueError, binascii.Error):
+        raise ValueError('scan_data is not valid base64.')
+
+    return blob, mime
 
 
 def _ensure_profile(conn, user_id: int) -> dict:
@@ -134,8 +203,9 @@ def list_compliance_users():
             where_clauses.append('sub.risk_level_eff = %s')
             params.append(risk_filter)
         if search:
+            op = 'ILIKE' if USE_PG else 'LIKE'
             where_clauses.append(
-                '(sub.full_name ILIKE %s OR sub.phone ILIKE %s OR sub.email ILIKE %s)'
+                f'(sub.full_name {op} %s OR sub.phone {op} %s OR sub.email {op} %s)'
             )
             like = f'%{search}%'
             params.extend([like, like, like])
@@ -304,5 +374,121 @@ def update_compliance_user(user_id: int):
             f'user_id={user_id}',
         )
         return jsonify({'ok': True, 'data': profile})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@admin_compliance_bp.post('/users/<int:user_id>/verify-passport')
+@auth_required
+@role_required('admin', 'platform_admin')
+def verify_passport_scan(user_id: int):
+    """KYC verification by passport scan with strict server-side checks."""
+    try:
+        actor_id = g.current_user['id']
+        body = request.get_json(force=True) or {}
+
+        passport_number = re.sub(r'[^A-Za-z0-9]', '', str(body.get('passport_number') or '').upper())
+        document_name = str(body.get('document_full_name') or '').strip()
+        manual_confirm = _as_bool(body.get('manual_confirm'))
+        file_name = str(body.get('file_name') or 'passport_scan').strip()[:120]
+
+        if not passport_number:
+            return api_error('Вкажіть номер паспорта.')
+        if not _PASSPORT_NUMBER_RE.match(passport_number):
+            return api_error('Номер паспорта має формат AA123456 або 123456789.')
+        if not document_name:
+            return api_error('Вкажіть ПІБ із документа для звірки.')
+
+        try:
+            scan_bytes, scan_mime = _decode_scan_payload(
+                str(body.get('scan_data') or ''),
+                body.get('scan_mime'),
+            )
+        except ValueError as exc:
+            return api_error(str(exc))
+
+        size = len(scan_bytes)
+        scan_hash = hashlib.sha256(scan_bytes).hexdigest()
+
+        with get_connection() as conn:
+            user_row = conn.execute(
+                'SELECT id, full_name, phone, email, role, created_at FROM users WHERE id = %s',
+                (user_id,),
+            ).fetchone()
+            if not user_row:
+                return api_error('User not found.', 404)
+            user = _row_to_dict(user_row)
+            profile = _ensure_profile(conn, user_id)
+
+            name_score = _name_match_score(user.get('full_name', ''), document_name)
+            name_match_ok = name_score >= 0.5
+            mime_ok = scan_mime in _ALLOWED_SCAN_MIME
+            size_ok = _MIN_SCAN_BYTES <= size <= _MAX_SCAN_BYTES
+
+            checks = [
+                {'id': 'scan_mime', 'label': 'Формат скану', 'passed': mime_ok, 'detail': scan_mime},
+                {'id': 'scan_size', 'label': 'Розмір скану', 'passed': size_ok, 'detail': f'{size} bytes'},
+                {'id': 'passport_number', 'label': 'Формат номера паспорта', 'passed': True, 'detail': _mask_doc_number(passport_number)},
+                {'id': 'name_match', 'label': 'Збіг ПІБ з профілем', 'passed': name_match_ok, 'detail': f'{name_score:.2f}'},
+                {'id': 'manual_confirm', 'label': 'Ручне підтвердження адміном', 'passed': manual_confirm, 'detail': 'confirmed' if manual_confirm else 'missing'},
+            ]
+
+            verified = all(item['passed'] for item in checks)
+            new_status = 'verified' if verified else 'in_review'
+
+            now_iso = _now_iso()
+            note_line = (
+                f'[{now_iso}] passport_scan: status={new_status}; '
+                f'number={_mask_doc_number(passport_number)}; '
+                f'scan={file_name}; mime={scan_mime}; bytes={size}; '
+                f'hash={scan_hash[:16]}...; name_score={name_score:.2f}'
+            )
+            prev_notes = (profile.get('notes') or '').strip()
+            new_notes = f'{prev_notes}\n{note_line}'.strip()
+
+            conn.execute(
+                """UPDATE compliance_profiles
+                      SET kyc_status = %s,
+                          notes = %s,
+                          updated_at = %s,
+                          updated_by = %s
+                    WHERE user_id = %s""",
+                (new_status, new_notes, now_iso, actor_id, user_id),
+            )
+
+            updated_profile = _row_to_dict(
+                conn.execute(
+                    'SELECT * FROM compliance_profiles WHERE user_id = %s',
+                    (user_id,),
+                ).fetchone()
+            )
+
+        feature_repo.add_audit_log(
+            actor_id,
+            'admin_kyc_passport_verify',
+            f'user_id={user_id}; verified={int(verified)}; hash={scan_hash[:12]}',
+        )
+
+        return jsonify({
+            'ok': True,
+            'data': {
+                'verified': verified,
+                'status': 'KYC пройдена' if verified else 'Потрібна додаткова перевірка',
+                'kyc_status': new_status,
+                'checks': checks,
+                'scan': {
+                    'mime': scan_mime,
+                    'bytes': size,
+                    'hash': scan_hash,
+                },
+                'user': {
+                    'id': user.get('id'),
+                    'full_name': user.get('full_name'),
+                    'email': user.get('email'),
+                    'phone': user.get('phone'),
+                },
+                'profile': updated_profile,
+            },
+        })
     except Exception as exc:
         return api_error(str(exc))
