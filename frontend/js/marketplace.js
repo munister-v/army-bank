@@ -43,6 +43,15 @@
     { id: 9012, title: 'ARM Home Security Kit', description: 'Камера + датчики + хаб', price: 7299, badge: 'ARM DEAL', stock: 17 },
   ];
 
+  function useFallbackCatalog(reason = '') {
+    state.products = FALLBACK_PRODUCTS.map(enrichProduct);
+    renderCategoryList();
+    renderCatalog();
+    if (reason) {
+      showToast(reason, true);
+    }
+  }
+
   const state = {
     products: [],
     cart: new Map(),
@@ -389,15 +398,19 @@
   }
 
   async function fetchCatalog() {
-    const data = await api.request('/api/marketplace/catalog');
-    const fromApi = Array.isArray(data?.items) ? data.items : [];
-    const source = fromApi.length ? fromApi : FALLBACK_PRODUCTS;
-    state.products = source.map(enrichProduct);
-    if (!fromApi.length) {
-      showToast('Каталог оновлюється: показано рекомендовані товари ARM.');
+    try {
+      const data = await api.request('/api/marketplace/catalog');
+      const fromApi = Array.isArray(data?.items) ? data.items : [];
+      if (!fromApi.length) {
+        useFallbackCatalog('Каталог оновлюється: показано рекомендовані товари ARM.');
+        return;
+      }
+      state.products = fromApi.map(enrichProduct);
+      renderCategoryList();
+      renderCatalog();
+    } catch (err) {
+      useFallbackCatalog('Проблема з мережею: показано локальний каталог ARM.');
     }
-    renderCategoryList();
-    renderCatalog();
   }
 
   async function fetchAccount() {
