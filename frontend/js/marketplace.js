@@ -20,6 +20,14 @@
     { key: 'Товари для дому', terms: ['lamp', 'home', 'sensor', 'security cam', 'hub', 'нічник', 'лампа', 'дім', 'органайзер', 'рюкзак', 'light', 'smart bulb', 'door'] },
   ];
 
+  const CATEGORY_ICONS = {
+    'Ноутбуки та комп’ютери': 'bi-laptop',
+    'Смартфони': 'bi-phone',
+    'Побутова техніка': 'bi-house-gear',
+    'Товари для дому': 'bi-house-heart',
+    'Акції ARM': 'bi-stars',
+  };
+
   const state = {
     products: [],
     cart: new Map(),
@@ -112,13 +120,15 @@
     const price = Number(item?.price || 0);
     const oldPrice = Number((price * 1.19).toFixed(2));
     const discountPercent = Math.max(3, Math.round(((oldPrice - price) / Math.max(oldPrice, 1)) * 100));
+    const category = inferCategory(item);
     return {
       ...item,
-      category: inferCategory(item),
+      category,
       rating,
       reviews,
       oldPrice,
       discountPercent,
+      iconClass: CATEGORY_ICONS[category] || 'bi-bag',
     };
   }
 
@@ -236,8 +246,9 @@
       product.className = 'rz-product';
       product.innerHTML = `
         <div class="rz-thumb">
+          <span class="rz-thumb-brand">ARM</span>
+          <i class="bi ${item.iconClass}" aria-hidden="true"></i>
           <span class="rz-discount">-${item.discountPercent}%</span>
-          ${item.image_emoji || '🛍️'}
         </div>
         <div class="rz-content">
           <h3 class="rz-title">${item.title || 'Товар'}</h3>
