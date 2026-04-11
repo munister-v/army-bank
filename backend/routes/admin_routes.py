@@ -179,6 +179,217 @@ def get_stats():
         return api_error(str(exc))
 
 
+@admin_bp.get('/analytics/overview')
+@auth_required
+@role_required('admin', 'platform_admin')
+def analytics_overview():
+    """Extended platform analytics for admin dashboard."""
+    try:
+        if USE_PG:
+            now_sql = 'NOW()'
+            day_ago_sql = "NOW() - INTERVAL '1 day'"
+            week_ago_sql = "NOW() - INTERVAL '7 days'"
+            month_ago_sql = "NOW() - INTERVAL '30 days'"
+        else:
+            now_sql = "datetime('now')"
+            day_ago_sql = "datetime('now', '-1 day')"
+            week_ago_sql = "datetime('now', '-7 day')"
+            month_ago_sql = "datetime('now', '-30 day')"
+
+        with get_connection() as conn:
+            totals = conn.execute(
+                '''
+                SELECT
+                  (SELECT COUNT(*) FROM users) AS users_total,
+                  (SELECT COUNT(*) FROM users WHERE created_at >= ''' + week_ago_sql + ''') AS users_new_7d,
+                  (SELECT COUNT(*) FROM sessions WHERE expires_at >= ''' + now_sql + ''') AS active_sessions,
+                  (SELECT COALESCE(SUM(balance),0) FROM accounts) AS total_balance,
+                  (SELECT COUNT(*) FROM transactions) AS tx_total,
+                  (SELECT COUNT(*) FROM transactions WHERE created_at >= ''' + day_ago_sql + ''') AS tx_24h,
+                  (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE created_at >= ''' + day_ago_sql + ''') AS tx_volume_24h,
+                  (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE created_at >= ''' + month_ago_sql + ''') AS tx_volume_30d
+                '''
+            ).fetchone()
+
+            kyc = conn.execute(
+                '''
+                SELECT
+                  COUNT(*) AS profiled,
+                  SUM(CASE WHEN kyc_status='verified' THEN 1 ELSE 0 END) AS verified,
+                  SUM(CASE WHEN kyc_status='in_review' THEN 1 ELSE 0 END) AS in_review,
+                  SUM(CASE WHEN kyc_status='rejected' THEN 1 ELSE 0 END) AS rejected
+                FROM compliance_profiles
+                '''
+            ).fetchone()
+
+            payout = conn.execute(
+                '''
+                SELECT
+                  COALESCE(SUM(CASE WHEN tx_type='payout' THEN amount ELSE 0 END),0) AS payout_total,
+                  COALESCE(SUM(CASE WHEN tx_type='payout' AND created_at >= ''' + month_ago_sql + ''' THEN amount ELSE 0 END),0) AS payout_30d
+                FROM transactions
+                '''
+            ).fetchone()
+
+            top_types = conn.execute(
+                '''
+                SELECT tx_type, COUNT(*) AS cnt, COALESCE(SUM(amount),0) AS amount_sum
+                FROM transactions
+                WHERE created_at >= ''' + month_ago_sql + '''
+                GROUP BY tx_type
+                ORDER BY cnt DESC
+                LIMIT 8
+                '''
+            ).fetchall()
+
+            daily_flow = conn.execute(
+                '''
+                SELECT DATE(created_at) AS d,
+                       COALESCE(SUM(CASE WHEN direction='in' THEN amount ELSE 0 END),0) AS total_in,
+                       COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END),0) AS total_out
+                FROM transactions
+                WHERE created_at >= ''' + month_ago_sql + '''
+                GROUP BY DATE(created_at)
+                ORDER BY d ASC
+                '''
+            ).fetchall()
+
+        profiled = int(kyc['profiled'] or 0) if kyc else 0
+        verified = int(kyc['verified'] or 0) if kyc else 0
+        verified_rate = round((verified / profiled) * 100, 2) if profiled else 0.0
+
+        return jsonify({'ok': True, 'data': {
+            'totals': {
+                'users_total': int(totals['users_total'] or 0),
+                'users_new_7d': int(totals['users_new_7d'] or 0),
+                'active_sessions': int(totals['active_sessions'] or 0),
+                'total_balance': round(float(totals['total_balance'] or 0), 2),
+                'tx_total': int(totals['tx_total'] or 0),
+                'tx_24h': int(totals['tx_24h'] or 0),
+                'tx_volume_24h': round(float(totals['tx_volume_24h'] or 0), 2),
+                'tx_volume_30d': round(float(totals['tx_volume_30d'] or 0), 2),
+                'payout_total': round(float(payout['payout_total'] or 0), 2) if payout else 0.0,
+                'payout_30d': round(float(payout['payout_30d'] or 0), 2) if payout else 0.0,
+            },
+            'kyc': {
+                'profiled': profiled,
+                'verified': verified,
+                'in_review': int(kyc['in_review'] or 0) if kyc else 0,
+                'rejected': int(kyc['rejected'] or 0) if kyc else 0,
+                'verified_rate': verified_rate,
+            },
+            'top_tx_types': [dict(r) for r in top_types],
+            'daily_flow_30d': [dict(r) for r in daily_flow],
+        }})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@admin_bp.get('/analytics/messenger')
+@auth_required
+@role_required('admin', 'platform_admin')
+def analytics_messenger():
+    """Messenger analytics: chats, messages, calls, push delivery basis."""
+    try:
+        if USE_PG:
+            day_ago_sql = "NOW() - INTERVAL '1 day'"
+            week_ago_sql = "NOW() - INTERVAL '7 days'"
+            month_ago_sql = "NOW() - INTERVAL '30 days'"
+            call_dur_sql = "COALESCE(EXTRACT(EPOCH FROM (ended_at - started_at)), 0)"
+        else:
+            day_ago_sql = "datetime('now', '-1 day')"
+            week_ago_sql = "datetime('now', '-7 day')"
+            month_ago_sql = "datetime('now', '-30 day')"
+            call_dur_sql = "COALESCE((strftime('%s', ended_at) - strftime('%s', started_at)), 0)"
+
+        with get_connection() as conn:
+            overview = conn.execute(
+                '''
+                SELECT
+                  (SELECT COUNT(*) FROM conversations) AS conversations_total,
+                  (SELECT COUNT(*) FROM conversations WHERE COALESCE(is_group, 0) = 1) AS groups_total,
+                  (SELECT COUNT(*) FROM messages) AS messages_total,
+                  (SELECT COUNT(*) FROM messages WHERE created_at >= ''' + day_ago_sql + ''') AS messages_24h,
+                  (SELECT COUNT(DISTINCT sender_id) FROM messages WHERE created_at >= ''' + day_ago_sql + ''') AS active_senders_24h,
+                  (SELECT COUNT(*) FROM push_subscriptions) AS push_subscriptions_total
+                '''
+            ).fetchone()
+
+            msg_types = conn.execute(
+                '''
+                SELECT COALESCE(msg_type, 'text') AS msg_type, COUNT(*) AS cnt
+                FROM messages
+                WHERE created_at >= ''' + month_ago_sql + ''' AND COALESCE(is_deleted, 0) = 0
+                GROUP BY COALESCE(msg_type, 'text')
+                ORDER BY cnt DESC
+                '''
+            ).fetchall()
+
+            conv_activity = conn.execute(
+                '''
+                SELECT c.id, COALESCE(c.group_name, 'Direct #' || c.id) AS title,
+                       COALESCE(c.is_group, 0) AS is_group,
+                       COUNT(m.id) AS msg_count
+                FROM conversations c
+                LEFT JOIN messages m ON m.conversation_id = c.id AND m.created_at >= ''' + week_ago_sql + '''
+                GROUP BY c.id, c.group_name, c.is_group
+                ORDER BY msg_count DESC
+                LIMIT 10
+                '''
+            ).fetchall()
+
+            calls_overview = conn.execute(
+                '''
+                SELECT
+                  COUNT(*) AS calls_total,
+                  SUM(CASE WHEN status = 'active' OR status = 'ended' THEN 1 ELSE 0 END) AS connected_calls,
+                  SUM(CASE WHEN status = 'missed' THEN 1 ELSE 0 END) AS missed_calls,
+                  SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected_calls,
+                  AVG(CASE WHEN ended_at IS NOT NULL AND started_at IS NOT NULL THEN ''' + call_dur_sql + ''' ELSE NULL END) AS avg_duration_sec
+                FROM calls
+                WHERE created_at >= ''' + month_ago_sql + '''
+                '''
+            ).fetchone()
+
+            calls_daily = conn.execute(
+                '''
+                SELECT DATE(created_at) AS d, COUNT(*) AS calls_count
+                FROM calls
+                WHERE created_at >= ''' + month_ago_sql + '''
+                GROUP BY DATE(created_at)
+                ORDER BY d ASC
+                '''
+            ).fetchall()
+
+        connected = int(calls_overview['connected_calls'] or 0) if calls_overview else 0
+        total_calls = int(calls_overview['calls_total'] or 0) if calls_overview else 0
+        connect_rate = round((connected / total_calls) * 100, 2) if total_calls else 0.0
+
+        return jsonify({'ok': True, 'data': {
+            'overview': {
+                'conversations_total': int(overview['conversations_total'] or 0),
+                'groups_total': int(overview['groups_total'] or 0),
+                'messages_total': int(overview['messages_total'] or 0),
+                'messages_24h': int(overview['messages_24h'] or 0),
+                'active_senders_24h': int(overview['active_senders_24h'] or 0),
+                'push_subscriptions_total': int(overview['push_subscriptions_total'] or 0),
+            },
+            'message_types_30d': [dict(r) for r in msg_types],
+            'top_conversations_7d': [dict(r) for r in conv_activity],
+            'calls_30d': {
+                'calls_total': total_calls,
+                'connected_calls': connected,
+                'missed_calls': int(calls_overview['missed_calls'] or 0) if calls_overview else 0,
+                'rejected_calls': int(calls_overview['rejected_calls'] or 0) if calls_overview else 0,
+                'avg_duration_sec': round(float(calls_overview['avg_duration_sec'] or 0), 1) if calls_overview else 0.0,
+                'connect_rate': connect_rate,
+            },
+            'calls_daily_30d': [dict(r) for r in calls_daily],
+        }})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
 @admin_bp.get('/transactions')
 @auth_required
 @role_required('admin', 'platform_admin')
