@@ -5,132 +5,222 @@
     maximumFractionDigits: 2,
   });
 
+  const CATEGORY_HINTS = [
+    { key: 'Електроніка', terms: ['powerbank', 'earbuds', 'лампа', 'smart'] },
+    { key: 'Дім', terms: ['mug', 'чаш', 'лампа', 'дім'] },
+    { key: 'Аксесуари', terms: ['holder', 'card', 'кард', 'аксес'] },
+    { key: 'Одяг', terms: ['hoodie', 'одяг'] },
+  ];
+
   const state = {
     products: [],
     cart: new Map(),
-    account: null,
     orders: [],
+    account: null,
     authenticated: false,
+    activeCategory: 'all',
   };
 
   const el = {
     catalogGrid: document.getElementById('catalog-grid'),
+    catalogCount: document.getElementById('catalog-count'),
+    catalogSearch: document.getElementById('catalog-search'),
+    catalogSort: document.getElementById('catalog-sort'),
+    categoryList: document.getElementById('category-list'),
+    filterInStock: document.getElementById('filter-in-stock'),
+    filterMinPrice: document.getElementById('filter-min-price'),
+    filterMaxPrice: document.getElementById('filter-max-price'),
+    filterReset: document.getElementById('filter-reset'),
     cartEmpty: document.getElementById('cart-empty'),
     cartItems: document.getElementById('cart-items'),
     cartTotal: document.getElementById('cart-total'),
-    accountNumber: document.getElementById('account-number'),
-    accountBalance: document.getElementById('account-balance'),
-    ordersCount: document.getElementById('orders-count'),
-    ordersList: document.getElementById('orders-list'),
     checkoutForm: document.getElementById('checkout-form'),
     checkoutBtn: document.getElementById('checkout-btn'),
     shippingName: document.getElementById('shipping-name'),
     shippingPhone: document.getElementById('shipping-phone'),
     shippingAddress: document.getElementById('shipping-address'),
     checkoutNote: document.getElementById('checkout-note'),
-    toast: document.getElementById('toast'),
-    backToBank: document.getElementById('back-to-bank'),
+    accountNumber: document.getElementById('account-number'),
+    accountBalance: document.getElementById('account-balance'),
+    ordersCount: document.getElementById('orders-count'),
+    ordersList: document.getElementById('orders-list'),
     loginToBank: document.getElementById('login-to-bank'),
+    backToBank: document.getElementById('back-to-bank'),
     guestBanner: document.getElementById('guest-banner'),
-    catalogSearch: document.getElementById('catalog-search'),
-    catalogSort: document.getElementById('catalog-sort'),
+    toast: document.getElementById('toast'),
   };
 
   function basePath() {
     return window.ARMY_BANK_BASE || '';
   }
 
+  function getBankPath() {
+    return `${basePath()}/app`;
+  }
+
   function showToast(message, isError = false) {
+    if (!el.toast) return;
     el.toast.textContent = message;
-    el.toast.style.background = isError ? '#6b1f1f' : '#102e22';
+    el.toast.style.background = isError ? '#8e2b2b' : '#1f1f1f';
     el.toast.hidden = false;
     clearTimeout(showToast._timer);
     showToast._timer = setTimeout(() => { el.toast.hidden = true; }, 2400);
   }
 
-  function getBankPath() {
-    return `${basePath()}/app`;
+  function inferCategory(product) {
+    const title = String(product?.title || '').toLowerCase();
+    const description = String(product?.description || '').toLowerCase();
+    const text = `${title} ${description}`;
+    for (const hint of CATEGORY_HINTS) {
+      if (hint.terms.some((term) => text.includes(term))) return hint.key;
+    }
+    return 'Інше';
   }
 
-  function productById(id) {
+  function enrichProduct(item) {
+    const id = Number(item?.id || 1);
+    const rating = Number((4.1 + ((id * 13) % 8) / 10).toFixed(1));
+    const reviews = 24 + ((id * 37) % 420);
+    const price = Number(item?.price || 0);
+    const oldPrice = Number((price * 1.17).toFixed(2));
+    return {
+      ...item,
+      category: inferCategory(item),
+      rating,
+      reviews,
+      oldPrice,
+    };
+  }
+
+  function getProduct(id) {
     return state.products.find((p) => Number(p.id) === Number(id)) || null;
   }
 
-  function cartTotal() {
+  function getCartTotal() {
     let total = 0;
     for (const [id, qty] of state.cart.entries()) {
-      const product = productById(id);
-      if (!product) continue;
-      total += Number(product.price || 0) * Number(qty || 0);
+      const p = getProduct(id);
+      if (!p) continue;
+      total += Number(p.price || 0) * Number(qty || 0);
     }
     return Number(total.toFixed(2));
   }
 
-  function cartPayload() {
+  function getCartPayload() {
     return Array.from(state.cart.entries()).map(([id, qty]) => ({
       product_id: Number(id),
       qty: Number(qty),
     }));
   }
 
-  function getFilteredCatalog() {
+  function renderCategoryList() {
+    if (!el.categoryList) return;
+    const categories = ['all', ...new Set(state.products.map((p) => p.category).filter(Boolean))];
+    el.categoryList.innerHTML = '';
+    for (const category of categories) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `category-btn${state.activeCategory === category ? ' active' : ''}`;
+      btn.dataset.category = category;
+      btn.textContent = category === 'all' ? 'Усі товари' : category;
+      el.categoryList.appendChild(btn);
+    }
+  }
+
+  function getFilteredProducts() {
     const q = String(el.catalogSearch?.value || '').trim().toLowerCase();
     const sort = String(el.catalogSort?.value || 'popular');
+    const minPrice = Number(el.filterMinPrice?.value || 0);
+    const maxPrice = Number(el.filterMaxPrice?.value || 0);
+    const inStockOnly = !!el.filterInStock?.checked;
+
     let list = [...state.products];
+    if (state.activeCategory !== 'all') {
+      list = list.filter((p) => p.category === state.activeCategory);
+    }
     if (q) {
-      list = list.filter((item) => {
-        const title = String(item.title || '').toLowerCase();
-        const desc = String(item.description || '').toLowerCase();
-        return title.includes(q) || desc.includes(q);
+      list = list.filter((p) => {
+        const hay = `${String(p.title || '')} ${String(p.description || '')}`.toLowerCase();
+        return hay.includes(q);
       });
     }
+    if (inStockOnly) {
+      list = list.filter((p) => Number(p.stock || 0) > 0);
+    }
+    if (minPrice > 0) {
+      list = list.filter((p) => Number(p.price || 0) >= minPrice);
+    }
+    if (maxPrice > 0) {
+      list = list.filter((p) => Number(p.price || 0) <= maxPrice);
+    }
+
     if (sort === 'cheap') {
       list.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
     } else if (sort === 'expensive') {
       list.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
     } else if (sort === 'title') {
       list.sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'uk'));
+    } else if (sort === 'rating') {
+      list.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
     } else {
-      list.sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+      list.sort((a, b) => Number(b.reviews || 0) - Number(a.reviews || 0));
     }
     return list;
   }
 
   function renderCatalog() {
+    if (!el.catalogGrid) return;
+    const products = getFilteredProducts();
+    if (el.catalogCount) {
+      el.catalogCount.textContent = `${products.length} товарів`;
+    }
     el.catalogGrid.innerHTML = '';
-    const visible = getFilteredCatalog();
-    if (!visible.length) {
-      el.catalogGrid.innerHTML = '<p>Каталог порожній.</p>';
+    if (!products.length) {
+      el.catalogGrid.innerHTML = '<p>Нічого не знайдено за обраними фільтрами.</p>';
       return;
     }
-    for (const item of visible) {
-      const card = document.createElement('article');
-      card.className = 'product-card';
-      card.innerHTML = `
-        <div class="product-top">
-          <span class="emoji">${item.image_emoji || '🛍️'}</span>
-          ${item.badge ? `<span class="badge">${item.badge}</span>` : ''}
-        </div>
-        <h3>${item.title}</h3>
-        <p>${item.description || ''}</p>
-        <div class="product-meta">
-          <div class="price">${currencyFmt.format(Number(item.price || 0))}</div>
-          <button class="btn btn-add" type="button" data-add-id="${item.id}" ${Number(item.stock || 0) <= 0 ? 'disabled' : ''}>
-            ${Number(item.stock || 0) <= 0 ? 'Немає в наявності' : 'Додати'}
-          </button>
+
+    for (const item of products) {
+      const inStock = Number(item.stock || 0) > 0;
+      const stars = '★★★★★'.slice(0, Math.floor(item.rating)) + '☆☆☆☆☆'.slice(0, Math.max(0, 5 - Math.floor(item.rating)));
+      const product = document.createElement('article');
+      product.className = 'rz-product';
+      product.innerHTML = `
+        <div class="rz-thumb">${item.image_emoji || '🛍️'}</div>
+        <div class="rz-content">
+          <h3 class="rz-title">${item.title || 'Товар'}</h3>
+          <div class="rz-meta">
+            <span class="rz-stars">${stars}</span>
+            <span>${item.rating.toFixed(1)} · ${item.reviews}</span>
+          </div>
+          <div class="rz-meta">
+            <span class="rz-stock ${inStock ? '' : 'out'}">${inStock ? 'Є в наявності' : 'Немає в наявності'}</span>
+            <span>${item.badge ? item.badge : item.category}</span>
+          </div>
+          <div class="rz-price-wrap">
+            <div>
+              <div class="rz-price-main">${currencyFmt.format(Number(item.price || 0))}</div>
+              <div class="rz-price-old">${currencyFmt.format(Number(item.oldPrice || 0))}</div>
+            </div>
+            <button class="btn btn-add" data-add-id="${item.id}" type="button" ${inStock ? '' : 'disabled'}>
+              Купити
+            </button>
+          </div>
         </div>
       `;
-      el.catalogGrid.appendChild(card);
+      el.catalogGrid.appendChild(product);
     }
   }
 
   function renderCart() {
+    if (!el.cartItems) return;
     const entries = Array.from(state.cart.entries());
     el.cartItems.innerHTML = '';
-    el.cartEmpty.style.display = entries.length ? 'none' : 'block';
-
+    if (el.cartEmpty) {
+      el.cartEmpty.style.display = entries.length ? 'none' : 'block';
+    }
     for (const [id, qty] of entries) {
-      const item = productById(id);
+      const item = getProduct(id);
       if (!item) continue;
       const row = document.createElement('div');
       row.className = 'cart-item';
@@ -149,26 +239,24 @@
       `;
       el.cartItems.appendChild(row);
     }
-
-    const total = cartTotal();
-    el.cartTotal.textContent = currencyFmt.format(total);
-    el.checkoutBtn.disabled = total <= 0 || !state.authenticated;
+    const total = getCartTotal();
+    if (el.cartTotal) el.cartTotal.textContent = currencyFmt.format(total);
+    if (el.checkoutBtn) el.checkoutBtn.disabled = !state.authenticated || total <= 0;
   }
 
   function setGuestMode(reason = '') {
     state.authenticated = false;
-    state.account = null;
     state.orders = [];
-    el.accountNumber.textContent = 'Потрібен вхід';
-    el.accountBalance.textContent = '—';
-    el.ordersCount.textContent = '0';
-    el.ordersList.innerHTML = '<div class="order-item"><small>Увійдіть, щоб бачити історію замовлень.</small></div>';
     if (el.loginToBank) el.loginToBank.hidden = false;
     if (el.guestBanner) {
       el.guestBanner.hidden = false;
-      if (reason) {
-        el.guestBanner.innerHTML = `<strong>Гостьовий режим:</strong> ${reason}`;
-      }
+      el.guestBanner.innerHTML = `<strong>Гостьовий режим:</strong> ${reason || 'для оплати потрібна авторизація.'}`;
+    }
+    if (el.accountNumber) el.accountNumber.textContent = 'Потрібен вхід';
+    if (el.accountBalance) el.accountBalance.textContent = '—';
+    if (el.ordersCount) el.ordersCount.textContent = '0';
+    if (el.ordersList) {
+      el.ordersList.innerHTML = '<div class="order-item"><small>Увійдіть, щоб переглядати замовлення.</small></div>';
     }
     renderCart();
   }
@@ -180,18 +268,18 @@
   }
 
   function renderOrders() {
+    if (!el.ordersList) return;
     el.ordersList.innerHTML = '';
     if (!state.orders.length) {
       el.ordersList.innerHTML = '<div class="order-item"><small>Ще немає замовлень.</small></div>';
-      el.ordersCount.textContent = '0';
+      if (el.ordersCount) el.ordersCount.textContent = '0';
       return;
     }
-
-    el.ordersCount.textContent = String(state.orders.length);
+    if (el.ordersCount) el.ordersCount.textContent = String(state.orders.length);
     for (const order of state.orders) {
-      const box = document.createElement('article');
-      box.className = 'order-item';
-      box.innerHTML = `
+      const node = document.createElement('article');
+      node.className = 'order-item';
+      node.innerHTML = `
         <div>
           <strong>Замовлення #${order.id}</strong><br/>
           <small>${new Date(order.created_at).toLocaleString('uk-UA')}</small>
@@ -201,21 +289,22 @@
           <small>${order.items_count} позицій</small>
         </div>
       `;
-      el.ordersList.appendChild(box);
+      el.ordersList.appendChild(node);
     }
+  }
+
+  async function fetchCatalog() {
+    const data = await api.request('/api/marketplace/catalog');
+    state.products = (data.items || []).map(enrichProduct);
+    renderCategoryList();
+    renderCatalog();
   }
 
   async function fetchAccount() {
     const data = await api.request('/api/account');
     state.account = data;
-    el.accountNumber.textContent = data.account_number || '—';
-    el.accountBalance.textContent = currencyFmt.format(Number(data.balance || 0));
-  }
-
-  async function fetchCatalog() {
-    const data = await api.request('/api/marketplace/catalog');
-    state.products = data.items || [];
-    renderCatalog();
+    if (el.accountNumber) el.accountNumber.textContent = data.account_number || '—';
+    if (el.accountBalance) el.accountBalance.textContent = currencyFmt.format(Number(data.balance || 0));
   }
 
   async function fetchOrders() {
@@ -224,13 +313,13 @@
     renderOrders();
   }
 
-  async function checkout(ev) {
-    ev.preventDefault();
+  async function checkout(event) {
+    event.preventDefault();
     if (!state.authenticated) {
-      showToast('Увійдіть у ARM Bank для оплати.', true);
+      showToast('Увійдіть в ARM Bank для оплати.', true);
       return;
     }
-    const items = cartPayload();
+    const items = getCartPayload();
     if (!items.length) {
       showToast('Кошик порожній.', true);
       return;
@@ -238,15 +327,17 @@
 
     const payload = {
       items,
-      shipping_name: el.shippingName.value.trim(),
-      shipping_phone: el.shippingPhone.value.trim(),
-      shipping_address: el.shippingAddress.value.trim(),
-      note: el.checkoutNote.value.trim(),
+      shipping_name: String(el.shippingName?.value || '').trim(),
+      shipping_phone: String(el.shippingPhone?.value || '').trim(),
+      shipping_address: String(el.shippingAddress?.value || '').trim(),
+      note: String(el.checkoutNote?.value || '').trim(),
     };
 
-    el.checkoutBtn.disabled = true;
-    const oldText = el.checkoutBtn.textContent;
-    el.checkoutBtn.textContent = 'Оплата...';
+    const oldText = el.checkoutBtn ? el.checkoutBtn.textContent : '';
+    if (el.checkoutBtn) {
+      el.checkoutBtn.disabled = true;
+      el.checkoutBtn.textContent = 'Оформлення...';
+    }
     try {
       const data = await api.request('/api/marketplace/checkout', {
         method: 'POST',
@@ -255,37 +346,39 @@
       state.cart.clear();
       renderCart();
       await Promise.all([fetchAccount(), fetchCatalog(), fetchOrders()]);
-      showToast(`Замовлення #${data.order_id} оплачено`);
+      showToast(`Замовлення #${data.order_id} успішно оформлено`);
     } catch (err) {
       showToast(err?.serverMessage || err?.message || 'Помилка оплати', true);
     } finally {
-      el.checkoutBtn.disabled = false;
-      el.checkoutBtn.textContent = oldText;
+      if (el.checkoutBtn) {
+        el.checkoutBtn.disabled = false;
+        el.checkoutBtn.textContent = oldText || 'Оформити через ARM Bank';
+      }
     }
   }
 
-  function onCatalogClick(ev) {
-    const addBtn = ev.target.closest('[data-add-id]');
+  function onCatalogClick(event) {
+    const addBtn = event.target.closest('[data-add-id]');
     if (!addBtn) return;
     const id = Number(addBtn.dataset.addId);
-    const product = productById(id);
+    const product = getProduct(id);
     if (!product || Number(product.stock || 0) <= 0) return;
     const current = state.cart.get(id) || 0;
     state.cart.set(id, current + 1);
     renderCart();
   }
 
-  function onCartClick(ev) {
-    const inc = ev.target.closest('[data-inc-id]');
-    if (inc) {
-      const id = Number(inc.dataset.incId);
+  function onCartClick(event) {
+    const incBtn = event.target.closest('[data-inc-id]');
+    if (incBtn) {
+      const id = Number(incBtn.dataset.incId);
       state.cart.set(id, (state.cart.get(id) || 0) + 1);
       renderCart();
       return;
     }
-    const dec = ev.target.closest('[data-dec-id]');
-    if (dec) {
-      const id = Number(dec.dataset.decId);
+    const decBtn = event.target.closest('[data-dec-id]');
+    if (decBtn) {
+      const id = Number(decBtn.dataset.decId);
       const next = (state.cart.get(id) || 0) - 1;
       if (next <= 0) state.cart.delete(id);
       else state.cart.set(id, next);
@@ -293,32 +386,57 @@
     }
   }
 
-  async function init() {
-    el.backToBank.addEventListener('click', () => {
+  function resetFilters() {
+    state.activeCategory = 'all';
+    if (el.filterInStock) el.filterInStock.checked = false;
+    if (el.filterMinPrice) el.filterMinPrice.value = '';
+    if (el.filterMaxPrice) el.filterMaxPrice.value = '';
+    if (el.catalogSort) el.catalogSort.value = 'popular';
+    if (el.catalogSearch) el.catalogSearch.value = '';
+    renderCategoryList();
+    renderCatalog();
+  }
+
+  function bindEvents() {
+    el.backToBank?.addEventListener('click', () => {
       window.location.href = getBankPath();
     });
     el.loginToBank?.addEventListener('click', () => {
       window.location.href = getBankPath();
     });
-    el.catalogGrid.addEventListener('click', onCatalogClick);
-    el.cartItems.addEventListener('click', onCartClick);
-    el.checkoutForm.addEventListener('submit', checkout);
+    el.catalogGrid?.addEventListener('click', onCatalogClick);
+    el.cartItems?.addEventListener('click', onCartClick);
+    el.checkoutForm?.addEventListener('submit', checkout);
     el.catalogSearch?.addEventListener('input', renderCatalog);
     el.catalogSort?.addEventListener('change', renderCatalog);
+    el.filterInStock?.addEventListener('change', renderCatalog);
+    el.filterMinPrice?.addEventListener('input', renderCatalog);
+    el.filterMaxPrice?.addEventListener('input', renderCatalog);
+    el.filterReset?.addEventListener('click', resetFilters);
+    el.categoryList?.addEventListener('click', (event) => {
+      const btn = event.target.closest('.category-btn');
+      if (!btn) return;
+      state.activeCategory = String(btn.dataset.category || 'all');
+      renderCategoryList();
+      renderCatalog();
+    });
+  }
 
+  async function init() {
+    bindEvents();
     try {
       await fetchCatalog();
       if (api?.token) {
         await Promise.all([fetchAccount(), fetchOrders()]);
         setAuthorizedMode();
       } else {
-        setGuestMode('каталог доступний, для оплати потрібна авторизація.');
+        setGuestMode('переглядайте товари та увійдіть для оплати.');
       }
       renderCart();
     } catch (err) {
       if (Number(err?.status) === 401) {
-        setGuestMode('сесія завершилась, увійдіть повторно.');
-        showToast('Сесію оновлено. Увійдіть у банк для оплати.', true);
+        setGuestMode('сесія завершилася, увійдіть повторно.');
+        showToast('Потрібна авторизація для оплати.', true);
       } else {
         showToast(err?.serverMessage || err?.message || 'Не вдалося завантажити маркетплейс', true);
       }
@@ -327,3 +445,4 @@
 
   init();
 })();
+
