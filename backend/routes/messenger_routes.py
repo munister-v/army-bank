@@ -247,6 +247,7 @@ def _default_assistant_welcome() -> str:
         "• /операції 7\n"
         "• /аналітика\n"
         "• /виписка pdf\n"
+        "• /маркет\n"
         "• /карти\n"
         "• /безпека"
     )
@@ -368,6 +369,7 @@ def _assistant_commands_guide() -> str:
         "• /інсайти — фінансові патерни та рекомендації\n"
         "• /виписка pdf 2026-01-01 2026-01-31\n"
         "• /виписка csv 2026-01-01 2026-01-31\n"
+        "• /маркет — відкрити ARM Marketplace (оплата через ваш рахунок)\n"
         "• /карти — статус карток (active/blocked/closed)\n"
         "• /реквізити — номер рахунку + IBAN-підказка\n"
         "• /цілі — прогрес накопичень\n"
@@ -589,6 +591,16 @@ def _assistant_reply_text(user_id: int, user_text: str, script_root: str = '', r
     text = (user_text or '').strip()
     low = text.lower()
     account_number = account.get('account_number') or '—'
+    base = script_root or ''
+    origin = str(request_origin or '').rstrip('/')
+
+    def _absolute(link: str) -> str:
+        raw = str(link or '')
+        if raw.startswith('http://') or raw.startswith('https://'):
+            return raw
+        if raw.startswith('/') and origin:
+            return f'{origin}{raw}'
+        return raw
 
     def period_default() -> tuple[str, str]:
         to_d = date.today()
@@ -655,16 +667,6 @@ def _assistant_reply_text(user_id: int, user_text: str, script_root: str = '', r
             from_date, to_date = period_default()
         svc = StatementService()
         from_date, to_date = svc.normalize_period(from_date, to_date)
-        base = script_root or ''
-        origin = str(request_origin or '').rstrip('/')
-
-        def _absolute(link: str) -> str:
-            raw = str(link or '')
-            if raw.startswith('http://') or raw.startswith('https://'):
-                return raw
-            if raw.startswith('/') and origin:
-                return f'{origin}{raw}'
-            return raw
 
         if fmt == 'pdf':
             order = svc.create_statement_order(
@@ -746,6 +748,15 @@ def _assistant_reply_text(user_id: int, user_text: str, script_root: str = '', r
 
     if any(k in low for k in ('/безпека', 'безпек', 'security', 'фішинг', 'шахрай')):
         return _assistant_security_tip(account_number)
+
+    if any(k in low for k in ('/маркет', '/market', '/marketplace', 'маркет', 'marketplace', 'магазин')):
+        market_link = _absolute(f"{base}/marketplace")
+        return (
+            "ARM Marketplace готовий ✅\n"
+            f"Відкрити: {market_link}\n\n"
+            "Оплата відбувається безпосередньо через ваш рахунок ARM Bank.\n"
+            "Після оплати транзакція зʼявиться в історії операцій автоматично."
+        )
 
     if any(k in low for k in ('переказ', 'перевод', 'transfer', 'на карт', 'iban')):
         return (
@@ -897,6 +908,7 @@ def assistant_capabilities():
         {'id': 'insights', 'label': 'Інсайти', 'command': '/інсайти'},
         {'id': 'statement_pdf', 'label': 'Виписка PDF', 'command': '/виписка pdf'},
         {'id': 'statement_csv', 'label': 'Виписка CSV', 'command': '/виписка csv'},
+        {'id': 'marketplace', 'label': 'Маркетплейс', 'command': '/маркет'},
         {'id': 'cards', 'label': 'Картки', 'command': '/карти'},
         {'id': 'requisites', 'label': 'Реквізити', 'command': '/реквізити'},
         {'id': 'goals', 'label': 'Цілі', 'command': '/цілі'},

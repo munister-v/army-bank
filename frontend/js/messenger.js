@@ -6,9 +6,10 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '45';
+const MESSENGER_ASSET_VERSION = '46';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
+const BANK_TOKEN_KEY = 'army_bank_token';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
 const PERM_STATE_KEY = 'msng_permission_state_v1';
 const API_DEFAULT_TIMEOUT_MS = 12000;
@@ -23,8 +24,14 @@ const DEFAULT_CALL_PREFS = Object.freeze({
 });
 
 // ── Auth state ─────────────────────────────
-let token = localStorage.getItem(TOKEN_KEY) || null;
+let token = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(BANK_TOKEN_KEY) || null;
 let me    = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
+if (token && !localStorage.getItem(TOKEN_KEY)) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+if (token) {
+  localStorage.setItem(BANK_TOKEN_KEY, token);
+}
 
 // ── Chat state ─────────────────────────────
 let activeConvId   = null;
@@ -325,7 +332,11 @@ async function api(method, path, body, options = {}) {
     clearTimeout(timeoutId);
   }
   const newTok = res.headers.get('X-Refresh-Token');
-  if (newTok) { token = newTok; localStorage.setItem(TOKEN_KEY, token); }
+  if (newTok) {
+    token = newTok;
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(BANK_TOKEN_KEY, token);
+  }
   const contentType = (res.headers.get('Content-Type') || '').toLowerCase();
   let data = null;
   if (contentType.includes('application/json')) {
@@ -1018,6 +1029,7 @@ function applyAuthPayload(data) {
   me = data?.user || null;
   if (!token || !me) throw new Error('Некоректна відповідь сервера авторизації.');
   localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(BANK_TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(me));
   const linked = me?.bank_account_linked !== false;
   bankProfileLinked = linked;
@@ -1102,6 +1114,7 @@ function doLogout() {
   rtcConfigLoaded = false;
   rtcConfig = { iceServers: [...DEFAULT_ICE_SERVERS] };
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(BANK_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   clearPolling();
   clearInterval(incomingCheckTimer);
@@ -1720,6 +1733,10 @@ async function runAssistantQuickAction(action, btnEl = null) {
     }
     if (action === 'statement_csv') {
       await sendCommand('/виписка csv');
+      return;
+    }
+    if (action === 'marketplace') {
+      await sendCommand('/маркет');
       return;
     }
     if (action === 'cards') {

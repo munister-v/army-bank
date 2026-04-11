@@ -1747,13 +1747,25 @@ function getMessengerPath() {
   return base ? `${base}/messenger` : '/messenger';
 }
 
+function getMarketplacePath() {
+  const base = getBasePath();
+  return base ? `${base}/marketplace` : '/marketplace';
+}
+
 function openMessengerScreen() {
   window.location.href = getMessengerPath();
 }
 
+function openMarketplaceScreen() {
+  window.location.href = getMarketplacePath();
+}
+
 $('#messengerBtn')?.addEventListener('click', openMessengerScreen);
+$('#marketplaceBtn')?.addEventListener('click', openMarketplaceScreen);
 $('#profileMessengerBtn')?.addEventListener('click', openMessengerScreen);
+$('#profileMarketplaceBtn')?.addEventListener('click', openMarketplaceScreen);
 $$('[data-open-messenger]').forEach((btn) => btn.addEventListener('click', openMessengerScreen));
+$$('[data-open-marketplace]').forEach((btn) => btn.addEventListener('click', openMarketplaceScreen));
 
 // ── NAVIGATION ──────────────────────────────────────────
 const ALLOWED_SCREENS = [
@@ -2982,6 +2994,10 @@ $$('[data-jump]').forEach((btn) => {
     const id = btn.dataset.jump;
     if (id === 'messenger') {
       openMessengerScreen();
+      return;
+    }
+    if (id === 'marketplace') {
+      openMarketplaceScreen();
       return;
     }
 

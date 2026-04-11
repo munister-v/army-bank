@@ -52,7 +52,7 @@
   <link rel="stylesheet" href="/css/mobile-only-gate.css?v=2026-04-08-02">
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js?v=2026-04-08-26" as="script">
-  <link rel="preload" href="/js/app.js?v=2026-04-11-08" as="script">
+  <link rel="preload" href="/js/app.js?v=2026-04-11-09" as="script">
   <link rel="preload" href="/js/overrides.js?v=2026-04-08-26" as="script">
   <!-- Instant auth state + server wake-up (without forced reload loops) -->
   <script>
@@ -294,6 +294,12 @@
               <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5A8.3 8.3 0 0 1 8 18.8L3 20l1.3-4.8A8.5 8.5 0 1 1 21 11.5z"/>
             </svg>
           </button>
+          <button id="marketplaceBtn" class="icon-btn" aria-label="Маркетплейс" title="Маркетплейс">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 7h12l-1.2 12H7.2L6 7z"/>
+              <path d="M9 7V6a3 3 0 0 1 6 0v1"/>
+            </svg>
+          </button>
           <button id="notifBtn" class="icon-btn" aria-label="Сповіщення" title="Сповіщення" style="position:relative">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -369,13 +375,14 @@
           </span>
           <span class="qa-label">За IBAN</span>
         </button>
-        <button type="button" class="qa-btn" data-jump="messenger">
+        <button type="button" class="qa-btn" data-jump="marketplace">
           <span class="qa-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-              <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5A8.3 8.3 0 0 1 8 18.8L3 20l1.3-4.8A8.5 8.5 0 1 1 21 11.5z"/>
+              <path d="M6 7h12l-1.2 12H7.2L6 7z"/>
+              <path d="M9 7V6a3 3 0 0 1 6 0v1"/>
             </svg>
           </span>
-          <span class="qa-label">Чат</span>
+          <span class="qa-label">Маркет</span>
         </button>
       </div>
 
@@ -1510,7 +1517,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js?v=2026-04-08-26" defer></script>
-  <script src="/js/app.js?v=2026-04-11-08" defer></script>
+  <script src="/js/app.js?v=2026-04-11-09" defer></script>
   <script src="/js/overrides.js?v=2026-04-08-26" defer></script>
   <script>
     (function() {
