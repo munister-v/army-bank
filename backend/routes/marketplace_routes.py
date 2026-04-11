@@ -72,10 +72,6 @@ def _ensure_schema() -> None:
         )
         conn.execute('CREATE INDEX IF NOT EXISTS idx_marketplace_items_order ON marketplace_order_items(order_id)')
 
-        seeded = conn.execute('SELECT COUNT(*) AS n FROM marketplace_products').fetchone()
-        if int((seeded or {}).get('n') or 0) > 0:
-            return
-
         products = [
             ('arm-hoodie', 'ARM Hoodie', 'Преміум худі зі щільної бавовни', 2499.00, '🧥', 'NEW', 40),
             ('arm-mug', 'ARM Mug', 'Термочашка з подвійною стінкою 450 мл', 699.00, '☕', 'HOT', 120),
@@ -83,9 +79,48 @@ def _ensure_schema() -> None:
             ('arm-card-holder', 'ARM Card Holder', 'Шкіряний кардхолдер для банківських карт', 899.00, '💳', None, 65),
             ('arm-wireless-earbuds', 'ARM Earbuds', 'Бездротові навушники з шумозаглушенням', 3299.00, '🎧', 'PRO', 18),
             ('arm-smart-lamp', 'ARM Smart Lamp', 'Розумна настільна лампа з керуванням зі смартфона', 1599.00, '💡', None, 32),
+            ('arm-iphone-lite', 'ARM Phone Lite 128GB', 'Смартфон 6.5" OLED, NFC, швидка зарядка', 11999.00, '📱', 'SALE', 54),
+            ('arm-phone-pro', 'ARM Phone Pro 256GB', 'Флагманський смартфон, 5G, камера 50MP', 21999.00, '📱', 'TOP', 36),
+            ('arm-tablet-11', 'ARM Tablet 11"', 'Планшет 11" з підтримкою стилуса', 15499.00, '📲', None, 22),
+            ('arm-laptop-air', 'ARM Book Air 14', 'Ультрабук 14", 16GB RAM, 512GB SSD', 32999.00, '💻', 'NEW', 17),
+            ('arm-laptop-pro', 'ARM Book Pro 15', 'Ноутбук для роботи та монтажу', 45999.00, '💻', 'PRO', 9),
+            ('arm-monitor-24', 'ARM Monitor 24" IPS', 'Монітор 24", 100Hz, тонкі рамки', 6999.00, '🖥️', None, 40),
+            ('arm-monitor-27', 'ARM Monitor 27" QHD', 'Монітор 27", QHD, HDR ready', 11999.00, '🖥️', 'HOT', 28),
+            ('arm-keyboard-mech', 'ARM Mechanical Keyboard', 'Механічна клавіатура RGB', 2899.00, '⌨️', None, 75),
+            ('arm-mouse-pro', 'ARM Wireless Mouse', 'Ергономічна бездротова миша', 1399.00, '🖱️', None, 90),
+            ('arm-webcam-2k', 'ARM Webcam 2K', 'Вебкамера 2K з автофокусом', 2499.00, '📷', None, 33),
+            ('arm-router-ax', 'ARM Router AX3000', 'Wi‑Fi 6 роутер для дому та офісу', 3599.00, '📡', 'TOP', 41),
+            ('arm-speaker-mini', 'ARM Speaker Mini', 'Портативна Bluetooth колонка', 1299.00, '🔊', None, 70),
+            ('arm-speaker-max', 'ARM Speaker Max', 'Стереоколонка з басом та автономністю 20 год', 3999.00, '🔊', 'SALE', 29),
+            ('arm-vacuum-robot', 'ARM Robot Vacuum', 'Робот-пилосос з вологим прибиранням', 12499.00, '🤖', 'HOT', 16),
+            ('arm-vacuum-stick', 'ARM Stick Vacuum', 'Вертикальний пилосос 2-в-1', 6999.00, '🧹', None, 31),
+            ('arm-air-fryer', 'ARM Air Fryer XL', 'Аерофритюрниця 5.5л з 8 режимами', 4699.00, '🍟', None, 24),
+            ('arm-kettle-smart', 'ARM Smart Kettle', 'Електрочайник з керуванням зі смартфона', 1899.00, '🫖', None, 43),
+            ('arm-coffee-pro', 'ARM Coffee Pro', 'Кавоварка еспресо з капучинатором', 8499.00, '☕', 'PRO', 12),
+            ('arm-blender-max', 'ARM Blender Max', 'Блендер 1200W з 3 насадками', 2199.00, '🥤', None, 57),
+            ('arm-smart-bulb', 'ARM Smart Bulb Set', 'Набір із 3 розумних ламп RGB', 1199.00, '💡', None, 101),
+            ('arm-bedside-light', 'ARM Bedside Night Lamp', 'Нічник з сенсорним керуванням', 999.00, '🌙', 'SALE', 67),
+            ('arm-baby-night-light', 'ARM Baby Night Light', 'Нічник для дитячої кімнати', 749.00, '🌜', None, 79),
+            ('arm-security-cam', 'ARM Security Cam', 'IP-камера 2K для дому', 2799.00, '📹', None, 26),
+            ('arm-door-sensor', 'ARM Door Sensor Kit', 'Набір датчиків дверей/вікон', 1499.00, '🚪', None, 64),
+            ('arm-watch-fit', 'ARM Watch Fit', 'Смарт-годинник з пульсометром', 4999.00, '⌚', 'NEW', 34),
+            ('arm-band-lite', 'ARM Fitness Band', 'Фітнес-браслет з AMOLED екраном', 1999.00, '⌚', None, 60),
+            ('arm-charger-gan', 'ARM GaN Charger 65W', 'Компактна зарядка 65W USB-C', 1299.00, '🔌', None, 110),
+            ('arm-cable-pack', 'ARM USB-C Cable Pack', 'Набір кабелів USB-C (3 шт.)', 599.00, '🔗', None, 140),
+            ('arm-backpack-city', 'ARM City Backpack', 'Міський рюкзак для ноутбука 15.6"', 1799.00, '🎒', None, 48),
+            ('arm-travel-case', 'ARM Travel Organizer', 'Органайзер для кабелів та ґаджетів', 899.00, '🧳', None, 72),
+            ('arm-home-hub', 'ARM Smart Home Hub', 'Центр керування smart-пристроями', 3199.00, '🏠', 'TOP', 21),
+            ('arm-tv-box', 'ARM TV Box 4K', 'Медіаприставка 4K з голосовим керуванням', 2699.00, '📺', None, 39),
+            ('arm-headphones-over', 'ARM Over-Ear ANC', 'Повнорозмірні навушники з ANC', 5299.00, '🎧', 'HOT', 19),
+            ('arm-gaming-chair', 'ARM Gaming Chair', 'Ергономічне крісло з підтримкою спини', 7999.00, '🪑', None, 14),
+            ('arm-desk-lift', 'ARM Lift Desk', 'Підйомний стіл для робочого місця', 14999.00, '🪵', 'PRO', 8),
         ]
         suffix = get_returning_id_suffix()
+        existing_rows = conn.execute('SELECT slug FROM marketplace_products').fetchall()
+        existing_slugs = {str(row.get('slug') or '') for row in (existing_rows or [])}
         for slug, title, description, price, emoji, badge, stock in products:
+            if slug in existing_slugs:
+                continue
             conn.execute(
                 """
                 INSERT INTO marketplace_products
@@ -311,4 +346,3 @@ def checkout():
             'items': normalized_items,
         },
     })
-

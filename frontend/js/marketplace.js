@@ -6,9 +6,13 @@
   });
 
   const CATEGORY_HINTS = [
-    { key: 'Електроніка', terms: ['powerbank', 'earbuds', 'лампа', 'smart'] },
-    { key: 'Дім', terms: ['mug', 'чаш', 'лампа', 'дім'] },
-    { key: 'Аксесуари', terms: ['holder', 'card', 'кард', 'аксес'] },
+    { key: 'Смартфони', terms: ['phone', 'смартфон', 'iphone'] },
+    { key: 'Ноутбуки', terms: ['laptop', 'book air', 'book pro', 'ноутбук', 'ультрабук'] },
+    { key: 'ТВ та Монітори', terms: ['monitor', 'tv box', 'монітор', 'телев'] },
+    { key: 'Аудіо', terms: ['speaker', 'earbuds', 'headphones', 'колонка', 'навуш'] },
+    { key: 'Дім', terms: ['lamp', 'kettle', 'coffee', 'blender', 'vacuum', 'нічник', 'лампа', 'дім'] },
+    { key: 'Розумний дім', terms: ['smart home', 'sensor', 'security cam', 'hub', 'датчик', 'камера'] },
+    { key: 'Аксесуари', terms: ['holder', 'card', 'кард', 'аксес', 'cable', 'charger', 'organizer', 'backpack'] },
     { key: 'Одяг', terms: ['hoodie', 'одяг'] },
   ];
 
@@ -31,6 +35,8 @@
     filterMinPrice: document.getElementById('filter-min-price'),
     filterMaxPrice: document.getElementById('filter-max-price'),
     filterReset: document.getElementById('filter-reset'),
+    toggleFilters: document.getElementById('toggle-filters'),
+    filtersBackdrop: document.getElementById('filters-backdrop'),
     cartEmpty: document.getElementById('cart-empty'),
     cartItems: document.getElementById('cart-items'),
     cartTotal: document.getElementById('cart-total'),
@@ -52,6 +58,18 @@
 
   function basePath() {
     return window.ARMY_BANK_BASE || '';
+  }
+
+  function isMobileFiltersMode() {
+    return window.matchMedia('(max-width: 920px)').matches;
+  }
+
+  function setFiltersOpen(open) {
+    const shouldOpen = !!open && isMobileFiltersMode();
+    document.body.classList.toggle('filters-open', shouldOpen);
+    if (el.filtersBackdrop) {
+      el.filtersBackdrop.hidden = !shouldOpen;
+    }
   }
 
   function getBankPath() {
@@ -400,6 +418,7 @@
     if (el.catalogSearch) el.catalogSearch.value = '';
     renderCategoryList();
     renderCatalog();
+    setFiltersOpen(false);
   }
 
   function bindEvents() {
@@ -418,12 +437,21 @@
     el.filterMinPrice?.addEventListener('input', renderCatalog);
     el.filterMaxPrice?.addEventListener('input', renderCatalog);
     el.filterReset?.addEventListener('click', resetFilters);
+    el.toggleFilters?.addEventListener('click', () => {
+      const isOpen = document.body.classList.contains('filters-open');
+      setFiltersOpen(!isOpen);
+    });
+    el.filtersBackdrop?.addEventListener('click', () => setFiltersOpen(false));
     el.categoryList?.addEventListener('click', (event) => {
       const btn = event.target.closest('.category-btn');
       if (!btn) return;
       state.activeCategory = String(btn.dataset.category || 'all');
       renderCategoryList();
       renderCatalog();
+      setFiltersOpen(false);
+    });
+    window.addEventListener('resize', () => {
+      if (!isMobileFiltersMode()) setFiltersOpen(false);
     });
   }
 

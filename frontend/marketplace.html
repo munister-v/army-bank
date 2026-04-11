@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/marketplace.css?v=4"/>
+  <link rel="stylesheet" href="/css/marketplace.css?v=6"/>
 </head>
 <body>
   <div class="rz-shell">
@@ -32,9 +32,24 @@
       <span>Товари для дому</span>
       <span>Акції ARM</span>
     </div>
+    <div id="filters-backdrop" class="filters-backdrop" hidden></div>
 
     <section id="guest-banner" class="guest-banner" hidden>
       <strong>Гостьовий режим:</strong> перегляд товарів доступний, оплата активується після входу в ARM Bank.
+    </section>
+    <section class="rz-promo">
+      <article class="rz-promo-card green">
+        <p>Акція тижня</p>
+        <h4>Знижки до -25% на smart home</h4>
+      </article>
+      <article class="rz-promo-card orange">
+        <p>ARM Bank Pay</p>
+        <h4>Кешбек 3% при оплаті карткою ARM</h4>
+      </article>
+      <article class="rz-promo-card dark">
+        <p>Швидка доставка</p>
+        <h4>Відправка день у день по Україні</h4>
+      </article>
     </section>
 
     <section class="rz-kpi-row">
@@ -93,7 +108,10 @@
       <section class="rz-catalog">
         <div class="rz-catalog-head">
           <h2>Товари для дому та техніки</h2>
-          <span id="catalog-count">0 товарів</span>
+          <div class="rz-catalog-tools">
+            <button id="toggle-filters" class="btn btn-filter" type="button">Фільтри</button>
+            <span id="catalog-count">0 товарів</span>
+          </div>
         </div>
         <div id="catalog-grid" class="rz-grid"></div>
       </section>
@@ -126,7 +144,7 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="/js/api.js?v=4"></script>
-  <script src="/js/marketplace.js?v=4"></script>
+  <script src="/js/api.js?v=6"></script>
+  <script src="/js/marketplace.js?v=6"></script>
 </body>
 </html>
