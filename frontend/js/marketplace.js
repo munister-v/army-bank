@@ -10,6 +10,7 @@
     cart: new Map(),
     account: null,
     orders: [],
+    authenticated: false,
   };
 
   const el = {
@@ -29,6 +30,10 @@
     checkoutNote: document.getElementById('checkout-note'),
     toast: document.getElementById('toast'),
     backToBank: document.getElementById('back-to-bank'),
+    loginToBank: document.getElementById('login-to-bank'),
+    guestBanner: document.getElementById('guest-banner'),
+    catalogSearch: document.getElementById('catalog-search'),
+    catalogSort: document.getElementById('catalog-sort'),
   };
 
   function basePath() {
@@ -41,6 +46,10 @@
     el.toast.hidden = false;
     clearTimeout(showToast._timer);
     showToast._timer = setTimeout(() => { el.toast.hidden = true; }, 2400);
+  }
+
+  function getBankPath() {
+    return `${basePath()}/app`;
   }
 
   function productById(id) {
@@ -64,13 +73,37 @@
     }));
   }
 
+  function getFilteredCatalog() {
+    const q = String(el.catalogSearch?.value || '').trim().toLowerCase();
+    const sort = String(el.catalogSort?.value || 'popular');
+    let list = [...state.products];
+    if (q) {
+      list = list.filter((item) => {
+        const title = String(item.title || '').toLowerCase();
+        const desc = String(item.description || '').toLowerCase();
+        return title.includes(q) || desc.includes(q);
+      });
+    }
+    if (sort === 'cheap') {
+      list.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+    } else if (sort === 'expensive') {
+      list.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+    } else if (sort === 'title') {
+      list.sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'uk'));
+    } else {
+      list.sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+    }
+    return list;
+  }
+
   function renderCatalog() {
     el.catalogGrid.innerHTML = '';
-    if (!state.products.length) {
+    const visible = getFilteredCatalog();
+    if (!visible.length) {
       el.catalogGrid.innerHTML = '<p>Каталог порожній.</p>';
       return;
     }
-    for (const item of state.products) {
+    for (const item of visible) {
       const card = document.createElement('article');
       card.className = 'product-card';
       card.innerHTML = `
@@ -82,8 +115,8 @@
         <p>${item.description || ''}</p>
         <div class="product-meta">
           <div class="price">${currencyFmt.format(Number(item.price || 0))}</div>
-          <button class="btn btn-add" type="button" data-add-id="${item.id}">
-            Додати
+          <button class="btn btn-add" type="button" data-add-id="${item.id}" ${Number(item.stock || 0) <= 0 ? 'disabled' : ''}>
+            ${Number(item.stock || 0) <= 0 ? 'Немає в наявності' : 'Додати'}
           </button>
         </div>
       `;
@@ -119,7 +152,31 @@
 
     const total = cartTotal();
     el.cartTotal.textContent = currencyFmt.format(total);
-    el.checkoutBtn.disabled = total <= 0;
+    el.checkoutBtn.disabled = total <= 0 || !state.authenticated;
+  }
+
+  function setGuestMode(reason = '') {
+    state.authenticated = false;
+    state.account = null;
+    state.orders = [];
+    el.accountNumber.textContent = 'Потрібен вхід';
+    el.accountBalance.textContent = '—';
+    el.ordersCount.textContent = '0';
+    el.ordersList.innerHTML = '<div class="order-item"><small>Увійдіть, щоб бачити історію замовлень.</small></div>';
+    if (el.loginToBank) el.loginToBank.hidden = false;
+    if (el.guestBanner) {
+      el.guestBanner.hidden = false;
+      if (reason) {
+        el.guestBanner.innerHTML = `<strong>Гостьовий режим:</strong> ${reason}`;
+      }
+    }
+    renderCart();
+  }
+
+  function setAuthorizedMode() {
+    state.authenticated = true;
+    if (el.loginToBank) el.loginToBank.hidden = true;
+    if (el.guestBanner) el.guestBanner.hidden = true;
   }
 
   function renderOrders() {
@@ -169,6 +226,10 @@
 
   async function checkout(ev) {
     ev.preventDefault();
+    if (!state.authenticated) {
+      showToast('Увійдіть у ARM Bank для оплати.', true);
+      return;
+    }
     const items = cartPayload();
     if (!items.length) {
       showToast('Кошик порожній.', true);
@@ -207,6 +268,8 @@
     const addBtn = ev.target.closest('[data-add-id]');
     if (!addBtn) return;
     const id = Number(addBtn.dataset.addId);
+    const product = productById(id);
+    if (!product || Number(product.stock || 0) <= 0) return;
     const current = state.cart.get(id) || 0;
     state.cart.set(id, current + 1);
     renderCart();
@@ -231,31 +294,36 @@
   }
 
   async function init() {
-    if (!api?.token) {
-      window.location.href = `${basePath()}/app`;
-      return;
-    }
-
     el.backToBank.addEventListener('click', () => {
-      window.location.href = `${basePath()}/app`;
+      window.location.href = getBankPath();
+    });
+    el.loginToBank?.addEventListener('click', () => {
+      window.location.href = getBankPath();
     });
     el.catalogGrid.addEventListener('click', onCatalogClick);
     el.cartItems.addEventListener('click', onCartClick);
     el.checkoutForm.addEventListener('submit', checkout);
+    el.catalogSearch?.addEventListener('input', renderCatalog);
+    el.catalogSort?.addEventListener('change', renderCatalog);
 
     try {
-      await Promise.all([fetchAccount(), fetchCatalog(), fetchOrders()]);
+      await fetchCatalog();
+      if (api?.token) {
+        await Promise.all([fetchAccount(), fetchOrders()]);
+        setAuthorizedMode();
+      } else {
+        setGuestMode('каталог доступний, для оплати потрібна авторизація.');
+      }
       renderCart();
     } catch (err) {
-      showToast(err?.serverMessage || err?.message || 'Не вдалося завантажити маркетплейс', true);
       if (Number(err?.status) === 401) {
-        setTimeout(() => {
-          window.location.href = `${basePath()}/app`;
-        }, 800);
+        setGuestMode('сесія завершилась, увійдіть повторно.');
+        showToast('Сесію оновлено. Увійдіть у банк для оплати.', true);
+      } else {
+        showToast(err?.serverMessage || err?.message || 'Не вдалося завантажити маркетплейс', true);
       }
     }
   }
 
   init();
 })();
-

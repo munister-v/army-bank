@@ -15,14 +15,16 @@ function buildApiError(message, status, payload) {
 const api = {
   // ── Token ──────────────────────────────────────────────────────────────────
   // Читаємо з localStorage — зберігається назавжди до явного виходу
-  token: localStorage.getItem('army_bank_token') || '',
+  token: localStorage.getItem('army_bank_token') || localStorage.getItem('msng_token') || '',
 
   setToken(token) {
     this.token = token || '';
     if (this.token) {
       localStorage.setItem('army_bank_token', this.token);
+      localStorage.setItem('msng_token', this.token);
     } else {
       localStorage.removeItem('army_bank_token');
+      localStorage.removeItem('msng_token');
     }
   },
 
