@@ -254,9 +254,48 @@ def analytics_overview():
                 '''
             ).fetchall()
 
+            action_queue = conn.execute(
+                '''
+                SELECT
+                  SUM(CASE WHEN kyc_status = 'in_review' THEN 1 ELSE 0 END) AS kyc_in_review,
+                  SUM(CASE WHEN kyc_status = 'rejected' THEN 1 ELSE 0 END) AS kyc_rejected,
+                  SUM(CASE WHEN kyc_status = 'pending' THEN 1 ELSE 0 END) AS kyc_pending
+                FROM compliance_profiles
+                '''
+            ).fetchone()
+
+            failed_tx_24h = None
+            try:
+                failed_tx_24h = conn.execute(
+                    '''
+                    SELECT COUNT(*) AS cnt
+                    FROM payment_audit_log
+                    WHERE decision = 'rejected' AND created_at >= ''' + day_ago_sql + '''
+                    '''
+                ).fetchone()
+            except Exception:
+                failed_tx_24h = {'cnt': 0}
+
         profiled = int(kyc['profiled'] or 0) if kyc else 0
         verified = int(kyc['verified'] or 0) if kyc else 0
         verified_rate = round((verified / profiled) * 100, 2) if profiled else 0.0
+        in_review_cnt = int(action_queue['kyc_in_review'] or 0) if action_queue else 0
+        rejected_cnt = int(action_queue['kyc_rejected'] or 0) if action_queue else 0
+        pending_cnt = int(action_queue['kyc_pending'] or 0) if action_queue else 0
+
+        alerts: list[dict] = []
+        if verified_rate < 60:
+            alerts.append({'severity': 'high', 'code': 'KYC_RATE_LOW', 'message': f'Низький KYC verified rate: {verified_rate}%.'})
+        if in_review_cnt >= 20:
+            alerts.append({'severity': 'medium', 'code': 'KYC_REVIEW_BACKLOG', 'message': f'Черга KYC in_review: {in_review_cnt}.'})
+        if rejected_cnt >= 10:
+            alerts.append({'severity': 'medium', 'code': 'KYC_REJECT_SPIKE', 'message': f'Багато відхилених KYC: {rejected_cnt}.'})
+        if (totals['tx_24h'] or 0) == 0:
+            alerts.append({'severity': 'high', 'code': 'NO_TX_ACTIVITY_24H', 'message': 'За останні 24 години немає транзакцій.'})
+        if float(totals['tx_volume_24h'] or 0) <= 0:
+            alerts.append({'severity': 'medium', 'code': 'TX_VOLUME_LOW', 'message': 'Оборот за 24 години нульовий.'})
+        if failed_tx_24h and int(failed_tx_24h['cnt'] or 0) >= 15:
+            alerts.append({'severity': 'high', 'code': 'PAYMENT_REJECT_SPIKE', 'message': f"Відхилених payment decision за 24г: {int(failed_tx_24h['cnt'] or 0)}."})
 
         return jsonify({'ok': True, 'data': {
             'totals': {
@@ -278,6 +317,13 @@ def analytics_overview():
                 'rejected': int(kyc['rejected'] or 0) if kyc else 0,
                 'verified_rate': verified_rate,
             },
+            'action_queue': {
+                'kyc_in_review': in_review_cnt,
+                'kyc_rejected': rejected_cnt,
+                'kyc_pending': pending_cnt,
+                'payment_rejected_24h': int(failed_tx_24h['cnt'] or 0) if failed_tx_24h else 0,
+            },
+            'alerts': alerts,
             'top_tx_types': [dict(r) for r in top_types],
             'daily_flow_30d': [dict(r) for r in daily_flow],
         }})
@@ -311,7 +357,8 @@ def analytics_messenger():
                   (SELECT COUNT(*) FROM messages) AS messages_total,
                   (SELECT COUNT(*) FROM messages WHERE created_at >= ''' + day_ago_sql + ''') AS messages_24h,
                   (SELECT COUNT(DISTINCT sender_id) FROM messages WHERE created_at >= ''' + day_ago_sql + ''') AS active_senders_24h,
-                  (SELECT COUNT(*) FROM push_subscriptions) AS push_subscriptions_total
+                  (SELECT COUNT(*) FROM push_subscriptions) AS push_subscriptions_total,
+                  (SELECT COUNT(DISTINCT user_id) FROM push_subscriptions) AS push_users_total
                 '''
             ).fetchone()
 
@@ -361,9 +408,38 @@ def analytics_messenger():
                 '''
             ).fetchall()
 
+            call_state_24h = conn.execute(
+                '''
+                SELECT
+                  SUM(CASE WHEN status IN ('active', 'ended') THEN 1 ELSE 0 END) AS connected_24h,
+                  SUM(CASE WHEN status = 'missed' THEN 1 ELSE 0 END) AS missed_24h,
+                  SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected_24h,
+                  COUNT(*) AS total_24h
+                FROM calls
+                WHERE created_at >= ''' + day_ago_sql + '''
+                '''
+            ).fetchone()
+
         connected = int(calls_overview['connected_calls'] or 0) if calls_overview else 0
         total_calls = int(calls_overview['calls_total'] or 0) if calls_overview else 0
         connect_rate = round((connected / total_calls) * 100, 2) if total_calls else 0.0
+        users_total = max(1, int((overview['active_senders_24h'] or 0)))
+        push_users_total = int(overview['push_users_total'] or 0)
+        push_coverage = round((push_users_total / users_total) * 100, 2) if users_total else 0.0
+
+        call_alerts: list[dict] = []
+        if call_state_24h:
+            total24 = int(call_state_24h['total_24h'] or 0)
+            missed24 = int(call_state_24h['missed_24h'] or 0)
+            rej24 = int(call_state_24h['rejected_24h'] or 0)
+            if total24 >= 10:
+                miss_rate = (missed24 / total24) * 100
+                if miss_rate > 30:
+                    call_alerts.append({'severity': 'high', 'code': 'CALL_MISS_RATE_HIGH', 'message': f'Високий miss rate дзвінків за 24г: {round(miss_rate,2)}%.'})
+            if rej24 >= 8:
+                call_alerts.append({'severity': 'medium', 'code': 'CALL_REJECTED_SPIKE', 'message': f'Багато відхилених дзвінків за 24г: {rej24}.'})
+        if push_coverage < 40:
+            call_alerts.append({'severity': 'medium', 'code': 'PUSH_COVERAGE_LOW', 'message': f'Низьке push-покриття активних користувачів: {push_coverage}%.'})
 
         return jsonify({'ok': True, 'data': {
             'overview': {
@@ -373,6 +449,8 @@ def analytics_messenger():
                 'messages_24h': int(overview['messages_24h'] or 0),
                 'active_senders_24h': int(overview['active_senders_24h'] or 0),
                 'push_subscriptions_total': int(overview['push_subscriptions_total'] or 0),
+                'push_users_total': push_users_total,
+                'push_coverage_active': push_coverage,
             },
             'message_types_30d': [dict(r) for r in msg_types],
             'top_conversations_7d': [dict(r) for r in conv_activity],
@@ -385,6 +463,13 @@ def analytics_messenger():
                 'connect_rate': connect_rate,
             },
             'calls_daily_30d': [dict(r) for r in calls_daily],
+            'alerts': call_alerts,
+            'calls_24h': {
+                'total': int(call_state_24h['total_24h'] or 0) if call_state_24h else 0,
+                'connected': int(call_state_24h['connected_24h'] or 0) if call_state_24h else 0,
+                'missed': int(call_state_24h['missed_24h'] or 0) if call_state_24h else 0,
+                'rejected': int(call_state_24h['rejected_24h'] or 0) if call_state_24h else 0,
+            },
         }})
     except Exception as exc:
         return api_error(str(exc))
