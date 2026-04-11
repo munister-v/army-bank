@@ -254,6 +254,28 @@ def analytics_overview():
                 '''
             ).fetchall()
 
+            risk_leaderboard = conn.execute(
+                '''
+                SELECT u.id, u.full_name, u.email,
+                       COALESCE(cp.risk_level, 'low') AS risk_level,
+                       COALESCE(cp.kyc_status, 'pending') AS kyc_status,
+                       COALESCE(cp.updated_at, u.created_at) AS updated_at
+                FROM users u
+                LEFT JOIN compliance_profiles cp ON cp.user_id = u.id
+                WHERE COALESCE(cp.risk_level, 'low') IN ('high', 'critical')
+                   OR COALESCE(cp.kyc_status, 'pending') IN ('in_review', 'rejected')
+                ORDER BY
+                  CASE COALESCE(cp.risk_level, 'low')
+                    WHEN 'critical' THEN 0
+                    WHEN 'high' THEN 1
+                    WHEN 'medium' THEN 2
+                    ELSE 3
+                  END ASC,
+                  COALESCE(cp.updated_at, u.created_at) DESC
+                LIMIT 20
+                '''
+            ).fetchall()
+
             action_queue = conn.execute(
                 '''
                 SELECT
@@ -326,6 +348,7 @@ def analytics_overview():
             'alerts': alerts,
             'top_tx_types': [dict(r) for r in top_types],
             'daily_flow_30d': [dict(r) for r in daily_flow],
+            'risk_leaderboard': [dict(r) for r in risk_leaderboard],
         }})
     except Exception as exc:
         return api_error(str(exc))
@@ -366,7 +389,7 @@ def analytics_messenger():
                 '''
                 SELECT COALESCE(msg_type, 'text') AS msg_type, COUNT(*) AS cnt
                 FROM messages
-                WHERE created_at >= ''' + month_ago_sql + ''' AND COALESCE(is_deleted, 0) = 0
+                WHERE created_at >= ''' + month_ago_sql + ''' AND COALESCE(is_deleted, FALSE) = FALSE
                 GROUP BY COALESCE(msg_type, 'text')
                 ORDER BY cnt DESC
                 '''
@@ -405,6 +428,83 @@ def analytics_messenger():
                 WHERE created_at >= ''' + month_ago_sql + '''
                 GROUP BY DATE(created_at)
                 ORDER BY d ASC
+                '''
+            ).fetchall()
+
+            unread_summary = conn.execute(
+                '''
+                SELECT COUNT(*) AS unread_total
+                FROM messages m
+                JOIN conversation_participants cp ON cp.conversation_id = m.conversation_id
+                WHERE COALESCE(m.is_deleted, FALSE) = FALSE
+                  AND cp.user_id != m.sender_id
+                  AND (cp.last_read_at IS NULL OR m.created_at > cp.last_read_at)
+                '''
+            ).fetchone()
+
+            resp_time = conn.execute(
+                '''
+                WITH seq AS (
+                  SELECT m.conversation_id, m.sender_id, m.created_at,
+                         LAG(m.sender_id) OVER (PARTITION BY m.conversation_id ORDER BY m.created_at) AS prev_sender,
+                         LAG(m.created_at) OVER (PARTITION BY m.conversation_id ORDER BY m.created_at) AS prev_created_at
+                  FROM messages m
+                  WHERE COALESCE(m.is_deleted, FALSE) = FALSE AND m.created_at >= ''' + week_ago_sql + '''
+                )
+                SELECT AVG(
+                  CASE
+                    WHEN prev_sender IS NOT NULL AND prev_sender <> sender_id
+                    THEN EXTRACT(EPOCH FROM (created_at - prev_created_at))
+                    ELSE NULL
+                  END
+                ) AS avg_reply_sec
+                FROM seq
+                '''
+            ).fetchone() if USE_PG else conn.execute(
+                '''
+                WITH seq AS (
+                  SELECT m.conversation_id, m.sender_id, m.created_at,
+                         LAG(m.sender_id) OVER (PARTITION BY m.conversation_id ORDER BY m.created_at) AS prev_sender,
+                         LAG(m.created_at) OVER (PARTITION BY m.conversation_id ORDER BY m.created_at) AS prev_created_at
+                  FROM messages m
+                  WHERE COALESCE(m.is_deleted, FALSE) = FALSE AND m.created_at >= ''' + week_ago_sql + '''
+                )
+                SELECT AVG(
+                  CASE
+                    WHEN prev_sender IS NOT NULL AND prev_sender <> sender_id
+                    THEN (strftime('%s', created_at) - strftime('%s', prev_created_at))
+                    ELSE NULL
+                  END
+                ) AS avg_reply_sec
+                FROM seq
+                '''
+            ).fetchone()
+
+            groups_load = conn.execute(
+                '''
+                SELECT c.id, COALESCE(c.group_name, 'Group #' || c.id) AS group_name,
+                       COUNT(m.id) AS msg_count_7d
+                FROM conversations c
+                LEFT JOIN messages m ON m.conversation_id = c.id
+                     AND m.created_at >= ''' + week_ago_sql + '''
+                     AND COALESCE(m.is_deleted, FALSE) = FALSE
+                WHERE COALESCE(c.is_group, FALSE) = TRUE
+                GROUP BY c.id, c.group_name
+                ORDER BY msg_count_7d DESC
+                LIMIT 10
+                '''
+            ).fetchall() if USE_PG else conn.execute(
+                '''
+                SELECT c.id, COALESCE(c.group_name, 'Group #' || c.id) AS group_name,
+                       COUNT(m.id) AS msg_count_7d
+                FROM conversations c
+                LEFT JOIN messages m ON m.conversation_id = c.id
+                     AND m.created_at >= ''' + week_ago_sql + '''
+                     AND COALESCE(m.is_deleted, FALSE) = FALSE
+                WHERE COALESCE(c.is_group, 0) = 1
+                GROUP BY c.id, c.group_name
+                ORDER BY msg_count_7d DESC
+                LIMIT 10
                 '''
             ).fetchall()
 
@@ -470,6 +570,11 @@ def analytics_messenger():
                 'missed': int(call_state_24h['missed_24h'] or 0) if call_state_24h else 0,
                 'rejected': int(call_state_24h['rejected_24h'] or 0) if call_state_24h else 0,
             },
+            'quality': {
+                'avg_reply_sec_7d': round(float(resp_time['avg_reply_sec'] or 0), 1) if resp_time else 0.0,
+                'unread_total': int(unread_summary['unread_total'] or 0) if unread_summary else 0,
+            },
+            'group_load_7d': [dict(r) for r in groups_load],
         }})
     except Exception as exc:
         return api_error(str(exc))
