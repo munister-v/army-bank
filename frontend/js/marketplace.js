@@ -37,6 +37,12 @@
     activeCategory: 'all',
   };
 
+  const ORDER_STATUS_LABELS = {
+    paid: 'Оплачено',
+    awaiting_payment: 'Очікує оплату',
+    invoice_expired: 'Інвойс прострочено',
+  };
+
   const el = {
     catalogGrid: document.getElementById('catalog-grid'),
     catalogCount: document.getElementById('catalog-count'),
@@ -58,6 +64,8 @@
     shippingPhone: document.getElementById('shipping-phone'),
     shippingAddress: document.getElementById('shipping-address'),
     checkoutNote: document.getElementById('checkout-note'),
+    paymentMode: document.getElementById('payment-mode'),
+    paymentModeHint: document.getElementById('payment-mode-hint'),
     accountNumber: document.getElementById('account-number'),
     accountBalance: document.getElementById('account-balance'),
     ordersCount: document.getElementById('orders-count'),
@@ -97,6 +105,18 @@
     el.toast.hidden = false;
     clearTimeout(showToast._timer);
     showToast._timer = setTimeout(() => { el.toast.hidden = true; }, 2400);
+  }
+
+  function updatePaymentModeHint() {
+    const mode = String(el.paymentMode?.value || 'pay_now');
+    if (!el.paymentModeHint || !el.checkoutBtn) return;
+    if (mode === 'invoice') {
+      el.paymentModeHint.textContent = 'Інвойс діє 24 години. Товар резервується після оформлення.';
+      el.checkoutBtn.textContent = 'Виставити інвойс';
+      return;
+    }
+    el.paymentModeHint.textContent = 'Миттєве списання коштів після підтвердження замовлення.';
+    el.checkoutBtn.textContent = 'Оформити через ARM Bank';
   }
 
   function inferCategory(product) {
@@ -340,16 +360,31 @@
     }
     if (el.ordersCount) el.ordersCount.textContent = String(state.orders.length);
     for (const order of state.orders) {
+      const status = String(order.status || 'paid');
+      const badgeClass = status === 'paid'
+        ? 'paid'
+        : (status === 'awaiting_payment' ? 'awaiting' : 'expired');
+      const statusLabel = ORDER_STATUS_LABELS[status] || status;
+      const invoiceLabel = order.invoice_number
+        ? `Інвойс: ${order.invoice_number}`
+        : 'Без інвойсу';
+      const dueLabel = order.invoice_due_at
+        ? `до ${new Date(order.invoice_due_at).toLocaleString('uk-UA')}`
+        : '';
+      const canPay = status === 'awaiting_payment' && order.invoice_number;
       const node = document.createElement('article');
       node.className = 'order-item';
       node.innerHTML = `
-        <div>
+        <div class="order-main">
           <strong>Замовлення #${order.id}</strong><br/>
           <small>${new Date(order.created_at).toLocaleString('uk-UA')}</small>
+          <span class="order-status ${badgeClass}">${statusLabel}</span>
+          <small>${invoiceLabel} ${dueLabel}</small>
         </div>
-        <div style="text-align:right">
+        <div class="order-actions">
           <strong>${currencyFmt.format(Number(order.total_amount || 0))}</strong><br/>
           <small>${order.items_count} позицій</small>
+          ${canPay ? `<button class="order-pay-btn" data-invoice-pay="${order.invoice_number}" type="button">Оплатити інвойс</button>` : ''}
         </div>
       `;
       el.ordersList.appendChild(node);
@@ -394,6 +429,7 @@
       shipping_phone: String(el.shippingPhone?.value || '').trim(),
       shipping_address: String(el.shippingAddress?.value || '').trim(),
       note: String(el.checkoutNote?.value || '').trim(),
+      payment_mode: String(el.paymentMode?.value || 'pay_now'),
     };
 
     const oldText = el.checkoutBtn ? el.checkoutBtn.textContent : '';
@@ -409,13 +445,42 @@
       state.cart.clear();
       renderCart();
       await Promise.all([fetchAccount(), fetchCatalog(), fetchOrders()]);
-      showToast(`Замовлення #${data.order_id} успішно оформлено`);
+      if (String(data.payment_mode || '') === 'invoice') {
+        showToast(`Інвойс ${data.invoice_number} створено. Оплатіть до 24 годин.`);
+      } else {
+        showToast(`Замовлення #${data.order_id} успішно оформлено`);
+      }
     } catch (err) {
       showToast(err?.serverMessage || err?.message || 'Помилка оплати', true);
     } finally {
       if (el.checkoutBtn) {
         el.checkoutBtn.disabled = false;
         el.checkoutBtn.textContent = oldText || 'Оформити через ARM Bank';
+        updatePaymentModeHint();
+      }
+    }
+  }
+
+  async function payInvoice(invoiceNumber, btn) {
+    const key = String(invoiceNumber || '').trim();
+    if (!key) return;
+    const prevText = btn ? btn.textContent : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Оплата...';
+    }
+    try {
+      const data = await api.request(`/api/marketplace/invoice/${encodeURIComponent(key)}/pay`, {
+        method: 'POST',
+      });
+      await Promise.all([fetchAccount(), fetchOrders()]);
+      showToast(`Інвойс ${data.invoice_number} оплачено`);
+    } catch (err) {
+      showToast(err?.serverMessage || err?.message || 'Не вдалося оплатити інвойс', true);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = prevText || 'Оплатити інвойс';
       }
     }
   }
@@ -449,6 +514,12 @@
     }
   }
 
+  function onOrdersClick(event) {
+    const payBtn = event.target.closest('[data-invoice-pay]');
+    if (!payBtn) return;
+    payInvoice(payBtn.dataset.invoicePay, payBtn);
+  }
+
   function resetFilters() {
     state.activeCategory = 'all';
     if (el.filterInStock) el.filterInStock.checked = false;
@@ -471,12 +542,14 @@
     el.catalogGrid?.addEventListener('click', onCatalogClick);
     el.cartItems?.addEventListener('click', onCartClick);
     el.checkoutForm?.addEventListener('submit', checkout);
+    el.paymentMode?.addEventListener('change', updatePaymentModeHint);
     el.catalogSearch?.addEventListener('input', renderCatalog);
     el.catalogSort?.addEventListener('change', renderCatalog);
     el.filterInStock?.addEventListener('change', renderCatalog);
     el.filterMinPrice?.addEventListener('input', renderCatalog);
     el.filterMaxPrice?.addEventListener('input', renderCatalog);
     el.filterReset?.addEventListener('click', resetFilters);
+    el.ordersList?.addEventListener('click', onOrdersClick);
     el.toggleFilters?.addEventListener('click', () => {
       const isOpen = document.body.classList.contains('filters-open');
       setFiltersOpen(!isOpen);
@@ -505,6 +578,7 @@
 
   async function init() {
     bindEvents();
+    updatePaymentModeHint();
     try {
       await fetchCatalog();
       if (api?.token) {
