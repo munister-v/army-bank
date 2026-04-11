@@ -4,7 +4,10 @@ from __future__ import annotations
 import base64
 import binascii
 import hashlib
+import os
 import re
+import subprocess
+import tempfile
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request, g
@@ -95,6 +98,37 @@ def _decode_scan_payload(scan_data: str, mime_hint: str | None) -> tuple[bytes, 
         raise ValueError('scan_data is not valid base64.')
 
     return blob, mime
+
+
+def _ocr_text_from_scan(scan_bytes: bytes, scan_mime: str) -> tuple[str, str | None]:
+    """Best-effort OCR with local tesseract binary.
+
+    Returns: (text, error_message)
+    """
+    if not scan_bytes:
+        return '', 'empty_scan'
+    if scan_mime == 'application/pdf':
+        return '', 'pdf_ocr_not_supported'
+
+    tesseract_bin = os.environ.get('TESSERACT_BIN', 'tesseract')
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.img', delete=True) as src:
+            src.write(scan_bytes)
+            src.flush()
+            cmd = [tesseract_bin, src.name, 'stdout', '-l', 'ukr+eng', '--psm', '6']
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=12, check=False)
+            if proc.returncode != 0:
+                return '', 'ocr_failed'
+            text = (proc.stdout or '').strip()
+            if not text:
+                return '', 'ocr_empty'
+            return text, None
+    except FileNotFoundError:
+        return '', 'ocr_unavailable'
+    except subprocess.TimeoutExpired:
+        return '', 'ocr_timeout'
+    except Exception:
+        return '', 'ocr_error'
 
 
 def _ensure_profile(conn, user_id: int) -> dict:
@@ -409,6 +443,10 @@ def verify_passport_scan(user_id: int):
 
         size = len(scan_bytes)
         scan_hash = hashlib.sha256(scan_bytes).hexdigest()
+        ocr_text, ocr_error = _ocr_text_from_scan(scan_bytes, scan_mime)
+        ocr_norm = re.sub(r'[^A-Za-z0-9А-Яа-яІіЇїЄєҐґ]+', '', ocr_text or '').upper()
+        pass_norm = passport_number.upper()
+        ocr_has_passport = pass_norm in ocr_norm if pass_norm else False
 
         with get_connection() as conn:
             user_row = conn.execute(
@@ -424,12 +462,18 @@ def verify_passport_scan(user_id: int):
             name_match_ok = name_score >= 0.5
             mime_ok = scan_mime in _ALLOWED_SCAN_MIME
             size_ok = _MIN_SCAN_BYTES <= size <= _MAX_SCAN_BYTES
+            ocr_name_score = _name_match_score(ocr_text, document_name) if ocr_text else 0.0
+            ocr_name_ok = ocr_name_score >= 0.34
+            ocr_ok = not ocr_error and bool(ocr_text)
 
             checks = [
                 {'id': 'scan_mime', 'label': 'Формат скану', 'passed': mime_ok, 'detail': scan_mime},
                 {'id': 'scan_size', 'label': 'Розмір скану', 'passed': size_ok, 'detail': f'{size} bytes'},
                 {'id': 'passport_number', 'label': 'Формат номера паспорта', 'passed': True, 'detail': _mask_doc_number(passport_number)},
                 {'id': 'name_match', 'label': 'Збіг ПІБ з профілем', 'passed': name_match_ok, 'detail': f'{name_score:.2f}'},
+                {'id': 'ocr_engine', 'label': 'OCR скану', 'passed': ocr_ok, 'detail': ocr_error or 'ok'},
+                {'id': 'ocr_passport_match', 'label': 'Номер знайдено в OCR', 'passed': ocr_has_passport, 'detail': _mask_doc_number(passport_number)},
+                {'id': 'ocr_name_match', 'label': 'ПІБ знайдено в OCR', 'passed': ocr_name_ok, 'detail': f'{ocr_name_score:.2f}'},
                 {'id': 'manual_confirm', 'label': 'Ручне підтвердження адміном', 'passed': manual_confirm, 'detail': 'confirmed' if manual_confirm else 'missing'},
             ]
 
@@ -441,7 +485,9 @@ def verify_passport_scan(user_id: int):
                 f'[{now_iso}] passport_scan: status={new_status}; '
                 f'number={_mask_doc_number(passport_number)}; '
                 f'scan={file_name}; mime={scan_mime}; bytes={size}; '
-                f'hash={scan_hash[:16]}...; name_score={name_score:.2f}'
+                f'hash={scan_hash[:16]}...; name_score={name_score:.2f}; '
+                f'ocr={ocr_error or "ok"}; ocr_name_score={ocr_name_score:.2f}; '
+                f'ocr_passport={int(ocr_has_passport)}'
             )
             prev_notes = (profile.get('notes') or '').strip()
             new_notes = f'{prev_notes}\n{note_line}'.strip()
@@ -476,6 +522,11 @@ def verify_passport_scan(user_id: int):
                 'status': 'KYC пройдена' if verified else 'Потрібна додаткова перевірка',
                 'kyc_status': new_status,
                 'checks': checks,
+                'ocr': {
+                    'available': not bool(ocr_error),
+                    'error': ocr_error,
+                    'text_excerpt': (ocr_text or '')[:500],
+                },
                 'scan': {
                     'mime': scan_mime,
                     'bytes': size,
