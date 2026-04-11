@@ -311,11 +311,28 @@ def create_app() -> Flask:
         content = content.replace('</head>', f'<script>window.ARMY_BANK_BASE="{prefix}";</script>\n</head>')
         return Response(content, mimetype='text/html')
 
+    def is_messenger_host() -> bool:
+        from flask import request as _req
+
+        raw_host = (_req.headers.get('X-Forwarded-Host') or _req.host or '')
+        host = raw_host.split(',')[0].strip().lower()
+        if ':' in host:
+            host = host.split(':', 1)[0]
+        return host == 'messenger.munister.com.ua' or host.startswith('messenger.')
+
     def send_index():
+        # Custom-domain shell switch:
+        # bank.munister.com.ua -> banking PWA
+        # messenger.munister.com.ua -> messenger shell
+        if is_messenger_host():
+            return send_html('messenger.html')
         return send_html('index.html')
 
     @app.get(prefix + '/' if prefix else '/')
     def index():
+        if is_messenger_host():
+            target = (prefix + '/messenger') if prefix else '/messenger'
+            return redirect(target, 308)
         # Без BASE_PATH (Render): корінь = той самий PWA що й /app (вхід), без дубля портфоліо.
         # Портфоліо лише на /army-bank/ (як на munister.com.ua/army-bank/).
         if not prefix:
