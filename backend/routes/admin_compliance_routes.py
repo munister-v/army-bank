@@ -15,6 +15,7 @@ from flask import Blueprint, jsonify, request, g
 from ..database import get_connection, USE_PG
 from ..repositories.feature_repository import FeatureRepository
 from .helpers import api_error, auth_required, role_required
+from .push_routes import send_push
 
 admin_compliance_bp = Blueprint('admin_compliance', __name__)
 
@@ -477,8 +478,42 @@ def verify_passport_scan(user_id: int):
                 {'id': 'manual_confirm', 'label': 'Ручне підтвердження адміном', 'passed': manual_confirm, 'detail': 'confirmed' if manual_confirm else 'missing'},
             ]
 
-            verified = all(item['passed'] for item in checks)
-            new_status = 'verified' if verified else 'in_review'
+            score = 0
+            if mime_ok:
+                score += 15
+            if size_ok:
+                score += 10
+            if name_match_ok:
+                score += 20
+            if ocr_ok:
+                score += 20
+            if ocr_has_passport:
+                score += 20
+            if ocr_name_ok:
+                score += 10
+            if manual_confirm:
+                score += 5
+
+            critical_fail = (not mime_ok) or (not size_ok)
+            doc_mismatch_hard = (not ocr_has_passport) and (not ocr_name_ok)
+
+            if critical_fail:
+                new_status = 'rejected'
+                decision_reason = 'Невалідний формат або розмір скану.'
+            elif score >= 90 and manual_confirm and ocr_ok and ocr_has_passport and ocr_name_ok:
+                new_status = 'verified'
+                decision_reason = 'Документ верифіковано, KYC пройдена.'
+            elif doc_mismatch_hard and ocr_ok:
+                new_status = 'rejected'
+                decision_reason = 'OCR не підтвердив номер паспорта та ПІБ.'
+            elif score < 60:
+                new_status = 'rejected'
+                decision_reason = 'Недостатній KYC score для безпечної верифікації.'
+            else:
+                new_status = 'in_review'
+                decision_reason = 'Потрібна додаткова перевірка оператором.'
+
+            verified = new_status == 'verified'
 
             now_iso = _now_iso()
             note_line = (
@@ -487,7 +522,7 @@ def verify_passport_scan(user_id: int):
                 f'scan={file_name}; mime={scan_mime}; bytes={size}; '
                 f'hash={scan_hash[:16]}...; name_score={name_score:.2f}; '
                 f'ocr={ocr_error or "ok"}; ocr_name_score={ocr_name_score:.2f}; '
-                f'ocr_passport={int(ocr_has_passport)}'
+                f'ocr_passport={int(ocr_has_passport)}; score={score}; reason={decision_reason}'
             )
             prev_notes = (profile.get('notes') or '').strip()
             new_notes = f'{prev_notes}\n{note_line}'.strip()
@@ -512,15 +547,41 @@ def verify_passport_scan(user_id: int):
         feature_repo.add_audit_log(
             actor_id,
             'admin_kyc_passport_verify',
-            f'user_id={user_id}; verified={int(verified)}; hash={scan_hash[:12]}',
+            f'user_id={user_id}; status={new_status}; score={score}; hash={scan_hash[:12]}',
+        )
+
+        # User-facing mobile push for verification outcome.
+        push_title = 'ARM Bank · KYC'
+        if new_status == 'verified':
+            push_body = 'Вітаємо! Ваш KYC успішно підтверджено.'
+            push_type = 'kyc_verified'
+        elif new_status == 'in_review':
+            push_body = 'Ваші KYC-дані на додатковій перевірці.'
+            push_type = 'kyc_in_review'
+        else:
+            push_body = 'KYC відхилено. Оновіть документ і спробуйте ще раз.'
+            push_type = 'kyc_rejected'
+        send_push(
+            user_id=user_id,
+            title=push_title,
+            body=push_body,
+            url='/profile',
+            push_type=push_type,
+            meta={'kyc_status': new_status, 'kyc_score': score},
         )
 
         return jsonify({
             'ok': True,
             'data': {
                 'verified': verified,
-                'status': 'KYC пройдена' if verified else 'Потрібна додаткова перевірка',
+                'status': (
+                    'KYC пройдена'
+                    if new_status == 'verified'
+                    else ('KYC відхилено' if new_status == 'rejected' else 'Потрібна додаткова перевірка')
+                ),
                 'kyc_status': new_status,
+                'kyc_score': score,
+                'decision_reason': decision_reason,
                 'checks': checks,
                 'ocr': {
                     'available': not bool(ocr_error),
