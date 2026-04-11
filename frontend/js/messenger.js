@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '44';
+const MESSENGER_ASSET_VERSION = '45';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -99,6 +99,8 @@ const photoPointers = new Map();
 
 // ── Call state ─────────────────────────────
 let activeCallId       = null;
+let activeCallIsGroup  = false;
+let activeCallConvId   = null;
 let peerConnection     = null;
 let localStream        = null;
 let callSeconds        = 0;
@@ -126,6 +128,11 @@ let callForceRelay = false;
 let turnHintShown = false;
 let bankSummaryCache = null;
 let bankProfileLinked = true;
+let groupSignalLastId = 0;
+let incomingCallIsGroup = false;
+let incomingCallGroupName = '';
+const groupPeerConnections = new Map(); // userId -> { pc, remoteSet, offerSent, name }
+const groupPeerAudio = new Map(); // userId -> HTMLAudioElement
 
 // ── Call audio state ───────────────────────
 let callAudioCtx       = null;
@@ -228,10 +235,13 @@ const callScreenName    = $('call-screen-name');
 const callScreenStatus  = $('call-screen-status');
 const callScreenMicState= $('call-screen-mic-state');
 const callScreenTimer   = $('call-screen-timer');
+const callScreenChip    = callScreen ? callScreen.querySelector('.call-screen-chip') : null;
+const callScreenPeers   = $('call-screen-peers');
 const btnMute           = $('btn-mute');
 const callMuteLabel     = $('call-mute-label');
 const btnEndCall        = $('btn-end-call');
 const remoteAudio       = $('remote-audio');
+const remoteAudioMount  = $('remote-audio-mount');
 const photoViewer       = $('photo-viewer');
 const photoViewerImg    = $('photo-viewer-img');
 const photoViewerCounter= $('photo-viewer-counter');
@@ -1358,7 +1368,8 @@ async function openChat(conv) {
     updateActivePartnerPresenceStatus();
   }
   syncAssistantUi(isAssistant);
-  if (btnCall) btnCall.hidden = isGroup || isAssistant;
+  if (btnCall) btnCall.hidden = isAssistant;
+  if (btnCall) btnCall.title = isGroup ? 'Груповий дзвінок' : 'Голосовий дзвінок';
   const groupInfoBtn = document.getElementById('group-info-btn');
   if (groupInfoBtn) groupInfoBtn.hidden = !isGroup;
   if (groupPanelOpen) closeGroupPanel();
@@ -2910,7 +2921,11 @@ function syncMuteUi() {
     callMuteLabel.textContent = muted ? 'Мікрофон вимкнено' : 'Мікрофон увімкнено';
   }
   if (callScreenMicState) {
-    callScreenMicState.textContent = muted ? 'Вас не чути' : 'Вас чути';
+    if (activeCallIsGroup) {
+      callScreenMicState.textContent = muted ? 'Ваш мікрофон вимкнено' : 'Ваш мікрофон увімкнено';
+    } else {
+      callScreenMicState.textContent = muted ? 'Вас не чути' : 'Вас чути';
+    }
   }
 }
 
@@ -2927,8 +2942,285 @@ function syncCallButtonState() {
   } else if (isBusy) {
     btnCall.title = 'Підготовка дзвінка...';
   } else {
-    btnCall.title = 'Голосовий дзвінок';
+    btnCall.title = isCurrentConversationGroup() ? 'Груповий дзвінок' : 'Голосовий дзвінок';
   }
+}
+
+function activeConversationData() {
+  if (!activeConvId) return null;
+  return convData.find(c => c.id === activeConvId) || null;
+}
+
+function isCurrentConversationGroup() {
+  return !!activeConversationData()?.is_group;
+}
+
+function parseSignalPayload(raw) {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === 'object') return raw;
+  const text = String(raw || '').trim();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch (_) {
+    return text;
+  }
+}
+
+function memberStateLabel(state) {
+  const s = String(state || '').trim();
+  if (s === 'joined') return 'у дзвінку';
+  if (s === 'invited' || s === 'ringing') return 'очікуємо';
+  if (s === 'left') return 'вийшов';
+  if (s === 'rejected') return 'відхилив';
+  if (s === 'missed') return 'пропущено';
+  return 'стан невідомий';
+}
+
+function renderCallPeers(members = []) {
+  if (!callScreenPeers) return;
+  if (!activeCallIsGroup || !Array.isArray(members) || !members.length) {
+    callScreenPeers.hidden = true;
+    callScreenPeers.innerHTML = '';
+    return;
+  }
+  callScreenPeers.hidden = false;
+  callScreenPeers.innerHTML = '';
+  const sorted = [...members].sort((a, b) => {
+    const score = (m) => (m?.state === 'joined' ? 0 : (m?.state === 'invited' || m?.state === 'ringing' ? 1 : 2));
+    return score(a) - score(b);
+  });
+  sorted.slice(0, 8).forEach(m => {
+    const chip = document.createElement('span');
+    const state = String(m?.state || '').trim() || 'invited';
+    const name = String(m?.full_name || 'Учасник').trim();
+    chip.className = `call-peer-chip state-${state}`;
+    chip.innerHTML = `<span class="call-peer-chip-dot"></span>${esc(name)} · ${esc(memberStateLabel(state))}`;
+    callScreenPeers.appendChild(chip);
+  });
+}
+
+function closeGroupPeer(userId) {
+  const key = Number(userId);
+  const entry = groupPeerConnections.get(key);
+  if (entry?.pc) {
+    try { entry.pc.close(); } catch (_) {}
+  }
+  groupPeerConnections.delete(key);
+  const audioEl = groupPeerAudio.get(key);
+  if (audioEl) {
+    try {
+      audioEl.pause();
+      audioEl.srcObject = null;
+      audioEl.remove();
+    } catch (_) {}
+    groupPeerAudio.delete(key);
+  }
+}
+
+function cleanupGroupCallPeers() {
+  Array.from(groupPeerConnections.keys()).forEach(uid => closeGroupPeer(uid));
+  groupSignalLastId = 0;
+}
+
+function attachGroupRemoteStream(userId, stream) {
+  if (!remoteAudioMount || !stream) return;
+  const key = Number(userId);
+  let audioEl = groupPeerAudio.get(key);
+  if (!audioEl) {
+    audioEl = document.createElement('audio');
+    audioEl.autoplay = true;
+    audioEl.playsInline = true;
+    audioEl.dataset.uid = String(key);
+    remoteAudioMount.appendChild(audioEl);
+    groupPeerAudio.set(key, audioEl);
+  }
+  if (audioEl.srcObject !== stream) audioEl.srcObject = stream;
+}
+
+async function sendGroupSignal(toUserId, signalType, payload) {
+  if (!activeCallId) return;
+  await api('POST', `/messenger/calls/${activeCallId}/signals`, {
+    to_user_id: Number(toUserId),
+    signal_type: String(signalType || ''),
+    payload,
+  });
+}
+
+function createGroupPeerConnection(targetUserId, targetName = '') {
+  const remoteId = Number(targetUserId);
+  if (!Number.isFinite(remoteId) || remoteId <= 0) return null;
+  const existing = groupPeerConnections.get(remoteId);
+  if (existing?.pc) return existing;
+  if (!localStream) return null;
+
+  const pc = new RTCPeerConnection({
+    ...rtcConfig,
+    iceTransportPolicy: callForceRelay ? 'relay' : 'all',
+    bundlePolicy: 'max-bundle',
+    iceCandidatePoolSize: callForceRelay ? 0 : 2,
+  });
+
+  localStream.getTracks().forEach(track => {
+    try { pc.addTrack(track, localStream); } catch (_) {}
+  });
+  optimizeOutgoingAudio(pc, localStream);
+
+  const entry = {
+    pc,
+    remoteSet: false,
+    offerSent: false,
+    name: String(targetName || ''),
+  };
+
+  pc.onicecandidate = evt => {
+    if (!evt.candidate || !activeCallId || !activeCallIsGroup) return;
+    sendGroupSignal(remoteId, 'ice', evt.candidate).catch(() => {});
+  };
+
+  pc.ontrack = evt => {
+    if (evt?.streams?.[0]) attachGroupRemoteStream(remoteId, evt.streams[0]);
+  };
+
+  pc.oniceconnectionstatechange = () => {
+    const st = pc.iceConnectionState;
+    if (st === 'failed' || st === 'closed') {
+      closeGroupPeer(remoteId);
+    }
+  };
+
+  pc.onconnectionstatechange = () => {
+    const st = pc.connectionState;
+    if (st === 'failed' || st === 'closed') {
+      closeGroupPeer(remoteId);
+    }
+  };
+
+  groupPeerConnections.set(remoteId, entry);
+  return entry;
+}
+
+async function ensureGroupPeerOffer(userId, name = '') {
+  const remoteId = Number(userId);
+  if (!Number.isFinite(remoteId) || remoteId <= 0) return;
+  if (!me?.id || Number(me.id) === remoteId) return;
+  const shouldOffer = Number(me.id) < remoteId;
+  const entry = createGroupPeerConnection(remoteId, name);
+  if (!entry || !shouldOffer || entry.offerSent) return;
+  if (entry.pc.signalingState !== 'stable') return;
+
+  const offer = await entry.pc.createOffer();
+  const patched = { type: offer.type, sdp: patchOpusSdp(offer.sdp) };
+  await entry.pc.setLocalDescription(patched);
+  await sendGroupSignal(remoteId, 'offer', {
+    type: entry.pc.localDescription?.type || 'offer',
+    sdp: entry.pc.localDescription?.sdp || patched.sdp,
+  });
+  entry.offerSent = true;
+}
+
+async function handleGroupSignal(signal) {
+  if (!activeCallId || !activeCallIsGroup || !localStream) return;
+  const fromId = Number(signal?.from_user_id || 0);
+  if (!Number.isFinite(fromId) || fromId <= 0 || fromId === Number(me?.id || 0)) return;
+  const sigType = String(signal?.signal_type || '').trim().toLowerCase();
+  const payload = parseSignalPayload(signal?.payload);
+  const entry = createGroupPeerConnection(fromId);
+  if (!entry) return;
+
+  if (sigType === 'offer') {
+    const sdp = typeof payload === 'object' ? payload?.sdp : payload;
+    const normalized = normalizeSdp(sdp, 'SDP offer');
+    await setRemoteDescriptionSafe(entry.pc, { type: 'offer', sdp: normalized }, 'SDP offer');
+    entry.remoteSet = true;
+    const answer = await entry.pc.createAnswer();
+    const patched = { type: answer.type, sdp: patchOpusSdp(answer.sdp) };
+    await entry.pc.setLocalDescription(patched);
+    await sendGroupSignal(fromId, 'answer', {
+      type: entry.pc.localDescription?.type || 'answer',
+      sdp: entry.pc.localDescription?.sdp || patched.sdp,
+    });
+    return;
+  }
+
+  if (sigType === 'answer') {
+    const sdp = typeof payload === 'object' ? payload?.sdp : payload;
+    if (!sdp) return;
+    const normalized = normalizeSdp(sdp, 'SDP answer');
+    await setRemoteDescriptionSafe(entry.pc, { type: 'answer', sdp: normalized }, 'SDP answer');
+    entry.remoteSet = true;
+    return;
+  }
+
+  if (sigType === 'ice') {
+    const candidate = normalizeIceCandidate(payload);
+    if (!candidate) return;
+    await entry.pc.addIceCandidate(new RTCIceCandidate(candidate));
+    return;
+  }
+
+  if (sigType === 'bye') {
+    closeGroupPeer(fromId);
+  }
+}
+
+async function pollGroupSignals() {
+  if (!activeCallId || !activeCallIsGroup) return;
+  const rows = await api('GET', `/messenger/calls/${activeCallId}/signals?after_id=${groupSignalLastId}`);
+  if (!Array.isArray(rows) || !rows.length) return;
+  for (const row of rows) {
+    groupSignalLastId = Math.max(groupSignalLastId, Number(row?.id || 0));
+    try {
+      await handleGroupSignal(row);
+    } catch (_) {}
+  }
+}
+
+async function syncGroupCallMembers(members = []) {
+  if (!Array.isArray(members)) return;
+  renderCallPeers(members);
+  const joined = members.filter(m => m?.state === 'joined');
+  const joinedIds = joined.map(m => Number(m?.user_id || 0)).filter(v => Number.isFinite(v) && v > 0);
+  for (const member of joined) {
+    const uid = Number(member?.user_id || 0);
+    if (!uid || uid === Number(me?.id || 0)) continue;
+    try {
+      await ensureGroupPeerOffer(uid, member?.full_name || '');
+    } catch (_) {}
+  }
+  const activeSet = new Set(joinedIds);
+  activeSet.delete(Number(me?.id || 0));
+  Array.from(groupPeerConnections.keys()).forEach(uid => {
+    if (!activeSet.has(uid)) closeGroupPeer(uid);
+  });
+}
+
+async function pollGroupCall() {
+  if (!activeCallId || !activeCallIsGroup) return;
+  const cd = await api('GET', `/messenger/calls/${activeCallId}`);
+  if (['rejected', 'ended', 'missed'].includes(cd?.status)) {
+    if (cd.status === 'rejected') showToast('Груповий дзвінок завершено.');
+    if (cd.status === 'ended') showToast('Груповий дзвінок завершено.');
+    if (cd.status === 'missed') showToast('Груповий дзвінок пропущено.');
+    hangupCall(false, cd.status);
+    return;
+  }
+  const members = Array.isArray(cd?.members) ? cd.members : [];
+  const joinedCount = members.filter(m => m?.state === 'joined').length;
+  if (joinedCount >= 2) {
+    stopOutgoingTone();
+    clearOutgoingNoAnswerTimer();
+    setCallStatusBase(`У дзвінку · ${joinedCount} учасн.`);
+    if (!callConnectedOnce) {
+      callConnectedOnce = true;
+      playConnectedTone();
+    }
+    if (!callWallTimer) startCallTimer();
+  } else {
+    setCallStatusBase('Груповий дзвінок · очікуємо учасників');
+  }
+  await syncGroupCallMembers(members);
+  await pollGroupSignals();
 }
 
 async function requestCallWakeLock() {
@@ -3206,7 +3498,9 @@ function clearIncomingTimeoutTimers() {
     clearInterval(incomingCountdownTimer);
     incomingCountdownTimer = null;
   }
-  if (callIncomingLabel) callIncomingLabel.textContent = 'Голосовий дзвінок';
+  if (callIncomingLabel) {
+    callIncomingLabel.textContent = incomingCallIsGroup ? 'Груповий дзвінок' : 'Голосовий дзвінок';
+  }
 }
 
 function startOutgoingNoAnswerTimer(callId) {
@@ -3223,11 +3517,12 @@ function startOutgoingNoAnswerTimer(callId) {
 function startIncomingAutoRejectTimer(callId) {
   clearIncomingTimeoutTimers();
   const timeoutSec = Math.max(15, Number(callPrefs.incomingTimeoutSec || 45));
+  const baseLabel = incomingCallIsGroup ? 'Груповий дзвінок' : 'Голосовий дзвінок';
   let remain = timeoutSec;
-  if (callIncomingLabel) callIncomingLabel.textContent = `Голосовий дзвінок · ${remain}с`;
+  if (callIncomingLabel) callIncomingLabel.textContent = `${baseLabel} · ${remain}с`;
   incomingCountdownTimer = setInterval(() => {
     remain = Math.max(0, remain - 1);
-    if (callIncomingLabel) callIncomingLabel.textContent = `Голосовий дзвінок · ${remain}с`;
+    if (callIncomingLabel) callIncomingLabel.textContent = `${baseLabel} · ${remain}с`;
     if (remain <= 0) clearIncomingTimeoutTimers();
   }, 1000);
 
@@ -3562,8 +3857,55 @@ async function flushRemoteIce(pc) {
 }
 
 // ── Initiate call (caller) ─────────────────
+async function initiateGroupCall() {
+  if (!activeConvId) return;
+  if (activeCallId) { showToast('Дзвінок вже активний.'); return; }
+  if (callAcceptInProgress || callDialInProgress) return;
+  callDialInProgress = true;
+  syncCallButtonState();
+  try {
+    if (!checkWebRTCSupport()) return;
+    ensureNotificationPermissionInteractive().catch(() => {});
+    const micGranted = await ensureMicrophonePermission(true);
+    if (!micGranted) return;
+    await ensureRtcConfig();
+    try {
+      localStream = await getCallAudioStream();
+    } catch (err) {
+      showToast(micError(err), true);
+      return;
+    }
+
+    const conv = activeConversationData();
+    const title = convName(conv || { is_group: true, group_name: 'Група' });
+    const data = await api('POST', '/messenger/calls', { conversation_id: activeConvId });
+    activeCallId = Number(data.call_id || 0);
+    activeCallIsGroup = true;
+    activeCallConvId = Number(activeConvId);
+    groupSignalLastId = 0;
+    cleanupGroupCallPeers();
+    showCallScreen(title, 'Груповий дзвінок · запрошуємо учасників');
+    setCallStatusBase('Груповий дзвінок · запрошуємо учасників');
+    startOutgoingTone().catch(() => {});
+    clearOutgoingNoAnswerTimer();
+    startCallPoll(1500);
+    pollCall().catch(() => {});
+  } catch (err) {
+    showToast(err.message || 'Не вдалося розпочати груповий дзвінок.', true);
+    cleanupPeer();
+  } finally {
+    callDialInProgress = false;
+    syncCallButtonState();
+  }
+}
+
 async function initiateCall() {
-  if (!activeConvId || !activePartner) return;
+  if (!activeConvId) return;
+  if (isCurrentConversationGroup()) {
+    await initiateGroupCall();
+    return;
+  }
+  if (!activePartner) return;
   if (activeCallId) { showToast('Дзвінок вже активний.'); return; }
   if (callAcceptInProgress || callDialInProgress) return;
   callDialInProgress = true;
@@ -3602,6 +3944,8 @@ async function initiateCall() {
         sdp_offer: peerConnection.localDescription.sdp,
       });
       activeCallId  = call_id;
+      activeCallIsGroup = false;
+      activeCallConvId = Number(activeConvId);
       remoteSdpSet  = false;
       icePollLastId = 0;
       callConnectedOnce = false;
@@ -3653,16 +3997,29 @@ async function checkIncoming() {
     if (calls?.length && !incomingCallId) {
       const c = calls[0];
       incomingCallId     = c.id;
+      incomingCallIsGroup = !!c.is_group_call;
+      incomingCallGroupName = String(c.group_name || '').trim();
       incomingCallerName = c.caller_name || 'Невідомий';
+      const incomingTitle = incomingCallIsGroup
+        ? (incomingCallGroupName || 'Груповий дзвінок')
+        : incomingCallerName;
       callCallerAvatar.textContent = initial(incomingCallerName);
-      callCallerName.textContent   = incomingCallerName;
+      callCallerName.textContent   = incomingTitle;
+      if (callIncomingLabel) {
+        if (incomingCallIsGroup) {
+          const cnt = Math.max(1, Number(c.participant_count || 0));
+          callIncomingLabel.textContent = `Груповий дзвінок · ${cnt} учасн.`;
+        } else {
+          callIncomingLabel.textContent = 'Голосовий дзвінок';
+        }
+      }
       callIncoming.hidden = false;
       startIncomingTone().catch(() => {});
       startIncomingAutoRejectTimer(c.id);
       if (document.hidden && window.Notification && Notification.permission === 'granted') {
         notifyViaServiceWorker({
-          title: 'Вхідний дзвінок',
-          body: incomingCallerName,
+          title: incomingCallIsGroup ? 'Вхідний груповий дзвінок' : 'Вхідний дзвінок',
+          body: incomingTitle,
           tag: `ab-incoming-${c.id}`,
           data: { call_id: c.id, type: 'call_incoming', url: '/messenger' },
           renotify: true,
@@ -3686,11 +4043,39 @@ function hideIncoming() {
   callIncoming.hidden = true;
   incomingCallId = null;
   incomingCallerName = '';
+  incomingCallIsGroup = false;
+  incomingCallGroupName = '';
   syncCallButtonState();
   syncOverlayLock();
 }
 
 // ── Accept / Reject ────────────────────────
+async function acceptGroupCall(callId) {
+  if (!callId) return;
+  await ensureRtcConfig();
+  try {
+    localStream = await getCallAudioStream();
+  } catch (err) {
+    showToast(micError(err), true);
+    await api('PUT', `/messenger/calls/${callId}/reject`).catch(() => {});
+    return;
+  }
+  await api('PUT', `/messenger/calls/${callId}/answer`, {});
+  const cd = await api('GET', `/messenger/calls/${callId}`);
+  activeCallId = Number(callId);
+  activeCallIsGroup = true;
+  activeCallConvId = Number(cd?.conversation_id || activeConvId || 0);
+  groupSignalLastId = 0;
+  cleanupGroupCallPeers();
+  const displayName = String(cd?.group_name || incomingCallGroupName || 'Груповий дзвінок');
+  showCallScreen(displayName, 'Груповий дзвінок · підключення');
+  setCallStatusBase('Груповий дзвінок · підключення');
+  stopIncomingTone();
+  clearOutgoingNoAnswerTimer();
+  startCallPoll(1500);
+  pollCall().catch(() => {});
+}
+
 async function acceptCall() {
   console.log('[Accept] Button clicked, incomingCallId:', incomingCallId);
   if (!incomingCallId || callAcceptInProgress) {
@@ -3701,6 +4086,7 @@ async function acceptCall() {
   syncCallButtonState();
   const callId = incomingCallId;
   console.log('[Accept] Accepting call #' + callId);
+  const incomingGroup = !!incomingCallIsGroup;
   hideIncoming();
   if (!checkWebRTCSupport()) {
     console.log('[Accept] WebRTC not supported');
@@ -3714,6 +4100,18 @@ async function acceptCall() {
     callAcceptInProgress = false;
     syncCallButtonState();
     api('PUT', `/messenger/calls/${callId}/reject`).catch(() => {});
+    return;
+  }
+  if (incomingGroup) {
+    try {
+      await acceptGroupCall(callId);
+    } catch (err) {
+      showToast(err?.message || 'Не вдалося приєднатися до групового дзвінка.', true);
+      cleanupPeer();
+    } finally {
+      callAcceptInProgress = false;
+      syncCallButtonState();
+    }
     return;
   }
   await ensureRtcConfig();
@@ -3761,6 +4159,8 @@ async function acceptCall() {
     console.log('[Accept] Answer sent');
 
     activeCallId  = callId;
+    activeCallIsGroup = false;
+    activeCallConvId = Number(callData?.conversation_id || activeConvId || 0);
     icePollLastId = 0;
     callConnectedOnce = false;
     callIceRecoverAttempts = 0;
@@ -3827,7 +4227,14 @@ function startCallPoll(intervalMs = (document.hidden ? 2500 : 1500)) {
 }
 
 async function pollCall() {
-  if (!activeCallId || !peerConnection) return;
+  if (!activeCallId) return;
+  if (activeCallIsGroup) {
+    try {
+      await pollGroupCall();
+    } catch (_) {}
+    return;
+  }
+  if (!peerConnection) return;
   try {
     const cd = await api('GET', `/messenger/calls/${activeCallId}`);
     console.log(`[Status] Call #${activeCallId}: ${cd.status} | ICE: ${peerConnection.iceConnectionState} | Signaling: ${peerConnection.signalingState} | Connection: ${peerConnection.connectionState}`);
@@ -3931,6 +4338,9 @@ function showCallScreen(name, status) {
   hideIncoming();
   callScreenAvatar.textContent = initial(name);
   callScreenName.textContent   = name;
+  if (callScreenChip) {
+    callScreenChip.textContent = activeCallIsGroup ? 'ARM BANK GROUP CALL' : 'ARM BANK SECURE CALL';
+  }
   callStatusBase = String(status || 'З\'єднання...');
   callQualityLabel = '';
   renderCallStatus();
@@ -3944,6 +4354,12 @@ function showCallScreen(name, status) {
   isMuted                      = false;
   clearCallIceRecoverTimer();
   callBackgroundNotifiedForId  = null;
+  if (activeCallIsGroup) {
+    if (callScreenMicState) callScreenMicState.textContent = 'Груповий режим · mesh';
+  } else if (callScreenMicState) {
+    callScreenMicState.textContent = 'Вас чути';
+  }
+  renderCallPeers([]);
   syncMuteUi();
   syncCallButtonState();
   requestCallWakeLock().catch(() => {});
@@ -3972,6 +4388,11 @@ async function hangupCall(notify = true, reason = 'ended') {
   const hadVisibleCall = !callScreen.hidden || !!activeCallId || callConnectedOnce;
   if (notify && activeCallId)
     api('PUT', `/messenger/calls/${activeCallId}/end`).catch(() => {});
+  if (activeCallIsGroup && activeCallId) {
+    Array.from(groupPeerConnections.keys()).forEach(uid => {
+      sendGroupSignal(uid, 'bye', { reason: 'leave' }).catch(() => {});
+    });
+  }
   stopAllCallTones();
   clearIncomingTimeoutTimers();
   clearOutgoingNoAnswerTimer();
@@ -3982,7 +4403,10 @@ async function hangupCall(notify = true, reason = 'ended') {
   stopCallQualityMonitor();
   releaseCallWakeLock().catch(() => {});
   cleanupPeer();
+  cleanupGroupCallPeers();
   activeCallId          = null;
+  activeCallIsGroup     = false;
+  activeCallConvId      = null;
   remoteSdpSet          = false;
   lastProcessedOfferSdp = null;
   icePollLastId         = 0;
@@ -3999,8 +4423,10 @@ async function hangupCall(notify = true, reason = 'ended') {
   callIceRecoverAttempts = 0;
   callForceRelay = false;
   callIceRestartInFlight = false;
+  groupSignalLastId = 0;
   callScreen.hidden       = true;
   callScreenTimer.hidden  = true;
+  renderCallPeers([]);
   syncMuteUi();
   syncCallButtonState();
   if (hadVisibleCall) {

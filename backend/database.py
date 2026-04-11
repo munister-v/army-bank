@@ -533,6 +533,30 @@ CREATE TABLE IF NOT EXISTS call_ice (
 );
 CREATE INDEX IF NOT EXISTS idx_calls_conv ON calls(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_call_ice_call ON call_ice(call_id, created_at);
+CREATE TABLE IF NOT EXISTS call_members (
+    id SERIAL PRIMARY KEY,
+    call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    state VARCHAR(20) NOT NULL DEFAULT 'invited',
+    joined_at TIMESTAMPTZ,
+    left_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(call_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS call_signals (
+    id SERIAL PRIMARY KEY,
+    call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+    from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    to_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    signal_type VARCHAR(20) NOT NULL,
+    payload TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_call_members_call ON call_members(call_id);
+CREATE INDEX IF NOT EXISTS idx_call_members_user ON call_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_call_signals_call ON call_signals(call_id, id);
+CREATE INDEX IF NOT EXISTS idx_call_signals_target ON call_signals(call_id, to_user_id, id);
 """
 
 MESSENGER_GROUPS_DDL_SQLITE = """
@@ -556,6 +580,30 @@ CREATE TABLE IF NOT EXISTS call_ice (
 );
 CREATE INDEX IF NOT EXISTS idx_calls_conv ON calls(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_call_ice_call ON call_ice(call_id);
+CREATE TABLE IF NOT EXISTS call_members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    state TEXT NOT NULL DEFAULT 'invited',
+    joined_at TEXT,
+    left_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(call_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS call_signals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+    from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    to_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    signal_type TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_call_members_call ON call_members(call_id);
+CREATE INDEX IF NOT EXISTS idx_call_members_user ON call_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_call_signals_call ON call_signals(call_id, id);
+CREATE INDEX IF NOT EXISTS idx_call_signals_target ON call_signals(call_id, to_user_id, id);
 """
 
 DOC_TEMPLATES_DDL = """
@@ -795,6 +843,34 @@ def init_db() -> None:
                      optional=True, label='idx_calls_conv')
             _pg_exec("CREATE INDEX IF NOT EXISTS idx_call_ice_call ON call_ice(call_id, created_at);",
                      optional=True, label='idx_call_ice_call')
+            _pg_exec("""CREATE TABLE IF NOT EXISTS call_members (
+                id SERIAL PRIMARY KEY,
+                call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                state VARCHAR(20) NOT NULL DEFAULT 'invited',
+                joined_at TIMESTAMPTZ,
+                left_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE(call_id, user_id)
+            );""", optional=True, label='call_members')
+            _pg_exec("""CREATE TABLE IF NOT EXISTS call_signals (
+                id SERIAL PRIMARY KEY,
+                call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+                from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                to_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                signal_type VARCHAR(20) NOT NULL,
+                payload TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );""", optional=True, label='call_signals')
+            _pg_exec("CREATE INDEX IF NOT EXISTS idx_call_members_call ON call_members(call_id);",
+                     optional=True, label='idx_call_members_call')
+            _pg_exec("CREATE INDEX IF NOT EXISTS idx_call_members_user ON call_members(user_id);",
+                     optional=True, label='idx_call_members_user')
+            _pg_exec("CREATE INDEX IF NOT EXISTS idx_call_signals_call ON call_signals(call_id, id);",
+                     optional=True, label='idx_call_signals_call')
+            _pg_exec("CREATE INDEX IF NOT EXISTS idx_call_signals_target ON call_signals(call_id, to_user_id, id);",
+                     optional=True, label='idx_call_signals_target')
             _pg_exec(
                 """CREATE TABLE IF NOT EXISTS compliance_profiles (
                     id SERIAL PRIMARY KEY,

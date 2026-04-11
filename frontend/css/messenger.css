@@ -2063,6 +2063,52 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   color: rgba(244,252,246,.92);
   margin-top: 2px;
 }
+.call-screen-peers {
+  width: 100%;
+  min-height: 30px;
+  margin-top: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+.call-peer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.22);
+  color: rgba(247,253,249,.92);
+  font-size: 11px;
+  letter-spacing: .02em;
+}
+.call-peer-chip.state-joined {
+  background: rgba(46, 138, 95, .24);
+  border-color: rgba(122, 214, 164, .38);
+}
+.call-peer-chip.state-invited,
+.call-peer-chip.state-ringing {
+  background: rgba(212, 176, 112, .22);
+  border-color: rgba(212, 176, 112, .34);
+}
+.call-peer-chip.state-left,
+.call-peer-chip.state-rejected,
+.call-peer-chip.state-missed {
+  opacity: .72;
+}
+.call-peer-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.82);
+  box-shadow: 0 0 0 2px rgba(255,255,255,.14);
+}
+.call-peer-chip.state-joined .call-peer-chip-dot {
+  background: #70d69f;
+}
 
 .call-screen-btns {
   display: grid;
@@ -2413,6 +2459,14 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 
   .call-screen-timer {
     font-size: 28px;
+  }
+  .call-screen-peers {
+    gap: 5px;
+  }
+  .call-peer-chip {
+    font-size: 10px;
+    min-height: 22px;
+    padding: 0 8px;
   }
 
   .call-screen-btns {
