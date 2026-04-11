@@ -28,6 +28,21 @@
     'Акції ARM': 'bi-stars',
   };
 
+  const FALLBACK_PRODUCTS = [
+    { id: 9001, title: 'ARM Phone Max 512GB', description: 'Флагманський смартфон 6.8", 120Hz, 120W', price: 29999, badge: 'TOP', stock: 18 },
+    { id: 9002, title: 'ARM Phone Lite 5G', description: 'Смартфон 120Hz, NFC, батарея 5000mAh', price: 13999, badge: 'ARM DEAL', stock: 44 },
+    { id: 9003, title: 'ARM Book Pro 15', description: 'Ноутбук для роботи, 32GB RAM, 1TB SSD', price: 45999, badge: 'PRO', stock: 9 },
+    { id: 9004, title: 'ARM Book Air 14', description: 'Легкий ультрабук для щоденних задач', price: 32999, badge: 'NEW', stock: 17 },
+    { id: 9005, title: 'ARM Monitor 27 QHD', description: 'Монітор 27", 165Hz, HDR', price: 11999, badge: 'HOT', stock: 28 },
+    { id: 9006, title: 'ARM Router AX3000', description: 'Wi‑Fi 6 роутер для дому та офісу', price: 3599, badge: null, stock: 41 },
+    { id: 9007, title: 'ARM Earbuds Pro', description: 'Бездротові навушники з ANC', price: 3299, badge: 'SALE', stock: 32 },
+    { id: 9008, title: 'ARM Smart TV 50 4K', description: '4K телевізор з Dolby Vision', price: 18999, badge: 'TOP', stock: 20 },
+    { id: 9009, title: 'ARM Coffee Pro', description: 'Кавоварка з капучинатором', price: 8499, badge: null, stock: 12 },
+    { id: 9010, title: 'ARM Robot Vacuum', description: 'Робот-пилосос з вологим прибиранням', price: 12499, badge: 'HOT', stock: 16 },
+    { id: 9011, title: 'ARM Smart Lamp', description: 'Настільна лампа з керуванням зі смартфона', price: 1599, badge: null, stock: 32 },
+    { id: 9012, title: 'ARM Home Security Kit', description: 'Камера + датчики + хаб', price: 7299, badge: 'ARM DEAL', stock: 17 },
+  ];
+
   const state = {
     products: [],
     cart: new Map(),
@@ -49,9 +64,6 @@
     catalogSearch: document.getElementById('catalog-search'),
     catalogSort: document.getElementById('catalog-sort'),
     categoryList: document.getElementById('category-list'),
-    filterInStock: document.getElementById('filter-in-stock'),
-    filterMinPrice: document.getElementById('filter-min-price'),
-    filterMaxPrice: document.getElementById('filter-max-price'),
     filterReset: document.getElementById('filter-reset'),
     toggleFilters: document.getElementById('toggle-filters'),
     filtersBackdrop: document.getElementById('filters-backdrop'),
@@ -61,9 +73,7 @@
     checkoutForm: document.getElementById('checkout-form'),
     checkoutBtn: document.getElementById('checkout-btn'),
     shippingName: document.getElementById('shipping-name'),
-    shippingPhone: document.getElementById('shipping-phone'),
     shippingAddress: document.getElementById('shipping-address'),
-    checkoutNote: document.getElementById('checkout-note'),
     paymentMode: document.getElementById('payment-mode'),
     paymentModeHint: document.getElementById('payment-mode-hint'),
     accountNumber: document.getElementById('account-number'),
@@ -204,9 +214,6 @@
   function getFilteredProducts() {
     const q = String(el.catalogSearch?.value || '').trim().toLowerCase();
     const sort = String(el.catalogSort?.value || 'popular');
-    const minPrice = Number(el.filterMinPrice?.value || 0);
-    const maxPrice = Number(el.filterMaxPrice?.value || 0);
-    const inStockOnly = !!el.filterInStock?.checked;
 
     let list = [...state.products];
     if (state.activeCategory !== 'all') {
@@ -222,16 +229,6 @@
         return hay.includes(q);
       });
     }
-    if (inStockOnly) {
-      list = list.filter((p) => Number(p.stock || 0) > 0);
-    }
-    if (minPrice > 0) {
-      list = list.filter((p) => Number(p.price || 0) >= minPrice);
-    }
-    if (maxPrice > 0) {
-      list = list.filter((p) => Number(p.price || 0) <= maxPrice);
-    }
-
     if (sort === 'cheap') {
       list.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
     } else if (sort === 'expensive') {
@@ -393,7 +390,12 @@
 
   async function fetchCatalog() {
     const data = await api.request('/api/marketplace/catalog');
-    state.products = (data.items || []).map(enrichProduct);
+    const fromApi = Array.isArray(data?.items) ? data.items : [];
+    const source = fromApi.length ? fromApi : FALLBACK_PRODUCTS;
+    state.products = source.map(enrichProduct);
+    if (!fromApi.length) {
+      showToast('Каталог оновлюється: показано рекомендовані товари ARM.');
+    }
     renderCategoryList();
     renderCatalog();
   }
@@ -426,9 +428,7 @@
     const payload = {
       items,
       shipping_name: String(el.shippingName?.value || '').trim(),
-      shipping_phone: String(el.shippingPhone?.value || '').trim(),
       shipping_address: String(el.shippingAddress?.value || '').trim(),
-      note: String(el.checkoutNote?.value || '').trim(),
       payment_mode: String(el.paymentMode?.value || 'pay_now'),
     };
 
@@ -522,9 +522,6 @@
 
   function resetFilters() {
     state.activeCategory = 'all';
-    if (el.filterInStock) el.filterInStock.checked = false;
-    if (el.filterMinPrice) el.filterMinPrice.value = '';
-    if (el.filterMaxPrice) el.filterMaxPrice.value = '';
     if (el.catalogSort) el.catalogSort.value = 'popular';
     if (el.catalogSearch) el.catalogSearch.value = '';
     renderCategoryList();
@@ -545,9 +542,6 @@
     el.paymentMode?.addEventListener('change', updatePaymentModeHint);
     el.catalogSearch?.addEventListener('input', renderCatalog);
     el.catalogSort?.addEventListener('change', renderCatalog);
-    el.filterInStock?.addEventListener('change', renderCatalog);
-    el.filterMinPrice?.addEventListener('input', renderCatalog);
-    el.filterMaxPrice?.addEventListener('input', renderCatalog);
     el.filterReset?.addEventListener('click', resetFilters);
     el.ordersList?.addEventListener('click', onOrdersClick);
     el.toggleFilters?.addEventListener('click', () => {
