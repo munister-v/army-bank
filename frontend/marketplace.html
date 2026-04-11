@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0f3b2d"/>
+  <title>ARM Marketplace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/css/marketplace.css?v=1"/>
+</head>
+<body>
+  <div class="market-root">
+    <header class="market-header">
+      <div class="brand">
+        <div class="logo">ARM</div>
+        <div>
+          <p class="brand-kicker">ОКРЕМИЙ ДОДАТОК</p>
+          <h1>ARM Marketplace</h1>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="back-to-bank" class="btn btn-ghost" type="button">До банку</button>
+      </div>
+    </header>
+
+    <section class="summary-grid">
+      <article class="summary-card">
+        <p class="summary-label">Рахунок</p>
+        <p class="summary-value" id="account-number">—</p>
+      </article>
+      <article class="summary-card">
+        <p class="summary-label">Доступний баланс</p>
+        <p class="summary-value mono" id="account-balance">₴0.00</p>
+      </article>
+      <article class="summary-card">
+        <p class="summary-label">Замовлень</p>
+        <p class="summary-value" id="orders-count">0</p>
+      </article>
+    </section>
+
+    <main class="market-layout">
+      <section class="catalog-panel">
+        <div class="panel-head">
+          <h2>Каталог</h2>
+          <p>Товари з оплатою напряму через ARM Bank</p>
+        </div>
+        <div id="catalog-grid" class="catalog-grid"></div>
+      </section>
+
+      <aside class="cart-panel">
+        <div class="panel-head">
+          <h2>Кошик</h2>
+          <p>Оформлення оплати і доставки</p>
+        </div>
+        <div id="cart-empty" class="cart-empty">Додайте товари з каталогу.</div>
+        <div id="cart-items" class="cart-items"></div>
+        <div class="cart-total">
+          <span>Разом</span>
+          <strong id="cart-total">₴0.00</strong>
+        </div>
+
+        <form id="checkout-form" class="checkout-form">
+          <input id="shipping-name" type="text" placeholder="ПІБ отримувача" required/>
+          <input id="shipping-phone" type="text" placeholder="+380XXXXXXXXX"/>
+          <textarea id="shipping-address" rows="3" placeholder="Адреса доставки" required></textarea>
+          <textarea id="checkout-note" rows="2" placeholder="Коментар до замовлення"></textarea>
+          <button id="checkout-btn" class="btn btn-primary" type="submit">Оплатити через ARM Bank</button>
+        </form>
+      </aside>
+    </main>
+
+    <section class="orders-panel">
+      <div class="panel-head">
+        <h2>Останні замовлення</h2>
+      </div>
+      <div id="orders-list" class="orders-list"></div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/js/api.js?v=1"></script>
+  <script src="/js/marketplace.js?v=1"></script>
+</body>
+</html>
+

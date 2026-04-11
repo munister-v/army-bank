@@ -43,6 +43,7 @@ from .routes.admin_compliance_routes import admin_compliance_bp
 from .routes.document_routes import doc_bp
 from .routes.messenger_routes import messenger_bp
 from .routes.call_routes import call_bp
+from .routes.marketplace_routes import marketplace_bp
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / 'frontend'
@@ -226,6 +227,7 @@ def create_app() -> Flask:
     app.register_blueprint(doc_bp, url_prefix=prefix + '/api/admin')
     app.register_blueprint(messenger_bp, url_prefix=prefix + '/api/messenger')
     app.register_blueprint(call_bp,      url_prefix=prefix + '/api/messenger/calls')
+    app.register_blueprint(marketplace_bp, url_prefix=prefix + '/api/marketplace')
 
     @app.get(prefix + '/api' if prefix else '/api')
     @app.get(prefix + '/api/' if prefix else '/api/')
@@ -369,6 +371,10 @@ def create_app() -> Flask:
     @app.get(prefix + '/messenger' if prefix else '/messenger')
     def messenger_page():
         return send_html('messenger.html')
+
+    @app.get(prefix + '/marketplace' if prefix else '/marketplace')
+    def marketplace_page():
+        return send_html('marketplace.html')
 
     @app.get(prefix + '/turn-test.html' if prefix else '/turn-test.html')
     def turn_test_page():
