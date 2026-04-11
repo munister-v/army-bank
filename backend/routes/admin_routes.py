@@ -307,7 +307,7 @@ def analytics_messenger():
                 '''
                 SELECT
                   (SELECT COUNT(*) FROM conversations) AS conversations_total,
-                  (SELECT COUNT(*) FROM conversations WHERE COALESCE(is_group, 0) = 1) AS groups_total,
+                  (SELECT COALESCE(SUM(CASE WHEN COALESCE(is_group, FALSE) THEN 1 ELSE 0 END), 0) FROM conversations) AS groups_total,
                   (SELECT COUNT(*) FROM messages) AS messages_total,
                   (SELECT COUNT(*) FROM messages WHERE created_at >= ''' + day_ago_sql + ''') AS messages_24h,
                   (SELECT COUNT(DISTINCT sender_id) FROM messages WHERE created_at >= ''' + day_ago_sql + ''') AS active_senders_24h,
@@ -328,7 +328,7 @@ def analytics_messenger():
             conv_activity = conn.execute(
                 '''
                 SELECT c.id, COALESCE(c.group_name, 'Direct #' || c.id) AS title,
-                       COALESCE(c.is_group, 0) AS is_group,
+                       CASE WHEN COALESCE(c.is_group, FALSE) THEN 1 ELSE 0 END AS is_group,
                        COUNT(m.id) AS msg_count
                 FROM conversations c
                 LEFT JOIN messages m ON m.conversation_id = c.id AND m.created_at >= ''' + week_ago_sql + '''
