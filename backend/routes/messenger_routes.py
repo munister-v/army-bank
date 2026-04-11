@@ -90,7 +90,26 @@ def _get_or_create_conversation(user_a: int, user_b: int) -> int:
         return conv_id
 
 
-def _conv_summary(conv_id: int, me_id: int) -> dict:
+def _normalize_conversation_preview(raw_text: str, compact: bool = False) -> str:
+    preview = str(raw_text or '').strip()
+    if not preview:
+        return ''
+
+    # Legacy rows might still contain full encrypted/json blobs. Normalize to lightweight labels.
+    if preview.startswith('{') and '"items"' in preview and ('"mime":"image' in preview or '"mime":"image/' in preview):
+        return '🖼️ Фото'
+    if preview.startswith('{') and ('"mime":"audio' in preview or '"audio/' in preview):
+        return '🎤 Голосове повідомлення'
+    if len(preview) > 300 and _B64_RE.fullmatch(preview):
+        return '🎤 Голосове повідомлення'
+
+    max_len = 96 if compact else 180
+    if len(preview) > max_len:
+        preview = f"{preview[: max_len - 1].rstrip()}…"
+    return preview
+
+
+def _conv_summary(conv_id: int, me_id: int, compact: bool = False) -> dict:
     """Повертає summary діалогу для списку розмов."""
     with get_connection() as conn:
         conv = conn.execute(
@@ -105,7 +124,7 @@ def _conv_summary(conv_id: int, me_id: int) -> dict:
         if not is_group:
             partner = conn.execute(
                 """
-                SELECT u.id, u.full_name, u.phone, u.role, u.last_seen_at
+                SELECT u.id, u.full_name, u.role, u.last_seen_at
                 FROM conversation_participants cp
                 JOIN users u ON u.id = cp.user_id
                 WHERE cp.conversation_id = %s AND cp.user_id != %s
@@ -134,6 +153,7 @@ def _conv_summary(conv_id: int, me_id: int) -> dict:
     preview = decrypt_message(conv.get('last_message_text') if conv else '', fallback='')
     if not preview:
         preview = conv.get('last_message_text') if conv else ''
+    preview = _normalize_conversation_preview(preview, compact=compact)
 
     partner_payload = dict(partner) if partner else None
     if partner_payload and str(partner_payload.get('role') or '').lower() == _ASSISTANT_ROLE:
@@ -937,6 +957,10 @@ def search_users():
 @auth_required
 def list_conversations():
     me_id = g.current_user['id']
+    compact = (
+        (request.args.get('compact') in ('1', 'true', 'yes'))
+        or ((request.headers.get('X-Data-Saver') or '').strip() == '1')
+    )
     try:
         _ensure_bank_account_context(int(me_id))
         assistant_conv_id, _assistant_id = _ensure_default_assistant_conversation(int(me_id))
@@ -961,12 +985,12 @@ def list_conversations():
         if conv_id in seen:
             continue
         seen.add(conv_id)
-        summary = _conv_summary(conv_id, me_id)
+        summary = _conv_summary(conv_id, me_id, compact=compact)
         if summary:
             result.append(summary)
 
     if assistant_conv_id not in seen:
-        summary = _conv_summary(assistant_conv_id, me_id)
+        summary = _conv_summary(assistant_conv_id, me_id, compact=compact)
         if summary:
             result.append(summary)
 

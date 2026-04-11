@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '43';
+const MESSENGER_ASSET_VERSION = '44';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
@@ -19,6 +19,7 @@ const DEFAULT_CALL_PREFS = Object.freeze({
   volume: 0.7,
   outgoingTimeoutSec: 35,
   incomingTimeoutSec: 45,
+  dataSaver: false,
 });
 
 // ── Auth state ─────────────────────────────
@@ -56,6 +57,9 @@ let pollBusyPresence = false;
 let pollBusyConvPresence = false;
 let pollBusyIncoming = false;
 let pushActionInFlight = false;
+let pushReadyCache = false;
+let lastConvPresenceSyncAt = 0;
+let lastFocusSyncAt = 0;
 
 // ── Voice recording ────────────────────────
 let mediaRecorder = null;
@@ -186,6 +190,7 @@ const btnChatLogout     = $('btn-chat-logout');
 const btnCall           = $('btn-call');
 const btnBankTools      = $('btn-bank-tools');
 const topbarAvatar      = $('topbar-avatar');
+const networkPill       = $('network-pill');
 const btnUnread         = $('btn-unread');
 const unreadBadge       = $('unread-badge');
 const btnDiagRefresh    = $('btn-diag-refresh');
@@ -257,6 +262,8 @@ const outgoingTimeoutRange = $('outgoing-timeout-range');
 const outgoingTimeoutValue = $('outgoing-timeout-value');
 const incomingTimeoutRange = $('incoming-timeout-range');
 const incomingTimeoutValue = $('incoming-timeout-value');
+const callDataSaverToggle = $('call-data-saver-toggle');
+const callDataSaverHint = $('call-data-saver-hint');
 const btnCallTestSound = $('btn-call-test-sound');
 const btnCallReset = $('btn-call-reset');
 const callSettingsButtons = Array.from(document.querySelectorAll('[data-open-call-settings]'));
@@ -285,6 +292,9 @@ async function api(method, path, body, options = {}) {
   }, timeoutMs);
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (String(method || '').toUpperCase() === 'GET' && isDataSaverEnabled()) {
+    opts.headers['X-Data-Saver'] = '1';
+  }
   if (body !== undefined) opts.body = JSON.stringify(body);
   opts.signal = controller.signal;
   let res;
@@ -356,6 +366,7 @@ function handleConnectivityChange() {
   const online = navigator.onLine !== false;
   if (online === isAppOnline) return;
   isAppOnline = online;
+  updateNetworkPill();
   if (!online) {
     showToast('Немає інтернету. Працюємо в offline-режимі.', true);
     runClientDiagnostics().catch(() => {});
@@ -363,10 +374,9 @@ function handleConnectivityChange() {
   }
   showToast('З\'єднання відновлено');
   if (token && me) {
-    loadConversations().catch(() => {});
-    pollUnreadBadge().catch(() => {});
-    if (activeConvId) pollNewMessages().catch(() => {});
-    checkIncoming().catch(() => {});
+    startGlobalPoll(true);
+    if (activeConvId) startConvPoll(true);
+    startIncomingCallCheck(true);
   }
   runClientDiagnostics().catch(() => {});
 }
@@ -603,6 +613,7 @@ async function runClientDiagnostics(showDoneToast = false) {
   const pushReady = notifGranted && swReady && pushSubscribed;
   const callReady = secureContext && rtcSupported && micGranted && online;
   const overallOk = callReady && pushReady;
+  pushReadyCache = !!pushReady;
 
   setDiagRow(diagPush, pushReady ? 'ok' : (notifPerm === 'denied' ? 'bad' : 'warn'), `Push: ${pushReady ? 'готово' : 'потрібно налаштувати'}`);
   setDiagRow(diagMic, micGranted ? 'ok' : (micPerm === 'denied' ? 'bad' : 'warn'), `Мікрофон: ${micGranted ? 'доступ є' : 'немає доступу'}`);
@@ -621,6 +632,8 @@ async function runClientDiagnostics(showDoneToast = false) {
   }
 
   updatePushActionButtons({ notifPerm, swReady, pushSubscribed });
+  updateNetworkPill();
+  updateDataSaverHint();
 
   if (showDoneToast) showToast(overallOk ? 'Стан системи: готово' : 'Перевірка завершена');
 }
@@ -651,17 +664,76 @@ function clampNumber(value, min, max, fallback) {
   return Math.min(max, Math.max(min, num));
 }
 
+function getConnectionState() {
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
+  const effectiveType = String(conn?.effectiveType || '').toLowerCase();
+  const saveData = !!conn?.saveData;
+  const downlink = Number(conn?.downlink || 0);
+  const rtt = Number(conn?.rtt || 0);
+  return { effectiveType, saveData, downlink, rtt };
+}
+
+function isLowBandwidthNetwork() {
+  const net = getConnectionState();
+  if (!net) return false;
+  if (net.saveData) return true;
+  if (/(^|-)2g$/.test(net.effectiveType) || /(^|-)3g$/.test(net.effectiveType)) return true;
+  return net.downlink > 0 && net.downlink < 1.6;
+}
+
+function isDataSaverEnabled() {
+  const net = getConnectionState();
+  return !!callPrefs?.dataSaver || !!net.saveData;
+}
+
+function updateDataSaverHint() {
+  if (!callDataSaverHint) return;
+  const net = getConnectionState();
+  const active = isDataSaverEnabled();
+  const netTag = net.effectiveType ? ` (${net.effectiveType.toUpperCase()})` : '';
+  if (active) {
+    callDataSaverHint.textContent = `Активно: менше фонових запитів і компактні фото${netTag}.`;
+  } else {
+    callDataSaverHint.textContent = `Стандартний режим: швидкі оновлення чату${netTag}.`;
+  }
+}
+
+function updateNetworkPill() {
+  if (!networkPill) return;
+  if (navigator.onLine === false) {
+    networkPill.textContent = 'Offline';
+    networkPill.dataset.state = 'bad';
+    return;
+  }
+  const net = getConnectionState();
+  if (isDataSaverEnabled()) {
+    networkPill.textContent = 'Еко-трафік';
+    networkPill.dataset.state = 'warn';
+    return;
+  }
+  const label = net.effectiveType ? net.effectiveType.toUpperCase() : 'Online';
+  networkPill.textContent = label;
+  networkPill.dataset.state = 'ok';
+}
+
 function loadCallPrefs() {
   try {
     const raw = localStorage.getItem(CALL_PREFS_KEY);
-    if (!raw) return { ...DEFAULT_CALL_PREFS };
+    if (!raw) {
+      return { ...DEFAULT_CALL_PREFS, dataSaver: !!getConnectionState().saveData };
+    }
     const parsed = JSON.parse(raw);
+    const netSaveData = getConnectionState().saveData;
+    const parsedDataSaver = typeof parsed?.dataSaver === 'boolean'
+      ? parsed.dataSaver
+      : !!netSaveData;
     return {
       sounds: parsed?.sounds !== false,
       vibration: parsed?.vibration !== false,
       volume: clampNumber(parsed?.volume, 0, 1, DEFAULT_CALL_PREFS.volume),
       outgoingTimeoutSec: Math.round(clampNumber(parsed?.outgoingTimeoutSec, 15, 90, DEFAULT_CALL_PREFS.outgoingTimeoutSec)),
       incomingTimeoutSec: Math.round(clampNumber(parsed?.incomingTimeoutSec, 15, 90, DEFAULT_CALL_PREFS.incomingTimeoutSec)),
+      dataSaver: parsedDataSaver,
     };
   } catch (_) {
     return { ...DEFAULT_CALL_PREFS };
@@ -677,12 +749,15 @@ function saveCallPrefs() {
 function renderCallSettings() {
   if (callSoundsToggle) callSoundsToggle.checked = !!callPrefs.sounds;
   if (callVibrateToggle) callVibrateToggle.checked = !!callPrefs.vibration;
+  if (callDataSaverToggle) callDataSaverToggle.checked = !!callPrefs.dataSaver;
   if (callVolumeRange) callVolumeRange.value = String(Math.round(callPrefs.volume * 100));
   if (callVolumeValue) callVolumeValue.textContent = `${Math.round(callPrefs.volume * 100)}%`;
   if (outgoingTimeoutRange) outgoingTimeoutRange.value = String(callPrefs.outgoingTimeoutSec);
   if (outgoingTimeoutValue) outgoingTimeoutValue.textContent = `${callPrefs.outgoingTimeoutSec}с`;
   if (incomingTimeoutRange) incomingTimeoutRange.value = String(callPrefs.incomingTimeoutSec);
   if (incomingTimeoutValue) incomingTimeoutValue.textContent = `${callPrefs.incomingTimeoutSec}с`;
+  updateDataSaverHint();
+  updateNetworkPill();
 }
 
 function openCallSettingsModal() {
@@ -1041,6 +1116,7 @@ function showAuth() {
   if (authPhone)    authPhone.value = '';
   authError.hidden = true;
   setAuthMode('login');
+  updateNetworkPill();
   syncOverlayLock();
 }
 
@@ -1048,6 +1124,7 @@ function showApp() {
   authScreen.hidden = true;
   appEl.hidden = false;
   if (me && topbarAvatar) topbarAvatar.textContent = initial(me.full_name);
+  updateNetworkPill();
   ensureMessengerBankStatus().catch(() => {});
   loadConversations();
   ensurePushSubscriptionSilent().catch(() => {});
@@ -1062,12 +1139,16 @@ function showApp() {
 // Conversations
 // ════════════════════════════════════════════
 async function loadConversations() {
+  if (!isAppOnline) return;
   if (pollBusyConversations) return;
   pollBusyConversations = true;
   try {
-    convData = await apiGetRetry('/messenger/conversations', { retries: 1, timeoutMs: 9000 });
+    const compact = isDataSaverEnabled() ? '?compact=1' : '';
+    convData = await apiGetRetry(`/messenger/conversations${compact}`, { retries: 1, timeoutMs: 9000 });
     renderConvList(convData);
-    pollConversationsPresence().catch(() => {});
+    if (shouldSyncConversationsPresence()) {
+      pollConversationsPresence().catch(() => {});
+    }
   } catch (err) {
     if (isUnauthorizedError(err)) doLogout();
   } finally {
@@ -1312,7 +1393,11 @@ async function fetchMessages(prepend = false) {
   if (!activeConvId) return;
   try {
     const fid    = firstMsgId();
-    const params = prepend && fid > 0 ? `?before_id=${fid}&limit=30` : '?limit=50';
+    const initialLimit = isDataSaverEnabled() ? 36 : 50;
+    const olderLimit = isDataSaverEnabled() ? 20 : 30;
+    const params = prepend && fid > 0
+      ? `?before_id=${fid}&limit=${olderLimit}`
+      : `?limit=${initialLimit}`;
     const msgs   = await api('GET', `/messenger/conversations/${activeConvId}/messages${params}`);
     if (!prepend) {
       messagesList.innerHTML = '';
@@ -1728,7 +1813,8 @@ async function sendPhotos(files) {
       return;
     }
     const payload = JSON.stringify({ v: 1, items });
-    if (payload.length > 2_300_000) {
+    const payloadLimit = isDataSaverEnabled() ? 1_400_000 : 2_000_000;
+    if (payload.length > payloadLimit) {
       showToast('Фото занадто важкі. Оберіть менше або менший розмір.', true);
       return;
     }
@@ -1745,7 +1831,8 @@ async function sendPhotos(files) {
       last_message_at: msg.created_at,
     });
     playSendTone().catch(() => {});
-    showToast('Фото надіслано');
+    const approxKb = Math.max(1, Math.round((payload.length * 0.75) / 1024));
+    showToast(`Фото надіслано · ~${approxKb} KB`);
   } catch (err) {
     showToast(err.message || 'Не вдалося надіслати фото.', true);
   }
@@ -1772,7 +1859,8 @@ function loadImage(src) {
 async function preparePhotoItem(file) {
   const rawDataUrl = await readFileAsDataURL(file);
   const img = await loadImage(rawDataUrl);
-  const maxSide = 1600;
+  const saver = isDataSaverEnabled();
+  const maxSide = saver ? 1120 : (isLowBandwidthNetwork() ? 1280 : 1480);
   const scale = Math.min(1, maxSide / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
   const width = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
   const height = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
@@ -1784,10 +1872,12 @@ async function preparePhotoItem(file) {
   if (!ctx) return null;
   ctx.drawImage(img, 0, 0, width, height);
 
-  let quality = 0.86;
+  let quality = saver ? 0.74 : 0.82;
+  const targetLen = saver ? 340_000 : 560_000;
+  const minQuality = saver ? 0.46 : 0.54;
   let out = canvas.toDataURL('image/jpeg', quality);
-  while (out.length > 750_000 && quality > 0.56) {
-    quality -= 0.1;
+  while (out.length > targetLen && quality > minQuality) {
+    quality -= 0.08;
     out = canvas.toDataURL('image/jpeg', quality);
   }
   const base64 = out.split(',')[1] || '';
@@ -2050,28 +2140,71 @@ function setSwipeProgress(progress) {
 // Polling
 // ════════════════════════════════════════════
 function _globalPollInterval() {
-  return document.hidden ? 20000 : 8000;
+  const saver = isDataSaverEnabled();
+  if (document.hidden) {
+    if (pushReadyCache) return saver ? 90000 : 60000;
+    return saver ? 60000 : 28000;
+  }
+  return saver ? 20000 : 12000;
 }
 
 function _convPollInterval() {
-  return document.hidden ? 5000 : 2000;
+  const saver = isDataSaverEnabled();
+  if (document.hidden) return saver ? 12000 : 6000;
+  return saver ? 4500 : 2500;
 }
 
-function startGlobalPoll() {
+function _presencePollInterval() {
+  const saver = isDataSaverEnabled();
+  if (document.hidden) return saver ? 55000 : 34000;
+  return saver ? 24000 : 14000;
+}
+
+function _incomingPollInterval() {
+  const saver = isDataSaverEnabled();
+  if (document.hidden) {
+    if (pushReadyCache) return saver ? 18000 : 12000;
+    return saver ? 12000 : 6000;
+  }
+  return saver ? 5000 : 2500;
+}
+
+function shouldSyncConversationsPresence(force = false) {
+  if (force) {
+    lastConvPresenceSyncAt = Date.now();
+    return true;
+  }
+  const now = Date.now();
+  const minGap = document.hidden
+    ? (isDataSaverEnabled() ? 90000 : 50000)
+    : (isDataSaverEnabled() ? 45000 : 22000);
+  if ((now - lastConvPresenceSyncAt) < minGap) return false;
+  lastConvPresenceSyncAt = now;
+  return true;
+}
+
+function startGlobalPoll(doImmediate = true) {
   clearInterval(globalPollTimer);
-  loadConversations().catch(() => {});
-  pollUnreadBadge().catch(() => {});
+  if (doImmediate) {
+    loadConversations().catch(() => {});
+    pollUnreadBadge().catch(() => {});
+  }
   globalPollTimer = setInterval(async () => {
+    if (!token || !me || !isAppOnline) return;
+    if (document.hidden && pushReadyCache && isDataSaverEnabled()) {
+      try { await pollUnreadBadge(); } catch (_) {}
+      return;
+    }
     try { await loadConversations(); } catch (_) {}
     try { await pollUnreadBadge(); }  catch (_) {}
   }, _globalPollInterval());
 }
 
-function startConvPoll() {
+function startConvPoll(doImmediate = true) {
   clearInterval(convPollTimer);
-  pollNewMessages().catch(() => {});
+  if (doImmediate) pollNewMessages().catch(() => {});
   convPollTimer = setInterval(pollNewMessages, _convPollInterval());
-  startPresencePoll();
+  startPresencePoll(doImmediate);
 }
 
 function clearPolling() {
@@ -2090,6 +2223,7 @@ function isOnline(userId) {
 }
 
 async function pollPresence() {
+  if (!isAppOnline) return;
   if (!activeConvId || !activePartner?.id) return;
   if (pollBusyPresence) return;
   pollBusyPresence = true;
@@ -2105,6 +2239,8 @@ async function pollPresence() {
 }
 
 async function pollConversationsPresence() {
+  if (!isAppOnline) return;
+  if (document.hidden && pushReadyCache && isDataSaverEnabled()) return;
   const ids = collectConversationPartnerIds(50);
   if (!ids.length) return;
   if (pollBusyConvPresence) return;
@@ -2120,34 +2256,36 @@ async function pollConversationsPresence() {
   }
 }
 
-function startPresencePoll() {
+function startPresencePoll(doImmediate = true) {
   clearInterval(presencePollTimer);
-  pollPresence().catch(() => {});
-  presencePollTimer = setInterval(pollPresence, document.hidden ? 26000 : 12000);
+  if (doImmediate) pollPresence().catch(() => {});
+  presencePollTimer = setInterval(pollPresence, _presencePollInterval());
 }
 
 // ── Visibility change — reset poll intervals ──
 document.addEventListener('visibilitychange', () => {
   if (globalPollTimer) {
-    clearInterval(globalPollTimer);
-    globalPollTimer = setInterval(async () => {
-      try { await loadConversations(); } catch (_) {}
-      try { await pollUnreadBadge(); }  catch (_) {}
-    }, _globalPollInterval());
+    startGlobalPoll(!document.hidden);
   }
   if (convPollTimer) {
-    clearInterval(convPollTimer);
-    convPollTimer = setInterval(pollNewMessages, _convPollInterval());
+    startConvPoll(!document.hidden);
   }
   if (activeConvId && activePartner?.id) {
-    startPresencePoll();
+    startPresencePoll(!document.hidden);
+  }
+  if (incomingCheckTimer) {
+    startIncomingCallCheck(!document.hidden);
   }
   if (!document.hidden) {
-    pollConversationsPresence().catch(() => {});
+    if (shouldSyncConversationsPresence(true)) {
+      pollConversationsPresence().catch(() => {});
+    }
+    updateNetworkPill();
   }
 });
 
 async function pollNewMessages() {
+  if (!isAppOnline) return;
   if (!activeConvId) return;
   if (pollBusyMessages) return;
   pollBusyMessages = true;
@@ -2178,6 +2316,7 @@ async function pollNewMessages() {
 }
 
 async function pollUnreadBadge() {
+  if (!isAppOnline) return;
   if (pollBusyUnread) return;
   pollBusyUnread = true;
   try {
@@ -3498,13 +3637,14 @@ async function initiateCall() {
 }
 
 // ── Incoming call detection ────────────────
-function startIncomingCallCheck() {
+function startIncomingCallCheck(doImmediate = true) {
   clearInterval(incomingCheckTimer);
-  checkIncoming().catch(() => {});
-  incomingCheckTimer = setInterval(checkIncoming, 2000);
+  if (doImmediate) checkIncoming().catch(() => {});
+  incomingCheckTimer = setInterval(checkIncoming, _incomingPollInterval());
 }
 
 async function checkIncoming() {
+  if (!isAppOnline) return;
   if (activeCallId || callAcceptInProgress || callDialInProgress || peerConnection || localStream || (callScreen && !callScreen.hidden)) return;
   if (pollBusyIncoming) return;
   pollBusyIncoming = true;
@@ -4146,6 +4286,19 @@ if (callVibrateToggle) {
     if (!callPrefs.vibration && navigator.vibrate) navigator.vibrate(0);
   });
 }
+if (callDataSaverToggle) {
+  callDataSaverToggle.addEventListener('change', () => {
+    callPrefs.dataSaver = !!callDataSaverToggle.checked;
+    saveCallPrefs();
+    renderCallSettings();
+    if (token && me) {
+      startGlobalPoll(false);
+      if (activeConvId) startConvPoll(false);
+      startIncomingCallCheck(false);
+    }
+    showToast(callPrefs.dataSaver ? 'Економія трафіку увімкнена' : 'Економія трафіку вимкнена');
+  });
+}
 if (callVolumeRange) {
   callVolumeRange.addEventListener('input', () => {
     const v = clampNumber(callVolumeRange.value, 0, 100, 70);
@@ -4485,16 +4638,33 @@ window.addEventListener('pagehide', bestEffortEndActiveCall);
 window.addEventListener('beforeunload', bestEffortEndActiveCall);
 window.addEventListener('focus', () => {
   if (!token || !me) return;
+  const now = Date.now();
+  if ((now - lastFocusSyncAt) < 1800) return;
+  lastFocusSyncAt = now;
   loadConversations().catch(() => {});
   pollUnreadBadge().catch(() => {});
   ensurePushSubscriptionSilent().catch(() => {});
-  pollConversationsPresence().catch(() => {});
+  if (shouldSyncConversationsPresence(true)) {
+    pollConversationsPresence().catch(() => {});
+  }
   if (activePartner?.id) pollPresence().catch(() => {});
   if (activeConvId) pollNewMessages().catch(() => {});
   runClientDiagnostics().catch(() => {});
 });
 window.addEventListener('online', handleConnectivityChange);
 window.addEventListener('offline', handleConnectivityChange);
+const _networkConn = navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
+if (_networkConn && typeof _networkConn.addEventListener === 'function') {
+  _networkConn.addEventListener('change', () => {
+    updateNetworkPill();
+    updateDataSaverHint();
+    if (token && me) {
+      startGlobalPoll(false);
+      if (activeConvId) startConvPoll(false);
+      startIncomingCallCheck(false);
+    }
+  });
+}
 document.addEventListener('visibilitychange', handleVisibilityChange);
 window.addEventListener('pageshow', () => {
   handleVisibilityChange();
