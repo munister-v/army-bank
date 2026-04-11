@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/>
-  <meta name="theme-color" content="#008f3a"/>
+  <meta name="theme-color" content="#3156d3"/>
   <title>ARM Marketplace</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/marketplace.css?v=6"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="/css/marketplace.css?v=7"/>
 </head>
 <body>
   <div class="rz-shell">
@@ -26,11 +27,12 @@
       </div>
     </header>
     <div class="rz-subnav">
-      <span>Ноутбуки та комп’ютери</span>
-      <span>Смартфони</span>
-      <span>Побутова техніка</span>
-      <span>Товари для дому</span>
-      <span>Акції ARM</span>
+      <button class="rz-subnav-item active" type="button" data-top-category="all">Усе</button>
+      <button class="rz-subnav-item" type="button" data-top-category="Ноутбуки та комп’ютери">Ноутбуки та комп’ютери</button>
+      <button class="rz-subnav-item" type="button" data-top-category="Смартфони">Смартфони</button>
+      <button class="rz-subnav-item" type="button" data-top-category="Побутова техніка">Побутова техніка</button>
+      <button class="rz-subnav-item" type="button" data-top-category="Товари для дому">Товари для дому</button>
+      <button class="rz-subnav-item" type="button" data-top-category="Акції ARM">Акції ARM</button>
     </div>
     <div id="filters-backdrop" class="filters-backdrop" hidden></div>
 
@@ -38,17 +40,17 @@
       <strong>Гостьовий режим:</strong> перегляд товарів доступний, оплата активується після входу в ARM Bank.
     </section>
     <section class="rz-promo">
-      <article class="rz-promo-card green">
+      <article class="rz-promo-card violet">
         <p>Акція тижня</p>
-        <h4>Знижки до -25% на smart home</h4>
+        <h4>Знижки до -35% на побутову техніку</h4>
       </article>
-      <article class="rz-promo-card orange">
+      <article class="rz-promo-card aqua">
         <p>ARM Bank Pay</p>
-        <h4>Кешбек 3% при оплаті карткою ARM</h4>
+        <h4>Кешбек до 5% при оплаті карткою ARM</h4>
       </article>
-      <article class="rz-promo-card dark">
+      <article class="rz-promo-card indigo">
         <p>Швидка доставка</p>
-        <h4>Відправка день у день по Україні</h4>
+        <h4>Відправка день у день + безкоштовно від ₴2500</h4>
       </article>
     </section>
 
@@ -107,7 +109,7 @@
 
       <section class="rz-catalog">
         <div class="rz-catalog-head">
-          <h2>Товари для дому та техніки</h2>
+          <h2 id="catalog-title">Товари для дому та техніки</h2>
           <div class="rz-catalog-tools">
             <button id="toggle-filters" class="btn btn-filter" type="button">Фільтри</button>
             <span id="catalog-count">0 товарів</span>
@@ -144,7 +146,7 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="/js/api.js?v=6"></script>
-  <script src="/js/marketplace.js?v=6"></script>
+  <script src="/js/api.js?v=7"></script>
+  <script src="/js/marketplace.js?v=7"></script>
 </body>
 </html>

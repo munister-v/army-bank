@@ -5,15 +5,19 @@
     maximumFractionDigits: 2,
   });
 
+  const TOP_CATEGORIES = [
+    'Ноутбуки та комп’ютери',
+    'Смартфони',
+    'Побутова техніка',
+    'Товари для дому',
+    'Акції ARM',
+  ];
+
   const CATEGORY_HINTS = [
-    { key: 'Смартфони', terms: ['phone', 'смартфон', 'iphone'] },
-    { key: 'Ноутбуки', terms: ['laptop', 'book air', 'book pro', 'ноутбук', 'ультрабук'] },
-    { key: 'ТВ та Монітори', terms: ['monitor', 'tv box', 'монітор', 'телев'] },
-    { key: 'Аудіо', terms: ['speaker', 'earbuds', 'headphones', 'колонка', 'навуш'] },
-    { key: 'Дім', terms: ['lamp', 'kettle', 'coffee', 'blender', 'vacuum', 'нічник', 'лампа', 'дім'] },
-    { key: 'Розумний дім', terms: ['smart home', 'sensor', 'security cam', 'hub', 'датчик', 'камера'] },
-    { key: 'Аксесуари', terms: ['holder', 'card', 'кард', 'аксес', 'cable', 'charger', 'organizer', 'backpack'] },
-    { key: 'Одяг', terms: ['hoodie', 'одяг'] },
+    { key: 'Смартфони', terms: ['phone', 'смартфон', 'iphone', 'galaxy', 'pixel', 'xiaomi', 'oneplus', 'honor'] },
+    { key: 'Ноутбуки та комп’ютери', terms: ['laptop', 'book air', 'book pro', 'ноутбук', 'ультрабук', 'комп', 'desktop', 'keyboard', 'mouse', 'monitor', 'webcam', 'router'] },
+    { key: 'Побутова техніка', terms: ['kettle', 'coffee', 'blender', 'vacuum', 'fryer', 'чайник', 'кавоварка', 'блендер', 'пилосос', 'техніка'] },
+    { key: 'Товари для дому', terms: ['lamp', 'home', 'sensor', 'security cam', 'hub', 'нічник', 'лампа', 'дім', 'органайзер', 'рюкзак', 'light', 'smart bulb', 'door'] },
   ];
 
   const state = {
@@ -54,6 +58,8 @@
     backToBank: document.getElementById('back-to-bank'),
     guestBanner: document.getElementById('guest-banner'),
     toast: document.getElementById('toast'),
+    catalogTitle: document.getElementById('catalog-title'),
+    topCategoryNav: document.querySelector('.rz-subnav'),
   };
 
   function basePath() {
@@ -86,13 +92,17 @@
   }
 
   function inferCategory(product) {
+    const badge = String(product?.badge || '').toUpperCase();
+    if (badge && ['SALE', 'HOT', 'TOP', 'NEW', 'ARM DEAL'].includes(badge)) {
+      return 'Акції ARM';
+    }
     const title = String(product?.title || '').toLowerCase();
     const description = String(product?.description || '').toLowerCase();
     const text = `${title} ${description}`;
     for (const hint of CATEGORY_HINTS) {
       if (hint.terms.some((term) => text.includes(term))) return hint.key;
     }
-    return 'Інше';
+    return 'Товари для дому';
   }
 
   function enrichProduct(item) {
@@ -135,7 +145,7 @@
 
   function renderCategoryList() {
     if (!el.categoryList) return;
-    const categories = ['all', ...new Set(state.products.map((p) => p.category).filter(Boolean))];
+    const categories = ['all', ...TOP_CATEGORIES];
     el.categoryList.innerHTML = '';
     for (const category of categories) {
       const btn = document.createElement('button');
@@ -147,6 +157,20 @@
     }
   }
 
+  function syncTopCategoryUI() {
+    if (el.catalogTitle) {
+      el.catalogTitle.textContent = state.activeCategory === 'all'
+        ? 'Товари для дому та техніки'
+        : state.activeCategory;
+    }
+    if (!el.topCategoryNav) return;
+    const buttons = el.topCategoryNav.querySelectorAll('[data-top-category]');
+    buttons.forEach((btn) => {
+      const key = String(btn.dataset.topCategory || 'all');
+      btn.classList.toggle('active', key === state.activeCategory);
+    });
+  }
+
   function getFilteredProducts() {
     const q = String(el.catalogSearch?.value || '').trim().toLowerCase();
     const sort = String(el.catalogSort?.value || 'popular');
@@ -156,7 +180,11 @@
 
     let list = [...state.products];
     if (state.activeCategory !== 'all') {
-      list = list.filter((p) => p.category === state.activeCategory);
+      if (state.activeCategory === 'Акції ARM') {
+        list = list.filter((p) => String(p.category || '') === 'Акції ARM' || ['SALE', 'HOT', 'TOP', 'NEW', 'ARM DEAL'].includes(String(p.badge || '').toUpperCase()));
+      } else {
+        list = list.filter((p) => p.category === state.activeCategory);
+      }
     }
     if (q) {
       list = list.filter((p) => {
@@ -194,6 +222,7 @@
     if (el.catalogCount) {
       el.catalogCount.textContent = `${products.length} товарів`;
     }
+    syncTopCategoryUI();
     el.catalogGrid.innerHTML = '';
     if (!products.length) {
       el.catalogGrid.innerHTML = '<p>Нічого не знайдено за обраними фільтрами.</p>';
@@ -446,6 +475,14 @@
       const btn = event.target.closest('.category-btn');
       if (!btn) return;
       state.activeCategory = String(btn.dataset.category || 'all');
+      renderCategoryList();
+      renderCatalog();
+      setFiltersOpen(false);
+    });
+    el.topCategoryNav?.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-top-category]');
+      if (!btn) return;
+      state.activeCategory = String(btn.dataset.topCategory || 'all');
       renderCategoryList();
       renderCatalog();
       setFiltersOpen(false);
