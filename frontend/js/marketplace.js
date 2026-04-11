@@ -82,13 +82,15 @@
     const rating = Number((4.1 + ((id * 13) % 8) / 10).toFixed(1));
     const reviews = 24 + ((id * 37) % 420);
     const price = Number(item?.price || 0);
-    const oldPrice = Number((price * 1.17).toFixed(2));
+    const oldPrice = Number((price * 1.19).toFixed(2));
+    const discountPercent = Math.max(3, Math.round(((oldPrice - price) / Math.max(oldPrice, 1)) * 100));
     return {
       ...item,
       category: inferCategory(item),
       rating,
       reviews,
       oldPrice,
+      discountPercent,
     };
   }
 
@@ -186,7 +188,10 @@
       const product = document.createElement('article');
       product.className = 'rz-product';
       product.innerHTML = `
-        <div class="rz-thumb">${item.image_emoji || '🛍️'}</div>
+        <div class="rz-thumb">
+          <span class="rz-discount">-${item.discountPercent}%</span>
+          ${item.image_emoji || '🛍️'}
+        </div>
         <div class="rz-content">
           <h3 class="rz-title">${item.title || 'Товар'}</h3>
           <div class="rz-meta">
@@ -445,4 +450,3 @@
 
   init();
 })();
-
