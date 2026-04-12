@@ -358,6 +358,13 @@ ul, ol { list-style: none; }
 .rz-cart-badge-count:empty,
 .rz-cart-badge-count[data-count="0"] { display: none; }
 
+@keyframes bump {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.rz-cart-badge-count.bump { animation: bump 300ms cubic-bezier(.34,1.56,.64,1); }
+
 /* ============================================================
    5. SUB-NAV
    ============================================================ */

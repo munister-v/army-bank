@@ -1,658 +1,784 @@
 (function () {
-  /* ═══════════════════════════════════════
-     Helpers
-     ═══════════════════════════════════════ */
-  const moneyFmt = new Intl.NumberFormat('uk-UA', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  'use strict';
 
-  function formatMoney(value) {
-    return `\u20b4${moneyFmt.format(Number(value || 0))}`;
+  /* ═══════════════════════════════════════════════════════════
+     HELPERS
+     ═══════════════════════════════════════════════════════════ */
+  const moneyFmt = new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmt = (v) => `\u20b4${moneyFmt.format(Number(v || 0))}`;
+
+  /* ── Stars ── */
+  const STAR_ON  = '<svg class="rz-star"       viewBox="0 0 20 20"><path fill="currentColor" d="M10 1.3l2.4 5.5 5.9.5-4.5 3.8 1.5 5.8L10 13.8l-5.3 3.1 1.5-5.8L1.7 7.3l5.9-.5z"/></svg>';
+  const STAR_OFF = '<svg class="rz-star empty"  viewBox="0 0 20 20"><path fill="currentColor" d="M10 1.3l2.4 5.5 5.9.5-4.5 3.8 1.5 5.8L10 13.8l-5.3 3.1 1.5-5.8L1.7 7.3l5.9-.5z"/></svg>';
+  function stars(r) {
+    const n = Math.round(Number(r) || 0);
+    return Array.from({ length: 5 }, (_, i) => i < n ? STAR_ON : STAR_OFF).join('');
   }
 
-  /* ── Star SVG ── */
-  const STAR_FULL = '<svg class="rz-star" viewBox="0 0 20 20"><path fill="currentColor" d="M10 1.3l2.4 5.5 5.9.5-4.5 3.8 1.5 5.8L10 13.8l-5.3 3.1 1.5-5.8L1.7 7.3l5.9-.5z"/></svg>';
-  const STAR_EMPTY = '<svg class="rz-star empty" viewBox="0 0 20 20"><path fill="currentColor" d="M10 1.3l2.4 5.5 5.9.5-4.5 3.8 1.5 5.8L10 13.8l-5.3 3.1 1.5-5.8L1.7 7.3l5.9-.5z"/></svg>';
+  /* ═══════════════════════════════════════════════════════════
+     CATEGORY SYSTEM
+     Bug fix: badge alone should NOT force category to "Акції ARM".
+     Category is inferred from title/description text only.
+     "Акції ARM" is a VIRTUAL view (items with promo badges) shown
+     in the subnav filter but products keep their real category.
+     ═══════════════════════════════════════════════════════════ */
+  const CAT_LAPTOPS    = 'Ноутбуки та комп\u2019ютери';
+  const CAT_PHONES     = 'Смартфони';
+  const CAT_APPLIANCES = 'Побутова техніка';
+  const CAT_HOME       = 'Товари для дому';
+  const CAT_PROMO      = 'Акції ARM';
 
-  function renderStars(rating) {
-    const full = Math.round(Number(rating) || 0);
-    let html = '';
-    for (let i = 0; i < 5; i++) {
-      html += i < full ? STAR_FULL : STAR_EMPTY;
-    }
-    return html;
-  }
+  const TOP_CATEGORIES = [CAT_LAPTOPS, CAT_PHONES, CAT_APPLIANCES, CAT_HOME, CAT_PROMO];
 
-  /* ── Category mapping ── */
-  const TOP_CATEGORIES = [
-    '\u041d\u043e\u0443\u0442\u0431\u0443\u043a\u0438 \u0442\u0430 \u043a\u043e\u043c\u043f\u2019\u044e\u0442\u0435\u0440\u0438',
-    '\u0421\u043c\u0430\u0440\u0442\u0444\u043e\u043d\u0438',
-    '\u041f\u043e\u0431\u0443\u0442\u043e\u0432\u0430 \u0442\u0435\u0445\u043d\u0456\u043a\u0430',
-    '\u0422\u043e\u0432\u0430\u0440\u0438 \u0434\u043b\u044f \u0434\u043e\u043c\u0443',
-    '\u0410\u043a\u0446\u0456\u0457 ARM',
-  ];
-
+  // Order matters: first match wins
   const CATEGORY_HINTS = [
-    { key: '\u0421\u043c\u0430\u0440\u0442\u0444\u043e\u043d\u0438', terms: ['phone', '\u0441\u043c\u0430\u0440\u0442\u0444\u043e\u043d', 'iphone', 'galaxy', 'pixel', 'xiaomi', 'oneplus', 'honor', 'earbuds', '\u043d\u0430\u0432\u0443\u0448\u043d\u0438\u043a'] },
-    { key: '\u041d\u043e\u0443\u0442\u0431\u0443\u043a\u0438 \u0442\u0430 \u043a\u043e\u043c\u043f\u2019\u044e\u0442\u0435\u0440\u0438', terms: ['laptop', 'book air', 'book pro', '\u043d\u043e\u0443\u0442\u0431\u0443\u043a', '\u0443\u043b\u044c\u0442\u0440\u0430\u0431\u0443\u043a', '\u043a\u043e\u043c\u043f', 'desktop', 'keyboard', 'mouse', 'monitor', 'webcam', 'router', 'tv', '\u0442\u0435\u043b\u0435\u0432\u0456\u0437\u043e\u0440'] },
-    { key: '\u041f\u043e\u0431\u0443\u0442\u043e\u0432\u0430 \u0442\u0435\u0445\u043d\u0456\u043a\u0430', terms: ['kettle', 'coffee', 'blender', 'vacuum', 'fryer', '\u0447\u0430\u0439\u043d\u0438\u043a', '\u043a\u0430\u0432\u043e\u0432\u0430\u0440\u043a\u0430', '\u0431\u043b\u0435\u043d\u0434\u0435\u0440', '\u043f\u0438\u043b\u043e\u0441\u043e\u0441', '\u0442\u0435\u0445\u043d\u0456\u043a\u0430', 'robot', '\u043c\u0456\u043a\u0441\u0435\u0440', 'washer', 'fridge'] },
-    { key: '\u0422\u043e\u0432\u0430\u0440\u0438 \u0434\u043b\u044f \u0434\u043e\u043c\u0443', terms: ['lamp', 'home', 'sensor', 'security cam', 'hub', '\u043d\u0456\u0447\u043d\u0438\u043a', '\u043b\u0430\u043c\u043f\u0430', '\u0434\u0456\u043c', '\u043e\u0440\u0433\u0430\u043d\u0430\u0439\u0437\u0435\u0440', '\u0440\u044e\u043a\u0437\u0430\u043a', 'light', 'smart bulb', 'door'] },
+    {
+      key: CAT_PHONES,
+      terms: [
+        'смартфон', 'phone', 'iphone', 'galaxy', 'pixel', 'oneplus', 'xiaomi', 'redmi',
+        'honor', 'earbuds', 'навушник', 'watch fit', 'smartwatch', 'годинник', 'band',
+        'fitness band', 'smart ring', 'кільце', 'gimbal', 'tripod', 'tripod', 'складаний',
+        'fold', 'tablet', 'планшет', 'ebook', 'reader', 'рідер', 'konsol', 'console',
+      ],
+    },
+    {
+      key: CAT_LAPTOPS,
+      terms: [
+        'ноутбук', 'laptop', 'ultrabook', 'ультрабук', 'book air', 'book pro', 'ryzenbook',
+        'ultrabook', 'gaming laptop', 'office laptop', 'monitor', 'монітор', 'моноблок',
+        'all-in-one', 'aio', 'desktop', 'mini pc', 'міні-пк', 'gaming pc', 'стаціонарний пк',
+        'keyboard', 'клавіатур', 'mouse', 'миш', 'webcam', 'вебкамер', 'router', 'роутер',
+        'mesh', 'wi-fi', 'smart tv', 'телевізор', 'tv box', 'приставка', 'projector',
+        'проектор', 'soundbar', 'саундбар', 'subwoofer', 'сабвуфер', 'speaker', 'колонка',
+        'headphone', 'навушники over', 'mic', 'мікрофон', 'ssd', 'ram', 'пам', 'nas',
+        'docking', 'підставка для ноутбука', 'laptop stand',
+      ],
+    },
+    {
+      key: CAT_APPLIANCES,
+      terms: [
+        'kettle', 'чайник', 'coffee', 'кавоварк', 'blender', 'блендер', 'vacuum', 'пилосос',
+        'fryer', 'фритюр', 'washer', 'пральна', 'dryer', 'сушильна', 'dishwasher', 'посудомийна',
+        'fridge', 'холодильник', 'microwave', 'мікрохвильов', 'oven', 'духова', 'induction',
+        'індукційна', 'toaster', 'тостер', 'juicer', 'соковижималка', 'multicooker', 'мультиварка',
+        'rice cooker', 'рисоварка', 'pressure cooker', 'скороварка', 'kitchen machine',
+        'кухонна машина', 'food processor', 'кухонний комбайн', 'coffee grinder', 'млинок',
+        'iron', 'праска', 'garment steamer', 'відпарювач', 'aircon', 'кондиціонер',
+        'air purifier', 'очищувач', 'dehumidifier', 'осушувач', 'humidifier', 'зволожувач',
+        'heater', 'обігрівач', 'fan', 'вентилятор', 'electric grill', 'гриль', 'knife',
+        'cookware', 'посуд', 'sofa cleaner', 'water filter', 'фільтрації', 'robot', 'робот',
+      ],
+    },
+    {
+      key: CAT_HOME,
+      terms: [
+        'lamp', 'лампа', 'light', 'підсвітка', 'led strip', 'стрічка', 'floor lamp', 'торшер',
+        'smart bulb', 'лампочка', 'night lamp', 'нічник', 'desk lamp', 'work light',
+        'security', 'безпека', 'camera', 'камера', 'doorbell', 'дзвінок', 'door sensor',
+        'датчик', 'sensor', 'lock', 'замок', 'smart plug', 'розетка', 'smart switch', 'вимикач',
+        'hub', 'хаб', 'blinds', 'жалюзі', 'curtains', 'штор', 'baby monitor', 'відеоняня',
+        'backpack', 'рюкзак', 'travel', 'органайзер', 'power bank', 'зарядка', 'charger',
+        'cable', 'кабель', 'adapter', 'адаптер', 'car charger', 'автозарядка',
+        'bedding', 'білизна', 'pillow', 'подушк', 'mattress', 'матрас', 'textile', 'рушник',
+        'decor', 'декор', 'home safe', 'сейф', 'office chair', 'крісло', 'gaming chair',
+        'gaming desk', 'стіл', 'lift desk', 'bedside', 'floor cleaner', 'bike holder',
+        'bike', 'surveillance', 'відеоспостереження',
+      ],
+    },
   ];
 
   const CATEGORY_ICONS = {
-    '\u041d\u043e\u0443\u0442\u0431\u0443\u043a\u0438 \u0442\u0430 \u043a\u043e\u043c\u043f\u2019\u044e\u0442\u0435\u0440\u0438': 'bi-laptop',
-    '\u0421\u043c\u0430\u0440\u0442\u0444\u043e\u043d\u0438': 'bi-phone',
-    '\u041f\u043e\u0431\u0443\u0442\u043e\u0432\u0430 \u0442\u0435\u0445\u043d\u0456\u043a\u0430': 'bi-house-gear',
-    '\u0422\u043e\u0432\u0430\u0440\u0438 \u0434\u043b\u044f \u0434\u043e\u043c\u0443': 'bi-house-heart',
-    '\u0410\u043a\u0446\u0456\u0457 ARM': 'bi-stars',
+    [CAT_LAPTOPS]:    'bi-laptop',
+    [CAT_PHONES]:     'bi-phone',
+    [CAT_APPLIANCES]: 'bi-house-gear',
+    [CAT_HOME]:       'bi-house-heart',
+    [CAT_PROMO]:      'bi-stars',
   };
 
   const CATEGORY_THUMB = {
-    '\u0421\u043c\u0430\u0440\u0442\u0444\u043e\u043d\u0438': 'phones',
-    '\u041d\u043e\u0443\u0442\u0431\u0443\u043a\u0438 \u0442\u0430 \u043a\u043e\u043c\u043f\u2019\u044e\u0442\u0435\u0440\u0438': 'laptops',
-    '\u041f\u043e\u0431\u0443\u0442\u043e\u0432\u0430 \u0442\u0435\u0445\u043d\u0456\u043a\u0430': 'appliances',
-    '\u0422\u043e\u0432\u0430\u0440\u0438 \u0434\u043b\u044f \u0434\u043e\u043c\u0443': 'home',
-    '\u0410\u043a\u0446\u0456\u0457 ARM': 'promo',
+    [CAT_PHONES]:     'phones',
+    [CAT_LAPTOPS]:    'laptops',
+    [CAT_APPLIANCES]: 'appliances',
+    [CAT_HOME]:       'home',
+    [CAT_PROMO]:      'promo',
   };
 
-  /* ── Fallback products (30+) ── */
+  const PROMO_BADGES = new Set(['SALE', 'HOT', 'TOP', 'NEW', 'ARM DEAL', 'PRO']);
+
+  function inferCategory(product) {
+    const text = `${product.title || ''} ${product.description || ''}`.toLowerCase();
+    for (const { key, terms } of CATEGORY_HINTS) {
+      if (terms.some((t) => text.includes(t))) return key;
+    }
+    return CAT_HOME;
+  }
+
+  function enrichProduct(item) {
+    const id = Number(item.id || 1);
+    const rating = Number((4.0 + ((id * 17) % 11) / 10).toFixed(1));
+    const reviews = 18 + ((id * 43) % 530);
+    const price = Number(item.price || 0);
+    const oldPrice = Number((price * (1.12 + ((id % 8) * 0.01))).toFixed(2));
+    const discountPct = Math.round(((oldPrice - price) / oldPrice) * 100);
+    const category = inferCategory(item);
+    const badge = String(item.badge || '').toUpperCase();
+    return {
+      ...item,
+      category,
+      badge: badge || null,
+      isPromo: PROMO_BADGES.has(badge),
+      rating,
+      reviews,
+      oldPrice,
+      discountPct,
+      iconClass: CATEGORY_ICONS[category] || 'bi-bag',
+      thumbCat: CATEGORY_THUMB[category] || 'home',
+    };
+  }
+
+  /* ── Fallback catalog (used when API unavailable or returns 0 items) ── */
   const FALLBACK_PRODUCTS = [
-    // Смартфони
-    { id: 9001, title: 'ARM Phone Max 512GB', description: '\u0424\u043b\u0430\u0433\u043c\u0430\u043d\u0441\u044c\u043a\u0438\u0439 \u0441\u043c\u0430\u0440\u0442\u0444\u043e\u043d 6.8\u2033, 120Hz, 120W \u0437\u0430\u0440\u044f\u0434\u043a\u0430', price: 29999, badge: 'TOP', stock: 18 },
-    { id: 9002, title: 'ARM Phone Lite 5G', description: '\u0421\u043c\u0430\u0440\u0442\u0444\u043e\u043d 120Hz, NFC, \u0431\u0430\u0442\u0430\u0440\u0435\u044f 5000mAh', price: 13999, badge: 'ARM DEAL', stock: 44 },
-    { id: 9021, title: 'ARM Phone SE 128GB', description: '\u041a\u043e\u043c\u043f\u0430\u043a\u0442\u043d\u0438\u0439 \u0441\u043c\u0430\u0440\u0442\u0444\u043e\u043d 6.1\u2033, OLED, Face ID', price: 10499, badge: null, stock: 26 },
-    { id: 9022, title: 'ARM Phone Ultra Pro', description: '\u0422\u0438\u0442\u0430\u043d\u043e\u0432\u0438\u0439 \u0447\u0438\u043f, 200MP \u043a\u0430\u043c\u0435\u0440\u0430, 12GB RAM', price: 41999, badge: 'HOT', stock: 7 },
-    { id: 9023, title: 'ARM Earbuds Pro ANC', description: '\u0411\u0435\u0437\u0434\u0440\u043e\u0442\u043e\u0432\u0456 \u043d\u0430\u0432\u0443\u0448\u043d\u0438\u043a\u0438 \u0437 ANC, 36\u0433 \u0440\u043e\u0431\u043e\u0442\u0438', price: 3299, badge: 'SALE', stock: 32 },
-    { id: 9024, title: 'ARM Watch Series 4', description: '\u0420\u043e\u0437\u0443\u043c\u043d\u0438\u0439 \u0433\u043e\u0434\u0438\u043d\u043d\u0438\u043a, GPS, ЕКГ, AMOLED', price: 7899, badge: null, stock: 21 },
-    // Ноутбуки та комп'ютери
-    { id: 9003, title: 'ARM Book Pro 15', description: '\u041d\u043e\u0443\u0442\u0431\u0443\u043a 32GB RAM, 1TB SSD, Retina', price: 45999, badge: 'PRO', stock: 9 },
-    { id: 9004, title: 'ARM Book Air 14', description: '\u041b\u0435\u0433\u043a\u0438\u0439 \u0443\u043b\u044c\u0442\u0440\u0430\u0431\u0443\u043a 16GB, 512GB SSD, 15\u0433', price: 32999, badge: 'NEW', stock: 17 },
-    { id: 9005, title: 'ARM Monitor 27 QHD', description: '\u041c\u043e\u043d\u0456\u0442\u043e\u0440 27\u2033, 165Hz, HDR, USB-C', price: 11999, badge: 'HOT', stock: 28 },
-    { id: 9006, title: 'ARM Router AX3000', description: 'Wi\u2011Fi 6 \u0440\u043e\u0443\u0442\u0435\u0440, Mesh-\u0441\u0438\u0441\u0442\u0435\u043c\u0430', price: 3599, badge: null, stock: 41 },
-    { id: 9025, title: 'ARM Desktop Mini M2', description: '\u041c\u0456\u043d\u0456-\u043f\u041a, M2 chip, 16GB, 512GB, 4K', price: 22999, badge: null, stock: 12 },
-    { id: 9026, title: 'ARM Keyboard Pro RGB', description: '\u041c\u0435\u0445\u0430\u043d\u0456\u0447\u043d\u0430 \u043a\u043b\u0430\u0432\u0456\u0430\u0442\u0443\u0440\u0430 \u0437 \u043f\u0456\u0434\u0441\u0432\u0456\u0442\u043a\u043e\u044e RGB', price: 2799, badge: null, stock: 35 },
-    { id: 9027, title: 'ARM Webcam 4K Ultra', description: '4K \u0432\u0435\u0431-\u043a\u0430\u043c\u0435\u0440\u0430, \u0448\u0443\u043c\u043e\u043f\u0440\u0438\u0434\u0443\u0448\u0435\u043d\u043d\u044f, USB-C', price: 1899, badge: null, stock: 19 },
-    { id: 9008, title: 'ARM Smart TV 50 4K', description: '4K \u0442\u0435\u043b\u0435\u0432\u0456\u0437\u043e\u0440 Dolby Vision, Google TV', price: 18999, badge: 'TOP', stock: 20 },
-    // Побутова техніка
-    { id: 9009, title: 'ARM Coffee Pro', description: '\u041a\u0430\u0432\u043e\u0432\u0430\u0440\u043a\u0430 \u0437 \u043a\u0430\u043f\u0443\u0447\u0438\u043d\u0430\u0442\u043e\u0440\u043e\u043c, \u0442\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u043d\u0430 \u043a\u043e\u043d\u0442\u0440\u043e\u043b\u044c', price: 8499, badge: null, stock: 12 },
-    { id: 9010, title: 'ARM Robot Vacuum X5', description: '\u0420\u043e\u0431\u043e\u0442-\u043f\u0438\u043b\u043e\u0441\u043e\u0441, LiDAR, \u0432\u043e\u043b\u043e\u0433\u0435 \u043f\u0440\u0438\u0431\u0438\u0440\u0430\u043d\u043d\u044f', price: 12499, badge: 'HOT', stock: 16 },
-    { id: 9028, title: 'ARM Blender Smart 1500W', description: '\u0411\u043b\u0435\u043d\u0434\u0435\u0440 1500W, 8 \u043f\u0440\u043e\u0433\u0440\u0430\u043c, \u0441\u0435\u043d\u0441\u043e\u0440\u043d\u0430 \u043a\u0440\u0438\u0448\u043a\u0430', price: 3299, badge: null, stock: 23 },
-    { id: 9029, title: 'ARM Air Fryer Pro 5.5L', description: '\u0424\u0440\u0438\u0442\u044e\u0440\u043d\u0438\u0446\u044f 5.5\u043b, 1500W, 8 \u0440\u0435\u0436\u0438\u043c\u0456\u0432', price: 4599, badge: 'NEW', stock: 30 },
-    { id: 9030, title: 'ARM Kettle 1.7L Smart', description: '\u0427\u0430\u0439\u043d\u0438\u043a 1.7\u043b, \u0442\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u043d\u0438\u0439 \u043a\u043e\u043d\u0442\u0440\u043e\u043b\u044c, \u043a\u0435\u0440\u0430\u043c\u0456\u043a\u0430', price: 1499, badge: null, stock: 42 },
-    { id: 9031, title: 'ARM Vacuum Upright Pro', description: '\u0412\u0435\u0440\u0442\u0438\u043a\u0430\u043b\u044c\u043d\u0438\u0439 \u043f\u0438\u043b\u043e\u0441\u043e\u0441 2400W, HEPA, 1.5\u043b \u0431\u0430\u043a', price: 6799, badge: 'SALE', stock: 14 },
-    { id: 9032, title: 'ARM Washing Machine 8kg', description: '\u041f\u0440\u0430\u043b\u044c\u043d\u0430 \u043c\u0430\u0448\u0438\u043d\u0430 8\u043a\u0433, \u0456\u043d\u0432\u0435\u0440\u0442\u043e\u0440 A+++', price: 17999, badge: null, stock: 6 },
-    // Товари для дому
-    { id: 9011, title: 'ARM Smart Lamp RGB', description: '\u0420\u043e\u0437\u0443\u043c\u043d\u0430 \u043b\u0430\u043c\u043f\u0430 RGB, \u0433\u043e\u043b\u043e\u0441\u043e\u0432\u0435 \u043a\u0435\u0440\u0443\u0432\u0430\u043d\u043d\u044f', price: 1599, badge: null, stock: 32 },
-    { id: 9012, title: 'ARM Home Security Kit', description: '\u041a\u0430\u043c\u0435\u0440\u0430 + \u0434\u0430\u0442\u0447\u0438\u043a\u0438 + \u0445\u0430\u0431, Wi-Fi', price: 7299, badge: 'ARM DEAL', stock: 17 },
-    { id: 9033, title: 'ARM Smart Plug Power', description: '\u0420\u043e\u0437\u0443\u043c\u043d\u0430 \u0440\u043e\u0437\u0435\u0442\u043a\u0430, \u0432\u0438\u043c\u0456\u0440\u044e\u0432\u0430\u043d\u043d\u044f \u0441\u043f\u043e\u0436\u0438\u0432\u0430\u043d\u043d\u044f', price: 799, badge: null, stock: 60 },
-    { id: 9034, title: 'ARM Door Smart Lock', description: '\u0420\u043e\u0437\u0443\u043c\u043d\u0438\u0439 \u0437\u0430\u043c\u043e\u043a, \u0432\u0456\u0434\u043f\u0435\u0447\u0430\u0442\u043e\u043a + PIN + App', price: 5499, badge: 'NEW', stock: 11 },
-    { id: 9035, title: 'ARM Backpack 30L', description: '\u0420\u044e\u043a\u0437\u0430\u043a 30\u043b, \u0432\u043e\u043b\u043e\u0433\u043e\u0441\u0442\u0456\u0439\u043a\u0438\u0439, USB \u0437\u0430\u0440\u044f\u0434\u043a\u0430', price: 2199, badge: null, stock: 25 },
-    { id: 9036, title: 'ARM Air Purifier HEPA', description: '\u041e\u0447\u0438\u0441\u043d\u044e\u0432\u0430\u0447 \u043f\u043e\u0432\u0456\u0442\u0440\u044f HEPA H13, 50\u043c\u00b2', price: 6299, badge: 'HOT', stock: 13 },
-    { id: 9037, title: 'ARM Smart Hub 2.4/5GHz', description: 'Zigbee \u0445\u0430\u0431 \u0434\u043b\u044f \u0440\u043e\u0437\u0443\u043c\u043d\u043e\u0433\u043e \u0434\u043e\u043c\u0443, 128 \u043f\u0440\u0438\u0441\u0442\u0440\u043e\u0457', price: 1899, badge: null, stock: 28 },
-    { id: 9038, title: 'ARM Power Bank 26800mAh', description: 'Power Bank 26800mAh, 65W PD, 3 \u043f\u043e\u0440\u0442\u0438', price: 2499, badge: 'SALE', stock: 38 },
-    // Акції ARM
-    { id: 9039, title: 'ARM Bundle: Phone + Earbuds', description: 'ARM Phone Lite 5G + Earbuds Pro \u2014 \u043c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u0438\u0439 \u043d\u0430\u0431\u0456\u0440', price: 15999, badge: 'ARM DEAL', stock: 10 },
-    { id: 9040, title: 'ARM Bundle: Laptop + Mouse', description: 'ARM Book Air + \u0431\u0435\u0437\u0434\u0440\u043e\u0442\u043e\u0432\u0430 \u043c\u0438\u0448\u043a\u0430 Magic Pro', price: 34499, badge: 'SALE', stock: 8 },
-    { id: 9041, title: 'ARM Smart Home Starter', description: '\u0425\u0430\u0431 + 2 \u043b\u0430\u043c\u043f\u0438 + \u043f\u0440\u0438\u0441\u0442\u0440\u0456\u0439 \u043f\u0430\u043a\u0435\u0442 "Smart Start"', price: 4299, badge: 'NEW', stock: 15 },
+    { id: 9001, title: 'ARM Phone Max 512GB',       description: 'Флагманський смартфон 6.8\u2033, 120Hz, 120W',       price: 29999, badge: 'TOP',      stock: 18 },
+    { id: 9002, title: 'ARM Phone Lite 5G 256GB',   description: 'Смартфон 120Hz, NFC, батарея 5000mAh',               price: 13999, badge: 'ARM DEAL', stock: 44 },
+    { id: 9021, title: 'ARM Phone SE 128GB',         description: 'Компактний смартфон 6.1\u2033, OLED, Face ID',       price: 10499, badge: null,       stock: 26 },
+    { id: 9022, title: 'ARM Phone Ultra Pro',        description: 'Титановий чіп, 200MP камера, 12GB RAM',              price: 41999, badge: 'HOT',      stock:  7 },
+    { id: 9023, title: 'ARM Earbuds Pro ANC',        description: 'Бездротові навушники з ANC, 36г роботи',             price:  3299, badge: 'SALE',     stock: 32 },
+    { id: 9024, title: 'ARM Watch Series 4',         description: 'Розумний годинник, GPS, ЕКГ, AMOLED',               price:  7899, badge: null,       stock: 21 },
+    { id: 9025, title: 'ARM Tablet 11"',             description: 'Планшет 11" з підтримкою стилуса, 8GB/256GB',       price: 15499, badge: null,       stock: 22 },
+    { id: 9003, title: 'ARM Book Pro 15',            description: 'Ноутбук 32GB RAM, 1TB SSD, Retina',                 price: 45999, badge: 'PRO',      stock:  9 },
+    { id: 9004, title: 'ARM Book Air 14',            description: 'Легкий ультрабук 16GB, 512GB SSD, 1.3кг',           price: 32999, badge: 'NEW',      stock: 17 },
+    { id: 9026, title: 'ARM Desktop Mini M2',        description: 'Міні-ПК, M2 chip, 16GB, 512GB, підтримка 4K',      price: 22999, badge: null,       stock: 12 },
+    { id: 9005, title: 'ARM Monitor 27" QHD',        description: 'Монітор 27\u2033, 165Hz, HDR, USB-C',               price: 11999, badge: 'HOT',      stock: 28 },
+    { id: 9027, title: 'ARM Router AX3000',          description: 'Wi\u2011Fi 6 роутер, Mesh-система, до 3000 Мбіт/с',price:  3599, badge: null,       stock: 41 },
+    { id: 9008, title: 'ARM Smart TV 50" 4K',        description: '4K телевізор Dolby Vision, Google TV',              price: 18999, badge: 'TOP',      stock: 20 },
+    { id: 9028, title: 'ARM Speaker Mini BT',        description: 'Портативна Bluetooth колонка, 10 год роботи',       price:  1299, badge: null,       stock: 70 },
+    { id: 9009, title: 'ARM Coffee Pro',             description: 'Кавоварка еспресо з капучинатором',                 price:  8499, badge: null,       stock: 12 },
+    { id: 9010, title: 'ARM Robot Vacuum X5',        description: 'Робот-пилосос, LiDAR, вологе прибирання',          price: 12499, badge: 'HOT',      stock: 16 },
+    { id: 9029, title: 'ARM Air Fryer Pro 5.5L',     description: 'Фритюрниця 5.5л, 1500W, 8 режимів',               price:  4599, badge: 'NEW',      stock: 30 },
+    { id: 9030, title: 'ARM Smart Kettle 1.7L',      description: 'Чайник 1.7л, температурний контроль, кераміка',    price:  1499, badge: null,       stock: 42 },
+    { id: 9031, title: 'ARM Vacuum Upright Pro',     description: 'Вертикальний пилосос 2400W, HEPA, 1.5л бак',       price:  6799, badge: 'SALE',     stock: 14 },
+    { id: 9032, title: 'ARM Washing Machine 8kg',    description: 'Пральна машина 8кг, інвертор A+++',                 price: 17999, badge: null,       stock:  6 },
+    { id: 9011, title: 'ARM Smart Lamp RGB',         description: 'Розумна лампа RGB, голосове керування',             price:  1599, badge: null,       stock: 32 },
+    { id: 9012, title: 'ARM Home Security Kit',      description: 'Камера + датчики + хаб, Wi-Fi',                    price:  7299, badge: 'ARM DEAL', stock: 17 },
+    { id: 9033, title: 'ARM Smart Plug Power',       description: 'Розумна розетка, вимірювання споживання',           price:   799, badge: null,       stock: 60 },
+    { id: 9034, title: 'ARM Door Smart Lock',        description: 'Розумний замок, відбиток + PIN + App',              price:  5499, badge: 'NEW',      stock: 11 },
+    { id: 9035, title: 'ARM City Backpack 30L',      description: 'Рюкзак 30л, водостійкий, USB зарядка',             price:  2199, badge: null,       stock: 25 },
+    { id: 9036, title: 'ARM Air Purifier HEPA',      description: 'Очищувач повітря HEPA H13, до 50м\u00b2',          price:  6299, badge: 'HOT',      stock: 13 },
+    { id: 9037, title: 'ARM Power Bank 26800mAh',   description: 'Power Bank 26800mAh, 65W PD, 3 порти',             price:  2499, badge: 'SALE',     stock: 38 },
+    { id: 9038, title: 'ARM GaN Charger 65W',        description: 'Компактна зарядка 65W USB-C + USB-A',              price:  1299, badge: null,       stock: 110 },
+    { id: 9039, title: 'ARM Wireless Mouse Pro',     description: 'Ергономічна бездротова миша, до 70 год',           price:  1399, badge: null,       stock: 90 },
+    { id: 9040, title: 'ARM Bundle: Phone + Watch',  description: 'ARM Phone Lite 5G + Watch Series 4 — повний набір',price: 20499, badge: 'ARM DEAL', stock: 10 },
+    { id: 9041, title: 'ARM Smart Home Starter',     description: 'Хаб + 2 лампи + датчик — пакет "Smart Start"',    price:  4299, badge: 'NEW',      stock: 15 },
   ];
 
-  function useFallbackCatalog(reason) {
-    state.products = FALLBACK_PRODUCTS.map(enrichProduct);
-    renderCategoryList();
-    renderCatalog();
-    if (reason) showToast(reason, true);
-  }
-
-  /* ═══════════════════════════════════════
-     State
-     ═══════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════
+     STATE
+     ═══════════════════════════════════════════════════════════ */
   const state = {
     products: [],
-    cart: new Map(),
+    cart: new Map(),   // id → qty
     orders: [],
     account: null,
+    user: null,
     authenticated: false,
     activeCategory: 'all',
+    topCategory: 'all',  // subnav selection (may be CAT_PROMO = virtual view)
   };
 
-  const ORDER_STATUS_LABELS = {
-    paid: '\u041e\u043f\u043b\u0430\u0447\u0435\u043d\u043e',
-    awaiting_payment: '\u041e\u0447\u0456\u043a\u0443\u0454 \u043e\u043f\u043b\u0430\u0442\u0443',
-    invoice_expired: '\u0406\u043d\u0432\u043e\u0439\u0441 \u043f\u0440\u043e\u0441\u0442\u0440\u043e\u0447\u0435\u043d\u043e',
+  const ORDER_STATUS = {
+    paid:            'Оплачено',
+    awaiting_payment:'Очікує оплату',
+    invoice_expired: 'Інвойс прострочено',
   };
 
-  /* ═══════════════════════════════════════
-     DOM refs
-     ═══════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════
+     CART PERSISTENCE
+     ═══════════════════════════════════════════════════════════ */
+  const CART_KEY = 'arm_cart_v1';
+
+  function saveCart() {
+    try {
+      localStorage.setItem(CART_KEY, JSON.stringify(Array.from(state.cart.entries())));
+    } catch (_) {}
+  }
+
+  function loadCart() {
+    try {
+      const raw = localStorage.getItem(CART_KEY);
+      if (!raw) return;
+      const entries = JSON.parse(raw);
+      if (Array.isArray(entries)) {
+        state.cart = new Map(entries.map(([id, qty]) => [Number(id), Number(qty)]));
+      }
+    } catch (_) {}
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     DOM REFS
+     ═══════════════════════════════════════════════════════════ */
   const el = {
-    catalogGrid: document.getElementById('catalog-grid'),
-    catalogCount: document.getElementById('catalog-count'),
-    catalogSearch: document.getElementById('catalog-search'),
-    catalogSort: document.getElementById('catalog-sort'),
-    categoryList: document.getElementById('category-list'),
-    filterReset: document.getElementById('filter-reset'),
-    toggleFilters: document.getElementById('toggle-filters'),
-    filtersBackdrop: document.getElementById('filters-backdrop'),
-    cartEmpty: document.getElementById('cart-empty'),
-    cartItems: document.getElementById('cart-items'),
-    cartTotal: document.getElementById('cart-total'),
-    cartBadge: document.getElementById('cart-badge-count'),
-    cartHeaderBtn: document.getElementById('cart-header-btn'),
-    checkoutForm: document.getElementById('checkout-form'),
-    checkoutBtn: document.getElementById('checkout-btn'),
-    shippingName: document.getElementById('shipping-name'),
-    shippingAddress: document.getElementById('shipping-address'),
-    paymentMode: document.getElementById('payment-mode'),
-    paymentModeHint: document.getElementById('payment-mode-hint'),
-    accountNumber: document.getElementById('account-number'),
-    accountBalance: document.getElementById('account-balance'),
-    ordersCount: document.getElementById('orders-count'),
-    ordersList: document.getElementById('orders-list'),
-    loginToBank: document.getElementById('login-to-bank'),
-    guestBanner: document.getElementById('guest-banner'),
-    toast: document.getElementById('toast'),
-    catalogTitle: document.getElementById('catalog-title'),
+    // catalog
+    catalogGrid:    document.getElementById('catalog-grid'),
+    catalogCount:   document.getElementById('catalog-count'),
+    catalogSearch:  document.getElementById('catalog-search'),
+    catalogSort:    document.getElementById('catalog-sort'),
+    catalogTitle:   document.getElementById('catalog-title'),
+    categoryList:   document.getElementById('category-list'),
+    filterReset:    document.getElementById('filter-reset'),
+    toggleFilters:  document.getElementById('toggle-filters'),
+    filtersBackdrop:document.getElementById('filters-backdrop'),
     topCategoryNav: document.querySelector('.rz-subnav'),
+    // cart
+    cartEmpty:      document.getElementById('cart-empty'),
+    cartItems:      document.getElementById('cart-items'),
+    cartTotal:      document.getElementById('cart-total'),
+    cartBadge:      document.getElementById('cart-badge-count'),
+    cartHeaderBtn:  document.getElementById('cart-header-btn'),
+    checkoutForm:   document.getElementById('checkout-form'),
+    checkoutBtn:    document.getElementById('checkout-btn'),
+    shippingName:   document.getElementById('shipping-name'),
+    shippingAddress:document.getElementById('shipping-address'),
+    paymentMode:    document.getElementById('payment-mode'),
+    paymentModeHint:document.getElementById('payment-mode-hint'),
+    // account
+    accountNumber:  document.getElementById('account-number'),
+    accountBalance: document.getElementById('account-balance'),
+    // orders
+    ordersCount:    document.getElementById('orders-count'),
+    ordersList:     document.getElementById('orders-list'),
+    // auth / session
+    loginToBank:    document.getElementById('login-to-bank'),
+    logoutBtn:      document.getElementById('logout-btn'),
+    guestBanner:    document.getElementById('guest-banner'),
+    toast:          document.getElementById('toast'),
     // user dropdown
-    userMenuBtn: document.getElementById('user-menu-btn'),
-    userDropdown: document.querySelector('.rz-user-dropdown'),
+    userMenuBtn:    document.getElementById('user-menu-btn'),
+    userDropdown:   document.querySelector('.rz-user-dropdown'),
     // auth modal
-    authOverlay: document.getElementById('auth-overlay'),
-    authClose: document.getElementById('auth-close'),
-    authLoginForm: document.getElementById('auth-login-form'),
-    authRegisterForm: document.getElementById('auth-register-form'),
-    authLoginIdentity: document.getElementById('auth-login-identity'),
-    authLoginPassword: document.getElementById('auth-login-password'),
-    authRegName: document.getElementById('auth-reg-name'),
-    authRegEmail: document.getElementById('auth-reg-email'),
-    authRegPhone: document.getElementById('auth-reg-phone'),
-    authRegPassword: document.getElementById('auth-reg-password'),
+    authOverlay:    document.getElementById('auth-overlay'),
+    authClose:      document.getElementById('auth-close'),
+    authLoginForm:  document.getElementById('auth-login-form'),
+    authRegForm:    document.getElementById('auth-register-form'),
+    authLoginId:    document.getElementById('auth-login-identity'),
+    authLoginPass:  document.getElementById('auth-login-password'),
+    authRegName:    document.getElementById('auth-reg-name'),
+    authRegEmail:   document.getElementById('auth-reg-email'),
+    authRegPhone:   document.getElementById('auth-reg-phone'),
+    authRegPass:    document.getElementById('auth-reg-password'),
   };
 
-  /* ═══════════════════════════════════════
-     Utilities
-     ═══════════════════════════════════════ */
-  function isMobileFiltersMode() {
-    return window.matchMedia('(max-width: 920px)').matches;
-  }
+  /* ═══════════════════════════════════════════════════════════
+     TOAST
+     ═══════════════════════════════════════════════════════════ */
+  let _toastTimer = 0;
 
-  function setFiltersOpen(open) {
-    const shouldOpen = !!open && isMobileFiltersMode();
-    document.body.classList.toggle('filters-open', shouldOpen);
-    if (el.filtersBackdrop) el.filtersBackdrop.hidden = !shouldOpen;
-  }
-
-  /* ── Toast ── */
-  let toastTimer = 0;
-
-  function showToast(message, isError) {
+  function showToast(msg, isError = false) {
     if (!el.toast) return;
-    el.toast.textContent = message;
-    el.toast.style.background = isError ? '#8c1d29' : 'var(--ink)';
+    el.toast.textContent = msg;
+    el.toast.style.background = isError ? '#8c1d29' : '';
     el.toast.hidden = false;
     void el.toast.offsetHeight;
     el.toast.classList.add('toast-visible');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => {
       el.toast.classList.remove('toast-visible');
-      setTimeout(() => { el.toast.hidden = true; }, 300);
-    }, 2800);
+      setTimeout(() => { el.toast.hidden = true; el.toast.style.background = ''; }, 320);
+    }, 3000);
   }
 
-  function createIdempotencyKey(scope) {
-    const rand = (typeof crypto !== 'undefined' && crypto.randomUUID)
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    return `${scope}-${rand}`;
+  /* ═══════════════════════════════════════════════════════════
+     FILTERS / MOBILE DRAWER
+     ═══════════════════════════════════════════════════════════ */
+  function isMobile() { return window.matchMedia('(max-width: 920px)').matches; }
+
+  function setFiltersOpen(open) {
+    const on = open && isMobile();
+    document.body.classList.toggle('filters-open', on);
+    if (el.filtersBackdrop) el.filtersBackdrop.hidden = !on;
   }
 
-  function updatePaymentModeHint() {
-    const mode = String(el.paymentMode?.value || 'pay_now');
-    if (!el.paymentModeHint || !el.checkoutBtn) return;
-    if (mode === 'invoice') {
-      el.paymentModeHint.textContent = '\u0406\u043d\u0432\u043e\u0439\u0441 \u0434\u0456\u0454 24 \u0433\u043e\u0434\u0438\u043d\u0438. \u0422\u043e\u0432\u0430\u0440 \u0440\u0435\u0437\u0435\u0440\u0432\u0443\u0454\u0442\u044c\u0441\u044f \u043f\u0456\u0441\u043b\u044f \u043e\u0444\u043e\u0440\u043c\u043b\u0435\u043d\u043d\u044f.';
-      el.checkoutBtn.textContent = '\u0412\u0438\u0441\u0442\u0430\u0432\u0438\u0442\u0438 \u0456\u043d\u0432\u043e\u0439\u0441';
-    } else {
-      el.paymentModeHint.textContent = '\u041c\u0438\u0442\u0442\u0454\u0432\u0435 \u0441\u043f\u0438\u0441\u0430\u043d\u043d\u044f \u043a\u043e\u0448\u0442\u0456\u0432 \u043f\u0456\u0441\u043b\u044f \u043f\u0456\u0434\u0442\u0432\u0435\u0440\u0434\u0436\u0435\u043d\u043d\u044f \u0437\u0430\u043c\u043e\u0432\u043b\u0435\u043d\u043d\u044f.';
-      el.checkoutBtn.textContent = '\u041e\u0444\u043e\u0440\u043c\u0438\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 ARM Bank';
+  /* ═══════════════════════════════════════════════════════════
+     PAYMENT MODE HINT
+     ═══════════════════════════════════════════════════════════ */
+  function syncPaymentHint() {
+    const inv = el.paymentMode?.value === 'invoice';
+    if (el.paymentModeHint) {
+      el.paymentModeHint.textContent = inv
+        ? 'Інвойс діє 24 години. Товар резервується після оформлення.'
+        : 'Миттєве списання коштів після підтвердження замовлення.';
+    }
+    if (el.checkoutBtn) {
+      el.checkoutBtn.textContent = inv ? 'Виставити інвойс' : 'Оформити через ARM Bank';
     }
   }
 
-  /* ═══════════════════════════════════════
-     Auth modal
-     ═══════════════════════════════════════ */
-  function openAuthModal(tab) {
+  /* ═══════════════════════════════════════════════════════════
+     AUTH MODAL
+     ═══════════════════════════════════════════════════════════ */
+  function openAuthModal(tab = 'login') {
     if (!el.authOverlay) return;
     el.authOverlay.hidden = false;
     document.body.style.overflow = 'hidden';
-    switchAuthTab(tab || 'login');
+    switchAuthTab(tab);
+    closeUserDropdown();
+    // Focus first input for a11y
+    setTimeout(() => {
+      const inp = el.authOverlay.querySelector('input:not([hidden])');
+      inp?.focus();
+    }, 60);
   }
 
   function closeAuthModal() {
     if (!el.authOverlay) return;
     el.authOverlay.hidden = true;
     document.body.style.overflow = '';
-    if (el.authLoginForm) el.authLoginForm.reset();
-    if (el.authRegisterForm) el.authRegisterForm.reset();
+    el.authLoginForm?.reset();
+    el.authRegForm?.reset();
   }
 
   function switchAuthTab(tab) {
     const isLogin = tab === 'login';
     if (el.authLoginForm) el.authLoginForm.hidden = !isLogin;
-    if (el.authRegisterForm) el.authRegisterForm.hidden = isLogin;
-    document.querySelectorAll('.auth-tab').forEach((btn) => {
-      btn.classList.toggle('active', String(btn.dataset.authTab) === tab);
-    });
+    if (el.authRegForm)   el.authRegForm.hidden   =  isLogin;
+    document.querySelectorAll('.auth-tab').forEach((b) =>
+      b.classList.toggle('active', b.dataset.authTab === tab)
+    );
   }
 
-  async function handleLogin(event) {
-    event.preventDefault();
-    const identity = String(el.authLoginIdentity?.value || '').trim();
-    const password = String(el.authLoginPassword?.value || '').trim();
-    if (!identity || !password) {
-      showToast('\u0417\u0430\u043f\u043e\u0432\u043d\u0456\u0442\u044c \u0443\u0441\u0456 \u043f\u043e\u043b\u044f.', true);
-      return;
-    }
-    const btn = el.authLoginForm?.querySelector('button[type=submit]');
-    const prevText = btn?.textContent || '';
-    if (btn) { btn.disabled = true; btn.textContent = '\u0412\u0445\u0456\u0434\u2026'; }
+  async function handleLogin(e) {
+    e.preventDefault();
+    const identity = el.authLoginId?.value.trim() || '';
+    const password = el.authLoginPass?.value || '';
+    if (!identity || !password) { showToast('Заповніть усі поля.', true); return; }
 
+    const btn = el.authLoginForm?.querySelector('button[type=submit]');
+    setBtnLoading(btn, 'Вхід…');
     try {
       const data = await api.request('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ identity, password }),
       });
-      if (data?.token) api.setToken(data.token);
+      // token may be inside data.token or data (api.js unwraps data field)
+      const token = data?.token || (typeof data === 'string' ? data : null);
+      if (token) api.setToken(token);
       closeAuthModal();
-      await onAuthSuccess();
+      await onAuthSuccess(data);
     } catch (err) {
-      showToast(err?.serverMessage || err?.message || '\u041d\u0435\u0432\u0456\u0440\u043d\u0438\u0439 \u043b\u043e\u0433\u0456\u043d \u0430\u0431\u043e \u043f\u0430\u0440\u043e\u043b\u044c', true);
+      showToast(err?.serverMessage || err?.message || 'Невірний логін або пароль', true);
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = prevText; }
+      resetBtn(btn);
     }
   }
 
-  async function handleRegister(event) {
-    event.preventDefault();
-    const full_name = String(el.authRegName?.value || '').trim();
-    const email = String(el.authRegEmail?.value || '').trim();
-    const phone = String(el.authRegPhone?.value || '').trim();
-    const password = String(el.authRegPassword?.value || '').trim();
-    if (!full_name || !email || !phone || !password) {
-      showToast('\u0417\u0430\u043f\u043e\u0432\u043d\u0456\u0442\u044c \u0443\u0441\u0456 \u043f\u043e\u043b\u044f.', true);
-      return;
-    }
-    const btn = el.authRegisterForm?.querySelector('button[type=submit]');
-    const prevText = btn?.textContent || '';
-    if (btn) { btn.disabled = true; btn.textContent = '\u0420\u0435\u0454\u0441\u0442\u0440\u0430\u0446\u0456\u044f\u2026'; }
+  async function handleRegister(e) {
+    e.preventDefault();
+    const full_name = el.authRegName?.value.trim() || '';
+    const email     = el.authRegEmail?.value.trim() || '';
+    const phone     = el.authRegPhone?.value.trim() || '';
+    const password  = el.authRegPass?.value || '';
+    if (!full_name || !email || !phone || !password) { showToast('Заповніть усі поля.', true); return; }
+    if (password.length < 6) { showToast('Пароль мінімум 6 символів.', true); return; }
 
+    const btn = el.authRegForm?.querySelector('button[type=submit]');
+    setBtnLoading(btn, 'Реєстрація…');
     try {
       const data = await api.request('/api/auth/register', {
         method: 'POST',
         body: JSON.stringify({ full_name, email, phone, password }),
       });
-      if (data?.token) api.setToken(data.token);
+      const token = data?.token || (typeof data === 'string' ? data : null);
+      if (token) api.setToken(token);
       closeAuthModal();
-      await onAuthSuccess();
+      await onAuthSuccess(data);
     } catch (err) {
-      showToast(err?.serverMessage || err?.message || '\u041f\u043e\u043c\u0438\u043b\u043a\u0430 \u0440\u0435\u0454\u0441\u0442\u0440\u0430\u0446\u0456\u0457', true);
+      showToast(err?.serverMessage || err?.message || 'Помилка реєстрації', true);
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = prevText; }
+      resetBtn(btn);
     }
   }
 
-  async function onAuthSuccess() {
+  async function handleLogout() {
+    closeUserDropdown();
+    try { await api.request('/api/auth/logout', { method: 'POST' }); } catch (_) {}
+    api.setToken('');
+    state.account = null;
+    state.user    = null;
+    setGuestMode('Сесію завершено. Увійдіть для оплати.');
+    showToast('Ви вийшли з облікового запису.');
+  }
+
+  async function onAuthSuccess(data) {
+    // Immediately reflect user info from login response if available
+    if (data?.user) {
+      state.user = data.user;
+      const acc  = data.user;
+      if (el.accountNumber) el.accountNumber.textContent = acc.bank_account_number || '—';
+    }
     try {
       await Promise.all([fetchAccount(), fetchOrders()]);
-      setAuthorizedMode();
-      renderCart();
-      showToast('\u0423\u0432\u0456\u0439\u0448\u043b\u0438! \u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u0443\u0432\u0430\u0442\u0438 \u0434\u043e ARM Marketplace.');
-    } catch (err) {
-      showToast(err?.message || '\u0410\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0456\u044e \u043f\u0456\u0434\u0442\u0432\u0435\u0440\u0434\u0436\u0435\u043d\u043e', true);
-    }
+    } catch (_) {}
+    setAuthorizedMode();
+    renderCart();
+    const name = state.user?.full_name?.split(' ')[0] || '';
+    showToast(`Вітаємо${name ? ', ' + name : ''}! Ви в ARM Marketplace.`);
   }
 
-  /* ── User dropdown ── */
+  /* ── button helpers ── */
+  const _btnPrev = new WeakMap();
+  function setBtnLoading(btn, text) {
+    if (!btn) return;
+    _btnPrev.set(btn, btn.textContent);
+    btn.disabled = true;
+    btn.textContent = text;
+  }
+  function resetBtn(btn) {
+    if (!btn) return;
+    btn.disabled = false;
+    btn.textContent = _btnPrev.get(btn) || '';
+  }
+
+  /* ── user dropdown ── */
   function toggleUserDropdown() {
     if (!el.userDropdown) return;
-    const isHidden = el.userDropdown.hidden;
-    el.userDropdown.hidden = !isHidden;
+    el.userDropdown.hidden = !el.userDropdown.hidden;
   }
-
   function closeUserDropdown() {
     if (el.userDropdown) el.userDropdown.hidden = true;
   }
 
-  /* ═══════════════════════════════════════
-     Product data enrichment
-     ═══════════════════════════════════════ */
-  function inferCategory(product) {
-    const badge = String(product?.badge || '').toUpperCase();
-    if (badge && ['SALE', 'HOT', 'TOP', 'NEW', 'ARM DEAL'].includes(badge)) {
-      return '\u0410\u043a\u0446\u0456\u0457 ARM';
-    }
-    const text = `${String(product?.title || '')} ${String(product?.description || '')}`.toLowerCase();
-    for (const hint of CATEGORY_HINTS) {
-      if (hint.terms.some((t) => text.includes(t))) return hint.key;
-    }
-    return '\u0422\u043e\u0432\u0430\u0440\u0438 \u0434\u043b\u044f \u0434\u043e\u043c\u0443';
-  }
-
-  function enrichProduct(item) {
-    const id = Number(item?.id || 1);
-    const rating = Number((4.1 + ((id * 13) % 8) / 10).toFixed(1));
-    const reviews = 24 + ((id * 37) % 420);
-    const price = Number(item?.price || 0);
-    const oldPrice = Number((price * 1.19).toFixed(2));
-    const discountPercent = Math.max(3, Math.round(((oldPrice - price) / Math.max(oldPrice, 1)) * 100));
-    const category = inferCategory(item);
-    return {
-      ...item,
-      category,
-      rating,
-      reviews,
-      oldPrice,
-      discountPercent,
-      iconClass: CATEGORY_ICONS[category] || 'bi-bag',
-      thumbCat: CATEGORY_THUMB[category] || 'home',
-    };
-  }
-
+  /* ═══════════════════════════════════════════════════════════
+     PRODUCT ENRICHMENT
+     ═══════════════════════════════════════════════════════════ */
   function getProduct(id) {
     return state.products.find((p) => Number(p.id) === Number(id)) || null;
   }
 
-  /* ═══════════════════════════════════════
-     Cart logic
-     ═══════════════════════════════════════ */
-  function getCartTotal() {
-    let total = 0;
-    for (const [id, qty] of state.cart.entries()) {
+  function useFallbackCatalog(silent = false) {
+    state.products = FALLBACK_PRODUCTS.map(enrichProduct);
+    renderCategoryList();
+    renderCatalog();
+    if (!silent) showToast('Показано локальний каталог ARM — сервер недоступний.', true);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     CART LOGIC
+     ═══════════════════════════════════════════════════════════ */
+  function cartTotal() {
+    let s = 0;
+    state.cart.forEach((qty, id) => {
       const p = getProduct(id);
-      if (p) total += Number(p.price || 0) * Number(qty || 0);
-    }
-    return Number(total.toFixed(2));
+      if (p) s += Number(p.price) * qty;
+    });
+    return Number(s.toFixed(2));
   }
 
-  function getCartCount() {
-    let count = 0;
-    for (const qty of state.cart.values()) count += qty;
-    return count;
+  function cartCount() {
+    let s = 0;
+    state.cart.forEach((q) => { s += q; });
+    return s;
   }
 
-  function getCartPayload() {
+  function cartPayload() {
     return Array.from(state.cart.entries()).map(([id, qty]) => ({
       product_id: Number(id),
       qty: Number(qty),
     }));
   }
 
-  /* ═══════════════════════════════════════
-     Skeleton loading
-     ═══════════════════════════════════════ */
-  function renderSkeleton(count) {
+  function addToCart(id) {
+    const p = getProduct(id);
+    if (!p || Number(p.stock || 0) <= 0) return;
+    state.cart.set(id, (state.cart.get(id) || 0) + 1);
+    saveCart();
+    renderCart();
+    // Animate badge
+    if (el.cartBadge) {
+      el.cartBadge.classList.remove('bump');
+      void el.cartBadge.offsetWidth;
+      el.cartBadge.classList.add('bump');
+    }
+    showToast(`${p.title} — додано до кошика`);
+  }
+
+  function changeQty(id, delta) {
+    const cur = state.cart.get(id) || 0;
+    const next = cur + delta;
+    if (next <= 0) state.cart.delete(id);
+    else state.cart.set(id, next);
+    saveCart();
+    renderCart();
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     SKELETON
+     ═══════════════════════════════════════════════════════════ */
+  function renderSkeleton(n = 12) {
     if (!el.catalogGrid) return;
-    el.catalogGrid.innerHTML = '';
-    for (let i = 0; i < count; i++) {
-      const skel = document.createElement('div');
-      skel.className = 'rz-skeleton';
-      skel.setAttribute('aria-hidden', 'true');
-      skel.innerHTML = `
+    el.catalogGrid.innerHTML = Array.from({ length: n }, () =>
+      `<div class="rz-skeleton" aria-hidden="true">
         <div class="rz-skel-thumb"></div>
         <div class="rz-skel-body">
           <div class="rz-skel-line w60"></div>
           <div class="rz-skel-line w80"></div>
           <div class="rz-skel-line w40"></div>
         </div>
-      `;
-      el.catalogGrid.appendChild(skel);
-    }
+      </div>`
+    ).join('');
   }
 
-  /* ═══════════════════════════════════════
-     Render: categories
-     ═══════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════
+     RENDER: category sidebar
+     ═══════════════════════════════════════════════════════════ */
   function renderCategoryList() {
     if (!el.categoryList) return;
-    const categories = ['all', ...TOP_CATEGORIES];
+    const cats = ['all', ...TOP_CATEGORIES];
     el.categoryList.innerHTML = '';
-    for (const cat of categories) {
+    for (const cat of cats) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = `category-btn${state.activeCategory === cat ? ' active' : ''}`;
       btn.dataset.category = cat;
-      btn.textContent = cat === 'all' ? '\u0423\u0441\u0456 \u0442\u043e\u0432\u0430\u0440\u0438' : cat;
       btn.setAttribute('role', 'option');
-      btn.setAttribute('aria-selected', state.activeCategory === cat ? 'true' : 'false');
+      btn.setAttribute('aria-selected', String(state.activeCategory === cat));
+      btn.textContent = cat === 'all' ? 'Усі товари' : cat;
       el.categoryList.appendChild(btn);
     }
   }
 
-  function syncTopCategoryUI() {
+  function syncTopNav() {
     if (el.catalogTitle) {
-      el.catalogTitle.textContent = state.activeCategory === 'all'
-        ? '\u0422\u043e\u0432\u0430\u0440\u0438 \u0434\u043b\u044f \u0434\u043e\u043c\u0443 \u0442\u0430 \u0442\u0435\u0445\u043d\u0456\u043a\u0438'
-        : state.activeCategory;
+      el.catalogTitle.textContent =
+        state.activeCategory === 'all' ? 'Каталог товарів' : state.activeCategory;
     }
-    if (!el.topCategoryNav) return;
-    el.topCategoryNav.querySelectorAll('[data-top-category]').forEach((btn) => {
-      btn.classList.toggle('active', String(btn.dataset.topCategory || 'all') === state.activeCategory);
+    el.topCategoryNav?.querySelectorAll('[data-top-category]').forEach((b) => {
+      b.classList.toggle('active', b.dataset.topCategory === state.activeCategory);
     });
   }
 
-  /* ═══════════════════════════════════════
-     Render: catalog
-     ═══════════════════════════════════════ */
-  function getFilteredProducts() {
-    const q = String(el.catalogSearch?.value || '').trim().toLowerCase();
-    const sort = String(el.catalogSort?.value || 'popular');
+  /* ═══════════════════════════════════════════════════════════
+     RENDER: catalog grid
+     ═══════════════════════════════════════════════════════════ */
+  function filteredProducts() {
+    const q    = (el.catalogSearch?.value || '').trim().toLowerCase();
+    const sort = el.catalogSort?.value || 'popular';
+    const cat  = state.activeCategory;
 
-    let list = [...state.products];
-    if (state.activeCategory !== 'all') {
-      if (state.activeCategory === '\u0410\u043a\u0446\u0456\u0457 ARM') {
-        list = list.filter((p) => p.category === '\u0410\u043a\u0446\u0456\u0457 ARM' || ['SALE', 'HOT', 'TOP', 'NEW', 'ARM DEAL'].includes(String(p.badge || '').toUpperCase()));
-      } else {
-        list = list.filter((p) => p.category === state.activeCategory);
-      }
-    }
+    let list = state.products.filter((p) => {
+      if (cat === 'all') return true;
+      if (cat === CAT_PROMO) return p.isPromo;
+      return p.category === cat;
+    });
+
     if (q) {
-      list = list.filter((p) => `${String(p.title || '')} ${String(p.description || '')}`.toLowerCase().includes(q));
+      list = list.filter((p) =>
+        `${p.title} ${p.description}`.toLowerCase().includes(q)
+      );
     }
 
-    if (sort === 'cheap') list.sort((a, b) => Number(a.price) - Number(b.price));
-    else if (sort === 'expensive') list.sort((a, b) => Number(b.price) - Number(a.price));
-    else if (sort === 'title') list.sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'uk'));
-    else if (sort === 'rating') list.sort((a, b) => Number(b.rating) - Number(a.rating));
-    else list.sort((a, b) => Number(b.reviews) - Number(a.reviews));
-
+    switch (sort) {
+      case 'cheap':     list.sort((a, b) => a.price - b.price); break;
+      case 'expensive': list.sort((a, b) => b.price - a.price); break;
+      case 'title':     list.sort((a, b) => a.title.localeCompare(b.title, 'uk')); break;
+      case 'rating':    list.sort((a, b) => b.rating - a.rating); break;
+      default:          list.sort((a, b) => b.reviews - a.reviews);
+    }
     return list;
   }
 
   function renderCatalog() {
     if (!el.catalogGrid) return;
-    const products = getFilteredProducts();
-    if (el.catalogCount) el.catalogCount.textContent = `${products.length} \u0442\u043e\u0432\u0430\u0440\u0456\u0432`;
-    syncTopCategoryUI();
+    const items = filteredProducts();
+    if (el.catalogCount) el.catalogCount.textContent = `${items.length} товарів`;
+    syncTopNav();
 
-    el.catalogGrid.innerHTML = '';
-    if (!products.length) {
-      el.catalogGrid.innerHTML = '<p>\u041d\u0456\u0447\u043e\u0433\u043e \u043d\u0435 \u0437\u043d\u0430\u0439\u0434\u0435\u043d\u043e \u0437\u0430 \u043e\u0431\u0440\u0430\u043d\u0438\u043c\u0438 \u0444\u0456\u043b\u044c\u0442\u0440\u0430\u043c\u0438.</p>';
+    if (!items.length) {
+      el.catalogGrid.innerHTML = '<p style="padding:24px;color:var(--ink-muted)">Нічого не знайдено за обраними фільтрами.</p>';
       return;
     }
 
-    for (const item of products) {
-      const inStock = Number(item.stock || 0) > 0;
-      const badge = String(item.badge || '').toUpperCase();
-      const card = document.createElement('article');
+    el.catalogGrid.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    for (const p of items) {
+      const inStock = Number(p.stock || 0) > 0;
+      const badge   = p.badge || '';
+      const card    = document.createElement('article');
       card.className = 'rz-product';
       card.setAttribute('role', 'listitem');
-
       card.innerHTML = `
-        <div class="rz-thumb" data-cat="${item.thumbCat}">
+        <div class="rz-thumb" data-cat="${p.thumbCat}">
           <span class="rz-thumb-brand">ARM</span>
-          <i class="bi ${item.iconClass}" aria-hidden="true"></i>
-          ${item.discountPercent >= 5 ? `<span class="rz-discount">-${item.discountPercent}%</span>` : ''}
+          <i class="bi ${p.iconClass}" aria-hidden="true"></i>
+          ${p.discountPct >= 5 ? `<span class="rz-discount">-${p.discountPct}%</span>` : ''}
         </div>
         <div class="rz-content">
-          ${badge ? `<span class="rz-badge" data-badge="${badge}">${badge}</span>` : `<span class="rz-product-category">${item.category}</span>`}
-          <h3 class="rz-title">${item.title || '\u0422\u043e\u0432\u0430\u0440'}</h3>
+          ${badge
+            ? `<span class="rz-badge" data-badge="${badge}">${badge}</span>`
+            : `<span class="rz-product-category">${p.category}</span>`
+          }
+          <h3 class="rz-title">${p.title}</h3>
           <div class="rz-meta">
             <span class="rz-rating">
-              <span class="rz-stars" aria-label="\u0420\u0435\u0439\u0442\u0438\u043d\u0433 ${item.rating} \u0437 5">${renderStars(item.rating)}</span>
-              ${item.rating.toFixed(1)}
+              <span class="rz-stars" aria-label="Рейтинг ${p.rating} з 5">${stars(p.rating)}</span>
+              ${p.rating.toFixed(1)}
             </span>
-            <span class="rz-stock${inStock ? '' : ' out'}">${inStock ? '\u0412 \u043d\u0430\u044f\u0432\u043d\u043e\u0441\u0442\u0456' : '\u041d\u0435\u043c\u0430\u0454'}</span>
+            <span class="rz-stock${inStock ? '' : ' out'}">${inStock ? 'В наявності' : 'Немає'}</span>
           </div>
           <div class="rz-price-wrap">
             <div>
-              <div class="rz-price-main">${formatMoney(item.price)}</div>
-              ${item.discountPercent >= 5 ? `<div class="rz-price-old">${formatMoney(item.oldPrice)}</div>` : ''}
+              <div class="rz-price-main">${fmt(p.price)}</div>
+              ${p.discountPct >= 5 ? `<div class="rz-price-old">${fmt(p.oldPrice)}</div>` : ''}
             </div>
-            <button class="btn btn-add" data-add-id="${item.id}" type="button" ${inStock ? '' : 'disabled'} aria-label="\u0414\u043e\u0434\u0430\u0442\u0438 ${item.title} \u0434\u043e \u043a\u043e\u0448\u0438\u043a\u0430">
+            <button class="btn-add" data-add-id="${p.id}" type="button"
+              ${inStock ? '' : 'disabled'}
+              aria-label="Додати ${p.title} до кошика">
               <i class="bi bi-plus" aria-hidden="true"></i>
             </button>
           </div>
-        </div>
-      `;
-      el.catalogGrid.appendChild(card);
+        </div>`;
+      frag.appendChild(card);
     }
+    el.catalogGrid.appendChild(frag);
   }
 
-  /* ═══════════════════════════════════════
-     Render: cart
-     ═══════════════════════════════════════ */
-  function updateCartBadge() {
-    const count = getCartCount();
-    if (el.cartBadge) {
-      el.cartBadge.textContent = count > 0 ? String(count) : '';
-      el.cartBadge.dataset.count = String(count);
-    }
-  }
-
+  /* ═══════════════════════════════════════════════════════════
+     RENDER: cart
+     ═══════════════════════════════════════════════════════════ */
   function renderCart() {
     if (!el.cartItems) return;
     const entries = Array.from(state.cart.entries());
     el.cartItems.innerHTML = '';
-
     if (el.cartEmpty) el.cartEmpty.style.display = entries.length ? 'none' : '';
 
+    const frag = document.createDocumentFragment();
     for (const [id, qty] of entries) {
-      const item = getProduct(id);
-      if (!item) continue;
+      const p = getProduct(id);
+      if (!p) continue;
       const row = document.createElement('div');
       row.className = 'cart-item';
       row.innerHTML = `
         <div>
-          <div class="cart-item-name">${item.title}</div>
-          <div class="cart-item-meta">${formatMoney(item.price)} \u00d7 ${qty}</div>
+          <div class="cart-item-name">${p.title}</div>
+          <div class="cart-item-meta">${fmt(p.price)} \u00d7 ${qty} = ${fmt(p.price * qty)}</div>
         </div>
         <div class="qty-controls">
-          <button class="qty-btn" type="button" data-dec-id="${item.id}" aria-label="\u0417\u043c\u0435\u043d\u0448\u0438\u0442\u0438">\u2212</button>
+          <button class="qty-btn" type="button" data-dec-id="${p.id}" aria-label="Зменшити">−</button>
           <strong>${qty}</strong>
-          <button class="qty-btn" type="button" data-inc-id="${item.id}" aria-label="\u0417\u0431\u0456\u043b\u044c\u0448\u0438\u0442\u0438">+</button>
-        </div>
-      `;
-      el.cartItems.appendChild(row);
+          <button class="qty-btn" type="button" data-inc-id="${p.id}" aria-label="Збільшити">+</button>
+        </div>`;
+      frag.appendChild(row);
+    }
+    el.cartItems.appendChild(frag);
+
+    const total = cartTotal();
+    if (el.cartTotal) el.cartTotal.textContent = fmt(total);
+
+    // Badge
+    const count = cartCount();
+    if (el.cartBadge) {
+      el.cartBadge.textContent  = count > 0 ? String(count) : '';
+      el.cartBadge.dataset.count = String(count);
     }
 
-    const total = getCartTotal();
-    if (el.cartTotal) el.cartTotal.textContent = formatMoney(total);
-    if (el.checkoutBtn) el.checkoutBtn.disabled = !state.authenticated || total <= 0;
-    updateCartBadge();
-  }
-
-  /* ═══════════════════════════════════════
-     Auth modes
-     ═══════════════════════════════════════ */
-  function setGuestMode(reason) {
-    state.authenticated = false;
-    state.orders = [];
-    if (el.loginToBank) el.loginToBank.hidden = false;
-    if (el.guestBanner) {
-      el.guestBanner.hidden = false;
-      el.guestBanner.innerHTML = `<strong>\u0413\u043e\u0441\u0442\u044c\u043e\u0432\u0438\u0439 \u0440\u0435\u0436\u0438\u043c:</strong> ${reason || '\u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u0438 \u043f\u043e\u0442\u0440\u0456\u0431\u043d\u0430 \u0430\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0456\u044f.'}`;
+    // Checkout enabled only if authenticated + non-empty cart
+    if (el.checkoutBtn) {
+      el.checkoutBtn.disabled = !state.authenticated || total <= 0;
     }
-    if (el.accountNumber) el.accountNumber.textContent = '\u041f\u043e\u0442\u0440\u0456\u0431\u0435\u043d \u0432\u0445\u0456\u0434';
-    if (el.accountBalance) el.accountBalance.textContent = '\u2014';
-    if (el.ordersCount) el.ordersCount.textContent = '0';
-    if (el.ordersList) {
-      el.ordersList.innerHTML = '<div class="order-item"><small>\u0423\u0432\u0456\u0439\u0434\u0456\u0442\u044c, \u0449\u043e\u0431 \u043f\u0435\u0440\u0435\u0433\u043b\u044f\u0434\u0430\u0442\u0438 \u0437\u0430\u043c\u043e\u0432\u043b\u0435\u043d\u043d\u044f.</small></div>';
-    }
-    renderCart();
   }
 
-  function setAuthorizedMode() {
-    state.authenticated = true;
-    if (el.loginToBank) el.loginToBank.hidden = true;
-    if (el.guestBanner) el.guestBanner.hidden = true;
-  }
-
-  /* ═══════════════════════════════════════
-     Render: orders
-     ═══════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════
+     RENDER: orders
+     ═══════════════════════════════════════════════════════════ */
   function renderOrders() {
     if (!el.ordersList) return;
-    el.ordersList.innerHTML = '';
-    if (!state.orders.length) {
-      el.ordersList.innerHTML = '<div class="order-item"><small>\u0429\u0435 \u043d\u0435\u043c\u0430\u0454 \u0437\u0430\u043c\u043e\u0432\u043b\u0435\u043d\u044c.</small></div>';
-      if (el.ordersCount) el.ordersCount.textContent = '0';
-      return;
-    }
     if (el.ordersCount) el.ordersCount.textContent = String(state.orders.length);
 
+    if (!state.orders.length) {
+      el.ordersList.innerHTML = '<div class="order-item"><small>Ще немає замовлень.</small></div>';
+      return;
+    }
+    const frag = document.createDocumentFragment();
     for (const order of state.orders) {
-      const status = String(order.status || 'paid');
-      const badgeClass = status === 'paid' ? 'paid' : (status === 'awaiting_payment' ? 'awaiting' : 'expired');
-      const statusLabel = ORDER_STATUS_LABELS[status] || status;
-      const invoiceLabel = order.invoice_number ? `\u0406\u043d\u0432\u043e\u0439\u0441: ${order.invoice_number}` : '';
-      const dueLabel = order.invoice_due_at ? `\u0434\u043e ${new Date(order.invoice_due_at).toLocaleString('uk-UA')}` : '';
-      const canPay = status === 'awaiting_payment' && order.invoice_number;
+      const status     = order.status || 'paid';
+      const cls        = status === 'paid' ? 'paid' : status === 'awaiting_payment' ? 'awaiting' : 'expired';
+      const label      = ORDER_STATUS[status] || status;
+      const canPay     = status === 'awaiting_payment' && order.invoice_number;
+      const dueStr     = order.invoice_due_at
+        ? `до ${new Date(order.invoice_due_at).toLocaleString('uk-UA')}` : '';
 
       const node = document.createElement('article');
       node.className = 'order-item';
       node.setAttribute('role', 'listitem');
       node.innerHTML = `
         <div class="order-main">
-          <strong>\u0417\u0430\u043c\u043e\u0432\u043b\u0435\u043d\u043d\u044f #${order.id}</strong>
+          <strong>Замовлення #${order.id}</strong>
           <small>${new Date(order.created_at).toLocaleString('uk-UA')}</small>
-          <span class="order-status ${badgeClass}">${statusLabel}</span>
-          ${invoiceLabel ? `<small>${invoiceLabel} ${dueLabel}</small>` : ''}
+          <span class="order-status ${cls}">${label}</span>
+          ${order.invoice_number ? `<small>Інвойс: ${order.invoice_number} ${dueStr}</small>` : ''}
         </div>
         <div class="order-actions">
-          <strong>${formatMoney(Number(order.total_amount || 0))}</strong>
-          <small>${order.items_count} \u043f\u043e\u0437\u0438\u0446\u0456\u0439</small>
-          ${canPay ? `<button class="order-pay-btn" data-invoice-pay="${order.invoice_number}" type="button">\u041e\u043f\u043b\u0430\u0442\u0438\u0442\u0438 \u0456\u043d\u0432\u043e\u0439\u0441</button>` : ''}
-        </div>
-      `;
-      el.ordersList.appendChild(node);
+          <strong>${fmt(order.total_amount)}</strong>
+          <small>${order.items_count} поз.</small>
+          ${canPay ? `<button class="order-pay-btn" data-invoice-pay="${order.invoice_number}" type="button">Оплатити інвойс</button>` : ''}
+        </div>`;
+      frag.appendChild(node);
     }
+    el.ordersList.innerHTML = '';
+    el.ordersList.appendChild(frag);
   }
 
-  /* ═══════════════════════════════════════
-     API calls
-     ═══════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════
+     AUTH STATE
+     ═══════════════════════════════════════════════════════════ */
+  function setGuestMode(msg) {
+    state.authenticated = false;
+    state.orders = [];
+    // header dropdown
+    if (el.loginToBank)   el.loginToBank.hidden  = false;
+    if (el.logoutBtn)     el.logoutBtn.hidden     = true;
+    if (el.accountNumber) el.accountNumber.textContent = 'Потрібен вхід';
+    if (el.accountBalance)el.accountBalance.textContent = '—';
+    // guest banner
+    if (el.guestBanner) {
+      el.guestBanner.hidden = false;
+      el.guestBanner.innerHTML = `<strong>Гостьовий режим:</strong> ${msg || 'увійдіть для оплати.'}`;
+    }
+    // orders
+    if (el.ordersCount) el.ordersCount.textContent = '0';
+    if (el.ordersList)  el.ordersList.innerHTML = '<div class="order-item"><small>Увійдіть, щоб переглядати замовлення.</small></div>';
+    renderCart();
+  }
+
+  function setAuthorizedMode() {
+    state.authenticated = true;
+    if (el.loginToBank)  el.loginToBank.hidden  = true;
+    if (el.logoutBtn)    el.logoutBtn.hidden     = false;
+    if (el.guestBanner)  el.guestBanner.hidden   = true;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     API CALLS
+     ═══════════════════════════════════════════════════════════ */
   async function fetchCatalog() {
     try {
-      const data = await api.request('/api/marketplace/catalog');
-      const fromApi = Array.isArray(data?.items) ? data.items : [];
-      if (!fromApi.length) {
-        useFallbackCatalog('\u041a\u0430\u0442\u0430\u043b\u043e\u0433 \u043e\u043d\u043e\u0432\u043b\u044e\u0454\u0442\u044c\u0441\u044f: \u043f\u043e\u043a\u0430\u0437\u0430\u043d\u043e \u0440\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u043e\u0432\u0430\u043d\u0456 \u0442\u043e\u0432\u0430\u0440\u0438 ARM.');
+      const data  = await api.request('/api/marketplace/catalog');
+      const items = Array.isArray(data?.items) ? data.items : [];
+      if (!items.length) {
+        useFallbackCatalog(true); // silent — API just returned empty
         return;
       }
-      state.products = fromApi.map(enrichProduct);
+      state.products = items.map(enrichProduct);
       renderCategoryList();
       renderCatalog();
-    } catch (err) {
-      useFallbackCatalog('\u041f\u0440\u043e\u0431\u043b\u0435\u043c\u0430 \u0437 \u043c\u0435\u0440\u0435\u0436\u0435\u044e: \u043f\u043e\u043a\u0430\u0437\u0430\u043d\u043e \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u0438\u0439 \u043a\u0430\u0442\u0430\u043b\u043e\u0433 ARM.');
+    } catch (_) {
+      useFallbackCatalog(false);
     }
   }
 
   async function fetchAccount() {
     const data = await api.request('/api/account');
     state.account = data;
-    if (el.accountNumber) el.accountNumber.textContent = data.account_number || '\u2014';
-    if (el.accountBalance) el.accountBalance.textContent = formatMoney(Number(data.balance || 0));
+    if (el.accountNumber)  el.accountNumber.textContent  = data.account_number || '—';
+    if (el.accountBalance) el.accountBalance.textContent = fmt(Number(data.balance || 0));
   }
 
   async function fetchOrders() {
@@ -661,141 +787,90 @@
     renderOrders();
   }
 
-  /* ═══════════════════════════════════════
-     Checkout
-     ═══════════════════════════════════════ */
-  async function checkout(event) {
-    event.preventDefault();
-    if (!state.authenticated) {
-      openAuthModal('login');
-      return;
-    }
-    const items = getCartPayload();
-    if (!items.length) {
-      showToast('\u041a\u043e\u0448\u0438\u043a \u043f\u043e\u0440\u043e\u0436\u043d\u0456\u0439.', true);
-      return;
-    }
+  /* ═══════════════════════════════════════════════════════════
+     CHECKOUT
+     ═══════════════════════════════════════════════════════════ */
+  function mkKey(scope) {
+    return `${scope}-${crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+  }
 
-    const idempotencyKey = createIdempotencyKey('market-checkout');
-    const payload = {
-      items,
-      shipping_name: String(el.shippingName?.value || '').trim(),
-      shipping_address: String(el.shippingAddress?.value || '').trim(),
-      payment_mode: String(el.paymentMode?.value || 'pay_now'),
-      idempotency_key: idempotencyKey,
-    };
+  async function handleCheckout(e) {
+    e.preventDefault();
+    if (!state.authenticated) { openAuthModal('login'); return; }
 
-    const oldText = el.checkoutBtn ? el.checkoutBtn.textContent : '';
-    if (el.checkoutBtn) {
-      el.checkoutBtn.disabled = true;
-      el.checkoutBtn.textContent = '\u041e\u0444\u043e\u0440\u043c\u043b\u0435\u043d\u043d\u044f\u2026';
-    }
+    const items = cartPayload();
+    if (!items.length) { showToast('Кошик порожній.', true); return; }
 
+    const name    = el.shippingName?.value.trim() || '';
+    const address = el.shippingAddress?.value.trim() || '';
+    if (!name)    { el.shippingName?.focus();    showToast('Вкажіть отримувача.', true); return; }
+    if (!address) { el.shippingAddress?.focus(); showToast('Вкажіть адресу доставки.', true); return; }
+
+    const key = mkKey('checkout');
+    setBtnLoading(el.checkoutBtn, 'Оформлення…');
     try {
       const data = await api.request('/api/marketplace/checkout', {
         method: 'POST',
-        headers: { 'Idempotency-Key': idempotencyKey },
-        body: JSON.stringify(payload),
+        headers: { 'Idempotency-Key': key },
+        body: JSON.stringify({
+          items,
+          shipping_name:    name,
+          shipping_address: address,
+          payment_mode:     el.paymentMode?.value || 'pay_now',
+          idempotency_key:  key,
+        }),
       });
       state.cart.clear();
+      saveCart();
       renderCart();
-      await Promise.all([fetchAccount(), fetchCatalog(), fetchOrders()]);
-      if (String(data.payment_mode || '') === 'invoice') {
-        showToast(`\u0406\u043d\u0432\u043e\u0439\u0441 ${data.invoice_number} \u0441\u0442\u0432\u043e\u0440\u0435\u043d\u043e. \u041e\u043f\u043b\u0430\u0442\u0456\u0442\u044c \u0434\u043e 24 \u0433\u043e\u0434\u0438\u043d.`);
+      // refresh balance + orders in background
+      fetchAccount().catch(() => {});
+      fetchOrders().catch(() => {});
+
+      if (data.payment_mode === 'invoice') {
+        showToast(`Інвойс ${data.invoice_number} створено. Оплатіть протягом 24 год.`);
       } else {
-        const authCode = data.payment_authorization?.authorization_code;
-        showToast(authCode
-          ? `\u041e\u043f\u043b\u0430\u0442\u0443 \u0430\u0432\u0442\u043e\u0440\u0438\u0437\u043e\u0432\u0430\u043d\u043e (${authCode}). \u0417\u0430\u043c\u043e\u0432\u043b\u0435\u043d\u043d\u044f #${data.order_id} \u043e\u0444\u043e\u0440\u043c\u043b\u0435\u043d\u043e`
-          : `\u0417\u0430\u043c\u043e\u0432\u043b\u0435\u043d\u043d\u044f #${data.order_id} \u0443\u0441\u043f\u0456\u0448\u043d\u043e \u043e\u0444\u043e\u0440\u043c\u043b\u0435\u043d\u043e`);
+        const code = data.payment_authorization?.authorization_code;
+        showToast(code
+          ? `Оплату авторизовано (${code}). Замовлення #${data.order_id} оформлено`
+          : `Замовлення #${data.order_id} успішно оформлено`);
       }
     } catch (err) {
-      showToast(err?.serverMessage || err?.message || '\u041f\u043e\u043c\u0438\u043b\u043a\u0430 \u043e\u043f\u043b\u0430\u0442\u0438', true);
+      showToast(err?.serverMessage || err?.message || 'Помилка оплати', true);
     } finally {
-      if (el.checkoutBtn) {
-        el.checkoutBtn.disabled = false;
-        el.checkoutBtn.textContent = oldText || '\u041e\u0444\u043e\u0440\u043c\u0438\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 ARM Bank';
-        updatePaymentModeHint();
-      }
+      resetBtn(el.checkoutBtn);
+      syncPaymentHint();
+      renderCart(); // re-check disabled state
     }
   }
 
   async function payInvoice(invoiceNumber, btn) {
-    const key = String(invoiceNumber || '').trim();
-    if (!key) return;
-    const prevText = btn ? btn.textContent : '';
-    if (btn) { btn.disabled = true; btn.textContent = '\u041e\u043f\u043b\u0430\u0442\u0430\u2026'; }
-
-    const idempotencyKey = createIdempotencyKey(`invoice-${key}`);
+    const key = mkKey(`inv-${invoiceNumber}`);
+    setBtnLoading(btn, 'Оплата…');
     try {
-      const data = await api.request(`/api/marketplace/invoice/${encodeURIComponent(key)}/pay`, {
+      const data = await api.request(`/api/marketplace/invoice/${encodeURIComponent(invoiceNumber)}/pay`, {
         method: 'POST',
-        headers: { 'Idempotency-Key': idempotencyKey },
-        body: JSON.stringify({ idempotency_key: idempotencyKey }),
+        headers: { 'Idempotency-Key': key },
+        body: JSON.stringify({ idempotency_key: key }),
       });
-      await Promise.all([fetchAccount(), fetchOrders()]);
-      const authCode = data.payment_authorization?.authorization_code;
-      showToast(authCode
-        ? `\u0406\u043d\u0432\u043e\u0439\u0441 ${data.invoice_number} \u043e\u043f\u043b\u0430\u0447\u0435\u043d\u043e. \u0410\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0456\u044f ${authCode}`
-        : `\u0406\u043d\u0432\u043e\u0439\u0441 ${data.invoice_number} \u043e\u043f\u043b\u0430\u0447\u0435\u043d\u043e`);
+      fetchAccount().catch(() => {});
+      fetchOrders().catch(() => {});
+      const code = data.payment_authorization?.authorization_code;
+      showToast(code
+        ? `Інвойс ${data.invoice_number} оплачено. Код: ${code}`
+        : `Інвойс ${data.invoice_number} оплачено`);
     } catch (err) {
-      showToast(err?.serverMessage || err?.message || '\u041d\u0435 \u0432\u0434\u0430\u043b\u043e\u0441\u044f \u043e\u043f\u043b\u0430\u0442\u0438\u0442\u0438 \u0456\u043d\u0432\u043e\u0439\u0441', true);
+      showToast(err?.serverMessage || err?.message || 'Не вдалося оплатити інвойс', true);
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = prevText || '\u041e\u043f\u043b\u0430\u0442\u0438\u0442\u0438 \u0456\u043d\u0432\u043e\u0439\u0441'; }
+      resetBtn(btn);
     }
   }
 
-  /* ═══════════════════════════════════════
-     Event handlers
-     ═══════════════════════════════════════ */
-  function onCatalogClick(event) {
-    const addBtn = event.target.closest('[data-add-id]');
-    if (!addBtn) return;
-    const id = Number(addBtn.dataset.addId);
-    const product = getProduct(id);
-    if (!product || Number(product.stock || 0) <= 0) return;
-    state.cart.set(id, (state.cart.get(id) || 0) + 1);
-    renderCart();
-    showToast(`${product.title} \u0434\u043e\u0434\u0430\u043d\u043e \u0434\u043e \u043a\u043e\u0448\u0438\u043a\u0430`);
-  }
-
-  function onCartClick(event) {
-    const incBtn = event.target.closest('[data-inc-id]');
-    if (incBtn) {
-      const id = Number(incBtn.dataset.incId);
-      state.cart.set(id, (state.cart.get(id) || 0) + 1);
-      renderCart();
-      return;
-    }
-    const decBtn = event.target.closest('[data-dec-id]');
-    if (decBtn) {
-      const id = Number(decBtn.dataset.decId);
-      const next = (state.cart.get(id) || 0) - 1;
-      if (next <= 0) state.cart.delete(id);
-      else state.cart.set(id, next);
-      renderCart();
-    }
-  }
-
-  function onOrdersClick(event) {
-    const payBtn = event.target.closest('[data-invoice-pay]');
-    if (!payBtn) return;
-    payInvoice(payBtn.dataset.invoicePay, payBtn);
-  }
-
-  function resetFilters() {
-    state.activeCategory = 'all';
-    if (el.catalogSort) el.catalogSort.value = 'popular';
-    if (el.catalogSearch) el.catalogSearch.value = '';
-    renderCategoryList();
-    renderCatalog();
-    setFiltersOpen(false);
-  }
-
-  /* ═══════════════════════════════════════
-     Bind events
-     ═══════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════
+     EVENT BINDING
+     ═══════════════════════════════════════════════════════════ */
   function bindEvents() {
-    // User dropdown
+    /* ── User dropdown ── */
     el.userMenuBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
       toggleUserDropdown();
@@ -808,103 +883,119 @@
       }
     });
 
-    // Login button → open auth modal
-    el.loginToBank?.addEventListener('click', () => {
-      closeUserDropdown();
-      openAuthModal('login');
-    });
+    /* ── Auth triggers ── */
+    el.loginToBank?.addEventListener('click', () => openAuthModal('login'));
+    el.logoutBtn?.addEventListener('click', handleLogout);
 
-    // Auth modal tabs
-    document.querySelectorAll('.auth-tab').forEach((btn) => {
-      btn.addEventListener('click', () => switchAuthTab(btn.dataset.authTab));
-    });
-
-    // Auth modal close
+    /* ── Auth modal ── */
     el.authClose?.addEventListener('click', closeAuthModal);
-    el.authOverlay?.addEventListener('click', (e) => {
-      if (e.target === el.authOverlay) closeAuthModal();
-    });
+    el.authOverlay?.addEventListener('click', (e) => { if (e.target === el.authOverlay) closeAuthModal(); });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && el.authOverlay && !el.authOverlay.hidden) closeAuthModal();
     });
-
-    // Auth forms
+    document.querySelectorAll('.auth-tab').forEach((b) =>
+      b.addEventListener('click', () => switchAuthTab(b.dataset.authTab))
+    );
     el.authLoginForm?.addEventListener('submit', handleLogin);
-    el.authRegisterForm?.addEventListener('submit', handleRegister);
+    el.authRegForm?.addEventListener('submit', handleRegister);
 
-    // Cart header button → scroll to cart section
+    /* ── Cart header button — scroll to cart ── */
     el.cartHeaderBtn?.addEventListener('click', () => {
       document.querySelector('.rz-cart-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
-    // Catalog
-    el.catalogGrid?.addEventListener('click', onCatalogClick);
-    el.cartItems?.addEventListener('click', onCartClick);
-    el.checkoutForm?.addEventListener('submit', checkout);
-    el.paymentMode?.addEventListener('change', updatePaymentModeHint);
+    /* ── Catalog ── */
+    el.catalogGrid?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-add-id]');
+      if (btn) addToCart(Number(btn.dataset.addId));
+    });
 
-    let searchTimer = 0;
+    el.cartItems?.addEventListener('click', (e) => {
+      const inc = e.target.closest('[data-inc-id]');
+      if (inc) { changeQty(Number(inc.dataset.incId), +1); return; }
+      const dec = e.target.closest('[data-dec-id]');
+      if (dec) { changeQty(Number(dec.dataset.decId), -1); }
+    });
+
+    el.checkoutForm?.addEventListener('submit', handleCheckout);
+    el.paymentMode?.addEventListener('change', syncPaymentHint);
+
+    el.ordersList?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-invoice-pay]');
+      if (btn) payInvoice(btn.dataset.invoicePay, btn);
+    });
+
+    /* ── Search (debounced) ── */
+    let _st = 0;
     el.catalogSearch?.addEventListener('input', () => {
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(renderCatalog, 200);
+      clearTimeout(_st);
+      _st = setTimeout(renderCatalog, 180);
     });
-
     el.catalogSort?.addEventListener('change', renderCatalog);
-    el.filterReset?.addEventListener('click', resetFilters);
-    el.ordersList?.addEventListener('click', onOrdersClick);
-
-    el.toggleFilters?.addEventListener('click', () => {
-      setFiltersOpen(!document.body.classList.contains('filters-open'));
+    el.filterReset?.addEventListener('click', () => {
+      state.activeCategory = 'all';
+      if (el.catalogSort) el.catalogSort.value = 'popular';
+      if (el.catalogSearch) el.catalogSearch.value = '';
+      renderCategoryList();
+      renderCatalog();
+      setFiltersOpen(false);
     });
+
+    /* ── Category sidebar ── */
+    el.categoryList?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.category-btn');
+      if (!btn) return;
+      state.activeCategory = btn.dataset.category || 'all';
+      renderCategoryList();
+      renderCatalog();
+      setFiltersOpen(false);
+    });
+
+    /* ── Sub-nav (top) ── */
+    el.topCategoryNav?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-top-category]');
+      if (!btn) return;
+      state.activeCategory = btn.dataset.topCategory || 'all';
+      renderCategoryList();
+      renderCatalog();
+    });
+
+    /* ── Mobile filter drawer ── */
+    el.toggleFilters?.addEventListener('click', () => setFiltersOpen(!document.body.classList.contains('filters-open')));
     el.filtersBackdrop?.addEventListener('click', () => setFiltersOpen(false));
 
-    el.categoryList?.addEventListener('click', (event) => {
-      const btn = event.target.closest('.category-btn');
-      if (!btn) return;
-      state.activeCategory = String(btn.dataset.category || 'all');
-      renderCategoryList();
-      renderCatalog();
-      setFiltersOpen(false);
-    });
-
-    el.topCategoryNav?.addEventListener('click', (event) => {
-      const btn = event.target.closest('[data-top-category]');
-      if (!btn) return;
-      state.activeCategory = String(btn.dataset.topCategory || 'all');
-      renderCategoryList();
-      renderCatalog();
-      setFiltersOpen(false);
-    });
-
-    window.addEventListener('resize', () => {
-      if (!isMobileFiltersMode()) setFiltersOpen(false);
-    });
+    window.addEventListener('resize', () => { if (!isMobile()) setFiltersOpen(false); });
   }
 
-  /* ═══════════════════════════════════════
-     Init
-     ═══════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════
+     INIT
+     ═══════════════════════════════════════════════════════════ */
   async function init() {
+    loadCart();         // restore cart from localStorage
     bindEvents();
-    updatePaymentModeHint();
+    syncPaymentHint();
     renderSkeleton(12);
 
-    try {
-      await fetchCatalog();
-      if (api?.token) {
+    await fetchCatalog();
+    renderCart(); // show restored cart items once products are loaded
+
+    if (api?.token) {
+      try {
         await Promise.all([fetchAccount(), fetchOrders()]);
         setAuthorizedMode();
-      } else {
-        setGuestMode('\u043f\u0435\u0440\u0435\u0433\u043b\u044f\u0434\u0430\u0439\u0442\u0435 \u0442\u043e\u0432\u0430\u0440\u0438 \u0442\u0430 \u0443\u0432\u0456\u0439\u0434\u0456\u0442\u044c \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u0438.');
+      } catch (err) {
+        if (Number(err?.status) === 401) {
+          api.setToken('');
+          setGuestMode('Сесію завершено, увійдіть повторно.');
+        } else {
+          setGuestMode('Увійдіть для оплати.');
+        }
       }
-      renderCart();
-    } catch (err) {
-      if (Number(err?.status) === 401) {
-        setGuestMode('\u0441\u0435\u0441\u0456\u044f \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u043b\u0430\u0441\u044f, \u0443\u0432\u0456\u0439\u0434\u0456\u0442\u044c \u043f\u043e\u0432\u0442\u043e\u0440\u043d\u043e.');
-      } else {
-        showToast(err?.serverMessage || err?.message || '\u041d\u0435 \u0432\u0434\u0430\u043b\u043e\u0441\u044f \u0437\u0430\u0432\u0430\u043d\u0442\u0430\u0436\u0438\u0442\u0438 \u043c\u0430\u0440\u043a\u0435\u0442\u043f\u043b\u0435\u0439\u0441', true);
-      }
+    } else {
+      setGuestMode('Переглядайте товари та увійдіть для оплати.');
     }
+
+    renderCart(); // final sync (authenticated state now known)
   }
 
   init();
