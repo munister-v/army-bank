@@ -683,7 +683,7 @@ button, a, input, select, textarea { touch-action: manipulation; }
    ═══════════════════════════════════════ */
 .rz-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 10px;
 }
 
@@ -700,7 +700,7 @@ button, a, input, select, textarea { touch-action: manipulation; }
    ═══════════════════════════════════════ */
 .rz-product {
   display: grid;
-  grid-template-rows: 150px 1fr;
+  grid-template-rows: 120px 1fr;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--r);
@@ -734,8 +734,8 @@ button, a, input, select, textarea { touch-action: manipulation; }
 .rz-thumb[data-cat="promo"]   { background: linear-gradient(145deg, #fef4e5, #fdecd0); }
 
 .rz-thumb i {
-  font-size: 50px;
-  opacity: 0.7;
+  font-size: 42px;
+  opacity: 0.65;
 }
 
 .rz-thumb[data-cat="phones"] i  { color: var(--blue); }
@@ -804,8 +804,8 @@ button, a, input, select, textarea { touch-action: manipulation; }
 /* ── Content ── */
 .rz-content {
   display: grid;
-  gap: 6px;
-  padding: 11px 12px 12px;
+  gap: 4px;
+  padding: 10px;
 }
 
 .rz-product-category {
@@ -816,12 +816,12 @@ button, a, input, select, textarea { touch-action: manipulation; }
 }
 
 .rz-title {
-  min-height: 36px;
+  min-height: 32px;
   margin: 0;
   color: var(--ink);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -935,7 +935,7 @@ button, a, input, select, textarea { touch-action: manipulation; }
 }
 
 .rz-skeleton .rz-skel-thumb {
-  height: 150px;
+  height: 120px;
   background: linear-gradient(145deg, #eef6f1, #e8f0ed);
   position: relative;
   overflow: hidden;

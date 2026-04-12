@@ -369,9 +369,6 @@
               <span class="rz-stars" aria-label="Рейтинг ${item.rating} з 5">${renderStars(item.rating)}</span>
               ${item.rating.toFixed(1)}
             </span>
-            <span>${item.reviews} відгуків</span>
-          </div>
-          <div class="rz-meta">
             <span class="rz-stock${inStock ? '' : ' out'}">${inStock ? 'В наявності' : 'Немає'}</span>
           </div>
           <div class="rz-price-wrap">
