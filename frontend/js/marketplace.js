@@ -1,4 +1,7 @@
 (function () {
+  /* ═══════════════════════════════════════
+     Helpers
+     ═══════════════════════════════════════ */
   const moneyFmt = new Intl.NumberFormat('uk-UA', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -8,8 +11,22 @@
     return `₴${moneyFmt.format(Number(value || 0))}`;
   }
 
+  /* ── Star SVG ── */
+  const STAR_FULL = '<svg class="rz-star" viewBox="0 0 20 20"><path fill="currentColor" d="M10 1.3l2.4 5.5 5.9.5-4.5 3.8 1.5 5.8L10 13.8l-5.3 3.1 1.5-5.8L1.7 7.3l5.9-.5z"/></svg>';
+  const STAR_EMPTY = '<svg class="rz-star empty" viewBox="0 0 20 20"><path fill="currentColor" d="M10 1.3l2.4 5.5 5.9.5-4.5 3.8 1.5 5.8L10 13.8l-5.3 3.1 1.5-5.8L1.7 7.3l5.9-.5z"/></svg>';
+
+  function renderStars(rating) {
+    const full = Math.round(Number(rating) || 0);
+    let html = '';
+    for (let i = 0; i < 5; i++) {
+      html += i < full ? STAR_FULL : STAR_EMPTY;
+    }
+    return html;
+  }
+
+  /* ── Category mapping ── */
   const TOP_CATEGORIES = [
-    'Ноутбуки та комп’ютери',
+    'Ноутбуки та комп\u2019ютери',
     'Смартфони',
     'Побутова техніка',
     'Товари для дому',
@@ -17,44 +34,55 @@
   ];
 
   const CATEGORY_HINTS = [
-    { key: 'Смартфони', terms: ['phone', 'смартфон', 'iphone', 'galaxy', 'pixel', 'xiaomi', 'oneplus', 'honor'] },
-    { key: 'Ноутбуки та комп’ютери', terms: ['laptop', 'book air', 'book pro', 'ноутбук', 'ультрабук', 'комп', 'desktop', 'keyboard', 'mouse', 'monitor', 'webcam', 'router'] },
-    { key: 'Побутова техніка', terms: ['kettle', 'coffee', 'blender', 'vacuum', 'fryer', 'чайник', 'кавоварка', 'блендер', 'пилосос', 'техніка'] },
+    { key: 'Смартфони', terms: ['phone', 'смартфон', 'iphone', 'galaxy', 'pixel', 'xiaomi', 'oneplus', 'honor', 'earbuds', 'навушник'] },
+    { key: 'Ноутбуки та комп\u2019ютери', terms: ['laptop', 'book air', 'book pro', 'ноутбук', 'ультрабук', 'комп', 'desktop', 'keyboard', 'mouse', 'monitor', 'webcam', 'router', 'tv', 'телевізор'] },
+    { key: 'Побутова техніка', terms: ['kettle', 'coffee', 'blender', 'vacuum', 'fryer', 'чайник', 'кавоварка', 'блендер', 'пилосос', 'техніка', 'robot'] },
     { key: 'Товари для дому', terms: ['lamp', 'home', 'sensor', 'security cam', 'hub', 'нічник', 'лампа', 'дім', 'органайзер', 'рюкзак', 'light', 'smart bulb', 'door'] },
   ];
 
   const CATEGORY_ICONS = {
-    'Ноутбуки та комп’ютери': 'bi-laptop',
+    'Ноутбуки та комп\u2019ютери': 'bi-laptop',
     'Смартфони': 'bi-phone',
     'Побутова техніка': 'bi-house-gear',
     'Товари для дому': 'bi-house-heart',
     'Акції ARM': 'bi-stars',
   };
 
+  /** Maps category → data-cat attribute for CSS gradients */
+  const CATEGORY_THUMB = {
+    'Смартфони': 'phones',
+    'Ноутбуки та комп\u2019ютери': 'laptops',
+    'Побутова техніка': 'appliances',
+    'Товари для дому': 'home',
+    'Акції ARM': 'promo',
+  };
+
+  /* ── Fallback products ── */
   const FALLBACK_PRODUCTS = [
-    { id: 9001, title: 'ARM Phone Max 512GB', description: 'Флагманський смартфон 6.8", 120Hz, 120W', price: 29999, badge: 'TOP', stock: 18 },
+    { id: 9001, title: 'ARM Phone Max 512GB', description: 'Флагманський смартфон 6.8\u2033, 120Hz, 120W', price: 29999, badge: 'TOP', stock: 18 },
     { id: 9002, title: 'ARM Phone Lite 5G', description: 'Смартфон 120Hz, NFC, батарея 5000mAh', price: 13999, badge: 'ARM DEAL', stock: 44 },
     { id: 9003, title: 'ARM Book Pro 15', description: 'Ноутбук для роботи, 32GB RAM, 1TB SSD', price: 45999, badge: 'PRO', stock: 9 },
     { id: 9004, title: 'ARM Book Air 14', description: 'Легкий ультрабук для щоденних задач', price: 32999, badge: 'NEW', stock: 17 },
-    { id: 9005, title: 'ARM Monitor 27 QHD', description: 'Монітор 27", 165Hz, HDR', price: 11999, badge: 'HOT', stock: 28 },
-    { id: 9006, title: 'ARM Router AX3000', description: 'Wi‑Fi 6 роутер для дому та офісу', price: 3599, badge: null, stock: 41 },
+    { id: 9005, title: 'ARM Monitor 27 QHD', description: 'Монітор 27\u2033, 165Hz, HDR', price: 11999, badge: 'HOT', stock: 28 },
+    { id: 9006, title: 'ARM Router AX3000', description: 'Wi\u2011Fi 6 роутер для дому та офісу', price: 3599, badge: null, stock: 41 },
     { id: 9007, title: 'ARM Earbuds Pro', description: 'Бездротові навушники з ANC', price: 3299, badge: 'SALE', stock: 32 },
     { id: 9008, title: 'ARM Smart TV 50 4K', description: '4K телевізор з Dolby Vision', price: 18999, badge: 'TOP', stock: 20 },
     { id: 9009, title: 'ARM Coffee Pro', description: 'Кавоварка з капучинатором', price: 8499, badge: null, stock: 12 },
-    { id: 9010, title: 'ARM Robot Vacuum', description: 'Робот-пилосос з вологим прибиранням', price: 12499, badge: 'HOT', stock: 16 },
+    { id: 9010, title: 'ARM Robot Vacuum', description: 'Робот\u2011пилосос з вологим прибиранням', price: 12499, badge: 'HOT', stock: 16 },
     { id: 9011, title: 'ARM Smart Lamp', description: 'Настільна лампа з керуванням зі смартфона', price: 1599, badge: null, stock: 32 },
     { id: 9012, title: 'ARM Home Security Kit', description: 'Камера + датчики + хаб', price: 7299, badge: 'ARM DEAL', stock: 17 },
   ];
 
-  function useFallbackCatalog(reason = '') {
+  function useFallbackCatalog(reason) {
     state.products = FALLBACK_PRODUCTS.map(enrichProduct);
     renderCategoryList();
     renderCatalog();
-    if (reason) {
-      showToast(reason, true);
-    }
+    if (reason) showToast(reason, true);
   }
 
+  /* ═══════════════════════════════════════
+     State
+     ═══════════════════════════════════════ */
   const state = {
     products: [],
     cart: new Map(),
@@ -70,6 +98,9 @@
     invoice_expired: 'Інвойс прострочено',
   };
 
+  /* ═══════════════════════════════════════
+     DOM refs
+     ═══════════════════════════════════════ */
   const el = {
     catalogGrid: document.getElementById('catalog-grid'),
     catalogCount: document.getElementById('catalog-count'),
@@ -82,6 +113,8 @@
     cartEmpty: document.getElementById('cart-empty'),
     cartItems: document.getElementById('cart-items'),
     cartTotal: document.getElementById('cart-total'),
+    cartBadge: document.getElementById('cart-badge-count'),
+    cartHeaderBtn: document.getElementById('cart-header-btn'),
     checkoutForm: document.getElementById('checkout-form'),
     checkoutBtn: document.getElementById('checkout-btn'),
     shippingName: document.getElementById('shipping-name'),
@@ -100,6 +133,9 @@
     topCategoryNav: document.querySelector('.rz-subnav'),
   };
 
+  /* ═══════════════════════════════════════
+     Utilities
+     ═══════════════════════════════════════ */
   function basePath() {
     return window.ARMY_BANK_BASE || '';
   }
@@ -111,22 +147,29 @@
   function setFiltersOpen(open) {
     const shouldOpen = !!open && isMobileFiltersMode();
     document.body.classList.toggle('filters-open', shouldOpen);
-    if (el.filtersBackdrop) {
-      el.filtersBackdrop.hidden = !shouldOpen;
-    }
+    if (el.filtersBackdrop) el.filtersBackdrop.hidden = !shouldOpen;
   }
 
   function getBankPath() {
     return `${basePath()}/app`;
   }
 
-  function showToast(message, isError = false) {
+  /* ── Toast with animation ── */
+  let toastTimer = 0;
+
+  function showToast(message, isError) {
     if (!el.toast) return;
     el.toast.textContent = message;
-    el.toast.style.background = isError ? '#8c1d29' : '#121a16';
+    el.toast.style.background = isError ? '#8c1d29' : 'var(--ink)';
     el.toast.hidden = false;
-    clearTimeout(showToast._timer);
-    showToast._timer = setTimeout(() => { el.toast.hidden = true; }, 2400);
+    // Force reflow before adding class
+    void el.toast.offsetHeight;
+    el.toast.classList.add('toast-visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      el.toast.classList.remove('toast-visible');
+      setTimeout(() => { el.toast.hidden = true; }, 300);
+    }, 2800);
   }
 
   function createIdempotencyKey(scope) {
@@ -142,22 +185,23 @@
     if (mode === 'invoice') {
       el.paymentModeHint.textContent = 'Інвойс діє 24 години. Товар резервується після оформлення.';
       el.checkoutBtn.textContent = 'Виставити інвойс';
-      return;
+    } else {
+      el.paymentModeHint.textContent = 'Миттєве списання коштів після підтвердження замовлення.';
+      el.checkoutBtn.textContent = 'Оформити через ARM Bank';
     }
-    el.paymentModeHint.textContent = 'Миттєве списання коштів після підтвердження замовлення.';
-    el.checkoutBtn.textContent = 'Оформити через ARM Bank';
   }
 
+  /* ═══════════════════════════════════════
+     Product data enrichment
+     ═══════════════════════════════════════ */
   function inferCategory(product) {
     const badge = String(product?.badge || '').toUpperCase();
     if (badge && ['SALE', 'HOT', 'TOP', 'NEW', 'ARM DEAL'].includes(badge)) {
       return 'Акції ARM';
     }
-    const title = String(product?.title || '').toLowerCase();
-    const description = String(product?.description || '').toLowerCase();
-    const text = `${title} ${description}`;
+    const text = `${String(product?.title || '')} ${String(product?.description || '')}`.toLowerCase();
     for (const hint of CATEGORY_HINTS) {
-      if (hint.terms.some((term) => text.includes(term))) return hint.key;
+      if (hint.terms.some((t) => text.includes(t))) return hint.key;
     }
     return 'Товари для дому';
   }
@@ -178,6 +222,7 @@
       oldPrice,
       discountPercent,
       iconClass: CATEGORY_ICONS[category] || 'bi-bag',
+      thumbCat: CATEGORY_THUMB[category] || 'home',
     };
   }
 
@@ -185,14 +230,22 @@
     return state.products.find((p) => Number(p.id) === Number(id)) || null;
   }
 
+  /* ═══════════════════════════════════════
+     Cart logic
+     ═══════════════════════════════════════ */
   function getCartTotal() {
     let total = 0;
     for (const [id, qty] of state.cart.entries()) {
       const p = getProduct(id);
-      if (!p) continue;
-      total += Number(p.price || 0) * Number(qty || 0);
+      if (p) total += Number(p.price || 0) * Number(qty || 0);
     }
     return Number(total.toFixed(2));
+  }
+
+  function getCartCount() {
+    let count = 0;
+    for (const qty of state.cart.values()) count += qty;
+    return count;
   }
 
   function getCartPayload() {
@@ -202,16 +255,43 @@
     }));
   }
 
+  /* ═══════════════════════════════════════
+     Skeleton loading
+     ═══════════════════════════════════════ */
+  function renderSkeleton(count) {
+    if (!el.catalogGrid) return;
+    el.catalogGrid.innerHTML = '';
+    for (let i = 0; i < count; i++) {
+      const skel = document.createElement('div');
+      skel.className = 'rz-skeleton';
+      skel.setAttribute('aria-hidden', 'true');
+      skel.innerHTML = `
+        <div class="rz-skel-thumb"></div>
+        <div class="rz-skel-body">
+          <div class="rz-skel-line w60"></div>
+          <div class="rz-skel-line w80"></div>
+          <div class="rz-skel-line w40"></div>
+        </div>
+      `;
+      el.catalogGrid.appendChild(skel);
+    }
+  }
+
+  /* ═══════════════════════════════════════
+     Render: categories
+     ═══════════════════════════════════════ */
   function renderCategoryList() {
     if (!el.categoryList) return;
     const categories = ['all', ...TOP_CATEGORIES];
     el.categoryList.innerHTML = '';
-    for (const category of categories) {
+    for (const cat of categories) {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = `category-btn${state.activeCategory === category ? ' active' : ''}`;
-      btn.dataset.category = category;
-      btn.textContent = category === 'all' ? 'Усі товари' : category;
+      btn.className = `category-btn${state.activeCategory === cat ? ' active' : ''}`;
+      btn.dataset.category = cat;
+      btn.textContent = cat === 'all' ? 'Усі товари' : cat;
+      btn.setAttribute('role', 'option');
+      btn.setAttribute('aria-selected', state.activeCategory === cat ? 'true' : 'false');
       el.categoryList.appendChild(btn);
     }
   }
@@ -223,13 +303,14 @@
         : state.activeCategory;
     }
     if (!el.topCategoryNav) return;
-    const buttons = el.topCategoryNav.querySelectorAll('[data-top-category]');
-    buttons.forEach((btn) => {
-      const key = String(btn.dataset.topCategory || 'all');
-      btn.classList.toggle('active', key === state.activeCategory);
+    el.topCategoryNav.querySelectorAll('[data-top-category]').forEach((btn) => {
+      btn.classList.toggle('active', String(btn.dataset.topCategory || 'all') === state.activeCategory);
     });
   }
 
+  /* ═══════════════════════════════════════
+     Render: catalog
+     ═══════════════════════════════════════ */
   function getFilteredProducts() {
     const q = String(el.catalogSearch?.value || '').trim().toLowerCase();
     const sort = String(el.catalogSort?.value || 'popular');
@@ -237,38 +318,30 @@
     let list = [...state.products];
     if (state.activeCategory !== 'all') {
       if (state.activeCategory === 'Акції ARM') {
-        list = list.filter((p) => String(p.category || '') === 'Акції ARM' || ['SALE', 'HOT', 'TOP', 'NEW', 'ARM DEAL'].includes(String(p.badge || '').toUpperCase()));
+        list = list.filter((p) => p.category === 'Акції ARM' || ['SALE', 'HOT', 'TOP', 'NEW', 'ARM DEAL'].includes(String(p.badge || '').toUpperCase()));
       } else {
         list = list.filter((p) => p.category === state.activeCategory);
       }
     }
     if (q) {
-      list = list.filter((p) => {
-        const hay = `${String(p.title || '')} ${String(p.description || '')}`.toLowerCase();
-        return hay.includes(q);
-      });
+      list = list.filter((p) => `${String(p.title || '')} ${String(p.description || '')}`.toLowerCase().includes(q));
     }
-    if (sort === 'cheap') {
-      list.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
-    } else if (sort === 'expensive') {
-      list.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
-    } else if (sort === 'title') {
-      list.sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'uk'));
-    } else if (sort === 'rating') {
-      list.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
-    } else {
-      list.sort((a, b) => Number(b.reviews || 0) - Number(a.reviews || 0));
-    }
+
+    if (sort === 'cheap') list.sort((a, b) => Number(a.price) - Number(b.price));
+    else if (sort === 'expensive') list.sort((a, b) => Number(b.price) - Number(a.price));
+    else if (sort === 'title') list.sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'uk'));
+    else if (sort === 'rating') list.sort((a, b) => Number(b.rating) - Number(a.rating));
+    else list.sort((a, b) => Number(b.reviews) - Number(a.reviews));
+
     return list;
   }
 
   function renderCatalog() {
     if (!el.catalogGrid) return;
     const products = getFilteredProducts();
-    if (el.catalogCount) {
-      el.catalogCount.textContent = `${products.length} товарів`;
-    }
+    if (el.catalogCount) el.catalogCount.textContent = `${products.length} товарів`;
     syncTopCategoryUI();
+
     el.catalogGrid.innerHTML = '';
     if (!products.length) {
       el.catalogGrid.innerHTML = '<p>Нічого не знайдено за обраними фільтрами.</p>';
@@ -277,37 +350,53 @@
 
     for (const item of products) {
       const inStock = Number(item.stock || 0) > 0;
-      const product = document.createElement('article');
-      product.className = 'rz-product';
-      product.innerHTML = `
-        <div class="rz-thumb">
+      const badge = String(item.badge || '').toUpperCase();
+      const card = document.createElement('article');
+      card.className = 'rz-product';
+      card.setAttribute('role', 'listitem');
+
+      card.innerHTML = `
+        <div class="rz-thumb" data-cat="${item.thumbCat}">
           <span class="rz-thumb-brand">ARM</span>
           <i class="bi ${item.iconClass}" aria-hidden="true"></i>
-          <span class="rz-discount">-${item.discountPercent}%</span>
+          ${item.discountPercent >= 5 ? `<span class="rz-discount">-${item.discountPercent}%</span>` : ''}
         </div>
         <div class="rz-content">
-          <span class="rz-product-category">${item.badge ? item.badge : item.category}</span>
+          ${badge ? `<span class="rz-badge" data-badge="${badge}">${badge}</span>` : `<span class="rz-product-category">${item.category}</span>`}
           <h3 class="rz-title">${item.title || 'Товар'}</h3>
           <div class="rz-meta">
-            <span class="rz-rating">${item.rating.toFixed(1)} / 5</span>
+            <span class="rz-rating">
+              <span class="rz-stars" aria-label="Рейтинг ${item.rating} з 5">${renderStars(item.rating)}</span>
+              ${item.rating.toFixed(1)}
+            </span>
             <span>${item.reviews} відгуків</span>
           </div>
           <div class="rz-meta">
-            <span class="rz-stock ${inStock ? '' : 'out'}">${inStock ? 'Є в наявності' : 'Немає в наявності'}</span>
-            <span>${item.category}</span>
+            <span class="rz-stock${inStock ? '' : ' out'}">${inStock ? 'В наявності' : 'Немає'}</span>
           </div>
           <div class="rz-price-wrap">
             <div>
-              <div class="rz-price-main">${formatMoney(Number(item.price || 0))}</div>
-              <div class="rz-price-old">${formatMoney(Number(item.oldPrice || 0))}</div>
+              <div class="rz-price-main">${formatMoney(item.price)}</div>
+              ${item.discountPercent >= 5 ? `<div class="rz-price-old">${formatMoney(item.oldPrice)}</div>` : ''}
             </div>
-            <button class="btn btn-add" data-add-id="${item.id}" type="button" ${inStock ? '' : 'disabled'}>
-              Купити
+            <button class="btn btn-add" data-add-id="${item.id}" type="button" ${inStock ? '' : 'disabled'} aria-label="Додати ${item.title} до кошика">
+              <i class="bi bi-plus" aria-hidden="true"></i>
             </button>
           </div>
         </div>
       `;
-      el.catalogGrid.appendChild(product);
+      el.catalogGrid.appendChild(card);
+    }
+  }
+
+  /* ═══════════════════════════════════════
+     Render: cart
+     ═══════════════════════════════════════ */
+  function updateCartBadge() {
+    const count = getCartCount();
+    if (el.cartBadge) {
+      el.cartBadge.textContent = count > 0 ? String(count) : '';
+      el.cartBadge.dataset.count = String(count);
     }
   }
 
@@ -315,9 +404,9 @@
     if (!el.cartItems) return;
     const entries = Array.from(state.cart.entries());
     el.cartItems.innerHTML = '';
-    if (el.cartEmpty) {
-      el.cartEmpty.style.display = entries.length ? 'none' : 'block';
-    }
+
+    if (el.cartEmpty) el.cartEmpty.style.display = entries.length ? 'none' : '';
+
     for (const [id, qty] of entries) {
       const item = getProduct(id);
       if (!item) continue;
@@ -326,24 +415,27 @@
       row.innerHTML = `
         <div>
           <div class="cart-item-name">${item.title}</div>
-          <div class="cart-item-meta">${formatMoney(Number(item.price || 0))}</div>
+          <div class="cart-item-meta">${formatMoney(item.price)} \u00d7 ${qty}</div>
         </div>
-        <div>
-          <div class="qty-controls">
-            <button class="qty-btn" type="button" data-dec-id="${item.id}">−</button>
-            <strong>${qty}</strong>
-            <button class="qty-btn" type="button" data-inc-id="${item.id}">+</button>
-          </div>
+        <div class="qty-controls">
+          <button class="qty-btn" type="button" data-dec-id="${item.id}" aria-label="Зменшити">−</button>
+          <strong>${qty}</strong>
+          <button class="qty-btn" type="button" data-inc-id="${item.id}" aria-label="Збільшити">+</button>
         </div>
       `;
       el.cartItems.appendChild(row);
     }
+
     const total = getCartTotal();
     if (el.cartTotal) el.cartTotal.textContent = formatMoney(total);
     if (el.checkoutBtn) el.checkoutBtn.disabled = !state.authenticated || total <= 0;
+    updateCartBadge();
   }
 
-  function setGuestMode(reason = '') {
+  /* ═══════════════════════════════════════
+     Auth modes
+     ═══════════════════════════════════════ */
+  function setGuestMode(reason) {
     state.authenticated = false;
     state.orders = [];
     if (el.loginToBank) el.loginToBank.hidden = false;
@@ -366,6 +458,9 @@
     if (el.guestBanner) el.guestBanner.hidden = true;
   }
 
+  /* ═══════════════════════════════════════
+     Render: orders
+     ═══════════════════════════════════════ */
   function renderOrders() {
     if (!el.ordersList) return;
     el.ordersList.innerHTML = '';
@@ -375,30 +470,27 @@
       return;
     }
     if (el.ordersCount) el.ordersCount.textContent = String(state.orders.length);
+
     for (const order of state.orders) {
       const status = String(order.status || 'paid');
-      const badgeClass = status === 'paid'
-        ? 'paid'
-        : (status === 'awaiting_payment' ? 'awaiting' : 'expired');
+      const badgeClass = status === 'paid' ? 'paid' : (status === 'awaiting_payment' ? 'awaiting' : 'expired');
       const statusLabel = ORDER_STATUS_LABELS[status] || status;
-      const invoiceLabel = order.invoice_number
-        ? `Інвойс: ${order.invoice_number}`
-        : 'Без інвойсу';
-      const dueLabel = order.invoice_due_at
-        ? `до ${new Date(order.invoice_due_at).toLocaleString('uk-UA')}`
-        : '';
+      const invoiceLabel = order.invoice_number ? `Інвойс: ${order.invoice_number}` : '';
+      const dueLabel = order.invoice_due_at ? `до ${new Date(order.invoice_due_at).toLocaleString('uk-UA')}` : '';
       const canPay = status === 'awaiting_payment' && order.invoice_number;
+
       const node = document.createElement('article');
       node.className = 'order-item';
+      node.setAttribute('role', 'listitem');
       node.innerHTML = `
         <div class="order-main">
-          <strong>Замовлення #${order.id}</strong><br/>
+          <strong>Замовлення #${order.id}</strong>
           <small>${new Date(order.created_at).toLocaleString('uk-UA')}</small>
           <span class="order-status ${badgeClass}">${statusLabel}</span>
-          <small>${invoiceLabel} ${dueLabel}</small>
+          ${invoiceLabel ? `<small>${invoiceLabel} ${dueLabel}</small>` : ''}
         </div>
         <div class="order-actions">
-          <strong>${formatMoney(Number(order.total_amount || 0))}</strong><br/>
+          <strong>${formatMoney(Number(order.total_amount || 0))}</strong>
           <small>${order.items_count} позицій</small>
           ${canPay ? `<button class="order-pay-btn" data-invoice-pay="${order.invoice_number}" type="button">Оплатити інвойс</button>` : ''}
         </div>
@@ -407,6 +499,9 @@
     }
   }
 
+  /* ═══════════════════════════════════════
+     API calls
+     ═══════════════════════════════════════ */
   async function fetchCatalog() {
     try {
       const data = await api.request('/api/marketplace/catalog');
@@ -436,6 +531,9 @@
     renderOrders();
   }
 
+  /* ═══════════════════════════════════════
+     Checkout
+     ═══════════════════════════════════════ */
   async function checkout(event) {
     event.preventDefault();
     if (!state.authenticated) {
@@ -460,8 +558,9 @@
     const oldText = el.checkoutBtn ? el.checkoutBtn.textContent : '';
     if (el.checkoutBtn) {
       el.checkoutBtn.disabled = true;
-      el.checkoutBtn.textContent = 'Оформлення...';
+      el.checkoutBtn.textContent = 'Оформлення\u2026';
     }
+
     try {
       const data = await api.request('/api/marketplace/checkout', {
         method: 'POST',
@@ -494,10 +593,8 @@
     const key = String(invoiceNumber || '').trim();
     if (!key) return;
     const prevText = btn ? btn.textContent : '';
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = 'Оплата...';
-    }
+    if (btn) { btn.disabled = true; btn.textContent = 'Оплата\u2026'; }
+
     const idempotencyKey = createIdempotencyKey(`invoice-${key}`);
     try {
       const data = await api.request(`/api/marketplace/invoice/${encodeURIComponent(key)}/pay`, {
@@ -513,22 +610,22 @@
     } catch (err) {
       showToast(err?.serverMessage || err?.message || 'Не вдалося оплатити інвойс', true);
     } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = prevText || 'Оплатити інвойс';
-      }
+      if (btn) { btn.disabled = false; btn.textContent = prevText || 'Оплатити інвойс'; }
     }
   }
 
+  /* ═══════════════════════════════════════
+     Event handlers
+     ═══════════════════════════════════════ */
   function onCatalogClick(event) {
     const addBtn = event.target.closest('[data-add-id]');
     if (!addBtn) return;
     const id = Number(addBtn.dataset.addId);
     const product = getProduct(id);
     if (!product || Number(product.stock || 0) <= 0) return;
-    const current = state.cart.get(id) || 0;
-    state.cart.set(id, current + 1);
+    state.cart.set(id, (state.cart.get(id) || 0) + 1);
     renderCart();
+    showToast(`${product.title} додано до кошика`);
   }
 
   function onCartClick(event) {
@@ -564,26 +661,37 @@
     setFiltersOpen(false);
   }
 
+  /* ═══════════════════════════════════════
+     Bind events
+     ═══════════════════════════════════════ */
   function bindEvents() {
-    el.backToBank?.addEventListener('click', () => {
-      window.location.href = getBankPath();
+    el.backToBank?.addEventListener('click', () => { window.location.href = getBankPath(); });
+    el.loginToBank?.addEventListener('click', () => { window.location.href = getBankPath(); });
+
+    el.cartHeaderBtn?.addEventListener('click', () => {
+      document.querySelector('.rz-cart')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
-    el.loginToBank?.addEventListener('click', () => {
-      window.location.href = getBankPath();
-    });
+
     el.catalogGrid?.addEventListener('click', onCatalogClick);
     el.cartItems?.addEventListener('click', onCartClick);
     el.checkoutForm?.addEventListener('submit', checkout);
     el.paymentMode?.addEventListener('change', updatePaymentModeHint);
-    el.catalogSearch?.addEventListener('input', renderCatalog);
+
+    let searchTimer = 0;
+    el.catalogSearch?.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(renderCatalog, 200);
+    });
+
     el.catalogSort?.addEventListener('change', renderCatalog);
     el.filterReset?.addEventListener('click', resetFilters);
     el.ordersList?.addEventListener('click', onOrdersClick);
+
     el.toggleFilters?.addEventListener('click', () => {
-      const isOpen = document.body.classList.contains('filters-open');
-      setFiltersOpen(!isOpen);
+      setFiltersOpen(!document.body.classList.contains('filters-open'));
     });
     el.filtersBackdrop?.addEventListener('click', () => setFiltersOpen(false));
+
     el.categoryList?.addEventListener('click', (event) => {
       const btn = event.target.closest('.category-btn');
       if (!btn) return;
@@ -592,6 +700,7 @@
       renderCatalog();
       setFiltersOpen(false);
     });
+
     el.topCategoryNav?.addEventListener('click', (event) => {
       const btn = event.target.closest('[data-top-category]');
       if (!btn) return;
@@ -600,14 +709,20 @@
       renderCatalog();
       setFiltersOpen(false);
     });
+
     window.addEventListener('resize', () => {
       if (!isMobileFiltersMode()) setFiltersOpen(false);
     });
   }
 
+  /* ═══════════════════════════════════════
+     Init
+     ═══════════════════════════════════════ */
   async function init() {
     bindEvents();
     updatePaymentModeHint();
+    renderSkeleton(8);
+
     try {
       await fetchCatalog();
       if (api?.token) {
