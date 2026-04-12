@@ -88,3 +88,63 @@ def test_marketplace_invoice_flow(client):
     assert first['invoice_number'] == invoice_number
     assert first['status'] == 'paid'
 
+
+def test_marketplace_pay_now_uses_authorization_and_idempotency(client):
+    uid_user = _uid()
+    uid_admin = _uid()
+    user_id, user_token = _register(client, uid_user)
+    admin_id, admin_token = _register(client, uid_admin)
+    UserRepository().update_role(admin_id, 'admin')
+
+    user_h = {'Authorization': f'Bearer {user_token}', 'Idempotency-Key': 'market-pay-now-test-1'}
+    admin_h = {'Authorization': f'Bearer {admin_token}'}
+
+    catalog = client.get('/api/marketplace/catalog').get_json()['data']['items']
+    item = catalog[1]
+    _fund(client, admin_h, user_id, float(item['price']) + 1000)
+
+    body = {
+        'items': [{'product_id': int(item['id']), 'qty': 1}],
+        'shipping_name': 'Іван Тестовий',
+        'shipping_phone': '+380501112233',
+        'shipping_address': 'м. Київ, вул. Тестова, 1',
+        'payment_mode': 'pay_now',
+    }
+    first = client.post('/api/marketplace/checkout', headers=user_h, json=body)
+    assert first.status_code == 200
+    first_data = first.get_json()['data']
+    auth = first_data['payment_authorization']
+    assert first_data['status'] == 'paid'
+    assert first_data['payment_tx_id'] > 0
+    assert auth['status'] == 'captured'
+    assert auth['response_code'] == '00'
+    assert auth['authorization_code'].startswith('AUTH-')
+
+    replay = client.post('/api/marketplace/checkout', headers=user_h, json=body)
+    assert replay.status_code == 200
+    replay_data = replay.get_json()['data']
+    assert replay_data['order_id'] == first_data['order_id']
+    assert replay_data['payment_tx_id'] == first_data['payment_tx_id']
+
+
+def test_marketplace_pay_now_declines_with_card_like_response(client):
+    uid_user = _uid()
+    user_id, user_token = _register(client, uid_user)
+    user_h = {'Authorization': f'Bearer {user_token}', 'Idempotency-Key': 'market-pay-now-decline-1'}
+
+    catalog = client.get('/api/marketplace/catalog').get_json()['data']['items']
+    item = catalog[-1]
+    decline = client.post('/api/marketplace/checkout', headers=user_h, json={
+        'items': [{'product_id': int(item['id']), 'qty': 1}],
+        'shipping_name': 'Іван Тестовий',
+        'shipping_phone': '+380501112233',
+        'shipping_address': 'м. Київ, вул. Тестова, 1',
+        'payment_mode': 'pay_now',
+    })
+    assert decline.status_code == 409
+    data = decline.get_json()
+    assert data['ok'] is False
+    auth = data['data']['payment_authorization']
+    assert auth['status'] == 'declined'
+    assert auth['response_code'] == '51'
+    assert auth['authorization_code'].startswith('AUTH-')

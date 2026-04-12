@@ -1,16 +1,25 @@
 """Маршрути маркетплейсу ARM Bank."""
 from __future__ import annotations
 
-from datetime import datetime
+import json
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
 from flask import Blueprint, g, jsonify, request
 
 from ..database import get_connection, get_returning_id_suffix, insert_last_id
-from .helpers import api_error, auth_required
+from ..services.idempotency_service import IdempotencyService
+from .helpers import api_error, auth_required, require_idempotency_key
 
 marketplace_bp = Blueprint('marketplace', __name__, url_prefix='/api/marketplace')
+idempotency_service = IdempotencyService()
+
+
+APPROVED_CODE = '00'
+INSUFFICIENT_FUNDS_CODE = '51'
+INVALID_ACCOUNT_CODE = '14'
+PROCESSING_ERROR_CODE = '96'
 
 
 def _now_sql() -> str:
@@ -37,6 +46,41 @@ def _generate_invoice_number() -> str:
     return f"INV-{stamp}-{uuid4().hex[:6].upper()}"
 
 
+def _generate_auth_code() -> str:
+    return f"AUTH-{uuid4().hex[:10].upper()}"
+
+
+def _complete_idempotency_in_conn(
+    conn: Any,
+    *,
+    user_id: int,
+    action: str,
+    key: str | None,
+    response_payload: dict[str, Any],
+    response_code: int,
+) -> None:
+    if not key:
+        return
+    conn.execute(
+        """
+        UPDATE api_idempotency
+        SET status = 'completed',
+            response_code = %s,
+            response_payload = %s,
+            updated_at = %s
+        WHERE user_id = %s AND action = %s AND idempotency_key = %s
+        """,
+        (
+            int(response_code),
+            json.dumps(response_payload, ensure_ascii=False),
+            datetime.now(timezone.utc).isoformat(),
+            user_id,
+            action,
+            key,
+        ),
+    )
+
+
 def _generate_unique_invoice_number(conn: Any) -> str:
     for _ in range(10):
         candidate = _generate_invoice_number()
@@ -52,6 +96,7 @@ def _generate_unique_invoice_number(conn: Any) -> str:
 def _ensure_schema() -> None:
     now_sql = _now_sql()
     from ..config import USE_PG
+    pk_sql = 'SERIAL PRIMARY KEY' if USE_PG else 'INTEGER PRIMARY KEY'
     due_sql = _due_at_sql(24) if USE_PG else 'CURRENT_TIMESTAMP'
     with get_connection() as conn:
         conn.execute(
@@ -133,11 +178,53 @@ def _ensure_schema() -> None:
         conn.execute('CREATE INDEX IF NOT EXISTS idx_marketplace_invoices_user ON marketplace_invoices(user_id, created_at)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_marketplace_invoices_status ON marketplace_invoices(status, due_at)')
 
+        conn.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS marketplace_payment_authorizations (
+                id {pk_sql},
+                authorization_code VARCHAR(40) UNIQUE NOT NULL,
+                idempotency_key VARCHAR(128),
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                order_id INTEGER REFERENCES marketplace_orders(id) ON DELETE SET NULL,
+                invoice_number VARCHAR(40),
+                amount NUMERIC(14,2) NOT NULL CHECK(amount >= 0),
+                currency VARCHAR(6) NOT NULL DEFAULT 'UAH',
+                payment_network VARCHAR(20) NOT NULL DEFAULT 'ARM_PAY',
+                merchant_id VARCHAR(40) NOT NULL DEFAULT 'ARM-MARKETPLACE',
+                merchant_name VARCHAR(80) NOT NULL DEFAULT 'ARM Marketplace',
+                status VARCHAR(20) NOT NULL DEFAULT 'authorized',
+                response_code VARCHAR(8) NOT NULL DEFAULT '00',
+                decline_reason TEXT,
+                balance_before NUMERIC(14,2) NOT NULL DEFAULT 0,
+                balance_after NUMERIC(14,2),
+                payment_tx_id INTEGER REFERENCES transactions(id) ON DELETE SET NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT {now_sql},
+                captured_at TIMESTAMP,
+                reversed_at TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            'CREATE INDEX IF NOT EXISTS idx_marketplace_payment_auth_user '
+            'ON marketplace_payment_authorizations(user_id, created_at)'
+        )
+        conn.execute(
+            'CREATE INDEX IF NOT EXISTS idx_marketplace_payment_auth_invoice '
+            'ON marketplace_payment_authorizations(invoice_number)'
+        )
+        conn.execute(
+            'CREATE INDEX IF NOT EXISTS idx_marketplace_payment_auth_status '
+            'ON marketplace_payment_authorizations(status)'
+        )
+
         # Backward-compatible migrations for old DBs
         _safe_add_column(conn, 'marketplace_orders', "payment_mode VARCHAR(20) NOT NULL DEFAULT 'pay_now'")
         _safe_add_column(conn, 'marketplace_orders', 'invoice_number VARCHAR(40)')
         _safe_add_column(conn, 'marketplace_orders', "invoice_status VARCHAR(20) NOT NULL DEFAULT 'paid'")
         _safe_add_column(conn, 'marketplace_orders', 'invoice_due_at TIMESTAMP')
+        _safe_add_column(conn, 'marketplace_orders', 'payment_auth_id INTEGER')
+        _safe_add_column(conn, 'marketplace_invoices', 'payment_auth_id INTEGER')
 
         products = [
             ('arm-hoodie', 'ARM Hoodie', 'Преміум худі зі щільної бавовни', 2499.00, '🧥', 'NEW', 40),
@@ -392,6 +479,226 @@ def _to_payload_order(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _auth_payload(row: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not row:
+        return None
+    return {
+        'id': int(row.get('id') or 0),
+        'authorization_code': row.get('authorization_code'),
+        'payment_network': row.get('payment_network') or 'ARM_PAY',
+        'merchant_id': row.get('merchant_id') or 'ARM-MARKETPLACE',
+        'merchant_name': row.get('merchant_name') or 'ARM Marketplace',
+        'status': row.get('status') or 'authorized',
+        'response_code': row.get('response_code') or APPROVED_CODE,
+        'decline_reason': row.get('decline_reason'),
+        'amount': float(row.get('amount') or 0),
+        'currency': row.get('currency') or 'UAH',
+        'balance_before': float(row.get('balance_before') or 0),
+        'balance_after': (
+            None if row.get('balance_after') is None else float(row.get('balance_after') or 0)
+        ),
+        'payment_tx_id': int(row.get('payment_tx_id') or 0),
+        'created_at': row.get('created_at'),
+        'captured_at': row.get('captured_at'),
+        'reversed_at': row.get('reversed_at'),
+    }
+
+
+def _select_authorization(conn: Any, auth_id: int | None = None, auth_code: str | None = None) -> dict[str, Any] | None:
+    if auth_id:
+        row = conn.execute(
+            'SELECT * FROM marketplace_payment_authorizations WHERE id = %s LIMIT 1',
+            (int(auth_id),),
+        ).fetchone()
+    elif auth_code:
+        row = conn.execute(
+            'SELECT * FROM marketplace_payment_authorizations WHERE authorization_code = %s LIMIT 1',
+            (str(auth_code),),
+        ).fetchone()
+    else:
+        row = None
+    return dict(row) if row else None
+
+
+def _create_declined_authorization(
+    conn: Any,
+    *,
+    user_id: int,
+    account: dict[str, Any],
+    amount: float,
+    invoice_number: str,
+    response_code: str,
+    decline_reason: str,
+    idempotency_key: str | None = None,
+    payment_network: str = 'ARM_PAY',
+) -> dict[str, Any]:
+    suffix = get_returning_id_suffix()
+    auth_code = _generate_auth_code()
+    cur = conn.execute(
+        """
+        INSERT INTO marketplace_payment_authorizations
+        (authorization_code, idempotency_key, user_id, account_id, invoice_number, amount, currency,
+         payment_network, status, response_code, decline_reason, balance_before)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'declined', %s, %s, %s)
+        """
+        + suffix,
+        (
+            auth_code,
+            idempotency_key,
+            user_id,
+            int(account.get('id') or 0),
+            invoice_number,
+            float(amount),
+            str(account.get('currency') or 'UAH'),
+            payment_network,
+            response_code,
+            decline_reason,
+            float(account.get('balance') or 0),
+        ),
+    )
+    auth_id = insert_last_id(cur)
+    return _select_authorization(conn, auth_id=int(auth_id or 0)) or {'id': auth_id, 'authorization_code': auth_code}
+
+
+def _authorize_and_capture_payment(
+    conn: Any,
+    *,
+    user_id: int,
+    account: dict[str, Any],
+    amount: float,
+    invoice_number: str,
+    tx_type: str,
+    description: str,
+    order_id: int | None = None,
+    idempotency_key: str | None = None,
+    payment_network: str = 'ARM_PAY',
+) -> dict[str, Any]:
+    """Authorize and capture one marketplace payment.
+
+    Mirrors card processing semantics:
+    1. authorization record gets approved/declined response code;
+    2. approved authorization is captured by atomic account debit;
+    3. failed capture reverses the authorization instead of leaving a paid order.
+    """
+    if amount <= 0:
+        auth = _create_declined_authorization(
+            conn,
+            user_id=user_id,
+            account=account,
+            amount=amount,
+            invoice_number=invoice_number,
+            response_code=PROCESSING_ERROR_CODE,
+            decline_reason='Некоректна сума платежу.',
+            idempotency_key=idempotency_key,
+            payment_network=payment_network,
+        )
+        return {'approved': False, 'status_code': 400, 'error': 'Некоректна сума платежу.', 'authorization': auth}
+
+    account_id = int(account.get('id') or 0)
+    balance_before = float(account.get('balance') or 0)
+    if account_id <= 0:
+        auth = _create_declined_authorization(
+            conn,
+            user_id=user_id,
+            account=account,
+            amount=amount,
+            invoice_number=invoice_number,
+            response_code=INVALID_ACCOUNT_CODE,
+            decline_reason='Банківський рахунок не знайдено.',
+            idempotency_key=idempotency_key,
+            payment_network=payment_network,
+        )
+        return {'approved': False, 'status_code': 404, 'error': 'Банківський рахунок не знайдено.', 'authorization': auth}
+
+    if balance_before < amount:
+        auth = _create_declined_authorization(
+            conn,
+            user_id=user_id,
+            account=account,
+            amount=amount,
+            invoice_number=invoice_number,
+            response_code=INSUFFICIENT_FUNDS_CODE,
+            decline_reason='Недостатньо коштів на рахунку.',
+            idempotency_key=idempotency_key,
+            payment_network=payment_network,
+        )
+        return {'approved': False, 'status_code': 409, 'error': 'Недостатньо коштів на рахунку.', 'authorization': auth}
+
+    suffix = get_returning_id_suffix()
+    auth_code = _generate_auth_code()
+    auth_cur = conn.execute(
+        """
+        INSERT INTO marketplace_payment_authorizations
+        (authorization_code, idempotency_key, user_id, account_id, order_id, invoice_number, amount, currency,
+         payment_network, status, response_code, balance_before)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'authorized', %s, %s)
+        """
+        + suffix,
+        (
+            auth_code,
+            idempotency_key,
+            user_id,
+            account_id,
+            order_id,
+            invoice_number,
+            float(amount),
+            str(account.get('currency') or 'UAH'),
+            payment_network,
+            APPROVED_CODE,
+            balance_before,
+        ),
+    )
+    auth_id = int(insert_last_id(auth_cur) or 0)
+
+    cur_debit = conn.execute(
+        "UPDATE accounts SET balance = balance - %s "
+        "WHERE id = %s AND user_id = %s AND status = 'active' AND balance >= %s",
+        (float(amount), account_id, user_id, float(amount)),
+    )
+    if getattr(cur_debit, 'rowcount', 0) == 0:
+        conn.execute(
+            "UPDATE marketplace_payment_authorizations "
+            "SET status = 'reversed', response_code = %s, decline_reason = %s, reversed_at = "
+            + _now_sql()
+            + " WHERE id = %s",
+            (INSUFFICIENT_FUNDS_CODE, 'Баланс змінився до capture.', auth_id),
+        )
+        auth = _select_authorization(conn, auth_id=auth_id)
+        return {'approved': False, 'status_code': 409, 'error': 'Недостатньо коштів на рахунку.', 'authorization': auth}
+
+    updated = conn.execute(
+        'SELECT balance FROM accounts WHERE id = %s LIMIT 1',
+        (account_id,),
+    ).fetchone()
+    new_balance = float((updated or {}).get('balance') or 0)
+
+    tx_cur = conn.execute(
+        """
+        INSERT INTO transactions(account_id, tx_type, direction, amount, description, related_account)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        + suffix,
+        (account_id, tx_type, 'out', float(amount), description, 'ARM-MARKETPLACE'),
+    )
+    payment_tx_id = int(insert_last_id(tx_cur) or 0)
+
+    conn.execute(
+        "UPDATE marketplace_payment_authorizations "
+        "SET status = 'captured', balance_after = %s, payment_tx_id = %s, captured_at = "
+        + _now_sql()
+        + " WHERE id = %s",
+        (new_balance, payment_tx_id, auth_id),
+    )
+    auth = _select_authorization(conn, auth_id=auth_id)
+    return {
+        'approved': True,
+        'authorization': auth,
+        'payment_tx_id': payment_tx_id,
+        'new_balance': new_balance,
+        'authorization_code': auth_code,
+    }
+
+
 @marketplace_bp.get('/catalog')
 def catalog():
     _ensure_schema()
@@ -499,6 +806,7 @@ def get_invoice(invoice_number: str):
                 i.paid_at,
                 i.created_at,
                 i.payment_tx_id,
+                i.payment_auth_id,
                 o.shipping_name,
                 o.shipping_phone,
                 o.shipping_address,
@@ -524,6 +832,7 @@ def get_invoice(invoice_number: str):
             """,
             (int(inv['order_id']),),
         ).fetchall()
+        auth_row = _select_authorization(conn, auth_id=int(inv.get('payment_auth_id') or 0))
 
     inv_d = dict(inv)
     payload_items = []
@@ -548,6 +857,7 @@ def get_invoice(invoice_number: str):
         'paid_at': inv_d.get('paid_at'),
         'created_at': inv_d.get('created_at'),
         'payment_tx_id': int(inv_d.get('payment_tx_id') or 0),
+        'payment_authorization': _auth_payload(auth_row),
         'order_status': inv_d.get('order_status') or 'awaiting_payment',
         'payment_mode': inv_d.get('payment_mode') or 'invoice',
         'shipping': {
@@ -567,17 +877,35 @@ def get_invoice(invoice_number: str):
 def pay_invoice(invoice_number: str):
     _ensure_schema()
     user_id = int(g.current_user['id'])
+    payload = request.get_json(silent=True) or {}
+    idempotency_key, idem_err = require_idempotency_key(payload=payload, allow_body_fallback=True)
+    if idem_err:
+        return idem_err
+    idem_action = 'marketplace_invoice_pay'
+    if idempotency_key:
+        reservation = idempotency_service.reserve(
+            user_id=user_id,
+            action=idem_action,
+            key=idempotency_key,
+            payload={'invoice_number': invoice_number},
+        )
+        state = reservation.get('state')
+        if state == 'conflict':
+            return api_error('Idempotency-Key уже використано з іншим payload.', 409)
+        if state == 'replay':
+            return jsonify(reservation.get('payload') or {'ok': False}), int(reservation.get('response_code') or 200)
+        if state == 'processing':
+            return api_error('Операція вже виконується. Спробуйте пізніше.', 409)
+
     invoice_key = str(invoice_number or '').strip()
     if not invoice_key:
         return api_error('Не вказано номер інвойсу.')
-
-    suffix = get_returning_id_suffix()
 
     with get_connection() as conn:
         _expire_overdue_invoices(conn)
         inv = conn.execute(
             """
-            SELECT id, invoice_number, order_id, account_id, amount, currency, status, payment_tx_id
+            SELECT id, invoice_number, order_id, account_id, amount, currency, status, payment_tx_id, payment_auth_id
             FROM marketplace_invoices
             WHERE user_id = %s AND invoice_number = %s
             LIMIT 1
@@ -593,14 +921,26 @@ def pay_invoice(invoice_number: str):
                 'SELECT account_number, balance FROM accounts WHERE id = %s LIMIT 1',
                 (int(inv['account_id']),),
             ).fetchone()
-            return jsonify({'ok': True, 'data': {
+            auth = _select_authorization(conn, auth_id=int(inv.get('payment_auth_id') or 0))
+            response_payload = {'ok': True, 'data': {
                 'invoice_number': inv.get('invoice_number'),
                 'order_id': int(inv.get('order_id') or 0),
                 'status': 'paid',
                 'payment_tx_id': int(inv.get('payment_tx_id') or 0),
                 'new_balance': float((account or {}).get('balance') or 0),
                 'account_number': (account or {}).get('account_number'),
-            }})
+                'payment_authorization': _auth_payload(auth),
+            }}
+            if idempotency_key:
+                _complete_idempotency_in_conn(
+                    conn,
+                    user_id=user_id,
+                    action=idem_action,
+                    key=idempotency_key,
+                    response_payload=response_payload,
+                    response_code=200,
+                )
+            return jsonify(response_payload)
         if status in ('cancelled', 'expired'):
             return api_error('Інвойс недійсний або прострочений.', 409)
 
@@ -612,53 +952,66 @@ def pay_invoice(invoice_number: str):
             return api_error('Банківський рахунок не знайдено.', 404)
 
         amount = float(inv.get('amount') or 0)
-        balance = float(account.get('balance') or 0)
-        if balance < amount:
-            return api_error('Недостатньо коштів для оплати інвойсу.', 409)
-
-        new_balance = round(balance - amount, 2)
-        conn.execute('UPDATE accounts SET balance = %s WHERE id = %s', (new_balance, int(account['id'])))
-
-        tx_cur = conn.execute(
-            """
-            INSERT INTO transactions(account_id, tx_type, direction, amount, description, related_account)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            """
-            + suffix,
-            (
-                int(account['id']),
-                'marketplace_invoice',
-                'out',
-                amount,
-                f"Оплата інвойсу {inv.get('invoice_number')} у ARM Marketplace",
-                'ARM-MARKETPLACE',
-            ),
+        payment = _authorize_and_capture_payment(
+            conn,
+            user_id=user_id,
+            account=dict(account),
+            amount=amount,
+            invoice_number=str(inv.get('invoice_number') or invoice_key),
+            order_id=int(inv.get('order_id') or 0),
+            tx_type='marketplace_invoice',
+            description=f"Оплата інвойсу {inv.get('invoice_number')} у ARM Marketplace",
+            idempotency_key=idempotency_key,
+            payment_network=str(payload.get('payment_network') or 'ARM_PAY').strip().upper()[:20] or 'ARM_PAY',
         )
-        payment_tx_id = insert_last_id(tx_cur)
+        if not payment.get('approved'):
+            response_payload = {
+                'ok': False,
+                'error': payment.get('error') or 'Платіж відхилено.',
+                'data': {'payment_authorization': _auth_payload(payment.get('authorization'))},
+            }
+            if idempotency_key:
+                _complete_idempotency_in_conn(
+                    conn,
+                    user_id=user_id,
+                    action=idem_action,
+                    key=idempotency_key,
+                    response_payload=response_payload,
+                    response_code=int(payment.get('status_code') or 409),
+                )
+            return jsonify(response_payload), int(payment.get('status_code') or 409)
+
+        payment_tx_id = int(payment.get('payment_tx_id') or 0)
+        new_balance = float(payment.get('new_balance') or 0)
+        auth_id = int((payment.get('authorization') or {}).get('id') or 0)
 
         conn.execute(
             "UPDATE marketplace_invoices "
-            "SET status = 'paid', paid_at = " + _now_sql() + ", payment_tx_id = %s "
+            "SET status = 'paid', paid_at = " + _now_sql() + ", payment_tx_id = %s, payment_auth_id = %s "
             "WHERE id = %s",
-            (payment_tx_id, int(inv['id'])),
+            (payment_tx_id, auth_id, int(inv['id'])),
         )
         conn.execute(
             """
             UPDATE marketplace_orders
-            SET status = 'paid', invoice_status = 'paid', payment_tx_id = %s
+            SET status = 'paid', invoice_status = 'paid', payment_tx_id = %s, payment_auth_id = %s
             WHERE id = %s
             """,
-            (payment_tx_id, int(inv['order_id'])),
+            (payment_tx_id, auth_id, int(inv['order_id'])),
         )
 
-    return jsonify({'ok': True, 'data': {
+    response_payload = {'ok': True, 'data': {
         'invoice_number': inv.get('invoice_number'),
         'order_id': int(inv.get('order_id') or 0),
         'status': 'paid',
         'payment_tx_id': int(payment_tx_id or 0),
         'new_balance': float(new_balance),
         'account_number': account.get('account_number'),
-    }})
+        'payment_authorization': _auth_payload(payment.get('authorization')),
+    }}
+    if idempotency_key:
+        idempotency_service.complete(user_id, idem_action, idempotency_key, response_payload, 200)
+    return jsonify(response_payload)
 
 
 @marketplace_bp.post('/checkout')
@@ -693,6 +1046,35 @@ def checkout():
         if pid <= 0 or qty <= 0 or qty > 50:
             return api_error('Некоректна кількість товару.')
         requested[pid] = requested.get(pid, 0) + qty
+
+    idempotency_key, idem_err = require_idempotency_key(payload=payload, allow_body_fallback=True)
+    if idem_err:
+        return idem_err
+    idem_action = 'marketplace_checkout'
+    if idempotency_key:
+        reservation = idempotency_service.reserve(
+            user_id=user_id,
+            action=idem_action,
+            key=idempotency_key,
+            payload={
+                'items': sorted(
+                    [{'product_id': int(pid), 'qty': int(qty)} for pid, qty in requested.items()],
+                    key=lambda item: item['product_id'],
+                ),
+                'shipping_name': shipping_name,
+                'shipping_phone': shipping_phone,
+                'shipping_address': shipping_address,
+                'note': note,
+                'payment_mode': payment_mode,
+            },
+        )
+        state = reservation.get('state')
+        if state == 'conflict':
+            return api_error('Idempotency-Key уже використано з іншим payload.', 409)
+        if state == 'replay':
+            return jsonify(reservation.get('payload') or {'ok': False}), int(reservation.get('response_code') or 200)
+        if state == 'processing':
+            return api_error('Операція вже виконується. Спробуйте пізніше.', 409)
 
     product_ids = sorted(requested.keys())
     placeholders = ', '.join(['%s'] * len(product_ids))
@@ -740,43 +1122,54 @@ def checkout():
 
         account_balance = float(account.get('balance') or 0)
         payment_tx_id = None
+        payment_auth_id = None
+        payment_authorization = None
         new_balance = account_balance
         order_status = 'awaiting_payment' if payment_mode == 'invoice' else 'paid'
         invoice_status = 'issued' if payment_mode == 'invoice' else 'paid'
         invoice_due_at = None
+        invoice_number = _generate_unique_invoice_number(conn)
 
         if payment_mode == 'pay_now':
-            if account_balance < total_amount:
-                return api_error('Недостатньо коштів на рахунку.', 409)
-            new_balance = round(account_balance - total_amount, 2)
-            conn.execute('UPDATE accounts SET balance = %s WHERE id = %s', (new_balance, account['id']))
-
-            tx_cur = conn.execute(
-                """
-                INSERT INTO transactions(account_id, tx_type, direction, amount, description, related_account)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                """
-                + suffix,
-                (
-                    account['id'],
-                    'marketplace',
-                    'out',
-                    total_amount,
-                    'Оплата у ARM Marketplace',
-                    'ARM-MARKETPLACE',
-                ),
+            payment = _authorize_and_capture_payment(
+                conn,
+                user_id=user_id,
+                account=dict(account),
+                amount=total_amount,
+                invoice_number=invoice_number,
+                tx_type='marketplace',
+                description='Оплата у ARM Marketplace',
+                idempotency_key=idempotency_key,
+                payment_network=str(payload.get('payment_network') or 'ARM_PAY').strip().upper()[:20] or 'ARM_PAY',
             )
-            payment_tx_id = insert_last_id(tx_cur)
-
-        invoice_number = _generate_unique_invoice_number(conn)
+            payment_authorization = payment.get('authorization')
+            if not payment.get('approved'):
+                response_payload = {
+                    'ok': False,
+                    'error': payment.get('error') or 'Платіж відхилено.',
+                    'data': {'payment_authorization': _auth_payload(payment_authorization)},
+                }
+                if idempotency_key:
+                    _complete_idempotency_in_conn(
+                        conn,
+                        user_id=user_id,
+                        action=idem_action,
+                        key=idempotency_key,
+                        response_payload=response_payload,
+                        response_code=int(payment.get('status_code') or 409),
+                    )
+                return jsonify(response_payload), int(payment.get('status_code') or 409)
+            payment_tx_id = int(payment.get('payment_tx_id') or 0)
+            payment_auth_id = int((payment_authorization or {}).get('id') or 0)
+            new_balance = float(payment.get('new_balance') or account_balance)
 
         order_cur = conn.execute(
             """
             INSERT INTO marketplace_orders
-            (user_id, account_id, total_amount, currency, status, payment_mode, invoice_number, invoice_status, invoice_due_at, payment_tx_id, shipping_name, shipping_phone, shipping_address, note)
+            (user_id, account_id, total_amount, currency, status, payment_mode, invoice_number, invoice_status, invoice_due_at, payment_tx_id, payment_auth_id, shipping_name, shipping_phone, shipping_address, note)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, """
             + (_due_at_sql(24) if payment_mode == 'invoice' else 'NULL')
-            + ", %s, %s, %s, %s, %s)"
+            + ", %s, %s, %s, %s, %s, %s)"
             + suffix,
             (
                 user_id,
@@ -788,6 +1181,7 @@ def checkout():
                 invoice_number,
                 invoice_status,
                 payment_tx_id,
+                payment_auth_id,
                 shipping_name,
                 shipping_phone,
                 shipping_address,
@@ -795,6 +1189,12 @@ def checkout():
             ),
         )
         order_id = insert_last_id(order_cur)
+
+        if payment_auth_id:
+            conn.execute(
+                'UPDATE marketplace_payment_authorizations SET order_id = %s WHERE id = %s',
+                (order_id, payment_auth_id),
+            )
 
         # Reserve/consume stock immediately when order is created.
         for row in normalized_items:
@@ -813,12 +1213,12 @@ def checkout():
         inv_cur = conn.execute(
             """
             INSERT INTO marketplace_invoices
-            (invoice_number, order_id, user_id, account_id, amount, currency, status, due_at, paid_at, payment_tx_id)
+            (invoice_number, order_id, user_id, account_id, amount, currency, status, due_at, paid_at, payment_tx_id, payment_auth_id)
             VALUES (%s, %s, %s, %s, %s, %s, %s, """
             + (_due_at_sql(24) if payment_mode == 'invoice' else _now_sql())
             + ", "
             + (_now_sql() if payment_mode == 'pay_now' else 'NULL')
-            + ", %s)"
+            + ", %s, %s)"
             + suffix,
             (
                 invoice_number,
@@ -829,6 +1229,7 @@ def checkout():
                 str(account.get('currency') or 'UAH'),
                 invoice_status,
                 payment_tx_id,
+                payment_auth_id,
             ),
         )
         invoice_id = insert_last_id(inv_cur)
@@ -840,7 +1241,7 @@ def checkout():
             ).fetchone()
             invoice_due_at = (row_due or {}).get('due_at')
 
-    return jsonify({
+    response_payload = {
         'ok': True,
         'data': {
             'order_id': int(order_id or 0),
@@ -858,5 +1259,9 @@ def checkout():
             'items': normalized_items,
             'invoice_link': f"/api/marketplace/invoice/{invoice_number}",
             'pay_link': f"/api/marketplace/invoice/{invoice_number}/pay",
+            'payment_authorization': _auth_payload(payment_authorization),
         },
-    })
+    }
+    if idempotency_key:
+        idempotency_service.complete(user_id, idem_action, idempotency_key, response_payload, 200)
+    return jsonify(response_payload)

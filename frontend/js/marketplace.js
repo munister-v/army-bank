@@ -129,6 +129,13 @@
     showToast._timer = setTimeout(() => { el.toast.hidden = true; }, 2400);
   }
 
+  function createIdempotencyKey(scope) {
+    const randomPart = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    return `${scope}-${randomPart}`;
+  }
+
   function updatePaymentModeHint() {
     const mode = String(el.paymentMode?.value || 'pay_now');
     if (!el.paymentModeHint || !el.checkoutBtn) return;
@@ -441,11 +448,13 @@
       return;
     }
 
+    const idempotencyKey = createIdempotencyKey('market-checkout');
     const payload = {
       items,
       shipping_name: String(el.shippingName?.value || '').trim(),
       shipping_address: String(el.shippingAddress?.value || '').trim(),
       payment_mode: String(el.paymentMode?.value || 'pay_now'),
+      idempotency_key: idempotencyKey,
     };
 
     const oldText = el.checkoutBtn ? el.checkoutBtn.textContent : '';
@@ -456,6 +465,7 @@
     try {
       const data = await api.request('/api/marketplace/checkout', {
         method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify(payload),
       });
       state.cart.clear();
@@ -464,7 +474,10 @@
       if (String(data.payment_mode || '') === 'invoice') {
         showToast(`Інвойс ${data.invoice_number} створено. Оплатіть до 24 годин.`);
       } else {
-        showToast(`Замовлення #${data.order_id} успішно оформлено`);
+        const authCode = data.payment_authorization?.authorization_code;
+        showToast(authCode
+          ? `Оплату авторизовано (${authCode}). Замовлення #${data.order_id} оформлено`
+          : `Замовлення #${data.order_id} успішно оформлено`);
       }
     } catch (err) {
       showToast(err?.serverMessage || err?.message || 'Помилка оплати', true);
@@ -485,12 +498,18 @@
       btn.disabled = true;
       btn.textContent = 'Оплата...';
     }
+    const idempotencyKey = createIdempotencyKey(`invoice-${key}`);
     try {
       const data = await api.request(`/api/marketplace/invoice/${encodeURIComponent(key)}/pay`, {
         method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ idempotency_key: idempotencyKey }),
       });
       await Promise.all([fetchAccount(), fetchOrders()]);
-      showToast(`Інвойс ${data.invoice_number} оплачено`);
+      const authCode = data.payment_authorization?.authorization_code;
+      showToast(authCode
+        ? `Інвойс ${data.invoice_number} оплачено. Авторизація ${authCode}`
+        : `Інвойс ${data.invoice_number} оплачено`);
     } catch (err) {
       showToast(err?.serverMessage || err?.message || 'Не вдалося оплатити інвойс', true);
     } finally {
