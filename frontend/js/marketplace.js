@@ -1,9 +1,12 @@
 (function () {
-  const currencyFmt = new Intl.NumberFormat('uk-UA', {
-    style: 'currency',
-    currency: 'UAH',
+  const moneyFmt = new Intl.NumberFormat('uk-UA', {
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+
+  function formatMoney(value) {
+    return `₴${moneyFmt.format(Number(value || 0))}`;
+  }
 
   const TOP_CATEGORIES = [
     'Ноутбуки та комп’ютери',
@@ -120,7 +123,7 @@
   function showToast(message, isError = false) {
     if (!el.toast) return;
     el.toast.textContent = message;
-    el.toast.style.background = isError ? '#8e2b2b' : '#1f1f1f';
+    el.toast.style.background = isError ? '#8c1d29' : '#121a16';
     el.toast.hidden = false;
     clearTimeout(showToast._timer);
     showToast._timer = setTimeout(() => { el.toast.hidden = true; }, 2400);
@@ -267,7 +270,6 @@
 
     for (const item of products) {
       const inStock = Number(item.stock || 0) > 0;
-      const stars = '★★★★★'.slice(0, Math.floor(item.rating)) + '☆☆☆☆☆'.slice(0, Math.max(0, 5 - Math.floor(item.rating)));
       const product = document.createElement('article');
       product.className = 'rz-product';
       product.innerHTML = `
@@ -277,19 +279,20 @@
           <span class="rz-discount">-${item.discountPercent}%</span>
         </div>
         <div class="rz-content">
+          <span class="rz-product-category">${item.badge ? item.badge : item.category}</span>
           <h3 class="rz-title">${item.title || 'Товар'}</h3>
           <div class="rz-meta">
-            <span class="rz-stars">${stars}</span>
-            <span>${item.rating.toFixed(1)} · ${item.reviews}</span>
+            <span class="rz-rating">${item.rating.toFixed(1)} / 5</span>
+            <span>${item.reviews} відгуків</span>
           </div>
           <div class="rz-meta">
             <span class="rz-stock ${inStock ? '' : 'out'}">${inStock ? 'Є в наявності' : 'Немає в наявності'}</span>
-            <span>${item.badge ? item.badge : item.category}</span>
+            <span>${item.category}</span>
           </div>
           <div class="rz-price-wrap">
             <div>
-              <div class="rz-price-main">${currencyFmt.format(Number(item.price || 0))}</div>
-              <div class="rz-price-old">${currencyFmt.format(Number(item.oldPrice || 0))}</div>
+              <div class="rz-price-main">${formatMoney(Number(item.price || 0))}</div>
+              <div class="rz-price-old">${formatMoney(Number(item.oldPrice || 0))}</div>
             </div>
             <button class="btn btn-add" data-add-id="${item.id}" type="button" ${inStock ? '' : 'disabled'}>
               Купити
@@ -316,7 +319,7 @@
       row.innerHTML = `
         <div>
           <div class="cart-item-name">${item.title}</div>
-          <div class="cart-item-meta">${currencyFmt.format(Number(item.price || 0))}</div>
+          <div class="cart-item-meta">${formatMoney(Number(item.price || 0))}</div>
         </div>
         <div>
           <div class="qty-controls">
@@ -329,7 +332,7 @@
       el.cartItems.appendChild(row);
     }
     const total = getCartTotal();
-    if (el.cartTotal) el.cartTotal.textContent = currencyFmt.format(total);
+    if (el.cartTotal) el.cartTotal.textContent = formatMoney(total);
     if (el.checkoutBtn) el.checkoutBtn.disabled = !state.authenticated || total <= 0;
   }
 
@@ -388,7 +391,7 @@
           <small>${invoiceLabel} ${dueLabel}</small>
         </div>
         <div class="order-actions">
-          <strong>${currencyFmt.format(Number(order.total_amount || 0))}</strong><br/>
+          <strong>${formatMoney(Number(order.total_amount || 0))}</strong><br/>
           <small>${order.items_count} позицій</small>
           ${canPay ? `<button class="order-pay-btn" data-invoice-pay="${order.invoice_number}" type="button">Оплатити інвойс</button>` : ''}
         </div>
@@ -417,7 +420,7 @@
     const data = await api.request('/api/account');
     state.account = data;
     if (el.accountNumber) el.accountNumber.textContent = data.account_number || '—';
-    if (el.accountBalance) el.accountBalance.textContent = currencyFmt.format(Number(data.balance || 0));
+    if (el.accountBalance) el.accountBalance.textContent = formatMoney(Number(data.balance || 0));
   }
 
   async function fetchOrders() {
