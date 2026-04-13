@@ -373,7 +373,11 @@ def create_app() -> Flask:
         return send_html('messenger.html')
 
     @app.get(prefix + '/marketplace' if prefix else '/marketplace')
+    @app.get(prefix + '/marketplace/' if prefix else '/marketplace/')
     def marketplace_page():
+        react_build = FRONTEND_DIR / 'marketplace' / 'index.html'
+        if react_build.exists():
+            return send_from_directory(str(FRONTEND_DIR / 'marketplace'), 'index.html')
         return send_html('marketplace.html')
 
     @app.get(prefix + '/turn-test.html' if prefix else '/turn-test.html')
