@@ -503,7 +503,7 @@ export default function App() {
             </div>
             <div className="hidden md:block">
               <h1 className="text-2xl leading-none tracking-tighter">MARKET</h1>
-              <p className="text-[10px] font-mono font-bold tracking-widest text-slate-500 uppercase">SYS.VER.2.0.4</p>
+              <p className="text-[10px] font-mono font-bold tracking-widest text-black/50 uppercase">SYS.VER.2.0.4</p>
             </div>
           </div>
 
@@ -586,7 +586,7 @@ export default function App() {
             initial={{ opacity: 0, x: '100%' }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: '100%' }}
-            className="fixed inset-0 bg-white z-[60] pt-20 px-8"
+            className="fixed inset-0 bg-black text-white z-[60] pt-20 px-8"
           >
             <div className="flex flex-col gap-6">
               {CATEGORIES.map(cat => (
@@ -596,7 +596,7 @@ export default function App() {
                     setActiveCategory(cat);
                     setIsMobileMenuOpen(false);
                   }}
-                  className="text-4xl font-black uppercase tracking-tighter text-left hover:text-accent transition-colors"
+                  className="text-4xl font-black uppercase tracking-tighter text-left text-white hover:text-accent transition-colors"
                 >
                   {cat}
                 </button>
@@ -719,7 +719,7 @@ export default function App() {
             <div className="text-4xl font-mono font-black">01</div>
             <div className="relative z-10">
               <h4 className="text-sm font-black uppercase tracking-widest mb-1">Безпека</h4>
-              <p className="text-[10px] font-mono font-bold text-slate-500 group-hover:text-black transition-colors">SYS.SECURE.TX</p>
+              <p className="text-[10px] font-mono font-bold text-black/50 group-hover:text-black transition-colors">SYS.SECURE.TX</p>
             </div>
           </div>
           <div className="p-6 md:p-8 border-b-2 md:border-b-0 md:border-r-2 border-black flex items-center gap-6 group hover:bg-accent transition-colors relative overflow-hidden">
@@ -727,7 +727,7 @@ export default function App() {
             <div className="text-4xl font-mono font-black">02</div>
             <div className="relative z-10">
               <h4 className="text-sm font-black uppercase tracking-widest mb-1">Швидкість</h4>
-              <p className="text-[10px] font-mono font-bold text-slate-500 group-hover:text-black transition-colors">DELIVERY.24H</p>
+              <p className="text-[10px] font-mono font-bold text-black/50 group-hover:text-black transition-colors">DELIVERY.24H</p>
             </div>
           </div>
           <div className="p-6 md:p-8 flex items-center gap-6 group hover:bg-accent transition-colors relative overflow-hidden">
@@ -735,7 +735,7 @@ export default function App() {
             <div className="text-4xl font-mono font-black">03</div>
             <div className="relative z-10">
               <h4 className="text-sm font-black uppercase tracking-widest mb-1">Вигода</h4>
-              <p className="text-[10px] font-mono font-bold text-slate-500 group-hover:text-black transition-colors">0%_INSTALLMENT</p>
+              <p className="text-[10px] font-mono font-bold text-black/50 group-hover:text-black transition-colors">0%_INSTALLMENT</p>
             </div>
           </div>
         </section>
@@ -746,10 +746,10 @@ export default function App() {
             <div className="space-y-2">
               <p className="text-[10px] font-mono font-bold text-accent uppercase tracking-[0.2em]">// CATALOG.LOAD.COMPLETE</p>
               <h3 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter uppercase leading-none">
-                Каталог <br className="hidden sm:block" /> <span className="text-slate-300">Товарів</span>
+                Каталог <br className="hidden sm:block" /> <span className="text-black/25">Товарів</span>
               </h3>
             </div>
-            <div className="flex items-center gap-4 text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest">
+            <div className="flex items-center gap-4 text-[10px] font-mono font-bold text-black/50 uppercase tracking-widest">
               <span className="border-2 border-black px-3 py-2 bg-white">
                 {filteredProducts.length} / {products.length} ITEMS
               </span>
@@ -769,7 +769,7 @@ export default function App() {
                   "shrink-0 h-9 px-4 text-[10px] font-black uppercase tracking-widest border-2 border-black transition-all whitespace-nowrap",
                   activeCategory === cat
                     ? "bg-black text-white shadow-[2px_2px_0px_0px_#a8792a]"
-                    : "bg-white text-black hover:bg-slate-100"
+                    : "bg-white text-black hover:bg-black/5"
                 )}
               >
                 {cat}
@@ -789,7 +789,7 @@ export default function App() {
                 placeholder="ПОШУК ТОВАРІВ..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full py-6 pr-6 bg-transparent outline-none font-black uppercase tracking-widest text-sm placeholder:text-slate-400"
+                className="w-full py-6 pr-6 bg-transparent outline-none font-black uppercase tracking-widest text-sm placeholder:text-black/40"
               />
             </div>
             
@@ -802,7 +802,7 @@ export default function App() {
                     onClick={() => setActiveCategory(cat)}
                     className={cn(
                       "px-6 py-6 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                      activeCategory === cat ? "bg-black text-white" : "hover:bg-slate-100 text-black"
+                      activeCategory === cat ? "bg-black text-white" : "hover:bg-black/5 text-black"
                     )}
                   >
                     {cat}
@@ -812,7 +812,7 @@ export default function App() {
             </div>
 
             {/* Sort Dropdown */}
-            <div className="relative flex items-center min-w-[200px] bg-slate-50 border-b-2 lg:border-b-0 lg:border-r-2 border-black">
+            <div className="relative flex items-center min-w-[200px] bg-surface border-b-2 lg:border-b-0 lg:border-r-2 border-black">
               <select 
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
@@ -830,7 +830,7 @@ export default function App() {
               onClick={() => setIsFilterExpanded(!isFilterExpanded)}
               className={cn(
                 "px-6 py-6 flex items-center justify-center gap-2 font-black uppercase tracking-widest text-[10px] transition-colors",
-                isFilterExpanded ? "bg-black text-white" : "hover:bg-slate-100 bg-white text-black"
+                isFilterExpanded ? "bg-black text-white" : "hover:bg-black/5 bg-white text-black"
               )}
             >
               <Filter className="w-4 h-4" />
@@ -858,7 +858,7 @@ export default function App() {
                           placeholder="Від" 
                           value={minPrice}
                           onChange={(e) => setMinPrice(e.target.value)}
-                          className="w-full p-3 border-2 border-black text-sm font-bold outline-none focus:bg-slate-50"
+                          className="w-full p-3 border-2 border-black text-sm font-bold outline-none focus:bg-surface"
                         />
                         <span className="font-black">-</span>
                         <input 
@@ -866,7 +866,7 @@ export default function App() {
                           placeholder="До" 
                           value={maxPrice}
                           onChange={(e) => setMaxPrice(e.target.value)}
-                          className="w-full p-3 border-2 border-black text-sm font-bold outline-none focus:bg-slate-50"
+                          className="w-full p-3 border-2 border-black text-sm font-bold outline-none focus:bg-surface"
                         />
                       </div>
                     </div>
@@ -877,7 +877,7 @@ export default function App() {
                       <label className="flex items-center gap-3 cursor-pointer group">
                         <div className={cn(
                           "w-6 h-6 border-2 border-black flex items-center justify-center transition-colors",
-                          inStockOnly ? "bg-accent border-accent text-white" : "bg-white group-hover:bg-slate-100"
+                          inStockOnly ? "bg-accent border-accent text-white" : "bg-white group-hover:bg-black/5"
                         )}>
                           {inStockOnly && <div className="w-3 h-3 bg-white"></div>}
                         </div>
@@ -911,7 +911,7 @@ export default function App() {
             <div className="py-20 flex flex-col items-center justify-center text-center border-2 border-black bg-surface">
               <div className="text-6xl mb-6 opacity-50">📡</div>
               <h3 className="text-3xl font-black uppercase tracking-tighter mb-2">Сигнал втрачено</h3>
-              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest max-w-md mx-auto">
+              <p className="text-sm font-bold text-black/50 uppercase tracking-widest max-w-md mx-auto">
                 За вашими критеріями не знайдено жодного пристрою. Спробуйте змінити параметри фільтрації.
               </p>
               <button 
@@ -931,7 +931,7 @@ export default function App() {
                 >
                 {/* Tech Header */}
                 <div className="p-4 border-b-2 border-black flex justify-between items-center bg-surface">
-                  <span className="font-mono text-[10px] font-bold text-slate-500">ID.{product.id.padStart(4, '0')}</span>
+                  <span className="font-mono text-[10px] font-bold text-black/50">ID.{product.id.padStart(4, '0')}</span>
                   {product.badge ? (
                     <span className="font-mono text-[10px] font-bold bg-accent text-white px-2 py-0.5">{product.badge}</span>
                   ) : (
@@ -988,7 +988,7 @@ export default function App() {
                     </h4>
                     <div className="text-right shrink-0">
                       {product.oldPrice && (
-                        <p className="text-[10px] font-mono font-bold text-slate-400 line-through uppercase tracking-widest">
+                        <p className="text-[10px] font-mono font-bold text-black/40 line-through uppercase tracking-widest">
                           ₴{product.oldPrice.toLocaleString()}
                         </p>
                       )}
@@ -1004,7 +1004,7 @@ export default function App() {
                       <div className="pt-4 mt-2 border-t border-black/10 flex flex-col gap-2">
                         {product.specs && Object.entries(product.specs).slice(0, 3).map(([key, val]) => (
                           <div key={key} className="flex justify-between text-[10px] font-mono">
-                            <span className="text-slate-500">{key}</span>
+                            <span className="text-black/50">{key}</span>
                             <span className="font-bold text-black text-right">{val}</span>
                           </div>
                         ))}
@@ -1052,7 +1052,7 @@ export default function App() {
                 <X className="w-6 h-6" />
               </button>
               
-              <div className="w-full md:w-1/2 border-b-4 md:border-b-0 md:border-r-4 border-black bg-slate-50 p-8 flex items-center justify-center">
+              <div className="w-full md:w-1/2 border-b-4 md:border-b-0 md:border-r-4 border-black bg-surface p-8 flex items-center justify-center">
                 <img src={quickViewProduct.image} alt={quickViewProduct.name} className="w-full h-auto object-contain grayscale hover:grayscale-0 transition-all duration-500" referrerPolicy="no-referrer" />
               </div>
               
@@ -1077,7 +1077,7 @@ export default function App() {
                   <span className="text-xl font-black">{quickViewProduct.rating}</span>
                 </div>
                 
-                <p className="text-slate-500 font-bold mb-8 uppercase tracking-widest text-sm leading-relaxed">
+                <p className="text-black/50 font-bold mb-8 uppercase tracking-widest text-sm leading-relaxed">
                   Офіційна гарантія від виробника. Підтримка 24/7. Можливість розтермінування від ARM Bank без переплат.
                 </p>
                 
@@ -1085,7 +1085,7 @@ export default function App() {
                   <div className="flex items-end gap-4 mb-8">
                     <span className="text-5xl font-black">₴{quickViewProduct.price.toLocaleString()}</span>
                     {quickViewProduct.oldPrice && (
-                      <span className="text-xl font-black text-slate-400 line-through mb-1">₴{quickViewProduct.oldPrice.toLocaleString()}</span>
+                      <span className="text-xl font-black text-black/40 line-through mb-1">₴{quickViewProduct.oldPrice.toLocaleString()}</span>
                     )}
                   </div>
                   
@@ -1138,15 +1138,15 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto overflow-x-hidden p-0 bg-slate-50">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden p-0 bg-surface">
                 {compareList.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center space-y-8 py-20 p-6">
                     <div className="w-32 h-32 border-2 border-black flex items-center justify-center bg-white">
-                      <ArrowLeftRight className="w-16 h-16 text-slate-300" />
+                      <ArrowLeftRight className="w-16 h-16 text-black/25" />
                     </div>
                     <div className="space-y-2">
                       <h3 className="text-2xl font-black uppercase">Список порожній</h3>
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Додайте товари для порівняння</p>
+                      <p className="text-sm font-bold text-black/40 uppercase tracking-widest">Додайте товари для порівняння</p>
                     </div>
                     <button 
                       onClick={() => setIsCompareModalOpen(false)}
@@ -1160,7 +1160,7 @@ export default function App() {
                     <div className="min-w-[800px]">
                       {/* Products Header Row */}
                     <div className="grid grid-cols-[200px_1fr] gap-4 mb-8">
-                      <div className="font-black uppercase tracking-widest text-slate-400 flex items-end pb-4">
+                      <div className="font-black uppercase tracking-widest text-black/40 flex items-end pb-4">
                         Товари
                       </div>
                       <div className="grid grid-cols-4 gap-4">
@@ -1172,7 +1172,7 @@ export default function App() {
                             >
                               <X className="w-4 h-4" />
                             </button>
-                            <div className="aspect-square mb-4 border-2 border-black overflow-hidden bg-slate-50">
+                            <div className="aspect-square mb-4 border-2 border-black overflow-hidden bg-surface">
                               <img src={product.image} alt={product.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all" referrerPolicy="no-referrer" />
                             </div>
                             <h4 className="font-black uppercase text-sm mb-2 line-clamp-2 h-10">{product.name}</h4>
@@ -1187,8 +1187,8 @@ export default function App() {
                         ))}
                         {/* Empty slots if less than 4 */}
                         {Array.from({ length: 4 - compareList.length }).map((_, i) => (
-                          <div key={`empty-${i}`} className="border-2 border-dashed border-slate-300 bg-slate-100/50 flex items-center justify-center p-4">
-                            <span className="text-slate-400 font-black uppercase text-xs tracking-widest text-center">Місце для товару</span>
+                          <div key={`empty-${i}`} className="border-2 border-dashed border-black/20 bg-black/4 flex items-center justify-center p-4">
+                            <span className="text-black/40 font-black uppercase text-xs tracking-widest text-center">Місце для товару</span>
                           </div>
                         ))}
                       </div>
@@ -1204,7 +1204,7 @@ export default function App() {
                           <div className="grid grid-cols-4 gap-4">
                             {compareList.map(product => (
                               <div key={`${product.id}-${specKey}`} className="font-bold text-sm flex items-center">
-                                {product.specs?.[specKey] || <span className="text-slate-300">—</span>}
+                                {product.specs?.[specKey] || <span className="text-black/25">—</span>}
                               </div>
                             ))}
                             {Array.from({ length: 4 - compareList.length }).map((_, i) => (
@@ -1256,11 +1256,11 @@ export default function App() {
                 {cart.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center space-y-8">
                     <div className="w-32 h-32 border-2 border-black flex items-center justify-center">
-                      <ShoppingCart className="w-16 h-16 text-slate-200" />
+                      <ShoppingCart className="w-16 h-16 text-black/20" />
                     </div>
                     <div className="space-y-2">
                       <h3 className="text-2xl font-black uppercase">Кошик порожній</h3>
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Час щось додати</p>
+                      <p className="text-sm font-bold text-black/40 uppercase tracking-widest">Час щось додати</p>
                     </div>
                     <button 
                       onClick={() => setIsCartOpen(false)}
@@ -1272,7 +1272,7 @@ export default function App() {
                 ) : (
                   <div className="space-y-8">
                     {cart.map(item => (
-                      <div key={item.id} className="flex gap-6 pb-8 border-b-2 border-slate-100">
+                      <div key={item.id} className="flex gap-6 pb-8 border-b-2 border-black/8">
                         <div className="w-32 h-32 border-2 border-black shrink-0 overflow-hidden">
                           <img src={item.image} alt={item.name} className="w-full h-full object-cover grayscale" referrerPolicy="no-referrer" />
                         </div>
@@ -1281,7 +1281,7 @@ export default function App() {
                             <h4 className="text-lg font-black uppercase leading-tight">{item.name}</h4>
                             <button 
                               onClick={() => removeFromCart(item.id)}
-                              className="text-slate-300 hover:text-red-500 transition-colors"
+                              className="text-black/25 hover:text-red-500 transition-colors"
                             >
                               <Trash2 className="w-5 h-5" />
                             </button>
@@ -1317,20 +1317,20 @@ export default function App() {
                           name="shipping_name"
                           placeholder="ПІБ отримувача"
                           defaultValue={armUser?.full_name || ''}
-                          className="w-full p-4 border-2 border-black text-sm font-bold uppercase tracking-widest outline-none focus:bg-slate-50"
+                          className="w-full p-4 border-2 border-black text-sm font-bold uppercase tracking-widest outline-none focus:bg-surface"
                         />
                         <input
                           ref={shippingPhoneRef}
                           type="tel"
                           name="shipping_phone"
                           placeholder="Телефон"
-                          className="w-full p-4 border-2 border-black text-sm font-bold uppercase tracking-widest outline-none focus:bg-slate-50"
+                          className="w-full p-4 border-2 border-black text-sm font-bold uppercase tracking-widest outline-none focus:bg-surface"
                         />
                         <textarea
                           ref={shippingAddressRef}
                           placeholder="Адреса доставки"
                           rows={2}
-                          className="w-full p-4 border-2 border-black text-sm font-bold uppercase tracking-widest outline-none focus:bg-slate-50 resize-none"
+                          className="w-full p-4 border-2 border-black text-sm font-bold uppercase tracking-widest outline-none focus:bg-surface resize-none"
                         />
                         <div className="relative">
                           <select
@@ -1355,9 +1355,9 @@ export default function App() {
               </div>
 
               {cart.length > 0 && (
-                <div className="p-4 sm:p-8 border-t-2 border-black space-y-4 bg-slate-50">
+                <div className="p-4 sm:p-8 border-t-2 border-black space-y-4 bg-surface">
                   {armUser?.balance !== undefined && (
-                    <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-3">
+                    <div className="flex items-center justify-between text-xs font-bold text-black/50 uppercase tracking-widest border-b border-black/10 pb-3">
                       <span>Баланс ARM Bank</span>
                       <span className={cartTotal > armUser.balance ? 'text-red-500' : 'text-green-700'}>
                         ₴{armUser.balance.toLocaleString()}
@@ -1365,7 +1365,7 @@ export default function App() {
                     </div>
                   )}
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Разом до оплати</span>
+                    <span className="text-xs font-black uppercase tracking-[0.2em] text-black/40">Разом до оплати</span>
                     <span className="text-4xl font-black">₴{cartTotal.toLocaleString()}</span>
                   </div>
                   {armUser?.balance !== undefined && cartTotal > armUser.balance && (
@@ -1405,7 +1405,7 @@ export default function App() {
                 </div>
                 <h2 className="text-5xl font-black uppercase tracking-tighter">Market</h2>
               </div>
-              <p className="text-2xl text-slate-400 font-medium leading-tight max-w-xl">
+              <p className="text-2xl text-black/40 font-medium leading-tight max-w-xl">
                 Ми створюємо майбутнє банківського рітейлу. Кожна покупка — це крок до технологічної незалежності.
               </p>
               <div className="flex gap-4">
@@ -1415,7 +1415,7 @@ export default function App() {
 
             <div className="grid grid-cols-2 gap-12">
               <div className="space-y-8">
-                <h4 className="text-xs font-black uppercase tracking-[0.3em] text-slate-500">Каталог</h4>
+                <h4 className="text-xs font-black uppercase tracking-[0.3em] text-black/50">Каталог</h4>
                 <ul className="space-y-4 text-sm font-bold uppercase tracking-widest">
                   {CATEGORIES.slice(1).map(cat => (
                     <li key={cat}><button onClick={() => setActiveCategory(cat)} className="hover:text-accent transition-colors">{cat}</button></li>
@@ -1423,7 +1423,7 @@ export default function App() {
                 </ul>
               </div>
               <div className="space-y-8">
-                <h4 className="text-xs font-black uppercase tracking-[0.3em] text-slate-500">Контакти</h4>
+                <h4 className="text-xs font-black uppercase tracking-[0.3em] text-black/50">Контакти</h4>
                 <ul className="space-y-4 text-sm font-bold uppercase tracking-widest">
                   <li>0 800 500 500</li>
                   <li>support@arm.ua</li>
@@ -1433,7 +1433,7 @@ export default function App() {
             </div>
           </div>
           
-          <div className="pt-12 border-t-2 border-white/10 flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 relative z-10 pb-8">
+          <div className="pt-12 border-t-2 border-white/10 flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] font-black uppercase tracking-[0.4em] text-black/50 relative z-10 pb-8">
             <p>© 2025 ARM MARKET. ALL RIGHTS RESERVED.</p>
             <div className="flex gap-12">
               <a href="#" className="hover:text-white transition-colors">Privacy</a>
@@ -1471,7 +1471,7 @@ export default function App() {
               <div className="flex justify-between items-start mb-8">
                 <div>
                   <h3 className="text-3xl font-black uppercase tracking-tighter">Авторизація</h3>
-                  <p className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mt-2">SECURE.LOGIN.PROTOCOL</p>
+                  <p className="text-[10px] font-mono font-bold text-black/50 uppercase tracking-widest mt-2">SECURE.LOGIN.PROTOCOL</p>
                 </div>
                 <button 
                   onClick={() => setIsAuthModalOpen(false)}
@@ -1562,9 +1562,9 @@ export default function App() {
 
               <div className="flex-1 overflow-y-auto p-8 space-y-8">
                 <div className="space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">Останні замовлення</h4>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-black/50">Останні замовлення</h4>
                   <div className="border-2 border-black p-4 bg-white space-y-2">
-                    <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                    <div className="flex justify-between items-center border-b border-black/10 pb-2">
                       <span className="font-mono text-[10px] font-bold">ORD.9921</span>
                       <span className="text-[10px] font-black uppercase tracking-widest text-accent">Виконано</span>
                     </div>
@@ -1574,7 +1574,7 @@ export default function App() {
                 </div>
 
                 <div className="space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">Налаштування</h4>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-black/50">Налаштування</h4>
                   <button className="w-full p-4 border-2 border-black text-left font-bold uppercase tracking-widest text-sm hover:bg-black hover:text-white transition-colors">
                     Особисті дані
                   </button>

@@ -5,11 +5,12 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   
-  /* Deep, sophisticated palette */
-  --color-black: #1d4636;
-  --color-brand-light: #24523f;
-  --color-accent: #a8792a;
-  --color-surface: #f4f5f2; /* Premium off-white */
+  /* Deep, sophisticated palette — harmonized with ARM Bank */
+  --color-black: #1d2e20;       /* bank --mono-ink / dark sidebar green */
+  --color-brand-light: #2f4a37; /* bank --mono-blue-top */
+  --color-accent: #a8792a;      /* gold accent — unchanged */
+  --color-surface: #f1f5ee;     /* warm sage-white, matches bank body tones */
+  --color-muted: #6b7c6d;       /* bank --mono-muted */
 }
 
 @layer base {
@@ -46,7 +47,12 @@
   }
   
   .u24-card {
-    @apply border-2 border-black bg-white transition-all duration-500 hover:shadow-[8px_8px_0px_0px_#1d4636] hover:-translate-y-1 hover:-translate-x-1 flex flex-col relative overflow-hidden;
+    @apply border-2 border-black bg-surface transition-all duration-500 hover:shadow-[8px_8px_0px_0px_#1d2e20] hover:-translate-y-1 hover:-translate-x-1 flex flex-col relative overflow-hidden;
+  }
+
+  /* Warm muted text helper */
+  .text-muted {
+    color: var(--color-muted);
   }
 
   /* Scrolling ticker animation */
