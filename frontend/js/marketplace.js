@@ -795,7 +795,7 @@
   }
 
   async function fetchAccount() {
-    const data = await api.request('/api/account');
+    const data = await api.request('/api/accounts/main');
     state.account = data;
     if (el.accountNumber)  el.accountNumber.textContent  = data.account_number || '—';
     if (el.accountBalance) el.accountBalance.textContent = fmt(Number(data.balance || 0));
@@ -940,21 +940,24 @@
     if (!el.orderReceipt) return;
 
     const isInvoice = data.payment_mode === 'invoice';
-    const newBalance = Number(state.account?.balance || 0);
+    const newBalance = Number(data.new_balance ?? state.account?.balance ?? 0);
 
     let rows = '';
     if (isInvoice) {
       rows += `<div class="order-receipt-row"><span>Інвойс:</span><strong>${data.invoice_number || '—'}</strong></div>`;
-      if (data.due_date) {
-        rows += `<div class="order-receipt-row"><span>Сплатити до:</span><strong>${data.due_date}</strong></div>`;
+      const dueRaw = data.invoice_due_at || data.due_at || data.due_date;
+      if (dueRaw) {
+        const dueStr = new Date(dueRaw).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        rows += `<div class="order-receipt-row"><span>Сплатити до:</span><strong>${dueStr}</strong></div>`;
       }
+      rows += `<div class="order-receipt-row"><span>Сума:</span><strong>${fmt(data.total_amount || 0)}</strong></div>`;
     } else {
       const code = data.payment_authorization?.authorization_code;
       if (code) {
         rows += `<div class="order-receipt-row"><span>Код авторизації:</span><strong>${code}</strong></div>`;
       }
+      rows += `<div class="order-receipt-row"><span>Новий баланс:</span><strong>${fmt(newBalance)}</strong></div>`;
     }
-    rows += `<div class="order-receipt-row"><span>Новий баланс:</span><strong>${fmt(newBalance)}</strong></div>`;
 
     el.orderReceipt.innerHTML = `
       <button class="order-receipt-close" type="button" aria-label="Закрити">&times;</button>
