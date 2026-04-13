@@ -265,6 +265,21 @@
     authRegEmail:   document.getElementById('auth-reg-email'),
     authRegPhone:   document.getElementById('auth-reg-phone'),
     authRegPass:    document.getElementById('auth-reg-password'),
+    // confirm modal
+    confirmOverlay:      document.getElementById('confirm-overlay'),
+    confirmItems:        document.getElementById('confirm-items'),
+    confirmTotal:        document.getElementById('confirm-total'),
+    confirmBalance:      document.getElementById('confirm-balance'),
+    confirmBalanceAfter: document.getElementById('confirm-balance-after'),
+    confirmBalanceAfterRow: document.getElementById('confirm-balance-after-row'),
+    confirmInvoiceNote:  document.getElementById('confirm-invoice-note'),
+    confirmWarning:      document.getElementById('confirm-warning'),
+    confirmPayBtn:       document.getElementById('confirm-pay-btn'),
+    confirmCancelBtn:    document.getElementById('confirm-cancel-btn'),
+    confirmCancelLink:   document.getElementById('confirm-cancel-link'),
+    // payment balance + receipt
+    paymentBalanceEl:    document.getElementById('payment-balance'),
+    orderReceipt:        document.getElementById('order-receipt'),
   };
 
   /* ═══════════════════════════════════════════════════════════
@@ -419,8 +434,12 @@
     } catch (_) {}
     setAuthorizedMode();
     renderCart();
-    const name = state.user?.full_name?.split(' ')[0] || '';
-    showToast(`Вітаємо${name ? ', ' + name : ''}! Ви в ARM Marketplace.`);
+    const fullName = state.user?.full_name || '';
+    if (fullName && el.shippingName && !el.shippingName.value.trim()) {
+      el.shippingName.value = fullName;
+    }
+    const firstName = fullName.split(' ')[0] || '';
+    showToast(`Вітаємо${firstName ? ', ' + firstName : ''}! Ви в ARM Marketplace.`);
   }
 
   /* ── button helpers ── */
@@ -753,6 +772,7 @@
     if (el.loginToBank)  el.loginToBank.hidden  = true;
     if (el.logoutBtn)    el.logoutBtn.hidden     = false;
     if (el.guestBanner)  el.guestBanner.hidden   = true;
+    updatePaymentBalance();
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -779,6 +799,17 @@
     state.account = data;
     if (el.accountNumber)  el.accountNumber.textContent  = data.account_number || '—';
     if (el.accountBalance) el.accountBalance.textContent = fmt(Number(data.balance || 0));
+    updatePaymentBalance();
+  }
+
+  function updatePaymentBalance() {
+    if (!el.paymentBalanceEl) return;
+    if (!state.authenticated || state.account == null) {
+      el.paymentBalanceEl.hidden = true;
+      return;
+    }
+    el.paymentBalanceEl.hidden = false;
+    el.paymentBalanceEl.innerHTML = `Ваш баланс: <span class="mono">${fmt(Number(state.account.balance || 0))}</span>`;
   }
 
   async function fetchOrders() {
@@ -794,7 +825,7 @@
     return `${scope}-${crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
   }
 
-  async function handleCheckout(e) {
+  function handleCheckout(e) {
     e.preventDefault();
     if (!state.authenticated) { openAuthModal('login'); return; }
 
@@ -806,7 +837,70 @@
     if (!name)    { el.shippingName?.focus();    showToast('Вкажіть отримувача.', true); return; }
     if (!address) { el.shippingAddress?.focus(); showToast('Вкажіть адресу доставки.', true); return; }
 
-    const key = mkKey('checkout');
+    openConfirmModal();
+  }
+
+  function openConfirmModal() {
+    if (!el.confirmOverlay) return;
+
+    const isInvoice = el.paymentMode?.value === 'invoice';
+    const total     = cartTotal();
+    const balance   = Number(state.account?.balance || 0);
+    const after     = balance - total;
+
+    // Populate items list
+    if (el.confirmItems) {
+      el.confirmItems.innerHTML = Array.from(state.cart.entries()).map(([id, qty]) => {
+        const p = getProduct(id);
+        if (!p) return '';
+        const lineTotal = Number(p.price) * qty;
+        return `<li class="confirm-item">
+          <span class="confirm-item-name">${p.title}</span>
+          <span class="confirm-item-qty">${qty} шт.</span>
+          <span class="confirm-item-price">${fmt(lineTotal)}</span>
+        </li>`;
+      }).join('');
+    }
+
+    if (el.confirmTotal)   el.confirmTotal.textContent   = fmt(total);
+    if (el.confirmBalance) el.confirmBalance.textContent = fmt(balance);
+
+    if (isInvoice) {
+      if (el.confirmBalanceAfterRow) el.confirmBalanceAfterRow.hidden = true;
+      if (el.confirmInvoiceNote)     el.confirmInvoiceNote.hidden     = false;
+    } else {
+      if (el.confirmBalanceAfterRow) el.confirmBalanceAfterRow.hidden = false;
+      if (el.confirmInvoiceNote)     el.confirmInvoiceNote.hidden     = true;
+      if (el.confirmBalanceAfter)    el.confirmBalanceAfter.textContent = fmt(after);
+    }
+
+    if (el.confirmWarning) {
+      if (!isInvoice && balance < total) {
+        el.confirmWarning.hidden = false;
+        el.confirmWarning.textContent = `Недостатньо коштів: не вистачає ${fmt(total - balance)}`;
+      } else {
+        el.confirmWarning.hidden = true;
+      }
+    }
+
+    el.confirmOverlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+    el.confirmPayBtn?.focus();
+  }
+
+  function closeConfirmModal() {
+    if (!el.confirmOverlay) return;
+    el.confirmOverlay.hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  async function submitConfirmedCheckout() {
+    const items   = cartPayload();
+    const name    = el.shippingName?.value.trim() || '';
+    const address = el.shippingAddress?.value.trim() || '';
+    const key     = mkKey('checkout');
+
+    closeConfirmModal();
     setBtnLoading(el.checkoutBtn, 'Оформлення…');
     try {
       const data = await api.request('/api/marketplace/checkout', {
@@ -823,25 +917,66 @@
       state.cart.clear();
       saveCart();
       renderCart();
-      // refresh balance + orders in background
       fetchAccount().catch(() => {});
       fetchOrders().catch(() => {});
-
-      if (data.payment_mode === 'invoice') {
-        showToast(`Інвойс ${data.invoice_number} створено. Оплатіть протягом 24 год.`);
-      } else {
-        const code = data.payment_authorization?.authorization_code;
-        showToast(code
-          ? `Оплату авторизовано (${code}). Замовлення #${data.order_id} оформлено`
-          : `Замовлення #${data.order_id} успішно оформлено`);
-      }
+      showReceipt(data);
     } catch (err) {
-      showToast(err?.serverMessage || err?.message || 'Помилка оплати', true);
+      const msg = err?.serverMessage || err?.message || 'Помилка оплати';
+      if (msg.includes('Недостатньо коштів')) {
+        const balance = Number(state.account?.balance || 0);
+        const total   = cartTotal();
+        showToast(`Недостатньо коштів. Баланс: ${fmt(balance)}, потрібно: ${fmt(total)}`, true);
+      } else {
+        showToast(msg, true);
+      }
     } finally {
       resetBtn(el.checkoutBtn);
       syncPaymentHint();
-      renderCart(); // re-check disabled state
+      renderCart();
     }
+  }
+
+  function showReceipt(data) {
+    if (!el.orderReceipt) return;
+
+    const isInvoice = data.payment_mode === 'invoice';
+    const newBalance = Number(state.account?.balance || 0);
+
+    let rows = '';
+    if (isInvoice) {
+      rows += `<div class="order-receipt-row"><span>Інвойс:</span><strong>${data.invoice_number || '—'}</strong></div>`;
+      if (data.due_date) {
+        rows += `<div class="order-receipt-row"><span>Сплатити до:</span><strong>${data.due_date}</strong></div>`;
+      }
+    } else {
+      const code = data.payment_authorization?.authorization_code;
+      if (code) {
+        rows += `<div class="order-receipt-row"><span>Код авторизації:</span><strong>${code}</strong></div>`;
+      }
+    }
+    rows += `<div class="order-receipt-row"><span>Новий баланс:</span><strong>${fmt(newBalance)}</strong></div>`;
+
+    el.orderReceipt.innerHTML = `
+      <button class="order-receipt-close" type="button" aria-label="Закрити">&times;</button>
+      <div class="order-receipt-header">
+        <div class="order-receipt-icon">✓</div>
+        <div class="order-receipt-title">Замовлення #${data.order_id} оформлено</div>
+      </div>
+      <div class="order-receipt-rows">${rows}</div>
+      <button class="order-receipt-link" type="button">Переглянути замовлення ↓</button>
+    `;
+    el.orderReceipt.hidden = false;
+
+    el.orderReceipt.querySelector('.order-receipt-close')?.addEventListener('click', () => {
+      el.orderReceipt.hidden = true;
+    });
+    el.orderReceipt.querySelector('.order-receipt-link')?.addEventListener('click', () => {
+      el.orderReceipt.hidden = true;
+      document.querySelector('.orders-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    const _t = setTimeout(() => { el.orderReceipt.hidden = true; }, 15000);
+    el.orderReceipt.addEventListener('click', () => clearTimeout(_t), { once: true });
   }
 
   async function payInvoice(invoiceNumber, btn) {
@@ -919,6 +1054,15 @@
 
     el.checkoutForm?.addEventListener('submit', handleCheckout);
     el.paymentMode?.addEventListener('change', syncPaymentHint);
+
+    /* ── Confirm modal ── */
+    el.confirmPayBtn?.addEventListener('click', submitConfirmedCheckout);
+    el.confirmCancelBtn?.addEventListener('click', closeConfirmModal);
+    el.confirmCancelLink?.addEventListener('click', closeConfirmModal);
+    el.confirmOverlay?.addEventListener('click', (e) => { if (e.target === el.confirmOverlay) closeConfirmModal(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && el.confirmOverlay && !el.confirmOverlay.hidden) closeConfirmModal();
+    });
 
     el.ordersList?.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-invoice-pay]');
