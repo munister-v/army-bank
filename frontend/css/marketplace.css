@@ -1,5 +1,5 @@
 /* ============================================================
-   ARM Bank Marketplace — marketplace.css v19
+   ARM Bank Marketplace — marketplace.css v23
    Premium e-commerce design: clean, modern, Rozetka-class
    Design system: Flat Premium / ARM Green / Manrope
    ============================================================ */
@@ -15,7 +15,7 @@
   --green-mid:      #c3ead3;
 
   /* ── Surface hierarchy ── */
-  --bg:             #f2f3f5;
+  --bg:             #eef0f3;
   --surface:        #ffffff;
   --surface-raised: #ffffff;
   --header-bg:      #1f2024;
@@ -64,11 +64,11 @@
   --r-full: 9999px;
 
   /* ── Layout ── */
-  --header-h:    64px;
+  --header-h:    68px;
   --subnav-h:    48px;
   --sidebar-w:   224px;
   --max-w:       1300px;
-  --thumb-h:     160px;
+  --thumb-h:     188px;
 
   /* ── Transitions ── */
   --t-fast:  150ms cubic-bezier(.4,0,.2,1);
@@ -170,6 +170,7 @@ ul, ol { list-style: none; }
   padding: 0 24px;
   gap: 20px;
   box-shadow: 0 2px 12px rgba(0,0,0,.3);
+  border-bottom: 1px solid rgba(0,160,70,.2);
 }
 
 /* Brand */
@@ -182,10 +183,10 @@ ul, ol { list-style: none; }
 }
 
 .rz-brand-logo {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   background: var(--green);
-  border-radius: var(--r-sm);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -194,14 +195,15 @@ ul, ol { list-style: none; }
   color: #fff;
   letter-spacing: -.5px;
   flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(0,160,70,.3);
 }
 
 .rz-brand-text {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 19px;
+  font-weight: 800;
   color: #fff;
   white-space: nowrap;
-  letter-spacing: -.3px;
+  letter-spacing: -.5px;
 }
 
 /* Search */
@@ -214,21 +216,22 @@ ul, ol { list-style: none; }
   width: 100%;
   height: 42px;
   padding: 0 16px;
-  background: rgba(255,255,255,.1);
-  border: 1.5px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.14);
+  border: 1.5px solid rgba(255,255,255,.18);
   border-radius: var(--r-full);
   color: #fff;
   font-size: 14px;
   font-weight: 400;
   outline: none;
-  transition: background var(--t-fast), border-color var(--t-fast);
+  transition: background var(--t-fast), border-color var(--t-fast), box-shadow var(--t-fast);
 }
 
 .rz-header-search input::placeholder { color: rgba(255,255,255,.45); }
 
 .rz-header-search input:focus {
-  background: rgba(255,255,255,.16);
+  background: rgba(255,255,255,.2);
   border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(0,160,70,.25);
 }
 
 /* Header actions */
@@ -317,7 +320,11 @@ ul, ol { list-style: none; }
   text-align: left;
 }
 
-.rz-dropdown-item:hover { background: var(--bg); }
+.rz-dropdown-item:hover {
+  background: var(--bg);
+  padding-left: 20px;
+  transition: background var(--t-fast), padding-left var(--t-fast);
+}
 
 /* Cart badge */
 .rz-cart-badge {
@@ -418,28 +425,29 @@ ul, ol { list-style: none; }
 .rz-subnav-item:hover { color: var(--ink); background: var(--bg); }
 
 .rz-subnav-item.active {
-  color: var(--green);
-  background: var(--green-light);
+  color: #fff;
+  background: var(--green);
+  font-weight: 700;
 }
 
-.rz-subnav-item.active::after { transform: translateX(-50%) scaleX(1); }
+.rz-subnav-item.active::after { display: none; }
 
 /* ============================================================
    6. PROMO STRIP
    ============================================================ */
 .rz-promo-banner {
-  background: linear-gradient(135deg, #1f2024 0%, #2d3142 60%, #1a2e1a 100%);
+  background: linear-gradient(135deg, #0a1628 0%, #0d2137 50%, #0a2416 100%);
   border-radius: var(--r-lg);
   margin: 16px 0 8px;
-  padding: 14px 24px;
+  padding: 16px 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 20px;
-  color: rgba(255,255,255,.7);
-  font-size: 13px;
+  color: rgba(255,255,255,.75);
+  font-size: 13.5px;
   font-weight: 500;
-  letter-spacing: .01em;
+  letter-spacing: .015em;
   overflow: hidden;
   position: relative;
 }
@@ -667,7 +675,11 @@ ul, ol { list-style: none; }
 #catalog-count {
   font-size: 13px;
   color: var(--ink-muted);
-  font-weight: 500;
+  background: var(--surface);
+  padding: 4px 12px;
+  border-radius: var(--r-full);
+  border: 1px solid rgba(0,0,0,.08);
+  font-weight: 600;
 }
 
 /* ============================================================
@@ -685,26 +697,36 @@ ul, ol { list-style: none; }
    ============================================================ */
 .rz-product {
   background: var(--surface);
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(0,0,0,.07);
-  box-shadow: var(--shadow-xs);
-  transition:
-    box-shadow var(--t-base),
-    transform var(--t-base),
-    border-color var(--t-base);
+  border: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08), 0 0 0 1px rgba(0,0,0,.06);
+  transition: box-shadow var(--t-base), transform var(--t-base);
   position: relative;
   cursor: pointer;
 }
 
 .rz-product:hover {
-  box-shadow: var(--shadow-card-hover);
-  transform: translateY(-4px);
-  border-color: rgba(0,160,70,.2);
+  box-shadow: 0 20px 60px rgba(0,0,0,.18), 0 6px 20px rgba(0,0,0,.10);
+  transform: translateY(-6px);
   z-index: 2;
 }
+
+/* Green accent line on hover */
+.rz-product::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--green);
+  opacity: 0;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  transition: opacity var(--t-fast);
+  z-index: 5;
+}
+.rz-product:hover::before { opacity: 1; }
 
 /* ── Thumbnail ── */
 .rz-thumb {
@@ -720,36 +742,52 @@ ul, ol { list-style: none; }
 
 /* Category-specific gradients */
 .rz-thumb[data-cat="phones"] {
-  background: linear-gradient(145deg, #e8f4ff 0%, #c8e6ff 40%, #ddd6fe 100%);
+  background: linear-gradient(145deg, #0f0c29 0%, #302b63 55%, #1e1b4b 100%);
 }
 .rz-thumb[data-cat="laptops"] {
-  background: linear-gradient(145deg, #f0fdf4 0%, #bbf7d0 40%, #a7f3d0 100%);
+  background: linear-gradient(145deg, #022c22 0%, #064e3b 55%, #065f46 100%);
 }
 .rz-thumb[data-cat="appliances"] {
-  background: linear-gradient(145deg, #fff7ed 0%, #fed7aa 40%, #fca5a5 100%);
+  background: linear-gradient(145deg, #3b0d00 0%, #7c2d12 55%, #9a3412 100%);
 }
 .rz-thumb[data-cat="home"] {
-  background: linear-gradient(145deg, #fefce8 0%, #fef08a 40%, #fde68a 100%);
+  background: linear-gradient(145deg, #3c1a00 0%, #78350f 55%, #92400e 100%);
 }
 .rz-thumb[data-cat="promo"] {
-  background: linear-gradient(145deg, #f0fdf4 0%, #bbf7d0 40%, #6ee7b7 100%);
+  background: linear-gradient(145deg, #052e16 0%, #14532d 55%, #166534 100%);
 }
 .rz-thumb:not([data-cat]) {
-  background: linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%);
+  background: linear-gradient(145deg, #1e1e2e 0%, #2d2d44 100%);
 }
 
 /* Icon in thumb */
 .rz-thumb > .bi {
-  font-size: 52px;
-  opacity: .25;
-  color: var(--ink);
+  font-size: 80px;
+  opacity: 0.45;
+  color: #fff;
+  filter: drop-shadow(0 2px 24px rgba(255,255,255,0.25));
   transition: transform var(--t-base), opacity var(--t-base);
   z-index: 1;
 }
 
 .rz-product:hover .rz-thumb > .bi {
-  transform: scale(1.08);
-  opacity: .35;
+  transform: scale(1.12) translateY(-3px);
+  opacity: 0.62;
+}
+
+/* Decorative glow behind icon */
+.rz-thumb::after {
+  content: '';
+  position: absolute;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* Brand watermark */
@@ -757,11 +795,12 @@ ul, ol { list-style: none; }
   position: absolute;
   bottom: 8px;
   left: 10px;
-  font-size: 10px;
-  font-weight: 800;
-  color: rgba(0,0,0,.25);
+  font-size: 11px;
+  font-weight: 900;
+  color: rgba(255,255,255,.35);
   text-transform: uppercase;
   letter-spacing: .06em;
+  text-shadow: 0 1px 3px rgba(0,0,0,.3);
   z-index: 2;
 }
 
@@ -770,12 +809,13 @@ ul, ol { list-style: none; }
   position: absolute;
   top: 10px;
   right: 10px;
-  background: var(--badge-sale);
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  box-shadow: 0 2px 8px rgba(220,38,38,.45);
   color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: var(--r-xs);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 9px;
+  border-radius: var(--r-sm);
   line-height: 1.4;
   z-index: 3;
 }
@@ -784,15 +824,16 @@ ul, ol { list-style: none; }
 .rz-badge {
   display: inline-flex;
   align-items: center;
-  height: 20px;
-  padding: 0 8px;
-  border-radius: var(--r-xs);
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--r-sm);
   font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: .05em;
+  letter-spacing: .06em;
   color: #fff;
   width: fit-content;
+  box-shadow: 0 1px 4px rgba(0,0,0,.2);
 }
 
 .rz-badge[data-badge="SALE"]     { background: var(--badge-sale); }
@@ -858,7 +899,7 @@ ul, ol { list-style: none; }
 .rz-star {
   width: 12px;
   height: 12px;
-  color: #fbbf24;
+  color: #f59e0b;
   flex-shrink: 0;
 }
 
@@ -891,12 +932,12 @@ ul, ol { list-style: none; }
 }
 
 .rz-price-main {
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 800;
-  color: var(--price-color);
+  color: #111;
   line-height: 1.1;
   font-family: var(--ff-mono);
-  letter-spacing: -.5px;
+  letter-spacing: -.6px;
 }
 
 .rz-price-old {
@@ -925,8 +966,8 @@ ul, ol { list-style: none; }
 
 .btn-add:hover:not(:disabled) {
   background: var(--green-hover);
-  transform: scale(1.08);
-  box-shadow: var(--shadow-green);
+  transform: scale(1.1);
+  box-shadow: 0 4px 16px rgba(0,160,70,.5);
 }
 
 .btn-add:active:not(:disabled) { transform: scale(.96); }
@@ -1214,8 +1255,14 @@ ul, ol { list-style: none; }
   padding: 14px 18px;
   background: var(--bg);
   border-radius: var(--r-md);
-  border: 1px solid rgba(0,0,0,.06);
+  border: 1px solid rgba(0,0,0,.07);
+  box-shadow: var(--shadow-xs);
   flex-wrap: wrap;
+  transition: box-shadow var(--t-fast);
+}
+
+.order-item:hover {
+  box-shadow: var(--shadow-sm);
 }
 
 .order-main {
