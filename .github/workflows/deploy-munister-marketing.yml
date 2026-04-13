@@ -1,4 +1,4 @@
-name: Deploy munister marketing (army-bank)
+name: Deploy munister marketing (army-bank + marketplace)
 
 on:
   push:
@@ -31,11 +31,15 @@ jobs:
           # Sync army-admin landing
           rsync -av --delete marketing/munister-army-admin/ pages/army-admin/
 
+          # Sync marketplace
+          mkdir -p pages/marketplace
+          rsync -av --delete marketing/munister-army-market/ pages/marketplace/
+
           cd pages
           git add -A
           if git diff --cached --quiet; then
             echo "No changes to deploy"
           else
-            git commit -m "deploy: update army-bank & army-admin landing [skip ci]"
+            git commit -m "deploy: update army-bank, army-admin & marketplace [skip ci]"
             git push
           fi
