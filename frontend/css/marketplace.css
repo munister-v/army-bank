@@ -570,7 +570,12 @@ ul, ol { list-style: none; }
 .category-btn.active {
   background: var(--green-light);
   color: var(--green);
-  font-weight: 600;
+  font-weight: 700;
+}
+.category-btn.active::before {
+  content: '•';
+  margin-right: 5px;
+  color: var(--green);
 }
 
 #catalog-sort {
@@ -660,10 +665,10 @@ ul, ol { list-style: none; }
 }
 
 .rz-catalog-head h2 {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 800;
   color: var(--ink);
-  letter-spacing: -.3px;
+  letter-spacing: -.4px;
 }
 
 .rz-catalog-tools {
@@ -740,49 +745,76 @@ ul, ol { list-style: none; }
   flex-shrink: 0;
 }
 
-/* Category-specific gradients */
+/* Category-specific gradients with radial accent glow */
 .rz-thumb[data-cat="phones"] {
-  background: linear-gradient(145deg, #0f0c29 0%, #302b63 55%, #1e1b4b 100%);
+  background:
+    radial-gradient(ellipse at 38% 45%, #4338ca 0%, transparent 52%),
+    linear-gradient(145deg, #0f0c29 0%, #302b63 55%, #1e1b4b 100%);
 }
 .rz-thumb[data-cat="laptops"] {
-  background: linear-gradient(145deg, #022c22 0%, #064e3b 55%, #065f46 100%);
+  background:
+    radial-gradient(ellipse at 38% 45%, #059669 0%, transparent 52%),
+    linear-gradient(145deg, #022c22 0%, #064e3b 55%, #065f46 100%);
 }
 .rz-thumb[data-cat="appliances"] {
-  background: linear-gradient(145deg, #3b0d00 0%, #7c2d12 55%, #9a3412 100%);
+  background:
+    radial-gradient(ellipse at 38% 45%, #dc2626 0%, transparent 52%),
+    linear-gradient(145deg, #3b0d00 0%, #7c2d12 55%, #9a3412 100%);
 }
 .rz-thumb[data-cat="home"] {
-  background: linear-gradient(145deg, #3c1a00 0%, #78350f 55%, #92400e 100%);
+  background:
+    radial-gradient(ellipse at 38% 45%, #d97706 0%, transparent 52%),
+    linear-gradient(145deg, #3c1a00 0%, #78350f 55%, #92400e 100%);
 }
 .rz-thumb[data-cat="promo"] {
-  background: linear-gradient(145deg, #052e16 0%, #14532d 55%, #166534 100%);
+  background:
+    radial-gradient(ellipse at 38% 45%, #16a34a 0%, transparent 52%),
+    linear-gradient(145deg, #052e16 0%, #14532d 55%, #166534 100%);
 }
 .rz-thumb:not([data-cat]) {
   background: linear-gradient(145deg, #1e1e2e 0%, #2d2d44 100%);
 }
 
+/* Decorative inner ring */
+.rz-thumb::before {
+  content: '';
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,.12);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  pointer-events: none;
+}
+
 /* Icon in thumb */
 .rz-thumb > .bi {
-  font-size: 80px;
-  opacity: 0.45;
+  font-size: 84px;
+  opacity: 0.58;
   color: #fff;
-  filter: drop-shadow(0 2px 24px rgba(255,255,255,0.25));
-  transition: transform var(--t-base), opacity var(--t-base);
+  filter: drop-shadow(0 0 28px rgba(255,255,255,.35)) drop-shadow(0 2px 6px rgba(0,0,0,.4));
+  transition: transform var(--t-base), opacity var(--t-base), filter var(--t-base);
   z-index: 1;
 }
 
 .rz-product:hover .rz-thumb > .bi {
   transform: scale(1.12) translateY(-3px);
-  opacity: 0.62;
+  opacity: 0.75;
+  filter: drop-shadow(0 0 36px rgba(255,255,255,.5)) drop-shadow(0 2px 6px rgba(0,0,0,.4));
 }
 
-/* Decorative glow behind icon */
+/* Decorative outer glow behind icon */
 .rz-thumb::after {
   content: '';
   position: absolute;
-  width: 130px;
-  height: 130px;
+  width: 160px;
+  height: 160px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255,255,255,.09) 0%, rgba(255,255,255,.02) 55%, transparent 75%);
+  border: 1px solid rgba(255,255,255,.06);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -853,7 +885,7 @@ ul, ol { list-style: none; }
 
 /* ── Card content ── */
 .rz-content {
-  padding: 12px 14px 14px;
+  padding: 14px 16px 16px;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -861,9 +893,9 @@ ul, ol { list-style: none; }
 }
 
 .rz-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.45;
   color: var(--ink);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -932,9 +964,9 @@ ul, ol { list-style: none; }
 }
 
 .rz-price-main {
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 800;
-  color: #111;
+  color: #0d0d0d;
   line-height: 1.1;
   font-family: var(--ff-mono);
   letter-spacing: -.6px;
@@ -950,15 +982,15 @@ ul, ol { list-style: none; }
 
 .btn-add {
   flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  border-radius: var(--r-sm);
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   background: var(--green);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 22px;
   border: none;
   cursor: pointer;
   transition: background var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
