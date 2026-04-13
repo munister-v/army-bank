@@ -1757,6 +1757,7 @@ function openMessengerScreen() {
 }
 
 function openMarketplaceScreen() {
+  try { localStorage.setItem('army_bank_base', window.ARMY_BANK_BASE || ''); } catch {}
   window.location.href = getMarketplacePath();
 }
 
