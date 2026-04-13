@@ -1,59 +1,59 @@
 /* ============================================================
-   ARM Bank Marketplace — marketplace.css v23
-   Premium e-commerce design: clean, modern, Rozetka-class
-   Design system: Flat Premium / ARM Green / Manrope
+   ARM Bank Marketplace — marketplace.css v24
+   Design system harmonized with ARM Bank & Messenger:
+   Forest Green / Sage / Manrope + JetBrains Mono
    ============================================================ */
 
 /* ============================================================
    1. DESIGN TOKENS
    ============================================================ */
 :root {
-  /* ── Brand ── */
-  --green:          #00a046;
-  --green-hover:    #008a3b;
-  --green-light:    #e8f7ee;
-  --green-mid:      #c3ead3;
+  /* ── Brand (matches ARM Bank overrides --mono-blue-top palette) ── */
+  --green:          #2f4a37;   /* forest green — bank primary */
+  --green-hover:    #243b2b;
+  --green-light:    #eaf0e6;   /* sage tint */
+  --green-mid:      #c8d8c2;
 
-  /* ── Surface hierarchy ── */
-  --bg:             #eef0f3;
-  --surface:        #ffffff;
+  /* ── Surface hierarchy (matches bank --mono-bg / --mono-surface) ── */
+  --bg:             #e8ece3;   /* warm sage — same as bank body */
+  --surface:        #f4f7f1;   /* bank --mono-surface-ish */
   --surface-raised: #ffffff;
-  --header-bg:      #1f2024;
-  --header-text:    #ffffff;
-  --subnav-bg:      #ffffff;
+  --header-bg:      #1d2e20;   /* bank dark sidebar green */
+  --header-text:    #f0f4ee;
+  --subnav-bg:      #f4f7f1;
 
-  /* ── Text ── */
-  --ink:            #1a1a2e;
-  --ink-secondary:  #5a5a72;
-  --ink-muted:      #9898ac;
+  /* ── Text (matches bank --mono-text palette) ── */
+  --ink:            #141a15;   /* bank --mono-text */
+  --ink-secondary:  #4a5e52;   /* bank --text-2 equivalent */
+  --ink-muted:      #7f8b80;   /* bank --mono-muted */
   --ink-inverse:    #ffffff;
 
   /* ── Price colors ── */
-  --price-color:    #1a1a2e;
-  --price-old:      #b0b0c0;
-  --price-red:      #e5303a;
+  --price-color:    #141a15;
+  --price-old:      #a2ada2;   /* muted sage */
+  --price-red:      #c0392b;
 
   /* ── Functional ── */
-  --success:        #00a046;
-  --danger:         #e5303a;
-  --warning:        #f59e0b;
-  --info:           #3b82f6;
+  --success:        #1fa055;   /* bank --mono-success */
+  --danger:         #f25461;   /* bank --mono-danger */
+  --warning:        #d97706;
+  --info:           #2563eb;
 
   /* ── Badge palette ── */
-  --badge-sale:     #e5303a;
-  --badge-hot:      #f97316;
-  --badge-top:      #8b5cf6;
-  --badge-new:      #06b6d4;
-  --badge-deal:     #00a046;
-  --badge-pro:      #1f2024;
+  --badge-sale:     #c0392b;
+  --badge-hot:      #c2570a;
+  --badge-top:      #5b3fa6;
+  --badge-new:      #0e7490;
+  --badge-deal:     #2f4a37;
+  --badge-pro:      #1d2e20;
 
-  /* ── Shadows ── */
-  --shadow-xs:   0 1px 2px rgba(0,0,0,.06);
-  --shadow-sm:   0 1px 4px rgba(0,0,0,.08), 0 0 0 1px rgba(0,0,0,.04);
-  --shadow-md:   0 4px 16px rgba(0,0,0,.10), 0 1px 4px rgba(0,0,0,.06);
-  --shadow-lg:   0 12px 40px rgba(0,0,0,.14), 0 4px 12px rgba(0,0,0,.08);
-  --shadow-card-hover: 0 16px 48px rgba(0,0,0,.16), 0 4px 12px rgba(0,0,0,.08);
-  --shadow-green: 0 4px 20px rgba(0,160,70,.35);
+  /* ── Shadows (bank-style: subtle, warm-tinted) ── */
+  --shadow-xs:   0 1px 2px rgba(17,25,20,.06);
+  --shadow-sm:   0 2px 8px rgba(17,25,20,.07), 0 1px 2px rgba(17,25,20,.04);
+  --shadow-md:   0 4px 16px rgba(17,25,20,.09), 0 1px 3px rgba(17,25,20,.05);
+  --shadow-lg:   0 12px 40px rgba(17,25,20,.12), 0 4px 12px rgba(17,25,20,.07);
+  --shadow-card-hover: 0 16px 48px rgba(17,25,20,.14), 0 4px 12px rgba(17,25,20,.07);
+  --shadow-green: 0 4px 20px rgba(47,74,55,.30);
 
   /* ── Radius ── */
   --r-xs:  4px;
@@ -170,7 +170,7 @@ ul, ol { list-style: none; }
   padding: 0 24px;
   gap: 20px;
   box-shadow: 0 2px 12px rgba(0,0,0,.3);
-  border-bottom: 1px solid rgba(0,160,70,.2);
+  border-bottom: 1px solid rgba(47,74,55,.2);
 }
 
 /* Brand */
@@ -195,7 +195,7 @@ ul, ol { list-style: none; }
   color: #fff;
   letter-spacing: -.5px;
   flex-shrink: 0;
-  box-shadow: 0 0 0 2px rgba(0,160,70,.3);
+  box-shadow: 0 0 0 2px rgba(47,74,55,.3);
 }
 
 .rz-brand-text {
@@ -231,7 +231,7 @@ ul, ol { list-style: none; }
 .rz-header-search input:focus {
   background: rgba(255,255,255,.2);
   border-color: var(--green);
-  box-shadow: 0 0 0 3px rgba(0,160,70,.25);
+  box-shadow: 0 0 0 3px rgba(47,74,55,.25);
 }
 
 /* Header actions */
@@ -457,8 +457,8 @@ ul, ol { list-style: none; }
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 15% 50%, rgba(0,160,70,.18) 0%, transparent 55%),
-    radial-gradient(ellipse at 85% 50%, rgba(0,160,70,.12) 0%, transparent 55%);
+    radial-gradient(ellipse at 15% 50%, rgba(47,74,55,.18) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 50%, rgba(47,74,55,.12) 0%, transparent 55%);
   pointer-events: none;
 }
 
@@ -999,7 +999,7 @@ ul, ol { list-style: none; }
 .btn-add:hover:not(:disabled) {
   background: var(--green-hover);
   transform: scale(1.1);
-  box-shadow: 0 4px 16px rgba(0,160,70,.5);
+  box-shadow: 0 4px 16px rgba(47,74,55,.5);
 }
 
 .btn-add:active:not(:disabled) { transform: scale(.96); }
@@ -1200,7 +1200,7 @@ ul, ol { list-style: none; }
 .form-group select:focus {
   border-color: var(--green);
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(0,160,70,.1);
+  box-shadow: 0 0 0 3px rgba(47,74,55,.1);
 }
 
 .payment-mode-hint {
@@ -1531,7 +1531,7 @@ ul, ol { list-style: none; }
 .auth-input:focus {
   border-color: var(--green);
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(0,160,70,.1);
+  box-shadow: 0 0 0 3px rgba(47,74,55,.1);
 }
 
 .auth-input::placeholder { color: var(--ink-muted); font-weight: 400; }
@@ -1900,16 +1900,16 @@ ul, ol { list-style: none; }
   height: 8px;
   border-radius: 50%;
   background: var(--green);
-  box-shadow: 0 0 0 0 rgba(0,160,70,.6);
+  box-shadow: 0 0 0 0 rgba(47,74,55,.6);
   animation: pulse-ring 1.8s ease-out infinite;
   vertical-align: middle;
   margin-right: 6px;
 }
 
 @keyframes pulse-ring {
-  0%   { box-shadow: 0 0 0 0 rgba(0,160,70,.6); }
-  70%  { box-shadow: 0 0 0 8px rgba(0,160,70,0); }
-  100% { box-shadow: 0 0 0 0 rgba(0,160,70,0); }
+  0%   { box-shadow: 0 0 0 0 rgba(47,74,55,.6); }
+  70%  { box-shadow: 0 0 0 8px rgba(47,74,55,0); }
+  100% { box-shadow: 0 0 0 0 rgba(47,74,55,0); }
 }
 
 /* ============================================================
@@ -1931,7 +1931,7 @@ ul, ol { list-style: none; }
   z-index: 1;
   width: 40px;
   height: 40px;
-  background: linear-gradient(145deg, #00c853 0%, #00a046 50%, #006b2e 100%);
+  background: linear-gradient(145deg, #3a6644 0%, #2f4a37 50%, #1d3324 100%);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -1942,7 +1942,7 @@ ul, ol { list-style: none; }
   letter-spacing: -.5px;
   font-family: var(--ff-mono);
   box-shadow:
-    0 4px 12px rgba(0,160,70,.5),
+    0 4px 12px rgba(47,74,55,.5),
     inset 0 1px 0 rgba(255,255,255,.25),
     inset 0 -1px 0 rgba(0,0,0,.2);
   transition: transform var(--t-fast), box-shadow var(--t-fast);
@@ -1950,7 +1950,7 @@ ul, ol { list-style: none; }
 
 .arm-logo-block:hover .arm-logo-inner {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0,160,70,.6), inset 0 1px 0 rgba(255,255,255,.25);
+  box-shadow: 0 6px 20px rgba(47,74,55,.6), inset 0 1px 0 rgba(255,255,255,.25);
 }
 
 .arm-logo-shadow {
@@ -1959,7 +1959,7 @@ ul, ol { list-style: none; }
   left: 4px;
   right: 4px;
   height: 8px;
-  background: rgba(0,160,70,.35);
+  background: rgba(47,74,55,.35);
   border-radius: 50%;
   filter: blur(6px);
   z-index: 0;
@@ -2033,7 +2033,7 @@ ul, ol { list-style: none; }
 }
 
 .rz-header-nav-item.active {
-  background: rgba(0,160,70,.25);
+  background: rgba(47,74,55,.25);
   color: var(--green);
 }
 
@@ -2115,7 +2115,7 @@ ul, ol { list-style: none; }
 .rz-btn-back-to-bank:hover {
   border-color: var(--green);
   color: var(--green);
-  background: rgba(0,160,70,.08);
+  background: rgba(47,74,55,.08);
   text-decoration: none;
 }
 
@@ -2124,7 +2124,7 @@ ul, ol { list-style: none; }
    ============================================================ */
 .rz-hero {
   background:
-    radial-gradient(ellipse at 20% 60%, rgba(0,160,70,.18) 0%, transparent 50%),
+    radial-gradient(ellipse at 20% 60%, rgba(47,74,55,.18) 0%, transparent 50%),
     radial-gradient(ellipse at 80% 30%, rgba(0,120,200,.12) 0%, transparent 50%),
     linear-gradient(160deg, #0a0e1a 0%, #0d1424 45%, #0a1a10 100%);
   padding: 64px 0 56px;
@@ -2138,8 +2138,8 @@ ul, ol { list-style: none; }
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(0,160,70,.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,160,70,.06) 1px, transparent 1px);
+    linear-gradient(rgba(47,74,55,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(47,74,55,.06) 1px, transparent 1px);
   background-size: 48px 48px;
   pointer-events: none;
 }
@@ -2185,8 +2185,8 @@ ul, ol { list-style: none; }
   letter-spacing: .14em;
   color: var(--green);
   text-transform: uppercase;
-  background: rgba(0,160,70,.1);
-  border: 1px solid rgba(0,160,70,.25);
+  background: rgba(47,74,55,.1);
+  border: 1px solid rgba(47,74,55,.25);
   border-radius: var(--r-full);
   padding: 6px 14px;
   width: fit-content;
@@ -2201,7 +2201,7 @@ ul, ol { list-style: none; }
 }
 
 .rz-hero-title-accent {
-  background: linear-gradient(90deg, #00c853, #00a046, #00e676);
+  background: linear-gradient(90deg, #3a6644, #2f4a37, #3d7a52);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -2284,8 +2284,8 @@ ul, ol { list-style: none; }
 }
 
 .rz-hero-featured:hover {
-  border-color: rgba(0,160,70,.4);
-  background: rgba(0,160,70,.08);
+  border-color: rgba(47,74,55,.4);
+  background: rgba(47,74,55,.08);
 }
 
 .rz-hero-featured-tag {
@@ -2294,7 +2294,7 @@ ul, ol { list-style: none; }
   font-weight: 700;
   letter-spacing: .14em;
   color: var(--green);
-  background: rgba(0,160,70,.15);
+  background: rgba(47,74,55,.15);
   border-radius: var(--r-full);
   padding: 3px 10px;
   margin-bottom: 8px;
@@ -2303,8 +2303,8 @@ ul, ol { list-style: none; }
 .rz-hero-featured-icon {
   width: 64px;
   height: 64px;
-  background: linear-gradient(145deg, rgba(0,160,70,.3), rgba(0,160,70,.1));
-  border: 1px solid rgba(0,160,70,.3);
+  background: linear-gradient(145deg, rgba(47,74,55,.3), rgba(47,74,55,.1));
+  border: 1px solid rgba(47,74,55,.3);
   border-radius: var(--r-lg);
   display: flex;
   align-items: center;
@@ -2335,8 +2335,8 @@ ul, ol { list-style: none; }
 
 .rz-hero-promo {
   grid-column: 1 / -1;
-  background: linear-gradient(135deg, rgba(0,160,70,.2) 0%, rgba(0,80,35,.3) 100%);
-  border: 1px solid rgba(0,160,70,.3);
+  background: linear-gradient(135deg, rgba(47,74,55,.2) 0%, rgba(0,80,35,.3) 100%);
+  border: 1px solid rgba(47,74,55,.3);
   border-radius: var(--r-xl);
   padding: 24px;
   position: relative;
@@ -2350,7 +2350,7 @@ ul, ol { list-style: none; }
   transform: translateY(-50%);
   font-size: 96px;
   font-weight: 900;
-  color: rgba(0,160,70,.15);
+  color: rgba(47,74,55,.15);
   font-family: var(--ff-mono);
   pointer-events: none;
   line-height: 1;
@@ -2433,7 +2433,7 @@ ul, ol { list-style: none; }
   transform: translateY(-50%);
   font-size: 64px;
   font-weight: 900;
-  color: rgba(0,160,70,.06);
+  color: rgba(47,74,55,.06);
   font-family: var(--ff-mono);
   pointer-events: none;
   line-height: 1;
@@ -2766,7 +2766,7 @@ ul, ol { list-style: none; }
   padding: 48px 0 32px;
   position: relative;
   overflow: hidden;
-  border-top: 1px solid rgba(0,160,70,.15);
+  border-top: 1px solid rgba(47,74,55,.15);
 }
 
 .rz-footer-grid {
@@ -2782,7 +2782,7 @@ ul, ol { list-style: none; }
   gap: 12px;
 }
 
-.rz-footer-logo .arm-logo-inner { background: linear-gradient(145deg, #00a046 0%, #006b2e 100%); }
+.rz-footer-logo .arm-logo-inner { background: linear-gradient(145deg, #2f4a37 0%, #1d3324 100%); }
 
 .rz-footer-brand h2 {
   font-size: 22px;
@@ -3049,7 +3049,7 @@ ul, ol { list-style: none; }
 .rz-field textarea:focus {
   border-color: var(--green);
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(0,160,70,.1);
+  box-shadow: 0 0 0 3px rgba(47,74,55,.1);
 }
 
 .rz-select-wrap {
