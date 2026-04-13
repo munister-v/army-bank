@@ -228,6 +228,8 @@
     toggleFilters:  document.getElementById('toggle-filters'),
     filtersBackdrop:document.getElementById('filters-backdrop'),
     topCategoryNav: document.querySelector('.rz-subnav'),
+    filterCatsBar:  document.getElementById('filter-cats-scroll'),
+    headerNav:      document.getElementById('header-nav'),
     // cart
     cartEmpty:      document.getElementById('cart-empty'),
     cartItems:      document.getElementById('cart-items'),
@@ -310,6 +312,8 @@
     const on = open && isMobile();
     document.body.classList.toggle('filters-open', on);
     if (el.filtersBackdrop) el.filtersBackdrop.hidden = !on;
+    const expanded = document.getElementById('filters-expanded');
+    if (expanded) expanded.hidden = !on;
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -549,18 +553,47 @@
      RENDER: category sidebar
      ═══════════════════════════════════════════════════════════ */
   function renderCategoryList() {
-    if (!el.categoryList) return;
     const cats = ['all', ...TOP_CATEGORIES];
-    el.categoryList.innerHTML = '';
-    for (const cat of cats) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = `category-btn${state.activeCategory === cat ? ' active' : ''}`;
-      btn.dataset.category = cat;
-      btn.setAttribute('role', 'option');
-      btn.setAttribute('aria-selected', String(state.activeCategory === cat));
-      btn.textContent = cat === 'all' ? 'Усі товари' : cat;
-      el.categoryList.appendChild(btn);
+
+    // Sidebar mobile drawer list
+    if (el.categoryList) {
+      el.categoryList.innerHTML = '';
+      for (const cat of cats) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `category-btn${state.activeCategory === cat ? ' active' : ''}`;
+        btn.dataset.category = cat;
+        btn.setAttribute('role', 'option');
+        btn.setAttribute('aria-selected', String(state.activeCategory === cat));
+        btn.textContent = cat === 'all' ? 'Усі товари' : cat;
+        el.categoryList.appendChild(btn);
+      }
+    }
+
+    // Filter bar pills (desktop)
+    if (el.filterCatsBar) {
+      el.filterCatsBar.innerHTML = '';
+      for (const cat of cats) {
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = `rz-filter-cat-pill${state.activeCategory === cat ? ' active' : ''}`;
+        pill.dataset.topCategory = cat;
+        pill.textContent = cat === 'all' ? 'Всі' : cat;
+        el.filterCatsBar.appendChild(pill);
+      }
+    }
+
+    // Header nav (desktop, abbreviated)
+    if (el.headerNav) {
+      el.headerNav.innerHTML = '';
+      for (const cat of cats.slice(0, 6)) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `rz-header-nav-item${state.activeCategory === cat ? ' active' : ''}`;
+        btn.dataset.topCategory = cat;
+        btn.textContent = cat === 'all' ? 'Всі' : cat;
+        el.headerNav.appendChild(btn);
+      }
     }
   }
 
@@ -569,8 +602,10 @@
       el.catalogTitle.textContent =
         state.activeCategory === 'all' ? 'Каталог товарів' : state.activeCategory;
     }
-    el.topCategoryNav?.querySelectorAll('[data-top-category]').forEach((b) => {
-      b.classList.toggle('active', b.dataset.topCategory === state.activeCategory);
+    [el.topCategoryNav, el.filterCatsBar, el.headerNav].forEach((nav) => {
+      nav?.querySelectorAll('[data-top-category]').forEach((b) => {
+        b.classList.toggle('active', b.dataset.topCategory === state.activeCategory);
+      });
     });
   }
 
@@ -1074,10 +1109,18 @@
 
     /* ── Search (debounced) ── */
     let _st = 0;
-    el.catalogSearch?.addEventListener('input', () => {
+    const mobileSearch = document.getElementById('catalog-search-mobile');
+    function onSearchInput() {
       clearTimeout(_st);
+      // sync both inputs
+      if (el.catalogSearch && mobileSearch) {
+        if (document.activeElement === mobileSearch) el.catalogSearch.value = mobileSearch.value;
+        else mobileSearch.value = el.catalogSearch?.value || '';
+      }
       _st = setTimeout(renderCatalog, 180);
-    });
+    }
+    el.catalogSearch?.addEventListener('input', onSearchInput);
+    mobileSearch?.addEventListener('input', onSearchInput);
     el.catalogSort?.addEventListener('change', renderCatalog);
     el.filterReset?.addEventListener('click', () => {
       state.activeCategory = 'all';
@@ -1098,14 +1141,17 @@
       setFiltersOpen(false);
     });
 
-    /* ── Sub-nav (top) ── */
-    el.topCategoryNav?.addEventListener('click', (e) => {
+    /* ── Top category nav (subnav / filter bar / header nav) ── */
+    function onTopCatClick(e) {
       const btn = e.target.closest('[data-top-category]');
       if (!btn) return;
       state.activeCategory = btn.dataset.topCategory || 'all';
       renderCategoryList();
       renderCatalog();
-    });
+    }
+    el.topCategoryNav?.addEventListener('click', onTopCatClick);
+    el.filterCatsBar?.addEventListener('click', onTopCatClick);
+    el.headerNav?.addEventListener('click', onTopCatClick);
 
     /* ── Mobile filter drawer ── */
     el.toggleFilters?.addEventListener('click', () => setFiltersOpen(!document.body.classList.contains('filters-open')));

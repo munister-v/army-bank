@@ -1,6 +1,9 @@
 // Army Bank — REST API клієнт
 // При розміщенні на сайті під /bank (наприклад munister.com.ua/bank) використовується window.ARMY_BANK_BASE.
-const BASE = (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
+// Для статичних сторінок (marketplace тощо) base зберігається в localStorage під ключем 'army_bank_base'.
+const BASE = (typeof window !== 'undefined' && window.ARMY_BANK_BASE)
+  || (typeof localStorage !== 'undefined' && localStorage.getItem('army_bank_base'))
+  || '';
 
 function buildApiError(message, status, payload) {
   const error = new Error(message || 'Помилка запиту до сервера.');
