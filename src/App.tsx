@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
   ShoppingCart, 
@@ -41,6 +41,7 @@ const PRODUCT_IMAGES: Record<string, string> = {
 // Types
 interface Product {
   id: string;
+  product_id?: number; // real DB id for API checkout
   name: string;
   price: number;
   oldPrice?: number;
@@ -50,6 +51,15 @@ interface Product {
   badge?: 'HOT' | 'NEW' | 'TOP' | 'SALE';
   discount?: number;
   specs?: Record<string, string>;
+  stock?: number;
+}
+
+interface ArmBankUser {
+  id: number;
+  full_name: string;
+  email: string;
+  bank_account_number: string | null;
+  balance?: number;
 }
 
 interface CartItem extends Product {
@@ -168,17 +178,46 @@ const CATEGORIES = [
   'Акції ARM'
 ];
 
+function getArmBase(): string {
+  try {
+    const stored = localStorage.getItem('army_bank_base');
+    if (stored !== null) return stored;
+  } catch {}
+  // fallback: detect from current hostname
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') return '/bank';
+  return '';
+}
+
+function getArmToken(): string {
+  try { return localStorage.getItem('army_bank_token') || localStorage.getItem('msng_token') || ''; }
+  catch { return ''; }
+}
+
+async function armFetch(path: string, opts: RequestInit = {}) {
+  const token = getArmToken();
+  const res = await fetch(`${getArmBase()}${path}`, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(opts.headers || {}),
+    },
+  });
+  return res.json();
+}
+
 export default function App() {
   const [activeCategory, setActiveCategory] = useState('Усі товари');
   const [searchQuery, setSearchQuery] = useState('');
+  const [products, setProducts] = useState<Product[]>(PRODUCTS);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [compareList, setCompareList] = useState<Product[]>([]);
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
-  const [sortBy, setSortBy] = useState('popular'); // popular, price-asc, price-desc
-  
+  const [sortBy, setSortBy] = useState('popular');
+
   // Filter state
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
@@ -186,14 +225,65 @@ export default function App() {
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 
   // Auth state
+  const [armUser, setArmUser] = useState<ArmBankUser | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
+  // Checkout form
+  const shippingNameRef = useRef<HTMLInputElement>(null);
+  const shippingAddressRef = useRef<HTMLTextAreaElement>(null);
+  const shippingPhoneRef = useRef<HTMLInputElement>(null);
+  const [paymentMode, setPaymentMode] = useState<'pay_now' | 'invoice'>('pay_now');
+
   // Toast state
   const [toasts, setToasts] = useState<Toast[]>([]);
+
+  // ── Load ARM Bank user + catalog on mount ──────────────────────
+  useEffect(() => {
+    const token = getArmToken();
+    if (token) {
+      armFetch('/api/auth/me').then(res => {
+        if (res.ok && res.data) {
+          const u = res.data;
+          setIsLoggedIn(true);
+          // also fetch balance
+          armFetch('/api/accounts/main').then(ar => {
+            setArmUser({
+              id: u.id,
+              full_name: u.full_name,
+              email: u.email,
+              bank_account_number: u.bank_account_number,
+              balance: ar.ok ? ar.data?.balance : undefined,
+            });
+          }).catch(() => {
+            setArmUser({ id: u.id, full_name: u.full_name, email: u.email, bank_account_number: u.bank_account_number });
+          });
+        }
+      }).catch(() => {});
+    }
+
+    // Load real catalog
+    armFetch('/api/marketplace/catalog').then(res => {
+      if (res.ok && Array.isArray(res.data?.items) && res.data.items.length > 0) {
+        const mapped: Product[] = res.data.items.map((p: any) => ({
+          id: String(p.id),
+          product_id: p.id,
+          name: p.title,
+          price: p.price,
+          rating: 4.5,
+          category: 'Усі товари',
+          image: PRODUCT_IMAGES.phone1,
+          badge: p.badge || undefined,
+          stock: p.stock,
+          specs: p.description ? { 'Опис': p.description } : undefined,
+        }));
+        setProducts(mapped);
+      }
+    }).catch(() => {});
+  }, []);
 
   const addToast = (message: string, type: 'success' | 'info' | 'error' = 'info') => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -205,12 +295,12 @@ export default function App() {
 
   // Derived state
   const filteredProducts = useMemo(() => {
-    let result = PRODUCTS.filter(p => {
+    let result = products.filter(p => {
       const matchesCategory = activeCategory === 'Усі товари' || p.category === activeCategory;
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesMinPrice = minPrice === '' || p.price >= parseInt(minPrice);
       const matchesMaxPrice = maxPrice === '' || p.price <= parseInt(maxPrice);
-      const matchesStock = !inStockOnly || p.badge !== 'OUT_OF_STOCK';
+      const matchesStock = !inStockOnly || (p.stock === undefined || p.stock > 0);
       return matchesCategory && matchesSearch && matchesMinPrice && matchesMaxPrice && matchesStock;
     });
 
@@ -219,7 +309,7 @@ export default function App() {
     if (sortBy === 'popular') result.sort((a, b) => b.rating - a.rating);
 
     return result;
-  }, [activeCategory, searchQuery, sortBy]);
+  }, [products, activeCategory, searchQuery, sortBy, minPrice, maxPrice, inStockOnly]);
 
   const cartTotal = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -272,31 +362,111 @@ export default function App() {
     });
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAuthenticating(true);
-    setTimeout(() => {
+    const form = e.target as HTMLFormElement;
+    const identity = (form.elements.namedItem('identity') as HTMLInputElement)?.value?.trim() || '';
+    const password = (form.elements.namedItem('password') as HTMLInputElement)?.value || '';
+    try {
+      const res = await fetch(`${getArmBase()}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identity, password }),
+      });
+      const data = await res.json();
+      if (data.ok && data.data?.token) {
+        try {
+          localStorage.setItem('army_bank_token', data.data.token);
+          localStorage.setItem('msng_token', data.data.token);
+        } catch {}
+        const u = data.data.user || {};
+        setArmUser({
+          id: u.id,
+          full_name: u.full_name,
+          email: u.email,
+          bank_account_number: u.bank_account_number,
+        });
+        setIsLoggedIn(true);
+        setIsAuthModalOpen(false);
+        // fetch balance right after login
+        armFetch('/api/accounts/main').then(ar => {
+          if (ar.ok && ar.data) setArmUser(prev => prev ? { ...prev, balance: ar.data.balance } : prev);
+        }).catch(() => {});
+        addToast(`Вітаємо, ${u.full_name?.split(' ')[0] || 'клієнте'}!`, 'success');
+      } else {
+        addToast(data.error || 'Невірний логін або пароль', 'error');
+      }
+    } catch {
+      addToast('Помилка з\'єднання з ARM Bank', 'error');
+    } finally {
       setIsAuthenticating(false);
-      setIsLoggedIn(true);
-      setIsAuthModalOpen(false);
-      addToast('Авторизація успішна. Вітаємо!', 'success');
-    }, 1500);
+    }
   };
 
   const handleLogout = () => {
+    try { localStorage.removeItem('army_bank_token'); localStorage.removeItem('msng_token'); } catch {}
     setIsLoggedIn(false);
+    setArmUser(null);
     setIsProfileOpen(false);
     addToast('Ви вийшли з системи', 'info');
   };
 
-  const handleCheckout = () => {
-    setIsCheckingOut(true);
-    setTimeout(() => {
-      setIsCheckingOut(false);
-      setCart([]);
+  const handleCheckout = async () => {
+    if (!isLoggedIn) {
       setIsCartOpen(false);
-      addToast('Замовлення успішно оформлено!', 'success');
-    }, 2000);
+      setIsAuthModalOpen(true);
+      return;
+    }
+    const shippingName = shippingNameRef.current?.value.trim() || '';
+    const shippingAddress = shippingAddressRef.current?.value.trim() || '';
+    const shippingPhone = shippingPhoneRef.current?.value.trim() || '';
+    if (shippingName.length < 2 || shippingAddress.length < 8) {
+      addToast('Заповніть ПІБ та адресу доставки', 'error');
+      return;
+    }
+
+    setIsCheckingOut(true);
+    try {
+      const items = cart.map(item => ({
+        product_id: item.product_id || parseInt(item.id),
+        qty: item.quantity,
+      }));
+      const res = await armFetch('/api/marketplace/checkout', {
+        method: 'POST',
+        body: JSON.stringify({
+          items,
+          shipping_name: shippingName,
+          shipping_phone: shippingPhone,
+          shipping_address: shippingAddress,
+          payment_mode: paymentMode,
+          idempotency_key: Math.random().toString(36).substring(2),
+        }),
+      });
+      if (res.ok) {
+        setCart([]);
+        setIsCartOpen(false);
+        const total = res.data?.order?.total_amount;
+        if (total) {
+          // refresh balance
+          armFetch('/api/accounts/main').then(ar => {
+            if (ar.ok && armUser) setArmUser({ ...armUser, balance: ar.data?.balance });
+          }).catch(() => {});
+        }
+        addToast(
+          paymentMode === 'pay_now'
+            ? `Замовлення оформлено! Списано ₴${total?.toLocaleString() || ''}`
+            : 'Рахунок виставлено. Оплатіть протягом 24 год.',
+          'success'
+        );
+      } else {
+        addToast(res.error || 'Помилка оформлення', 'error');
+      }
+    } catch {
+      addToast('Помилка з\'єднання з ARM Bank', 'error');
+    } finally {
+      setIsCheckingOut(false);
+    }
   };
 
   const allCompareSpecKeys = useMemo(() => {
@@ -305,8 +475,25 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-surface selection:bg-accent selection:text-white relative">
+
+      {/* System Status Bar */}
+      <div className="bg-black text-white border-b-2 border-white/10 px-4 sm:px-8 py-1.5 flex items-center justify-between text-[9px] font-mono font-bold uppercase tracking-[0.18em] sticky top-0 z-[60]">
+        <div className="flex items-center gap-3">
+          <span className="w-1.5 h-1.5 rounded-full bg-accent animate-glow inline-block"></span>
+          SYS.ONLINE // ARM.MARKET.V2.0.4
+        </div>
+        <div className="hidden sm:flex items-center gap-6 text-white/40">
+          <span>TX.SECURE</span>
+          <span>|</span>
+          <span>DELIVERY.24H</span>
+          <span>|</span>
+          <span>КЕШБЕК 5%</span>
+        </div>
+        <a href="/dashboard" className="text-accent hover:text-white transition-colors tracking-widest">← ДО БАНКУ</a>
+      </div>
+
       {/* Header */}
-      <header className="border-b-2 border-black sticky top-0 z-50 bg-surface/90 backdrop-blur-md">
+      <header className="border-b-2 border-black sticky top-[30px] z-50 bg-surface/90 backdrop-blur-md">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-8 h-20 flex items-center justify-between gap-8">
           {/* Logo */}
           <div className="flex items-center gap-4 shrink-0">
@@ -341,8 +528,9 @@ export default function App() {
             <button className="hidden sm:flex items-center gap-2 text-xs font-black uppercase tracking-widest hover:opacity-70 transition-opacity">
               <Globe className="w-4 h-4" /> UA
             </button>
-            <button 
+            <button
               onClick={() => isLoggedIn ? setIsProfileOpen(true) : setIsAuthModalOpen(true)}
+              aria-label={isLoggedIn ? "Відкрити профіль" : "Увійти в систему"}
               className="relative group"
             >
               <div className={cn(
@@ -352,8 +540,9 @@ export default function App() {
                 <User className="w-5 h-5" />
               </div>
             </button>
-            <button 
+            <button
               onClick={() => setIsCompareModalOpen(true)}
+              aria-label="Порівняння товарів"
               className="relative group"
             >
               <div className="w-12 h-12 border-2 border-black flex items-center justify-center group-hover:bg-accent group-hover:text-black transition-all">
@@ -365,8 +554,9 @@ export default function App() {
                 </span>
               )}
             </button>
-            <button 
+            <button
               onClick={() => setIsCartOpen(true)}
+              aria-label="Відкрити кошик"
               className="relative group"
             >
               <div className="w-12 h-12 border-2 border-black flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all">
@@ -378,9 +568,10 @@ export default function App() {
                 </span>
               )}
             </button>
-            <button 
+            <button
               className="lg:hidden w-12 h-12 border-2 border-black flex items-center justify-center hover:bg-black hover:text-white transition-all"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label={isMobileMenuOpen ? "Закрити меню" : "Відкрити меню"}
             >
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -419,7 +610,7 @@ export default function App() {
         {/* Hero Section - Bento Grid Style */}
         <section className="border-b-2 border-black bg-black text-white p-4 sm:p-8 overflow-hidden relative">
           <div className="max-w-[1440px] mx-auto relative z-10">
-            <div className="grid lg:grid-cols-[1fr_400px] gap-4 items-stretch min-h-[600px]">
+            <div className="grid lg:grid-cols-[1fr_400px] gap-4 items-stretch lg:min-h-[600px]">
               
               {/* Main Typographic Block */}
               <div className="border-2 border-white/20 p-8 md:p-12 flex flex-col justify-between relative overflow-hidden group bg-[#1d4636]/50 backdrop-blur-sm">
@@ -452,7 +643,7 @@ export default function App() {
               </div>
 
               {/* Right Side Bento Blocks */}
-              <div className="grid grid-rows-2 gap-4">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-1 grid-rows-1 sm:grid-rows-1 lg:grid-rows-2 gap-4">
                 {/* Featured Product Block */}
                 <div className="border-2 border-white/20 p-8 relative overflow-hidden flex flex-col justify-between bg-gradient-to-br from-[#24523f] to-black group">
                   <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
@@ -475,7 +666,7 @@ export default function App() {
                       <p className="text-xs font-bold uppercase tracking-widest text-white/70 mb-1">ARM Phone Ultra</p>
                       <p className="font-mono text-xl font-black text-accent">₴41,999</p>
                     </div>
-                    <button className="w-10 h-10 border border-white/20 flex items-center justify-center hover:bg-accent hover:text-black hover:border-accent transition-colors">
+                    <button aria-label="Переглянути товар" className="w-10 h-10 border border-white/20 flex items-center justify-center hover:bg-accent hover:text-black hover:border-accent transition-colors">
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -498,6 +689,28 @@ export default function App() {
             </div>
           </div>
         </section>
+
+        {/* Scrolling Ticker */}
+        <div className="border-b-2 border-black bg-accent text-black overflow-hidden py-3 select-none cursor-default">
+          <div className="flex whitespace-nowrap animate-ticker">
+            {Array.from({ length: 2 }).map((_, ri) => (
+              <div key={ri} className="flex shrink-0">
+                {[
+                  '★ БЕЗКОШТОВНА ДОСТАВКА ВІД ₴2000',
+                  '✦ КЕШБЕК 5% НА ВСІ ПОКУПКИ',
+                  '◆ РОЗТЕРМІНУВАННЯ 0% від ARM Bank',
+                  '★ ГАРАНТІЯ 24 МІСЯЦІ',
+                  '✦ ПОВЕРНЕННЯ 14 ДНІВ',
+                  '◆ ОФІЦІЙНИЙ ІМПОРТ',
+                  '★ ЗАХИЩЕНІ ПЛАТЕЖІ',
+                  '✦ ПІДТРИМКА 24/7',
+                ].map((item, i) => (
+                  <span key={i} className="font-black text-[11px] uppercase tracking-[0.15em] px-8">{item}</span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Stats / Info Bar */}
         <section className="border-b-2 border-black grid grid-cols-1 md:grid-cols-3 bg-surface relative z-10">
@@ -529,16 +742,43 @@ export default function App() {
 
         {/* Catalog Section */}
         <section className="max-w-[1440px] mx-auto px-4 sm:px-8 py-20">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
-            <div className="space-y-4">
-              <h3 className="text-5xl sm:text-7xl font-black tracking-tighter uppercase leading-none">
-                Каталог <br /> <span className="text-slate-300">Товарів</span>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-8 mb-8 md:mb-12">
+            <div className="space-y-2">
+              <p className="text-[10px] font-mono font-bold text-accent uppercase tracking-[0.2em]">// CATALOG.LOAD.COMPLETE</p>
+              <h3 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter uppercase leading-none">
+                Каталог <br className="hidden sm:block" /> <span className="text-slate-300">Товарів</span>
               </h3>
+            </div>
+            <div className="flex items-center gap-4 text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest">
+              <span className="border-2 border-black px-3 py-2 bg-white">
+                {filteredProducts.length} / {products.length} ITEMS
+              </span>
+              <span className="hidden md:block border-2 border-accent px-3 py-2 text-accent">
+                SORT: {sortBy.toUpperCase()}
+              </span>
             </div>
           </div>
 
+          {/* Mobile Category Chips — horizontal scroll, shown only on small screens */}
+          <div className="flex lg:hidden overflow-x-auto gap-2 pb-3 mb-4 scrollbar-hide -mx-4 px-4">
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={cn(
+                  "shrink-0 h-9 px-4 text-[10px] font-black uppercase tracking-widest border-2 border-black transition-all whitespace-nowrap",
+                  activeCategory === cat
+                    ? "bg-black text-white shadow-[2px_2px_0px_0px_#a8792a]"
+                    : "bg-white text-black hover:bg-slate-100"
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
           {/* Brutalist Filter Bar */}
-          <div className="sticky top-20 z-40 bg-surface border-2 border-black mb-12 flex flex-col lg:flex-row shadow-[8px_8px_0px_0px_#1d4636] backdrop-blur-md">
+          <div className="sticky top-[80px] sm:top-[110px] z-40 bg-surface border-2 border-black mb-8 md:mb-12 flex flex-col lg:flex-row shadow-[4px_4px_0px_0px_#1d4636] sm:shadow-[8px_8px_0px_0px_#1d4636] backdrop-blur-md">
             {/* Search */}
             <div className="flex-1 flex items-center border-b-2 lg:border-b-0 lg:border-r-2 border-black">
               <div className="pl-6 pr-4">
@@ -709,22 +949,31 @@ export default function App() {
                     referrerPolicy="no-referrer" 
                   />
                   
-                  {/* Hover Action Overlay */}
-                  <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-4">
-                    <button 
+                  {/* Mobile quick-view button (always visible on small screens) */}
+                  <button
+                    onClick={() => setQuickViewProduct(product)}
+                    className="sm:hidden absolute top-2 right-2 w-8 h-8 bg-white text-black border-2 border-black flex items-center justify-center active:bg-accent active:text-white z-10"
+                    aria-label="Швидкий перегляд"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </button>
+
+                {/* Hover Action Overlay */}
+                  <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden sm:flex items-center justify-center gap-4">
+                    <button
                       onClick={() => setQuickViewProduct(product)}
                       className="w-12 h-12 bg-white text-black flex items-center justify-center hover:bg-accent hover:text-white transition-all active:scale-95 rounded-full"
-                      title="Швидкий перегляд"
+                      aria-label="Швидкий перегляд"
                     >
                       <Eye className="w-5 h-5" />
                     </button>
-                    <button 
+                    <button
                       onClick={() => toggleCompare(product)}
                       className={cn(
                         "w-12 h-12 flex items-center justify-center transition-all active:scale-95 rounded-full",
                         compareList.some(p => p.id === product.id) ? "bg-accent text-white" : "bg-white text-black hover:bg-accent hover:text-white"
                       )}
-                      title="Порівняти"
+                      aria-label="Порівняти товар"
                     >
                       <ArrowLeftRight className="w-5 h-5" />
                     </button>
@@ -797,6 +1046,7 @@ export default function App() {
             >
               <button 
                 onClick={() => setQuickViewProduct(null)}
+                aria-label="Закрити"
                 className="absolute top-4 right-4 w-12 h-12 border-2 border-black flex items-center justify-center hover:bg-accent hover:text-black transition-all bg-white text-black z-10"
               >
                 <X className="w-6 h-6" />
@@ -881,6 +1131,7 @@ export default function App() {
                 </div>
                 <button 
                   onClick={() => setIsCompareModalOpen(false)}
+                  aria-label="Закрити"
                   className="w-12 h-12 border-2 border-black flex items-center justify-center hover:bg-black hover:text-white transition-all bg-white text-black"
                 >
                   <X className="w-6 h-6" />
@@ -988,19 +1239,20 @@ export default function App() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="fixed right-0 top-0 bottom-0 w-full max-w-xl bg-white z-[110] border-l-2 border-black flex flex-col"
+              className="fixed right-0 top-0 bottom-0 w-full sm:max-w-xl bg-white z-[110] border-l-2 border-black flex flex-col"
             >
-              <div className="p-8 border-b-2 border-black flex items-center justify-between bg-black text-white">
-                <h2 className="text-3xl font-black uppercase tracking-tighter">Ваш Кошик</h2>
+              <div className="p-5 sm:p-8 border-b-2 border-black flex items-center justify-between bg-black text-white">
+                <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter">Ваш Кошик</h2>
                 <button 
                   onClick={() => setIsCartOpen(false)}
+                  aria-label="Закрити кошик"
                   className="w-12 h-12 border-2 border-white flex items-center justify-center hover:bg-white hover:text-black transition-all"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8">
                 {cart.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center space-y-8">
                     <div className="w-32 h-32 border-2 border-black flex items-center justify-center">
@@ -1059,24 +1311,43 @@ export default function App() {
                     <div className="space-y-8 pt-4">
                       <h3 className="text-xl font-black uppercase tracking-widest border-b-2 border-black pb-4">Оформлення</h3>
                       <div className="grid gap-4">
-                        <input 
-                          type="text" 
+                        <input
+                          ref={shippingNameRef}
+                          type="text"
+                          name="shipping_name"
                           placeholder="ПІБ отримувача"
+                          defaultValue={armUser?.full_name || ''}
                           className="w-full p-4 border-2 border-black text-sm font-bold uppercase tracking-widest outline-none focus:bg-slate-50"
                         />
-                        <textarea 
+                        <input
+                          ref={shippingPhoneRef}
+                          type="tel"
+                          name="shipping_phone"
+                          placeholder="Телефон"
+                          className="w-full p-4 border-2 border-black text-sm font-bold uppercase tracking-widest outline-none focus:bg-slate-50"
+                        />
+                        <textarea
+                          ref={shippingAddressRef}
                           placeholder="Адреса доставки"
                           rows={2}
                           className="w-full p-4 border-2 border-black text-sm font-bold uppercase tracking-widest outline-none focus:bg-slate-50 resize-none"
                         />
                         <div className="relative">
-                          <select className="w-full p-4 border-2 border-black text-sm font-bold uppercase tracking-widest outline-none appearance-none bg-white">
-                            <option>Оплатити через ARM Bank</option>
-                            <option>Карткою іншого банку</option>
-                            <option>При отриманні</option>
+                          <select
+                            value={paymentMode}
+                            onChange={e => setPaymentMode(e.target.value as 'pay_now' | 'invoice')}
+                            className="w-full p-4 border-2 border-black text-sm font-bold uppercase tracking-widest outline-none appearance-none bg-white"
+                          >
+                            <option value="pay_now">Списати з ARM Bank зараз</option>
+                            <option value="invoice">Виставити рахунок (24 год)</option>
                           </select>
                           <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none" />
                         </div>
+                        {!isLoggedIn && (
+                          <p className="text-xs font-bold text-red-500 uppercase tracking-widest">
+                            ⚠ Потрібна авторизація через ARM Bank
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1084,14 +1355,25 @@ export default function App() {
               </div>
 
               {cart.length > 0 && (
-                <div className="p-8 border-t-2 border-black space-y-6 bg-slate-50">
+                <div className="p-4 sm:p-8 border-t-2 border-black space-y-4 bg-slate-50">
+                  {armUser?.balance !== undefined && (
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-3">
+                      <span>Баланс ARM Bank</span>
+                      <span className={cartTotal > armUser.balance ? 'text-red-500' : 'text-green-700'}>
+                        ₴{armUser.balance.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Разом до оплати</span>
                     <span className="text-4xl font-black">₴{cartTotal.toLocaleString()}</span>
                   </div>
-                  <button 
+                  {armUser?.balance !== undefined && cartTotal > armUser.balance && (
+                    <p className="text-xs font-bold text-red-500 uppercase tracking-widest">Недостатньо коштів на рахунку</p>
+                  )}
+                  <button
                     onClick={handleCheckout}
-                    disabled={isCheckingOut}
+                    disabled={isCheckingOut || (paymentMode === 'pay_now' && armUser?.balance !== undefined && cartTotal > armUser.balance)}
                     className="u24-button w-full py-6 text-lg flex items-center justify-center gap-4 group disabled:opacity-70"
                   >
                     {isCheckingOut ? (
@@ -1099,11 +1381,10 @@ export default function App() {
                         <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></span>
                         ОБРОБКА...
                       </span>
+                    ) : !isLoggedIn ? (
+                      <>Увійти та оформити <ArrowRight className="w-6 h-6" /></>
                     ) : (
-                      <>
-                        Оформити замовлення
-                        <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
-                      </>
+                      <>Оформити замовлення <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" /></>
                     )}
                   </button>
                 </div>
@@ -1114,7 +1395,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Footer */}
-      <footer className="bg-black text-white pt-24 px-4 sm:px-8 overflow-hidden">
+      <footer className="bg-black text-white pt-12 sm:pt-24 px-4 sm:px-8 overflow-hidden">
         <div className="max-w-[1440px] mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 mb-20">
             <div className="space-y-12">
@@ -1153,7 +1434,7 @@ export default function App() {
           </div>
           
           <div className="pt-12 border-t-2 border-white/10 flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 relative z-10 pb-8">
-            <p>© 2024 ARM MARKET. ALL RIGHTS RESERVED.</p>
+            <p>© 2025 ARM MARKET. ALL RIGHTS RESERVED.</p>
             <div className="flex gap-12">
               <a href="#" className="hover:text-white transition-colors">Privacy</a>
               <a href="#" className="hover:text-white transition-colors">Terms</a>
@@ -1164,9 +1445,9 @@ export default function App() {
         
         {/* Massive Footer Text */}
         <div className="w-full overflow-hidden border-t-2 border-white/10 pt-8 pb-4 bg-black text-white/5 relative flex justify-center">
-          <h1 className="text-[15vw] leading-[0.8] font-black tracking-tighter select-none text-center">
+          <div className="text-[15vw] leading-[0.8] font-black tracking-tighter select-none text-center" aria-hidden="true">
             ARM MARKET
-          </h1>
+          </div>
         </div>
       </footer>
 
@@ -1194,6 +1475,7 @@ export default function App() {
                 </div>
                 <button 
                   onClick={() => setIsAuthModalOpen(false)}
+                  aria-label="Закрити"
                   className="w-10 h-10 border-2 border-black flex items-center justify-center hover:bg-accent hover:text-white transition-colors"
                 >
                   <X className="w-5 h-5" />
@@ -1202,16 +1484,20 @@ export default function App() {
 
               <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-4">
-                  <input 
-                    type="email" 
-                    placeholder="EMAIL"
+                  <input
+                    type="text"
+                    name="identity"
+                    placeholder="EMAIL або ТЕЛЕФОН (+380...)"
                     required
+                    autoComplete="username"
                     className="w-full p-4 border-2 border-black text-sm font-bold uppercase tracking-widest outline-none focus:bg-white bg-transparent"
                   />
-                  <input 
-                    type="password" 
+                  <input
+                    type="password"
+                    name="password"
                     placeholder="ПАРОЛЬ"
                     required
+                    autoComplete="current-password"
                     className="w-full p-4 border-2 border-black text-sm font-bold uppercase tracking-widest outline-none focus:bg-white bg-transparent"
                   />
                 </div>
@@ -1255,11 +1541,16 @@ export default function App() {
             >
               <div className="p-8 border-b-2 border-black flex justify-between items-start bg-white">
                 <div>
-                  <h3 className="text-3xl font-black uppercase tracking-tighter">Кабінет</h3>
+                  <h3 className="text-3xl font-black uppercase tracking-tighter">{armUser?.full_name?.split(' ')[0] || 'Кабінет'}</h3>
                   <div className="inline-flex items-center gap-2 mt-2 bg-black text-accent px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-widest">
                     <span className="w-2 h-2 bg-accent animate-pulse"></span>
-                    ID.7734 // КЛІЄНТ
+                    {armUser?.bank_account_number ? `${armUser.bank_account_number} // КЛІЄНТ` : 'ARM BANK // КЛІЄНТ'}
                   </div>
+                  {armUser?.balance !== undefined && (
+                    <div className="mt-3 text-2xl font-black font-mono text-accent">
+                      ₴{armUser.balance.toLocaleString()}
+                    </div>
+                  )}
                 </div>
                 <button 
                   onClick={() => setIsProfileOpen(false)}
@@ -1307,7 +1598,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Toast Container */}
-      <div className="fixed bottom-8 right-8 z-[200] flex flex-col gap-4 pointer-events-none">
+      <div className="fixed bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 sm:left-auto sm:right-8 sm:translate-x-0 z-[200] flex flex-col gap-3 pointer-events-none items-center sm:items-end w-[calc(100%-2rem)] sm:w-auto max-w-sm sm:max-w-none">
         <AnimatePresence>
           {toasts.map(toast => (
             <motion.div
