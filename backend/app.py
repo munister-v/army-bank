@@ -377,7 +377,9 @@ def create_app() -> Flask:
     def marketplace_page():
         react_build = FRONTEND_DIR / 'marketplace' / 'index.html'
         if react_build.exists():
-            return send_from_directory(str(FRONTEND_DIR / 'marketplace'), 'index.html')
+            content = react_build.read_text(encoding='utf-8')
+            content = content.replace('</head>', f'<script>window.ARMY_BANK_BASE="{prefix}";</script>\n</head>')
+            return Response(content, mimetype='text/html')
         return send_html('marketplace.html')
 
     @app.get(prefix + '/turn-test.html' if prefix else '/turn-test.html')
