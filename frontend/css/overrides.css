@@ -10130,3 +10130,117 @@ html.install-banner-visible #appScreen .app-content {
     touch-action: pan-y !important;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   HOTFIX 2026-04-13: Bottom nav — canonical mobile layout
+   Перебиває всі попередні конфліктуючі правила.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  .bottom-nav {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: max(10px, env(safe-area-inset-bottom, 10px)) !important;
+    top: auto !important;
+    width: auto !important;
+    max-width: 460px !important;
+    margin: 0 auto !important;
+    height: 62px !important;
+    min-height: 62px !important;
+    max-height: 62px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    padding: 0 6px !important;
+    border-radius: 32px !important;
+    background: rgba(243, 246, 240, 0.96) !important;
+    backdrop-filter: saturate(180%) blur(20px) !important;
+    -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+    border: 1px solid rgba(0,0,0,.08) !important;
+    box-shadow: 0 8px 24px rgba(18,28,20,.14) !important;
+    z-index: 500 !important;
+    gap: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .nav-item,
+  .bottom-nav .menu-btn {
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+    max-width: 88px !important;
+    height: 100% !important;
+    padding: 6px 4px !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 24px !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    transition: background .15s ease, color .15s ease !important;
+    overflow: hidden !important;
+  }
+
+  .nav-item svg,
+  .bottom-nav .menu-btn svg {
+    width: 22px !important;
+    height: 22px !important;
+    stroke: #8fa396 !important;
+    stroke-width: 1.8 !important;
+    flex-shrink: 0 !important;
+  }
+
+  .nav-item span,
+  .bottom-nav .menu-btn span {
+    display: block !important;
+    font-size: 10px !important;
+    font-weight: 500 !important;
+    color: #8fa396 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+
+  .nav-item.active,
+  .bottom-nav .menu-btn.active {
+    background: rgba(26, 46, 32, 0.09) !important;
+  }
+
+  .nav-item.active svg,
+  .bottom-nav .menu-btn.active svg {
+    stroke: #1a2e20 !important;
+    stroke-width: 2.2 !important;
+  }
+
+  .nav-item.active span,
+  .bottom-nav .menu-btn.active span {
+    color: #1a2e20 !important;
+    font-weight: 700 !important;
+  }
+
+  .nav-item.active::after,
+  .bottom-nav .menu-btn.active::after {
+    content: '' !important;
+    display: block !important;
+    width: 4px !important;
+    height: 4px !important;
+    border-radius: 50% !important;
+    background: #1a2e20 !important;
+    margin: 0 auto !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Content padding so bottom nav doesn't overlap last items */
+  .app-content,
+  #appScreen .app-content {
+    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
