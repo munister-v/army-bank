@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0f3b2d"/>
+  <meta name="description" content="ARM Bank — Захищений месенджер"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="AB Chat"/>
+  <title>ARM Bank · Месенджер</title>
+  <link rel="manifest" href="/manifest-messenger.json?v=46"/>
+  <link rel="icon" type="image/svg+xml" href="/icons/chat-favicon.svg"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/chat-icon-32.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/chat-icon-180.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=46"/>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════
+     AUTH SCREEN — split layout (ref: Nummus Bank)
+════════════════════════════════════════════ -->
+<div id="auth-screen" class="auth-screen">
+  <!-- Left: login form -->
+  <div class="auth-form-panel">
+    <div class="auth-form-inner">
+      <div class="auth-form-kicker">
+        <img src="/icons/chat-icon-32.png" alt="" width="18" height="18" loading="eager" decoding="async"/>
+        <span>ARM BANK MESSENGER</span>
+      </div>
+      <h1 class="auth-form-title" id="auth-form-title">Вхід</h1>
+
+      <form id="login-form" novalidate>
+        <!-- Register-only fields -->
+        <div id="auth-register-fields" hidden>
+          <div class="field-group">
+            <label class="field-label" for="auth-full-name">Повне ім'я</label>
+            <input id="auth-full-name" class="field-input" type="text"
+                   placeholder="Іван Петренко" autocomplete="name"/>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="auth-phone">Телефон <span style="font-weight:400;opacity:.6">(необов'язково)</span></label>
+            <input id="auth-phone" class="field-input" type="tel"
+                   placeholder="+380XXXXXXXXX" autocomplete="tel" inputmode="tel"/>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="auth-identity">Телефон або Email</label>
+          <input id="auth-identity" class="field-input" type="text"
+                 placeholder="+380XXXXXXXXX або email@domain.com"
+                 autocomplete="username" inputmode="email" required/>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="auth-password">Пароль</label>
+          <div class="field-password-wrap">
+            <input id="auth-password" class="field-input" type="password"
+                   placeholder="Ваш пароль"
+                   autocomplete="current-password" required/>
+            <button type="button" class="btn-eye" id="btn-toggle-pw" aria-label="Показати пароль">
+              <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="auth-error" class="auth-error" hidden></div>
+
+        <button type="submit" class="btn-primary" id="btn-login">
+          <span id="btn-login-text">Увійти</span>
+          <span id="btn-login-spin" class="spinner" hidden></span>
+        </button>
+      </form>
+
+      <p class="auth-switch">
+        <span id="auth-switch-hint">Немає акаунту?</span>
+        <button type="button" class="auth-switch-link" id="auth-switch-btn">Зареєструватися</button>
+      </p>
+    </div>
+  </div>
+
+  <!-- Right: branded gradient panel -->
+  <div class="auth-brand-panel">
+    <div class="auth-brand-shell">
+      <div class="auth-brand-logo" aria-hidden="true">
+        <svg viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="ARM Bank Chat">
+          <defs>
+            <linearGradient id="abChatG" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#0f3b2d"/>
+              <stop offset="0.62" stop-color="#1f6b4c"/>
+              <stop offset="1" stop-color="#9d7a3f"/>
+            </linearGradient>
+          </defs>
+          <rect x="10" y="10" width="108" height="108" rx="28" fill="url(#abChatG)"/>
+          <circle cx="91" cy="37" r="13" fill="#d4b070"/>
+          <path d="M35 38h44a12 12 0 0112 12v21a12 12 0 01-12 12H53l-16 13 3-13h-5a12 12 0 01-12-12V50a12 12 0 0112-12z" fill="rgba(255,255,255,.96)"/>
+          <text x="57" y="67" text-anchor="middle" font-size="25" font-family="Manrope, Arial, sans-serif" font-weight="800" fill="#1d5a40">AB</text>
+        </svg>
+      </div>
+      <div class="auth-brand-name">ARM Bank Messenger</div>
+      <p class="auth-brand-sub">Безпечний банківський чат у єдиному стилі ARM Bank: повідомлення, голосові, фото та службова підтримка.</p>
+      <div class="auth-brand-pills">
+        <span>Шифрування повідомлень</span>
+        <span>Голосові та фото</span>
+        <span>Єдина авторизація</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     MAIN APP
+════════════════════════════════════════════ -->
+<div id="app" class="app" hidden>
+
+  <!-- SIDEBAR: conversation list -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-header-left">
+        <div class="sidebar-logo-icon" aria-hidden="true">
+          <img src="/icons/chat-icon-32.png" alt="" width="24" height="24"/>
+        </div>
+        <span class="sidebar-title">Чати</span>
+      </div>
+      <div class="sidebar-header-right">
+        <button class="icon-btn" id="btn-new-chat" title="Новий чат">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+        <button class="icon-btn" data-open-call-settings title="Налаштування дзвінків">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="20" height="20">
+            <line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2.1"/>
+            <line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2.1"/>
+            <line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2.1"/>
+          </svg>
+        </button>
+        <button class="icon-btn" id="btn-sidebar-logout" title="Вийти">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="19" height="19">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+            <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="sidebar-search">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input id="conv-search" class="search-input" type="text" placeholder="Пошук розмов..."/>
+    </div>
+
+    <div class="conv-list" id="conv-list">
+      <div class="conv-empty" id="conv-empty" hidden>
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="48" height="48">
+          <path d="M24 4C13 4 4 12.5 4 23c0 5.5 2.4 10.4 6.2 13.8L8 44l8.5-2.7C19.1 42.4 21.5 43 24 43c11 0 20-8.5 20-20S35 4 24 4z" stroke="#a0a5bd" stroke-width="1.5" fill="none"/>
+        </svg>
+        <p>Немає розмов.<br/>Натисніть + щоб почати чат.</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CHAT AREA -->
+  <main class="chat-area" id="chat-area">
+
+    <!-- Top bar (ref: white bar with section name + avatar) -->
+    <div class="chat-topbar" id="chat-topbar">
+      <div class="chat-topbar-section">Месенджер</div>
+      <div class="chat-topbar-right">
+        <button class="topbar-bell" id="btn-unread" title="Непрочитані">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 01-3.46 0"/>
+          </svg>
+          <span class="badge" id="unread-badge" hidden></span>
+        </button>
+        <button class="icon-btn" data-open-call-settings title="Налаштування дзвінків">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="18" height="18">
+            <line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2.1"/>
+            <line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2.1"/>
+            <line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2.1"/>
+          </svg>
+        </button>
+        <span class="network-pill" id="network-pill" title="Стан мережі">Мережа</span>
+        <div class="topbar-avatar" id="topbar-avatar"></div>
+        <button class="icon-btn" id="btn-logout" title="Вийти">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+            <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Empty state (no chat selected) -->
+    <div class="chat-empty" id="chat-empty">
+      <div class="chat-empty-icon">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" width="64" height="64">
+          <path d="M32 6C17.6 6 6 16.7 6 30c0 7.3 3.3 13.9 8.5 18.4L12 58l11.5-3.6C26.3 55.4 29.1 56 32 56c14.4 0 26-10.7 26-24S46.4 6 32 6z" stroke="#a0a5bd" stroke-width="2" fill="rgba(74,124,250,.04)"/>
+          <path d="M22 30h20M22 22h14" stroke="#a0a5bd" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <p class="chat-empty-title">Оберіть розмову</p>
+      <p class="chat-empty-sub">або натисніть <strong>+</strong> щоб написати комусь</p>
+    </div>
+
+    <!-- Active chat -->
+    <div class="chat-view" id="chat-view" hidden>
+      <div class="chat-header" id="chat-header">
+        <button class="icon-btn back-btn" id="btn-back" title="Назад">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <div class="chat-header-avatar" id="chat-avatar"></div>
+        <div class="chat-header-info">
+          <div class="chat-header-name" id="chat-partner-name"></div>
+          <div class="chat-header-status" id="chat-partner-role"></div>
+        </div>
+        <div class="chat-header-actions">
+          <button id="group-info-btn" class="icon-btn" hidden title="Учасники групи">👥</button>
+          <button class="icon-btn" data-open-call-settings title="Налаштування дзвінків">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="18" height="18">
+              <line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2.1"/>
+              <line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2.1"/>
+              <line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2.1"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="btn-chat-logout" title="Вийти">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+              <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="btn-call" title="Голосовий дзвінок">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.01 2.18 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="btn-bank-tools" title="Bank Tools">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+              <path d="M3 10h18"/><path d="M5 10V6a2 2 0 012-2h10a2 2 0 012 2v4"/><path d="M6 10v8m4-8v8m4-8v8m4-8v8"/><path d="M4 18h16"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <section class="assistant-panel" id="assistant-panel" hidden aria-label="Панель банківського асистента">
+        <div class="assistant-panel-head">
+          <div class="assistant-panel-avatar" aria-hidden="true">
+            <svg viewBox="0 0 64 64" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="assistantHeadG" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#0f3b2d"/>
+                  <stop offset="0.7" stop-color="#1f6b4c"/>
+                  <stop offset="1" stop-color="#b28a4d"/>
+                </linearGradient>
+              </defs>
+              <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#assistantHeadG)"/>
+              <circle cx="46" cy="18" r="6" fill="#d4b070"/>
+              <path d="M18 22h25a8 8 0 0 1 8 8v11a8 8 0 0 1-8 8H29l-9 7 2-7h-4a8 8 0 0 1-8-8V30a8 8 0 0 1 8-8z" fill="rgba(255,255,255,.96)"/>
+              <text x="31" y="38" text-anchor="middle" font-family="Manrope, Arial, sans-serif" font-size="14" font-weight="800" fill="#1d5a40">AB</text>
+            </svg>
+          </div>
+          <div class="assistant-panel-copy">
+            <p class="assistant-panel-title">
+              <span>ARM Bank Assistant</span>
+              <span class="verified-inline static" title="Верифіковано ARM Bank" aria-label="Верифіковано ARM Bank">
+                <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <circle cx="8" cy="8" r="7" fill="#2e8a5f"/>
+                  <path d="M4.2 8.4 6.6 10.7 11.8 5.5" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+            </p>
+            <p class="assistant-panel-sub">Швидкі банківські дії в один клік: баланс, виписки та сервісні інструменти.</p>
+          </div>
+        </div>
+        <div class="assistant-quick-actions" id="assistant-quick-actions">
+          <button type="button" class="assistant-quick-btn" data-assistant-action="menu">Усі команди</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="balance">Баланс</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="recent">Останні операції</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="analytics">Аналітика</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="insights">Інсайти</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="statement_pdf">Виписка PDF</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="statement_csv">Виписка CSV</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="marketplace">Маркетплейс</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="cards">Картки</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="requisites">Реквізити</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="goals">Цілі</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="templates">Шаблони</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="contacts">Контакти</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="budget">Бюджет</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="debts">Борги</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="recurring">Регулярні</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="achievements">Досягнення</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="security">Безпека</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="bank_tools">Bank Tools</button>
+          <button type="button" class="assistant-quick-btn" data-assistant-action="transfer_help">Перекази</button>
+        </div>
+      </section>
+
+      <div class="messages-wrap" id="messages-wrap">
+        <div class="messages-list" id="messages-list"></div>
+        <div class="scroll-anchor" id="scroll-anchor"></div>
+      </div>
+      <button class="scroll-bottom-fab" id="btn-scroll-bottom" type="button" title="До нових повідомлень" hidden>
+        <span class="scroll-bottom-icon" aria-hidden="true">↓</span>
+        <span class="scroll-bottom-label">Донизу</span>
+        <span class="scroll-bottom-unread" id="scroll-bottom-unread" hidden></span>
+      </button>
+
+      <div class="msg-input-bar" id="msg-input-bar">
+        <button class="btn-attach" id="btn-attach-photo" title="Додати фото" type="button" aria-label="Додати фото">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20">
+            <rect x="3" y="5" width="18" height="14" rx="2"/>
+            <circle cx="9" cy="10" r="1.6"/>
+            <path d="M21 15l-4.2-4.2a1.2 1.2 0 00-1.7 0L8 18"/>
+          </svg>
+        </button>
+        <input id="input-photo" type="file" accept="image/*" multiple hidden/>
+        <button class="btn-voice" id="btn-voice" title="Утримуйте для запису" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20">
+            <rect x="9" y="2" width="6" height="12" rx="3"/>
+            <path d="M5 10a7 7 0 0014 0"/>
+            <line x1="12" y1="19" x2="12" y2="23"/><line x1="9" y1="23" x2="15" y2="23"/>
+          </svg>
+        </button>
+        <div class="recording-indicator" id="recording-indicator" hidden>
+          <span class="recording-dot" aria-hidden="true"></span>
+          <span class="recording-label">Запис</span>
+          <span class="recording-time" id="recording-time" aria-live="off">00:00</span>
+          <span class="recording-swipe" id="recording-swipe-hint" aria-live="polite">Свайп ← для скасування</span>
+          <div class="voice-wave" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <button type="button" class="recording-cancel" id="btn-cancel-record">Скасувати</button>
+        </div>
+        <textarea
+          id="msg-input"
+          class="msg-input"
+          placeholder="Напишіть повідомлення..."
+          rows="1"
+          maxlength="4000"
+        ></textarea>
+        <button class="btn-send" id="btn-send" disabled title="Надіслати">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+            <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M22 2L15 22 11 13 2 9l20-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ════════════════════════════════════════════
+     NEW CHAT MODAL
+════════════════════════════════════════════ -->
+<div id="new-chat-modal" class="modal-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Новий чат">
+    <div class="modal-header">
+      <h2 class="modal-title">Новий чат</h2>
+      <button class="icon-btn modal-close" id="btn-close-modal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <!-- Tabs -->
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tab-direct" data-tab="direct">Особисто</button>
+      <button class="modal-tab" id="tab-group" data-tab="group">Група</button>
+    </div>
+
+    <!-- Tab: Direct -->
+    <div id="tab-panel-direct">
+      <div class="modal-search">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input id="user-search-input" class="search-input" type="text"
+               placeholder="Пошук за ім'ям, телефоном або рахунком..."
+               autocomplete="off"/>
+      </div>
+      <div class="user-search-results" id="user-search-results">
+        <p class="search-hint" id="search-hint">Введіть мінімум 2 символи</p>
+      </div>
+    </div>
+
+    <!-- Tab: Group -->
+    <div id="tab-panel-group" hidden>
+      <div class="modal-group-form">
+        <input id="group-name-input" class="field-input" type="text"
+               placeholder="Назва групи..." maxlength="100" autocomplete="off"/>
+        <div class="group-preview-card" id="group-preview-card">
+          <div class="group-preview-avatar" id="group-preview-avatar">Г</div>
+          <div class="group-preview-info">
+            <p class="group-preview-name" id="group-preview-name">Нова група</p>
+            <p class="group-preview-sub" id="group-preview-sub">Додайте учасників для створення</p>
+          </div>
+          <div class="group-preview-badges" id="group-preview-badges"></div>
+        </div>
+        <div class="modal-search" style="padding-top:10px">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input id="group-user-search" class="search-input" type="text"
+                 placeholder="Додати учасників..." autocomplete="off"/>
+        </div>
+        <div id="group-selected-list" class="group-selected-list"></div>
+        <div id="group-user-results" class="user-search-results">
+          <p class="search-hint">Введіть ім'я для пошуку</p>
+        </div>
+        <div class="modal-group-footer">
+          <button class="btn-primary" id="btn-create-group" style="padding:11px">Створити групу</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     CALL SETTINGS MODAL
+════════════════════════════════════════════ -->
+<div id="call-settings-modal" class="modal-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Налаштування дзвінків">
+    <div class="modal-header">
+      <h2 class="modal-title">Налаштування дзвінків</h2>
+      <button class="icon-btn modal-close" id="btn-close-call-settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="call-settings-list">
+      <label class="call-setting-row">
+        <span class="call-setting-title">Звуки дзвінків</span>
+        <input id="call-sounds-toggle" type="checkbox" checked>
+      </label>
+      <label class="call-setting-row">
+        <span class="call-setting-title">Вібрація</span>
+        <input id="call-vibrate-toggle" type="checkbox" checked>
+      </label>
+      <label class="call-setting-row call-setting-row-split">
+        <span class="call-setting-copy">
+          <span class="call-setting-title">Економія трафіку</span>
+          <span class="call-setting-sub">Рідші фонові оновлення та сильніше стиснення фото</span>
+        </span>
+        <input id="call-data-saver-toggle" type="checkbox">
+      </label>
+      <div class="call-setting-hint" id="call-data-saver-hint">Підбираю оптимальний режим…</div>
+      <label class="call-setting-block" for="call-volume-range">
+        <span class="call-setting-title">Гучність сигналів</span>
+        <div class="call-setting-inline">
+          <input id="call-volume-range" type="range" min="0" max="100" step="5" value="70">
+          <span id="call-volume-value">70%</span>
+        </div>
+      </label>
+      <label class="call-setting-block" for="outgoing-timeout-range">
+        <span class="call-setting-title">Таймаут вихідного дзвінка</span>
+        <div class="call-setting-inline">
+          <input id="outgoing-timeout-range" type="range" min="15" max="90" step="5" value="35">
+          <span id="outgoing-timeout-value">35с</span>
+        </div>
+      </label>
+      <label class="call-setting-block" for="incoming-timeout-range">
+        <span class="call-setting-title">Таймаут вхідного дзвінка</span>
+        <div class="call-setting-inline">
+          <input id="incoming-timeout-range" type="range" min="15" max="90" step="5" value="45">
+          <span id="incoming-timeout-value">45с</span>
+        </div>
+      </label>
+      <div class="call-settings-tools">
+        <button class="btn-primary btn-secondary" id="btn-call-test-sound" type="button">Тест сигналу</button>
+        <button class="btn-primary btn-secondary" id="btn-call-reset" type="button">Скинути налаштування</button>
+      </div>
+      <details class="call-settings-advanced">
+        <summary class="call-settings-advanced-summary">Діагностика системи</summary>
+        <section class="diag-card diag-card-in-settings" id="diag-card" aria-label="Стан системи">
+          <div class="diag-head">
+            <p class="diag-title">Стан системи</p>
+            <button class="diag-refresh" id="btn-diag-refresh" type="button">Оновити</button>
+          </div>
+          <div class="diag-grid">
+            <div class="diag-row" id="diag-overall" data-state="warn">
+              <span class="diag-dot" aria-hidden="true"></span>
+              <span class="diag-label">Загальний стан</span>
+            </div>
+            <div class="diag-row" id="diag-push" data-state="warn">
+              <span class="diag-dot" aria-hidden="true"></span>
+              <span class="diag-label">Push</span>
+            </div>
+            <div class="diag-row" id="diag-mic" data-state="warn">
+              <span class="diag-dot" aria-hidden="true"></span>
+              <span class="diag-label">Мікрофон</span>
+            </div>
+            <div class="diag-row" id="diag-call" data-state="warn">
+              <span class="diag-dot" aria-hidden="true"></span>
+              <span class="diag-label">Дзвінки</span>
+            </div>
+          </div>
+          <p class="diag-note" id="diag-note">Перевірка...</p>
+          <div class="diag-actions">
+            <button class="diag-action-btn" id="btn-push-enable" type="button">Увімкнути push</button>
+            <button class="diag-action-btn" id="btn-push-resubscribe" type="button">Оновити підписку</button>
+            <button class="diag-action-btn" id="btn-push-test" type="button">Тест push</button>
+          </div>
+        </section>
+      </details>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     BANK TOOLS MODAL
+════════════════════════════════════════════ -->
+<div id="bank-tools-modal" class="modal-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Банківські інструменти">
+    <div class="modal-header">
+      <h2 class="modal-title">Bank Tools</h2>
+      <button class="icon-btn modal-close" id="btn-close-bank-tools">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="bank-tools-list">
+      <div class="bank-link-status" id="bank-link-status">Перевірка банківського профілю…</div>
+      <div class="bank-account-chip">
+        <div class="bank-chip-line">
+          <span>Рахунок</span>
+          <strong id="bank-account-number">—</strong>
+        </div>
+        <div class="bank-chip-line">
+          <span>Баланс</span>
+          <strong id="bank-balance">₴0.00</strong>
+        </div>
+      </div>
+      <div class="bank-tools-actions">
+        <button class="btn-primary" id="btn-bank-refresh" type="button">Оновити дані</button>
+        <button class="btn-primary btn-secondary" id="btn-bank-send-summary" type="button">Надіслати зведення в чат</button>
+      </div>
+      <div class="bank-period-grid">
+        <label class="bank-field">
+          <span>З дати</span>
+          <input id="bank-from-date" type="date">
+        </label>
+        <label class="bank-field">
+          <span>По дату</span>
+          <input id="bank-to-date" type="date">
+        </label>
+      </div>
+      <label class="bank-field">
+        <span>Тип виписки</span>
+        <select id="bank-report-type">
+          <option value="detailed">Детальна</option>
+          <option value="summary">Коротка</option>
+        </select>
+      </label>
+      <div class="bank-tools-actions">
+        <button class="btn-primary" id="btn-bank-download-pdf" type="button">Завантажити PDF</button>
+        <button class="btn-primary btn-secondary" id="btn-bank-download-csv" type="button">Завантажити CSV</button>
+      </div>
+      <button class="btn-primary btn-secondary" id="btn-bank-send-order-msg" type="button">Надіслати запит виписки в чат</button>
+      <p class="bank-tools-hint">
+        Порада: команди в чаті <code>/банк</code>, <code>/баланс</code>, <code>/виписка pdf</code>, <code>/виписка csv</code>, <code>/маркет</code>.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     INCOMING CALL OVERLAY
+════════════════════════════════════════════ -->
+<div id="call-incoming" class="call-incoming" hidden>
+  <div class="call-incoming-card">
+    <div class="call-secure-label">Secure Call · ARM Bank</div>
+    <div class="call-avatar" id="call-caller-avatar"></div>
+    <div class="call-caller-name" id="call-caller-name">Вхідний дзвінок</div>
+    <div class="call-label" id="call-incoming-label">Голосовий дзвінок</div>
+    <div class="call-incoming-meta">Наскрізне шифрування активне</div>
+    <div class="call-incoming-btns">
+      <button class="btn-call-reject" id="btn-reject-call" title="Відхилити">
+        <span class="call-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <path d="M23.36 6.64l-3.06-3.06a2 2 0 00-2.83 0l-2.12 2.12a2 2 0 000 2.83l1.06 1.06c-1.04 2.04-2.7 3.7-4.74 4.74l-1.06-1.06a2 2 0 00-2.83 0L5.72 15.4a2 2 0 000 2.83l3.06 3.06"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        </span>
+        <span class="call-action-label">Відхилити</span>
+      </button>
+      <button class="btn-call-accept" id="btn-accept-call" title="Прийняти">
+        <span class="call-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.01 2.18 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+          </svg>
+        </span>
+        <span class="call-action-label">Прийняти</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     ACTIVE CALL SCREEN
+════════════════════════════════════════════ -->
+<div id="call-screen" class="call-screen" hidden>
+  <div class="call-screen-shell">
+    <div class="call-screen-chip">ARM BANK SECURE CALL</div>
+    <div class="call-screen-avatar-wrap">
+      <div class="call-screen-avatar" id="call-screen-avatar"></div>
+    </div>
+    <div class="call-screen-name" id="call-screen-name"></div>
+    <div class="call-screen-status" id="call-screen-status">З'єднання...</div>
+    <div class="call-screen-mic-state" id="call-screen-mic-state">Вас чути</div>
+    <div class="call-screen-timer" id="call-screen-timer" hidden>00:00</div>
+    <div class="call-screen-peers" id="call-screen-peers" hidden></div>
+    <div class="call-screen-btns">
+      <button class="btn-call-mute" id="btn-mute" title="Вимкнути мікрофон" aria-pressed="false">
+        <span class="call-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20">
+            <rect x="9" y="2" width="6" height="12" rx="3"/>
+            <path d="M5 10a7 7 0 0014 0"/>
+            <line x1="12" y1="19" x2="12" y2="23"/><line x1="9" y1="23" x2="15" y2="23"/>
+            <line class="mic-off-slash" x1="4" y1="4" x2="20" y2="20"/>
+          </svg>
+        </span>
+        <span class="call-action-label" id="call-mute-label">Мікрофон увімкнено</span>
+      </button>
+      <button class="btn-call-end" id="btn-end-call" title="Завершити дзвінок">
+        <span class="call-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <path d="M23.36 6.64l-3.06-3.06a2 2 0 00-2.83 0l-2.12 2.12a2 2 0 000 2.83l1.06 1.06c-1.04 2.04-2.7 3.7-4.74 4.74l-1.06-1.06a2 2 0 00-2.83 0L5.72 15.4a2 2 0 000 2.83l3.06 3.06"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        </span>
+        <span class="call-action-label">Завершити</span>
+      </button>
+    </div>
+    <div class="call-screen-footnote">Якість зв'язку адаптується автоматично</div>
+  </div>
+  <div id="remote-audio-mount" hidden></div>
+  <audio id="remote-audio" autoplay playsinline></audio>
+</div>
+
+<!-- ════════════════════════════════════════════
+     PHOTO VIEWER
+════════════════════════════════════════════ -->
+<div id="photo-viewer" class="photo-viewer" hidden>
+  <button class="photo-viewer-close" id="btn-photo-close" title="Закрити">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  </button>
+  <button class="photo-viewer-nav prev" id="btn-photo-prev" title="Попереднє фото" aria-label="Попереднє фото">‹</button>
+  <img id="photo-viewer-img" class="photo-viewer-img" alt="Фото з чату" draggable="false"/>
+  <button class="photo-viewer-nav next" id="btn-photo-next" title="Наступне фото" aria-label="Наступне фото">›</button>
+  <div class="photo-viewer-meta">
+    <span id="photo-viewer-counter">1 / 1</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     GROUP INFO PANEL
+════════════════════════════════════════════ -->
+<!-- Group Info Panel -->
+<div id="group-panel" hidden>
+  <div class="group-panel-header">
+    <button id="group-panel-close" class="icon-btn" aria-label="Закрити">✕</button>
+    <h3 id="group-panel-name" class="group-panel-title"></h3>
+    <button id="group-rename-btn" class="icon-btn" title="Перейменувати" aria-label="Перейменувати">✏️</button>
+  </div>
+  <div class="group-panel-body">
+    <div class="group-section-label">Учасники</div>
+    <ul id="group-members-list" class="group-members-list"></ul>
+    <div class="group-actions">
+      <button id="group-add-member-btn" class="btn-secondary">+ Додати учасника</button>
+      <button id="group-leave-btn" class="btn-danger">Вийти з групи</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     TOAST
+════════════════════════════════════════════ -->
+<div id="toast" class="toast" aria-live="polite"></div>
+
+<script src="/js/messenger.js?v=46"></script>
+</body>
+</html>

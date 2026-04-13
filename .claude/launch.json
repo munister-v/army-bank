@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "army-bank",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "gunicorn", "-w", "1", "-b", "0.0.0.0:5000", "backend.app:app"],
+      "port": 5000
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TURN Test</title>
+<style>
+body { font-family: monospace; padding: 16px; background: #111; color: #eee; font-size: 14px; }
+.ok  { color: #4f4; font-weight: bold; }
+.err { color: #f44; font-weight: bold; }
+.info{ color: #aaa; }
+pre  { white-space: pre-wrap; word-break: break-all; }
+#res { margin-top: 16px; }
+button { padding: 12px 24px; font-size: 16px; margin-top: 8px; cursor: pointer; }
+</style>
+</head>
+<body>
+<h2>TURN Connectivity Test</h2>
+<button onclick="runTest()">▶ Run Test</button>
+<div id="res"></div>
+<script>
+const TURN_SERVERS = [
+  { urls: 'turn:global.relay.metered.ca:80',              username: '666665992002713148080e90', credential: 'cG2MBiReuuliDYQB' },
+  { urls: 'turn:global.relay.metered.ca:80?transport=tcp',username: '666665992002713148080e90', credential: 'cG2MBiReuuliDYQB' },
+  { urls: 'turn:global.relay.metered.ca:443',             username: '666665992002713148080e90', credential: 'cG2MBiReuuliDYQB' },
+  { urls: 'turns:global.relay.metered.ca:443?transport=tcp',username:'666665992002713148080e90', credential: 'cG2MBiReuuliDYQB' },
+];
+
+function log(msg, cls) {
+  const div = document.createElement('div');
+  div.className = cls || 'info';
+  div.textContent = msg;
+  document.getElementById('res').appendChild(div);
+}
+
+async function runTest() {
+  document.getElementById('res').innerHTML = '';
+  log('Testing TURN server connectivity...', 'info');
+  log('Server: global.relay.metered.ca', 'info');
+  log('---', 'info');
+
+  const candidates = [];
+  let done = false;
+
+  const pc = new RTCPeerConnection({ iceServers: TURN_SERVERS });
+  pc.createDataChannel('turn-test');
+
+  pc.onicecandidate = (e) => {
+    if (e.candidate) {
+      const c = e.candidate;
+      candidates.push({ type: c.type, candidate: c.candidate });
+      log(`[${c.type}] ${c.candidate.substring(0, 80)}`, c.type === 'relay' ? 'ok' : 'info');
+    } else {
+      if (!done) finish();
+    }
+  };
+
+  function finish() {
+    done = true;
+    pc.close();
+    log('---', 'info');
+    const hasRelay = candidates.some(c => c.type === 'relay');
+    if (hasRelay) {
+      log('✅ TURN WORKS! Relay candidates found: ' + candidates.filter(c=>c.type==='relay').length, 'ok');
+    } else {
+      log('❌ TURN FAILED — no relay candidates. Cross-network calls will not work.', 'err');
+      log('Candidate types found: ' + [...new Set(candidates.map(c=>c.type))].join(', '), 'info');
+    }
+  }
+
+  try {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    setTimeout(() => { if (!done) finish(); }, 12000);
+    log('Gathering... (wait up to 12s)', 'info');
+  } catch(e) {
+    log('Error: ' + e.message, 'err');
+  }
+}
+</script>
+</body>
+</html>
