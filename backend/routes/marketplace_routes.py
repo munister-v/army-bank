@@ -35,10 +35,24 @@ def _due_at_sql(hours: int = 24) -> str:
 
 
 def _safe_add_column(conn: Any, table: str, ddl: str) -> None:
-    try:
-        conn.execute(f'ALTER TABLE {table} ADD COLUMN {ddl}')
-    except Exception:
-        pass
+    """Add column if not exists. Uses SAVEPOINTs in PostgreSQL to avoid
+    leaving the transaction in an aborted state when the column already exists."""
+    from ..config import USE_PG
+    if USE_PG:
+        try:
+            conn.execute('SAVEPOINT _safe_add_col')
+            conn.execute(f'ALTER TABLE {table} ADD COLUMN {ddl}')
+            conn.execute('RELEASE SAVEPOINT _safe_add_col')
+        except Exception:
+            try:
+                conn.execute('ROLLBACK TO SAVEPOINT _safe_add_col')
+            except Exception:
+                pass
+    else:
+        try:
+            conn.execute(f'ALTER TABLE {table} ADD COLUMN {ddl}')
+        except Exception:
+            pass
 
 
 def _generate_invoice_number() -> str:
