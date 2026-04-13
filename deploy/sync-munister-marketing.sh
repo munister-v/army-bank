@@ -3,13 +3,13 @@
 #
 # ВАЖЛИВО: push у GitHub НЕ оновлює munister.com.ua сам по собі.
 # Якщо nginx віддає файли з /var/www/... — обов'язково запустіть цей скрипт після git pull.
-# Перевірити «живу» копію з останнього Render deploy: https://army-bank.onrender.com/army-bank/
 #
 # Запуск: з кореня репозиторію після git pull, з заданими шляхами.
 #
 # Приклад:
 #   ARMY_ADMIN_TARGET=/var/www/munister.com.ua/army-admin \
 #   ARMY_BANK_TARGET=/var/www/munister.com.ua/army-bank \
+#   MARKETPLACE_TARGET=/var/www/munister.com.ua/marketplace \
 #   ./deploy/sync-munister-marketing.sh
 
 set -euo pipefail
@@ -17,33 +17,42 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 : "${ARMY_ADMIN_TARGET:=}"
 : "${ARMY_BANK_TARGET:=}"
+: "${MARKETPLACE_TARGET:=}"
 
 usage() {
   echo "Задайте абсолютні шляхи до каталогів на сервері:"
-  echo "  ARMY_ADMIN_TARGET — корінь https://munister.com.ua/army-admin/"
-  echo "  ARMY_BANK_TARGET  — корінь https://munister.com.ua/army-bank/"
+  echo "  ARMY_ADMIN_TARGET  — корінь https://munister.com.ua/army-admin/"
+  echo "  ARMY_BANK_TARGET   — корінь https://munister.com.ua/army-bank/"
+  echo "  MARKETPLACE_TARGET — корінь https://munister.com.ua/marketplace/"
   echo ""
   echo "Приклад:"
-  echo "  ARMY_ADMIN_TARGET=/var/www/.../army-admin ARMY_BANK_TARGET=/var/www/.../army-bank $0"
+  echo "  ARMY_ADMIN_TARGET=/var/www/.../army-admin \\"
+  echo "  ARMY_BANK_TARGET=/var/www/.../army-bank \\"
+  echo "  MARKETPLACE_TARGET=/var/www/.../marketplace \\"
+  echo "  $0"
   exit 1
 }
 
-[[ -n "$ARMY_ADMIN_TARGET" && -n "$ARMY_BANK_TARGET" ]] || usage
+[[ -n "$ARMY_ADMIN_TARGET" && -n "$ARMY_BANK_TARGET" && -n "$MARKETPLACE_TARGET" ]] || usage
 
-for d in "$ARMY_ADMIN_TARGET" "$ARMY_BANK_TARGET"; do
+for d in "$ARMY_ADMIN_TARGET" "$ARMY_BANK_TARGET" "$MARKETPLACE_TARGET"; do
   if [[ ! -d "$d" ]]; then
     echo "Помилка: каталог не існує: $d"
     exit 1
   fi
 done
 
-[[ -d "$ROOT/marketing/munister-army-admin" ]] || { echo "Немає $ROOT/marketing/munister-army-admin"; exit 1; }
-[[ -d "$ROOT/marketing/munister-army-bank" ]] || { echo "Немає $ROOT/marketing/munister-army-bank"; exit 1; }
+[[ -d "$ROOT/marketing/munister-army-admin" ]]  || { echo "Немає $ROOT/marketing/munister-army-admin"; exit 1; }
+[[ -d "$ROOT/marketing/munister-army-bank" ]]   || { echo "Немає $ROOT/marketing/munister-army-bank"; exit 1; }
+[[ -d "$ROOT/marketing/munister-army-market" ]] || { echo "Немає $ROOT/marketing/munister-army-market"; exit 1; }
 
 echo "→ rsync army-admin → $ARMY_ADMIN_TARGET"
 rsync -av --delete "$ROOT/marketing/munister-army-admin/" "$ARMY_ADMIN_TARGET/"
 
 echo "→ rsync army-bank → $ARMY_BANK_TARGET"
 rsync -av --delete "$ROOT/marketing/munister-army-bank/" "$ARMY_BANK_TARGET/"
+
+echo "→ rsync marketplace → $MARKETPLACE_TARGET"
+rsync -av --delete "$ROOT/marketing/munister-army-market/" "$MARKETPLACE_TARGET/"
 
 echo "Готово."
