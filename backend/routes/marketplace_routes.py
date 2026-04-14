@@ -558,6 +558,15 @@ def _expire_overdue_invoices(conn: Any) -> None:
         )
 
 
+def _dt_str(v: Any) -> str | None:
+    """Convert datetime / date objects to ISO string; pass strings through."""
+    if v is None:
+        return None
+    if hasattr(v, 'isoformat'):
+        return v.isoformat()
+    return str(v)
+
+
 def _to_payload_product(row: dict[str, Any]) -> dict[str, Any]:
     return {
         'id': int(row['id']),
@@ -581,8 +590,11 @@ def _to_payload_order(row: dict[str, Any]) -> dict[str, Any]:
         'payment_mode': row.get('payment_mode') or 'pay_now',
         'invoice_number': row.get('invoice_number'),
         'invoice_status': row.get('invoice_status') or 'paid',
+
         'invoice_due_at': _dt(row.get('invoice_due_at')),
         'created_at': _dt(row.get('created_at')),
+        'invoice_due_at': _dt_str(row.get('invoice_due_at')),
+        'created_at': _dt_str(row.get('created_at')),
         'items_count': int(row.get('items_count') or 0),
     }
 
@@ -606,9 +618,13 @@ def _auth_payload(row: dict[str, Any] | None) -> dict[str, Any] | None:
             None if row.get('balance_after') is None else float(row.get('balance_after') or 0)
         ),
         'payment_tx_id': int(row.get('payment_tx_id') or 0),
+
         'created_at': _dt(row.get('created_at')),
         'captured_at': _dt(row.get('captured_at')),
         'reversed_at': _dt(row.get('reversed_at')),
+        'created_at': _dt_str(row.get('created_at')),
+        'captured_at': _dt_str(row.get('captured_at')),
+        'reversed_at': _dt_str(row.get('reversed_at')),
     }
 
 
@@ -882,9 +898,13 @@ def list_invoices():
             'amount': float(r.get('amount') or 0),
             'currency': r.get('currency') or 'UAH',
             'status': r.get('status') or 'issued',
+
             'due_at': _dt(r.get('due_at')),
             'paid_at': _dt(r.get('paid_at')),
             'created_at': _dt(r.get('created_at')),
+            'due_at': _dt_str(r.get('due_at')),
+            'paid_at': _dt_str(r.get('paid_at')),
+            'created_at': _dt_str(r.get('created_at')),
             'order_id': int(r.get('order_id') or 0),
         })
     return jsonify({'ok': True, 'data': {'invoices': invoices}})
@@ -961,9 +981,13 @@ def get_invoice(invoice_number: str):
         'status': inv_d.get('status') or 'issued',
         'amount': float(inv_d.get('amount') or 0),
         'currency': inv_d.get('currency') or 'UAH',
+
         'due_at': _dt(inv_d.get('due_at')),
         'paid_at': _dt(inv_d.get('paid_at')),
         'created_at': _dt(inv_d.get('created_at')),
+        'due_at': _dt_str(inv_d.get('due_at')),
+        'paid_at': _dt_str(inv_d.get('paid_at')),
+        'created_at': _dt_str(inv_d.get('created_at')),
         'payment_tx_id': int(inv_d.get('payment_tx_id') or 0),
         'payment_authorization': _auth_payload(auth_row),
         'order_status': inv_d.get('order_status') or 'awaiting_payment',
@@ -1366,7 +1390,9 @@ def _checkout_impl():
             'invoice_id': int(invoice_id or 0),
             'invoice_number': invoice_number,
             'invoice_status': invoice_status,
+
             'invoice_due_at': _dt(invoice_due_at),
+            'invoice_due_at': _dt_str(invoice_due_at),
             'payment_tx_id': int(payment_tx_id or 0),
             'total_amount': float(total_amount),
             'currency': str(account.get('currency') or 'UAH'),
