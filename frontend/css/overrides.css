@@ -10239,3 +10239,32 @@ html.install-banner-visible #appScreen .app-content {
     padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   PWA STANDALONE FIX: высокоспецифичные правила (specificity 0,4,1)
+   перебивают #appScreen #sidebar.bottom-nav (specificity 0,2,1) которые
+   задают min-height: calc(72px + env(safe-area-inset-bottom)) = 106px
+   на iPhone → навигация растягивалась в PWA но была нормальной в браузере
+   ══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  html.app-standalone #appScreen #sidebar.bottom-nav {
+    height: 62px !important;
+    min-height: 62px !important;
+    max-height: 62px !important;
+    padding: 0 6px !important;
+    /* В standalone bottom = safe-area чтобы nav сидел над home-indicator */
+    bottom: env(safe-area-inset-bottom, 0px) !important;
+  }
+
+  /* Контент: в standalone нет browser-toolbar, только safe-area + nav */
+  html.app-standalone #appScreen .app-content {
+    padding-bottom: calc(
+      62px + 8px +
+      env(safe-area-inset-bottom, 0px)
+    ) !important;
+    scroll-padding-bottom: calc(
+      62px + 8px +
+      env(safe-area-inset-bottom, 0px)
+    ) !important;
+  }
+}
