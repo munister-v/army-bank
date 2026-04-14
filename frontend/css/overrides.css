@@ -2830,8 +2830,14 @@ textarea:focus,
 .nav-item.active,
 .nav-link.active,
 .menu-btn.active {
-  color: #1f6b4c !important;
-  background: rgba(31, 107, 76, 0.11) !important;
+  color: #1a2e20 !important;
+  background: rgba(26, 46, 32, 0.09) !important;
+}
+.nav-item.active span,
+.nav-link.active span,
+.menu-btn.active span {
+  color: #1a2e20 !important;
+  font-weight: 700 !important;
 }
 
 .nav-item:active,
@@ -2854,7 +2860,8 @@ textarea:focus,
 .nav-item.active svg,
 .nav-link.active svg,
 .menu-btn.active svg {
-  stroke: #1f6b4c !important;
+  stroke: #1a2e20 !important;
+  stroke-width: 2.2 !important;
 }
 
 .screen.active-screen > .section-header-row,
@@ -6104,16 +6111,10 @@ button.btn-primary:active {
 .nav-item:active {
   opacity: .6 !important;
 }
-/* Active indicator: pill під іконкою */
-.nav-item.active::after {
-  content: '' !important;
-  display: block !important;
-  width: 4px !important;
-  height: 4px !important;
-  border-radius: 2px !important;
-  background: #1a2e20 !important;
-  margin: 0 auto !important;
-  margin-top: -2px !important;
+/* No dot indicator — active state shown by background only */
+.nav-item.active::after,
+.menu-btn.active::after {
+  display: none !important;
 }
 
 /* ── QA-btn tap animation ─────────────────────────────────────── */
@@ -10228,14 +10229,7 @@ html.install-banner-visible #appScreen .app-content {
 
   .nav-item.active::after,
   .bottom-nav .menu-btn.active::after {
-    content: '' !important;
-    display: block !important;
-    width: 4px !important;
-    height: 4px !important;
-    border-radius: 50% !important;
-    background: #1a2e20 !important;
-    margin: 0 auto !important;
-    flex-shrink: 0 !important;
+    display: none !important;
   }
 
   /* Content padding so bottom nav doesn't overlap last items */
