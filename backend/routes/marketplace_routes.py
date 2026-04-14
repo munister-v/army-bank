@@ -402,6 +402,71 @@ def _ensure_schema() -> None:
             ('arm-light-bulb-e27', 'ARM Smart Bulb E27', 'Окрема smart-лампа з підтримкою сцен', 499.00, '💡', None, 110),
             ('arm-rice-cooker', 'ARM Rice Cooker', 'Рисоварка з антипригарною чашею', 2699.00, '🍚', None, 33),
             ('arm-electric-kettle-pro', 'ARM Kettle Pro Temp', 'Чайник з точним контролем температури', 2299.00, '🫖', 'ARM DEAL', 25),
+
+            # ── Реальні бренди ──────────────────────────────────────────────
+
+            # Смартфони
+            ('real-iphone-16-pro-256', 'Apple iPhone 16 Pro 256GB', 'Чіп A18 Pro, камера 48MP з 5× оптичним зумом, titanium корпус', 62999.00, '📱', 'TOP', 14),
+            ('real-iphone-16-128', 'Apple iPhone 16 128GB', 'Чіп A18, камера з підтримкою Camera Control', 42999.00, '📱', 'HOT', 22),
+            ('real-iphone-15-256', 'Apple iPhone 15 256GB', 'Dynamic Island, USB-C, камера 48MP', 38999.00, '📱', 'SALE', 17),
+            ('real-samsung-s25-ultra', 'Samsung Galaxy S25 Ultra 256GB', 'Snapdragon 8 Elite, вбудований S Pen, камера 200MP', 54999.00, '📱', 'TOP', 12),
+            ('real-samsung-s25-128', 'Samsung Galaxy S25 128GB', '7-річні оновлення, Galaxy AI, тонкий корпус', 38999.00, '📱', 'NEW', 19),
+            ('real-samsung-a55-256', 'Samsung Galaxy A55 5G 256GB', 'AMOLED 120Hz, захист IP67, камера 50MP', 17999.00, '📱', None, 35),
+            ('real-google-pixel-9-pro', 'Google Pixel 9 Pro 128GB', 'Tensor G4, Magic Eraser, Gemini AI', 42999.00, '📱', 'HOT', 13),
+            ('real-xiaomi-14t-pro', 'Xiaomi 14T Pro 256GB', 'Leica оптика, Dimensity 9300+, зарядка 120W', 26999.00, '📱', 'SALE', 21),
+            ('real-xiaomi-redmi-14pro', 'Xiaomi Redmi Note 14 Pro+ 5G 256GB', 'AMOLED 120Hz, 50MP OIS, акумулятор 6200mAh', 11999.00, '📱', None, 44),
+            ('real-oneplus-13-512', 'OnePlus 13 512GB', 'Snapdragon 8 Elite, зарядка 100W, Hasselblad камера', 32999.00, '📱', 'ARM DEAL', 16),
+            ('real-samsung-zfold6', 'Samsung Galaxy Z Fold 6 256GB', 'Складаний смартфон, 7.6" внутрішній дисплей', 69999.00, '📱', 'TOP', 7),
+
+            # Ноутбуки
+            ('real-macbook-air-m3-13', 'Apple MacBook Air 13" M3 16/256GB', 'Чіп M3, 18 год. автономності, Liquid Retina дисплей', 48999.00, '💻', 'TOP', 11),
+            ('real-macbook-pro-m3-14', 'Apple MacBook Pro 14" M3 Pro 18/512GB', 'Чіп M3 Pro, ProRes відео, Liquid Retina XDR', 89999.00, '💻', 'PRO', 6),
+            ('real-asus-zenbook-14-oled', 'ASUS ZenBook 14 OLED 32/1TB', 'OLED 2.8K дисплей, Intel Core Ultra 7, 1.37 кг', 34999.00, '💻', 'NEW', 15),
+            ('real-lenovo-thinkpad-x1', 'Lenovo ThinkPad X1 Carbon 32/1TB', 'Корпоративний ультрабук, 14" IPS, сертифікований MIL-SPEC', 67999.00, '💻', None, 8),
+            ('real-hp-spectre-x360', 'HP Spectre x360 14 16/1TB', 'Трансформер 2-в-1, OLED дисплей, Intel Evo', 58999.00, '💻', 'HOT', 9),
+            ('real-dell-xps-15-9530', 'Dell XPS 15 9530 32/1TB', 'OLED 3.5K дисплей, Intel Core i9, GeForce RTX', 74999.00, '💻', 'PRO', 7),
+            ('real-asus-rog-g14', 'ASUS ROG Zephyrus G14 32/1TB', 'AMD Ryzen 9 + RX 7900S, OLED 165Hz, ігровий', 69999.00, '🎮', 'HOT', 8),
+            ('real-lenovo-legion-5pro', 'Lenovo Legion 5 Pro 32/1TB', 'Ryzen 7 7745HX, RTX 4070, 165Hz IPS', 58999.00, '🎮', 'ARM DEAL', 11),
+            ('real-msi-raider-ge78', 'MSI Raider GE78 HX 32/2TB', 'Intel Core i9, RTX 4090, 240Hz QHD+', 109999.00, '🎮', 'TOP', 4),
+
+            # Планшети
+            ('real-ipad-air-m2-11', 'Apple iPad Air 11" M2 128GB Wi-Fi', 'Чіп M2, Liquid Retina, Apple Pencil Pro сумісний', 28999.00, '📲', 'NEW', 16),
+            ('real-ipad-pro-m4-13', 'Apple iPad Pro 13" M4 256GB Wi-Fi', 'Надтонкий OLED дисплей, чіп M4, Magic Keyboard', 62999.00, '📲', 'TOP', 9),
+            ('real-samsung-tab-s10', 'Samsung Galaxy Tab S10 256GB', 'DeX режим, AMOLED 120Hz, S Pen у комплекті', 28999.00, '📲', 'HOT', 14),
+            ('real-xiaomi-pad-6spro', 'Xiaomi Pad 6S Pro 256GB', 'Snapdragon 8 Gen 2, 144Hz IPS, зарядка 67W', 19999.00, '📲', 'SALE', 18),
+
+            # Навушники
+            ('real-airpods-pro-2', 'Apple AirPods Pro 2', 'ANC, Adaptive Audio, USB-C кейс, Lossless', 9499.00, '🎧', 'TOP', 28),
+            ('real-airpods-4', 'Apple AirPods 4', 'ANC версія, USB-C, Personalized Spatial Audio', 4999.00, '🎧', 'NEW', 37),
+            ('real-sony-wh1000xm5', 'Sony WH-1000XM5', 'Найкращий ANC у класі, 30 год. автономності, LDAC', 9999.00, '🎧', 'HOT', 21),
+            ('real-samsung-buds3-pro', 'Samsung Galaxy Buds3 Pro', 'Hi-Fi звук, ANC, відкритий дизайн', 6999.00, '🎧', 'ARM DEAL', 24),
+            ('real-bose-qc45', 'Bose QuietComfort 45', 'Преміальний ANC, комфортна посадка, 24 год.', 8999.00, '🎧', 'SALE', 19),
+            ('real-sony-wf1000xm5', 'Sony WF-1000XM5', 'Найкращі TWS навушники з ANC 2024', 7499.00, '🎧', None, 22),
+
+            # Смарт-годинники
+            ('real-applewatch-s10-41', 'Apple Watch Series 10 41mm', 'Найтонший Apple Watch, великий дисплей, sleep apnea', 15999.00, '⌚', 'NEW', 18),
+            ('real-applewatch-ultra2', 'Apple Watch Ultra 2', 'Titanium, GPS L1/L5, до 60 год. з оптимізацією', 29999.00, '⌚', 'TOP', 10),
+            ('real-samsung-watch7-44', 'Samsung Galaxy Watch 7 44mm', 'BioActive сенсор, body composition, Wear OS', 8999.00, '⌚', 'HOT', 23),
+            ('real-garmin-fenix8-47', 'Garmin Fenix 8 47mm', 'AMOLED, multi-sport GPS, підводний до 100м', 29999.00, '⌚', 'PRO', 8),
+
+            # Телевізори
+            ('real-lg-oled-c4-55', 'LG OLED C4 55"', 'OLED evo, 4K 120Hz, Dolby Vision IQ, webOS 24', 49999.00, '📺', 'TOP', 11),
+            ('real-samsung-qled-65-8k', 'Samsung Neo QLED 8K 65"', 'Quantum Matrix Pro, 8K AI Upscaling, 120Hz', 119999.00, '📺', 'PRO', 3),
+            ('real-sony-bravia7-65', 'Sony Bravia 7 65" QLED', 'XR Processor, Bravia Acoustic Multi-Audio, Google TV', 59999.00, '📺', 'HOT', 7),
+            ('real-philips-oled908-55', 'Philips OLED908 55" Ambilight', 'OLED 120Hz з 4-стороннім Ambilight, P5 AI', 59999.00, '📺', 'NEW', 9),
+
+            # Побутова техніка
+            ('real-dyson-v15-detect', 'Dyson V15 Detect Absolute', 'Лазерне виявлення пилу, HEPA фільтр, 60 хв.', 25999.00, '🧹', 'TOP', 13),
+            ('real-dyson-v10-motorhead', 'Dyson Cyclone V10 Motorhead', 'Потужний, 60 хв., 14 насадок', 17999.00, '🧹', 'SALE', 16),
+            ('real-roborock-s8-maxv', 'Roborock S8 MaxV Ultra', 'LiDAR + камера, самоочисна станція, FlexiArm', 29999.00, '🤖', 'HOT', 9),
+            ('real-irobot-j9plus', 'iRobot Roomba j9+', 'Auto-Empty Base, Smart Map, Clean Base', 24999.00, '🤖', 'ARM DEAL', 11),
+            ('real-philips-airfryer5000', 'Philips AirFryer 5000 XL 6.2L', 'Rapid Air, NutriU рецепти, 6 пресетів', 4999.00, '🍟', 'NEW', 29),
+            ('real-delonghi-magnifica', 'De\'Longhi Magnifica Evo', 'Автоматична кавомашина з кавомолкою', 21999.00, '☕', 'TOP', 12),
+            ('real-nespresso-vertuo-next', 'Nespresso Vertuo Next', 'Centrifusion технологія, 5 розмірів кави', 7499.00, '☕', 'SALE', 24),
+            ('real-kitchenaid-artisan', 'KitchenAid Artisan 5KSM175', 'Планетарний міксер 4.8л, 10 швидкостей', 24999.00, '🍳', 'PRO', 10),
+            ('real-tefal-gv9710', 'Tefal Express Anti-Calc GV9710', 'Перукарня з системою Calc Collector', 8499.00, '🧺', 'HOT', 17),
+            ('real-bosch-washer-9kg', 'Bosch Serie 6 WAU28UH2 9kg', 'A-клас, EcoSilence мотор, i-DOS автодозатор', 23999.00, '🧺', 'NEW', 8),
+            ('real-lg-puricare-360', 'LG PuriCare 360° Air Purifier', 'True HEPA H13, CADR 360, ультрафіолетова лампа', 13999.00, '🌫️', None, 15),
         ]
         suffix = get_returning_id_suffix()
         existing_rows = conn.execute('SELECT slug FROM marketplace_products').fetchall()
