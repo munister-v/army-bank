@@ -116,7 +116,7 @@ def _ensure_schema() -> None:
         conn.execute(
             f"""
             CREATE TABLE IF NOT EXISTS marketplace_products (
-                id INTEGER PRIMARY KEY,
+                id {pk_sql},
                 slug VARCHAR(80) UNIQUE NOT NULL,
                 title VARCHAR(160) NOT NULL,
                 description TEXT NOT NULL DEFAULT '',
@@ -135,7 +135,7 @@ def _ensure_schema() -> None:
         conn.execute(
             f"""
             CREATE TABLE IF NOT EXISTS marketplace_orders (
-                id INTEGER PRIMARY KEY,
+                id {pk_sql},
                 user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
                 total_amount NUMERIC(14,2) NOT NULL CHECK(total_amount >= 0),
@@ -159,7 +159,7 @@ def _ensure_schema() -> None:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS marketplace_order_items (
-                id INTEGER PRIMARY KEY,
+                id {pk_sql},
                 order_id INTEGER NOT NULL REFERENCES marketplace_orders(id) ON DELETE CASCADE,
                 product_id INTEGER REFERENCES marketplace_products(id) ON DELETE SET NULL,
                 title VARCHAR(160) NOT NULL,
@@ -174,7 +174,7 @@ def _ensure_schema() -> None:
         conn.execute(
             f"""
             CREATE TABLE IF NOT EXISTS marketplace_invoices (
-                id INTEGER PRIMARY KEY,
+                id {pk_sql},
                 invoice_number VARCHAR(40) UNIQUE NOT NULL,
                 order_id INTEGER NOT NULL UNIQUE REFERENCES marketplace_orders(id) ON DELETE CASCADE,
                 user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -239,6 +239,17 @@ def _ensure_schema() -> None:
         _safe_add_column(conn, 'marketplace_orders', 'invoice_due_at TIMESTAMP')
         _safe_add_column(conn, 'marketplace_orders', 'payment_auth_id INTEGER')
         _safe_add_column(conn, 'marketplace_invoices', 'payment_auth_id INTEGER')
+
+        # Fix missing SERIAL/auto-increment on PostgreSQL (tables created without it).
+        if USE_PG:
+            for tbl in ('marketplace_products', 'marketplace_orders', 'marketplace_order_items', 'marketplace_invoices'):
+                seq = f'{tbl}_id_seq'
+                try:
+                    conn.execute(f'CREATE SEQUENCE IF NOT EXISTS {seq}')
+                    conn.execute(f"ALTER TABLE {tbl} ALTER COLUMN id SET DEFAULT nextval('{seq}')")
+                    conn.execute(f"SELECT setval('{seq}', COALESCE((SELECT MAX(id) FROM {tbl}), 0) + 1, false)")
+                except Exception:
+                    pass
 
         products = [
             ('arm-hoodie', 'ARM Hoodie', 'Преміум худі зі щільної бавовни', 2499.00, '🧥', 'NEW', 40),
