@@ -1,0 +1,46 @@
+{
+  "name": "ARM Marketplace",
+  "short_name": "ARMMarket",
+  "description": "Магазин товарів ARM Bank — безпечна оплата з рахунку",
+  "theme_color": "#0f2e18",
+  "background_color": "#0a1f10",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "scope": "/marketplace",
+  "start_url": "/marketplace?source=pwa",
+  "lang": "uk",
+  "categories": ["shopping", "finance"],
+  "icons": [
+    { "src": "/icons/market-icon-32.png",   "sizes": "32x32",   "type": "image/png", "purpose": "any" },
+    { "src": "/icons/market-icon-72.png",   "sizes": "72x72",   "type": "image/png", "purpose": "any" },
+    { "src": "/icons/market-icon-96.png",   "sizes": "96x96",   "type": "image/png", "purpose": "any" },
+    { "src": "/icons/market-icon-128.png",  "sizes": "128x128", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/market-icon-144.png",  "sizes": "144x144", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/market-icon-152.png",  "sizes": "152x152", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/market-icon-180.png",  "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/market-icon-192.png",  "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/market-icon-384.png",  "sizes": "384x384", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/market-icon-512.png",  "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/market-icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/market-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/market-favicon.svg",   "sizes": "any",     "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Каталог",
+      "short_name": "Каталог",
+      "url": "/marketplace?tab=catalog&source=pwa",
+      "description": "Перегляд товарів",
+      "icons": [{ "src": "/icons/market-icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Мої замовлення",
+      "short_name": "Замовлення",
+      "url": "/marketplace?tab=orders&source=pwa",
+      "description": "Історія замовлень",
+      "icons": [{ "src": "/icons/market-icon-96.png", "sizes": "96x96" }]
+    }
+  ],
+  "prefer_related_applications": false
+}

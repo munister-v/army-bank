@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#0a1f10"/>
+      <stop offset="45%"  stop-color="#163a20"/>
+      <stop offset="100%" stop-color="#1e5430"/>
+    </linearGradient>
+    <radialGradient id="topshine" cx="50%" cy="0%" r="60%">
+      <stop offset="0%"  stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Bag fill -->
+    <linearGradient id="bagFill" x1="0%" y1="0%" x2="10%" y2="100%">
+      <stop offset="0%"   stop-color="#f0f8f3"/>
+      <stop offset="100%" stop-color="#d8eee2"/>
+    </linearGradient>
+    <linearGradient id="bagShad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#1a5c3a" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#0d3320" stop-opacity="0.16"/>
+    </linearGradient>
+    <!-- ARM accent stripe -->
+    <linearGradient id="stripe" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#1e6b3c"/>
+      <stop offset="100%" stop-color="#2a8a50"/>
+    </linearGradient>
+    <radialGradient id="goldDot" cx="40%" cy="35%" r="55%">
+      <stop offset="0%"   stop-color="#f5d98a"/>
+      <stop offset="60%"  stop-color="#d4a237"/>
+      <stop offset="100%" stop-color="#b07820"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="116" fill="url(#topshine)"/>
+  <rect width="512" height="512" rx="116" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="2"/>
+
+  <!-- Shopping bag body -->
+  <path d="M148 208 L170 388 Q172 408 192 408 L320 408 Q340 408 342 388 L364 208 Z"
+        fill="url(#bagFill)"/>
+  <path d="M148 208 L170 388 Q172 408 192 408 L320 408 Q340 408 342 388 L364 208 Z"
+        fill="url(#bagShad)"/>
+
+  <!-- Bag top flap / fold crease line -->
+  <line x1="148" y1="208" x2="364" y2="208" stroke="rgba(30,90,55,0.18)" stroke-width="3"/>
+
+  <!-- Bag handle: two arcs -->
+  <path d="M196 208 Q196 126 256 126 Q316 126 316 208"
+        fill="none" stroke="url(#bagFill)" stroke-width="28" stroke-linecap="round"/>
+  <path d="M196 208 Q196 126 256 126 Q316 126 316 208"
+        fill="none" stroke="rgba(30,90,55,0.15)" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Inner shine on bag -->
+  <path d="M148 208 L180 370 Q181 392 200 396 L200 208 Z" fill="rgba(255,255,255,0.14)"/>
+
+  <!-- "ARM" text on bag -->
+  <text x="256" y="322" text-anchor="middle" dominant-baseline="middle"
+        font-size="72" font-family="Arial Black, Arial, sans-serif" font-weight="900"
+        fill="#163a20" letter-spacing="-2">ARM</text>
+
+  <!-- Small "market" label stripe -->
+  <rect x="170" y="345" width="172" height="28" rx="8" fill="url(#stripe)" opacity="0.80"/>
+  <text x="256" y="360" text-anchor="middle" dominant-baseline="middle"
+        font-size="14" font-family="Arial, sans-serif" font-weight="700"
+        fill="#ffffff" letter-spacing="3">MARKET</text>
+</svg>
