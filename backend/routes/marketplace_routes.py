@@ -157,7 +157,7 @@ def _ensure_schema() -> None:
         conn.execute('CREATE INDEX IF NOT EXISTS idx_marketplace_orders_user ON marketplace_orders(user_id, created_at)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_marketplace_orders_invoice_number ON marketplace_orders(invoice_number)')
         conn.execute(
-            """
+            f"""
             CREATE TABLE IF NOT EXISTS marketplace_order_items (
                 id {pk_sql},
                 order_id INTEGER NOT NULL REFERENCES marketplace_orders(id) ON DELETE CASCADE,
