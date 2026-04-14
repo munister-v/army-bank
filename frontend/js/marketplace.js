@@ -180,6 +180,7 @@
     checkoutForm:      document.getElementById('checkout-form'),
     checkoutBtn:       document.getElementById('checkout-btn'),
     shippingName:      document.getElementById('shipping-name'),
+    shippingPhone:     document.getElementById('shipping-phone'),
     shippingAddress:   document.getElementById('shipping-address'),
     paymentMode:       document.getElementById('payment-mode'),
     paymentModeHint:   document.getElementById('payment-mode-hint'),
@@ -382,6 +383,10 @@
     const firstName  = fullName.split(' ')[0] || '';
     if (fullName && el.shippingName && !el.shippingName.value.trim()) {
       el.shippingName.value = fullName;
+    }
+    const userPhone = state.user?.phone || '';
+    if (userPhone && el.shippingPhone && !el.shippingPhone.value.trim()) {
+      el.shippingPhone.value = userPhone;
     }
     showToast(`Вітаємо${firstName ? ', ' + firstName : ''}! Ви в ARM Marketplace.`);
   }
@@ -835,10 +840,10 @@
       el.confirmItems.innerHTML = Array.from(state.cart.entries()).map(([id, qty]) => {
         const p = getProduct(id);
         if (!p) return '';
-        return `<li class="confirm-item">
-          <span class="confirm-item-name">${p.title}</span>
-          <span class="confirm-item-qty">${qty} шт.</span>
-          <span class="confirm-item-price">${fmt(Number(p.price) * qty)}</span>
+        return `<li class="rz-confirm-item">
+          <span class="rz-confirm-item-name">${p.title}</span>
+          <span class="rz-confirm-item-qty">${qty} шт.</span>
+          <span class="rz-confirm-item-price">${fmt(Number(p.price) * qty)}</span>
         </li>`;
       }).join('');
     }
@@ -876,6 +881,7 @@
   async function submitConfirmedCheckout() {
     const items   = cartPayload();
     const name    = el.shippingName?.value.trim() || '';
+    const phone   = el.shippingPhone?.value.trim() || '';
     const address = el.shippingAddress?.value.trim() || '';
     const key     = mkKey('checkout');
     closeConfirmModal();
@@ -887,6 +893,7 @@
         body: JSON.stringify({
           items,
           shipping_name:    name,
+          shipping_phone:   phone,
           shipping_address: address,
           payment_mode:     el.paymentMode?.value || 'pay_now',
           idempotency_key:  key,
@@ -946,8 +953,7 @@
       document.querySelector('.rz-orders-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
-    const _t = setTimeout(() => { el.orderReceipt.hidden = true; }, 15000);
-    el.orderReceipt.addEventListener('click', () => clearTimeout(_t), { once: true });
+    // No auto-close — user dismisses manually
   }
 
   async function payInvoice(invoiceNumber, btn) {
