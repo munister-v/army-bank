@@ -211,7 +211,9 @@ def create_app() -> Flask:
 
     @app.errorhandler(500)
     def server_error(_e):
-        return jsonify({'ok': False, 'error': 'Внутрішня помилка сервера.'}), 500
+        import traceback, logging
+        logging.getLogger(__name__).error('500 error: %s', traceback.format_exc())
+        return jsonify({'ok': False, 'error': 'Внутрішня помилка сервера.', 'detail': str(_e)}), 500
 
     app.register_blueprint(auth_bp, url_prefix=prefix + '/api/auth')
     app.register_blueprint(account_bp, url_prefix=prefix + '/api')

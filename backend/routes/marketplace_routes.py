@@ -1115,6 +1115,16 @@ def pay_invoice(invoice_number: str):
 @marketplace_bp.post('/checkout')
 @auth_required
 def checkout():
+    import traceback as _tb
+    try:
+        return _checkout_impl()
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error('checkout error: %s', _tb.format_exc())
+        return jsonify({'ok': False, 'error': f'[DEBUG] {type(exc).__name__}: {exc}'}), 500
+
+
+def _checkout_impl():
     _ensure_schema()
     user_id = int(g.current_user['id'])
     payload = request.get_json(force=True) or {}
