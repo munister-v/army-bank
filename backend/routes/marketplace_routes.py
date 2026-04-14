@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from flask import Blueprint, g, jsonify, make_response, request
+from flask import Blueprint, Response, g, jsonify, make_response, request
+from urllib.parse import quote
 
 from ..database import get_connection, get_returning_id_suffix, insert_last_id
 from ..services.idempotency_service import IdempotencyService
@@ -2143,3 +2144,47 @@ def admin_export_orders_csv():
     resp.headers['Content-Type'] = 'text/csv; charset=utf-8'
     resp.headers['Content-Disposition'] = 'attachment; filename="marketplace-orders.csv"'
     return resp
+
+
+@marketplace_bp.get('/order/<int:order_id>/receipt')
+@auth_required
+def order_receipt_pdf(order_id: int):
+    """Генерує PDF-квитанцію про оплату замовлення у маркетплейсі."""
+    user_id = int(g.current_user['id'])
+    try:
+        from ..services.statement_service import StatementService
+
+        with get_connection() as conn:
+            row = conn.execute(
+                """
+                SELECT o.id, o.payment_tx_id, o.status, o.total_amount,
+                       o.invoice_number, o.shipping_name, o.created_at
+                FROM marketplace_orders o
+                WHERE o.id = %s AND o.user_id = %s
+                LIMIT 1
+                """,
+                (order_id, user_id),
+            ).fetchone()
+
+        if not row:
+            return api_error('Замовлення не знайдено.', 404)
+
+        tx_id = int((row.get('payment_tx_id') or 0))
+        if not tx_id:
+            return api_error('Оплату ще не здійснено — квитанція недоступна.', 409)
+
+        receipt = StatementService().generate_receipt_with_meta(user_id, tx_id)
+        pdf_bytes = receipt['pdf_bytes']
+
+        inv = str(row.get('invoice_number') or order_id)
+        filename = f'receipt-{inv}.pdf'
+        return Response(
+            pdf_bytes,
+            mimetype='application/pdf',
+            headers={
+                'Content-Disposition': f'attachment; filename="{filename}"; filename*=UTF-8\'\'{quote(filename)}',
+                'Cache-Control': 'no-store',
+            },
+        )
+    except Exception as exc:
+        return api_error(str(exc))
