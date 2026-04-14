@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, g, jsonify, make_response, request
 
 from ..database import get_connection, get_returning_id_suffix, insert_last_id
 from ..services.idempotency_service import IdempotencyService
@@ -1729,8 +1729,12 @@ def admin_list_orders():
         return api_error('Недостатньо прав.', 403)
     _ensure_schema()
     status_filter = str(request.args.get('status') or '').strip()
+    date_from = str(request.args.get('date_from') or '').strip()
+    date_to   = str(request.args.get('date_to')   or '').strip()
+    search    = str(request.args.get('search')    or '').strip()
     page = max(1, int(request.args.get('page') or 1))
-    per_page = 30
+    per_page = int(request.args.get('per_page') or 30)
+    per_page = min(per_page, 5000)
     offset = (page - 1) * per_page
 
     where_parts = []
@@ -1738,11 +1742,21 @@ def admin_list_orders():
     if status_filter:
         where_parts.append('o.status = %s')
         params.append(status_filter)
+    if date_from:
+        where_parts.append('o.created_at >= %s')
+        params.append(date_from)
+    if date_to:
+        where_parts.append('o.created_at <= %s')
+        params.append(date_to + ' 23:59:59')
+    if search:
+        where_parts.append("(LOWER(u.full_name) LIKE %s OR u.phone LIKE %s OR o.shipping_name ILIKE %s)")
+        like = f'%{search.lower()}%'
+        params += [like, like, like]
     where_sql = ('WHERE ' + ' AND '.join(where_parts)) if where_parts else ''
 
     with get_connection() as conn:
         total = (conn.execute(
-            f'SELECT COUNT(*) AS n FROM marketplace_orders o {where_sql}', params
+            f'SELECT COUNT(*) AS n FROM marketplace_orders o JOIN users u ON u.id = o.user_id {where_sql}', params
         ).fetchone() or {}).get('n') or 0
 
         rows = conn.execute(
@@ -1814,3 +1828,309 @@ def admin_update_order_status(order_id: int):
             (new_status, order_id),
         )
     return jsonify({'ok': True, 'data': {'id': order_id, 'status': new_status}})
+
+
+# ── Quick stock update ─────────────────────────────────────────────
+
+@marketplace_bp.patch('/admin/products/<int:product_id>/stock')
+@auth_required
+def admin_update_stock(product_id: int):
+    if g.current_user.get('role') not in ('admin', 'platform_admin'):
+        return api_error('Недостатньо прав.', 403)
+    _ensure_schema()
+    body = request.get_json(force=True) or {}
+    try:
+        stock = max(0, int(body.get('stock') or 0))
+    except (ValueError, TypeError):
+        return api_error('Некоректне значення залишку.')
+    with get_connection() as conn:
+        row = conn.execute('SELECT id FROM marketplace_products WHERE id = %s LIMIT 1', (product_id,)).fetchone()
+        if not row:
+            return api_error('Товар не знайдено.', 404)
+        conn.execute(
+            f'UPDATE marketplace_products SET stock = %s, updated_at = {_now_sql()} WHERE id = %s',
+            (stock, product_id),
+        )
+    return jsonify({'ok': True, 'data': {'id': product_id, 'stock': stock}})
+
+
+# ── Customers list ─────────────────────────────────────────────────
+
+@marketplace_bp.get('/admin/customers')
+@auth_required
+def admin_list_customers():
+    if g.current_user.get('role') not in ('admin', 'platform_admin'):
+        return api_error('Недостатньо прав.', 403)
+    _ensure_schema()
+    page = max(1, int(request.args.get('page') or 1))
+    per_page = 30
+    offset = (page - 1) * per_page
+    search = str(request.args.get('search') or '').strip()
+
+    where_sql = ''
+    params: list = []
+    if search:
+        where_sql = "WHERE (LOWER(u.full_name) LIKE %s OR u.phone LIKE %s)"
+        like = f'%{search.lower()}%'
+        params = [like, like]
+
+    with get_connection() as conn:
+        total_row = conn.execute(
+            f"""
+            SELECT COUNT(DISTINCT o.user_id) AS n
+            FROM marketplace_orders o
+            JOIN users u ON u.id = o.user_id
+            {where_sql}
+            """, params,
+        ).fetchone()
+        total = int((total_row or {}).get('n') or 0)
+
+        rows = conn.execute(
+            f"""
+            SELECT o.user_id,
+                   u.full_name, u.phone,
+                   COUNT(o.id) AS total_orders,
+                   COALESCE(SUM(CASE WHEN o.status='paid' THEN o.total_amount ELSE 0 END), 0) AS total_spent,
+                   MAX(o.created_at) AS last_order_at
+            FROM marketplace_orders o
+            JOIN users u ON u.id = o.user_id
+            {where_sql}
+            GROUP BY o.user_id, u.full_name, u.phone
+            ORDER BY last_order_at DESC
+            LIMIT %s OFFSET %s
+            """,
+            params + [per_page, offset],
+        ).fetchall()
+
+    items = [{
+        'user_id': int(r['user_id']),
+        'full_name': r.get('full_name') or '',
+        'phone': r.get('phone') or '',
+        'total_orders': int(r['total_orders']),
+        'total_spent': float(r['total_spent']),
+        'last_order_at': str(r.get('last_order_at') or ''),
+    } for r in (rows or [])]
+
+    return jsonify({'ok': True, 'data': {
+        'items': items, 'total': total, 'page': page,
+        'per_page': per_page, 'pages': max(1, -(-total // per_page)),
+    }})
+
+
+# ── Customer detail ────────────────────────────────────────────────
+
+@marketplace_bp.get('/admin/customers/<int:user_id>')
+@auth_required
+def admin_customer_detail(user_id: int):
+    if g.current_user.get('role') not in ('admin', 'platform_admin'):
+        return api_error('Недостатньо прав.', 403)
+    _ensure_schema()
+    with get_connection() as conn:
+        user_row = conn.execute(
+            'SELECT id, full_name, phone FROM users WHERE id = %s LIMIT 1', (user_id,)
+        ).fetchone()
+        if not user_row:
+            return api_error('Користувача не знайдено.', 404)
+
+        stats_row = conn.execute(
+            """
+            SELECT COUNT(id) AS total_orders,
+                   COALESCE(SUM(CASE WHEN status='paid' THEN total_amount ELSE 0 END), 0) AS total_spent
+            FROM marketplace_orders WHERE user_id = %s
+            """, (user_id,),
+        ).fetchone()
+
+        orders = conn.execute(
+            """
+            SELECT id, total_amount, currency, status, created_at,
+                   shipping_name, shipping_phone, shipping_address, invoice_number
+            FROM marketplace_orders WHERE user_id = %s ORDER BY id DESC LIMIT 50
+            """, (user_id,),
+        ).fetchall()
+
+    return jsonify({'ok': True, 'data': {
+        'user_id': int(user_row['id']),
+        'full_name': user_row.get('full_name') or '',
+        'phone': user_row.get('phone') or '',
+        'total_orders': int((stats_row or {}).get('total_orders') or 0),
+        'total_spent': float((stats_row or {}).get('total_spent') or 0),
+        'orders': [{
+            'id': int(r['id']),
+            'total_amount': float(r['total_amount']),
+            'currency': r.get('currency') or 'UAH',
+            'status': r.get('status') or '',
+            'created_at': str(r.get('created_at') or ''),
+            'shipping_name': r.get('shipping_name') or '',
+            'shipping_phone': r.get('shipping_phone') or '',
+            'shipping_address': r.get('shipping_address') or '',
+            'invoice_number': r.get('invoice_number') or '',
+        } for r in (orders or [])],
+    }})
+
+
+# ── Order detail (with items) ──────────────────────────────────────
+
+@marketplace_bp.get('/admin/orders/<int:order_id>')
+@auth_required
+def admin_order_detail(order_id: int):
+    if g.current_user.get('role') not in ('admin', 'platform_admin'):
+        return api_error('Недостатньо прав.', 403)
+    _ensure_schema()
+    with get_connection() as conn:
+        o = conn.execute(
+            """
+            SELECT o.id, o.total_amount, o.currency, o.status, o.payment_mode,
+                   o.invoice_number, o.shipping_name, o.shipping_phone,
+                   o.shipping_address, o.note, o.created_at,
+                   u.full_name AS user_name, u.phone AS user_phone
+            FROM marketplace_orders o
+            JOIN users u ON u.id = o.user_id
+            WHERE o.id = %s LIMIT 1
+            """, (order_id,),
+        ).fetchone()
+        if not o:
+            return api_error('Замовлення не знайдено.', 404)
+
+        items = conn.execute(
+            """
+            SELECT oi.id, oi.title, oi.price, oi.qty, oi.line_total,
+                   oi.product_id, COALESCE(p.image_emoji, '🛍️') AS image_emoji
+            FROM marketplace_order_items oi
+            LEFT JOIN marketplace_products p ON p.id = oi.product_id
+            WHERE oi.order_id = %s
+            ORDER BY oi.id ASC
+            """, (order_id,),
+        ).fetchall()
+
+    return jsonify({'ok': True, 'data': {
+        'id': int(o['id']),
+        'total_amount': float(o['total_amount']),
+        'currency': o.get('currency') or 'UAH',
+        'status': o.get('status') or '',
+        'payment_mode': o.get('payment_mode') or '',
+        'invoice_number': o.get('invoice_number') or '',
+        'shipping_name': o.get('shipping_name') or '',
+        'shipping_phone': o.get('shipping_phone') or '',
+        'shipping_address': o.get('shipping_address') or '',
+        'note': o.get('note') or '',
+        'created_at': str(o.get('created_at') or ''),
+        'user_name': o.get('user_name') or '',
+        'user_phone': o.get('user_phone') or '',
+        'items': [{
+            'id': int(r['id']),
+            'title': r.get('title') or '',
+            'price': float(r['price']),
+            'qty': int(r['qty']),
+            'line_total': float(r['line_total']),
+            'image_emoji': r.get('image_emoji') or '🛍️',
+        } for r in (items or [])],
+    }})
+
+
+# ── Analytics — daily revenue last 30 days ─────────────────────────
+
+@marketplace_bp.get('/admin/analytics')
+@auth_required
+def admin_analytics():
+    if g.current_user.get('role') not in ('admin', 'platform_admin'):
+        return api_error('Недостатньо прав.', 403)
+    _ensure_schema()
+    from ..config import USE_PG
+    if USE_PG:
+        date_expr   = "DATE_TRUNC('day', created_at)::date"
+        cutoff_expr = "NOW() - INTERVAL '30 days'"
+    else:
+        date_expr   = "DATE(created_at)"
+        cutoff_expr = "datetime('now', '-30 days')"
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT {date_expr} AS day,
+                   COALESCE(SUM(CASE WHEN status='paid' THEN total_amount ELSE 0 END), 0) AS revenue,
+                   COUNT(*) AS orders_count
+            FROM marketplace_orders
+            WHERE created_at >= {cutoff_expr}
+            GROUP BY {date_expr}
+            ORDER BY day ASC
+            """
+        ).fetchall()
+
+        # Category distribution (top products by revenue)
+        top_cats = conn.execute(
+            """
+            SELECT p.image_emoji AS emoji, p.title,
+                   COALESCE(SUM(oi.line_total), 0) AS revenue,
+                   COALESCE(SUM(oi.qty), 0) AS units
+            FROM marketplace_products p
+            JOIN marketplace_order_items oi ON oi.product_id = p.id
+            JOIN marketplace_orders o ON o.id = oi.order_id AND o.status = 'paid'
+            GROUP BY p.id, p.image_emoji, p.title
+            ORDER BY revenue DESC
+            LIMIT 8
+            """
+        ).fetchall()
+
+    return jsonify({'ok': True, 'data': {
+        'daily': [{'day': str(r['day']), 'revenue': float(r['revenue']),
+                   'orders_count': int(r['orders_count'])} for r in (rows or [])],
+        'top_products': [{'emoji': r['emoji'], 'title': r['title'],
+                          'revenue': float(r['revenue']), 'units': int(r['units'])}
+                         for r in (top_cats or [])],
+    }})
+
+
+# ── CSV export ─────────────────────────────────────────────────────
+
+@marketplace_bp.get('/admin/export/orders.csv')
+@auth_required
+def admin_export_orders_csv():
+    if g.current_user.get('role') not in ('admin', 'platform_admin'):
+        return api_error('Недостатньо прав.', 403)
+    _ensure_schema()
+    import csv
+    import io
+
+    date_from = str(request.args.get('from') or '').strip()
+    date_to   = str(request.args.get('to')   or '').strip()
+    where_parts: list[str] = []
+    params: list = []
+    if date_from:
+        where_parts.append('o.created_at >= %s')
+        params.append(date_from)
+    if date_to:
+        where_parts.append('o.created_at <= %s')
+        params.append(date_to + ' 23:59:59')
+    where_sql = ('WHERE ' + ' AND '.join(where_parts)) if where_parts else ''
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT o.id, o.created_at, u.full_name, u.phone,
+                   o.shipping_name, o.shipping_phone, o.shipping_address,
+                   o.total_amount, o.currency, o.status, o.invoice_number, o.note
+            FROM marketplace_orders o
+            JOIN users u ON u.id = o.user_id
+            {where_sql}
+            ORDER BY o.id DESC LIMIT 10000
+            """, params,
+        ).fetchall()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['ID', 'Дата', 'Клієнт', 'Телефон акаунту', 'Отримувач',
+                     'Тел. доставки', 'Адреса', 'Сума', 'Валюта', 'Статус',
+                     'Рахунок-фактура', 'Нотатка'])
+    for r in (rows or []):
+        writer.writerow([
+            r['id'], r['created_at'], r.get('full_name', ''), r.get('phone', ''),
+            r.get('shipping_name', ''), r.get('shipping_phone', ''),
+            r.get('shipping_address', ''), r['total_amount'],
+            r.get('currency', 'UAH'), r.get('status', ''),
+            r.get('invoice_number', ''), r.get('note', ''),
+        ])
+
+    resp = make_response('\ufeff' + output.getvalue())
+    resp.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    resp.headers['Content-Disposition'] = 'attachment; filename="marketplace-orders.csv"'
+    return resp
