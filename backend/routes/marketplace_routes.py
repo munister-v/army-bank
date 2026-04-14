@@ -244,12 +244,20 @@ def _ensure_schema() -> None:
         if USE_PG:
             for tbl in ('marketplace_products', 'marketplace_orders', 'marketplace_order_items', 'marketplace_invoices'):
                 seq = f'{tbl}_id_seq'
-                try:
-                    conn.execute(f'CREATE SEQUENCE IF NOT EXISTS {seq}')
-                    conn.execute(f"ALTER TABLE {tbl} ALTER COLUMN id SET DEFAULT nextval('{seq}')")
-                    conn.execute(f"SELECT setval('{seq}', COALESCE((SELECT MAX(id) FROM {tbl}), 0) + 1, false)")
-                except Exception:
-                    pass
+                for stmt in [
+                    f'CREATE SEQUENCE IF NOT EXISTS {seq}',
+                    f"ALTER TABLE {tbl} ALTER COLUMN id SET DEFAULT nextval('{seq}')",
+                    f"SELECT setval('{seq}', COALESCE((SELECT MAX(id) FROM {tbl}), 0) + 1, false)",
+                ]:
+                    try:
+                        conn.execute('SAVEPOINT _seq_fix')
+                        conn.execute(stmt)
+                        conn.execute('RELEASE SAVEPOINT _seq_fix')
+                    except Exception:
+                        try:
+                            conn.execute('ROLLBACK TO SAVEPOINT _seq_fix')
+                        except Exception:
+                            pass
 
         products = [
             ('arm-hoodie', 'ARM Hoodie', 'Преміум худі зі щільної бавовни', 2499.00, '🧥', 'NEW', 40),
