@@ -1,5 +1,5 @@
-/* Army Bank — Service Worker v72 */
-const CACHE = 'army-bank-v72';
+/* Army Bank — Service Worker v73 */
+const CACHE = 'army-bank-v73';
 
 /* Keep precache minimal to reduce stale-asset risk */
 const PRECACHE = [
@@ -22,7 +22,8 @@ function isStaticCodeOrManifest(pathname) {
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE)
-      .then((cache) => cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'reload' }))))
+      // Non-fatal: precache failures (offline.html missing, icon 404) must NOT block activation
+      .then((cache) => cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'reload' }))).catch(() => {}))
       .then(() => self.skipWaiting())
   );
 });

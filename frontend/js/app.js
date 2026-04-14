@@ -3177,7 +3177,9 @@ if ('serviceWorker' in navigator && !DESKTOP_MOBILE_ONLY_BLOCKED) {
     const now = Date.now();
     if ((now - _swPendingToastAt) > 12_000) {
       _swPendingToastAt = now;
-      showToast('Доступне оновлення. Застосуємо після повернення в додаток.', 'success');
+      showToast('Доступне оновлення. Оновлення через 10 сек…', 'success');
+      // Force reload after 10s grace period even if page stays visible
+      setTimeout(() => { if (_swPendingReload && !_swReloading) _performSwReload(); }, 10_000);
     }
   }
 
@@ -3205,7 +3207,9 @@ if ('serviceWorker' in navigator && !DESKTOP_MOBILE_ONLY_BLOCKED) {
     _scheduleSwUpdates(reg);
 
     navigator.serviceWorker.addEventListener('message', e => {
-      if (e.data?.type === 'SW_UPDATED') _swReload();
+      // New SW has already activated and claimed clients — reload immediately so
+      // the page is served by the new worker (avoids mixed old-HTML / new-SW state).
+      if (e.data?.type === 'SW_UPDATED') _swReload({ immediate: true });
     });
 
     reg.addEventListener('updatefound', () => {
@@ -3217,7 +3221,9 @@ if ('serviceWorker' in navigator && !DESKTOP_MOBILE_ONLY_BLOCKED) {
       });
     });
 
-    navigator.serviceWorker.addEventListener('controllerchange', _swReload);
+    // controllerchange fires AFTER the new SW has taken control — always reload
+    // immediately (anti-loop guard in _performSwReload prevents infinite cycles).
+    navigator.serviceWorker.addEventListener('controllerchange', () => _swReload({ immediate: true }));
   }).catch(() => {});
 
   document.addEventListener('visibilitychange', () => {
