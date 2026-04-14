@@ -55,6 +55,7 @@
         <button type="button" class="menu-btn" data-tab="security">Безпека</button>
         <button type="button" class="menu-btn" data-tab="audit">Аудит</button>
         <button type="button" class="menu-btn" data-tab="docs">Документообіг</button>
+        <button type="button" class="menu-btn" data-tab="marketplace">🛍️ Маркетплейс</button>
         <a class="menu-btn nav-link" href="/api-status" target="_blank" rel="noopener">API Status Check</a>
       </nav>
       <div class="sidebar-footer">
@@ -320,6 +321,155 @@
           </div>
         </div>
       </section>
+
+      <!-- ═══════════════════════════ MARKETPLACE TAB ══════════════════════════ -->
+      <section id="marketplaceTab" class="admin-tab hidden">
+        <!-- Stats row -->
+        <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <h2 class="section-title">Маркетплейс</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="secondary-btn" onclick="loadMarketplaceStats()">↻ Оновити</button>
+            <button class="primary-btn" onclick="openProductModal()">+ Додати товар</button>
+          </div>
+        </div>
+
+        <div id="mktStats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:24px"></div>
+
+        <!-- Sub-tabs -->
+        <div style="display:flex;gap:0;border-bottom:2px solid var(--border-color);margin-bottom:20px">
+          <button class="mkt-subtab active" data-subtab="products" onclick="switchMktSubtab('products')">Товари</button>
+          <button class="mkt-subtab" data-subtab="orders" onclick="switchMktSubtab('orders')">Замовлення</button>
+        </div>
+
+        <!-- Products sub-tab -->
+        <div id="mktProducts">
+          <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <input id="mktSearch" class="field-input" placeholder="Пошук товару…" style="flex:1;min-width:180px" oninput="debounceLoadProducts()">
+            <select id="mktActiveFilter" class="field-input" style="width:160px" onchange="loadAdminProducts()">
+              <option value="">Всі</option>
+              <option value="true">Активні</option>
+              <option value="false">Неактивні</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr>
+                <th style="width:40px">ID</th>
+                <th>Товар</th>
+                <th style="width:110px">Ціна</th>
+                <th style="width:80px">Залишок</th>
+                <th style="width:80px">Статус</th>
+                <th style="width:130px">Дії</th>
+              </tr></thead>
+              <tbody id="mktProductsBody"><tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr></tbody>
+            </table>
+          </div>
+          <div id="mktProductsPager" style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;align-items:center"></div>
+        </div>
+
+        <!-- Orders sub-tab -->
+        <div id="mktOrders" style="display:none">
+          <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <select id="mktOrderStatus" class="field-input" style="width:200px" onchange="loadAdminOrders()">
+              <option value="">Всі статуси</option>
+              <option value="paid">Оплачено</option>
+              <option value="awaiting_payment">Очікує оплати</option>
+              <option value="processing">В обробці</option>
+              <option value="shipped">Відправлено</option>
+              <option value="delivered">Доставлено</option>
+              <option value="cancelled">Скасовано</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr>
+                <th style="width:60px">ID</th>
+                <th>Клієнт</th>
+                <th>Адреса</th>
+                <th style="width:110px">Сума</th>
+                <th style="width:110px">Статус</th>
+                <th style="width:130px">Дії</th>
+              </tr></thead>
+              <tbody id="mktOrdersBody"><tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr></tbody>
+            </table>
+          </div>
+          <div id="mktOrdersPager" style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;align-items:center"></div>
+        </div>
+      </section>
+
+      <!-- Product modal -->
+      <div id="productModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.55);align-items:center;justify-content:center">
+        <div style="background:var(--surface);border-radius:12px;padding:28px;width:min(96vw,540px);max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.35)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <h3 id="productModalTitle" style="margin:0;font-size:1.1rem">Додати товар</h3>
+            <button onclick="closeProductModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--text-secondary)">×</button>
+          </div>
+          <form id="productForm" onsubmit="saveProduct(event)">
+            <input type="hidden" id="productId">
+            <div style="display:grid;gap:14px">
+              <div>
+                <label class="field-label">Назва *</label>
+                <input id="pTitle" class="field-input" required placeholder="Назва товару">
+              </div>
+              <div>
+                <label class="field-label">Опис</label>
+                <textarea id="pDescription" class="field-input" rows="3" placeholder="Короткий опис…" style="resize:vertical"></textarea>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div>
+                  <label class="field-label">Ціна (грн) *</label>
+                  <input id="pPrice" class="field-input" type="number" min="0" step="0.01" required placeholder="0.00">
+                </div>
+                <div>
+                  <label class="field-label">Залишок</label>
+                  <input id="pStock" class="field-input" type="number" min="0" step="1" value="0" placeholder="0">
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div>
+                  <label class="field-label">Емодзі</label>
+                  <input id="pEmoji" class="field-input" placeholder="🛍️" maxlength="4" style="font-size:1.5rem;text-align:center">
+                </div>
+                <div>
+                  <label class="field-label">Бейдж</label>
+                  <select id="pBadge" class="field-input">
+                    <option value="">Без бейджа</option>
+                    <option>NEW</option><option>HOT</option><option>TOP</option>
+                    <option>SALE</option><option>ARM DEAL</option><option>PRO</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <input id="pActive" type="checkbox" checked style="width:18px;height:18px;cursor:pointer">
+                <label for="pActive" class="field-label" style="margin:0;cursor:pointer">Активний (відображається у каталозі)</label>
+              </div>
+              <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+                <button type="button" class="secondary-btn" onclick="closeProductModal()">Скасувати</button>
+                <button type="submit" class="primary-btn" id="productSaveBtn">Зберегти</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Order status modal -->
+      <div id="orderStatusModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.55);align-items:center;justify-content:center">
+        <div style="background:var(--surface);border-radius:12px;padding:28px;width:min(96vw,380px);box-shadow:0 8px 40px rgba(0,0,0,.35)">
+          <h3 style="margin:0 0 16px;font-size:1.1rem">Змінити статус замовлення #<span id="osOrderId"></span></h3>
+          <select id="osStatus" class="field-input" style="width:100%;margin-bottom:18px">
+            <option value="paid">Оплачено</option>
+            <option value="processing">В обробці</option>
+            <option value="shipped">Відправлено</option>
+            <option value="delivered">Доставлено</option>
+            <option value="cancelled">Скасовано</option>
+            <option value="awaiting_payment">Очікує оплати</option>
+          </select>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="secondary-btn" onclick="closeOrderStatusModal()">Скасувати</button>
+            <button class="primary-btn" onclick="confirmOrderStatus()">Зберегти</button>
+          </div>
+        </div>
+      </div>
 
       <footer class="app-footer">
         <a href="https://munister.com.ua/army-bank" target="_blank" rel="noopener">munister.com.ua</a>

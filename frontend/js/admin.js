@@ -613,7 +613,8 @@ function switchTab(tabId) {
   if (tabId === 'registry') { resetRegistry(); }
   if (tabId === 'audit')    { loadAudit(); loadStatements(); }
   if (tabId === 'security') { loadFraudStats(); loadOrders(); loadRiskEvents(); }
-  if (tabId === 'docs')     { loadDocTemplates(); loadDocAssignments(); }
+  if (tabId === 'docs')        { loadDocTemplates(); loadDocAssignments(); }
+  if (tabId === 'marketplace') { loadMarketplaceStats(); loadAdminProducts(); }
 }
 
 // ── Drawer ───────────────────────────────────────────────────────────────────
@@ -880,3 +881,301 @@ async function loadDocAssignments() {
 
   switchTab('users');
 })();
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  MARKETPLACE ADMIN
+// ═══════════════════════════════════════════════════════════════════
+
+let _mktProductsPage = 1;
+let _mktOrdersPage   = 1;
+let _productDebounceTimer = null;
+let _currentOrderId = null;
+
+function switchMktSubtab(name) {
+  document.querySelectorAll('.mkt-subtab').forEach(b =>
+    b.classList.toggle('active', b.dataset.subtab === name));
+  document.getElementById('mktProducts').style.display = name === 'products' ? '' : 'none';
+  document.getElementById('mktOrders').style.display   = name === 'orders'   ? '' : 'none';
+  if (name === 'orders') loadAdminOrders();
+}
+
+function debounceLoadProducts() {
+  clearTimeout(_productDebounceTimer);
+  _productDebounceTimer = setTimeout(() => { _mktProductsPage = 1; loadAdminProducts(); }, 350);
+}
+
+// ── Stats ────────────────────────────────────────────────────────
+
+async function loadMarketplaceStats() {
+  const container = document.getElementById('mktStats');
+  try {
+    const _r = await apiRaw('/api/marketplace/admin/stats'); const d = _r.data ?? _r;
+    const fmt = v => fmtMoney(v);
+    const cards = [
+      { label: 'Товарів',       val: d.total_products,  cls: '' },
+      { label: 'Активних',      val: d.active_products,  cls: 'success' },
+      { label: 'Мало залишку',  val: d.low_stock,        cls: d.low_stock  > 0 ? 'warn'   : '' },
+      { label: 'Немає в наявн.', val: d.out_of_stock,    cls: d.out_of_stock > 0 ? 'danger' : '' },
+      { label: 'Замовлень',     val: d.total_orders,     cls: '' },
+      { label: 'Оплачено',      val: d.paid_orders,      cls: 'success' },
+      { label: 'Очікують',      val: d.pending_orders,   cls: d.pending_orders > 0 ? 'warn' : '' },
+      { label: 'Виручка',       val: fmt(d.revenue),     cls: 'success' },
+    ];
+    container.innerHTML = cards.map(c => `
+      <div class="mkt-stat-card ${c.cls}">
+        <div class="mkt-stat-val">${c.val}</div>
+        <div class="mkt-stat-lbl">${c.label}</div>
+      </div>`).join('');
+
+    if (d.top_products?.length) {
+      container.insertAdjacentHTML('afterend', `
+        <div style="margin-bottom:18px">
+          <div style="font-size:12px;color:rgba(255,255,255,.45);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">
+            Топ продажів
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            ${d.top_products.map(p => `
+              <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px">
+                <span style="font-size:1.4rem">${p.emoji}</span>
+                <div>
+                  <div style="font-size:13px;font-weight:600;color:#fff">${escapeHtml(p.title)}</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.45)">${p.sold} прод. · ${fmtMoney(p.revenue)} · залишок: ${p.stock}</div>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`);
+    }
+  } catch (e) {
+    container.innerHTML = `<div class="muted">Помилка завантаження статистики</div>`;
+  }
+}
+
+// ── Products list ────────────────────────────────────────────────
+
+async function loadAdminProducts() {
+  const tbody = document.getElementById('mktProductsBody');
+  const pager = document.getElementById('mktProductsPager');
+  const search = (document.getElementById('mktSearch')?.value || '').trim();
+  const active = document.getElementById('mktActiveFilter')?.value || '';
+
+  tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr>`;
+  try {
+    const params = new URLSearchParams({ page: _mktProductsPage });
+    if (search) params.set('search', search);
+    if (active) params.set('active', active);
+    const _r = await apiRaw(`/api/marketplace/admin/products?${params}`); const d = _r.data ?? _r;
+
+    if (!d.items?.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Товарів не знайдено</td></tr>`;
+      pager.innerHTML = '';
+      return;
+    }
+
+    tbody.innerHTML = d.items.map(p => `
+      <tr>
+        <td style="color:rgba(255,255,255,.4);font-size:12px">#${p.id}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:1.3rem">${p.image_emoji}</span>
+            <div>
+              <div style="font-weight:600;color:#fff">${escapeHtml(p.title)}</div>
+              <div style="font-size:11px;color:rgba(255,255,255,.4)">${p.badge ? `<span style="color:#f59e0b">[${escapeHtml(p.badge)}]</span> ` : ''}${escapeHtml(p.slug)}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-weight:700;color:#22c55e">${fmtMoney(p.price)}</td>
+        <td style="${p.stock === 0 ? 'color:#ef4444;font-weight:700' : p.stock <= 5 ? 'color:#f59e0b;font-weight:600' : ''}">${p.stock}</td>
+        <td>
+          <span class="status-pill ${p.is_active ? 'active' : 'inactive'}">${p.is_active ? 'Активний' : 'Неактивний'}</span>
+        </td>
+        <td>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="secondary-btn" style="padding:4px 10px;font-size:12px" onclick="openProductModal(${JSON.stringify(p)})">✏️</button>
+            <button class="secondary-btn" style="padding:4px 10px;font-size:12px" onclick="toggleProduct(${p.id}, ${p.is_active})">${p.is_active ? '🔴' : '🟢'}</button>
+            <button class="secondary-btn" style="padding:4px 10px;font-size:12px;color:#ef4444" onclick="deleteProduct(${p.id})">🗑️</button>
+          </div>
+        </td>
+      </tr>`).join('');
+
+    // Pager
+    pager.innerHTML = d.pages > 1 ? `
+      <button class="secondary-btn" style="padding:4px 12px" ${_mktProductsPage <= 1 ? 'disabled' : ''} onclick="_mktProductsPage--;loadAdminProducts()">‹</button>
+      <span style="color:rgba(255,255,255,.5);font-size:13px">${_mktProductsPage} / ${d.pages}</span>
+      <button class="secondary-btn" style="padding:4px 12px" ${_mktProductsPage >= d.pages ? 'disabled' : ''} onclick="_mktProductsPage++;loadAdminProducts()">›</button>` : '';
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">${escapeHtml(e.message || 'Помилка')}</td></tr>`;
+  }
+}
+
+// ── Product modal ────────────────────────────────────────────────
+
+function openProductModal(product) {
+  const modal = document.getElementById('productModal');
+  const titleEl = document.getElementById('productModalTitle');
+  if (product && typeof product === 'object') {
+    titleEl.textContent = 'Редагувати товар';
+    document.getElementById('productId').value        = product.id;
+    document.getElementById('pTitle').value           = product.title || '';
+    document.getElementById('pDescription').value     = product.description || '';
+    document.getElementById('pPrice').value           = product.price || 0;
+    document.getElementById('pStock').value           = product.stock || 0;
+    document.getElementById('pEmoji').value           = product.image_emoji || '🛍️';
+    document.getElementById('pBadge').value           = product.badge || '';
+    document.getElementById('pActive').checked        = product.is_active !== false;
+  } else {
+    titleEl.textContent = 'Додати товар';
+    document.getElementById('productId').value = '';
+    document.getElementById('productForm').reset();
+    document.getElementById('pEmoji').value  = '🛍️';
+    document.getElementById('pActive').checked = true;
+  }
+  modal.classList.add('open');
+}
+
+function closeProductModal() {
+  document.getElementById('productModal').classList.remove('open');
+}
+
+async function saveProduct(e) {
+  e.preventDefault();
+  const btn = document.getElementById('productSaveBtn');
+  const id  = document.getElementById('productId').value;
+  const body = {
+    title:       document.getElementById('pTitle').value.trim(),
+    description: document.getElementById('pDescription').value.trim(),
+    price:       parseFloat(document.getElementById('pPrice').value) || 0,
+    stock:       parseInt(document.getElementById('pStock').value)   || 0,
+    image_emoji: document.getElementById('pEmoji').value.trim() || '🛍️',
+    badge:       document.getElementById('pBadge').value || null,
+    is_active:   document.getElementById('pActive').checked,
+  };
+
+  btn.disabled = true;
+  btn.textContent = 'Збереження…';
+  try {
+    if (id) {
+      await apiRaw(`/api/marketplace/admin/products/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+      showToast('Товар оновлено');
+    } else {
+      await apiRaw('/api/marketplace/admin/products', { method: 'POST', body: JSON.stringify(body) });
+      showToast('Товар додано');
+    }
+    closeProductModal();
+    loadAdminProducts();
+    loadMarketplaceStats();
+  } catch (err) {
+    showToast(err.message || 'Помилка збереження', true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Зберегти';
+  }
+}
+
+async function toggleProduct(id, currentActive) {
+  try {
+    const _r = await apiRaw(`/api/marketplace/admin/products/${id}/toggle`, { method: 'PATCH' }); const d = _r.data ?? _r;
+    showToast(d.is_active ? 'Товар активовано' : 'Товар деактивовано');
+    loadAdminProducts();
+    loadMarketplaceStats();
+  } catch (e) {
+    showToast(e.message || 'Помилка', true);
+  }
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Видалити товар? Якщо він є в замовленнях — буде деактивовано.')) return;
+  try {
+    const _r = await apiRaw(`/api/marketplace/admin/products/${id}`, { method: 'DELETE' }); const d = _r.data ?? _r;
+    showToast(d.deactivated ? 'Товар деактивовано (є в замовленнях)' : 'Товар видалено');
+    loadAdminProducts();
+    loadMarketplaceStats();
+  } catch (e) {
+    showToast(e.message || 'Помилка', true);
+  }
+}
+
+// ── Orders ────────────────────────────────────────────────────────
+
+const ORDER_STATUS_LABELS = {
+  paid: 'Оплачено', shipped: 'Відправлено', delivered: 'Доставлено',
+  cancelled: 'Скасовано', awaiting_payment: 'Очікує оплати', processing: 'В обробці',
+};
+const ORDER_STATUS_CSS = {
+  paid: 'paid', shipped: 'shipped', delivered: 'delivered',
+  cancelled: 'cancelled', awaiting_payment: 'pending', processing: 'pending',
+};
+
+async function loadAdminOrders() {
+  const tbody = document.getElementById('mktOrdersBody');
+  const pager = document.getElementById('mktOrdersPager');
+  const status = document.getElementById('mktOrderStatus')?.value || '';
+
+  tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr>`;
+  try {
+    const params = new URLSearchParams({ page: _mktOrdersPage });
+    if (status) params.set('status', status);
+    const _r = await apiRaw(`/api/marketplace/admin/orders?${params}`); const d = _r.data ?? _r;
+
+    if (!d.items?.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Замовлень не знайдено</td></tr>`;
+      pager.innerHTML = '';
+      return;
+    }
+
+    tbody.innerHTML = d.items.map(o => `
+      <tr>
+        <td style="font-weight:700;color:rgba(255,255,255,.7)">#${o.id}</td>
+        <td>
+          <div style="font-weight:600;color:#fff">${escapeHtml(o.user_name || o.user_phone || '—')}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.4)">${escapeHtml(o.shipping_name || '')} · ${escapeHtml(o.shipping_phone || '')}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.35)">${fmtShortDate(o.created_at)}</div>
+        </td>
+        <td style="font-size:12px;color:rgba(255,255,255,.6)">${escapeHtml(o.shipping_address || '—')}</td>
+        <td style="font-weight:700;color:#22c55e">${fmtMoney(o.total_amount)}</td>
+        <td><span class="status-pill ${ORDER_STATUS_CSS[o.status] || ''}">${ORDER_STATUS_LABELS[o.status] || o.status}</span></td>
+        <td>
+          <button class="secondary-btn" style="padding:4px 10px;font-size:12px" onclick="openOrderStatusModal(${o.id}, '${o.status}')">Статус</button>
+        </td>
+      </tr>`).join('');
+
+    pager.innerHTML = d.pages > 1 ? `
+      <button class="secondary-btn" style="padding:4px 12px" ${_mktOrdersPage <= 1 ? 'disabled' : ''} onclick="_mktOrdersPage--;loadAdminOrders()">‹</button>
+      <span style="color:rgba(255,255,255,.5);font-size:13px">${_mktOrdersPage} / ${d.pages}</span>
+      <button class="secondary-btn" style="padding:4px 12px" ${_mktOrdersPage >= d.pages ? 'disabled' : ''} onclick="_mktOrdersPage++;loadAdminOrders()">›</button>` : '';
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">${escapeHtml(e.message || 'Помилка')}</td></tr>`;
+  }
+}
+
+function openOrderStatusModal(orderId, currentStatus) {
+  _currentOrderId = orderId;
+  document.getElementById('osOrderId').textContent = orderId;
+  document.getElementById('osStatus').value = currentStatus;
+  document.getElementById('orderStatusModal').classList.add('open');
+}
+
+function closeOrderStatusModal() {
+  document.getElementById('orderStatusModal').classList.remove('open');
+}
+
+async function confirmOrderStatus() {
+  const status = document.getElementById('osStatus').value;
+  if (!_currentOrderId || !status) return;
+  try {
+    await apiRaw(`/api/marketplace/admin/orders/${_currentOrderId}/status`, {
+      method: 'PATCH', body: JSON.stringify({ status }),
+    });
+    showToast('Статус оновлено');
+    closeOrderStatusModal();
+    loadAdminOrders();
+  } catch (e) {
+    showToast(e.message || 'Помилка', true);
+  }
+}
+
+// Close modals on backdrop click
+document.addEventListener('click', e => {
+  if (e.target.id === 'productModal')     closeProductModal();
+  if (e.target.id === 'orderStatusModal') closeOrderStatusModal();
+});

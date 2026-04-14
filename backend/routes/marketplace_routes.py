@@ -1373,3 +1373,444 @@ def _checkout_impl():
     if idempotency_key:
         idempotency_service.complete(user_id, idem_action, idempotency_key, response_payload, 200)
     return jsonify(response_payload)
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  ADMIN MARKETPLACE MANAGEMENT
+# ═══════════════════════════════════════════════════════════════════
+
+def _admin_required(func):
+    from functools import wraps
+    from .helpers import role_required
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return auth_required(role_required('admin', 'platform_admin')(wrapper))
+
+
+def _slugify(text: str) -> str:
+    import re
+    s = text.lower().strip()
+    s = re.sub(r'[^\w\s-]', '', s)
+    s = re.sub(r'[\s_]+', '-', s)
+    s = re.sub(r'-+', '-', s)
+    return s[:80]
+
+
+def _unique_slug(conn: Any, base: str, exclude_id: int | None = None) -> str:
+    slug = _slugify(base)
+    candidate = slug
+    i = 2
+    while True:
+        q = 'SELECT id FROM marketplace_products WHERE slug = %s'
+        params: list = [candidate]
+        if exclude_id:
+            q += ' AND id != %s'
+            params.append(exclude_id)
+        row = conn.execute(q, params).fetchone()
+        if not row:
+            return candidate
+        candidate = f'{slug}-{i}'
+        i += 1
+
+
+# ── Stats ──────────────────────────────────────────────────────────
+
+@marketplace_bp.get('/admin/stats')
+@auth_required
+def admin_marketplace_stats():
+    from .helpers import role_required
+    if g.current_user.get('role') not in ('admin', 'platform_admin'):
+        from .helpers import api_error as _ae
+        return _ae('Недостатньо прав.', 403)
+    _ensure_schema()
+    with get_connection() as conn:
+        total_products = (conn.execute(
+            'SELECT COUNT(*) AS n FROM marketplace_products').fetchone() or {}).get('n') or 0
+        active_products = (conn.execute(
+            'SELECT COUNT(*) AS n FROM marketplace_products WHERE is_active = TRUE').fetchone() or {}).get('n') or 0
+        low_stock = (conn.execute(
+            'SELECT COUNT(*) AS n FROM marketplace_products WHERE is_active = TRUE AND stock <= 5').fetchone() or {}).get('n') or 0
+        out_of_stock = (conn.execute(
+            'SELECT COUNT(*) AS n FROM marketplace_products WHERE stock = 0').fetchone() or {}).get('n') or 0
+
+        total_orders = (conn.execute(
+            'SELECT COUNT(*) AS n FROM marketplace_orders').fetchone() or {}).get('n') or 0
+        paid_orders = (conn.execute(
+            "SELECT COUNT(*) AS n FROM marketplace_orders WHERE status = 'paid'").fetchone() or {}).get('n') or 0
+        pending_orders = (conn.execute(
+            "SELECT COUNT(*) AS n FROM marketplace_orders WHERE status = 'awaiting_payment'").fetchone() or {}).get('n') or 0
+        revenue = (conn.execute(
+            "SELECT COALESCE(SUM(total_amount),0) AS s FROM marketplace_orders WHERE status = 'paid'").fetchone() or {}).get('s') or 0
+
+        top_products = conn.execute(
+            """
+            SELECT p.id, p.title, p.image_emoji, p.stock,
+                   COALESCE(SUM(oi.qty),0) AS sold,
+                   COALESCE(SUM(oi.line_total),0) AS revenue
+            FROM marketplace_products p
+            LEFT JOIN marketplace_order_items oi ON oi.product_id = p.id
+            LEFT JOIN marketplace_orders o ON o.id = oi.order_id AND o.status = 'paid'
+            GROUP BY p.id, p.title, p.image_emoji, p.stock
+            ORDER BY sold DESC
+            LIMIT 5
+            """
+        ).fetchall()
+
+    return jsonify({'ok': True, 'data': {
+        'total_products': int(total_products),
+        'active_products': int(active_products),
+        'low_stock': int(low_stock),
+        'out_of_stock': int(out_of_stock),
+        'total_orders': int(total_orders),
+        'paid_orders': int(paid_orders),
+        'pending_orders': int(pending_orders),
+        'revenue': float(revenue),
+        'top_products': [
+            {
+                'id': int(r['id']), 'title': r['title'],
+                'emoji': r['image_emoji'], 'stock': int(r['stock']),
+                'sold': int(r['sold']), 'revenue': float(r['revenue']),
+            } for r in (top_products or [])
+        ],
+    }})
+
+
+# ── Product list (admin, all including inactive) ───────────────────
+
+@marketplace_bp.get('/admin/products')
+@auth_required
+def admin_list_products():
+    if g.current_user.get('role') not in ('admin', 'platform_admin'):
+        return api_error('Недостатньо прав.', 403)
+    _ensure_schema()
+    search = str(request.args.get('search') or '').strip()
+    active_filter = request.args.get('active')  # 'true' | 'false' | None
+    page = max(1, int(request.args.get('page') or 1))
+    per_page = 25
+    offset = (page - 1) * per_page
+
+    where_parts = []
+    params: list = []
+    if search:
+        where_parts.append('(LOWER(title) LIKE %s OR LOWER(slug) LIKE %s)')
+        like = f'%{search.lower()}%'
+        params += [like, like]
+    if active_filter == 'true':
+        where_parts.append('is_active = TRUE')
+    elif active_filter == 'false':
+        where_parts.append('is_active = FALSE')
+
+    where_sql = ('WHERE ' + ' AND '.join(where_parts)) if where_parts else ''
+
+    with get_connection() as conn:
+        total = (conn.execute(
+            f'SELECT COUNT(*) AS n FROM marketplace_products {where_sql}', params
+        ).fetchone() or {}).get('n') or 0
+        rows = conn.execute(
+            f"""
+            SELECT id, slug, title, description, price, currency,
+                   image_emoji, badge, stock, is_active, created_at, updated_at
+            FROM marketplace_products
+            {where_sql}
+            ORDER BY id DESC
+            LIMIT %s OFFSET %s
+            """,
+            params + [per_page, offset],
+        ).fetchall()
+
+    items = []
+    for r in (rows or []):
+        items.append({
+            'id': int(r['id']),
+            'slug': r['slug'],
+            'title': r['title'],
+            'description': r.get('description') or '',
+            'price': float(r['price'] or 0),
+            'currency': r.get('currency') or 'UAH',
+            'image_emoji': r.get('image_emoji') or '🛍️',
+            'badge': r.get('badge'),
+            'stock': int(r.get('stock') or 0),
+            'is_active': bool(r.get('is_active')),
+            'created_at': str(r.get('created_at') or ''),
+            'updated_at': str(r.get('updated_at') or ''),
+        })
+
+    return jsonify({'ok': True, 'data': {
+        'items': items,
+        'total': int(total),
+        'page': page,
+        'per_page': per_page,
+        'pages': max(1, -(-int(total) // per_page)),
+    }})
+
+
+# ── Create product ─────────────────────────────────────────────────
+
+@marketplace_bp.post('/admin/products')
+@auth_required
+def admin_create_product():
+    if g.current_user.get('role') not in ('admin', 'platform_admin'):
+        return api_error('Недостатньо прав.', 403)
+    _ensure_schema()
+    body = request.get_json(force=True) or {}
+
+    title = str(body.get('title') or '').strip()
+    if len(title) < 2:
+        return api_error('Назва товару обовʼязкова.')
+    description = str(body.get('description') or '').strip()
+    try:
+        price = float(body.get('price') or 0)
+        assert price >= 0
+    except Exception:
+        return api_error('Некоректна ціна.')
+    stock = max(0, int(body.get('stock') or 0))
+    emoji = str(body.get('image_emoji') or '🛍️').strip()[:16] or '🛍️'
+    badge = str(body.get('badge') or '').strip()[:40] or None
+    currency = str(body.get('currency') or 'UAH').strip()[:6] or 'UAH'
+    is_active = bool(body.get('is_active', True))
+
+    suffix = get_returning_id_suffix()
+    now_sql = _now_sql()
+
+    with get_connection() as conn:
+        slug = _unique_slug(conn, title)
+        cur = conn.execute(
+            f"""
+            INSERT INTO marketplace_products
+            (slug, title, description, price, currency, image_emoji, badge, stock, is_active, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, {now_sql}, {now_sql})
+            """ + suffix,
+            (slug, title, description, price, currency, emoji, badge, stock, is_active),
+        )
+        new_id = int(insert_last_id(cur) or 0)
+        row = conn.execute(
+            'SELECT * FROM marketplace_products WHERE id = %s LIMIT 1', (new_id,)
+        ).fetchone()
+
+    return jsonify({'ok': True, 'data': dict(row) if row else {'id': new_id}}), 201
+
+
+# ── Update product ─────────────────────────────────────────────────
+
+@marketplace_bp.patch('/admin/products/<int:product_id>')
+@auth_required
+def admin_update_product(product_id: int):
+    if g.current_user.get('role') not in ('admin', 'platform_admin'):
+        return api_error('Недостатньо прав.', 403)
+    _ensure_schema()
+    body = request.get_json(force=True) or {}
+
+    fields: list[str] = []
+    params: list = []
+
+    if 'title' in body:
+        title = str(body['title']).strip()
+        if len(title) < 2:
+            return api_error('Назва товару обовʼязкова.')
+        fields.append('title = %s')
+        params.append(title)
+
+    if 'description' in body:
+        fields.append('description = %s')
+        params.append(str(body['description']).strip())
+
+    if 'price' in body:
+        try:
+            price = float(body['price'])
+            assert price >= 0
+        except Exception:
+            return api_error('Некоректна ціна.')
+        fields.append('price = %s')
+        params.append(price)
+
+    if 'stock' in body:
+        fields.append('stock = %s')
+        params.append(max(0, int(body['stock'])))
+
+    if 'image_emoji' in body:
+        fields.append('image_emoji = %s')
+        params.append(str(body['image_emoji']).strip()[:16] or '🛍️')
+
+    if 'badge' in body:
+        badge = str(body['badge']).strip()[:40] or None
+        fields.append('badge = %s')
+        params.append(badge)
+
+    if 'currency' in body:
+        fields.append('currency = %s')
+        params.append(str(body['currency']).strip()[:6] or 'UAH')
+
+    if 'is_active' in body:
+        fields.append('is_active = %s')
+        params.append(bool(body['is_active']))
+
+    if not fields:
+        return api_error('Немає полів для оновлення.')
+
+    fields.append(f'updated_at = {_now_sql()}')
+    params.append(product_id)
+
+    with get_connection() as conn:
+        existing = conn.execute(
+            'SELECT id FROM marketplace_products WHERE id = %s LIMIT 1', (product_id,)
+        ).fetchone()
+        if not existing:
+            return api_error('Товар не знайдено.', 404)
+
+        conn.execute(
+            f"UPDATE marketplace_products SET {', '.join(fields)} WHERE id = %s",
+            params,
+        )
+        row = conn.execute(
+            'SELECT * FROM marketplace_products WHERE id = %s LIMIT 1', (product_id,)
+        ).fetchone()
+
+    return jsonify({'ok': True, 'data': dict(row) if row else {}})
+
+
+# ── Toggle active ──────────────────────────────────────────────────
+
+@marketplace_bp.patch('/admin/products/<int:product_id>/toggle')
+@auth_required
+def admin_toggle_product(product_id: int):
+    if g.current_user.get('role') not in ('admin', 'platform_admin'):
+        return api_error('Недостатньо прав.', 403)
+    _ensure_schema()
+    with get_connection() as conn:
+        row = conn.execute(
+            'SELECT id, is_active FROM marketplace_products WHERE id = %s LIMIT 1', (product_id,)
+        ).fetchone()
+        if not row:
+            return api_error('Товар не знайдено.', 404)
+        new_active = not bool(row['is_active'])
+        conn.execute(
+            f"UPDATE marketplace_products SET is_active = %s, updated_at = {_now_sql()} WHERE id = %s",
+            (new_active, product_id),
+        )
+    return jsonify({'ok': True, 'data': {'id': product_id, 'is_active': new_active}})
+
+
+# ── Delete product ─────────────────────────────────────────────────
+
+@marketplace_bp.delete('/admin/products/<int:product_id>')
+@auth_required
+def admin_delete_product(product_id: int):
+    if g.current_user.get('role') not in ('admin', 'platform_admin'):
+        return api_error('Недостатньо прав.', 403)
+    _ensure_schema()
+    with get_connection() as conn:
+        row = conn.execute(
+            'SELECT id FROM marketplace_products WHERE id = %s LIMIT 1', (product_id,)
+        ).fetchone()
+        if not row:
+            return api_error('Товар не знайдено.', 404)
+        used = conn.execute(
+            'SELECT id FROM marketplace_order_items WHERE product_id = %s LIMIT 1', (product_id,)
+        ).fetchone()
+        if used:
+            # Soft-delete: just deactivate
+            conn.execute(
+                f"UPDATE marketplace_products SET is_active = FALSE, updated_at = {_now_sql()} WHERE id = %s",
+                (product_id,),
+            )
+            return jsonify({'ok': True, 'data': {'deleted': False, 'deactivated': True,
+                'message': 'Товар є в замовленнях — деактивовано замість видалення.'}})
+        conn.execute('DELETE FROM marketplace_products WHERE id = %s', (product_id,))
+    return jsonify({'ok': True, 'data': {'deleted': True}})
+
+
+# ── Admin orders list ──────────────────────────────────────────────
+
+@marketplace_bp.get('/admin/orders')
+@auth_required
+def admin_list_orders():
+    if g.current_user.get('role') not in ('admin', 'platform_admin'):
+        return api_error('Недостатньо прав.', 403)
+    _ensure_schema()
+    status_filter = str(request.args.get('status') or '').strip()
+    page = max(1, int(request.args.get('page') or 1))
+    per_page = 30
+    offset = (page - 1) * per_page
+
+    where_parts = []
+    params: list = []
+    if status_filter:
+        where_parts.append('o.status = %s')
+        params.append(status_filter)
+    where_sql = ('WHERE ' + ' AND '.join(where_parts)) if where_parts else ''
+
+    with get_connection() as conn:
+        total = (conn.execute(
+            f'SELECT COUNT(*) AS n FROM marketplace_orders o {where_sql}', params
+        ).fetchone() or {}).get('n') or 0
+
+        rows = conn.execute(
+            f"""
+            SELECT o.id, o.total_amount, o.currency, o.status, o.payment_mode,
+                   o.invoice_number, o.invoice_status, o.invoice_due_at,
+                   o.shipping_name, o.shipping_phone, o.shipping_address,
+                   o.created_at, o.note,
+                   u.phone AS user_phone, u.full_name AS user_name
+            FROM marketplace_orders o
+            JOIN users u ON u.id = o.user_id
+            {where_sql}
+            ORDER BY o.id DESC
+            LIMIT %s OFFSET %s
+            """,
+            params + [per_page, offset],
+        ).fetchall()
+
+    items = []
+    for r in (rows or []):
+        items.append({
+            'id': int(r['id']),
+            'total_amount': float(r.get('total_amount') or 0),
+            'currency': r.get('currency') or 'UAH',
+            'status': r.get('status') or '',
+            'payment_mode': r.get('payment_mode') or '',
+            'invoice_number': r.get('invoice_number') or '',
+            'invoice_status': r.get('invoice_status') or '',
+            'invoice_due_at': str(r.get('invoice_due_at') or ''),
+            'shipping_name': r.get('shipping_name') or '',
+            'shipping_phone': r.get('shipping_phone') or '',
+            'shipping_address': r.get('shipping_address') or '',
+            'note': r.get('note') or '',
+            'created_at': str(r.get('created_at') or ''),
+            'user_phone': r.get('user_phone') or '',
+            'user_name': r.get('user_name') or '',
+        })
+
+    return jsonify({'ok': True, 'data': {
+        'items': items,
+        'total': int(total),
+        'page': page,
+        'per_page': per_page,
+        'pages': max(1, -(-int(total) // per_page)),
+    }})
+
+
+# ── Update order status ────────────────────────────────────────────
+
+@marketplace_bp.patch('/admin/orders/<int:order_id>/status')
+@auth_required
+def admin_update_order_status(order_id: int):
+    if g.current_user.get('role') not in ('admin', 'platform_admin'):
+        return api_error('Недостатньо прав.', 403)
+    _ensure_schema()
+    body = request.get_json(force=True) or {}
+    new_status = str(body.get('status') or '').strip()
+    allowed = ('paid', 'shipped', 'delivered', 'cancelled', 'awaiting_payment', 'processing')
+    if new_status not in allowed:
+        return api_error(f'Статус має бути одним із: {", ".join(allowed)}.')
+    with get_connection() as conn:
+        row = conn.execute(
+            'SELECT id FROM marketplace_orders WHERE id = %s LIMIT 1', (order_id,)
+        ).fetchone()
+        if not row:
+            return api_error('Замовлення не знайдено.', 404)
+        conn.execute(
+            "UPDATE marketplace_orders SET status = %s WHERE id = %s",
+            (new_status, order_id),
+        )
+    return jsonify({'ok': True, 'data': {'id': order_id, 'status': new_status}})
