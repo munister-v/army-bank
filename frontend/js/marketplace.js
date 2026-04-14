@@ -132,12 +132,14 @@
   /* ═══════════════════════════════════════════════════════════
      CART PERSISTENCE
      ═══════════════════════════════════════════════════════════ */
-  const CART_KEY = 'arm_cart_v1';
+  const CART_KEY = 'arm_cart_v2';
 
   function saveCart() {
     try { localStorage.setItem(CART_KEY, JSON.stringify(Array.from(state.cart.entries()))); } catch (_) {}
   }
   function loadCart() {
+    // Clear stale v1 cart
+    try { localStorage.removeItem('arm_cart_v1'); } catch (_) {}
     try {
       const raw = localStorage.getItem(CART_KEY);
       if (!raw) return;
