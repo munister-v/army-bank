@@ -122,6 +122,18 @@
     user:            null,
     authenticated:   false,
     activeCategory:  'all',
+    // AJAX catalog state
+    ajax: {
+      search:      '',
+      category:    '',
+      sort:        'default',
+      page:        1,
+      pages:       1,
+      total:       0,
+      loading:     false,
+      hasMore:     false,
+      abortCtrl:   null,   // AbortController for in-flight request
+    },
   };
 
   const ORDER_STATUS = {
@@ -223,6 +235,19 @@
     confirmPayBtn:          document.getElementById('confirm-pay-btn'),
     confirmCancelBtn:       document.getElementById('confirm-cancel-btn'),
     confirmCancelLink:      document.getElementById('confirm-cancel-link'),
+
+    // AJAX / infinite scroll
+    loadMoreBtn:       document.getElementById('catalog-load-more'),
+    catalogSpinner:    document.getElementById('catalog-spinner'),
+    catalogEmpty:      document.getElementById('catalog-empty'),
+    catalogTotal:      document.getElementById('catalog-total-count'),
+    priceMin:          document.getElementById('price-min'),
+    priceMax:          document.getElementById('price-max'),
+
+    // Product detail modal
+    productModal:      document.getElementById('product-modal'),
+    productModalClose: document.getElementById('product-modal-close'),
+    productModalInner: document.getElementById('product-modal-inner'),
   };
 
   /* ═══════════════════════════════════════════════════════════
@@ -596,66 +621,91 @@
     return list;
   }
 
+  /* ── Single card builder (shared by renderCatalog & append) ── */
+  function _buildCard(p) {
+    const inStock = Number(p.stock || 0) > 0;
+    const card    = document.createElement('article');
+    card.className = 'rz-product' + (p.imageUrl ? ' has-photo' : '') + (inStock ? '' : ' out-of-stock');
+    card.setAttribute('role', 'listitem');
+    card.setAttribute('data-cat', p.thumbCat);
+    card.setAttribute('data-product-id', p.id);
+    card.style.cursor = 'pointer';
+
+    const thumbInner = p.imageUrl
+      ? `<img class="rz-photo" src="${p.imageUrl}" alt="${p.title}" loading="lazy" decoding="async"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+         <div class="rz-thumb-fallback" style="display:none"><i class="bi ${p.iconClass}" aria-hidden="true"></i></div>`
+      : `<div class="rz-thumb-fallback"><span class="rz-thumb-emoji">${p.image_emoji || '🛍️'}</span></div>`;
+
+    card.innerHTML = `
+      <div class="rz-thumb" data-cat="${p.thumbCat}">
+        ${thumbInner}
+        ${p.badge ? `<span class="rz-badge">${p.badge}</span>` : ''}
+        ${!inStock ? `<div class="rz-out-overlay"><span>Немає в наявності</span></div>` : ''}
+        ${p.discountPct >= 5 ? `<span class="rz-discount-tag">-${p.discountPct}%</span>` : ''}
+      </div>
+      <div class="rz-content">
+        <h3 class="rz-title">${p.title}</h3>
+        <p class="rz-desc">${p.description || ''}</p>
+        <div class="rz-meta">
+          <span class="rz-rating-wrap">
+            <span class="rz-stars">${stars(p.rating)}</span>
+            <span class="rz-rating-num">${p.rating.toFixed(1)}</span>
+            <span class="rz-reviews">(${p.reviews})</span>
+          </span>
+          <span class="rz-stock-pill${inStock ? '' : ' out'}">${inStock ? `${p.stock} шт.` : 'Немає'}</span>
+        </div>
+        <div class="rz-price-wrap">
+          <div class="rz-price-col">
+            <div class="rz-price-main">${fmt(p.price)}</div>
+            ${p.discountPct >= 5 ? `<div class="rz-price-old">${fmt(p.oldPrice)}</div>` : ''}
+          </div>
+          <button class="btn-add" data-add-id="${p.id}" type="button"
+            ${inStock ? '' : 'disabled'}
+            aria-label="Додати ${p.title} до кошика">
+            <i class="bi bi-bag-plus" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>`;
+    return card;
+  }
+
   function renderCatalog() {
     if (!el.catalogGrid) return;
     syncCategoryActiveState();
-    const items = filteredProducts();
-    if (el.catalogCount) el.catalogCount.textContent = `${items.length} товарів`;
+    el.catalogGrid.innerHTML = '';
 
-    if (!items.length) {
-      el.catalogGrid.innerHTML = '<p class="rz-empty-msg">Нічого не знайдено за обраними фільтрами.</p>';
+    if (!state.products.length) {
+      el.catalogGrid.innerHTML = `
+        <div class="rz-empty-state" style="grid-column:1/-1;text-align:center;padding:64px 20px">
+          <div style="font-size:48px;margin-bottom:16px;opacity:.4">🔍</div>
+          <p style="font-size:16px;font-weight:700;color:#4a6352">Нічого не знайдено</p>
+          <p style="font-size:13px;color:#7a9886;margin-top:6px">Спробуйте інший запит або очистіть фільтри</p>
+          <button onclick="clearAjaxFilters()" style="margin-top:16px;padding:9px 20px;border-radius:10px;background:#1e6b3c;color:#fff;border:none;font-weight:700;cursor:pointer">
+            Скинути фільтри
+          </button>
+        </div>`;
       return;
     }
 
     const frag = document.createDocumentFragment();
-    for (const p of items) {
-      const inStock = Number(p.stock || 0) > 0;
-      const card    = document.createElement('article');
-      card.className = 'rz-product' + (p.imageUrl ? ' has-photo' : '') + (inStock ? '' : ' out-of-stock');
-      card.setAttribute('role', 'listitem');
-      card.setAttribute('data-cat', p.thumbCat);
-
-      /* thumbnail — real photo OR gradient+icon fallback */
-      const thumbInner = p.imageUrl
-        ? `<img class="rz-photo" src="${p.imageUrl}" alt="${p.title}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"  />
-           <div class="rz-thumb-fallback" style="display:none"><i class="bi ${p.iconClass}" aria-hidden="true"></i></div>`
-        : `<div class="rz-thumb-fallback"><span class="rz-thumb-emoji">${p.image_emoji || '🛍️'}</span><i class="bi ${p.iconClass}" aria-hidden="true"></i></div>`;
-
-      card.innerHTML = `
-        <div class="rz-thumb" data-cat="${p.thumbCat}">
-          ${thumbInner}
-          ${p.badge ? `<span class="rz-badge">${p.badge}</span>` : ''}
-          ${!inStock ? `<div class="rz-out-overlay"><span>Немає в наявності</span></div>` : ''}
-          ${p.discountPct >= 5 ? `<span class="rz-discount-tag">-${p.discountPct}%</span>` : ''}
-        </div>
-        <div class="rz-content">
-          <h3 class="rz-title">${p.title}</h3>
-          <p class="rz-desc">${p.description || ''}</p>
-          <div class="rz-meta">
-            <span class="rz-rating-wrap">
-              <span class="rz-stars" aria-label="Рейтинг ${p.rating} з 5">${stars(p.rating)}</span>
-              <span class="rz-rating-num">${p.rating.toFixed(1)}</span>
-              <span class="rz-reviews">(${p.reviews})</span>
-            </span>
-            <span class="rz-stock-pill${inStock ? '' : ' out'}">${inStock ? `${p.stock} шт.` : 'Немає'}</span>
-          </div>
-          <div class="rz-price-wrap">
-            <div class="rz-price-col">
-              <div class="rz-price-main">${fmt(p.price)}</div>
-              ${p.discountPct >= 5 ? `<div class="rz-price-old">${fmt(p.oldPrice)}</div>` : ''}
-            </div>
-            <button class="btn-add" data-add-id="${p.id}" type="button"
-              ${inStock ? '' : 'disabled'}
-              aria-label="Додати ${p.title} до кошика">
-              <i class="bi bi-bag-plus" aria-hidden="true"></i>
-            </button>
-          </div>
-        </div>`;
-      frag.appendChild(card);
-    }
-    el.catalogGrid.innerHTML = '';
+    for (const p of state.products) frag.appendChild(_buildCard(p));
     el.catalogGrid.appendChild(frag);
+    _updateCatalogMeta();
   }
+
+  // Exposed for inline onclick
+  window.clearAjaxFilters = () => {
+    if (el.catalogSearch)       el.catalogSearch.value = '';
+    if (el.catalogSearchMobile) el.catalogSearchMobile.value = '';
+    if (el.catalogSort)         el.catalogSort.value = 'default';
+    if (el.priceMin)            el.priceMin.value = '';
+    if (el.priceMax)            el.priceMax.value = '';
+    state.ajax.search = ''; state.ajax.category = ''; state.ajax.sort = 'default';
+    state.activeCategory = 'all';
+    syncCategoryActiveState();
+    fetchCatalog(false);
+  };
 
   /* ═══════════════════════════════════════════════════════════
      RENDER: cart
@@ -782,32 +832,247 @@
   /* ═══════════════════════════════════════════════════════════
      API CALLS
      ═══════════════════════════════════════════════════════════ */
-  async function fetchCatalog() {
+  /* ── AJAX catalog fetch ─────────────────────────────────────── */
+
+  function _buildCatalogUrl(page = 1) {
+    const a = state.ajax;
+    const q = new URLSearchParams({ page, per_page: 12 });
+    if (a.search)   q.set('search',   a.search);
+    if (a.category && a.category !== 'all') q.set('category', a.category);
+    if (a.sort && a.sort !== 'default') q.set('sort', a.sort);
+    if (el.priceMin?.value) q.set('min_price', el.priceMin.value);
+    if (el.priceMax?.value) q.set('max_price', el.priceMax.value);
+    return `/api/marketplace/catalog?${q}`;
+  }
+
+  function _showSkeletons(n = 8, append = false) {
+    if (!el.catalogGrid) return;
+    const html = Array.from({ length: n }, () =>
+      `<div class="rz-product rz-skeleton-card" aria-hidden="true">
+        <div class="rz-skeleton rz-sk-thumb"></div>
+        <div class="rz-content">
+          <div class="rz-skeleton rz-sk-line" style="width:80%;height:13px;margin-bottom:6px"></div>
+          <div class="rz-skeleton rz-sk-line" style="width:55%;height:11px;margin-bottom:14px"></div>
+          <div class="rz-skeleton rz-sk-line" style="width:40%;height:16px"></div>
+        </div>
+      </div>`
+    ).join('');
+    if (append) el.catalogGrid.insertAdjacentHTML('beforeend', html);
+    else        el.catalogGrid.innerHTML = html;
+  }
+
+  async function fetchCatalog(append = false) {
+    const a = state.ajax;
+    if (a.loading) { try { a.abortCtrl?.abort(); } catch (_) {} }
+
+    a.loading   = true;
+    a.abortCtrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const page  = append ? a.page + 1 : 1;
+
+    // Show skeletons
+    _showSkeletons(append ? 4 : 8, append);
+    if (el.loadMoreBtn) el.loadMoreBtn.disabled = true;
+    if (el.catalogSpinner) el.catalogSpinner.hidden = false;
+
     try {
-      const data  = await api.request('/api/marketplace/catalog');
+      const url  = _buildCatalogUrl(page);
+      const res  = await armFetch(url, { signal: a.abortCtrl?.signal });
+      const data = res?.data ?? res;
       const items = Array.isArray(data?.items) ? data.items : [];
-      if (!items.length) {
-        // Try to seed real products if admin, then retry
+
+      if (!items.length && page === 1) {
+        // Try to auto-seed then retry once
         try {
           await armFetch('/api/marketplace/admin/seed-products', { method: 'POST' });
-          const data2 = await api.request('/api/marketplace/catalog');
+          const res2  = await armFetch(url);
+          const data2 = res2?.data ?? res2;
           const items2 = Array.isArray(data2?.items) ? data2.items : [];
-          if (items2.length) {
-            state.products = items2.map(enrichProduct);
-            renderCategoryList();
-            renderCatalog();
-            return;
-          }
-        } catch (_) { /* not admin or already seeded */ }
+          if (items2.length) { return _applyFetchResult(items2, data2, page, append); }
+        } catch (_) {}
         useFallbackCatalog(true);
         return;
       }
-      state.products = items.map(enrichProduct);
-      renderCategoryList();
-      renderCatalog();
-    } catch (_) {
-      useFallbackCatalog(false);
+      _applyFetchResult(items, data, page, append);
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+      if (!append) useFallbackCatalog(false);
+      else { el.catalogGrid?.querySelectorAll('.rz-skeleton-card').forEach(n => n.remove()); }
+    } finally {
+      a.loading = false;
+      if (el.catalogSpinner) el.catalogSpinner.hidden = true;
     }
+  }
+
+  function _applyFetchResult(items, data, page, append) {
+    const a    = state.ajax;
+    const enriched = items.map(enrichProduct);
+
+    if (append) {
+      state.products = [...state.products, ...enriched];
+    } else {
+      state.products = enriched;
+      renderCategoryList();
+    }
+
+    a.page    = page;
+    a.total   = data?.total  ?? enriched.length;
+    a.pages   = data?.pages  ?? 1;
+    a.hasMore = data?.has_more ?? (page < a.pages);
+
+    // Remove skeleton cards
+    el.catalogGrid?.querySelectorAll('.rz-skeleton-card').forEach(n => n.remove());
+
+    if (append) {
+      _appendProductCards(enriched);
+    } else {
+      renderCatalog();
+    }
+    _updateCatalogMeta();
+  }
+
+  function _updateCatalogMeta() {
+    const a = state.ajax;
+    if (el.catalogCount)  el.catalogCount.textContent  = `${a.total} товарів`;
+    if (el.catalogTotal)  el.catalogTotal.textContent  = `${a.total} товарів`;
+    if (el.loadMoreBtn) {
+      el.loadMoreBtn.hidden   = !a.hasMore;
+      el.loadMoreBtn.disabled = false;
+    }
+    if (el.catalogEmpty) el.catalogEmpty.hidden = state.products.length > 0;
+  }
+
+  function _appendProductCards(products) {
+    if (!el.catalogGrid) return;
+    const frag = document.createDocumentFragment();
+    for (const p of products) frag.appendChild(_buildCard(p));
+    el.catalogGrid.appendChild(frag);
+  }
+
+  /* ── Product detail modal ─────────────────────────────────── */
+  async function openProductModal(productId) {
+    if (!el.productModal) return;
+    el.productModal.hidden = false;
+    document.body.style.overflow = 'hidden';
+    if (el.productModalInner) {
+      el.productModalInner.innerHTML = `
+        <div class="pm-loading">
+          <div class="rz-skeleton" style="height:260px;border-radius:16px 16px 0 0"></div>
+          <div style="padding:20px">
+            <div class="rz-skeleton" style="height:14px;width:60%;margin-bottom:10px"></div>
+            <div class="rz-skeleton" style="height:12px;width:90%;margin-bottom:6px"></div>
+            <div class="rz-skeleton" style="height:12px;width:75%;margin-bottom:20px"></div>
+            <div class="rz-skeleton" style="height:36px;border-radius:10px"></div>
+          </div>
+        </div>`;
+    }
+    try {
+      const res = await armFetch(`/api/marketplace/catalog/${productId}`);
+      const p   = res?.data ?? res;
+      if (!p?.id) throw new Error('not found');
+      const enr    = enrichProduct(p);
+      const inStock = Number(enr.stock || 0) > 0;
+      const inCart  = state.cart.has(Number(enr.id));
+      if (el.productModalInner) {
+        el.productModalInner.innerHTML = `
+          <div class="pm-photo-wrap" style="position:relative">
+            ${enr.imageUrl
+              ? `<img class="pm-photo" src="${enr.imageUrl}" alt="${enr.title}" />`
+              : `<div class="pm-photo-wrap" style="aspect-ratio:unset;height:160px"><span class="pm-emoji">${enr.image_emoji || '🛍️'}</span></div>`}
+            ${enr.badge ? `<span class="rz-badge" style="position:absolute;top:10px;left:10px">${enr.badge}</span>` : ''}
+          </div>
+          <div class="pm-inner" style="padding:0 0 4px">
+            <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#7a9886;margin:0 0 6px">${enr.category}</p>
+            <h2 class="pm-title">${enr.title}</h2>
+            <div class="pm-meta">
+              <div class="pm-rating">
+                <span class="rz-stars">${stars(enr.rating)}</span>
+                <span style="font-size:13px;margin-left:4px;color:#e8f4ee">${enr.rating.toFixed(1)}</span>
+                <span style="font-size:12px;color:#7a9886">&nbsp;(${enr.reviews})</span>
+              </div>
+              <span class="pm-stock ${inStock ? '' : 'out'}">${inStock ? `${enr.stock} шт.` : 'Немає'}</span>
+            </div>
+            <p class="pm-desc">${enr.description || ''}</p>
+            <div class="pm-price-row">
+              <span class="pm-price-main">${fmt(enr.price)}</span>
+              ${enr.discountPct >= 5 ? `<span class="pm-price-old">${fmt(enr.oldPrice)}</span><span class="pm-discount">-${enr.discountPct}%</span>` : ''}
+            </div>
+            <button class="pm-add-btn" data-add-id="${enr.id}" ${inStock ? '' : 'disabled'} type="button">
+              <i class="bi bi-bag-plus"></i>
+              ${inCart ? 'Вже в кошику' : 'Додати до кошика'}
+            </button>
+          </div>`;
+      }
+    } catch (_) {
+      if (el.productModalInner)
+        el.productModalInner.innerHTML = '<p style="padding:24px;text-align:center;color:#7a9886">Не вдалося завантажити товар</p>';
+    }
+  }
+
+  function closeProductModal() {
+    if (el.productModal) el.productModal.hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  /* ── Debounce helper ─────────────────────────────────────── */
+  function debounce(fn, ms) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  }
+
+  /* ── Wire AJAX controls ──────────────────────────────────── */
+  function initAjaxControls() {
+    const doSearch = debounce((val) => {
+      state.ajax.search = val.trim();
+      fetchCatalog(false);
+    }, 320);
+
+    // Search inputs (desktop + mobile)
+    [el.catalogSearch, el.catalogSearchMobile].forEach(inp => {
+      if (!inp) return;
+      inp.addEventListener('input', (e) => doSearch(e.target.value));
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Escape') { inp.value = ''; doSearch(''); } });
+    });
+
+    // Sort select
+    if (el.catalogSort) {
+      el.catalogSort.addEventListener('change', (e) => {
+        state.ajax.sort = e.target.value;
+        fetchCatalog(false);
+      });
+    }
+
+    // Price range (debounced)
+    const doPrice = debounce(() => fetchCatalog(false), 500);
+    el.priceMin?.addEventListener('input', doPrice);
+    el.priceMax?.addEventListener('input', doPrice);
+
+    // Load more button
+    if (el.loadMoreBtn) {
+      el.loadMoreBtn.addEventListener('click', () => fetchCatalog(true));
+    }
+
+    // Infinite scroll via IntersectionObserver
+    if (el.loadMoreBtn && 'IntersectionObserver' in window) {
+      const obs = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && state.ajax.hasMore && !state.ajax.loading) {
+          fetchCatalog(true);
+        }
+      }, { rootMargin: '200px' });
+      obs.observe(el.loadMoreBtn);
+    }
+
+    // Product detail modal close + add-to-cart inside modal
+    if (el.productModalClose) el.productModalClose.addEventListener('click', closeProductModal);
+    if (el.productModal) {
+      el.productModal.addEventListener('click', (e) => {
+        if (e.target === el.productModal) closeProductModal();
+        const addBtn = e.target.closest('[data-add-id]');
+        if (addBtn) { addToCart(Number(addBtn.dataset.addId)); closeProductModal(); }
+      });
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeProductModal();
+    });
   }
 
   async function fetchAccount() {
@@ -1076,37 +1341,24 @@
     el.authLoginForm?.addEventListener('submit', handleLogin);
     el.authRegForm?.addEventListener('submit', handleRegister);
 
-    /* ── Search (debounced, sync both inputs) ── */
-    let _st = 0;
-    function onSearchInput(src) {
-      const val = src.value;
-      if (el.catalogSearch && src !== el.catalogSearch) el.catalogSearch.value = val;
-      if (el.catalogSearchMobile && src !== el.catalogSearchMobile) el.catalogSearchMobile.value = val;
-      clearTimeout(_st);
-      _st = setTimeout(renderCatalog, 180);
-    }
-    el.catalogSearch?.addEventListener('input', (e) => onSearchInput(e.target));
-    el.catalogSearchMobile?.addEventListener('input', (e) => onSearchInput(e.target));
-    el.catalogSort?.addEventListener('change', renderCatalog);
+    /* ── Search / sort — handled by initAjaxControls() ── */
 
     /* ── Filter reset ── */
-    el.filterReset?.addEventListener('click', () => {
-      state.activeCategory = 'all';
-      if (el.catalogSort)  el.catalogSort.value = 'popular';
-      if (el.catalogSearch) el.catalogSearch.value = '';
-      if (el.catalogSearchMobile) el.catalogSearchMobile.value = '';
-      renderCategoryList();
-      renderCatalog();
-      setFiltersOpen(false);
-    });
+    el.filterReset?.addEventListener('click', () => { clearAjaxFilters(); setFiltersOpen(false); });
+
+    /* helper: set category and fetch */
+    function _setCatAndFetch(cat) {
+      state.activeCategory = cat;
+      state.ajax.category  = (cat === 'all') ? '' : cat;
+      syncCategoryActiveState();
+      fetchCatalog(false);
+    }
 
     /* ── Category sidebar (mobile drawer) ── */
     el.categoryList?.addEventListener('click', (e) => {
       const btn = e.target.closest('.category-btn');
       if (!btn) return;
-      state.activeCategory = btn.dataset.category || 'all';
-      renderCategoryList();
-      renderCatalog();
+      _setCatAndFetch(btn.dataset.category || 'all');
       setFiltersOpen(false);
     });
 
@@ -1114,14 +1366,20 @@
     function onTopCatClick(e) {
       const btn = e.target.closest('[data-top-category]');
       if (!btn) return;
-      state.activeCategory = btn.dataset.topCategory || 'all';
-      renderCategoryList();
-      renderCatalog();
+      _setCatAndFetch(btn.dataset.topCategory || 'all');
       document.querySelector('.rz-catalog-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     el.filterCatsBar?.addEventListener('click', onTopCatClick);
     el.headerNav?.addEventListener('click', onTopCatClick);
     document.getElementById('footer-cats')?.addEventListener('click', onTopCatClick);
+
+    /* ── Product card click → detail modal ── */
+    el.catalogGrid?.addEventListener('click', (e) => {
+      const addBtn = e.target.closest('[data-add-id]');
+      if (addBtn) return; // handled by cart listener below
+      const card = e.target.closest('[data-product-id]');
+      if (card) openProductModal(Number(card.dataset.productId));
+    });
 
     /* ── Mobile filters ── */
     el.toggleFilters?.addEventListener('click', () => setFiltersOpen(!document.body.classList.contains('filters-open')));
@@ -1135,6 +1393,7 @@
   async function init() {
     loadCart();
     bindEvents();
+    initAjaxControls();
     syncPaymentHint();
     renderSkeleton(12);
 

@@ -17,7 +17,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
   <link rel="stylesheet" href="/css/marketplace.css?v=30"/>
-  <link rel="stylesheet" href="/css/marketplace-v2.css?v=3"/>
+  <link rel="stylesheet" href="/css/marketplace-v2.css?v=4"/>
 </head>
 <body>
 
@@ -208,10 +208,52 @@
         </div>
       </div>
 
+      <!-- Price range filter -->
+      <div class="rz-price-filter" id="price-filter-row">
+        <label class="rz-price-label">Ціна, ₴</label>
+        <input id="price-min" class="rz-price-input" type="number" min="0" step="100" placeholder="від"/>
+        <span class="rz-price-dash">—</span>
+        <input id="price-max" class="rz-price-input" type="number" min="0" step="100" placeholder="до"/>
+      </div>
+
+      <!-- Total count label -->
+      <div id="catalog-total-count" class="rz-catalog-total rz-mono" hidden></div>
+
       <!-- Product grid -->
       <div class="rz-grid" id="catalog-grid" role="list" aria-label="Список товарів"></div>
+
+      <!-- Empty state placeholder (managed by JS) -->
+      <div id="catalog-empty" class="rz-catalog-empty" hidden>
+        <div class="rz-catalog-empty-icon">🔍</div>
+        <p>Нічого не знайдено</p>
+        <button class="rz-btn-reset" type="button" onclick="clearAjaxFilters()">Скинути фільтри</button>
+      </div>
+
+      <!-- Catalog spinner -->
+      <div id="catalog-spinner" class="rz-catalog-spinner" hidden>
+        <span class="rz-spin-dot"></span>
+        <span class="rz-spin-dot"></span>
+        <span class="rz-spin-dot"></span>
+      </div>
+
+      <!-- Load more -->
+      <button id="catalog-load-more" class="rz-load-more-btn" type="button" hidden>
+        Завантажити ще <i class="bi bi-arrow-down" aria-hidden="true"></i>
+      </button>
     </div>
   </section>
+
+  <!-- ===== PRODUCT DETAIL MODAL ===== -->
+  <div id="product-modal" class="pm-overlay" hidden role="dialog" aria-modal="true" aria-label="Деталі товару">
+    <div class="pm-dialog">
+      <button id="product-modal-close" class="pm-close" type="button" aria-label="Закрити">
+        <i class="bi bi-x-lg" aria-hidden="true"></i>
+      </button>
+      <div id="product-modal-inner" class="pm-inner">
+        <!-- skeleton or content injected by JS -->
+      </div>
+    </div>
+  </div>
 
   <!-- ===== ORDERS SECTION ===== -->
   <section class="rz-orders-section orders-panel" id="orders-panel" aria-label="Замовлення">
@@ -413,6 +455,6 @@
   <div id="filters-backdrop" class="rz-filters-backdrop" hidden></div>
 
   <script src="/js/api.js?v=13"></script>
-  <script src="/js/marketplace.js?v=29"></script>
+  <script src="/js/marketplace.js?v=30"></script>
 </body>
 </html>
