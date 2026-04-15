@@ -736,3 +736,295 @@ body {
 @media (max-width: 400px) {
   .rz-grid { grid-template-columns: 1fr !important; }
 }
+
+/* ============================================================
+   REAL PHOTO PRODUCT CARDS — v2 override
+   ============================================================ */
+
+/* Card base — override old brutalist border style */
+.rz-product {
+  background: var(--surface) !important;
+  border: 1px solid rgba(30,107,60,.07) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 2px 16px rgba(10,28,15,.08), 0 0 0 1px rgba(30,107,60,.06) !important;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  position: relative;
+  transition: transform .22s cubic-bezier(.4,0,.2,1),
+              box-shadow .22s cubic-bezier(.4,0,.2,1),
+              border-color .22s cubic-bezier(.4,0,.2,1) !important;
+}
+.rz-product:hover {
+  transform: translateY(-6px) scale(1.01) !important;
+  box-shadow: 0 20px 52px rgba(10,28,15,.18), 0 0 0 1px rgba(30,107,60,.14) !important;
+  border-color: rgba(30,107,60,.18) !important;
+}
+
+/* Thumbnail container */
+.rz-thumb {
+  height: 200px !important;
+  position: relative !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Real photo */
+.rz-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  transition: transform .45s cubic-bezier(.4,0,.2,1);
+}
+.rz-product:hover .rz-photo {
+  transform: scale(1.06);
+}
+
+/* Fallback (emoji / icon) when no photo */
+.rz-thumb-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 48px;
+}
+.rz-thumb-emoji { font-size: 52px; line-height: 1; }
+.rz-thumb-fallback .bi { font-size: 22px; color: rgba(255,255,255,.35); }
+
+/* Category gradient backgrounds for fallback cards */
+.rz-product[data-cat="phones"] .rz-thumb    { background: linear-gradient(145deg,#0d2a40,#1a4d6e) !important; }
+.rz-product[data-cat="laptops"] .rz-thumb   { background: linear-gradient(145deg,#1a0d40,#3d1a7a) !important; }
+.rz-product[data-cat="audio"] .rz-thumb     { background: linear-gradient(145deg,#001a3d,#0d2e6e) !important; }
+.rz-product[data-cat="gaming"] .rz-thumb    { background: linear-gradient(145deg,#0d001a,#330040) !important; }
+.rz-product[data-cat="appliances"] .rz-thumb{ background: linear-gradient(145deg,#3d1a00,#7a3d0d) !important; }
+.rz-product[data-cat="home"] .rz-thumb      { background: linear-gradient(145deg,#2a0d0d,#6e1a1a) !important; }
+.rz-product[data-cat="wearables"] .rz-thumb { background: linear-gradient(145deg,#0d1a30,#1a3060) !important; }
+.rz-product[data-cat="gadgets"] .rz-thumb   { background: linear-gradient(145deg,#1a1a00,#3d3d00) !important; }
+.rz-product[data-cat="tablets"] .rz-thumb   { background: linear-gradient(145deg,#0d2a30,#1a4a55) !important; }
+
+/* Photo cards: light subtle bg instead of dark gradient */
+.rz-product.has-photo .rz-thumb {
+  background: #f4f6f4 !important;
+}
+
+/* Bottom gradient fade on photo (for badge legibility) */
+.rz-product.has-photo .rz-thumb::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 60px;
+  background: linear-gradient(to top, rgba(0,0,0,.18), transparent);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Badge */
+.rz-product .rz-badge,
+.rz-badge {
+  position: absolute !important;
+  top: 10px !important; left: 10px !important; z-index: 3 !important;
+  background: linear-gradient(135deg,#c4922e,#a06820) !important;
+  color: #fff !important;
+  font-size: 10px !important; font-weight: 800 !important;
+  padding: 4px 10px !important;
+  border-radius: 100px !important;
+  letter-spacing: .07em !important;
+  text-transform: uppercase !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,.28) !important;
+}
+
+/* Discount tag */
+.rz-discount-tag {
+  position: absolute;
+  top: 10px; right: 10px; z-index: 3;
+  background: #e63946;
+  color: #fff;
+  font-size: 10px; font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: .04em;
+  box-shadow: 0 2px 6px rgba(0,0,0,.22);
+}
+
+/* Out-of-stock overlay */
+.rz-out-overlay {
+  position: absolute; inset: 0; z-index: 2;
+  background: rgba(10,10,10,.52);
+  backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center;
+}
+.rz-out-overlay span {
+  color: rgba(255,255,255,.75);
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em;
+  border: 1px solid rgba(255,255,255,.22);
+  padding: 5px 12px; border-radius: 6px;
+}
+
+/* Card content */
+.rz-content {
+  padding: 14px 16px 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 !important;
+  gap: 6px !important;
+  border-top: none !important;
+}
+
+.rz-title {
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  color: #1a2b1e !important;
+  line-height: 1.35 !important;
+  letter-spacing: -.01em !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+}
+
+.rz-desc {
+  font-size: 11.5px;
+  color: #7a9886;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+}
+
+/* Rating + stock row */
+.rz-meta {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  margin: 2px 0 !important;
+}
+
+.rz-rating-wrap {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: #7a9886;
+}
+.rz-stars { font-size: 11px; color: #d4a237; letter-spacing: -.5px; }
+.rz-rating-num { font-weight: 700; color: #4a6352; }
+.rz-reviews { color: #9ab0a2; }
+
+.rz-stock-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: rgba(30,107,60,.10);
+  color: #1e6b3c;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.rz-stock-pill.out {
+  background: rgba(220,38,38,.08);
+  color: #dc2626;
+}
+
+/* Price row */
+.rz-price-wrap {
+  margin-top: auto !important;
+  padding-top: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  border-top: 1px solid rgba(30,107,60,.07) !important;
+  gap: 8px !important;
+}
+.rz-price-col { display: flex; flex-direction: column; gap: 1px; }
+.rz-price-main {
+  font-size: 17px !important;
+  font-weight: 900 !important;
+  color: #1e6b3c !important;
+  letter-spacing: -.02em !important;
+  line-height: 1 !important;
+}
+.rz-price-old {
+  font-size: 11px !important;
+  color: #9ab0a2 !important;
+  text-decoration: line-through !important;
+  font-weight: 500 !important;
+}
+
+/* Add to cart button */
+.btn-add {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 11px !important;
+  background: linear-gradient(135deg,#2a8a50,#1e6b3c) !important;
+  border: none !important;
+  color: #fff !important;
+  font-size: 18px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: transform .18s, box-shadow .18s !important;
+  box-shadow: 0 3px 12px rgba(30,107,60,.32) !important;
+  flex-shrink: 0 !important;
+}
+.btn-add:hover:not(:disabled) {
+  transform: scale(1.12) !important;
+  box-shadow: 0 6px 18px rgba(30,107,60,.44) !important;
+}
+.btn-add:active:not(:disabled) { transform: scale(.94) !important; }
+.btn-add:disabled {
+  background: rgba(120,140,130,.18) !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+  opacity: .5 !important;
+}
+
+/* Grid layout */
+.rz-grid, #catalog-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)) !important;
+  gap: 18px !important;
+  border: none !important;
+}
+/* Remove old border grid */
+.rz-grid .rz-product { border-right: none !important; border-bottom: none !important; }
+
+/* Product category label */
+.rz-product-category {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .09em !important;
+  color: #7a9886 !important;
+}
+
+/* Discount label on old brutalist style (hide it) */
+.rz-discount { display: none !important; }
+
+/* ── MOBILE adjustments ── */
+@media (max-width: 680px) {
+  .rz-thumb { height: 160px !important; }
+  .rz-grid, #catalog-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+  .rz-title { font-size: 12.5px !important; }
+  .rz-price-main { font-size: 15px !important; }
+}
+@media (max-width: 380px) {
+  .rz-grid, #catalog-grid { grid-template-columns: 1fr !important; }
+  .rz-thumb { height: 180px !important; }
+}

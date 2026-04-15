@@ -249,6 +249,7 @@ def _ensure_schema() -> None:
         _safe_add_column(conn, 'marketplace_orders', 'invoice_due_at TIMESTAMP')
         _safe_add_column(conn, 'marketplace_orders', 'payment_auth_id INTEGER')
         _safe_add_column(conn, 'marketplace_invoices', 'payment_auth_id INTEGER')
+        _safe_add_column(conn, 'marketplace_products', 'image_url TEXT')
 
         # Fix missing SERIAL/auto-increment on PostgreSQL (tables created without it).
         if USE_PG:
@@ -576,6 +577,7 @@ def _to_payload_product(row: dict[str, Any]) -> dict[str, Any]:
         'price': float(row['price'] or 0),
         'currency': row.get('currency') or 'UAH',
         'image_emoji': row.get('image_emoji') or '🛍️',
+        'image_url': row.get('image_url') or None,
         'badge': row.get('badge'),
         'stock': int(row.get('stock') or 0),
     }
@@ -829,7 +831,7 @@ def catalog():
     with get_connection() as conn:
         rows = conn.execute(
             """
-            SELECT id, slug, title, description, price, currency, image_emoji, badge, stock
+            SELECT id, slug, title, description, price, currency, image_emoji, image_url, badge, stock
             FROM marketplace_products
             WHERE is_active = TRUE
             ORDER BY id ASC
@@ -1546,7 +1548,7 @@ def admin_list_products():
         rows = conn.execute(
             f"""
             SELECT id, slug, title, description, price, currency,
-                   image_emoji, badge, stock, is_active, created_at, updated_at
+                   image_emoji, image_url, badge, stock, is_active, created_at, updated_at
             FROM marketplace_products
             {where_sql}
             ORDER BY id DESC
@@ -1565,6 +1567,7 @@ def admin_list_products():
             'price': float(r['price'] or 0),
             'currency': r.get('currency') or 'UAH',
             'image_emoji': r.get('image_emoji') or '🛍️',
+            'image_url': r.get('image_url') or None,
             'badge': r.get('badge'),
             'stock': int(r.get('stock') or 0),
             'is_active': bool(r.get('is_active')),
@@ -1602,6 +1605,7 @@ def admin_create_product():
         return api_error('Некоректна ціна.')
     stock = max(0, int(body.get('stock') or 0))
     emoji = str(body.get('image_emoji') or '🛍️').strip()[:16] or '🛍️'
+    image_url = str(body.get('image_url') or '').strip() or None
     badge = str(body.get('badge') or '').strip()[:40] or None
     currency = str(body.get('currency') or 'UAH').strip()[:6] or 'UAH'
     is_active = bool(body.get('is_active', True))
@@ -1614,10 +1618,10 @@ def admin_create_product():
         cur = conn.execute(
             f"""
             INSERT INTO marketplace_products
-            (slug, title, description, price, currency, image_emoji, badge, stock, is_active, created_at, updated_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, {now_sql}, {now_sql})
+            (slug, title, description, price, currency, image_emoji, image_url, badge, stock, is_active, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, {now_sql}, {now_sql})
             """ + suffix,
-            (slug, title, description, price, currency, emoji, badge, stock, is_active),
+            (slug, title, description, price, currency, emoji, image_url, badge, stock, is_active),
         )
         new_id = int(insert_last_id(cur) or 0)
         row = conn.execute(
@@ -1667,6 +1671,10 @@ def admin_update_product(product_id: int):
     if 'image_emoji' in body:
         fields.append('image_emoji = %s')
         params.append(str(body['image_emoji']).strip()[:16] or '🛍️')
+
+    if 'image_url' in body:
+        fields.append('image_url = %s')
+        params.append(str(body['image_url']).strip() or None)
 
     if 'badge' in body:
         badge = str(body['badge']).strip()[:40] or None
@@ -2214,3 +2222,205 @@ def order_receipt_pdf(order_id: int):
         )
     except Exception as exc:
         return api_error(str(exc))
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  SEED — real products with photos (admin only, idempotent)
+# ═══════════════════════════════════════════════════════════════════
+
+REAL_PRODUCTS = [
+    # ── Смартфони ──────────────────────────────────────────────────
+    {
+        'slug': 'apple-iphone-15-pro-256',
+        'title': 'Apple iPhone 15 Pro 256GB',
+        'description': 'Титановий корпус, чіп A17 Pro, камера 48 МП з оптичним зумом 5×, USB-C з швидкістю USB 3.',
+        'price': 44999, 'currency': 'UAH',
+        'image_emoji': '📱',
+        'image_url': 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&q=85&fit=crop',
+        'badge': 'Новинка', 'stock': 12, 'category': 'phones',
+    },
+    {
+        'slug': 'samsung-galaxy-s24-ultra',
+        'title': 'Samsung Galaxy S24 Ultra 256GB',
+        'description': 'Snapdragon 8 Gen 3, камера 200 МП, вбудований S Pen, AI-функції Galaxy AI.',
+        'price': 38999, 'currency': 'UAH',
+        'image_emoji': '📱',
+        'image_url': 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=600&q=85&fit=crop',
+        'badge': 'Топ продаж', 'stock': 8, 'category': 'phones',
+    },
+    {
+        'slug': 'google-pixel-9-pro',
+        'title': 'Google Pixel 9 Pro 128GB',
+        'description': 'Tensor G4, Magic Eraser, лучча нічна фотографія в класі, 7 років оновлень Android.',
+        'price': 29999, 'currency': 'UAH',
+        'image_emoji': '📱',
+        'image_url': 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=600&q=85&fit=crop',
+        'badge': None, 'stock': 5, 'category': 'phones',
+    },
+    # ── Ноутбуки ───────────────────────────────────────────────────
+    {
+        'slug': 'apple-macbook-air-m3-15',
+        'title': 'Apple MacBook Air 15" M3',
+        'description': 'Чіп Apple M3, 8 ГБ RAM, 256 ГБ SSD, Liquid Retina 15.3", до 18 год автономності.',
+        'price': 54999, 'currency': 'UAH',
+        'image_emoji': '💻',
+        'image_url': 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&q=85&fit=crop',
+        'badge': 'M3', 'stock': 6, 'category': 'laptops',
+    },
+    {
+        'slug': 'asus-rog-strix-g16-2024',
+        'title': 'ASUS ROG Strix G16 (2024)',
+        'description': 'Intel Core i9-14900HX, RTX 4080 16 ГБ, 32 ГБ DDR5, 1 ТБ NVMe, 240 Гц QHD.',
+        'price': 89999, 'currency': 'UAH',
+        'image_emoji': '💻',
+        'image_url': 'https://images.unsplash.com/photo-1603481546238-487240415921?w=600&q=85&fit=crop',
+        'badge': 'Gaming', 'stock': 3, 'category': 'laptops',
+    },
+    {
+        'slug': 'dell-xps-15-9530',
+        'title': 'Dell XPS 15 9530',
+        'description': 'Intel Core i7-13700H, OLED 3.5K 60 Гц, 16 ГБ LPDDR5, 512 ГБ SSD, RTX 4060.',
+        'price': 69999, 'currency': 'UAH',
+        'image_emoji': '💻',
+        'image_url': 'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=600&q=85&fit=crop',
+        'badge': None, 'stock': 4, 'category': 'laptops',
+    },
+    # ── Аудіо ──────────────────────────────────────────────────────
+    {
+        'slug': 'sony-wh-1000xm5',
+        'title': 'Sony WH-1000XM5',
+        'description': 'Найкраще шумоподавлення у класі, 30 год заряду, LDAC, мультиточкове підключення.',
+        'price': 9999, 'currency': 'UAH',
+        'image_emoji': '🎧',
+        'image_url': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=85&fit=crop',
+        'badge': 'Хіт', 'stock': 15, 'category': 'audio',
+    },
+    {
+        'slug': 'apple-airpods-pro-2',
+        'title': 'Apple AirPods Pro 2',
+        'description': 'H2 чіп, адаптивне шумоподавлення, Lossless Audio через USB-C, до 6 год заряду.',
+        'price': 8499, 'currency': 'UAH',
+        'image_emoji': '🎧',
+        'image_url': 'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=600&q=85&fit=crop',
+        'badge': None, 'stock': 20, 'category': 'audio',
+    },
+    # ── Гейміng ────────────────────────────────────────────────────
+    {
+        'slug': 'sony-playstation-5-slim',
+        'title': 'Sony PlayStation 5 Slim',
+        'description': '4K 120 fps, SSD 1 ТБ, DualSense з гаптичним зворотнім зв\'язком, Ray Tracing.',
+        'price': 19999, 'currency': 'UAH',
+        'image_emoji': '🎮',
+        'image_url': 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=600&q=85&fit=crop',
+        'badge': 'Slim', 'stock': 7, 'category': 'gaming',
+    },
+    {
+        'slug': 'microsoft-xbox-series-x',
+        'title': 'Microsoft Xbox Series X',
+        'description': '4K 120fps, SSD 1 ТБ, Game Pass Ultimate, зворотна сумісність з тисячами ігор.',
+        'price': 17999, 'currency': 'UAH',
+        'image_emoji': '🎮',
+        'image_url': 'https://images.unsplash.com/photo-1621259182978-fbf93132d53d?w=600&q=85&fit=crop',
+        'badge': None, 'stock': 5, 'category': 'gaming',
+    },
+    {
+        'slug': 'nintendo-switch-oled',
+        'title': 'Nintendo Switch OLED',
+        'description': '7" OLED-екран, 64 ГБ пам\'яті, покращений звук, широка підставка, LAN-порт.',
+        'price': 13499, 'currency': 'UAH',
+        'image_emoji': '🎮',
+        'image_url': 'https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?w=600&q=85&fit=crop',
+        'badge': None, 'stock': 10, 'category': 'gaming',
+    },
+    # ── Техніка ────────────────────────────────────────────────────
+    {
+        'slug': 'samsung-qled-55-q80d',
+        'title': 'Samsung QLED 55" Q80D',
+        'description': 'Квантові точки, 4K 144 Гц, Neural Quantum Processor, Object Tracking Sound+.',
+        'price': 29999, 'currency': 'UAH',
+        'image_emoji': '📺',
+        'image_url': 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=600&q=85&fit=crop',
+        'badge': 'QLED', 'stock': 4, 'category': 'appliances',
+    },
+    {
+        'slug': 'delonghi-dinamica-plus',
+        'title': 'DeLonghi Dinamica Plus',
+        'description': 'Зернова кавомашина, 13-ступінчастий млин, LatteCrema System, 15 напоїв в один дотик.',
+        'price': 18999, 'currency': 'UAH',
+        'image_emoji': '☕',
+        'image_url': 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&q=85&fit=crop',
+        'badge': None, 'stock': 6, 'category': 'appliances',
+    },
+    {
+        'slug': 'dyson-v15-detect',
+        'title': 'Dyson V15 Detect',
+        'description': 'Лазерне виявлення пилу, HEPA-фільтр, 60 хв автономності, LCD-дисплей статистики.',
+        'price': 22999, 'currency': 'UAH',
+        'image_emoji': '🌀',
+        'image_url': 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=85&fit=crop',
+        'badge': None, 'stock': 8, 'category': 'home',
+    },
+    # ── Носимі пристрої ───────────────────────────────────────────
+    {
+        'slug': 'apple-watch-series-9-45',
+        'title': 'Apple Watch Series 9 45mm',
+        'description': 'S9 SiP, Double Tap gesture, Always-On Retina, ЕКГ, SpO2, crashDetection.',
+        'price': 14999, 'currency': 'UAH',
+        'image_emoji': '⌚',
+        'image_url': 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=600&q=85&fit=crop',
+        'badge': None, 'stock': 9, 'category': 'wearables',
+    },
+    {
+        'slug': 'dji-mini-4-pro',
+        'title': 'DJI Mini 4 Pro',
+        'description': '4K/60fps HDR, OmniDirectional obstacle sensing, 34 хв польоту, вага 249 г.',
+        'price': 34999, 'currency': 'UAH',
+        'image_emoji': '🚁',
+        'image_url': 'https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=600&q=85&fit=crop',
+        'badge': 'Pro', 'stock': 3, 'category': 'gadgets',
+    },
+    {
+        'slug': 'apple-ipad-pro-m4-11',
+        'title': 'Apple iPad Pro 11" M4',
+        'description': 'Чіп M4, OLED Ultra Retina XDR, 256 ГБ, Wi-Fi 6E, підтримка Apple Pencil Pro.',
+        'price': 42999, 'currency': 'UAH',
+        'image_emoji': '📲',
+        'image_url': 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=600&q=85&fit=crop',
+        'badge': 'M4', 'stock': 5, 'category': 'tablets',
+    },
+]
+
+
+@marketplace_bp.post('/admin/seed-products')
+@auth_required
+def admin_seed_products():
+    """Seed DB with real demo products (idempotent — skips existing slugs)."""
+    if g.current_user.get('role') not in ('admin', 'platform_admin'):
+        return api_error('Недостатньо прав.', 403)
+    _ensure_schema()
+    suffix = get_returning_id_suffix()
+    now_sql = _now_sql()
+    inserted, skipped = 0, 0
+    with get_connection() as conn:
+        for p in REAL_PRODUCTS:
+            existing = conn.execute(
+                'SELECT id FROM marketplace_products WHERE slug = %s LIMIT 1',
+                (p['slug'],),
+            ).fetchone()
+            if existing:
+                skipped += 1
+                continue
+            conn.execute(
+                f"""
+                INSERT INTO marketplace_products
+                (slug, title, description, price, currency, image_emoji, image_url, badge, stock, is_active, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, {now_sql}, {now_sql})
+                """,
+                (
+                    p['slug'], p['title'], p['description'],
+                    p['price'], p['currency'], p['image_emoji'],
+                    p.get('image_url'), p.get('badge'), p.get('stock', 10),
+                ),
+            )
+            inserted += 1
+    return jsonify({'ok': True, 'data': {'inserted': inserted, 'skipped': skipped}})

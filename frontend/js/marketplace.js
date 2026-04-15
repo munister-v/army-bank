@@ -72,6 +72,7 @@
       rating, reviews, oldPrice, discountPct,
       iconClass: CATEGORY_ICONS[category] || 'bi-bag',
       thumbCat:  CATEGORY_THUMB[category] || 'home',
+      imageUrl:  item.image_url || null,
     };
   }
 
@@ -610,35 +611,43 @@
     for (const p of items) {
       const inStock = Number(p.stock || 0) > 0;
       const card    = document.createElement('article');
-      card.className = 'rz-product';
+      card.className = 'rz-product' + (p.imageUrl ? ' has-photo' : '') + (inStock ? '' : ' out-of-stock');
       card.setAttribute('role', 'listitem');
+      card.setAttribute('data-cat', p.thumbCat);
+
+      /* thumbnail — real photo OR gradient+icon fallback */
+      const thumbInner = p.imageUrl
+        ? `<img class="rz-photo" src="${p.imageUrl}" alt="${p.title}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"  />
+           <div class="rz-thumb-fallback" style="display:none"><i class="bi ${p.iconClass}" aria-hidden="true"></i></div>`
+        : `<div class="rz-thumb-fallback"><span class="rz-thumb-emoji">${p.image_emoji || '🛍️'}</span><i class="bi ${p.iconClass}" aria-hidden="true"></i></div>`;
+
       card.innerHTML = `
         <div class="rz-thumb" data-cat="${p.thumbCat}">
-          <span class="rz-thumb-brand">ARM</span>
-          <i class="bi ${p.iconClass}" aria-hidden="true"></i>
-          ${p.discountPct >= 5 ? `<span class="rz-discount">-${p.discountPct}%</span>` : ''}
+          ${thumbInner}
+          ${p.badge ? `<span class="rz-badge">${p.badge}</span>` : ''}
+          ${!inStock ? `<div class="rz-out-overlay"><span>Немає в наявності</span></div>` : ''}
+          ${p.discountPct >= 5 ? `<span class="rz-discount-tag">-${p.discountPct}%</span>` : ''}
         </div>
         <div class="rz-content">
-          ${p.badge
-            ? `<span class="rz-badge" data-badge="${p.badge}">${p.badge}</span>`
-            : `<span class="rz-product-category">${p.category}</span>`}
           <h3 class="rz-title">${p.title}</h3>
+          <p class="rz-desc">${p.description || ''}</p>
           <div class="rz-meta">
-            <span class="rz-rating">
+            <span class="rz-rating-wrap">
               <span class="rz-stars" aria-label="Рейтинг ${p.rating} з 5">${stars(p.rating)}</span>
-              ${p.rating.toFixed(1)}
+              <span class="rz-rating-num">${p.rating.toFixed(1)}</span>
+              <span class="rz-reviews">(${p.reviews})</span>
             </span>
-            <span class="rz-stock${inStock ? '' : ' out'}">${inStock ? 'В наявності' : 'Немає'}</span>
+            <span class="rz-stock-pill${inStock ? '' : ' out'}">${inStock ? `${p.stock} шт.` : 'Немає'}</span>
           </div>
           <div class="rz-price-wrap">
-            <div>
+            <div class="rz-price-col">
               <div class="rz-price-main">${fmt(p.price)}</div>
               ${p.discountPct >= 5 ? `<div class="rz-price-old">${fmt(p.oldPrice)}</div>` : ''}
             </div>
             <button class="btn-add" data-add-id="${p.id}" type="button"
               ${inStock ? '' : 'disabled'}
               aria-label="Додати ${p.title} до кошика">
-              <i class="bi bi-plus" aria-hidden="true"></i>
+              <i class="bi bi-bag-plus" aria-hidden="true"></i>
             </button>
           </div>
         </div>`;
@@ -777,7 +786,22 @@
     try {
       const data  = await api.request('/api/marketplace/catalog');
       const items = Array.isArray(data?.items) ? data.items : [];
-      if (!items.length) { useFallbackCatalog(true); return; }
+      if (!items.length) {
+        // Try to seed real products if admin, then retry
+        try {
+          await armFetch('/api/marketplace/admin/seed-products', { method: 'POST' });
+          const data2 = await api.request('/api/marketplace/catalog');
+          const items2 = Array.isArray(data2?.items) ? data2.items : [];
+          if (items2.length) {
+            state.products = items2.map(enrichProduct);
+            renderCategoryList();
+            renderCatalog();
+            return;
+          }
+        } catch (_) { /* not admin or already seeded */ }
+        useFallbackCatalog(true);
+        return;
+      }
       state.products = items.map(enrichProduct);
       renderCategoryList();
       renderCatalog();
