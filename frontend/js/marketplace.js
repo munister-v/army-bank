@@ -876,16 +876,15 @@
 
     try {
       const url  = _buildCatalogUrl(page);
-      const res  = await armFetch(url, { signal: a.abortCtrl?.signal });
-      const data = res?.data ?? res;
+      const data = await api.request(url, { signal: a.abortCtrl?.signal });
       const items = Array.isArray(data?.items) ? data.items : [];
 
       if (!items.length && page === 1) {
         // Try to auto-seed then retry once
         try {
-          await armFetch('/api/marketplace/admin/seed-products', { method: 'POST' });
-          const res2  = await armFetch(url);
-          const data2 = res2?.data ?? res2;
+          await api.request('/api/marketplace/admin/seed-products', { method: 'POST' });
+          const data2 = await api.request(url);
+          const items2 = Array.isArray(data2?.items) ? data2.items : [];
           const items2 = Array.isArray(data2?.items) ? data2.items : [];
           if (items2.length) { return _applyFetchResult(items2, data2, page, append); }
         } catch (_) {}
@@ -966,8 +965,7 @@
         </div>`;
     }
     try {
-      const res = await armFetch(`/api/marketplace/catalog/${productId}`);
-      const p   = res?.data ?? res;
+      const p = await api.request(`/api/marketplace/catalog/${productId}`);
       if (!p?.id) throw new Error('not found');
       const enr    = enrichProduct(p);
       const inStock = Number(enr.stock || 0) > 0;
