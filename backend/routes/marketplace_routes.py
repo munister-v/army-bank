@@ -828,16 +828,87 @@ def _authorize_and_capture_payment(
 @marketplace_bp.get('/catalog')
 def catalog():
     _ensure_schema()
+    search   = str(request.args.get('search')    or '').strip()
+    category = str(request.args.get('category')  or '').strip()
+    sort     = str(request.args.get('sort')       or 'default').strip()
+    page     = max(1, int(request.args.get('page')     or 1))
+    per_page = min(max(int(request.args.get('per_page') or 24), 4), 96)
+    min_price = request.args.get('min_price')
+    max_price = request.args.get('max_price')
+
+    where, params = ['is_active = TRUE'], []
+
+    if search:
+        like = f'%{search.lower()}%'
+        where.append(
+            "(LOWER(title) LIKE %s OR LOWER(description) LIKE %s OR LOWER(COALESCE(badge,'')) LIKE %s)"
+        )
+        params += [like, like, like]
+
+    if min_price:
+        try: where.append('price >= %s'); params.append(float(min_price))
+        except ValueError: pass
+    if max_price:
+        try: where.append('price <= %s'); params.append(float(max_price))
+        except ValueError: pass
+
+    CAT_KEYWORDS: dict[str, list[str]] = {
+        'phones':     ['iphone','samsung galaxy','pixel','смартфон','xiaomi','redmi','honor','nokia','oppo','google pixel'],
+        'laptops':    ['macbook','ноутбук','laptop','asus rog','dell xps','lenovo','thinkpad','hp','ultrabook','book air','book pro'],
+        'audio':      ['sony wh','airpods','навушники','headphone','beats','jabra','sennheiser','bose','akg'],
+        'gaming':     ['playstation','xbox','nintendo','gamepad','геймпад','ps5','series x','switch oled'],
+        'appliances': ['smart tv','телевізор','кавомашина','delonghi','coffee','пральна','холодильник','qled'],
+        'home':       ['dyson','робот','vacuum','пилосос','чайник','kettle','фритюр','air fryer','мультиварка'],
+        'wearables':  ['apple watch','watch series','galaxy watch','fitbit','garmin','smartwatch'],
+        'tablets':    ['ipad','tablet','планшет','galaxy tab'],
+        'gadgets':    ['dji','drone','дрон','gopro','gimbal','квадрокоптер'],
+    }
+    if category and category in CAT_KEYWORDS:
+        kws = CAT_KEYWORDS[category]
+        sub = ' OR '.join(['(LOWER(title) LIKE %s OR LOWER(description) LIKE %s)'] * len(kws))
+        where.append(f'({sub})')
+        for kw in kws:
+            params += [f'%{kw}%', f'%{kw}%']
+
+    where_sql = 'WHERE ' + ' AND '.join(where)
+    order_sql = {'price_asc': 'price ASC', 'price_desc': 'price DESC',
+                 'name_asc': 'title ASC', 'newest': 'id DESC',
+                 'stock': 'stock DESC, id ASC'}.get(sort, 'id ASC')
+
+    count_sql = f'SELECT COUNT(*) AS total FROM marketplace_products {where_sql}'
+    data_sql  = f'''
+        SELECT id, slug, title, description, price, currency, image_emoji, image_url, badge, stock
+        FROM marketplace_products {where_sql}
+        ORDER BY {order_sql}
+        LIMIT %s OFFSET %s
+    '''
     with get_connection() as conn:
-        rows = conn.execute(
-            """
-            SELECT id, slug, title, description, price, currency, image_emoji, image_url, badge, stock
-            FROM marketplace_products
-            WHERE is_active = TRUE
-            ORDER BY id ASC
-            """
-        ).fetchall()
-    return jsonify({'ok': True, 'data': {'items': [_to_payload_product(dict(r)) for r in (rows or [])]}})
+        total = int(((conn.execute(count_sql, params).fetchone()) or {}).get('total') or 0)
+        rows  = conn.execute(data_sql, params + [per_page, (page - 1) * per_page]).fetchall()
+
+    pages = max(1, -(-total // per_page))
+    return jsonify({'ok': True, 'data': {
+        'items':    [_to_payload_product(dict(r)) for r in (rows or [])],
+        'total':    total,
+        'page':     page,
+        'per_page': per_page,
+        'pages':    pages,
+        'has_more': page < pages,
+    }})
+
+
+@marketplace_bp.get('/catalog/<int:product_id>')
+def catalog_product(product_id: int):
+    """Single product detail for AJAX modal."""
+    _ensure_schema()
+    with get_connection() as conn:
+        row = conn.execute(
+            'SELECT * FROM marketplace_products WHERE id = %s AND is_active = TRUE LIMIT 1',
+            (product_id,),
+        ).fetchone()
+    if not row:
+        return api_error('Товар не знайдено.', 404)
+    return jsonify({'ok': True, 'data': _to_payload_product(dict(row))})
 
 
 @marketplace_bp.get('/orders')
@@ -2229,164 +2300,501 @@ def order_receipt_pdf(order_id: int):
 # ═══════════════════════════════════════════════════════════════════
 
 REAL_PRODUCTS = [
-    # ── Смартфони ──────────────────────────────────────────────────
+
+    # ══════════════════════════════════════════════════════════════
+    # СМАРТФОНИ
+    # ══════════════════════════════════════════════════════════════
     {
         'slug': 'apple-iphone-15-pro-256',
         'title': 'Apple iPhone 15 Pro 256GB',
-        'description': 'Титановий корпус, чіп A17 Pro, камера 48 МП з оптичним зумом 5×, USB-C з швидкістю USB 3.',
-        'price': 44999, 'currency': 'UAH',
-        'image_emoji': '📱',
-        'image_url': 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&q=85&fit=crop',
-        'badge': 'Новинка', 'stock': 12, 'category': 'phones',
+        'description': 'Титановий корпус, чіп A17 Pro, основна камера 48 МП з оптичним зумом 5×, USB-C зі швидкістю USB 3, Action Button. Дисплей Super Retina XDR 6.1" ProMotion 120 Гц.',
+        'price': 44999, 'currency': 'UAH', 'image_emoji': '📱',
+        'image_url': 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=700&q=85&fit=crop',
+        'badge': 'NEW', 'stock': 12,
+    },
+    {
+        'slug': 'apple-iphone-15-128',
+        'title': 'Apple iPhone 15 128GB',
+        'description': 'Чіп A16 Bionic, Dynamic Island, камера 48 МП, USB-C, Ceramic Shield, iOS 17. Колір: чорний зоряний.',
+        'price': 33999, 'currency': 'UAH', 'image_emoji': '📱',
+        'image_url': 'https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 24,
     },
     {
         'slug': 'samsung-galaxy-s24-ultra',
         'title': 'Samsung Galaxy S24 Ultra 256GB',
-        'description': 'Snapdragon 8 Gen 3, камера 200 МП, вбудований S Pen, AI-функції Galaxy AI.',
-        'price': 38999, 'currency': 'UAH',
-        'image_emoji': '📱',
-        'image_url': 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=600&q=85&fit=crop',
-        'badge': 'Топ продаж', 'stock': 8, 'category': 'phones',
+        'description': 'Snapdragon 8 Gen 3 for Galaxy, камера 200 МП з AI-зумом 100×, вбудований S Pen, Galaxy AI, екран Dynamic AMOLED 2X 6.8" 120 Гц.',
+        'price': 38999, 'currency': 'UAH', 'image_emoji': '📱',
+        'image_url': 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=700&q=85&fit=crop',
+        'badge': 'HOT', 'stock': 8,
+    },
+    {
+        'slug': 'samsung-galaxy-s24-plus',
+        'title': 'Samsung Galaxy S24+ 256GB',
+        'description': 'Snapdragon 8 Gen 3, Dynamic AMOLED 2X 6.7" 120 Гц, акумулятор 4900 мАг, 45 Вт зарядка, IP68, Galaxy AI.',
+        'price': 29999, 'currency': 'UAH', 'image_emoji': '📱',
+        'image_url': 'https://images.unsplash.com/photo-1567581935884-3349723552ca?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 15,
     },
     {
         'slug': 'google-pixel-9-pro',
         'title': 'Google Pixel 9 Pro 128GB',
-        'description': 'Tensor G4, Magic Eraser, лучча нічна фотографія в класі, 7 років оновлень Android.',
-        'price': 29999, 'currency': 'UAH',
-        'image_emoji': '📱',
-        'image_url': 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=600&q=85&fit=crop',
-        'badge': None, 'stock': 5, 'category': 'phones',
+        'description': 'Tensor G4, Magic Eraser, Best Take, добового знімання в класі, 7 років оновлень Android. LTPO OLED 6.3" до 120 Гц.',
+        'price': 29999, 'currency': 'UAH', 'image_emoji': '📱',
+        'image_url': 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 5,
     },
-    # ── Ноутбуки ───────────────────────────────────────────────────
+    {
+        'slug': 'xiaomi-14-ultra',
+        'title': 'Xiaomi 14 Ultra 512GB',
+        'description': 'Snapdragon 8 Gen 3, камера Leica Summilux 1" Sony LYT-900 50 МП, HyperOS, 90 Вт дротова зарядка + 80 Вт бездротова.',
+        'price': 41999, 'currency': 'UAH', 'image_emoji': '📱',
+        'image_url': 'https://images.unsplash.com/photo-1574944985070-8f3ebc6b79d2?w=700&q=85&fit=crop',
+        'badge': 'PRO', 'stock': 6,
+    },
+    {
+        'slug': 'oneplus-12-256',
+        'title': 'OnePlus 12 256GB',
+        'description': 'Snapdragon 8 Gen 3, Hasselblad камера 50 МП, 100 Вт SUPERVOOC, 50 Вт бездротова, AMOLED 6.82" 120 Гц, акум 5400 мАг.',
+        'price': 24999, 'currency': 'UAH', 'image_emoji': '📱',
+        'image_url': 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=700&q=85&fit=crop',
+        'badge': 'SALE', 'stock': 11,
+    },
+    {
+        'slug': 'samsung-galaxy-a55-5g',
+        'title': 'Samsung Galaxy A55 5G 256GB',
+        'description': 'Exynos 1480, Super AMOLED 6.6" 120 Гц, потрійна камера 50+12+5 МП, акум 5000 мАг, IP67, алюмінієвий корпус.',
+        'price': 14999, 'currency': 'UAH', 'image_emoji': '📱',
+        'image_url': 'https://images.unsplash.com/photo-1581993192873-5b53ce935000?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 30,
+    },
+    {
+        'slug': 'xiaomi-redmi-note-13-pro-plus',
+        'title': 'Xiaomi Redmi Note 13 Pro+ 5G 256GB',
+        'description': 'MediaTek Dimensity 7200-Ultra, камера 200 МП OIS, 120 Вт HyperCharge, AMOLED 6.67" 120 Гц, IP68.',
+        'price': 12999, 'currency': 'UAH', 'image_emoji': '📱',
+        'image_url': 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=700&q=85&fit=crop',
+        'badge': 'ARM DEAL', 'stock': 40,
+    },
+
+    # ══════════════════════════════════════════════════════════════
+    # НОУТБУКИ
+    # ══════════════════════════════════════════════════════════════
     {
         'slug': 'apple-macbook-air-m3-15',
-        'title': 'Apple MacBook Air 15" M3',
-        'description': 'Чіп Apple M3, 8 ГБ RAM, 256 ГБ SSD, Liquid Retina 15.3", до 18 год автономності.',
-        'price': 54999, 'currency': 'UAH',
-        'image_emoji': '💻',
-        'image_url': 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&q=85&fit=crop',
-        'badge': 'M3', 'stock': 6, 'category': 'laptops',
+        'title': 'Apple MacBook Air 15" M3 16/512',
+        'description': 'Чіп Apple M3 8-ядер CPU + 10-ядер GPU, 16 ГБ RAM, 512 ГБ SSD, Liquid Retina 15.3", до 18 год автономності, MagSafe 3.',
+        'price': 64999, 'currency': 'UAH', 'image_emoji': '💻',
+        'image_url': 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=700&q=85&fit=crop',
+        'badge': 'M3', 'stock': 6,
+    },
+    {
+        'slug': 'apple-macbook-pro-14-m3-pro',
+        'title': 'Apple MacBook Pro 14" M3 Pro',
+        'description': 'M3 Pro 11-ядер CPU / 14-ядер GPU, 18 ГБ Unified Memory, 512 ГБ SSD, Liquid Retina XDR 120 Гц, ProMotion, HDMI 2.1, SD.',
+        'price': 89999, 'currency': 'UAH', 'image_emoji': '💻',
+        'image_url': 'https://images.unsplash.com/photo-1611186871525-a7b9617c3a05?w=700&q=85&fit=crop',
+        'badge': 'PRO', 'stock': 4,
     },
     {
         'slug': 'asus-rog-strix-g16-2024',
         'title': 'ASUS ROG Strix G16 (2024)',
-        'description': 'Intel Core i9-14900HX, RTX 4080 16 ГБ, 32 ГБ DDR5, 1 ТБ NVMe, 240 Гц QHD.',
-        'price': 89999, 'currency': 'UAH',
-        'image_emoji': '💻',
-        'image_url': 'https://images.unsplash.com/photo-1603481546238-487240415921?w=600&q=85&fit=crop',
-        'badge': 'Gaming', 'stock': 3, 'category': 'laptops',
+        'description': 'Intel Core i9-14900HX, GeForce RTX 4080 16 ГБ, 32 ГБ DDR5, 1 ТБ NVMe PCIe 4.0, QHD 240 Гц, ROG Intelligent Cooling.',
+        'price': 89999, 'currency': 'UAH', 'image_emoji': '💻',
+        'image_url': 'https://images.unsplash.com/photo-1603481546238-487240415921?w=700&q=85&fit=crop',
+        'badge': 'GAMING', 'stock': 3,
     },
     {
         'slug': 'dell-xps-15-9530',
         'title': 'Dell XPS 15 9530',
-        'description': 'Intel Core i7-13700H, OLED 3.5K 60 Гц, 16 ГБ LPDDR5, 512 ГБ SSD, RTX 4060.',
-        'price': 69999, 'currency': 'UAH',
-        'image_emoji': '💻',
-        'image_url': 'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=600&q=85&fit=crop',
-        'badge': None, 'stock': 4, 'category': 'laptops',
+        'description': 'Intel Core i7-13700H, OLED 3.5K InfinityEdge 60 Гц, 16 ГБ LPDDR5, 512 ГБ SSD, RTX 4060 8 ГБ, Thunderbolt 4.',
+        'price': 69999, 'currency': 'UAH', 'image_emoji': '💻',
+        'image_url': 'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 4,
     },
-    # ── Аудіо ──────────────────────────────────────────────────────
+    {
+        'slug': 'lenovo-thinkpad-x1-carbon-g12',
+        'title': 'Lenovo ThinkPad X1 Carbon Gen 12',
+        'description': 'Intel Core Ultra 7 165U, 32 ГБ LPDDR5X, 1 ТБ SSD, IPS 14" 2.8K OLED 120 Гц, вага 1.12 кг, MIL-SPEC, 57 Вт-год.',
+        'price': 74999, 'currency': 'UAH', 'image_emoji': '💻',
+        'image_url': 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=700&q=85&fit=crop',
+        'badge': 'TOP', 'stock': 5,
+    },
+    {
+        'slug': 'hp-spectre-x360-14',
+        'title': 'HP Spectre x360 14" OLED',
+        'description': 'Intel Core Ultra 7 155H, OLED 2.8K 120 Гц сенсорний, 32 ГБ LPDDR5, 2 ТБ SSD, 360° шарнір, OMEN AI, батарея 66 Вт-год.',
+        'price': 67999, 'currency': 'UAH', 'image_emoji': '💻',
+        'image_url': 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 4,
+    },
+    {
+        'slug': 'asus-zenbook-14-oled',
+        'title': 'ASUS ZenBook 14 OLED',
+        'description': 'AMD Ryzen 7 8845HS, OLED 2.8K 120 Гц, 16 ГБ LPDDR5X, 1 ТБ SSD PCIe 4.0, вага 1.2 кг, ErgoSense клавіатура, USB4.',
+        'price': 41999, 'currency': 'UAH', 'image_emoji': '💻',
+        'image_url': 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=700&q=85&fit=crop',
+        'badge': 'SALE', 'stock': 7,
+    },
+
+    # ══════════════════════════════════════════════════════════════
+    # ПЛАНШЕТИ
+    # ══════════════════════════════════════════════════════════════
+    {
+        'slug': 'apple-ipad-pro-m4-11',
+        'title': 'Apple iPad Pro 11" M4 256GB',
+        'description': 'Чіп M4, найтонший OLED Ultra Retina XDR дисплей, Wi-Fi 6E, Apple Pencil Pro, Magic Keyboard Folio, USB 4 Thunderbolt.',
+        'price': 42999, 'currency': 'UAH', 'image_emoji': '📲',
+        'image_url': 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=700&q=85&fit=crop',
+        'badge': 'M4', 'stock': 5,
+    },
+    {
+        'slug': 'apple-ipad-air-m2-11',
+        'title': 'Apple iPad Air 11" M2 128GB',
+        'description': 'Чіп M2, Liquid Retina 11", Touch ID, 12 МП фронтальна камера, USB-C, Wi-Fi 6E, до 10 год автономності.',
+        'price': 28999, 'currency': 'UAH', 'image_emoji': '📲',
+        'image_url': 'https://images.unsplash.com/photo-1561154464-82e9adf32764?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 10,
+    },
+    {
+        'slug': 'samsung-galaxy-tab-s9-fe',
+        'title': 'Samsung Galaxy Tab S9 FE 256GB',
+        'description': 'Exynos 1380, TFT 10.9" 90 Гц, S Pen у комплекті, IP68, 8 ГБ RAM, 8000 мАг, DeX режим.',
+        'price': 14999, 'currency': 'UAH', 'image_emoji': '📲',
+        'image_url': 'https://images.unsplash.com/photo-1586143779970-4eeec4aad8de?w=700&q=85&fit=crop',
+        'badge': 'ARM DEAL', 'stock': 18,
+    },
+
+    # ══════════════════════════════════════════════════════════════
+    # АУДІО — НАВУШНИКИ
+    # ══════════════════════════════════════════════════════════════
     {
         'slug': 'sony-wh-1000xm5',
         'title': 'Sony WH-1000XM5',
-        'description': 'Найкраще шумоподавлення у класі, 30 год заряду, LDAC, мультиточкове підключення.',
-        'price': 9999, 'currency': 'UAH',
-        'image_emoji': '🎧',
-        'image_url': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=85&fit=crop',
-        'badge': 'Хіт', 'stock': 15, 'category': 'audio',
+        'description': 'Найкраще шумоподавлення у класі, 8 мікрофонів, 30 год заряду, LDAC Hi-Res, Multipoint, Speak-to-Chat. Складана конструкція.',
+        'price': 9999, 'currency': 'UAH', 'image_emoji': '🎧',
+        'image_url': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700&q=85&fit=crop',
+        'badge': 'HOT', 'stock': 15,
+    },
+    {
+        'slug': 'bose-qc45',
+        'title': 'Bose QuietComfort 45',
+        'description': 'Активне шумоподавлення TriPort, 24 год заряду, режим Aware, Bluetooth 5.1, вага 238 г. Бездротові + аналоговий кабель.',
+        'price': 8999, 'currency': 'UAH', 'image_emoji': '🎧',
+        'image_url': 'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 12,
     },
     {
         'slug': 'apple-airpods-pro-2',
-        'title': 'Apple AirPods Pro 2',
-        'description': 'H2 чіп, адаптивне шумоподавлення, Lossless Audio через USB-C, до 6 год заряду.',
-        'price': 8499, 'currency': 'UAH',
-        'image_emoji': '🎧',
-        'image_url': 'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=600&q=85&fit=crop',
-        'badge': None, 'stock': 20, 'category': 'audio',
-    },
-    # ── Гейміng ────────────────────────────────────────────────────
-    {
-        'slug': 'sony-playstation-5-slim',
-        'title': 'Sony PlayStation 5 Slim',
-        'description': '4K 120 fps, SSD 1 ТБ, DualSense з гаптичним зворотнім зв\'язком, Ray Tracing.',
-        'price': 19999, 'currency': 'UAH',
-        'image_emoji': '🎮',
-        'image_url': 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=600&q=85&fit=crop',
-        'badge': 'Slim', 'stock': 7, 'category': 'gaming',
+        'title': 'Apple AirPods Pro 2 (USB-C)',
+        'description': 'H2 чіп, адаптивне прозорість, Conversation Awareness, Lossless Audio, до 6 год (30 год із кейсом), IP54.',
+        'price': 8499, 'currency': 'UAH', 'image_emoji': '🎧',
+        'image_url': 'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 20,
     },
     {
-        'slug': 'microsoft-xbox-series-x',
-        'title': 'Microsoft Xbox Series X',
-        'description': '4K 120fps, SSD 1 ТБ, Game Pass Ultimate, зворотна сумісність з тисячами ігор.',
-        'price': 17999, 'currency': 'UAH',
-        'image_emoji': '🎮',
-        'image_url': 'https://images.unsplash.com/photo-1621259182978-fbf93132d53d?w=600&q=85&fit=crop',
-        'badge': None, 'stock': 5, 'category': 'gaming',
+        'slug': 'samsung-galaxy-buds-2-pro',
+        'title': 'Samsung Galaxy Buds2 Pro',
+        'description': '24-бітний звук Hi-Fi, ANC з шумоподавленням 2.0, IPX7, до 8 год (29 год із кейсом), Bixby голосове керування.',
+        'price': 5499, 'currency': 'UAH', 'image_emoji': '🎧',
+        'image_url': 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=700&q=85&fit=crop',
+        'badge': 'SALE', 'stock': 25,
     },
     {
-        'slug': 'nintendo-switch-oled',
-        'title': 'Nintendo Switch OLED',
-        'description': '7" OLED-екран, 64 ГБ пам\'яті, покращений звук, широка підставка, LAN-порт.',
-        'price': 13499, 'currency': 'UAH',
-        'image_emoji': '🎮',
-        'image_url': 'https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?w=600&q=85&fit=crop',
-        'badge': None, 'stock': 10, 'category': 'gaming',
-    },
-    # ── Техніка ────────────────────────────────────────────────────
-    {
-        'slug': 'samsung-qled-55-q80d',
-        'title': 'Samsung QLED 55" Q80D',
-        'description': 'Квантові точки, 4K 144 Гц, Neural Quantum Processor, Object Tracking Sound+.',
-        'price': 29999, 'currency': 'UAH',
-        'image_emoji': '📺',
-        'image_url': 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=600&q=85&fit=crop',
-        'badge': 'QLED', 'stock': 4, 'category': 'appliances',
+        'slug': 'jbl-charge-5',
+        'title': 'JBL Charge 5',
+        'description': 'Потужний Bluetooth-динамік, IP67, PartyBoost, потужність 30 Вт, до 20 год роботи, вбудований павербанк, USB-A.',
+        'price': 3999, 'currency': 'UAH', 'image_emoji': '🔊',
+        'image_url': 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 35,
     },
     {
-        'slug': 'delonghi-dinamica-plus',
-        'title': 'DeLonghi Dinamica Plus',
-        'description': 'Зернова кавомашина, 13-ступінчастий млин, LatteCrema System, 15 напоїв в один дотик.',
-        'price': 18999, 'currency': 'UAH',
-        'image_emoji': '☕',
-        'image_url': 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&q=85&fit=crop',
-        'badge': None, 'stock': 6, 'category': 'appliances',
+        'slug': 'sonos-era-300',
+        'title': 'Sonos Era 300',
+        'description': 'Просторовий звук Dolby Atmos, 6 підсилювачів, Wi-Fi 6, Bluetooth, AirPlay 2, Trueplay автонастройка.',
+        'price': 12999, 'currency': 'UAH', 'image_emoji': '🔊',
+        'image_url': 'https://images.unsplash.com/photo-1545454675-3531b543be5d?w=700&q=85&fit=crop',
+        'badge': 'TOP', 'stock': 8,
     },
-    {
-        'slug': 'dyson-v15-detect',
-        'title': 'Dyson V15 Detect',
-        'description': 'Лазерне виявлення пилу, HEPA-фільтр, 60 хв автономності, LCD-дисплей статистики.',
-        'price': 22999, 'currency': 'UAH',
-        'image_emoji': '🌀',
-        'image_url': 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=85&fit=crop',
-        'badge': None, 'stock': 8, 'category': 'home',
-    },
-    # ── Носимі пристрої ───────────────────────────────────────────
+
+    # ══════════════════════════════════════════════════════════════
+    # РОЗУМНІ ГОДИННИКИ / WEARABLES
+    # ══════════════════════════════════════════════════════════════
     {
         'slug': 'apple-watch-series-9-45',
         'title': 'Apple Watch Series 9 45mm',
-        'description': 'S9 SiP, Double Tap gesture, Always-On Retina, ЕКГ, SpO2, crashDetection.',
-        'price': 14999, 'currency': 'UAH',
-        'image_emoji': '⌚',
-        'image_url': 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=600&q=85&fit=crop',
-        'badge': None, 'stock': 9, 'category': 'wearables',
+        'description': 'S9 SiP, жест Double Tap, Always-On Retina дисплей 2000 ніт, ЕКГ, SpO2, температура тіла, Crash Detection, WR50.',
+        'price': 14999, 'currency': 'UAH', 'image_emoji': '⌚',
+        'image_url': 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 9,
     },
+    {
+        'slug': 'apple-watch-ultra-2',
+        'title': 'Apple Watch Ultra 2 49mm',
+        'description': 'S9 SiP, титановий корпус, 3000 ніт, точний GPS L1+L5, Action Button, до 60 год у режимі Ultralow Power, WR100 EN13319.',
+        'price': 29999, 'currency': 'UAH', 'image_emoji': '⌚',
+        'image_url': 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=700&q=85&fit=crop',
+        'badge': 'PRO', 'stock': 4,
+    },
+    {
+        'slug': 'samsung-galaxy-watch-7-44',
+        'title': 'Samsung Galaxy Watch 7 44mm',
+        'description': 'BioActive Sensor, AI Energy Score, добовий трекінг здоров\'я, AMOLED 1.5", до 40 год, Galaxy AI Coach, 5ATM+IP68.',
+        'price': 9999, 'currency': 'UAH', 'image_emoji': '⌚',
+        'image_url': 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 14,
+    },
+    {
+        'slug': 'garmin-fenix-7-pro',
+        'title': 'Garmin Fenix 7 Pro Solar',
+        'description': 'Сонячна зарядка, мультисмуговий GPS, TOPO-мапи, пульсоксиметр, до 37 днів, сапфірове скло, RunIQ спортивні метрики.',
+        'price': 24999, 'currency': 'UAH', 'image_emoji': '⌚',
+        'image_url': 'https://images.unsplash.com/photo-1551816230-ef5deaed4a26?w=700&q=85&fit=crop',
+        'badge': 'TOP', 'stock': 6,
+    },
+
+    # ══════════════════════════════════════════════════════════════
+    # МОНІТОРИ
+    # ══════════════════════════════════════════════════════════════
+    {
+        'slug': 'lg-ultragear-27gp95r',
+        'title': 'LG UltraGear 27" 4K OLED 240Гц',
+        'description': 'OLED 4K UHD 240 Гц, 0.03 мс GTG, G-Sync Compatible, HDR True Black 400, DisplayPort 1.4, HDMI 2.1 4K@144 Гц.',
+        'price': 39999, 'currency': 'UAH', 'image_emoji': '🖥️',
+        'image_url': 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=700&q=85&fit=crop',
+        'badge': 'HOT', 'stock': 5,
+    },
+    {
+        'slug': 'samsung-odyssey-g9-49',
+        'title': 'Samsung Odyssey G9 49" DQHD',
+        'description': 'Вигнутий 49" 1000R, 5120×1440 DQHD, VA 240 Гц, 1 мс MPRT, HDR1000, G-Sync + FreeSync Premium Pro, USB-хаб.',
+        'price': 49999, 'currency': 'UAH', 'image_emoji': '🖥️',
+        'image_url': 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=700&q=85&fit=crop',
+        'badge': 'GAMING', 'stock': 3,
+    },
+    {
+        'slug': 'dell-u2723qe-27-4k',
+        'title': 'Dell UltraSharp 27" 4K USB-C',
+        'description': 'IPS Black 4K 60 Гц, 2000:1 контраст, DCI-P3 98%, USB-C 90 Вт Power Delivery, KVM-перемикач, розкладна ніжка.',
+        'price': 22999, 'currency': 'UAH', 'image_emoji': '🖥️',
+        'image_url': 'https://images.unsplash.com/photo-1487017159836-4e23ece2e4cf?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 8,
+    },
+
+    # ══════════════════════════════════════════════════════════════
+    # ІГРОВІ КОНСОЛІ / GAMING
+    # ══════════════════════════════════════════════════════════════
+    {
+        'slug': 'sony-playstation-5-slim',
+        'title': 'Sony PlayStation 5 Slim + Spider-Man 2',
+        'description': '4K 120 fps, SSD 1 ТБ кастомний, DualSense з гаптикою, Ray Tracing, ALLM, VRR, Tempest 3D Audio, гра у комплекті.',
+        'price': 21999, 'currency': 'UAH', 'image_emoji': '🎮',
+        'image_url': 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=700&q=85&fit=crop',
+        'badge': 'BUNDLE', 'stock': 7,
+    },
+    {
+        'slug': 'microsoft-xbox-series-x',
+        'title': 'Microsoft Xbox Series X 1TB',
+        'description': '4K 120fps, SSD 1 ТБ, Quick Resume, Auto HDR, Smart Delivery, Game Pass Ultimate 3 міс., зворотна сумісність 4000+ ігор.',
+        'price': 17999, 'currency': 'UAH', 'image_emoji': '🎮',
+        'image_url': 'https://images.unsplash.com/photo-1621259182978-fbf93132d53d?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 5,
+    },
+    {
+        'slug': 'nintendo-switch-oled',
+        'title': 'Nintendo Switch OLED White',
+        'description': '7" OLED-екран з живими кольорами, 64 ГБ вбудованої пам\'яті, покращений звук, широка підставка, LAN-порт у доці.',
+        'price': 13499, 'currency': 'UAH', 'image_emoji': '🎮',
+        'image_url': 'https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 10,
+    },
+    {
+        'slug': 'razer-blackwidow-v4-pro',
+        'title': 'Razer BlackWidow V4 Pro (Green)',
+        'description': 'Razer Green механічні перемикачі, бездротовий 2.4 ГГц + BT, Chroma RGB, Media Dial, Magnetic Wrist Rest, N-Key Rollover.',
+        'price': 7999, 'currency': 'UAH', 'image_emoji': '⌨️',
+        'image_url': 'https://images.unsplash.com/photo-1541140532-eb96c28cae42?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 16,
+    },
+    {
+        'slug': 'logitech-mx-master-3s',
+        'title': 'Logitech MX Master 3S',
+        'description': '8000 DPI сенсор, MagSpeed ​​електромагнітне колесо, безшумні кнопки, до 70 год, USB-C, Flow міжпристроєве керування.',
+        'price': 3999, 'currency': 'UAH', 'image_emoji': '🖱️',
+        'image_url': 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=700&q=85&fit=crop',
+        'badge': 'TOP', 'stock': 40,
+    },
+
+    # ══════════════════════════════════════════════════════════════
+    # ФОТОАПАРАТИ / КАМЕРИ
+    # ══════════════════════════════════════════════════════════════
+    {
+        'slug': 'sony-a7-iv',
+        'title': 'Sony Alpha A7 IV Body',
+        'description': 'BSI CMOS 33 МП повний кадр, AF на очі та тварин, 4K 60fps 10-bit, IBIS 5.5 ступеня, 828 кадрів на заряд, Weather Sealed.',
+        'price': 84999, 'currency': 'UAH', 'image_emoji': '📷',
+        'image_url': 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=700&q=85&fit=crop',
+        'badge': 'PRO', 'stock': 3,
+    },
+    {
+        'slug': 'canon-eos-r50',
+        'title': 'Canon EOS R50 + 18-45mm Kit',
+        'description': 'APS-C 24.2 МП, 4K без кадрування, AF Dual Pixel CMOS II, Vari-Angle дисплей, до 15 кадрів/с RAW, Wi-Fi + BT.',
+        'price': 27999, 'currency': 'UAH', 'image_emoji': '📷',
+        'image_url': 'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=700&q=85&fit=crop',
+        'badge': 'NEW', 'stock': 6,
+    },
+    {
+        'slug': 'gopro-hero-12-black',
+        'title': 'GoPro HERO12 Black',
+        'description': '5.3K60 + 4K120 відео, HyperSmooth 6.0, водонепроникний до 10 м, 1/1.9" сенсор, Max Lens Mod 2.0 сумісний.',
+        'price': 12999, 'currency': 'UAH', 'image_emoji': '📷',
+        'image_url': 'https://images.unsplash.com/photo-1502977249166-824b3a8a4d6d?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 14,
+    },
+
+    # ══════════════════════════════════════════════════════════════
+    # ТЕХНІКА ДЛЯ ДОМУ
+    # ══════════════════════════════════════════════════════════════
+    {
+        'slug': 'samsung-qled-55-q80d',
+        'title': 'Samsung QLED 55" Q80D 4K 144Гц',
+        'description': 'Технологія Quantum Dot, 4K 144 Гц, Neural Quantum Processor 4K, Object Tracking Sound+, Motion Xcelerator Turbo+.',
+        'price': 29999, 'currency': 'UAH', 'image_emoji': '📺',
+        'image_url': 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=700&q=85&fit=crop',
+        'badge': 'QLED', 'stock': 4,
+    },
+    {
+        'slug': 'lg-oled-65-c3',
+        'title': 'LG OLED 65" evo C3 4K 120Гц',
+        'description': 'OLED evo α9 Gen6 AI, Dolby Vision IQ + Atmos, HDMI 2.1 ×4, 4K 120 Гц, G-Sync, FreeSync, webOS 23, Magic Remote.',
+        'price': 54999, 'currency': 'UAH', 'image_emoji': '📺',
+        'image_url': 'https://images.unsplash.com/photo-1567690187548-f07b1d7bf5a9?w=700&q=85&fit=crop',
+        'badge': 'OLED', 'stock': 5,
+    },
+    {
+        'slug': 'delonghi-dinamica-plus',
+        'title': 'DeLonghi Dinamica Plus ECAM370',
+        'description': 'Зернова кавомашина, 13-ступінчастий млин, LatteCrema Hot System, 15 напоїв через TFT-дисплей, ECAM370.95.T, латте на льоду.',
+        'price': 18999, 'currency': 'UAH', 'image_emoji': '☕',
+        'image_url': 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 6,
+    },
+    {
+        'slug': 'dyson-v15-detect',
+        'title': 'Dyson V15 Detect Absolute',
+        'description': 'Лазерне виявлення пилу, 280 AW всмоктування, HEPA-фільтр, 60 хв автономності, LCD Real Count дисплей, 11 насадок.',
+        'price': 22999, 'currency': 'UAH', 'image_emoji': '🌀',
+        'image_url': 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 8,
+    },
+    {
+        'slug': 'xiaomi-robot-vacuum-s20',
+        'title': 'Xiaomi Robot Vacuum S20+',
+        'description': 'LiDAR навігація, 6000 Па всмоктування, авто-спорожнення станція 2.5 л, 3-в-1 пилосос+швабра+самоочищення, Mi Home App.',
+        'price': 13999, 'currency': 'UAH', 'image_emoji': '🤖',
+        'image_url': 'https://images.unsplash.com/photo-1572894773815-71c1feee7d9f?w=700&q=85&fit=crop',
+        'badge': 'HOT', 'stock': 11,
+    },
+    {
+        'slug': 'irobot-roomba-j9-plus',
+        'title': 'iRobot Roomba j9+ Self-Empty',
+        'description': 'Smart Mapping + 3D-сенсор, Auto-Empty 60 днів, PrecisionVision для перешкод, 100% більше всмоктування, Imprint Link.',
+        'price': 29999, 'currency': 'UAH', 'image_emoji': '🤖',
+        'image_url': 'https://images.unsplash.com/photo-1609081219090-a6d81d3085bf?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 5,
+    },
+    {
+        'slug': 'philips-3200-lattego',
+        'title': 'Philips Series 3200 LatteGo EP3246',
+        'description': 'Кавомашина з LatteGo молочною системою, AdvancedBrew, 5 ступенів міцності, керамічний млин, 6 напоїв, тихий режим.',
+        'price': 14999, 'currency': 'UAH', 'image_emoji': '☕',
+        'image_url': 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=700&q=85&fit=crop',
+        'badge': 'ARM DEAL', 'stock': 9,
+    },
+
+    # ══════════════════════════════════════════════════════════════
+    # РОЗУМНИЙ ДІМ / SMART HOME
+    # ══════════════════════════════════════════════════════════════
+    {
+        'slug': 'philips-hue-starter-e27',
+        'title': 'Philips Hue Starter Kit E27 (4 лампи + Bridge)',
+        'description': '16 млн кольорів, Zigbee Bridge, сумісність з Alexa / Google / Apple HomeKit, розклади, сцени, Hue Entertainment sync.',
+        'price': 4999, 'currency': 'UAH', 'image_emoji': '💡',
+        'image_url': 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 20,
+    },
+    {
+        'slug': 'amazon-echo-show-10',
+        'title': 'Amazon Echo Show 10 (3rd Gen)',
+        'description': 'Розумний дисплей 10.1" HD з рухом, Alexa, відео Zoom/Ring, Zigbee-хаб, вбудований динамік 3" + 2×0.8", Wi-Fi 6.',
+        'price': 7999, 'currency': 'UAH', 'image_emoji': '🔊',
+        'image_url': 'https://images.unsplash.com/photo-1518444065439-e933c06ce9cd?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 12,
+    },
+    {
+        'slug': 'xiaomi-smart-air-purifier-4-pro',
+        'title': 'Xiaomi Smart Air Purifier 4 Pro',
+        'description': 'HEPA H13 + активоване вугілля, 60 м² до 500 м³/год CADR, лазерний датчик PM2.5, OLED-дисплей, Mi Home, 38 дБ.',
+        'price': 6999, 'currency': 'UAH', 'image_emoji': '🌬️',
+        'image_url': 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 15,
+    },
+
+    # ══════════════════════════════════════════════════════════════
+    # ДРОНИ / ГАДЖЕТИ
+    # ══════════════════════════════════════════════════════════════
     {
         'slug': 'dji-mini-4-pro',
-        'title': 'DJI Mini 4 Pro',
-        'description': '4K/60fps HDR, OmniDirectional obstacle sensing, 34 хв польоту, вага 249 г.',
-        'price': 34999, 'currency': 'UAH',
-        'image_emoji': '🚁',
-        'image_url': 'https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=600&q=85&fit=crop',
-        'badge': 'Pro', 'stock': 3, 'category': 'gadgets',
+        'title': 'DJI Mini 4 Pro (RC 2)',
+        'description': '4K/60fps HDR, OmniDirectional obstacle sensing, ActiveTrack 360°, 34 хв польоту, вага 249 г, передача на 20 км, VertShot.',
+        'price': 34999, 'currency': 'UAH', 'image_emoji': '🚁',
+        'image_url': 'https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=700&q=85&fit=crop',
+        'badge': 'PRO', 'stock': 3,
     },
     {
-        'slug': 'apple-ipad-pro-m4-11',
-        'title': 'Apple iPad Pro 11" M4',
-        'description': 'Чіп M4, OLED Ultra Retina XDR, 256 ГБ, Wi-Fi 6E, підтримка Apple Pencil Pro.',
-        'price': 42999, 'currency': 'UAH',
-        'image_emoji': '📲',
-        'image_url': 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=600&q=85&fit=crop',
-        'badge': 'M4', 'stock': 5, 'category': 'tablets',
+        'slug': 'dji-osmo-pocket-3',
+        'title': 'DJI Osmo Pocket 3',
+        'description': '1" CMOS 20 МП, 4K/120fps, 3-осьовий стабілізатор, OLED-дисплей, ActiveTrack, до 166 хв запису, D-Log M 10-bit.',
+        'price': 19999, 'currency': 'UAH', 'image_emoji': '🎥',
+        'image_url': 'https://images.unsplash.com/photo-1617802690992-15d93263d3a9?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 7,
+    },
+
+    # ══════════════════════════════════════════════════════════════
+    # АКСЕСУАРИ / ЗАРЯДКИ / ПАВЕРБАНКИ
+    # ══════════════════════════════════════════════════════════════
+    {
+        'slug': 'anker-power-bank-26800-pd',
+        'title': 'Anker PowerCore 26800mAh 65W PD',
+        'description': 'Ємність 26800 мАг, 65 Вт Power Delivery для ноутбуків, USB-C + 2×USB-A, 3 одночасні пристрої, PowerIQ 3.0.',
+        'price': 2999, 'currency': 'UAH', 'image_emoji': '🔋',
+        'image_url': 'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=700&q=85&fit=crop',
+        'badge': 'SALE', 'stock': 45,
+    },
+    {
+        'slug': 'belkin-gan-65w-charger',
+        'title': 'Belkin GaN 65W 3-Port Charger',
+        'description': 'GaN технологія, 2×USB-C + 1×USB-A, 65 Вт сукупна потужність, Intelligent Power Sharing, захист від перегріву.',
+        'price': 1999, 'currency': 'UAH', 'image_emoji': '🔌',
+        'image_url': 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 60,
+    },
+    {
+        'slug': 'apple-magsafe-15w',
+        'title': 'Apple MagSafe Charger 15W 1m',
+        'description': 'Бездротова зарядка 15 Вт для iPhone 12-16 і AirPods, магнітне центрування, Qi-сумісний 7.5 Вт для старших iPhone.',
+        'price': 1599, 'currency': 'UAH', 'image_emoji': '🔌',
+        'image_url': 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=700&q=85&fit=crop',
+        'badge': None, 'stock': 80,
+    },
+    {
+        'slug': 'sandisk-extreme-pro-2tb',
+        'title': 'SanDisk Extreme PRO Portable SSD 2TB',
+        'description': 'Швидкість 2000 МБ/с читання / 2000 МБ/с запис, USB 3.2 Gen 2×2, IP55 пиловий/водозахист, NVMe PCIe, компактний.',
+        'price': 6999, 'currency': 'UAH', 'image_emoji': '💾',
+        'image_url': 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=700&q=85&fit=crop',
+        'badge': 'TOP', 'stock': 22,
     },
 ]
 
@@ -2394,13 +2802,12 @@ REAL_PRODUCTS = [
 @marketplace_bp.post('/admin/seed-products')
 @auth_required
 def admin_seed_products():
-    """Seed DB with real demo products (idempotent — skips existing slugs)."""
+    """Seed / upsert DB with real demo products (idempotent — upserts by slug)."""
     if g.current_user.get('role') not in ('admin', 'platform_admin'):
         return api_error('Недостатньо прав.', 403)
     _ensure_schema()
-    suffix = get_returning_id_suffix()
     now_sql = _now_sql()
-    inserted, skipped = 0, 0
+    inserted, updated = 0, 0
     with get_connection() as conn:
         for p in REAL_PRODUCTS:
             existing = conn.execute(
@@ -2408,19 +2815,33 @@ def admin_seed_products():
                 (p['slug'],),
             ).fetchone()
             if existing:
-                skipped += 1
-                continue
-            conn.execute(
-                f"""
-                INSERT INTO marketplace_products
-                (slug, title, description, price, currency, image_emoji, image_url, badge, stock, is_active, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, {now_sql}, {now_sql})
-                """,
-                (
-                    p['slug'], p['title'], p['description'],
-                    p['price'], p['currency'], p['image_emoji'],
-                    p.get('image_url'), p.get('badge'), p.get('stock', 10),
-                ),
-            )
-            inserted += 1
-    return jsonify({'ok': True, 'data': {'inserted': inserted, 'skipped': skipped}})
+                conn.execute(
+                    f"""
+                    UPDATE marketplace_products
+                    SET title=%s, description=%s, price=%s, currency=%s,
+                        image_emoji=%s, image_url=%s, badge=%s, stock=%s,
+                        is_active=TRUE, updated_at={now_sql}
+                    WHERE slug=%s
+                    """,
+                    (
+                        p['title'], p['description'], p['price'], p['currency'],
+                        p['image_emoji'], p.get('image_url'), p.get('badge'),
+                        p.get('stock', 10), p['slug'],
+                    ),
+                )
+                updated += 1
+            else:
+                conn.execute(
+                    f"""
+                    INSERT INTO marketplace_products
+                    (slug, title, description, price, currency, image_emoji, image_url, badge, stock, is_active, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, {now_sql}, {now_sql})
+                    """,
+                    (
+                        p['slug'], p['title'], p['description'],
+                        p['price'], p['currency'], p['image_emoji'],
+                        p.get('image_url'), p.get('badge'), p.get('stock', 10),
+                    ),
+                )
+                inserted += 1
+    return jsonify({'ok': True, 'data': {'inserted': inserted, 'updated': updated}})
