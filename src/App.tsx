@@ -2082,8 +2082,9 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const fieldStyle = { marginBottom: 16 };
 
   return (
-    <div style={{ ...appBase, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '20px 20px 40px', overflowY: 'auto' }}>
-      <div style={{ width: '100%', maxWidth: 400, paddingTop: 40, paddingBottom: 20 }}>
+    <div style={{ ...appBase, overflowY: 'auto' }}>
+      <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px' }}>
+      <div style={{ width: '100%', maxWidth: 400 }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{
@@ -2210,6 +2211,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             }}>{loading ? '...' : mode === 'login' ? 'Увійти' : 'Створити акаунт'}</button>
           </div>
         </form>
+      </div>
       </div>
     </div>
   );
