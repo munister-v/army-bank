@@ -335,7 +335,7 @@ function apiCardToData(c: CardInfo, holderFallback = 'ARMY BANK'): CardData & { 
     id: c.id,
     variant: DESIGN_TO_VARIANT[c.design] ?? 'gold',
     number: c.masked_number.slice(-4),
-    name: (c.holder_name || holderFallback).toUpperCase().slice(0, 26),
+    name: (holderFallback !== 'ARMY BANK' ? holderFallback : (c.holder_name || holderFallback)).toUpperCase().slice(0, 26),
     expiry: c.expiry_display,
     type: c.card_type === 'virtual' ? 'Віртуальна' : 'Фізична',
     status: c.status === 'active' ? 'Активна' : c.status === 'blocked' ? 'Заморожена' : 'Закрита',
@@ -703,10 +703,10 @@ function OverviewScreen() {
   const [cardIdx, setCardIdx] = useState(0);
   const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
   const cards: CardData[] = apiCards.length > 0 ? apiCards.map(c => apiCardToData(c, userNameUp)) : [
-    { variant: 'gold', number: '0001', name: 'VYACHESLAW MUNISTER', expiry: '03/29' },
-    { variant: 'emerald', number: '1183', name: 'VYACHESLAW MUNISTER', expiry: '02/29' },
-    { variant: 'platinum', number: '7147', name: 'VYACHESLAW MUNISTER', expiry: '08/28' },
-    { variant: 'obsidian', number: '4402', name: 'VYACHESLAW MUNISTER', expiry: '11/30' },
+    { variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29' },
+    { variant: 'emerald', number: '1183', name: userNameUp, expiry: '02/29' },
+    { variant: 'platinum', number: '7147', name: userNameUp, expiry: '08/28' },
+    { variant: 'obsidian', number: '4402', name: userNameUp, expiry: '11/30' },
   ];
 
   const cardSection = (
@@ -857,10 +857,10 @@ function CardsScreen() {
   const { toast, cards: apiCards, refreshDashboard, transactions: allTx, account, user } = useApp();
   const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
   const FALLBACK_CARDS: (CardData & { id: number; type: string; limit: string; used: string; statusRaw: string; cardTypeRaw: string })[] = [
-    { id: 0, variant: 'gold', number: '0001', name: 'VYACHESLAW MUNISTER', expiry: '03/29', type: 'Віртуальна', limit: '150 000', used: '48 230', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'virtual' },
-    { id: 0, variant: 'emerald', number: '1183', name: 'VYACHESLAW MUNISTER', expiry: '02/29', type: 'Фізична', limit: '80 000', used: '12 400', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'physical' },
-    { id: 0, variant: 'platinum', number: '7147', name: 'VYACHESLAW MUNISTER', expiry: '08/28', type: 'Фізична', limit: '500 000', used: '215 800', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'physical' },
-    { id: 0, variant: 'obsidian', number: '4402', name: 'VYACHESLAW MUNISTER', expiry: '11/30', type: 'Віртуальна', limit: '50 000', used: '0', status: 'Заморожена', statusRaw: 'blocked', cardTypeRaw: 'virtual' },
+    { id: 0, variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29', type: 'Віртуальна', limit: '150 000', used: '48 230', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'virtual' },
+    { id: 0, variant: 'emerald', number: '1183', name: userNameUp, expiry: '02/29', type: 'Фізична', limit: '80 000', used: '12 400', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'physical' },
+    { id: 0, variant: 'platinum', number: '7147', name: userNameUp, expiry: '08/28', type: 'Фізична', limit: '500 000', used: '215 800', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'physical' },
+    { id: 0, variant: 'obsidian', number: '4402', name: userNameUp, expiry: '11/30', type: 'Віртуальна', limit: '50 000', used: '0', status: 'Заморожена', statusRaw: 'blocked', cardTypeRaw: 'virtual' },
   ];
   const cards = apiCards.length > 0 ? apiCards.map(c => apiCardToData(c, userNameUp)) : FALLBACK_CARDS;
   const [selected, setSelected] = useState(0);
