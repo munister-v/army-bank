@@ -3259,8 +3259,17 @@ function scheduleBootstrapRetry() {
     try {
       await hydrateAuthenticatedApp();
       showToast('Зʼєднання відновлено.', 'success');
-    } catch (_) {
-      scheduleBootstrapRetry();
+    } catch (err) {
+      if (isAuthErrorResponse(err)) {
+        stopPolling();
+        stopNotifPolling();
+        api.setToken('');
+        setAuthenticated(false);
+        showToast('Сесію завершено. Увійдіть повторно.');
+      } else {
+        setAuthenticated(false);
+        scheduleBootstrapRetry();
+      }
     }
   }, 10000);
 }
