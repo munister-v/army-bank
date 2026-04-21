@@ -899,14 +899,7 @@
       const items = Array.isArray(data?.items) ? data.items : [];
 
       if (!items.length && page === 1) {
-        // Try to auto-seed then retry once
-        try {
-          await api.request('/api/marketplace/admin/seed-products', { method: 'POST' });
-          const data2 = await api.request(url);
-          const items2 = Array.isArray(data2?.items) ? data2.items : [];
-          if (items2.length) { return _applyFetchResult(items2, data2, page, append); }
-        } catch (_) {}
-        useFallbackCatalog(true);
+        _applyFetchResult([], data, page, append);
         return;
       }
       _applyFetchResult(items, data, page, append);
