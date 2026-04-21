@@ -5904,27 +5904,8 @@ function _cardDesignOptions() {
   ];
 }
 
-function _cardDesignStorageKey() {
-  return 'ab_card_design_overrides_v1';
-}
-
 function _cardStatusClass(status) {
   return status === 'active' ? 'card-status-active' : status === 'blocked' ? 'card-status-blocked' : 'card-status-closed';
-}
-
-function _readCardDesignOverrides() {
-  try {
-    const raw = localStorage.getItem(_cardDesignStorageKey());
-    const parsed = raw ? JSON.parse(raw) : {};
-    return (parsed && typeof parsed === 'object') ? parsed : {};
-  } catch (_) {
-    return {};
-  }
-}
-
-function _writeCardDesignOverrides(map) {
-  try { localStorage.setItem(_cardDesignStorageKey(), JSON.stringify(map || {})); }
-  catch (_) {}
 }
 
 function _isSupportedCardDesign(design) {
@@ -5932,17 +5913,8 @@ function _isSupportedCardDesign(design) {
 }
 
 function _getEffectiveCardDesign(card) {
-  const overrides = _readCardDesignOverrides();
-  const fromStorage = overrides[String(card.id)];
-  const resolved = fromStorage || card.design || 'gold';
+  const resolved = card.design || 'gold';
   return _isSupportedCardDesign(resolved) ? resolved : 'gold';
-}
-
-function _setCardDesignOverride(cardId, design) {
-  if (!_isSupportedCardDesign(design)) return;
-  const map = _readCardDesignOverrides();
-  map[String(cardId)] = design;
-  _writeCardDesignOverrides(map);
 }
 
 function _getCardDesignLabel(design) {
@@ -6099,28 +6071,20 @@ function bindCardActions() {
       if (!cardId || !design || !_isSupportedCardDesign(design)) return;
       if (btn.classList.contains('active')) return;
 
-      _setCardDesignOverride(cardId, design);
-      _updateBankCards().catch(function() {});
-
-      let savedOnServer = false;
+      btn.disabled = true;
       try {
-        await api.request(`/api/cards/${cardId}`, {
+        await api.request(`/api/cards/${cardId}/design`, {
           method: 'PATCH',
           body: JSON.stringify({ design: design }),
         });
-        savedOnServer = true;
-      } catch (_) {
-        try {
-          await api.request(`/api/cards/${cardId}/design`, {
-            method: 'PATCH',
-            body: JSON.stringify({ design: design }),
-          });
-          savedOnServer = true;
-        } catch (_) {}
+        showToast('Дизайн картки оновлено.', 'success');
+        await loadCards();
+        _updateBankCards().catch(function() {});
+      } catch (e) {
+        showToast(e.message || 'Не вдалося оновити дизайн картки.');
+      } finally {
+        btn.disabled = false;
       }
-
-      showToast(savedOnServer ? 'Дизайн картки оновлено.' : 'Дизайн застосовано локально.', 'success');
-      loadCards();
     });
   });
 }
