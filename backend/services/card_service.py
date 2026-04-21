@@ -78,7 +78,7 @@ class CardService:
             'expiry_display': self._expiry_display(card['expires_at']),
         }
 
-    _VALID_DESIGNS = {'gold', 'navy', 'forest', 'rose', 'slate'}
+    _VALID_DESIGNS = {'gold', 'navy', 'forest', 'rose', 'slate', 'camo', 'dark'}
 
     def issue_card(self, user_id: int, card_type: str = 'virtual', design: str = 'gold') -> dict:
         if card_type not in ('virtual', 'physical'):
@@ -181,6 +181,32 @@ class CardService:
         updated = self.cards.get_card(card_id, account['id'])
         updated['masked_number'] = self._mask(updated['card_number'])
         updated['expiry_display'] = self._expiry_display(updated['expires_at'])
+        return updated
+
+    def update_design(self, user_id: int, card_id: int, design: str) -> dict:
+        account = self._get_account(user_id)
+        card = self.cards.get_card(card_id, account['id'])
+        if not card:
+            raise ValueError('Картку не знайдено.')
+        if card['status'] == 'closed':
+            raise ValueError('Закрита картка не може змінювати дизайн.')
+
+        normalized = (design or '').strip().lower()
+        if normalized not in self._VALID_DESIGNS:
+            raise ValueError('Непідтримуваний дизайн картки.')
+
+        self.cards.set_design(card_id, account['id'], normalized)
+        self.features.add_audit_log(
+            user_id,
+            'card_design_updated',
+            f'Оновлено дизайн картки {self._mask(card["card_number"])} на {normalized}.',
+        )
+
+        updated = self.cards.get_card(card_id, account['id'])
+        updated['masked_number'] = self._mask(updated['card_number'])
+        updated['expiry_display'] = self._expiry_display(updated['expires_at'])
+        updated.pop('cvv', None)
+        updated.pop('card_number', None)
         return updated
 
     def get_account_by_card(self, card_number: str) -> dict:

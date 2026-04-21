@@ -25,6 +25,166 @@ interface AppCtxType {
 const AppCtx = createContext<AppCtxType>({ logout: () => {}, goTo: () => {}, toast: () => {}, user: null, account: null, transactions: [], cards: [], refreshDashboard: () => {} });
 const useApp = () => useContext(AppCtx);
 
+type ApiUser = {
+  id: number;
+  full_name: string;
+  phone: string;
+  email: string;
+  role?: string;
+};
+
+type ApiAccount = {
+  id: number;
+  account_number: string;
+  balance: number;
+  currency?: string;
+};
+
+type ApiCard = {
+  id: number;
+  masked_number?: string;
+  expiry_display?: string;
+  card_type?: string;
+  status?: string;
+  design?: string;
+};
+
+type ApiTransaction = {
+  id: number;
+  tx_type: string;
+  direction: 'in' | 'out' | string;
+  amount: number;
+  description: string;
+  related_account?: string | null;
+  created_at: string;
+};
+
+type ApiAnalyticsByType = {
+  tx_type: string;
+  direction: string;
+  total: number;
+  cnt?: number;
+};
+
+type ApiAnalytics = {
+  current_month?: {
+    total_in?: number;
+    total_out?: number;
+    tx_count?: number;
+  };
+  prev_month?: {
+    total_in?: number;
+    total_out?: number;
+    tx_count?: number;
+  };
+  by_type?: ApiAnalyticsByType[];
+  monthly?: { month: string; total_in: number; total_out: number }[];
+};
+
+interface BankDataCtxType {
+  loading: boolean;
+  refreshing: boolean;
+  error: string;
+  user: ApiUser | null;
+  account: ApiAccount | null;
+  cards: ApiCard[];
+  transactions: ApiTransaction[];
+  analytics: ApiAnalytics | null;
+  refresh: () => Promise<void>;
+  mutateCard: (cardId: number, action: 'block' | 'close') => Promise<void>;
+  issueCard: () => Promise<void>;
+}
+
+const BankDataCtx = createContext<BankDataCtxType>({
+  loading: true,
+  refreshing: false,
+  error: '',
+  user: null,
+  account: null,
+  cards: [],
+  transactions: [],
+  analytics: null,
+  refresh: async () => {},
+  mutateCard: async () => {},
+  issueCard: async () => {},
+});
+const useBankData = () => useContext(BankDataCtx);
+
+const API_BASE = (typeof window !== 'undefined' && (window as { ARMY_BANK_BASE?: string }).ARMY_BANK_BASE) || '';
+const uahFmt = new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function formatUah(value: number): string {
+  return `₴ ${uahFmt.format(Number.isFinite(value) ? value : 0)}`;
+}
+
+function analyticsChangeLabel(analytics?: ApiAnalytics | null): string {
+  if (!analytics?.current_month || !analytics?.prev_month) return 'Без динаміки';
+  const curIn = Number(analytics.current_month.total_in || 0);
+  const curOut = Number(analytics.current_month.total_out || 0);
+  const prevIn = Number(analytics.prev_month.total_in || 0);
+  const prevOut = Number(analytics.prev_month.total_out || 0);
+  const curNet = curIn - curOut;
+  const prevNet = prevIn - prevOut;
+  if (Math.abs(prevNet) < 0.01) return curNet === 0 ? 'Без змін' : 'Новий рух коштів';
+  const pct = ((curNet - prevNet) / Math.abs(prevNet)) * 100;
+  const sign = pct > 0 ? '+' : '';
+  return `${sign}${pct.toFixed(1)}% до минулого місяця`;
+}
+
+function initials(fullName?: string | null): string {
+  const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'AB';
+  return (parts[0].charAt(0) + (parts[1]?.charAt(0) || '')).toUpperCase();
+}
+
+function shortName(fullName?: string | null): string {
+  const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'Користувач';
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[1].charAt(0)}.`;
+}
+
+function cardTail(masked?: string): string {
+  const digits = String(masked || '').replace(/\D/g, '');
+  return digits.length >= 4 ? digits.slice(-4) : '----';
+}
+
+function getToken(): string {
+  return localStorage.getItem('army_bank_token') || '';
+}
+
+function clearToken() {
+  localStorage.removeItem('army_bank_token');
+}
+
+async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
+  const fullUrl = (url.startsWith('http') || url.startsWith('//')) ? url : `${API_BASE}${url}`;
+  const token = getToken();
+  const headers = new Headers(options.headers || {});
+  headers.set('Content-Type', 'application/json');
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(fullUrl, { ...options, headers });
+  const refreshed = response.headers.get('X-Refresh-Token');
+  if (refreshed) localStorage.setItem('army_bank_token', refreshed);
+
+  let payload: Record<string, unknown> = {};
+  try {
+    const raw = await response.text();
+    payload = raw ? JSON.parse(raw) as Record<string, unknown> : {};
+  } catch {
+    payload = {};
+  }
+
+  if (!response.ok || payload.ok === false) {
+    const msg = String(payload.error || payload.message || 'Помилка запиту.');
+    const err = new Error(msg) as Error & { status?: number };
+    err.status = response.status;
+    throw err;
+  }
+  return ((payload.data ?? payload) as T);
+}
+
 // ─── Toast notification ───────────────────────────────────────
 function Toast({ msg }: { msg: string }) {
   return (
@@ -72,6 +232,31 @@ interface CardData {
   status?: string;
   limit?: string;
   used?: string;
+}
+
+function cardVariantFromDesign(design?: string | null): CardVariant {
+  switch (String(design || '').toLowerCase()) {
+    case 'forest':
+      return 'emerald';
+    case 'rose':
+      return 'platinum';
+    case 'navy':
+    case 'slate':
+      return 'obsidian';
+    default:
+      return 'gold';
+  }
+}
+
+function toUiCard(card: ApiCard, holderName: string): CardData {
+  return {
+    variant: cardVariantFromDesign(card.design),
+    number: cardTail(card.masked_number),
+    name: (holderName || 'ARMY BANK').toUpperCase().slice(0, 26),
+    expiry: card.expiry_display || '--/--',
+    type: card.card_type === 'physical' ? 'Physical' : 'Virtual',
+    status: card.status || 'active',
+  };
 }
 
 const CARD_VARIANTS: Record<CardVariant, {
@@ -173,7 +358,7 @@ function PremiumCard({ variant, number, name, expiry, style = {} }: CardData & {
               ARM<span style={{ fontWeight: 300 }}>Bank</span>
             </span>
           </div>
-          <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2, color: v.muted, textTransform: 'uppercase' }}>Virtual</span>
+          <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2, color: v.muted, textTransform: 'uppercase' }}>{type || 'Virtual'}</span>
         </div>
         <div style={{
           fontFamily: '"SF Mono", monospace', fontSize: 20, fontWeight: 600, letterSpacing: 2,
@@ -280,24 +465,34 @@ function ActivityRow({ iconBg, iconEl, title, subtitle, amount, positive, onClic
   );
 }
 
-const ACTIVITY_ROWS = [
-  {
-    iconEl: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M6 16l6 6 6-6" stroke="#7fb896" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
-    iconBg: 'rgba(127,184,150,0.1)', title: 'Надходження • ФОП', subtitle: 'Сьогодні, 14:32', amount: '₴ 84 200,00', positive: true,
-  },
-  {
+function txActivityVisual(tx: ApiTransaction) {
+  if (tx.direction === 'in') {
+    return {
+      iconBg: 'rgba(127,184,150,0.1)',
+      iconEl: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M6 16l6 6 6-6" stroke="#7fb896" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+      positive: true,
+    };
+  }
+  if (tx.tx_type === 'transfer') {
+    return {
+      iconBg: 'rgba(232,217,168,0.08)',
+      iconEl: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12h16M4 12l5-5M4 12l5 5" stroke="#e8d9a8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+      positive: false,
+    };
+  }
+  if (tx.tx_type === 'topup') {
+    return {
+      iconBg: 'rgba(127,184,150,0.1)',
+      iconEl: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M6 16l6 6 6-6" stroke="#7fb896" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+      positive: true,
+    };
+  }
+  return {
+    iconBg: 'rgba(200,170,100,0.1)',
     iconEl: <svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke={gold} strokeWidth="1.8" /><path d="M8 12h8M12 8v8" stroke={gold} strokeWidth="1.8" strokeLinecap="round" /></svg>,
-    iconBg: 'rgba(200,170,100,0.1)', title: 'Сільпо', subtitle: 'Сьогодні, 12:18 • Картка •• 0001', amount: '₴ 1 247,50', positive: false,
-  },
-  {
-    iconEl: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12h16M4 12l5-5M4 12l5 5" stroke="#e8d9a8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
-    iconBg: 'rgba(232,217,168,0.08)', title: 'Оплата комунальних', subtitle: 'Вчора, 19:05', amount: '₴ 3 180,00', positive: false,
-  },
-  {
-    iconEl: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 17h14l-2-8H7l-2 8zM7 17v2M17 17v2" stroke="#88a8e8" strokeWidth="1.8" strokeLinecap="round" /></svg>,
-    iconBg: 'rgba(136,168,232,0.1)', title: 'Uklon', subtitle: 'Вчора, 09:42 • Apple Pay', amount: '₴ 148,00', positive: false,
-  },
-];
+    positive: false,
+  };
+}
 
 function BalanceBlock({ visible, onToggle, balance, accountNumber }: { visible: boolean; onToggle: () => void; balance: number; accountNumber: string }) {
   return (
@@ -391,14 +586,29 @@ function OverviewScreen() {
           Усі <Chevron size={12} color={gold} />
         </button>
       </div>
-      <div style={{ maxWidth: 380 }}>
-        <PremiumCard {...cards[cardIdx]} />
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-start', gap: 6, marginTop: 14 }}>
-        {cards.map((_, i) => (
-          <button key={i} onClick={() => setCardIdx(i)} style={{ width: i === cardIdx ? 20 : 6, height: 6, borderRadius: 3, background: i === cardIdx ? gold : 'rgba(200,170,100,0.25)', border: 'none', padding: 0, cursor: 'pointer', transition: 'all 0.25s' }} />
-        ))}
-      </div>
+      {!cards.length ? (
+        <div style={{ maxWidth: 380, padding: '16px 18px', borderRadius: 16, border: `1px solid ${bg.border}`, background: bg.card }}>
+          <div style={{ fontSize: 14, color: text.secondary, marginBottom: 6 }}>Картки ще не випущено</div>
+          <div style={{ fontSize: 12, color: text.muted, marginBottom: 12 }}>Перейдіть у розділ «Картки», щоб випустити першу картку.</div>
+          <button
+            onClick={() => goTo('cards')}
+            style={{ padding: '8px 12px', borderRadius: 10, border: `1px solid ${bg.border}`, background: 'rgba(255,255,255,0.03)', color: text.secondary, cursor: 'pointer' }}
+          >
+            Відкрити картки
+          </button>
+        </div>
+      ) : (
+        <>
+          <div style={{ maxWidth: 380 }}>
+            <PremiumCard {...cards[cardIdx]} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-start', gap: 6, marginTop: 14 }}>
+            {cards.map((_, i) => (
+              <button key={i} onClick={() => setCardIdx(i)} style={{ width: i === cardIdx ? 20 : 6, height: 6, borderRadius: 3, background: i === cardIdx ? gold : 'rgba(200,170,100,0.25)', border: 'none', padding: 0, cursor: 'pointer', transition: 'all 0.25s' }} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 
@@ -445,13 +655,10 @@ function OverviewScreen() {
             {/* Spending stats mini */}
             <div style={{ padding: 20, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22 }}>
               <div style={{ fontSize: 11, letterSpacing: 1.5, color: text.muted, textTransform: 'uppercase', fontWeight: 600, marginBottom: 14 }}>Витрати цього місяця</div>
-              {[
-                { label: 'Продукти', pct: 38, color: '#e8a864' },
-                { label: 'Транспорт', pct: 14, color: '#88a8e8' },
-                { label: 'Комунальні', pct: 22, color: gold },
-                { label: 'Розваги', pct: 12, color: '#c97db4' },
-                { label: 'Інше', pct: 14, color: 'rgba(232,217,168,0.4)' },
-              ].map(({ label, pct, color }) => (
+              {!spendRows.length && (
+                <div style={{ fontSize: 12, color: text.muted }}>Недостатньо даних для розподілу витрат.</div>
+              )}
+              {spendRows.map(({ label, pct, color }) => (
                 <div key={label} style={{ marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
                     <span style={{ fontSize: 12, color: text.secondary }}>{label}</span>
@@ -566,10 +773,10 @@ function CardsScreen() {
           padding: '10px 16px', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`,
           color: '#1a1208', border: 'none', borderRadius: 100, fontSize: 13, fontWeight: 600,
           fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-          boxShadow: `0 4px 10px -4px rgba(201,169,100,0.5), inset 0 1px 0 rgba(255,220,150,0.5)`,
+          boxShadow: `0 4px 10px -4px rgba(201,169,100,0.5), inset 0 1px 0 rgba(255,220,150,0.5)`, opacity: busyCardId === -1 ? 0.65 : 1,
         }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#1a1208" strokeWidth="2.4" strokeLinecap="round" /></svg>
-          Випустити
+          {busyCardId === -1 ? 'Створення...' : 'Випустити'}
         </button>
       </div>
 
@@ -589,49 +796,53 @@ function CardsScreen() {
             </button>
           </div>
         ))}
+        {!cards.length && (
+          <div style={{ padding: '20px', borderRadius: 18, border: `1px solid ${bg.border}`, background: bg.card, color: text.muted, minWidth: 280 }}>
+            Карток ще немає. Натисніть «Випустити».
+          </div>
+        )}
       </div>
 
       {/* Card details */}
       <div style={{ padding: '20px 22px 0' }}>
         <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22, padding: 20 }}>
+          {!card ? (
+            <div style={{ color: text.muted }}>Немає активної картки для перегляду.</div>
+          ) : (
+          <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
             <div style={{ fontFamily: '"SF Mono", monospace', fontSize: 16, fontWeight: 600, color: text.primary, letterSpacing: 1 }}>•• {card.number}</div>
             <div style={{
-              padding: '3px 8px', borderRadius: 100,
-              background: card.status === 'Активна' ? 'rgba(127,184,150,0.15)' : 'rgba(232,217,168,0.1)',
-              color: card.status === 'Активна' ? '#7fb896' : 'rgba(232,217,168,0.7)',
+              padding: '3px 8px', borderRadius: 100, background: card.statusRaw === 'active' ? 'rgba(127,184,150,0.15)' : 'rgba(232,217,168,0.1)',
+              color: card.statusRaw === 'active' ? '#7fb896' : 'rgba(232,217,168,0.7)',
               fontSize: 10.5, fontWeight: 600, letterSpacing: 0.3,
-            }}>{card.status}</div>
+            }}>{statusLabel}</div>
             <div style={{ flex: 1 }} />
-            <div style={{ fontSize: 11, color: text.muted }}>{card.type} • до {card.expiry}</div>
+            <div style={{ fontSize: 11, color: text.muted }}>{card.cardTypeRaw === 'physical' ? 'Фізична' : 'Віртуальна'} • до {card.expiry}</div>
           </div>
 
-          {/* Spending bar */}
+          {/* Account activity */}
           <div style={{ marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'baseline' }}>
-              <span style={{ fontSize: 11, letterSpacing: 1.2, color: text.muted, textTransform: 'uppercase', fontWeight: 500 }}>Витрачено цього місяця</span>
-              <span style={{ fontSize: 12, color: 'rgba(232,217,168,0.6)', fontFeatureSettings: '"tnum"' }}>{pct}%</span>
+              <span style={{ fontSize: 11, letterSpacing: 1.2, color: text.muted, textTransform: 'uppercase', fontWeight: 500 }}>Активність рахунку за місяць</span>
+              <span style={{ fontSize: 12, color: 'rgba(232,217,168,0.6)', fontFeatureSettings: '"tnum"' }}>{monthTransactions.length} оп.</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 22, fontWeight: 600, color: text.primary, fontFeatureSettings: '"tnum"' }}>₴ {card.used}</span>
-              <span style={{ fontSize: 13, color: text.dim, fontFeatureSettings: '"tnum"' }}>/ {card.limit}</span>
+              <span style={{ fontSize: 22, fontWeight: 600, color: text.primary, fontFeatureSettings: '"tnum"' }}>{formatUah(monthOut)}</span>
+              <span style={{ fontSize: 13, color: text.dim, fontFeatureSettings: '"tnum"' }}>витрат</span>
             </div>
-            <div style={{ height: 6, background: 'rgba(200,170,100,0.12)', borderRadius: 10, overflow: 'hidden' }}>
-              <div style={{
-                width: `${pct}%`, height: '100%',
-                background: `linear-gradient(90deg, ${goldDark} 0%, ${gold} 60%, ${goldLight} 100%)`,
-                borderRadius: 10,
-              }} />
+            <div style={{ fontSize: 12, color: text.muted }}>
+              Баланс рахунку: {formatUah(Number(account?.balance || 0))}
             </div>
           </div>
 
           {/* Actions */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
             {[
-              { label: 'Деталі', msg: `Картка •• ${card.number} · ${card.type} · до ${card.expiry}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M3 10h18" stroke={gold} strokeWidth="1.6" /></svg> },
-              { label: 'PIN', msg: 'PIN-код надіслано SMS', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg> },
+              { label: 'Деталі', msg: `Картка •• ${card.number} · до ${card.expiry}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M3 10h18" stroke={gold} strokeWidth="1.6" /></svg> },
+              { label: 'PIN', msg: 'PIN можна змінити у підтримці.', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg> },
               { label: 'Apple Pay', msg: 'Відкрийте Гаманець на iPhone', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M17 2a4 4 0 00-3 1.7M7 8a5 5 0 015-5c1.7 0 2.5 1 3 1.7M5 14c0 6 5 8 7 8s7-2 7-8-5-6-7-4c-2-2-7 0-7 4z" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-              { label: 'Ліміти', msg: `Ліміт: ₴ ${card.limit} · Витрачено: ₴ ${card.used}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1116 0" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><path d="M12 12l4-4" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><circle cx="12" cy="12" r="1.5" fill={gold} /></svg> },
+              { label: 'Рахунок', msg: `Рахунок: ${account?.account_number || '—'}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1116 0" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><path d="M12 12l4-4" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><circle cx="12" cy="12" r="1.5" fill={gold} /></svg> },
             ].map((a, i) => (
               <button key={i} onClick={() => toast(a.msg)} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
@@ -650,6 +861,7 @@ function CardsScreen() {
               border: `1px solid ${isFrozen ? 'rgba(127,184,150,0.2)' : 'rgba(232,168,100,0.2)'}`, borderRadius: 12,
               color: isFrozen ? '#7fb896' : '#e8a864', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              opacity: busyCardId === card.id || card.statusRaw === 'closed' ? 0.6 : 1,
             }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" /><path d="M8 11V8a4 4 0 018 0v3" stroke="currentColor" strokeWidth="1.8" /></svg>
               {isFrozen ? 'Розморозити' : 'Заморозити'}
@@ -659,11 +871,14 @@ function CardsScreen() {
               border: '1px solid rgba(220,100,110,0.2)', borderRadius: 12,
               color: '#dc646e', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              opacity: busyCardId === card.id || card.statusRaw === 'closed' ? 0.6 : 1,
             }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
               Закрити
             </button>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>
@@ -690,10 +905,18 @@ function OperationsScreen() {
   const [period, setPeriod] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const periodLabels = ['Т', 'М', 'Р'];
-  const days = ['П', 'В', 'С', 'Ч', 'П', 'С', 'Н'];
-  const allValues = [[28, 45, 62, 30, 88, 54, 70], [60, 72, 48, 95, 55, 80, 65], [40, 55, 70, 85, 62, 90, 75]];
-  const values = allValues[period];
-  const max = Math.max(...values);
+  const periodDays = [7, 30, 365][period];
+  const periodMs = periodDays * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const startTs = now - periodMs;
+  const bucketMs = periodMs / 7;
+  const values = Array.from({ length: 7 }, () => 0);
+  const labels = Array.from({ length: 7 }, (_, i) => {
+    const stamp = new Date(startTs + (i + 1) * bucketMs);
+    return period === 2
+      ? stamp.toLocaleDateString('uk-UA', { month: 'short' })
+      : stamp.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+  });
 
   // Build tx groups from real API data (or fallback to static)
   const STATIC_GROUPS: { group: string; items: { title: string; subtitle: string; amount: string; positive?: boolean; cat: TxCat }[] }[] = [
@@ -783,18 +1006,18 @@ function OperationsScreen() {
               <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' }}>
                 <div style={{
                   width: '100%', height: `${(v / max) * 100}%`,
-                  background: i === 4
+                  background: i === 6
                     ? `linear-gradient(180deg, ${goldLight} 0%, ${gold} 50%, ${goldDark} 100%)`
                     : 'linear-gradient(180deg, rgba(200,170,100,0.35) 0%, rgba(138,106,47,0.15) 100%)',
                   borderRadius: 6,
-                  boxShadow: i === 4 ? '0 0 20px rgba(201,169,100,0.4)' : 'none',
+                  boxShadow: i === 6 ? '0 0 20px rgba(201,169,100,0.4)' : 'none',
                 }} />
               </div>
             ))}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            {days.map((d, i) => (
-              <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: 10, color: i === 4 ? gold : 'rgba(232,217,168,0.4)', fontWeight: i === 4 ? 600 : 400 }}>{d}</div>
+            {labels.map((d, i) => (
+              <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: 10, color: i === 6 ? gold : 'rgba(232,217,168,0.4)', fontWeight: i === 6 ? 600 : 400 }}>{d}</div>
             ))}
           </div>
         </div>
@@ -1186,7 +1409,7 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6 }}>
           <svg width="8" height="8" viewBox="0 0 12 12"><path d="M6 2l4 5H2z" fill="#7fb896" /></svg>
-          <span style={{ fontSize: 11, color: '#7fb896', fontWeight: 500 }}>+2.4% цього місяця</span>
+          <span style={{ fontSize: 11, color: '#7fb896', fontWeight: 500 }}>{account?.account_number || 'Рахунок недоступний'}</span>
         </div>
       </div>
 
@@ -1246,7 +1469,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           : { identity: identity.trim(), password }),
       });
       const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.message || (isReg ? 'Помилка реєстрації' : 'Невірні дані'));
+      if (!res.ok || !json.ok) throw new Error(json.error || json.message || (isReg ? 'Помилка реєстрації' : 'Невірні дані'));
       localStorage.setItem('army_bank_token', json.data.token);
       onLogin();
     } catch (err: unknown) {
@@ -1363,7 +1586,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
 // ─── App root ─────────────────────────────────────────────────
 export default function App() {
-  const [authed, setAuthed] = useState(() => !!localStorage.getItem('army_bank_token'));
+  const [authed, setAuthed] = useState(() => !!getToken());
   const [tab, setTab] = useState<TabKey>('overview');
   const [toastMsg, setToastMsg] = useState('');
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -1405,8 +1628,98 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToastMsg(''), 2500);
   };
 
+  const logout = () => {
+    clearToken();
+    setAuthed(false);
+    setTab('overview');
+    setUser(null);
+    setAccount(null);
+    setCards([]);
+    setTransactions([]);
+    setAnalytics(null);
+    setDataError('');
+    setLoadingData(true);
+  };
+
+  const loadBankData = async (silent = false) => {
+    if (!authed) return;
+    if (silent) setRefreshingData(true);
+    else setLoadingData(true);
+    setDataError('');
+    try {
+      let userData: ApiUser | null = null;
+      let accountData: ApiAccount | null = null;
+      let txData: ApiTransaction[] = [];
+
+      try {
+        const dashboard = await apiRequest<{
+          user?: ApiUser;
+          account?: ApiAccount;
+          transactions?: ApiTransaction[];
+        }>('/api/dashboard');
+        userData = dashboard?.user || null;
+        accountData = dashboard?.account || null;
+        txData = Array.isArray(dashboard?.transactions) ? dashboard.transactions : [];
+      } catch {
+        const [me, acc, history] = await Promise.all([
+          apiRequest<ApiUser>('/api/auth/me'),
+          apiRequest<ApiAccount>('/api/accounts/main'),
+          apiRequest<ApiTransaction[]>('/api/transactions/history'),
+        ]);
+        userData = me || null;
+        accountData = acc || null;
+        txData = Array.isArray(history) ? history : [];
+      }
+
+      const cardsData = await apiRequest<ApiCard[]>('/api/cards');
+      let analyticsData: ApiAnalytics | null = null;
+      try {
+        analyticsData = await apiRequest<ApiAnalytics>('/api/analytics/summary');
+      } catch {
+        analyticsData = null;
+      }
+
+      setUser(userData);
+      setAccount(accountData);
+      setTransactions(txData);
+      setCards(Array.isArray(cardsData) ? cardsData : []);
+      setAnalytics(analyticsData);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Не вдалося завантажити дані.';
+      setDataError(message);
+      if ((err as { status?: number }).status === 401) {
+        logout();
+        return;
+      }
+      if (!silent) showToast(message);
+    } finally {
+      if (silent) setRefreshingData(false);
+      else setLoadingData(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!authed) return;
+    loadBankData(false).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed]);
+
+  const mutateCard = async (cardId: number, action: 'block' | 'close') => {
+    const endpoint = action === 'block' ? 'block' : 'close';
+    await apiRequest(`/api/cards/${cardId}/${endpoint}`, { method: 'PATCH' });
+    await loadBankData(true);
+  };
+
+  const issueCard = async () => {
+    await apiRequest('/api/cards', {
+      method: 'POST',
+      body: JSON.stringify({ card_type: 'virtual', design: 'gold' }),
+    });
+    await loadBankData(true);
+  };
+
   const appCtx: AppCtxType = {
-    logout: () => { localStorage.removeItem('army_bank_token'); setAuthed(false); },
+    logout,
     goTo: (t: TabKey) => setTab(t),
     toast: showToast,
     user,
@@ -1416,6 +1729,20 @@ export default function App() {
     refreshDashboard: fetchDashboard,
   };
 
+  const bankCtx: BankDataCtxType = {
+    loading: loadingData,
+    refreshing: refreshingData,
+    error: dataError,
+    user,
+    account,
+    cards,
+    transactions,
+    analytics,
+    refresh: async () => loadBankData(true),
+    mutateCard,
+    issueCard,
+  };
+
   if (!authed) {
     return <LoginScreen onLogin={() => setAuthed(true)} />;
   }
@@ -1423,30 +1750,52 @@ export default function App() {
   if (isDesktop) {
     return (
       <AppCtx.Provider value={appCtx}>
-        <LayoutCtx.Provider value="desktop">
-          <div style={{ ...appBase, display: 'flex' }}>
-            <DesktopSidebar active={tab} onChange={setTab} />
-            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-              <Screen />
+        <BankDataCtx.Provider value={bankCtx}>
+          <LayoutCtx.Provider value="desktop">
+            <div style={{ ...appBase, display: 'flex' }}>
+              <DesktopSidebar active={tab} onChange={setTab} />
+              <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+                {dataError && (
+                  <div style={{ margin: '12px 16px 0', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(220,100,110,0.25)', background: 'rgba(220,100,110,0.08)', color: '#ffb6bd', fontSize: 13 }}>
+                    {dataError}
+                  </div>
+                )}
+                {loadingData ? (
+                  <div style={{ minHeight: '100%', display: 'grid', placeItems: 'center', color: text.muted }}>Завантаження даних...</div>
+                ) : (
+                  <Screen />
+                )}
+              </div>
             </div>
-          </div>
-          {toastMsg && <Toast msg={toastMsg} />}
-        </LayoutCtx.Provider>
+            {toastMsg && <Toast msg={toastMsg} />}
+          </LayoutCtx.Provider>
+        </BankDataCtx.Provider>
       </AppCtx.Provider>
     );
   }
 
   return (
     <AppCtx.Provider value={appCtx}>
-      <LayoutCtx.Provider value="mobile">
-        <div style={{ ...appBase, overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 100 }}>
-            <Screen />
+      <BankDataCtx.Provider value={bankCtx}>
+        <LayoutCtx.Provider value="mobile">
+          <div style={{ ...appBase, overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 100 }}>
+              {dataError && (
+                <div style={{ margin: '10px 12px 0', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(220,100,110,0.25)', background: 'rgba(220,100,110,0.08)', color: '#ffb6bd', fontSize: 13 }}>
+                  {dataError}
+                </div>
+              )}
+              {loadingData ? (
+                <div style={{ minHeight: '100%', display: 'grid', placeItems: 'center', color: text.muted }}>Завантаження даних...</div>
+              ) : (
+                <Screen />
+              )}
+            </div>
+            <TabBar active={tab} onChange={setTab} />
+            {toastMsg && <Toast msg={toastMsg} />}
           </div>
-          <TabBar active={tab} onChange={setTab} />
-          {toastMsg && <Toast msg={toastMsg} />}
-        </div>
-      </LayoutCtx.Provider>
+        </LayoutCtx.Provider>
+      </BankDataCtx.Provider>
     </AppCtx.Provider>
   );
 }

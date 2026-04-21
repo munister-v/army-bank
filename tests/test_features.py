@@ -284,6 +284,43 @@ def test_list_donations_shows_created(client, user_headers, admin_headers):
     assert len(donations) >= 1
 
 
+# ── Demo Payout Accrual (guarded by config) ─────────────────────────────────
+
+def test_demo_payout_disabled_by_default(client, user_headers):
+    _, headers = user_headers
+    r = client.post('/api/payouts/demo-accrual', json={
+        'title': 'Тестова виплата',
+        'payout_type': 'general',
+        'amount': 1200,
+    }, headers=headers)
+    assert r.status_code == 403
+    data = r.get_json()
+    assert data['ok'] is False
+
+
+def test_demo_payout_ok_when_enabled(client, user_headers):
+    _, headers = user_headers
+    client.application.config['ALLOW_DEMO_PAYOUT_ACCRUAL'] = True
+
+    before = client.get('/api/accounts/main', headers=headers).get_json()['data']
+    before_balance = float(before['balance'])
+
+    r = client.post('/api/payouts/demo-accrual', json={
+        'title': 'Тестова виплата',
+        'payout_type': 'general',
+        'amount': 1200,
+    }, headers=headers)
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data['ok'] is True
+    assert isinstance(data['data'], list)
+    assert any(float(p['amount']) == 1200.0 for p in data['data'])
+
+    after = client.get('/api/accounts/main', headers=headers).get_json()['data']
+    after_balance = float(after['balance'])
+    assert after_balance > before_balance
+
+
 # ── Payment Templates ─────────────────────────────────────────────────────────
 # Service fields: name, recipient_account, amount, description
 # Returns: list of templates

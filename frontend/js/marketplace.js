@@ -76,41 +76,6 @@
     };
   }
 
-  /* ── Fallback catalog ── */
-  const FALLBACK_PRODUCTS = [
-    { id: 9001, title: 'ARM Phone Max 512GB',       description: 'Флагманський смартфон 6.8", 120Hz, 120W',       price: 29999, badge: 'TOP',      stock: 18 },
-    { id: 9002, title: 'ARM Phone Lite 5G 256GB',   description: 'Смартфон 120Hz, NFC, батарея 5000mAh',          price: 13999, badge: 'ARM DEAL', stock: 44 },
-    { id: 9021, title: 'ARM Phone SE 128GB',         description: 'Компактний смартфон 6.1", OLED, Face ID',       price: 10499, badge: null,       stock: 26 },
-    { id: 9022, title: 'ARM Phone Ultra Pro',        description: 'Титановий чіп, 200MP камера, 12GB RAM',         price: 41999, badge: 'HOT',      stock:  7 },
-    { id: 9023, title: 'ARM Earbuds Pro ANC',        description: 'Бездротові навушники з ANC, 36г роботи',        price:  3299, badge: 'SALE',     stock: 32 },
-    { id: 9024, title: 'ARM Watch Series 4',         description: 'Розумний годинник, GPS, ЕКГ, AMOLED',           price:  7899, badge: null,       stock: 21 },
-    { id: 9025, title: 'ARM Tablet 11"',             description: 'Планшет 11" з підтримкою стилуса, 8GB/256GB',  price: 15499, badge: null,       stock: 22 },
-    { id: 9003, title: 'ARM Book Pro 15',            description: 'Ноутбук 32GB RAM, 1TB SSD, Retina',             price: 45999, badge: 'PRO',      stock:  9 },
-    { id: 9004, title: 'ARM Book Air 14',            description: 'Легкий ультрабук 16GB, 512GB SSD, 1.3кг',      price: 32999, badge: 'NEW',      stock: 17 },
-    { id: 9026, title: 'ARM Desktop Mini M2',        description: 'Міні-ПК, M2 chip, 16GB, 512GB, підтримка 4K', price: 22999, badge: null,       stock: 12 },
-    { id: 9005, title: 'ARM Monitor 27" QHD',        description: 'Монітор 27", 165Hz, HDR, USB-C',               price: 11999, badge: 'HOT',      stock: 28 },
-    { id: 9027, title: 'ARM Router AX3000',          description: 'Wi-Fi 6 роутер, Mesh, до 3000 Мбіт/с',        price:  3599, badge: null,       stock: 41 },
-    { id: 9008, title: 'ARM Smart TV 50" 4K',        description: '4K телевізор Dolby Vision, Google TV',          price: 18999, badge: 'TOP',      stock: 20 },
-    { id: 9028, title: 'ARM Speaker Mini BT',        description: 'Портативна Bluetooth колонка, 10 год роботи',  price:  1299, badge: null,       stock: 70 },
-    { id: 9009, title: 'ARM Coffee Pro',             description: 'Кавоварка еспресо з капучинатором',            price:  8499, badge: null,       stock: 12 },
-    { id: 9010, title: 'ARM Robot Vacuum X5',        description: 'Робот-пилосос, LiDAR, вологе прибирання',      price: 12499, badge: 'HOT',      stock: 16 },
-    { id: 9029, title: 'ARM Air Fryer Pro 5.5L',     description: 'Фритюрниця 5.5л, 1500W, 8 режимів',           price:  4599, badge: 'NEW',      stock: 30 },
-    { id: 9030, title: 'ARM Smart Kettle 1.7L',      description: 'Чайник 1.7л, температурний контроль, кераміка',price:  1499, badge: null,       stock: 42 },
-    { id: 9031, title: 'ARM Vacuum Upright Pro',     description: 'Вертикальний пилосос 2400W, HEPA, 1.5л бак',  price:  6799, badge: 'SALE',     stock: 14 },
-    { id: 9032, title: 'ARM Washing Machine 8kg',    description: 'Пральна машина 8кг, інвертор A+++',            price: 17999, badge: null,       stock:  6 },
-    { id: 9011, title: 'ARM Smart Lamp RGB',         description: 'Розумна лампа RGB, голосове керування',        price:  1599, badge: null,       stock: 32 },
-    { id: 9012, title: 'ARM Home Security Kit',      description: 'Камера + датчики + хаб, Wi-Fi',               price:  7299, badge: 'ARM DEAL', stock: 17 },
-    { id: 9033, title: 'ARM Smart Plug Power',       description: 'Розумна розетка, вимірювання споживання',      price:   799, badge: null,       stock: 60 },
-    { id: 9034, title: 'ARM Door Smart Lock',        description: 'Розумний замок, відбиток + PIN + App',         price:  5499, badge: 'NEW',      stock: 11 },
-    { id: 9035, title: 'ARM City Backpack 30L',      description: 'Рюкзак 30л, водостійкий, USB зарядка',        price:  2199, badge: null,       stock: 25 },
-    { id: 9036, title: 'ARM Air Purifier HEPA',      description: 'Очищувач повітря HEPA H13, до 50м²',          price:  6299, badge: 'HOT',      stock: 13 },
-    { id: 9037, title: 'ARM Power Bank 26800mAh',    description: 'Power Bank 26800mAh, 65W PD, 3 порти',        price:  2499, badge: 'SALE',     stock: 38 },
-    { id: 9038, title: 'ARM GaN Charger 65W',        description: 'Компактна зарядка 65W USB-C + USB-A',         price:  1299, badge: null,       stock: 110 },
-    { id: 9039, title: 'ARM Wireless Mouse Pro',     description: 'Ергономічна бездротова миша, до 70 год',      price:  1399, badge: null,       stock: 90 },
-    { id: 9040, title: 'ARM Bundle: Phone + Watch',  description: 'ARM Phone Lite 5G + Watch Series 4',          price: 20499, badge: 'ARM DEAL', stock: 10 },
-    { id: 9041, title: 'ARM Smart Home Starter',     description: 'Хаб + 2 лампи + датчик — пакет Smart Start', price:  4299, badge: 'NEW',      stock: 15 },
-  ];
-
   /* ═══════════════════════════════════════════════════════════
      STATE
      ═══════════════════════════════════════════════════════════ */
@@ -447,11 +412,16 @@
     return state.products.find((p) => Number(p.id) === Number(id)) || null;
   }
 
-  function useFallbackCatalog(silent = false) {
-    state.products = FALLBACK_PRODUCTS.map(enrichProduct);
+  function renderCatalogUnavailable(message) {
+    state.products = [];
     renderCategoryList();
     renderCatalog();
-    if (!silent) showToast('Показано локальний каталог ARM — сервер недоступний.', true);
+    if (el.catalogCount) el.catalogCount.textContent = '0 товарів';
+    if (el.catalogTotal) el.catalogTotal.textContent = '0 товарів';
+    if (el.catalogEmpty) {
+      el.catalogEmpty.hidden = false;
+      el.catalogEmpty.innerHTML = `<strong>Каталог тимчасово недоступний.</strong><br>${message}`;
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -880,20 +850,16 @@
       const items = Array.isArray(data?.items) ? data.items : [];
 
       if (!items.length && page === 1) {
-        // Try to auto-seed then retry once
-        try {
-          await api.request('/api/marketplace/admin/seed-products', { method: 'POST' });
-          const data2 = await api.request(url);
-          const items2 = Array.isArray(data2?.items) ? data2.items : [];
-          if (items2.length) { return _applyFetchResult(items2, data2, page, append); }
-        } catch (_) {}
-        useFallbackCatalog(true);
+        _applyFetchResult([], data, page, append);
         return;
       }
       _applyFetchResult(items, data, page, append);
     } catch (err) {
       if (err?.name === 'AbortError') return;
-      if (!append) useFallbackCatalog(false);
+      if (!append) {
+        renderCatalogUnavailable('Показуємо лише дані з реальних endpoint-ів. Спробуйте оновити сторінку пізніше.');
+        showToast('Каталог API недоступний. Фейкові дані вимкнено.', true);
+      }
       else { el.catalogGrid?.querySelectorAll('.rz-skeleton-card').forEach(n => n.remove()); }
     } finally {
       a.loading = false;

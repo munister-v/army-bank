@@ -2,6 +2,7 @@
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 const escapeHtml = (v) => String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+let seedFeatureEnabled = false;
 
 function showToast(msg) {
   const t = $('#toast');
@@ -45,6 +46,32 @@ function switchTab(tabId) {
   if (tabId === 'users') loadPlatformUsers();
   if (tabId === 'transactions') loadPlatformTransactions();
   if (tabId === 'audit') loadPlatformAudit();
+}
+
+function hideSeedUi(message) {
+  const seedMenuBtn = $('.menu-btn[data-tab="seed"]');
+  const seedTab = $('#seedTab');
+  if (seedMenuBtn) seedMenuBtn.style.display = 'none';
+  if (seedTab) {
+    seedTab.innerHTML = `
+      <h1>Генерація демо-даних</h1>
+      <div class="empty-state">${escapeHtml(message || 'Генерація демо-даних вимкнена.')}</div>
+    `;
+  }
+  if ($('.menu-btn[data-tab="seed"].active')) switchTab('overview');
+}
+
+async function syncFeatureFlags() {
+  try {
+    const version = await api.request('/api/version');
+    seedFeatureEnabled = !!version?.feature_flags?.allow_platform_demo_seed;
+    if (!seedFeatureEnabled) {
+      hideSeedUi('На цьому середовищі функцію вимкнено. Працюємо лише з реальними даними.');
+    }
+  } catch (_) {
+    seedFeatureEnabled = false;
+    hideSeedUi('Не вдалося визначити доступність функції. Вкладку приховано.');
+  }
 }
 
 async function loadOverview() {
@@ -155,6 +182,10 @@ async function loadPlatformAudit() {
 
   $('#seedForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!seedFeatureEnabled) {
+      showToast('Генерація демо-даних вимкнена.');
+      return;
+    }
     const form = e.currentTarget;
     const btn = form.querySelector('button[type="submit"]');
     const resultEl = $('#seedResult');
@@ -193,5 +224,6 @@ async function loadPlatformAudit() {
     window.location.href = basePath() || '/';
   });
 
+  await syncFeatureFlags();
   switchTab('overview');
 })();

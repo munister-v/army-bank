@@ -21,6 +21,8 @@ from .api_docs import (
     build_postman_environment,
 )
 from .config import (
+    ALLOW_DEMO_PAYOUT_ACCRUAL,
+    ALLOW_PLATFORM_DEMO_SEED,
     BASE_PATH,
     BOOTSTRAP_TOKEN,
     DEBUG,
@@ -66,6 +68,8 @@ def create_app() -> Flask:
     app.config.setdefault('ENABLE_RATE_LIMIT_IN_TESTS', ENABLE_RATE_LIMIT_IN_TESTS)
     app.config.setdefault('ENFORCE_IDEMPOTENCY_HEADERS', ENFORCE_IDEMPOTENCY_HEADERS)
     app.config.setdefault('ENFORCE_IDEMPOTENCY_IN_TESTS', ENFORCE_IDEMPOTENCY_IN_TESTS)
+    app.config.setdefault('ALLOW_PLATFORM_DEMO_SEED', ALLOW_PLATFORM_DEMO_SEED)
+    app.config.setdefault('ALLOW_DEMO_PAYOUT_ACCRUAL', ALLOW_DEMO_PAYOUT_ACCRUAL)
 
     # ── Gzip compression for all text responses (JSON, HTML, CSS, JS) ──
     app.config['COMPRESS_REGISTER'] = False   # manual init below
@@ -241,6 +245,10 @@ def create_app() -> Flask:
         payload = build_api_version()
         payload['ok'] = True
         payload['base_path'] = prefix or '/'
+        payload['feature_flags'] = {
+            'allow_platform_demo_seed': bool(app.config.get('ALLOW_PLATFORM_DEMO_SEED', False)),
+            'allow_demo_payout_accrual': bool(app.config.get('ALLOW_DEMO_PAYOUT_ACCRUAL', False)),
+        }
         return jsonify(payload)
 
     @app.get(prefix + '/api/openapi.json' if prefix else '/api/openapi.json')
