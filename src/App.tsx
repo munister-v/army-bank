@@ -346,7 +346,7 @@ function apiCardToData(c: CardInfo, holderFallback = 'ARMY BANK'): CardData & { 
   };
 }
 
-function PremiumCard({ variant, number, name, expiry, style = {} }: CardData & { style?: React.CSSProperties }) {
+function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardData & { style?: React.CSSProperties }) {
   const v = CARD_VARIANTS[variant] ?? CARD_VARIANTS.gold;
   const patId = `g-${variant}`;
   return (
