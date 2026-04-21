@@ -2392,8 +2392,8 @@ async function refreshAllData() {
 
     renderSimpleList('#donationsList', donations, (row) => `
       <div class="item">
-        <div class="item-header"><strong>${row.fund_name}</strong><span class="amount out">−${formatMoney(row.amount)}</span></div>
-        <div class="muted">${row.comment || 'Без коментаря'} · ${formatDate(row.created_at)}</div>
+        <div class="item-header"><strong>${escapeHtml(row.fund_name)}</strong><span class="amount out">−${formatMoney(row.amount)}</span></div>
+        <div class="muted">${escapeHtml(row.comment || 'Без коментаря')} · ${formatDate(row.created_at)}</div>
       </div>
     `, 'Пожертв поки немає.');
 
@@ -2464,15 +2464,15 @@ async function refreshAllData() {
     renderSimpleList('#contactsList', contacts, (row) => `
       <div class="item item-with-actions">
         <div class="item-main">
-          <div class="item-header"><strong>${row.contact_name}</strong><span class="muted">${row.relation_type}</span></div>
-          <div class="muted">${row.phone || 'Телефон не вказано'}${row.account_number ? ` · ${row.account_number}` : ''}</div>
+          <div class="item-header"><strong>${escapeHtml(row.contact_name)}</strong><span class="muted">${escapeHtml(row.relation_type)}</span></div>
+          <div class="muted">${escapeHtml(row.phone || 'Телефон не вказано')}${row.account_number ? ` · ${escapeHtml(row.account_number)}` : ''}</div>
         </div>
         <div class="item-btns">
           ${row.account_number ? `
-            <button class="btn-icon-history" data-history-account="${row.account_number}" data-history-name="${row.contact_name}" title="Історія переказів">
+            <button class="btn-icon-history" data-history-account="${escapeHtml(row.account_number)}" data-history-name="${escapeHtml(row.contact_name)}" title="Історія переказів">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             </button>
-            <button class="btn-icon-transfer" data-transfer-account="${row.account_number}" title="Переказ" aria-label="Переказ">
+            <button class="btn-icon-transfer" data-transfer-account="${escapeHtml(row.account_number)}" title="Переказ" aria-label="Переказ">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </button>` : ''}
           <button class="btn-icon-danger" data-delete-contact="${row.id}" title="Видалити" aria-label="Видалити">
