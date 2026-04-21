@@ -447,7 +447,26 @@
     return state.products.find((p) => Number(p.id) === Number(id)) || null;
   }
 
+  const REAL_DATA_ONLY_MODE = true;
+
+  function renderCatalogUnavailable(message) {
+    state.products = [];
+    renderCategoryList();
+    renderCatalog();
+    if (el.catalogCount) el.catalogCount.textContent = '0 товарів';
+    if (el.catalogTotal) el.catalogTotal.textContent = '0 товарів';
+    if (el.catalogEmpty) {
+      el.catalogEmpty.hidden = false;
+      el.catalogEmpty.innerHTML = `<strong>Каталог тимчасово недоступний.</strong><br>${message}`;
+    }
+  }
+
   function useFallbackCatalog(silent = false) {
+    if (REAL_DATA_ONLY_MODE) {
+      renderCatalogUnavailable('Показуємо лише дані з реальних endpoint-ів. Спробуйте оновити сторінку пізніше.');
+      if (!silent) showToast('Каталог API недоступний. Фейкові дані вимкнено.', true);
+      return;
+    }
     state.products = FALLBACK_PRODUCTS.map(enrichProduct);
     renderCategoryList();
     renderCatalog();
