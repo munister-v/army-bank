@@ -53,6 +53,9 @@ def test_api_version_ok(client):
     assert data['ok'] is True
     assert data['api_version']
     assert 'runtime' in data
+    assert 'feature_flags' in data
+    assert isinstance(data['feature_flags'].get('allow_platform_demo_seed'), bool)
+    assert isinstance(data['feature_flags'].get('allow_demo_payout_accrual'), bool)
 
 
 def test_api_postman_exports_ok(client):

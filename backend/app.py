@@ -245,6 +245,10 @@ def create_app() -> Flask:
         payload = build_api_version()
         payload['ok'] = True
         payload['base_path'] = prefix or '/'
+        payload['feature_flags'] = {
+            'allow_platform_demo_seed': bool(app.config.get('ALLOW_PLATFORM_DEMO_SEED', False)),
+            'allow_demo_payout_accrual': bool(app.config.get('ALLOW_DEMO_PAYOUT_ACCRUAL', False)),
+        }
         return jsonify(payload)
 
     @app.get(prefix + '/api/openapi.json' if prefix else '/api/openapi.json')
