@@ -12,7 +12,8 @@ const LayoutCtx = createContext<'mobile' | 'desktop'>('mobile');
 const useLayout = () => useContext(LayoutCtx);
 
 // ─── App context (logout + navigation + toast + user + data) ─
-type TabKey = 'overview' | 'operations' | 'cards' | 'profile';
+type TabKey = 'overview' | 'operations' | 'cards' | 'market' | 'profile';
+type TransferMode = 'topup' | 'by_card' | 'by_account';
 interface UserInfo { full_name: string; phone: string; email: string; bank_account_number?: string; }
 interface AccountInfo { id: number; account_number: string; balance: number; currency: string; }
 interface TxItem { id: number; tx_type: string; direction: 'in' | 'out'; amount: number; description: string; created_at: string; related_account?: string; }
@@ -21,8 +22,9 @@ interface AppCtxType {
   logout: () => void; goTo: (tab: TabKey) => void; toast: (msg: string) => void;
   user: UserInfo | null; account: AccountInfo | null;
   transactions: TxItem[]; cards: CardInfo[]; refreshDashboard: () => void;
+  openTransfer: (mode: TransferMode) => void;
 }
-const AppCtx = createContext<AppCtxType>({ logout: () => {}, goTo: () => {}, toast: () => {}, user: null, account: null, transactions: [], cards: [], refreshDashboard: () => {} });
+const AppCtx = createContext<AppCtxType>({ logout: () => {}, goTo: () => {}, toast: () => {}, user: null, account: null, transactions: [], cards: [], refreshDashboard: () => {}, openTransfer: () => {} });
 const useApp = () => useContext(AppCtx);
 
 type ApiUser = {
@@ -554,17 +556,112 @@ function ActivityFeed({ title = true, transactions }: { title?: boolean; transac
   );
 }
 
-const QUICK_ACTIONS: { label: string; icon: React.ReactNode; tab: TabKey }[] = [
-  { label: 'Поповнити', tab: 'operations', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="#1a1208" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  { label: 'На картку', tab: 'operations', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="#1a1208" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  { label: 'За IBAN', tab: 'operations', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 9h18M3 15h18M6 5v14M18 5v14" stroke="#1a1208" strokeWidth="2" strokeLinecap="round" /></svg> },
-  { label: 'Картки', tab: 'cards', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="5" width="19" height="14" rx="2.5" stroke="#1a1208" strokeWidth="2" /><path d="M2.5 10h19" stroke="#1a1208" strokeWidth="2" /></svg> },
+// ─── Transfer modal ───────────────────────────────────────────
+function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => void }) {
+  const { toast, refreshDashboard } = useApp();
+  const [amount, setAmount] = useState('');
+  const [recipient, setRecipient] = useState('');
+  const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const cfg = {
+    topup:      { title: 'Поповнити рахунок', recipientLabel: '', placeholder: 'Опис (опційно)' },
+    by_card:    { title: 'Переказ на картку',  recipientLabel: 'Номер картки',   placeholder: 'Коментар' },
+    by_account: { title: 'Переказ за IBAN',    recipientLabel: 'Номер рахунку',   placeholder: 'Коментар' },
+  }[mode];
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    const amtNum = parseFloat(amount.replace(',', '.'));
+    if (!amtNum || amtNum <= 0) { setError('Вкажіть суму'); return; }
+    if (mode !== 'topup' && !recipient.trim()) { setError('Вкажіть отримувача'); return; }
+    setLoading(true);
+    const token = localStorage.getItem('army_bank_token');
+    const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    try {
+      const url = mode === 'topup' ? '/api/transactions/topup'
+        : mode === 'by_card' ? '/api/transactions/transfer-by-card'
+        : '/api/transactions/transfer';
+      const body = mode === 'topup'
+        ? { amount: amtNum, description: description || 'Поповнення рахунку', idempotency_key: idempotencyKey }
+        : mode === 'by_card'
+        ? { card_number: recipient.trim(), amount: amtNum, description: description || 'Переказ', idempotency_key: idempotencyKey }
+        : { recipient_account_number: recipient.trim(), amount: amtNum, description: description || 'Переказ', idempotency_key: idempotencyKey };
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.message || 'Помилка');
+      toast(mode === 'topup' ? `Рахунок поповнено на ₴\u00a0${amtNum.toFixed(2)}` : `Переказ ₴\u00a0${amtNum.toFixed(2)} виконано`);
+      refreshDashboard();
+      onClose();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Помилка');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const inp: React.CSSProperties = {
+    width: '100%', padding: '12px 14px', boxSizing: 'border-box',
+    background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(200,170,100,0.16)`,
+    borderRadius: 12, color: '#f4ebd0', fontSize: 15, outline: 'none', fontFamily: 'inherit',
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ width: '100%', maxWidth: 480, background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)', border: '1px solid rgba(200,170,100,0.2)', borderRadius: '24px 24px 0 0', padding: '28px 24px 40px', boxShadow: '0 -20px 60px rgba(0,0,0,0.5)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#f4ebd0', flex: 1 }}>{cfg.title}</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(232,217,168,0.5)', padding: 4 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+          </button>
+        </div>
+        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {mode !== 'topup' && (
+            <div>
+              <label style={{ fontSize: 11, color: 'rgba(232,217,168,0.55)', letterSpacing: 1, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{cfg.recipientLabel}</label>
+              <input style={inp} value={recipient} onChange={e => setRecipient(e.target.value)} placeholder={mode === 'by_card' ? '4721 •••• •••• ••••' : 'UA29 3223 1300 0002 6007 …'} />
+            </div>
+          )}
+          <div>
+            <label style={{ fontSize: 11, color: 'rgba(232,217,168,0.55)', letterSpacing: 1, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Сума (₴)</label>
+            <input style={{ ...inp, fontSize: 26, fontWeight: 300, letterSpacing: -0.5 }} type="number" min="0.01" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00" />
+          </div>
+          <div>
+            <input style={{ ...inp, fontSize: 13 }} value={description} onChange={e => setDescription(e.target.value)} placeholder={cfg.placeholder} />
+          </div>
+          {error && <div style={{ padding: '10px 14px', background: 'rgba(200,60,60,0.12)', border: '1px solid rgba(200,60,60,0.25)', borderRadius: 10, color: '#f08080', fontSize: 13 }}>{error}</div>}
+          <button type="submit" disabled={loading} style={{
+            marginTop: 4, padding: '15px', borderRadius: 14, border: 'none',
+            background: loading ? 'rgba(180,140,60,0.35)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+            color: '#1a1208', fontSize: 16, fontWeight: 700, cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit',
+          }}>{loading ? '…' : cfg.title}</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+const QUICK_ACTIONS: { label: string; icon: React.ReactNode; action: TabKey | TransferMode }[] = [
+  { label: 'Поповнити', action: 'topup', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="#1a1208" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+  { label: 'На картку', action: 'by_card', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="#1a1208" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+  { label: 'За IBAN', action: 'by_account', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 9h18M3 15h18M6 5v14M18 5v14" stroke="#1a1208" strokeWidth="2" strokeLinecap="round" /></svg> },
+  { label: 'Магазин', action: 'market', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke="#1a1208" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9" cy="21" r="1" fill="#1a1208" /><circle cx="19" cy="21" r="1" fill="#1a1208" /></svg> },
 ];
 
 function OverviewScreen() {
   const layout = useLayout();
   const topPad = useTopPad();
-  const { goTo, toast, user, account, transactions, cards: apiCards } = useApp();
+  const { goTo, toast, user, account, transactions, cards: apiCards, openTransfer } = useApp();
+  function handleQuickAction(action: TabKey | TransferMode) {
+    if (action === 'topup' || action === 'by_card' || action === 'by_account') openTransfer(action);
+    else goTo(action as TabKey);
+  }
   const displayName = user?.full_name ?? 'Користувач';
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const [balanceVisible, setBalanceVisible] = useState(true);
@@ -616,7 +713,7 @@ function OverviewScreen() {
     <div>
       <div style={{ fontSize: 13, fontWeight: 600, color: text.secondary, marginBottom: 12 }}>Швидкі дії</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-        {QUICK_ACTIONS.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => goTo(a.tab)} /></Fragment>)}
+        {QUICK_ACTIONS.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => handleQuickAction(a.action)} /></Fragment>)}
       </div>
     </div>
   );
@@ -699,7 +796,7 @@ function OverviewScreen() {
       </div>
       <div style={{ padding: '0 22px 4px' }}>{cardSection}</div>
       <div style={{ display: 'flex', gap: 8, padding: '18px 22px 6px' }}>
-        {QUICK_ACTIONS.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => goTo(a.tab)} /></Fragment>)}
+        {QUICK_ACTIONS.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => handleQuickAction(a.action)} /></Fragment>)}
       </div>
       <div style={{ padding: '22px 22px 0' }}><ActivityFeed transactions={transactions} /></div>
     </div>
@@ -760,16 +857,7 @@ function CardsScreen() {
           <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Мої картки</div>
         </div>
         <div style={{ flex: 1 }} />
-        <button onClick={async () => {
-          if (apiCards.length === 0) { toast('Демо-режим: API не підключено'); return; }
-          const token = localStorage.getItem('army_bank_token');
-          try {
-            const r = await fetch('/api/cards', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ card_type: 'virtual', design: 'gold' }) });
-            const j = await r.json();
-            if (!r.ok || !j.ok) throw new Error(j.message || 'Помилка');
-            toast('Нову картку випущено!'); refreshDashboard();
-          } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Помилка'); }
-        }} style={{
+        <button onClick={() => window.open('https://munister.com.ua/messenger', '_blank')} style={{
           padding: '10px 16px', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`,
           color: '#1a1208', border: 'none', borderRadius: 100, fontSize: 13, fontWeight: 600,
           fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
@@ -1272,11 +1360,112 @@ function ProfileScreen() {
 
 // ─── Bottom tab bar ───────────────────────────────────────────
 
+// ─── Marketplace screen ───────────────────────────────────────
+interface Product { id: number; name: string; description?: string; price: number; category?: string; stock?: number; }
+
+function MarketplaceScreen() {
+  const topPad = useTopPad();
+  const { toast, refreshDashboard } = useApp();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [buying, setBuying] = useState<number | null>(null);
+  const [catFilter, setCatFilter] = useState('');
+
+  useEffect(() => {
+    const token = localStorage.getItem('army_bank_token');
+    fetch('/api/marketplace/catalog', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(j => { if (j.ok) setProducts(j.data || []); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const categories = Array.from(new Set(products.map(p => p.category || 'Інше').filter(Boolean)));
+  const filtered = catFilter ? products.filter(p => (p.category || 'Інше') === catFilter) : products;
+
+  async function buy(product: Product) {
+    setBuying(product.id);
+    const token = localStorage.getItem('army_bank_token');
+    try {
+      const r = await fetch('/api/marketplace/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ product_id: product.id, quantity: 1 }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.message || 'Помилка');
+      toast(`✓ Замовлення оформлено — ${product.name}`);
+      refreshDashboard();
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Помилка оформлення');
+    } finally {
+      setBuying(null);
+    }
+  }
+
+  return (
+    <ContentWrap maxW={800}>
+    <div style={{ paddingBottom: 80 }}>
+      <div style={{ padding: `${topPad} 22px 16px` }}>
+        <div style={{ fontSize: 11, letterSpacing: 2, color: text.muted, textTransform: 'uppercase', fontWeight: 500, marginBottom: 4 }}>Army Bank</div>
+        <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Магазин</div>
+      </div>
+
+      {/* Category chips */}
+      {categories.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, padding: '0 22px 16px', overflowX: 'auto', scrollbarWidth: 'none' }}>
+          {['', ...categories].map(cat => (
+            <button key={cat || '_all'} onClick={() => setCatFilter(cat)} style={{
+              flexShrink: 0, padding: '6px 14px', borderRadius: 100, fontSize: 12, fontWeight: 500,
+              border: `1px solid ${catFilter === cat ? gold : 'rgba(200,170,100,0.2)'}`,
+              background: catFilter === cat ? `linear-gradient(135deg, ${goldDark}, ${gold})` : 'rgba(255,255,255,0.04)',
+              color: catFilter === cat ? '#1a1208' : text.muted, cursor: 'pointer', fontFamily: 'inherit',
+            }}>{cat || 'Всі'}</button>
+          ))}
+        </div>
+      )}
+
+      {loading && (
+        <div style={{ padding: 60, textAlign: 'center', color: text.muted, fontSize: 14 }}>Завантаження…</div>
+      )}
+
+      {!loading && filtered.length === 0 && (
+        <div style={{ padding: 60, textAlign: 'center', color: text.muted, fontSize: 14 }}>Товари відсутні</div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, padding: '0 22px' }}>
+        {filtered.map(p => (
+          <div key={p.id} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ height: 100, background: `linear-gradient(135deg, rgba(200,170,100,0.08), rgba(138,106,47,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.3 }}><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9" cy="21" r="1" fill={gold} /><circle cx="19" cy="21" r="1" fill={gold} /></svg>
+            </div>
+            <div style={{ padding: '12px 14px 14px', flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {p.category && <span style={{ fontSize: 10, color: text.dim, letterSpacing: 1, textTransform: 'uppercase' }}>{p.category}</span>}
+              <div style={{ fontSize: 13, fontWeight: 600, color: text.secondary, lineHeight: 1.3 }}>{p.name}</div>
+              {p.description && <div style={{ fontSize: 11, color: text.muted, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{p.description}</div>}
+              <div style={{ marginTop: 'auto', paddingTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(p.price)}{fmtDec(p.price)}</span>
+                <button onClick={() => buy(p)} disabled={buying === p.id} style={{
+                  padding: '6px 12px', borderRadius: 10, border: 'none', fontSize: 12, fontWeight: 600,
+                  background: buying === p.id ? 'rgba(180,140,60,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+                  color: '#1a1208', cursor: buying === p.id ? 'default' : 'pointer', fontFamily: 'inherit',
+                }}>{buying === p.id ? '…' : 'Купити'}</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+    </ContentWrap>
+  );
+}
+
 const TABS: { k: TabKey; label: string; icon: (c: string) => React.ReactNode }[] = [
-  { k: 'overview', label: 'Огляд', icon: c => <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /><rect x="13.5" y="3" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /><rect x="3" y="13.5" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /></svg> },
-  { k: 'operations', label: 'Операції', icon: c => <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 12h3l3-8 4 16 3-8h5" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  { k: 'cards', label: 'Картки', icon: c => <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="5" width="19" height="14" rx="2.5" stroke={c} strokeWidth="1.8" /><path d="M2.5 10h19" stroke={c} strokeWidth="1.8" /></svg> },
-  { k: 'profile', label: 'Профіль', icon: c => <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke={c} strokeWidth="1.8" /><path d="M4 21a8 8 0 0116 0" stroke={c} strokeWidth="1.8" strokeLinecap="round" /></svg> },
+  { k: 'overview', label: 'Огляд', icon: c => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /><rect x="13.5" y="3" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /><rect x="3" y="13.5" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /></svg> },
+  { k: 'operations', label: 'Операції', icon: c => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 12h3l3-8 4 16 3-8h5" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+  { k: 'cards', label: 'Картки', icon: c => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="5" width="19" height="14" rx="2.5" stroke={c} strokeWidth="1.8" /><path d="M2.5 10h19" stroke={c} strokeWidth="1.8" /></svg> },
+  { k: 'market', label: 'Магазин', icon: c => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9" cy="21" r="1" fill={c} /><circle cx="19" cy="21" r="1" fill={c} /></svg> },
+  { k: 'profile', label: 'Профіль', icon: c => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke={c} strokeWidth="1.8" /><path d="M4 21a8 8 0 0116 0" stroke={c} strokeWidth="1.8" strokeLinecap="round" /></svg> },
 ];
 
 function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) => void }) {
@@ -1431,7 +1620,7 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
 }
 
 // ─── Root app ─────────────────────────────────────────────────
-const SCREENS = { overview: OverviewScreen, operations: OperationsScreen, cards: CardsScreen, profile: ProfileScreen };
+const SCREENS = { overview: OverviewScreen, operations: OperationsScreen, cards: CardsScreen, market: MarketplaceScreen, profile: ProfileScreen };
 
 const appBg = 'radial-gradient(ellipse 80% 60% at 20% 0%, #1a3a2c 0%, transparent 60%), radial-gradient(ellipse 70% 50% at 90% 100%, #2a1a0e 0%, transparent 55%), linear-gradient(180deg, #0a1f18 0%, #07150f 100%)';
 
@@ -1718,6 +1907,8 @@ export default function App() {
     await loadBankData(true);
   };
 
+  const [transferModal, setTransferModal] = useState<TransferMode | null>(null);
+
   const appCtx: AppCtxType = {
     logout,
     goTo: (t: TabKey) => setTab(t),
@@ -1727,6 +1918,7 @@ export default function App() {
     transactions,
     cards,
     refreshDashboard: fetchDashboard,
+    openTransfer: (mode: TransferMode) => setTransferModal(mode),
   };
 
   const bankCtx: BankDataCtxType = {
@@ -1768,6 +1960,7 @@ export default function App() {
               </div>
             </div>
             {toastMsg && <Toast msg={toastMsg} />}
+            {transferModal && <TransferModal mode={transferModal} onClose={() => setTransferModal(null)} />}
           </LayoutCtx.Provider>
         </BankDataCtx.Provider>
       </AppCtx.Provider>
@@ -1793,6 +1986,7 @@ export default function App() {
             </div>
             <TabBar active={tab} onChange={setTab} />
             {toastMsg && <Toast msg={toastMsg} />}
+            {transferModal && <TransferModal mode={transferModal} onClose={() => setTransferModal(null)} />}
           </div>
         </LayoutCtx.Provider>
       </BankDataCtx.Provider>
