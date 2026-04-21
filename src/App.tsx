@@ -1677,16 +1677,19 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [identity, setIdentity] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    if (mode === 'register' && password !== confirmPass) { setError('Паролі не збігаються'); return; }
     setLoading(true);
     try {
       const isReg = mode === 'register';
@@ -1719,24 +1722,28 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const fieldStyle = { marginBottom: 16 };
 
   return (
-    <div style={{ ...appBase, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
-      <div style={{ width: '100%', maxWidth: 400, paddingTop: 20, paddingBottom: 20 }}>
+    <div style={{ ...appBase, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '20px 20px 40px', overflowY: 'auto' }}>
+      <div style={{ width: '100%', maxWidth: 400, paddingTop: 40, paddingBottom: 20 }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{
             width: 64, height: 64, borderRadius: 18, margin: '0 auto 16px',
-            background: 'linear-gradient(135deg, #4a3a1a, #d4a84a)',
+            background: 'linear-gradient(135deg, #4a3a1a 0%, #8a6a2f 40%, #d4a84a 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 22, fontWeight: 700, color: '#1a1208', letterSpacing: '-0.02em',
-          }}>AB</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: text.primary, letterSpacing: '-0.02em' }}>ARM Bank</div>
-          <div style={{ fontSize: 14, color: text.muted, marginTop: 4 }}>Ваші фінанси під контролем</div>
+            boxShadow: '0 8px 24px rgba(201,169,100,0.3), inset 0 1px 0 rgba(255,220,150,0.4)',
+          }}>
+            <svg width="32" height="32" viewBox="0 0 24 24"><path d="M12 2L3 20h3.5l1.8-4h7.4l1.8 4H21L12 2zm-2.6 11L12 7.3 14.6 13H9.4z" fill="#1a1208" /></svg>
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: text.primary, letterSpacing: '-0.02em' }}>
+            ARM<span style={{ fontWeight: 300 }}>Bank</span>
+          </div>
+          <div style={{ fontSize: 13, color: text.muted, marginTop: 4 }}>Ваші фінанси під контролем</div>
         </div>
 
         {/* Tab switcher */}
         <div style={{ display: 'flex', gap: 4, padding: 4, background: 'rgba(255,255,255,0.04)', borderRadius: 14, marginBottom: 20, border: `1px solid ${bg.border}` }}>
           {(['login', 'register'] as const).map(m => (
-            <button key={m} type="button" onClick={() => { setMode(m); setError(''); }} style={{
+            <button key={m} type="button" onClick={() => { setMode(m); setError(''); setConfirmPass(''); }} style={{
               flex: 1, padding: '10px', borderRadius: 10, border: 'none', cursor: 'pointer',
               background: mode === m ? 'linear-gradient(135deg, #8a6a2f, #c9a964)' : 'transparent',
               color: mode === m ? '#1a1208' : text.muted,
@@ -1766,7 +1773,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             {mode === 'login' && (
               <div style={fieldStyle}>
                 <label style={labelStyle}>Телефон або Email</label>
-                <input style={inputStyle} type="text" value={identity} onChange={e => setIdentity(e.target.value)} placeholder="+380..." autoComplete="username" required />
+                <input style={inputStyle} type="text" value={identity} onChange={e => setIdentity(e.target.value)} placeholder="Телефон або email" autoComplete="username" required />
               </div>
             )}
 
@@ -1792,9 +1799,44 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
                 <button type="button" onClick={() => setShowPass(v => !v)} style={{
                   position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
                   background: 'none', border: 'none', cursor: 'pointer', color: text.muted, padding: 4,
-                }}>{showPass ? '🙈' : '👁'}</button>
+                  display: 'flex', alignItems: 'center',
+                }}>
+                  {showPass
+                    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.4 5.1A10.9 10.9 0 0112 5c6 0 10 7 10 7a18 18 0 01-3.2 3.9M6.6 6.6A18 18 0 002 12s4 7 10 7a11 11 0 003.4-.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" stroke="currentColor" strokeWidth="1.6" /><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" /></svg>
+                  }
+                </button>
               </div>
             </div>
+
+            {mode === 'register' && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>Підтвердити пароль</label>
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    style={{ ...inputStyle, paddingRight: 44 }}
+                    type={showConfirm ? 'text' : 'password'}
+                    value={confirmPass}
+                    onChange={e => setConfirmPass(e.target.value)}
+                    placeholder="Повторіть пароль"
+                    autoComplete="new-password"
+                    required
+                  />
+                  <button type="button" onClick={() => setShowConfirm(v => !v)} style={{
+                    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer', color: text.muted, padding: 4,
+                    display: 'flex', alignItems: 'center',
+                  }}>
+                    {showConfirm
+                      ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.4 5.1A10.9 10.9 0 0112 5c6 0 10 7 10 7a18 18 0 01-3.2 3.9M6.6 6.6A18 18 0 002 12s4 7 10 7a11 11 0 003.4-.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                      : <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" stroke="currentColor" strokeWidth="1.6" /><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" /></svg>
+                    }
+                  </button>
+                </div>
+              </div>
+            )}
 
             {error && (
               <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(200,60,60,0.12)', border: '1px solid rgba(200,60,60,0.25)', borderRadius: 10, color: '#f08080', fontSize: 13 }}>{error}</div>
