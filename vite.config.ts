@@ -15,6 +15,10 @@ export default defineConfig(({mode}) => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    build: {
+      outDir: 'frontend/bank',
+      emptyOutDir: true,
+    },
     base: '/',
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

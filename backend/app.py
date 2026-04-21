@@ -330,6 +330,11 @@ def create_app() -> Flask:
         # messenger.munister.com.ua -> messenger shell
         if is_messenger_host():
             return send_html('messenger.html')
+        react_build = FRONTEND_DIR / 'bank' / 'index.html'
+        if react_build.exists():
+            content = react_build.read_text(encoding='utf-8')
+            content = content.replace('</head>', f'<script>window.ARMY_BANK_BASE="{prefix}";</script>\n</head>')
+            return Response(content, mimetype='text/html')
         return send_html('index.html')
 
     @app.get(prefix + '/' if prefix else '/')

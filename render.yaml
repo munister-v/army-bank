@@ -12,7 +12,7 @@ services:
     name: army-bank
     runtime: python
     plan: free
-    buildCommand: "pip install -r requirements.txt"
+    buildCommand: "npm install && npm run build && pip install -r requirements.txt"
     startCommand: "gunicorn -c deploy/gunicorn.conf.py backend.app:app"
     envVars:
       - key: DATABASE_URL
