@@ -11,11 +11,27 @@ const text = { primary: '#f4ebd0', secondary: '#f0e7cc', muted: 'rgba(232,217,16
 const LayoutCtx = createContext<'mobile' | 'desktop'>('mobile');
 const useLayout = () => useContext(LayoutCtx);
 
-// ─── App context (logout + navigation) ───────────────────────
+// ─── App context (logout + navigation + toast) ───────────────
 type TabKey = 'overview' | 'operations' | 'cards' | 'profile';
-interface AppCtxType { logout: () => void; goTo: (tab: TabKey) => void; }
-const AppCtx = createContext<AppCtxType>({ logout: () => {}, goTo: () => {} });
+interface AppCtxType { logout: () => void; goTo: (tab: TabKey) => void; toast: (msg: string) => void; }
+const AppCtx = createContext<AppCtxType>({ logout: () => {}, goTo: () => {}, toast: () => {} });
 const useApp = () => useContext(AppCtx);
+
+// ─── Toast notification ───────────────────────────────────────
+function Toast({ msg }: { msg: string }) {
+  return (
+    <div style={{
+      position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 9999, pointerEvents: 'none',
+      padding: '10px 18px', borderRadius: 100,
+      background: 'rgba(15,32,24,0.92)', backdropFilter: 'blur(16px)',
+      border: '1px solid rgba(200,170,100,0.25)',
+      color: '#e8d9a8', fontSize: 13, fontWeight: 500,
+      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+      whiteSpace: 'nowrap',
+    }}>{msg}</div>
+  );
+}
 
 function useWindowWidth() {
   const [w, setW] = useState(() => window.innerWidth);
@@ -300,7 +316,7 @@ const QUICK_ACTIONS: { label: string; icon: React.ReactNode; tab: TabKey }[] = [
 function OverviewScreen() {
   const layout = useLayout();
   const topPad = useTopPad();
-  const { goTo } = useApp();
+  const { goTo, toast } = useApp();
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [cardIdx, setCardIdx] = useState(0);
   const cards: CardData[] = [
@@ -354,7 +370,7 @@ function OverviewScreen() {
             <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#e8d9a8" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
             <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#e8d9a8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
           ].map((icon, i) => (
-            <button key={i} style={{ width: 40, height: 40, borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 10 }}>{icon}</button>
+            <button key={i} onClick={() => toast(i === 0 ? 'Чат підтримки — незабаром' : 'Нових сповіщень немає')} style={{ width: 40, height: 40, borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 10 }}>{icon}</button>
           ))}
         </div>
 
@@ -412,7 +428,7 @@ function OverviewScreen() {
           <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#e8d9a8" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
           <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#e8d9a8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
         ].map((icon, i) => (
-          <button key={i} style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(200,170,100,0.12)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>{icon}</button>
+          <button key={i} onClick={() => toast(i === 0 ? 'Чат підтримки — незабаром' : 'Нових сповіщень немає')} style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(200,170,100,0.12)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>{icon}</button>
         ))}
       </div>
 
@@ -431,13 +447,16 @@ function OverviewScreen() {
 // ─── Cards screen ─────────────────────────────────────────────
 function CardsScreen() {
   const topPad = useTopPad();
-  const cards: (CardData & { type: string; status: string; limit: string; used: string })[] = [
-    { variant: 'gold', number: '0001', name: 'VYACHESLAW MUNISTER', expiry: '03/29', type: 'Віртуальна', status: 'Активна', limit: '150 000', used: '48 230' },
-    { variant: 'emerald', number: '1183', name: 'VYACHESLAW MUNISTER', expiry: '02/29', type: 'Фізична', status: 'Активна', limit: '80 000', used: '12 400' },
-    { variant: 'platinum', number: '7147', name: 'VYACHESLAW MUNISTER', expiry: '08/28', type: 'Фізична', status: 'Активна', limit: '500 000', used: '215 800' },
-    { variant: 'obsidian', number: '4402', name: 'VYACHESLAW MUNISTER', expiry: '11/30', type: 'Віртуальна', status: 'Заморожена', limit: '50 000', used: '0' },
+  const { toast } = useApp();
+  const baseCards: (CardData & { type: string; limit: string; used: string })[] = [
+    { variant: 'gold', number: '0001', name: 'VYACHESLAW MUNISTER', expiry: '03/29', type: 'Віртуальна', limit: '150 000', used: '48 230' },
+    { variant: 'emerald', number: '1183', name: 'VYACHESLAW MUNISTER', expiry: '02/29', type: 'Фізична', limit: '80 000', used: '12 400' },
+    { variant: 'platinum', number: '7147', name: 'VYACHESLAW MUNISTER', expiry: '08/28', type: 'Фізична', limit: '500 000', used: '215 800' },
+    { variant: 'obsidian', number: '4402', name: 'VYACHESLAW MUNISTER', expiry: '11/30', type: 'Віртуальна', limit: '50 000', used: '0' },
   ];
   const [selected, setSelected] = useState(0);
+  const [frozen, setFrozen] = useState<boolean[]>([false, false, false, true]);
+  const cards = baseCards.map((c, i) => ({ ...c, status: frozen[i] ? 'Заморожена' : 'Активна' }));
   const card = cards[selected];
   const pct = Math.round((parseFloat(card.used.replace(/\s/g, '')) / parseFloat(card.limit.replace(/\s/g, ''))) * 100) || 0;
 
@@ -450,7 +469,7 @@ function CardsScreen() {
           <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Мої картки</div>
         </div>
         <div style={{ flex: 1 }} />
-        <button style={{
+        <button onClick={() => toast('Замовлення нової картки — незабаром')} style={{
           padding: '10px 16px', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`,
           color: '#1a1208', border: 'none', borderRadius: 100, fontSize: 13, fontWeight: 600,
           fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
@@ -516,12 +535,12 @@ function CardsScreen() {
           {/* Actions */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
             {[
-              { label: 'Деталі', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M3 10h18" stroke={gold} strokeWidth="1.6" /></svg> },
-              { label: 'PIN', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg> },
-              { label: 'Apple Pay', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M17 2a4 4 0 00-3 1.7M7 8a5 5 0 015-5c1.7 0 2.5 1 3 1.7M5 14c0 6 5 8 7 8s7-2 7-8-5-6-7-4c-2-2-7 0-7 4z" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-              { label: 'Ліміти', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1116 0" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><path d="M12 12l4-4" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><circle cx="12" cy="12" r="1.5" fill={gold} /></svg> },
+              { label: 'Деталі', msg: `Картка •• ${card.number} · ${card.type} · до ${card.expiry}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M3 10h18" stroke={gold} strokeWidth="1.6" /></svg> },
+              { label: 'PIN', msg: 'PIN-код надіслано SMS', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg> },
+              { label: 'Apple Pay', msg: 'Відкрийте Гаманець на iPhone', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M17 2a4 4 0 00-3 1.7M7 8a5 5 0 015-5c1.7 0 2.5 1 3 1.7M5 14c0 6 5 8 7 8s7-2 7-8-5-6-7-4c-2-2-7 0-7 4z" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+              { label: 'Ліміти', msg: `Ліміт: ₴ ${card.limit} · Витрачено: ₴ ${card.used}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1116 0" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><path d="M12 12l4-4" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><circle cx="12" cy="12" r="1.5" fill={gold} /></svg> },
             ].map((a, i) => (
-              <button key={i} style={{
+              <button key={i} onClick={() => toast(a.msg)} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
                 padding: '10px 4px', background: 'rgba(255,255,255,0.03)',
                 border: '1px solid rgba(200,170,100,0.1)', borderRadius: 14,
@@ -533,16 +552,19 @@ function CardsScreen() {
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
-            <button style={{
-              flex: 1, padding: '12px', background: 'rgba(232,168,100,0.08)',
-              border: '1px solid rgba(232,168,100,0.2)', borderRadius: 12,
-              color: '#e8a864', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
+            <button onClick={() => {
+              const next = [...frozen]; next[selected] = !next[selected]; setFrozen(next);
+              toast(next[selected] ? `Картку •• ${card.number} заморожено` : `Картку •• ${card.number} розморожено`);
+            }} style={{
+              flex: 1, padding: '12px', background: frozen[selected] ? 'rgba(127,184,150,0.08)' : 'rgba(232,168,100,0.08)',
+              border: `1px solid ${frozen[selected] ? 'rgba(127,184,150,0.2)' : 'rgba(232,168,100,0.2)'}`, borderRadius: 12,
+              color: frozen[selected] ? '#7fb896' : '#e8a864', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" /><path d="M8 11V8a4 4 0 018 0v3" stroke="currentColor" strokeWidth="1.8" /></svg>
-              Заморозити
+              {frozen[selected] ? 'Розморозити' : 'Заморозити'}
             </button>
-            <button style={{
+            <button onClick={() => toast(`Закриття картки •• ${card.number} — зверніться до підтримки`)} style={{
               flex: 1, padding: '12px', background: 'rgba(220,100,110,0.06)',
               border: '1px solid rgba(220,100,110,0.2)', borderRadius: 12,
               color: '#dc646e', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
@@ -574,8 +596,11 @@ const CAT_STYLES: Record<TxCat, { bg: string; color: string; icon: React.ReactNo
 
 function OperationsScreen() {
   const topPad = useTopPad();
+  const [period, setPeriod] = useState(0);
+  const periodLabels = ['Т', 'М', 'Р'];
   const days = ['П', 'В', 'С', 'Ч', 'П', 'С', 'Н'];
-  const values = [28, 45, 62, 30, 88, 54, 70];
+  const allValues = [[28, 45, 62, 30, 88, 54, 70], [60, 72, 48, 95, 55, 80, 65], [40, 55, 70, 85, 62, 90, 75]];
+  const values = allValues[period];
   const max = Math.max(...values);
 
   const txGroups: { group: string; items: { title: string; subtitle: string; amount: string; positive?: boolean; cat: TxCat }[] }[] = [
@@ -615,11 +640,11 @@ function OperationsScreen() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 4, padding: 3, background: 'rgba(26,40,32,0.5)', borderRadius: 100 }}>
-              {['Т', 'М', 'Р'].map((p, i) => (
-                <button key={p} style={{
+              {periodLabels.map((p, i) => (
+                <button key={p} onClick={() => setPeriod(i)} style={{
                   padding: '4px 11px', fontSize: 11, fontWeight: 500,
-                  background: i === 0 ? `linear-gradient(135deg, ${gold}, ${goldDark})` : 'transparent',
-                  color: i === 0 ? '#1a1208' : 'rgba(232,217,168,0.6)',
+                  background: i === period ? `linear-gradient(135deg, ${gold}, ${goldDark})` : 'transparent',
+                  color: i === period ? '#1a1208' : 'rgba(232,217,168,0.6)',
                   border: 'none', borderRadius: 100, cursor: 'pointer', fontFamily: 'inherit',
                 }}>{p}</button>
               ))}
@@ -682,6 +707,10 @@ function OperationsScreen() {
 
 // ─── Profile screen ───────────────────────────────────────────
 function ProfileRow({ label, value, mono, copyable, last }: { label: string; value: string; mono?: boolean; copyable?: boolean; last?: boolean }) {
+  const { toast } = useApp();
+  const copy = () => {
+    navigator.clipboard.writeText(value).then(() => toast(`Скопійовано: ${value}`)).catch(() => toast('Не вдалось скопіювати'));
+  };
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', gap: 12 }}>
@@ -693,7 +722,7 @@ function ProfileRow({ label, value, mono, copyable, last }: { label: string; val
             fontFeatureSettings: '"tnum"', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>{value}</span>
           {copyable && (
-            <button style={{
+            <button onClick={copy} style={{
               width: 26, height: 26, borderRadius: 7, background: `rgba(200,170,100,0.1)`,
               border: `1px solid rgba(200,170,100,0.2)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flexShrink: 0,
@@ -1106,13 +1135,22 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 export default function App() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem('army_bank_token'));
   const [tab, setTab] = useState<TabKey>('overview');
+  const [toastMsg, setToastMsg] = useState('');
+  const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const width = useWindowWidth();
   const isDesktop = width >= 768;
   const Screen = SCREENS[tab];
 
+  const showToast = (msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToastMsg(msg);
+    toastTimer.current = setTimeout(() => setToastMsg(''), 2500);
+  };
+
   const appCtx: AppCtxType = {
     logout: () => { localStorage.removeItem('army_bank_token'); setAuthed(false); },
     goTo: (t: TabKey) => setTab(t),
+    toast: showToast,
   };
 
   if (!authed) {
@@ -1129,6 +1167,7 @@ export default function App() {
               <Screen />
             </div>
           </div>
+          {toastMsg && <Toast msg={toastMsg} />}
         </LayoutCtx.Provider>
       </AppCtx.Provider>
     );
@@ -1142,6 +1181,7 @@ export default function App() {
             <Screen />
           </div>
           <TabBar active={tab} onChange={setTab} />
+          {toastMsg && <Toast msg={toastMsg} />}
         </div>
       </LayoutCtx.Provider>
     </AppCtx.Provider>
