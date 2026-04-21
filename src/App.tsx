@@ -562,7 +562,6 @@ function ActivityFeed({ title = true, transactions }: { title?: boolean; transac
     const s = CAT_STYLES[cat];
     return { iconBg: s.bg, iconEl: s.icon, title: tx.description, subtitle: fmtTime(tx.created_at), amount: `₴\u00a0${fmtInt(tx.amount)}${fmtDec(tx.amount)}`, positive: tx.direction === 'in' };
   });
-  const display = rows.length > 0 ? rows : ACTIVITY_ROWS.map(r => ({ ...r }));
   return (
     <div>
       {title && (
@@ -575,10 +574,15 @@ function ActivityFeed({ title = true, transactions }: { title?: boolean; transac
         </div>
       )}
       <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden' }}>
-        {display.map((r, i) => (
+        {rows.length === 0 ? (
+          <div style={{ padding: '28px 16px', textAlign: 'center' }}>
+            <div style={{ fontSize: 13, color: text.muted, marginBottom: 4 }}>Транзакцій ще немає</div>
+            <div style={{ fontSize: 11, color: text.dim }}>Поповніть рахунок або зробіть переказ</div>
+          </div>
+        ) : rows.map((r, i) => (
           <Fragment key={i}>
             <ActivityRow {...r} onClick={() => goTo('operations')} />
-            {i < display.length - 1 && <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 16px' }} />}
+            {i < rows.length - 1 && <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 16px' }} />}
           </Fragment>
         ))}
       </div>
