@@ -51,6 +51,28 @@ type ApiTransaction = {
   created_at: string;
 };
 
+type ApiAnalyticsByType = {
+  tx_type: string;
+  direction: string;
+  total: number;
+  cnt?: number;
+};
+
+type ApiAnalytics = {
+  current_month?: {
+    total_in?: number;
+    total_out?: number;
+    tx_count?: number;
+  };
+  prev_month?: {
+    total_in?: number;
+    total_out?: number;
+    tx_count?: number;
+  };
+  by_type?: ApiAnalyticsByType[];
+  monthly?: { month: string; total_in: number; total_out: number }[];
+};
+
 interface BankDataCtxType {
   loading: boolean;
   refreshing: boolean;
@@ -59,6 +81,7 @@ interface BankDataCtxType {
   account: ApiAccount | null;
   cards: ApiCard[];
   transactions: ApiTransaction[];
+  analytics: ApiAnalytics | null;
   refresh: () => Promise<void>;
   mutateCard: (cardId: number, action: 'block' | 'close') => Promise<void>;
   issueCard: () => Promise<void>;
@@ -72,6 +95,7 @@ const BankDataCtx = createContext<BankDataCtxType>({
   account: null,
   cards: [],
   transactions: [],
+  analytics: null,
   refresh: async () => {},
   mutateCard: async () => {},
   issueCard: async () => {},
@@ -83,6 +107,20 @@ const uahFmt = new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximu
 
 function formatUah(value: number): string {
   return `₴ ${uahFmt.format(Number.isFinite(value) ? value : 0)}`;
+}
+
+function analyticsChangeLabel(analytics?: ApiAnalytics | null): string {
+  if (!analytics?.current_month || !analytics?.prev_month) return 'Без динаміки';
+  const curIn = Number(analytics.current_month.total_in || 0);
+  const curOut = Number(analytics.current_month.total_out || 0);
+  const prevIn = Number(analytics.prev_month.total_in || 0);
+  const prevOut = Number(analytics.prev_month.total_out || 0);
+  const curNet = curIn - curOut;
+  const prevNet = prevIn - prevOut;
+  if (Math.abs(prevNet) < 0.01) return curNet === 0 ? 'Без змін' : 'Новий рух коштів';
+  const pct = ((curNet - prevNet) / Math.abs(prevNet)) * 100;
+  const sign = pct > 0 ? '+' : '';
+  return `${sign}${pct.toFixed(1)}% до минулого місяця`;
 }
 
 function initials(fullName?: string | null): string {
@@ -381,25 +419,6 @@ function ActivityRow({ iconBg, iconEl, title, subtitle, amount, positive, onClic
   );
 }
 
-const ACTIVITY_ROWS = [
-  {
-    iconEl: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M6 16l6 6 6-6" stroke="#7fb896" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
-    iconBg: 'rgba(127,184,150,0.1)', title: 'Надходження • ФОП', subtitle: 'Сьогодні, 14:32', amount: '₴ 84 200,00', positive: true,
-  },
-  {
-    iconEl: <svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke={gold} strokeWidth="1.8" /><path d="M8 12h8M12 8v8" stroke={gold} strokeWidth="1.8" strokeLinecap="round" /></svg>,
-    iconBg: 'rgba(200,170,100,0.1)', title: 'Сільпо', subtitle: 'Сьогодні, 12:18 • Картка •• 0001', amount: '₴ 1 247,50', positive: false,
-  },
-  {
-    iconEl: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12h16M4 12l5-5M4 12l5 5" stroke="#e8d9a8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
-    iconBg: 'rgba(232,217,168,0.08)', title: 'Оплата комунальних', subtitle: 'Вчора, 19:05', amount: '₴ 3 180,00', positive: false,
-  },
-  {
-    iconEl: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 17h14l-2-8H7l-2 8zM7 17v2M17 17v2" stroke="#88a8e8" strokeWidth="1.8" strokeLinecap="round" /></svg>,
-    iconBg: 'rgba(136,168,232,0.1)', title: 'Uklon', subtitle: 'Вчора, 09:42 • Apple Pay', amount: '₴ 148,00', positive: false,
-  },
-];
-
 function txActivityVisual(tx: ApiTransaction) {
   if (tx.direction === 'in') {
     return {
@@ -470,14 +489,21 @@ function BalanceBlock({
   onToggle,
   balance,
   accountNumber,
+  trendLabel,
 }: {
   visible: boolean;
   onToggle: () => void;
   balance?: number | null;
   accountNumber?: string | null;
+  trendLabel?: string;
 }) {
   const amount = Number(balance || 0);
   const [major, minor = '00'] = uahFmt.format(amount).split(',');
+  const trendColor = String(trendLabel || '').startsWith('-')
+    ? '#f08080'
+    : String(trendLabel || '').startsWith('+')
+      ? '#7fb896'
+      : 'rgba(232,217,168,0.7)';
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -495,9 +521,9 @@ function BalanceBlock({
         <span style={{ fontSize: 24, fontWeight: 400, color: 'rgba(244,235,208,0.5)' }}>{visible ? `,${minor}` : ',••'}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 9px', background: 'rgba(127,184,150,0.12)', border: '1px solid rgba(127,184,150,0.25)', borderRadius: 100, fontSize: 11, color: '#7fb896', fontWeight: 500 }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 9px', background: 'rgba(127,184,150,0.12)', border: '1px solid rgba(127,184,150,0.25)', borderRadius: 100, fontSize: 11, color: trendColor, fontWeight: 500 }}>
           <svg width="9" height="9" viewBox="0 0 12 12"><path d="M6 2l4 5H2z" fill="#7fb896" /></svg>
-          +2.4% цього місяця
+          {trendLabel || 'Без динаміки'}
         </div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 9px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(200,170,100,0.15)`, borderRadius: 100, fontSize: 11, color: 'rgba(232,217,168,0.7)', fontWeight: 500 }}>
           {accountNumber || '—'}
@@ -511,7 +537,7 @@ function BalanceBlock({
 function ActivityFeed({ title = true }: { title?: boolean }) {
   const { goTo } = useApp();
   const { transactions } = useBankData();
-  const rows = transactions.length ? buildActivityRows(transactions) : ACTIVITY_ROWS;
+  const rows = buildActivityRows(transactions);
   return (
     <div>
       {title && (
@@ -524,6 +550,9 @@ function ActivityFeed({ title = true }: { title?: boolean }) {
         </div>
       )}
       <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden' }}>
+        {!rows.length && (
+          <div style={{ padding: '16px', color: text.muted, fontSize: 13 }}>Операцій поки немає.</div>
+        )}
         {rows.map((r, i) => (
           <Fragment key={i}>
             <ActivityRow {...r} onClick={() => goTo('operations')} />
@@ -546,7 +575,7 @@ function OverviewScreen() {
   const layout = useLayout();
   const topPad = useTopPad();
   const { goTo, toast } = useApp();
-  const { user, account, cards: apiCards, transactions } = useBankData();
+  const { user, account, cards: apiCards, transactions, analytics } = useBankData();
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [cardIdx, setCardIdx] = useState(0);
   const holderName = user?.full_name || 'Army Bank';
@@ -564,16 +593,18 @@ function OverviewScreen() {
     const key = txTypeLabel(tx.tx_type);
     byType[key] = (byType[key] || 0) + Number(tx.amount || 0);
   });
-  const totalOut = Object.values(byType).reduce((sum, n) => sum + n, 0);
-  const fallbackRows = [
-    { label: 'Продукти', pct: 38, color: '#e8a864' },
-    { label: 'Транспорт', pct: 14, color: '#88a8e8' },
-    { label: 'Комунальні', pct: 22, color: gold },
-    { label: 'Розваги', pct: 12, color: '#c97db4' },
-    { label: 'Інше', pct: 14, color: 'rgba(232,217,168,0.4)' },
-  ];
+  const analyticsRows = (analytics?.by_type || [])
+    .filter((row) => row.direction === 'out' && Number(row.total || 0) > 0)
+    .reduce<Record<string, number>>((acc, row) => {
+      const key = txTypeLabel(row.tx_type);
+      acc[key] = (acc[key] || 0) + Number(row.total || 0);
+      return acc;
+    }, {});
+  const spendSource = Object.keys(analyticsRows).length ? analyticsRows : byType;
+  const spendEntries = Object.entries(spendSource) as Array<[string, number]>;
+  const totalOut = spendEntries.reduce((sum, [, n]) => sum + n, 0);
   const spendRows = totalOut > 0
-    ? Object.entries(byType)
+    ? spendEntries
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([label, amount], i) => ({
@@ -581,7 +612,8 @@ function OverviewScreen() {
         pct: Math.max(1, Math.round((amount / totalOut) * 100)),
         color: [gold, '#e8a864', '#88a8e8', '#c97db4', 'rgba(232,217,168,0.4)'][i] || gold,
       }))
-    : fallbackRows;
+    : [];
+  const trendLabel = analyticsChangeLabel(analytics);
 
   const cardSection = (
     <div>
@@ -656,6 +688,7 @@ function OverviewScreen() {
                 onToggle={() => setBalanceVisible(v => !v)}
                 balance={account?.balance}
                 accountNumber={account?.account_number}
+                trendLabel={trendLabel}
               />
             </div>
             {cardSection}
@@ -667,6 +700,9 @@ function OverviewScreen() {
             {/* Spending stats mini */}
             <div style={{ padding: 20, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22 }}>
               <div style={{ fontSize: 11, letterSpacing: 1.5, color: text.muted, textTransform: 'uppercase', fontWeight: 600, marginBottom: 14 }}>Витрати цього місяця</div>
+              {!spendRows.length && (
+                <div style={{ fontSize: 12, color: text.muted }}>Недостатньо даних для розподілу витрат.</div>
+              )}
               {spendRows.map(({ label, pct, color }) => (
                 <div key={label} style={{ marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
@@ -709,6 +745,7 @@ function OverviewScreen() {
           onToggle={() => setBalanceVisible(v => !v)}
           balance={account?.balance}
           accountNumber={account?.account_number}
+          trendLabel={trendLabel}
         />
       </div>
       <div style={{ padding: '0 22px 4px' }}>{cardSection}</div>
@@ -1573,6 +1610,7 @@ export default function App() {
   const [account, setAccount] = useState<ApiAccount | null>(null);
   const [cards, setCards] = useState<ApiCard[]>([]);
   const [transactions, setTransactions] = useState<ApiTransaction[]>([]);
+  const [analytics, setAnalytics] = useState<ApiAnalytics | null>(null);
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const width = useWindowWidth();
   const isDesktop = width >= 768;
@@ -1592,6 +1630,7 @@ export default function App() {
     setAccount(null);
     setCards([]);
     setTransactions([]);
+    setAnalytics(null);
     setDataError('');
     setLoadingData(true);
   };
@@ -1627,11 +1666,18 @@ export default function App() {
       }
 
       const cardsData = await apiRequest<ApiCard[]>('/api/cards');
+      let analyticsData: ApiAnalytics | null = null;
+      try {
+        analyticsData = await apiRequest<ApiAnalytics>('/api/analytics/summary');
+      } catch {
+        analyticsData = null;
+      }
 
       setUser(userData);
       setAccount(accountData);
       setTransactions(txData);
       setCards(Array.isArray(cardsData) ? cardsData : []);
+      setAnalytics(analyticsData);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Не вдалося завантажити дані.';
       setDataError(message);
@@ -1680,6 +1726,7 @@ export default function App() {
     account,
     cards,
     transactions,
+    analytics,
     refresh: async () => loadBankData(true),
     mutateCard,
     issueCard,
