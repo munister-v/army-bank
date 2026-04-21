@@ -1,6 +1,7 @@
 // Сторінка оператора
 const $ = (s) => document.querySelector(s);
 const roleLabels = { soldier: 'Клієнт', operator: 'Оператор', admin: 'Адмін' };
+const escapeHtml = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 function showToast(msg) {
   const t = $('#toast');
@@ -37,13 +38,13 @@ async function loadSoldiers() {
     const res = await api.request('/api/operator/users');
     const users = Array.isArray(res) ? res : (res.data || []);
     const sel = $('#userSelect');
-    sel.innerHTML = '<option value="">— Обрати —</option>' + users.map((u) => `<option value="${u.id}">#${u.id} ${u.full_name} (${u.phone})</option>`).join('');
+    sel.innerHTML = '<option value="">— Обрати —</option>' + users.map((u) => `<option value="${u.id}">#${u.id} ${escapeHtml(u.full_name)} (${escapeHtml(u.phone)})</option>`).join('');
     const list = $('#clientsList');
     list.innerHTML = users.length
       ? users.map((u) => `
           <div class="item">
-            <div class="item-header"><strong>#${u.id} ${u.full_name}</strong><span class="muted">${roleLabels[u.role] || u.role}</span></div>
-            <div class="muted">${u.phone} · ${u.email}</div>
+            <div class="item-header"><strong>#${u.id} ${escapeHtml(u.full_name)}</strong><span class="muted">${roleLabels[u.role] || u.role}</span></div>
+            <div class="muted">${escapeHtml(u.phone)} · ${escapeHtml(u.email)}</div>
           </div>
         `).join('')
       : '<div class="muted" style="padding:16px;text-align:center">Немає клієнтів</div>';
