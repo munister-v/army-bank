@@ -2577,6 +2577,7 @@ async function handleAuth(form, endpoint) {
     await hydrateAuthenticatedApp();
   } catch (error) {
     if (!isAuthErrorResponse(error)) {
+      setAuthenticated(false);
       scheduleBootstrapRetry();
     } else {
       api.setToken('');
@@ -3288,6 +3289,7 @@ function scheduleBootstrapRetry() {
       setAuthenticated(false);
       showToast('Сесію завершено. Увійдіть повторно.');
     } else {
+      setAuthenticated(false);
       showToast('Сервер тимчасово недоступний. Спробуємо знову…');
       scheduleBootstrapRetry();
     }
