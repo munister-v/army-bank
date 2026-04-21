@@ -1,4 +1,24 @@
-import React, { useState, Fragment, useEffect, createContext, useContext } from 'react';
+import React, { useState, Fragment, useEffect, createContext, useContext, Component } from 'react';
+
+export class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: string | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(err: Error) { return { error: err.message }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ position: 'fixed', inset: 0, background: '#07150f', color: '#e8d9a8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, fontFamily: 'sans-serif' }}>
+          <div style={{ fontSize: 20 }}>⚠️ Щось пішло не так</div>
+          <div style={{ fontSize: 13, color: 'rgba(232,217,168,0.6)', maxWidth: 400, textAlign: 'center' }}>{this.state.error}</div>
+          <button onClick={() => window.location.reload()} style={{ marginTop: 8, padding: '10px 20px', borderRadius: 10, background: '#c9a964', color: '#1a1208', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Оновити сторінку</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ─── Design tokens ────────────────────────────────────────────
 const gold = '#c9a964';
@@ -1822,7 +1842,7 @@ export default function App() {
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [transactions, setTransactions] = useState<TxItem[]>([]);
   const [cards, setCards] = useState<CardInfo[]>([]);
-  const [loadingData, setLoadingData] = useState(false);
+  const [loadingData, setLoadingData] = useState(() => !!getToken());
   const [refreshingData, setRefreshingData] = useState(false);
   const [dataError, setDataError] = useState('');
   const [analytics, setAnalytics] = useState<ApiAnalytics | null>(null);
@@ -1871,7 +1891,7 @@ export default function App() {
     setTransactions([]);
     setAnalytics(null);
     setDataError('');
-    setLoadingData(true);
+    setLoadingData(false);
   };
 
   const loadBankData = async (silent = false) => {
