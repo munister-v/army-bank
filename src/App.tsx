@@ -177,6 +177,7 @@ function getToken(): string {
 
 function clearToken() {
   localStorage.removeItem('army_bank_token');
+  localStorage.removeItem('arm_cart');
 }
 
 async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
@@ -1607,10 +1608,13 @@ function MarketplaceScreen() {
   const [loading, setLoading] = useState(true);
   const [dlPdf, setDlPdf] = useState<string | null>(null);
   const [preview, setPreview] = useState<Product | null>(null);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try { return JSON.parse(localStorage.getItem('arm_cart') || '[]'); } catch { return []; }
+  });
   const [showCart, setShowCart] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const [search, setSearch] = useState('');
+  useEffect(() => { localStorage.setItem('arm_cart', JSON.stringify(cart)); }, [cart]);
 
   const token = localStorage.getItem('army_bank_token');
 
