@@ -17,6 +17,128 @@ interface AppCtxType { logout: () => void; goTo: (tab: TabKey) => void; toast: (
 const AppCtx = createContext<AppCtxType>({ logout: () => {}, goTo: () => {}, toast: () => {} });
 const useApp = () => useContext(AppCtx);
 
+type ApiUser = {
+  id: number;
+  full_name: string;
+  phone: string;
+  email: string;
+  role?: string;
+};
+
+type ApiAccount = {
+  id: number;
+  account_number: string;
+  balance: number;
+  currency?: string;
+};
+
+type ApiCard = {
+  id: number;
+  masked_number?: string;
+  expiry_display?: string;
+  card_type?: string;
+  status?: string;
+  design?: string;
+};
+
+type ApiTransaction = {
+  id: number;
+  tx_type: string;
+  direction: 'in' | 'out' | string;
+  amount: number;
+  description: string;
+  related_account?: string | null;
+  created_at: string;
+};
+
+interface BankDataCtxType {
+  loading: boolean;
+  refreshing: boolean;
+  error: string;
+  user: ApiUser | null;
+  account: ApiAccount | null;
+  cards: ApiCard[];
+  transactions: ApiTransaction[];
+  refresh: () => Promise<void>;
+  mutateCard: (cardId: number, action: 'block' | 'close') => Promise<void>;
+  issueCard: () => Promise<void>;
+}
+
+const BankDataCtx = createContext<BankDataCtxType>({
+  loading: true,
+  refreshing: false,
+  error: '',
+  user: null,
+  account: null,
+  cards: [],
+  transactions: [],
+  refresh: async () => {},
+  mutateCard: async () => {},
+  issueCard: async () => {},
+});
+const useBankData = () => useContext(BankDataCtx);
+
+const API_BASE = (typeof window !== 'undefined' && (window as { ARMY_BANK_BASE?: string }).ARMY_BANK_BASE) || '';
+const uahFmt = new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function formatUah(value: number): string {
+  return `₴ ${uahFmt.format(Number.isFinite(value) ? value : 0)}`;
+}
+
+function initials(fullName?: string | null): string {
+  const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'AB';
+  return (parts[0].charAt(0) + (parts[1]?.charAt(0) || '')).toUpperCase();
+}
+
+function shortName(fullName?: string | null): string {
+  const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'Користувач';
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[1].charAt(0)}.`;
+}
+
+function cardTail(masked?: string): string {
+  const digits = String(masked || '').replace(/\D/g, '');
+  return digits.length >= 4 ? digits.slice(-4) : '----';
+}
+
+function getToken(): string {
+  return localStorage.getItem('army_bank_token') || '';
+}
+
+function clearToken() {
+  localStorage.removeItem('army_bank_token');
+}
+
+async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
+  const fullUrl = (url.startsWith('http') || url.startsWith('//')) ? url : `${API_BASE}${url}`;
+  const token = getToken();
+  const headers = new Headers(options.headers || {});
+  headers.set('Content-Type', 'application/json');
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(fullUrl, { ...options, headers });
+  const refreshed = response.headers.get('X-Refresh-Token');
+  if (refreshed) localStorage.setItem('army_bank_token', refreshed);
+
+  let payload: Record<string, unknown> = {};
+  try {
+    const raw = await response.text();
+    payload = raw ? JSON.parse(raw) as Record<string, unknown> : {};
+  } catch {
+    payload = {};
+  }
+
+  if (!response.ok || payload.ok === false) {
+    const msg = String(payload.error || payload.message || 'Помилка запиту.');
+    const err = new Error(msg) as Error & { status?: number };
+    err.status = response.status;
+    throw err;
+  }
+  return ((payload.data ?? payload) as T);
+}
+
 // ─── Toast notification ───────────────────────────────────────
 function Toast({ msg }: { msg: string }) {
   return (
@@ -66,6 +188,31 @@ interface CardData {
   used?: string;
 }
 
+function cardVariantFromDesign(design?: string | null): CardVariant {
+  switch (String(design || '').toLowerCase()) {
+    case 'forest':
+      return 'emerald';
+    case 'rose':
+      return 'platinum';
+    case 'navy':
+    case 'slate':
+      return 'obsidian';
+    default:
+      return 'gold';
+  }
+}
+
+function toUiCard(card: ApiCard, holderName: string): CardData {
+  return {
+    variant: cardVariantFromDesign(card.design),
+    number: cardTail(card.masked_number),
+    name: (holderName || 'ARMY BANK').toUpperCase().slice(0, 26),
+    expiry: card.expiry_display || '--/--',
+    type: card.card_type === 'physical' ? 'Physical' : 'Virtual',
+    status: card.status || 'active',
+  };
+}
+
 const CARD_VARIANTS: Record<CardVariant, {
   bg: string; text: string; muted: string; shimmer: string;
 }> = {
@@ -91,7 +238,7 @@ const CARD_VARIANTS: Record<CardVariant, {
   },
 };
 
-function PremiumCard({ variant, number, name, expiry, style = {} }: CardData & { style?: React.CSSProperties }) {
+function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardData & { style?: React.CSSProperties }) {
   const v = CARD_VARIANTS[variant] ?? CARD_VARIANTS.gold;
   const patId = `g-${variant}`;
   return (
@@ -127,7 +274,7 @@ function PremiumCard({ variant, number, name, expiry, style = {} }: CardData & {
               ARM<span style={{ fontWeight: 300 }}>Bank</span>
             </span>
           </div>
-          <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2, color: v.muted, textTransform: 'uppercase' }}>Virtual</span>
+          <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2, color: v.muted, textTransform: 'uppercase' }}>{type || 'Virtual'}</span>
         </div>
         <div style={{
           fontFamily: '"SF Mono", monospace', fontSize: 20, fontWeight: 600, letterSpacing: 2,
@@ -253,7 +400,84 @@ const ACTIVITY_ROWS = [
   },
 ];
 
-function BalanceBlock({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+function txActivityVisual(tx: ApiTransaction) {
+  if (tx.direction === 'in') {
+    return {
+      iconBg: 'rgba(127,184,150,0.1)',
+      iconEl: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M6 16l6 6 6-6" stroke="#7fb896" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+      positive: true,
+    };
+  }
+  if (tx.tx_type === 'transfer') {
+    return {
+      iconBg: 'rgba(232,217,168,0.08)',
+      iconEl: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12h16M4 12l5-5M4 12l5 5" stroke="#e8d9a8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+      positive: false,
+    };
+  }
+  if (tx.tx_type === 'topup') {
+    return {
+      iconBg: 'rgba(127,184,150,0.1)',
+      iconEl: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M6 16l6 6 6-6" stroke="#7fb896" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+      positive: true,
+    };
+  }
+  return {
+    iconBg: 'rgba(200,170,100,0.1)',
+    iconEl: <svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke={gold} strokeWidth="1.8" /><path d="M8 12h8M12 8v8" stroke={gold} strokeWidth="1.8" strokeLinecap="round" /></svg>,
+    positive: false,
+  };
+}
+
+function formatTxSubtitle(createdAt?: string): string {
+  if (!createdAt) return '';
+  const dt = new Date(createdAt);
+  if (Number.isNaN(dt.getTime())) return createdAt;
+  return dt.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function buildActivityRows(transactions: ApiTransaction[]) {
+  return transactions.slice(0, 5).map((tx) => {
+    const visual = txActivityVisual(tx);
+    return {
+      ...visual,
+      title: tx.description || (tx.direction === 'in' ? 'Надходження' : 'Списання'),
+      subtitle: formatTxSubtitle(tx.created_at),
+      amount: formatUah(Math.abs(Number(tx.amount || 0))),
+    };
+  });
+}
+
+function txTypeLabel(txType?: string): string {
+  switch (txType) {
+    case 'topup':
+      return 'Поповнення';
+    case 'transfer':
+      return 'Перекази';
+    case 'donation':
+      return 'Донати';
+    case 'payment':
+      return 'Оплати';
+    case 'goal_contribution':
+      return 'Накопичення';
+    default:
+      return 'Інше';
+  }
+}
+
+function BalanceBlock({
+  visible,
+  onToggle,
+  balance,
+  accountNumber,
+}: {
+  visible: boolean;
+  onToggle: () => void;
+  balance?: number | null;
+  accountNumber?: string | null;
+}) {
+  const amount = Number(balance || 0);
+  const [major, minor = '00'] = uahFmt.format(amount).split(',');
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -267,8 +491,8 @@ function BalanceBlock({ visible, onToggle }: { visible: boolean; onToggle: () =>
       </div>
       <div style={{ fontFamily: '"SF Pro Display", -apple-system, system-ui', fontSize: 46, fontWeight: 300, letterSpacing: -1.5, color: text.primary, lineHeight: 1, fontFeatureSettings: '"tnum"', display: 'flex', alignItems: 'baseline', gap: 4 }}>
         <span style={{ fontSize: 32, fontWeight: 400, color: gold }}>₴</span>
-        <span>{visible ? '7 986 232' : '• • • • • • •'}</span>
-        <span style={{ fontSize: 24, fontWeight: 400, color: 'rgba(244,235,208,0.5)' }}>,00</span>
+        <span>{visible ? major : '• • • • • • •'}</span>
+        <span style={{ fontSize: 24, fontWeight: 400, color: 'rgba(244,235,208,0.5)' }}>{visible ? `,${minor}` : ',••'}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 9px', background: 'rgba(127,184,150,0.12)', border: '1px solid rgba(127,184,150,0.25)', borderRadius: 100, fontSize: 11, color: '#7fb896', fontWeight: 500 }}>
@@ -276,7 +500,7 @@ function BalanceBlock({ visible, onToggle }: { visible: boolean; onToggle: () =>
           +2.4% цього місяця
         </div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 9px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(200,170,100,0.15)`, borderRadius: 100, fontSize: 11, color: 'rgba(232,217,168,0.7)', fontWeight: 500 }}>
-          AB-100023
+          {accountNumber || '—'}
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="2" /><path d="M5 15V5a2 2 0 012-2h10" stroke="currentColor" strokeWidth="2" /></svg>
         </div>
       </div>
@@ -286,6 +510,8 @@ function BalanceBlock({ visible, onToggle }: { visible: boolean; onToggle: () =>
 
 function ActivityFeed({ title = true }: { title?: boolean }) {
   const { goTo } = useApp();
+  const { transactions } = useBankData();
+  const rows = transactions.length ? buildActivityRows(transactions) : ACTIVITY_ROWS;
   return (
     <div>
       {title && (
@@ -298,10 +524,10 @@ function ActivityFeed({ title = true }: { title?: boolean }) {
         </div>
       )}
       <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden' }}>
-        {ACTIVITY_ROWS.map((r, i) => (
+        {rows.map((r, i) => (
           <Fragment key={i}>
             <ActivityRow {...r} onClick={() => goTo('operations')} />
-            {i < ACTIVITY_ROWS.length - 1 && <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 16px' }} />}
+            {i < rows.length - 1 && <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 16px' }} />}
           </Fragment>
         ))}
       </div>
@@ -320,14 +546,42 @@ function OverviewScreen() {
   const layout = useLayout();
   const topPad = useTopPad();
   const { goTo, toast } = useApp();
+  const { user, account, cards: apiCards, transactions } = useBankData();
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [cardIdx, setCardIdx] = useState(0);
-  const cards: CardData[] = [
-    { variant: 'gold', number: '0001', name: 'VYACHESLAW MUNISTER', expiry: '03/29' },
-    { variant: 'emerald', number: '1183', name: 'VYACHESLAW MUNISTER', expiry: '02/29' },
-    { variant: 'platinum', number: '7147', name: 'VYACHESLAW MUNISTER', expiry: '08/28' },
-    { variant: 'obsidian', number: '4402', name: 'VYACHESLAW MUNISTER', expiry: '11/30' },
+  const holderName = user?.full_name || 'Army Bank';
+  const cards = apiCards.map((card) => toUiCard(card, holderName));
+  const displayName = shortName(holderName);
+  const displayInitials = initials(holderName);
+
+  useEffect(() => {
+    if (cardIdx >= cards.length) setCardIdx(0);
+  }, [cardIdx, cards.length]);
+
+  const outgoing = transactions.filter((tx) => tx.direction === 'out');
+  const byType: Record<string, number> = {};
+  outgoing.forEach((tx) => {
+    const key = txTypeLabel(tx.tx_type);
+    byType[key] = (byType[key] || 0) + Number(tx.amount || 0);
+  });
+  const totalOut = Object.values(byType).reduce((sum, n) => sum + n, 0);
+  const fallbackRows = [
+    { label: 'Продукти', pct: 38, color: '#e8a864' },
+    { label: 'Транспорт', pct: 14, color: '#88a8e8' },
+    { label: 'Комунальні', pct: 22, color: gold },
+    { label: 'Розваги', pct: 12, color: '#c97db4' },
+    { label: 'Інше', pct: 14, color: 'rgba(232,217,168,0.4)' },
   ];
+  const spendRows = totalOut > 0
+    ? Object.entries(byType)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([label, amount], i) => ({
+        label,
+        pct: Math.max(1, Math.round((amount / totalOut) * 100)),
+        color: [gold, '#e8a864', '#88a8e8', '#c97db4', 'rgba(232,217,168,0.4)'][i] || gold,
+      }))
+    : fallbackRows;
 
   const cardSection = (
     <div>
@@ -339,14 +593,29 @@ function OverviewScreen() {
           Усі <Chevron size={12} color={gold} />
         </button>
       </div>
-      <div style={{ maxWidth: 380 }}>
-        <PremiumCard {...cards[cardIdx]} />
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-start', gap: 6, marginTop: 14 }}>
-        {cards.map((_, i) => (
-          <button key={i} onClick={() => setCardIdx(i)} style={{ width: i === cardIdx ? 20 : 6, height: 6, borderRadius: 3, background: i === cardIdx ? gold : 'rgba(200,170,100,0.25)', border: 'none', padding: 0, cursor: 'pointer', transition: 'all 0.25s' }} />
-        ))}
-      </div>
+      {!cards.length ? (
+        <div style={{ maxWidth: 380, padding: '16px 18px', borderRadius: 16, border: `1px solid ${bg.border}`, background: bg.card }}>
+          <div style={{ fontSize: 14, color: text.secondary, marginBottom: 6 }}>Картки ще не випущено</div>
+          <div style={{ fontSize: 12, color: text.muted, marginBottom: 12 }}>Перейдіть у розділ «Картки», щоб випустити першу картку.</div>
+          <button
+            onClick={() => goTo('cards')}
+            style={{ padding: '8px 12px', borderRadius: 10, border: `1px solid ${bg.border}`, background: 'rgba(255,255,255,0.03)', color: text.secondary, cursor: 'pointer' }}
+          >
+            Відкрити картки
+          </button>
+        </div>
+      ) : (
+        <>
+          <div style={{ maxWidth: 380 }}>
+            <PremiumCard {...cards[cardIdx]} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-start', gap: 6, marginTop: 14 }}>
+            {cards.map((_, i) => (
+              <button key={i} onClick={() => setCardIdx(i)} style={{ width: i === cardIdx ? 20 : 6, height: 6, borderRadius: 3, background: i === cardIdx ? gold : 'rgba(200,170,100,0.25)', border: 'none', padding: 0, cursor: 'pointer', transition: 'all 0.25s' }} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 
@@ -366,7 +635,7 @@ function OverviewScreen() {
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
           <div>
             <div style={{ fontSize: 13, color: text.muted, marginBottom: 4 }}>Доброго дня 👋</div>
-            <div style={{ fontSize: 26, fontWeight: 700, color: text.primary, letterSpacing: -0.4 }}>Vyacheslaw Munister</div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: text.primary, letterSpacing: -0.4 }}>{holderName}</div>
           </div>
           <div style={{ flex: 1 }} />
           {[
@@ -382,7 +651,12 @@ function OverviewScreen() {
           {/* Left: balance + card + quick actions */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div style={{ padding: 24, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22 }}>
-              <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} />
+              <BalanceBlock
+                visible={balanceVisible}
+                onToggle={() => setBalanceVisible(v => !v)}
+                balance={account?.balance}
+                accountNumber={account?.account_number}
+              />
             </div>
             {cardSection}
             {quickActionsSection}
@@ -393,13 +667,7 @@ function OverviewScreen() {
             {/* Spending stats mini */}
             <div style={{ padding: 20, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22 }}>
               <div style={{ fontSize: 11, letterSpacing: 1.5, color: text.muted, textTransform: 'uppercase', fontWeight: 600, marginBottom: 14 }}>Витрати цього місяця</div>
-              {[
-                { label: 'Продукти', pct: 38, color: '#e8a864' },
-                { label: 'Транспорт', pct: 14, color: '#88a8e8' },
-                { label: 'Комунальні', pct: 22, color: gold },
-                { label: 'Розваги', pct: 12, color: '#c97db4' },
-                { label: 'Інше', pct: 14, color: 'rgba(232,217,168,0.4)' },
-              ].map(({ label, pct, color }) => (
+              {spendRows.map(({ label, pct, color }) => (
                 <div key={label} style={{ marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
                     <span style={{ fontSize: 12, color: text.secondary }}>{label}</span>
@@ -422,10 +690,10 @@ function OverviewScreen() {
     <div style={{ paddingBottom: 20 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: `${topPad} 18px 8px` }}>
-        <div style={{ width: 40, height: 40, borderRadius: '50%', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a2820', fontSize: 13, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(255,220,150,0.5), 0 2px 6px rgba(0,0,0,0.3)' }}>VM</div>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a2820', fontSize: 13, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(255,220,150,0.5), 0 2px 6px rgba(0,0,0,0.3)' }}>{displayInitials}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.5, marginBottom: 1 }}>Доброго дня</div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Vyacheslaw M.</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
         </div>
         {[
           <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#e8d9a8" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
@@ -436,7 +704,12 @@ function OverviewScreen() {
       </div>
 
       <div style={{ padding: '24px 22px 20px' }}>
-        <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} />
+        <BalanceBlock
+          visible={balanceVisible}
+          onToggle={() => setBalanceVisible(v => !v)}
+          balance={account?.balance}
+          accountNumber={account?.account_number}
+        />
       </div>
       <div style={{ padding: '0 22px 4px' }}>{cardSection}</div>
       <div style={{ display: 'flex', gap: 8, padding: '18px 22px 6px' }}>
@@ -451,17 +724,78 @@ function OverviewScreen() {
 function CardsScreen() {
   const topPad = useTopPad();
   const { toast } = useApp();
-  const baseCards: (CardData & { type: string; limit: string; used: string })[] = [
-    { variant: 'gold', number: '0001', name: 'VYACHESLAW MUNISTER', expiry: '03/29', type: 'Віртуальна', limit: '150 000', used: '48 230' },
-    { variant: 'emerald', number: '1183', name: 'VYACHESLAW MUNISTER', expiry: '02/29', type: 'Фізична', limit: '80 000', used: '12 400' },
-    { variant: 'platinum', number: '7147', name: 'VYACHESLAW MUNISTER', expiry: '08/28', type: 'Фізична', limit: '500 000', used: '215 800' },
-    { variant: 'obsidian', number: '4402', name: 'VYACHESLAW MUNISTER', expiry: '11/30', type: 'Віртуальна', limit: '50 000', used: '0' },
-  ];
+  const { user, account, cards: apiCards, transactions, mutateCard, issueCard } = useBankData();
   const [selected, setSelected] = useState(0);
-  const [frozen, setFrozen] = useState<boolean[]>([false, false, false, true]);
-  const cards = baseCards.map((c, i) => ({ ...c, status: frozen[i] ? 'Заморожена' : 'Активна' }));
-  const card = cards[selected];
-  const pct = Math.round((parseFloat(card.used.replace(/\s/g, '')) / parseFloat(card.limit.replace(/\s/g, ''))) * 100) || 0;
+  const [busyCardId, setBusyCardId] = useState<number | null>(null);
+  const holderName = user?.full_name || 'Army Bank';
+  const cards = apiCards.map((card) => ({
+    ...toUiCard(card, holderName),
+    id: card.id,
+    statusRaw: String(card.status || 'active'),
+    cardTypeRaw: String(card.card_type || 'virtual'),
+  }));
+  const card = cards[selected] || null;
+
+  useEffect(() => {
+    if (selected >= cards.length) setSelected(0);
+  }, [selected, cards.length]);
+
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const monthTransactions = transactions.filter((tx) => {
+    const dt = new Date(tx.created_at);
+    return !Number.isNaN(dt.getTime()) && dt >= monthStart;
+  });
+  const monthOut = monthTransactions
+    .filter((tx) => tx.direction === 'out')
+    .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+
+  async function onIssueCard() {
+    try {
+      setBusyCardId(-1);
+      await issueCard();
+      toast('Картку випущено.');
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : 'Не вдалося випустити картку.');
+    } finally {
+      setBusyCardId(null);
+    }
+  }
+
+  async function onToggleBlock() {
+    if (!card || card.statusRaw === 'closed') return;
+    try {
+      setBusyCardId(card.id);
+      await mutateCard(card.id, 'block');
+      toast(card.statusRaw === 'blocked' ? 'Картку розблоковано.' : 'Картку заблоковано.');
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : 'Не вдалося змінити статус картки.');
+    } finally {
+      setBusyCardId(null);
+    }
+  }
+
+  async function onCloseCard() {
+    if (!card || card.statusRaw === 'closed') return;
+    const ok = window.confirm('Закрити картку? Дію не можна скасувати.');
+    if (!ok) return;
+    try {
+      setBusyCardId(card.id);
+      await mutateCard(card.id, 'close');
+      toast('Картку закрито.');
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : 'Не вдалося закрити картку.');
+    } finally {
+      setBusyCardId(null);
+    }
+  }
+
+  const statusLabel = card?.statusRaw === 'blocked'
+    ? 'Заблокована'
+    : card?.statusRaw === 'closed'
+      ? 'Закрита'
+      : 'Активна';
 
   return (
     <ContentWrap maxW={760}>
@@ -472,14 +806,14 @@ function CardsScreen() {
           <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Мої картки</div>
         </div>
         <div style={{ flex: 1 }} />
-        <button onClick={() => toast('Замовлення нової картки — незабаром')} style={{
+        <button onClick={onIssueCard} disabled={busyCardId === -1} style={{
           padding: '10px 16px', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`,
           color: '#1a1208', border: 'none', borderRadius: 100, fontSize: 13, fontWeight: 600,
           fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-          boxShadow: `0 4px 10px -4px rgba(201,169,100,0.5), inset 0 1px 0 rgba(255,220,150,0.5)`,
+          boxShadow: `0 4px 10px -4px rgba(201,169,100,0.5), inset 0 1px 0 rgba(255,220,150,0.5)`, opacity: busyCardId === -1 ? 0.65 : 1,
         }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#1a1208" strokeWidth="2.4" strokeLinecap="round" /></svg>
-          Випустити
+          {busyCardId === -1 ? 'Створення...' : 'Випустити'}
         </button>
       </div>
 
@@ -499,49 +833,53 @@ function CardsScreen() {
             </button>
           </div>
         ))}
+        {!cards.length && (
+          <div style={{ padding: '20px', borderRadius: 18, border: `1px solid ${bg.border}`, background: bg.card, color: text.muted, minWidth: 280 }}>
+            Карток ще немає. Натисніть «Випустити».
+          </div>
+        )}
       </div>
 
       {/* Card details */}
       <div style={{ padding: '20px 22px 0' }}>
         <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22, padding: 20 }}>
+          {!card ? (
+            <div style={{ color: text.muted }}>Немає активної картки для перегляду.</div>
+          ) : (
+          <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
             <div style={{ fontFamily: '"SF Mono", monospace', fontSize: 16, fontWeight: 600, color: text.primary, letterSpacing: 1 }}>•• {card.number}</div>
             <div style={{
-              padding: '3px 8px', borderRadius: 100,
-              background: card.status === 'Активна' ? 'rgba(127,184,150,0.15)' : 'rgba(232,217,168,0.1)',
-              color: card.status === 'Активна' ? '#7fb896' : 'rgba(232,217,168,0.7)',
+              padding: '3px 8px', borderRadius: 100, background: card.statusRaw === 'active' ? 'rgba(127,184,150,0.15)' : 'rgba(232,217,168,0.1)',
+              color: card.statusRaw === 'active' ? '#7fb896' : 'rgba(232,217,168,0.7)',
               fontSize: 10.5, fontWeight: 600, letterSpacing: 0.3,
-            }}>{card.status}</div>
+            }}>{statusLabel}</div>
             <div style={{ flex: 1 }} />
-            <div style={{ fontSize: 11, color: text.muted }}>{card.type} • до {card.expiry}</div>
+            <div style={{ fontSize: 11, color: text.muted }}>{card.cardTypeRaw === 'physical' ? 'Фізична' : 'Віртуальна'} • до {card.expiry}</div>
           </div>
 
-          {/* Spending bar */}
+          {/* Account activity */}
           <div style={{ marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'baseline' }}>
-              <span style={{ fontSize: 11, letterSpacing: 1.2, color: text.muted, textTransform: 'uppercase', fontWeight: 500 }}>Витрачено цього місяця</span>
-              <span style={{ fontSize: 12, color: 'rgba(232,217,168,0.6)', fontFeatureSettings: '"tnum"' }}>{pct}%</span>
+              <span style={{ fontSize: 11, letterSpacing: 1.2, color: text.muted, textTransform: 'uppercase', fontWeight: 500 }}>Активність рахунку за місяць</span>
+              <span style={{ fontSize: 12, color: 'rgba(232,217,168,0.6)', fontFeatureSettings: '"tnum"' }}>{monthTransactions.length} оп.</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 22, fontWeight: 600, color: text.primary, fontFeatureSettings: '"tnum"' }}>₴ {card.used}</span>
-              <span style={{ fontSize: 13, color: text.dim, fontFeatureSettings: '"tnum"' }}>/ {card.limit}</span>
+              <span style={{ fontSize: 22, fontWeight: 600, color: text.primary, fontFeatureSettings: '"tnum"' }}>{formatUah(monthOut)}</span>
+              <span style={{ fontSize: 13, color: text.dim, fontFeatureSettings: '"tnum"' }}>витрат</span>
             </div>
-            <div style={{ height: 6, background: 'rgba(200,170,100,0.12)', borderRadius: 10, overflow: 'hidden' }}>
-              <div style={{
-                width: `${pct}%`, height: '100%',
-                background: `linear-gradient(90deg, ${goldDark} 0%, ${gold} 60%, ${goldLight} 100%)`,
-                borderRadius: 10,
-              }} />
+            <div style={{ fontSize: 12, color: text.muted }}>
+              Баланс рахунку: {formatUah(Number(account?.balance || 0))}
             </div>
           </div>
 
           {/* Actions */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
             {[
-              { label: 'Деталі', msg: `Картка •• ${card.number} · ${card.type} · до ${card.expiry}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M3 10h18" stroke={gold} strokeWidth="1.6" /></svg> },
-              { label: 'PIN', msg: 'PIN-код надіслано SMS', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg> },
+              { label: 'Деталі', msg: `Картка •• ${card.number} · до ${card.expiry}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M3 10h18" stroke={gold} strokeWidth="1.6" /></svg> },
+              { label: 'PIN', msg: 'PIN можна змінити у підтримці.', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg> },
               { label: 'Apple Pay', msg: 'Відкрийте Гаманець на iPhone', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M17 2a4 4 0 00-3 1.7M7 8a5 5 0 015-5c1.7 0 2.5 1 3 1.7M5 14c0 6 5 8 7 8s7-2 7-8-5-6-7-4c-2-2-7 0-7 4z" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-              { label: 'Ліміти', msg: `Ліміт: ₴ ${card.limit} · Витрачено: ₴ ${card.used}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1116 0" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><path d="M12 12l4-4" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><circle cx="12" cy="12" r="1.5" fill={gold} /></svg> },
+              { label: 'Рахунок', msg: `Рахунок: ${account?.account_number || '—'}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1116 0" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><path d="M12 12l4-4" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><circle cx="12" cy="12" r="1.5" fill={gold} /></svg> },
             ].map((a, i) => (
               <button key={i} onClick={() => toast(a.msg)} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
@@ -555,28 +893,29 @@ function CardsScreen() {
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={() => {
-              const next = [...frozen]; next[selected] = !next[selected]; setFrozen(next);
-              toast(next[selected] ? `Картку •• ${card.number} заморожено` : `Картку •• ${card.number} розморожено`);
-            }} style={{
-              flex: 1, padding: '12px', background: frozen[selected] ? 'rgba(127,184,150,0.08)' : 'rgba(232,168,100,0.08)',
-              border: `1px solid ${frozen[selected] ? 'rgba(127,184,150,0.2)' : 'rgba(232,168,100,0.2)'}`, borderRadius: 12,
-              color: frozen[selected] ? '#7fb896' : '#e8a864', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
+            <button onClick={onToggleBlock} disabled={busyCardId === card.id || card.statusRaw === 'closed'} style={{
+              flex: 1, padding: '12px', background: card.statusRaw === 'blocked' ? 'rgba(127,184,150,0.08)' : 'rgba(232,168,100,0.08)',
+              border: `1px solid ${card.statusRaw === 'blocked' ? 'rgba(127,184,150,0.2)' : 'rgba(232,168,100,0.2)'}`, borderRadius: 12,
+              color: card.statusRaw === 'blocked' ? '#7fb896' : '#e8a864', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              opacity: busyCardId === card.id || card.statusRaw === 'closed' ? 0.6 : 1,
             }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" /><path d="M8 11V8a4 4 0 018 0v3" stroke="currentColor" strokeWidth="1.8" /></svg>
-              {frozen[selected] ? 'Розморозити' : 'Заморозити'}
+              {card.statusRaw === 'blocked' ? 'Розблокувати' : 'Заблокувати'}
             </button>
-            <button onClick={() => toast(`Закриття картки •• ${card.number} — зверніться до підтримки`)} style={{
+            <button onClick={onCloseCard} disabled={busyCardId === card.id || card.statusRaw === 'closed'} style={{
               flex: 1, padding: '12px', background: 'rgba(220,100,110,0.06)',
               border: '1px solid rgba(220,100,110,0.2)', borderRadius: 12,
               color: '#dc646e', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              opacity: busyCardId === card.id || card.statusRaw === 'closed' ? 0.6 : 1,
             }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
               Закрити
             </button>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>
@@ -600,29 +939,77 @@ const CAT_STYLES: Record<TxCat, { bg: string; color: string; icon: React.ReactNo
 function OperationsScreen() {
   const topPad = useTopPad();
   const { toast } = useApp();
+  const { transactions } = useBankData();
   const [period, setPeriod] = useState(0);
   const periodLabels = ['Т', 'М', 'Р'];
-  const days = ['П', 'В', 'С', 'Ч', 'П', 'С', 'Н'];
-  const allValues = [[28, 45, 62, 30, 88, 54, 70], [60, 72, 48, 95, 55, 80, 65], [40, 55, 70, 85, 62, 90, 75]];
-  const values = allValues[period];
-  const max = Math.max(...values);
+  const periodDays = [7, 30, 365][period];
+  const periodMs = periodDays * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const startTs = now - periodMs;
+  const bucketMs = periodMs / 7;
+  const values = Array.from({ length: 7 }, () => 0);
+  const labels = Array.from({ length: 7 }, (_, i) => {
+    const stamp = new Date(startTs + (i + 1) * bucketMs);
+    return period === 2
+      ? stamp.toLocaleDateString('uk-UA', { month: 'short' })
+      : stamp.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+  });
 
-  const txGroups: { group: string; items: { title: string; subtitle: string; amount: string; positive?: boolean; cat: TxCat }[] }[] = [
-    { group: 'Сьогодні', items: [
-      { title: 'Надходження • ФОП', subtitle: '14:32', amount: '+84 200,00', positive: true, cat: 'income' },
-      { title: 'Сільпо', subtitle: '12:18 • Картка •• 0001', amount: '-1 247,50', cat: 'food' },
-      { title: 'Uklon', subtitle: '09:42 • Apple Pay', amount: '-148,00', cat: 'transport' },
-    ]},
-    { group: 'Вчора, 19 квітня', items: [
-      { title: 'Комунальні послуги', subtitle: 'Київенерго', amount: '-3 180,00', cat: 'utility' },
-      { title: 'Rozetka', subtitle: 'Покупки онлайн', amount: '-6 420,00', cat: 'shopping' },
-      { title: 'Starbucks', subtitle: 'Apple Pay', amount: '-185,00', cat: 'food' },
-    ]},
-    { group: '17 квітня', items: [
-      { title: 'Переказ на картку', subtitle: '•• 1183', amount: '-10 000,00', cat: 'transfer' },
-      { title: 'Spotify', subtitle: 'Підписка', amount: '-199,00', cat: 'subscription' },
-    ]},
-  ];
+  transactions.forEach((tx) => {
+    if (tx.direction !== 'out') return;
+    const ts = new Date(tx.created_at).getTime();
+    if (!Number.isFinite(ts) || ts < startTs || ts > now) return;
+    const idx = Math.min(6, Math.max(0, Math.floor((ts - startTs) / bucketMs)));
+    values[idx] += Number(tx.amount || 0);
+  });
+
+  const max = Math.max(...values, 1);
+  const totalOut = values.reduce((sum, v) => sum + v, 0);
+
+  const isSameDate = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  const txCat = (tx: ApiTransaction): TxCat => {
+    if (tx.direction === 'in') return 'income';
+    if (tx.tx_type === 'transfer') return 'transfer';
+    if (tx.tx_type === 'topup') return 'income';
+    if (tx.tx_type === 'donation') return 'subscription';
+    if (tx.tx_type === 'payment') return 'shopping';
+    if (/(uber|uklon|bolt|таксі)/i.test(tx.description || '')) return 'transport';
+    if (/(комунал|енерго|газ|вода|інтернет)/i.test(tx.description || '')) return 'utility';
+    if (/(spotify|netflix|youtube|apple|google)/i.test(tx.description || '')) return 'subscription';
+    if (/(silpo|сільпо|atb|novus|metro|rozetka)/i.test(tx.description || '')) return 'food';
+    return 'shopping';
+  };
+
+  const grouped = new Map<string, { title: string; subtitle: string; amount: string; positive?: boolean; cat: TxCat }[]>();
+  const sorted = [...transactions].sort((a, b) => {
+    const ta = new Date(a.created_at).getTime();
+    const tb = new Date(b.created_at).getTime();
+    return tb - ta;
+  }).slice(0, 60);
+
+  sorted.forEach((tx) => {
+    const dt = new Date(tx.created_at);
+    if (Number.isNaN(dt.getTime())) return;
+    let group = dt.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
+    if (isSameDate(dt, today)) group = 'Сьогодні';
+    else if (isSameDate(dt, yesterday)) group = 'Вчора';
+    const item = {
+      title: tx.description || (tx.direction === 'in' ? 'Надходження' : 'Списання'),
+      subtitle: `${dt.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}${tx.related_account ? ` • ${tx.related_account}` : ''}`,
+      amount: `${tx.direction === 'in' ? '+' : '-'}${uahFmt.format(Math.abs(Number(tx.amount || 0)))}`,
+      positive: tx.direction === 'in',
+      cat: txCat(tx),
+    };
+    if (!grouped.has(group)) grouped.set(group, []);
+    grouped.get(group)!.push(item);
+  });
+
+  const txGroups = Array.from(grouped.entries()).slice(0, 8).map(([group, items]) => ({ group, items: items.slice(0, 8) }));
 
   return (
     <ContentWrap maxW={720}>
@@ -637,10 +1024,9 @@ function OperationsScreen() {
         <div style={{ padding: 20, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
-              <div style={{ fontSize: 11, letterSpacing: 1.2, color: text.muted, textTransform: 'uppercase', fontWeight: 500, marginBottom: 4 }}>Витрати за тиждень</div>
+              <div style={{ fontSize: 11, letterSpacing: 1.2, color: text.muted, textTransform: 'uppercase', fontWeight: 500, marginBottom: 4 }}>Витрати за період</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ fontSize: 26, fontWeight: 600, color: text.primary, fontFeatureSettings: '"tnum"' }}>₴ 42 380</span>
-                <span style={{ fontSize: 12, color: '#7fb896' }}>-8.4%</span>
+                <span style={{ fontSize: 26, fontWeight: 600, color: text.primary, fontFeatureSettings: '"tnum"' }}>{formatUah(totalOut)}</span>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 4, padding: 3, background: 'rgba(26,40,32,0.5)', borderRadius: 100 }}>
@@ -659,24 +1045,31 @@ function OperationsScreen() {
               <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' }}>
                 <div style={{
                   width: '100%', height: `${(v / max) * 100}%`,
-                  background: i === 4
+                  background: i === 6
                     ? `linear-gradient(180deg, ${goldLight} 0%, ${gold} 50%, ${goldDark} 100%)`
                     : 'linear-gradient(180deg, rgba(200,170,100,0.35) 0%, rgba(138,106,47,0.15) 100%)',
                   borderRadius: 6,
-                  boxShadow: i === 4 ? '0 0 20px rgba(201,169,100,0.4)' : 'none',
+                  boxShadow: i === 6 ? '0 0 20px rgba(201,169,100,0.4)' : 'none',
                 }} />
               </div>
             ))}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            {days.map((d, i) => (
-              <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: 10, color: i === 4 ? gold : 'rgba(232,217,168,0.4)', fontWeight: i === 4 ? 600 : 400 }}>{d}</div>
+            {labels.map((d, i) => (
+              <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: 10, color: i === 6 ? gold : 'rgba(232,217,168,0.4)', fontWeight: i === 6 ? 600 : 400 }}>{d}</div>
             ))}
           </div>
         </div>
       </div>
 
       {/* Transactions */}
+      {!txGroups.length && (
+        <div style={{ padding: '0 22px' }}>
+          <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 16, padding: 16, color: text.muted }}>
+            Історія операцій поки порожня.
+          </div>
+        </div>
+      )}
       {txGroups.map((g, gi) => (
         <div key={gi} style={{ padding: '4px 22px 12px' }}>
           <div style={{ fontSize: 11, letterSpacing: 1.5, color: 'rgba(232,217,168,0.5)', textTransform: 'uppercase', fontWeight: 600, padding: '0 6px 8px' }}>{g.group}</div>
@@ -776,9 +1169,13 @@ function ProfileToggle({ label, sub, on, onChange, icon }: { label: string; sub?
 function ProfileScreen() {
   const topPad = useTopPad();
   const { logout } = useApp();
+  const { user, account } = useBankData();
   const [faceid, setFaceid] = useState(true);
   const [push, setPush] = useState(true);
   const [twofa, setTwofa] = useState(false);
+  const fullName = user?.full_name || 'Користувач Army Bank';
+  const avatar = initials(fullName);
+  const accountNumber = account?.account_number || '—';
 
   const section = (children: React.ReactNode) => (
     <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 20, overflow: 'hidden', margin: '0 22px 14px' }}>
@@ -798,8 +1195,8 @@ function ProfileScreen() {
           fontSize: 28, fontWeight: 700, color: '#1a2820', letterSpacing: 0.5,
           boxShadow: `0 0 0 3px rgba(0,0,0,0.6), 0 0 0 5px ${gold}55, inset 0 1px 0 rgba(255,220,150,0.5)`,
           marginBottom: 14,
-        }}>VM</div>
-        <div style={{ fontSize: 20, fontWeight: 700, color: text.primary, letterSpacing: -0.3, marginBottom: 4 }}>Vyacheslaw Munister</div>
+        }}>{avatar}</div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: text.primary, letterSpacing: -0.3, marginBottom: 4 }}>{fullName}</div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: 'rgba(127,184,150,0.12)', border: '1px solid rgba(127,184,150,0.25)', borderRadius: 100 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#7fb896' }} />
           <span style={{ fontSize: 11.5, color: '#7fb896', fontWeight: 500 }}>Верифікований</span>
@@ -808,10 +1205,10 @@ function ProfileScreen() {
 
       {/* Account info */}
       {section(<>
-        <ProfileRow label="Ім'я" value="Vyacheslaw Munister" />
-        <ProfileRow label="Телефон" value="+380 96 ••• •• 47" mono />
-        <ProfileRow label="IBAN" value="UA 213223130000026007233566001" mono copyable />
-        <ProfileRow label="Рахунок" value="AB-100023" mono copyable last />
+        <ProfileRow label="Ім'я" value={fullName} />
+        <ProfileRow label="Телефон" value={user?.phone || '—'} mono />
+        <ProfileRow label="Email" value={user?.email || '—'} />
+        <ProfileRow label="Рахунок" value={accountNumber} mono copyable last />
       </>)}
 
       {/* Security */}
@@ -904,6 +1301,10 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
 // ─── Desktop sidebar ──────────────────────────────────────────
 function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) => void }) {
   const { logout } = useApp();
+  const { user, account } = useBankData();
+  const fullName = user?.full_name || 'Користувач';
+  const short = shortName(fullName);
+  const avatar = initials(fullName);
   return (
     <div style={{
       width: 260, flexShrink: 0,
@@ -944,9 +1345,9 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 14, fontWeight: 700, color: '#1a2820',
             boxShadow: `0 0 0 2px rgba(0,0,0,0.5), 0 0 0 4px ${gold}44`,
-          }}>VM</div>
+          }}>{avatar}</div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: text.primary, marginBottom: 2 }}>Vyacheslaw M.</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: text.primary, marginBottom: 2 }}>{short}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#7fb896' }} />
               <span style={{ fontSize: 11, color: '#7fb896' }}>Верифікований</span>
@@ -981,11 +1382,11 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
       <div style={{ padding: '16px 20px', margin: '0 12px 12px', borderRadius: 16, background: bg.card, border: `1px solid ${bg.border}` }}>
         <div style={{ fontSize: 10, letterSpacing: 1.5, color: text.muted, textTransform: 'uppercase', fontWeight: 500, marginBottom: 8 }}>Загальний баланс</div>
         <div style={{ fontSize: 22, fontWeight: 300, color: text.primary, letterSpacing: -0.8, fontFeatureSettings: '"tnum"' }}>
-          <span style={{ fontSize: 14, color: gold, fontWeight: 400 }}>₴ </span>7 986 232
+          <span style={{ fontSize: 14, color: gold, fontWeight: 400 }}>₴ </span>{uahFmt.format(Number(account?.balance || 0)).split(',')[0]}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6 }}>
           <svg width="8" height="8" viewBox="0 0 12 12"><path d="M6 2l4 5H2z" fill="#7fb896" /></svg>
-          <span style={{ fontSize: 11, color: '#7fb896', fontWeight: 500 }}>+2.4% цього місяця</span>
+          <span style={{ fontSize: 11, color: '#7fb896', fontWeight: 500 }}>{account?.account_number || 'Рахунок недоступний'}</span>
         </div>
       </div>
 
@@ -1045,7 +1446,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           : { identity: identity.trim(), password }),
       });
       const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.message || (isReg ? 'Помилка реєстрації' : 'Невірні дані'));
+      if (!res.ok || !json.ok) throw new Error(json.error || json.message || (isReg ? 'Помилка реєстрації' : 'Невірні дані'));
       localStorage.setItem('army_bank_token', json.data.token);
       onLogin();
     } catch (err: unknown) {
@@ -1162,9 +1563,16 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
 // ─── App root ─────────────────────────────────────────────────
 export default function App() {
-  const [authed, setAuthed] = useState(() => !!localStorage.getItem('army_bank_token'));
+  const [authed, setAuthed] = useState(() => !!getToken());
   const [tab, setTab] = useState<TabKey>('overview');
   const [toastMsg, setToastMsg] = useState('');
+  const [loadingData, setLoadingData] = useState(true);
+  const [refreshingData, setRefreshingData] = useState(false);
+  const [dataError, setDataError] = useState('');
+  const [user, setUser] = useState<ApiUser | null>(null);
+  const [account, setAccount] = useState<ApiAccount | null>(null);
+  const [cards, setCards] = useState<ApiCard[]>([]);
+  const [transactions, setTransactions] = useState<ApiTransaction[]>([]);
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const width = useWindowWidth();
   const isDesktop = width >= 768;
@@ -1176,10 +1584,105 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToastMsg(''), 2500);
   };
 
+  const logout = () => {
+    clearToken();
+    setAuthed(false);
+    setTab('overview');
+    setUser(null);
+    setAccount(null);
+    setCards([]);
+    setTransactions([]);
+    setDataError('');
+    setLoadingData(true);
+  };
+
+  const loadBankData = async (silent = false) => {
+    if (!authed) return;
+    if (silent) setRefreshingData(true);
+    else setLoadingData(true);
+    setDataError('');
+    try {
+      let userData: ApiUser | null = null;
+      let accountData: ApiAccount | null = null;
+      let txData: ApiTransaction[] = [];
+
+      try {
+        const dashboard = await apiRequest<{
+          user?: ApiUser;
+          account?: ApiAccount;
+          transactions?: ApiTransaction[];
+        }>('/api/dashboard');
+        userData = dashboard?.user || null;
+        accountData = dashboard?.account || null;
+        txData = Array.isArray(dashboard?.transactions) ? dashboard.transactions : [];
+      } catch {
+        const [me, acc, history] = await Promise.all([
+          apiRequest<ApiUser>('/api/auth/me'),
+          apiRequest<ApiAccount>('/api/accounts/main'),
+          apiRequest<ApiTransaction[]>('/api/transactions/history'),
+        ]);
+        userData = me || null;
+        accountData = acc || null;
+        txData = Array.isArray(history) ? history : [];
+      }
+
+      const cardsData = await apiRequest<ApiCard[]>('/api/cards');
+
+      setUser(userData);
+      setAccount(accountData);
+      setTransactions(txData);
+      setCards(Array.isArray(cardsData) ? cardsData : []);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Не вдалося завантажити дані.';
+      setDataError(message);
+      if ((err as { status?: number }).status === 401) {
+        logout();
+        return;
+      }
+      if (!silent) showToast(message);
+    } finally {
+      if (silent) setRefreshingData(false);
+      else setLoadingData(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!authed) return;
+    loadBankData(false).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed]);
+
+  const mutateCard = async (cardId: number, action: 'block' | 'close') => {
+    const endpoint = action === 'block' ? 'block' : 'close';
+    await apiRequest(`/api/cards/${cardId}/${endpoint}`, { method: 'PATCH' });
+    await loadBankData(true);
+  };
+
+  const issueCard = async () => {
+    await apiRequest('/api/cards', {
+      method: 'POST',
+      body: JSON.stringify({ card_type: 'virtual', design: 'gold' }),
+    });
+    await loadBankData(true);
+  };
+
   const appCtx: AppCtxType = {
-    logout: () => { localStorage.removeItem('army_bank_token'); setAuthed(false); },
+    logout,
     goTo: (t: TabKey) => setTab(t),
     toast: showToast,
+  };
+
+  const bankCtx: BankDataCtxType = {
+    loading: loadingData,
+    refreshing: refreshingData,
+    error: dataError,
+    user,
+    account,
+    cards,
+    transactions,
+    refresh: async () => loadBankData(true),
+    mutateCard,
+    issueCard,
   };
 
   if (!authed) {
@@ -1189,30 +1692,52 @@ export default function App() {
   if (isDesktop) {
     return (
       <AppCtx.Provider value={appCtx}>
-        <LayoutCtx.Provider value="desktop">
-          <div style={{ ...appBase, display: 'flex' }}>
-            <DesktopSidebar active={tab} onChange={setTab} />
-            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-              <Screen />
+        <BankDataCtx.Provider value={bankCtx}>
+          <LayoutCtx.Provider value="desktop">
+            <div style={{ ...appBase, display: 'flex' }}>
+              <DesktopSidebar active={tab} onChange={setTab} />
+              <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+                {dataError && (
+                  <div style={{ margin: '12px 16px 0', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(220,100,110,0.25)', background: 'rgba(220,100,110,0.08)', color: '#ffb6bd', fontSize: 13 }}>
+                    {dataError}
+                  </div>
+                )}
+                {loadingData ? (
+                  <div style={{ minHeight: '100%', display: 'grid', placeItems: 'center', color: text.muted }}>Завантаження даних...</div>
+                ) : (
+                  <Screen />
+                )}
+              </div>
             </div>
-          </div>
-          {toastMsg && <Toast msg={toastMsg} />}
-        </LayoutCtx.Provider>
+            {toastMsg && <Toast msg={toastMsg} />}
+          </LayoutCtx.Provider>
+        </BankDataCtx.Provider>
       </AppCtx.Provider>
     );
   }
 
   return (
     <AppCtx.Provider value={appCtx}>
-      <LayoutCtx.Provider value="mobile">
-        <div style={{ ...appBase, overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 100 }}>
-            <Screen />
+      <BankDataCtx.Provider value={bankCtx}>
+        <LayoutCtx.Provider value="mobile">
+          <div style={{ ...appBase, overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 100 }}>
+              {dataError && (
+                <div style={{ margin: '10px 12px 0', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(220,100,110,0.25)', background: 'rgba(220,100,110,0.08)', color: '#ffb6bd', fontSize: 13 }}>
+                  {dataError}
+                </div>
+              )}
+              {loadingData ? (
+                <div style={{ minHeight: '100%', display: 'grid', placeItems: 'center', color: text.muted }}>Завантаження даних...</div>
+              ) : (
+                <Screen />
+              )}
+            </div>
+            <TabBar active={tab} onChange={setTab} />
+            {toastMsg && <Toast msg={toastMsg} />}
           </div>
-          <TabBar active={tab} onChange={setTab} />
-          {toastMsg && <Toast msg={toastMsg} />}
-        </div>
-      </LayoutCtx.Provider>
+        </LayoutCtx.Provider>
+      </BankDataCtx.Provider>
     </AppCtx.Provider>
   );
 }
