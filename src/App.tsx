@@ -11,6 +11,12 @@ const text = { primary: '#f4ebd0', secondary: '#f0e7cc', muted: 'rgba(232,217,16
 const LayoutCtx = createContext<'mobile' | 'desktop'>('mobile');
 const useLayout = () => useContext(LayoutCtx);
 
+// ─── App context (logout + navigation) ───────────────────────
+type TabKey = 'overview' | 'operations' | 'cards' | 'profile';
+interface AppCtxType { logout: () => void; goTo: (tab: TabKey) => void; }
+const AppCtx = createContext<AppCtxType>({ logout: () => {}, goTo: () => {} });
+const useApp = () => useContext(AppCtx);
+
 function useWindowWidth() {
   const [w, setW] = useState(() => window.innerWidth);
   useEffect(() => {
@@ -169,9 +175,9 @@ function DesktopHeader({ title, subtitle, children }: { title: string; subtitle?
 }
 
 // ─── Overview screen ──────────────────────────────────────────
-function QuickAction({ icon, label }: { icon: React.ReactNode; label: string }) {
+function QuickAction({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
   return (
-    <button style={{
+    <button onClick={onClick} style={{
       flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
       padding: '14px 6px', background: bg.card, border: `1px solid rgba(200,170,100,0.14)`,
       borderRadius: 18, color: '#e8d9a8', fontFamily: 'inherit', fontSize: 12, fontWeight: 500,
@@ -260,13 +266,14 @@ function BalanceBlock({ visible, onToggle }: { visible: boolean; onToggle: () =>
 }
 
 function ActivityFeed({ title = true }: { title?: boolean }) {
+  const { goTo } = useApp();
   return (
     <div>
       {title && (
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: text.secondary }}>Остання активність</span>
           <div style={{ flex: 1 }} />
-          <button style={{ fontSize: 12, color: gold, background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: 3, fontFamily: 'inherit', fontWeight: 500, cursor: 'pointer' }}>
+          <button onClick={() => goTo('operations')} style={{ fontSize: 12, color: gold, background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: 3, fontFamily: 'inherit', fontWeight: 500, cursor: 'pointer' }}>
             Історія <Chevron size={12} color={gold} />
           </button>
         </div>
@@ -283,16 +290,17 @@ function ActivityFeed({ title = true }: { title?: boolean }) {
   );
 }
 
-const QUICK_ACTIONS: { label: string; icon: React.ReactNode }[] = [
-  { label: 'Поповнити', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="#1a1208" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  { label: 'На картку', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="#1a1208" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  { label: 'За IBAN', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 9h18M3 15h18M6 5v14M18 5v14" stroke="#1a1208" strokeWidth="2" strokeLinecap="round" /></svg> },
-  { label: 'Маркет', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 7h16l-1.5 11a2 2 0 01-2 1.8h-9a2 2 0 01-2-1.8L4 7zM9 7V5a3 3 0 016 0v2" stroke="#1a1208" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+const QUICK_ACTIONS: { label: string; icon: React.ReactNode; tab: TabKey }[] = [
+  { label: 'Поповнити', tab: 'operations', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="#1a1208" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+  { label: 'На картку', tab: 'operations', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="#1a1208" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+  { label: 'За IBAN', tab: 'operations', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 9h18M3 15h18M6 5v14M18 5v14" stroke="#1a1208" strokeWidth="2" strokeLinecap="round" /></svg> },
+  { label: 'Картки', tab: 'cards', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="5" width="19" height="14" rx="2.5" stroke="#1a1208" strokeWidth="2" /><path d="M2.5 10h19" stroke="#1a1208" strokeWidth="2" /></svg> },
 ];
 
 function OverviewScreen() {
   const layout = useLayout();
   const topPad = useTopPad();
+  const { goTo } = useApp();
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [cardIdx, setCardIdx] = useState(0);
   const cards: CardData[] = [
@@ -308,7 +316,7 @@ function OverviewScreen() {
         <span style={{ fontSize: 13, fontWeight: 600, color: text.secondary }}>Мої картки</span>
         <span style={{ fontSize: 11, color: text.dim }}>• {cards.length}</span>
         <div style={{ flex: 1 }} />
-        <button style={{ fontSize: 12, color: gold, background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: 3, fontFamily: 'inherit', fontWeight: 500, cursor: 'pointer' }}>
+        <button onClick={() => goTo('cards')} style={{ fontSize: 12, color: gold, background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: 3, fontFamily: 'inherit', fontWeight: 500, cursor: 'pointer' }}>
           Усі <Chevron size={12} color={gold} />
         </button>
       </div>
@@ -327,7 +335,7 @@ function OverviewScreen() {
     <div>
       <div style={{ fontSize: 13, fontWeight: 600, color: text.secondary, marginBottom: 12 }}>Швидкі дії</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-        {QUICK_ACTIONS.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} /></Fragment>)}
+        {QUICK_ACTIONS.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => goTo(a.tab)} /></Fragment>)}
       </div>
     </div>
   );
@@ -413,7 +421,7 @@ function OverviewScreen() {
       </div>
       <div style={{ padding: '0 22px 4px' }}>{cardSection}</div>
       <div style={{ display: 'flex', gap: 8, padding: '18px 22px 6px' }}>
-        {QUICK_ACTIONS.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} /></Fragment>)}
+        {QUICK_ACTIONS.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => goTo(a.tab)} /></Fragment>)}
       </div>
       <div style={{ padding: '22px 22px 0' }}><ActivityFeed /></div>
     </div>
@@ -731,6 +739,7 @@ function ProfileToggle({ label, sub, on, onChange, icon }: { label: string; sub?
 
 function ProfileScreen() {
   const topPad = useTopPad();
+  const { logout } = useApp();
   const [faceid, setFaceid] = useState(true);
   const [push, setPush] = useState(true);
   const [twofa, setTwofa] = useState(false);
@@ -789,7 +798,7 @@ function ProfileScreen() {
 
       {/* Sign out */}
       <div style={{ padding: '8px 22px' }}>
-        <button style={{
+        <button onClick={logout} style={{
           width: '100%', padding: '14px', borderRadius: 16,
           background: 'rgba(220,100,110,0.06)', border: '1px solid rgba(220,100,110,0.18)',
           color: '#dc646e', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
@@ -805,7 +814,6 @@ function ProfileScreen() {
 }
 
 // ─── Bottom tab bar ───────────────────────────────────────────
-type TabKey = 'overview' | 'operations' | 'cards' | 'profile';
 
 const TABS: { k: TabKey; label: string; icon: (c: string) => React.ReactNode }[] = [
   { k: 'overview', label: 'Огляд', icon: c => <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /><rect x="13.5" y="3" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /><rect x="3" y="13.5" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /></svg> },
@@ -859,6 +867,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
 
 // ─── Desktop sidebar ──────────────────────────────────────────
 function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) => void }) {
+  const { logout } = useApp();
   return (
     <div style={{
       width: 260, flexShrink: 0,
@@ -946,7 +955,7 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
 
       {/* Logout */}
       <div style={{ padding: '0 12px 24px' }}>
-        <button style={{
+        <button onClick={logout} style={{
           width: '100%', padding: '11px', borderRadius: 12,
           background: 'transparent', border: '1px solid rgba(220,100,110,0.18)',
           color: 'rgba(220,100,110,0.7)', fontFamily: 'inherit', fontSize: 13, fontWeight: 500,
@@ -1101,31 +1110,40 @@ export default function App() {
   const isDesktop = width >= 768;
   const Screen = SCREENS[tab];
 
+  const appCtx: AppCtxType = {
+    logout: () => { localStorage.removeItem('army_bank_token'); setAuthed(false); },
+    goTo: (t: TabKey) => setTab(t),
+  };
+
   if (!authed) {
     return <LoginScreen onLogin={() => setAuthed(true)} />;
   }
 
   if (isDesktop) {
     return (
-      <LayoutCtx.Provider value="desktop">
-        <div style={{ ...appBase, display: 'flex' }}>
-          <DesktopSidebar active={tab} onChange={setTab} />
-          <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-            <Screen />
+      <AppCtx.Provider value={appCtx}>
+        <LayoutCtx.Provider value="desktop">
+          <div style={{ ...appBase, display: 'flex' }}>
+            <DesktopSidebar active={tab} onChange={setTab} />
+            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+              <Screen />
+            </div>
           </div>
-        </div>
-      </LayoutCtx.Provider>
+        </LayoutCtx.Provider>
+      </AppCtx.Provider>
     );
   }
 
   return (
-    <LayoutCtx.Provider value="mobile">
-      <div style={{ ...appBase, overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 100 }}>
-          <Screen />
+    <AppCtx.Provider value={appCtx}>
+      <LayoutCtx.Provider value="mobile">
+        <div style={{ ...appBase, overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 100 }}>
+            <Screen />
+          </div>
+          <TabBar active={tab} onChange={setTab} />
         </div>
-        <TabBar active={tab} onChange={setTab} />
-      </div>
-    </LayoutCtx.Provider>
+      </LayoutCtx.Provider>
+    </AppCtx.Provider>
   );
 }
