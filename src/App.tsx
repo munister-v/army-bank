@@ -310,15 +310,17 @@ function txToCat(tx: TxItem): TxCat {
   const m: Record<string, TxCat> = { food: 'food', transport: 'transport', utility: 'utility', shopping: 'shopping', subscription: 'subscription', transfer: 'transfer' };
   return (m[tx.tx_type] ?? 'transfer') as TxCat;
 }
-function apiCardToData(c: CardInfo): CardData & { id: number; type: string; limit: string; used: string } {
+function apiCardToData(c: CardInfo, holderFallback = 'ARMY BANK'): CardData & { id: number; type: string; limit: string; used: string; statusRaw: string; cardTypeRaw: string } {
   return {
     id: c.id,
     variant: DESIGN_TO_VARIANT[c.design] ?? 'gold',
     number: c.masked_number.slice(-4),
-    name: c.holder_name || 'CARDHOLDER',
+    name: (c.holder_name || holderFallback).toUpperCase().slice(0, 26),
     expiry: c.expiry_display,
     type: c.card_type === 'virtual' ? 'Віртуальна' : 'Фізична',
     status: c.status === 'active' ? 'Активна' : c.status === 'blocked' ? 'Заморожена' : 'Закрита',
+    statusRaw: c.status,
+    cardTypeRaw: c.card_type,
     limit: '—',
     used: '—',
   };
@@ -423,6 +425,14 @@ function DesktopHeader({ title, subtitle, children }: { title: string; subtitle?
   );
 }
 
+function timeGreeting(): string {
+  const h = new Date().getHours();
+  if (h >= 6 && h < 12) return 'Доброго ранку';
+  if (h >= 12 && h < 18) return 'Добрий день';
+  if (h >= 18 && h < 23) return 'Доброго вечора';
+  return 'Доброї ночі';
+}
+
 // ─── Overview screen ──────────────────────────────────────────
 function QuickAction({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
   return (
@@ -500,7 +510,7 @@ function BalanceBlock({ visible, onToggle, balance, accountNumber }: { visible: 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span style={{ fontSize: 11, letterSpacing: 2, color: text.muted, textTransform: 'uppercase', fontWeight: 500 }}>Загальний баланс</span>
+        <span style={{ fontSize: 12, color: text.muted, fontWeight: 500 }}>Загальний баланс</span>
         <button onClick={onToggle} style={{ width: 22, height: 22, borderRadius: '50%', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {visible
             ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" stroke={text.muted} strokeWidth="1.6" /><circle cx="12" cy="12" r="3" stroke={text.muted} strokeWidth="1.6" /></svg>
@@ -662,11 +672,13 @@ function OverviewScreen() {
     if (action === 'topup' || action === 'by_card' || action === 'by_account') openTransfer(action);
     else goTo(action as TabKey);
   }
+  const { analytics } = useBankData();
   const displayName = user?.full_name ?? 'Користувач';
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [cardIdx, setCardIdx] = useState(0);
-  const cards: CardData[] = apiCards.length > 0 ? apiCards.map(apiCardToData) : [
+  const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
+  const cards: CardData[] = apiCards.length > 0 ? apiCards.map(c => apiCardToData(c, userNameUp)) : [
     { variant: 'gold', number: '0001', name: 'VYACHESLAW MUNISTER', expiry: '03/29' },
     { variant: 'emerald', number: '1183', name: 'VYACHESLAW MUNISTER', expiry: '02/29' },
     { variant: 'platinum', number: '7147', name: 'VYACHESLAW MUNISTER', expiry: '08/28' },
@@ -718,13 +730,25 @@ function OverviewScreen() {
     </div>
   );
 
+  const byType = (analytics?.by_type || []).filter(r => r.direction === 'out');
+  const totalOut = byType.reduce((s, r) => s + Number(r.total), 0);
+  const SPEND_LABELS: Record<string, string> = { transfer: 'Перекази', food: 'Їжа', transport: 'Транспорт', utility: 'Комунальні', shopping: 'Покупки', subscription: 'Підписки' };
+  const SPEND_COLORS: Record<string, string> = { transfer: '#e8d9a8', food: '#e8a864', transport: '#88a8e8', utility: gold, shopping: '#c97db4', subscription: '#78c8b4' };
+  const spendRows = totalOut > 0 ? byType.map(r => ({
+    label: SPEND_LABELS[r.tx_type] || r.tx_type,
+    pct: Math.round(Number(r.total) / totalOut * 100),
+    color: SPEND_COLORS[r.tx_type] || gold,
+  })) : [];
+
+  const greeting = timeGreeting();
+
   if (layout === 'desktop') {
     return (
       <div style={{ padding: `${topPad} 32px 48px`, minHeight: '100%' }}>
         {/* Top greeting bar */}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
           <div>
-            <div style={{ fontSize: 13, color: text.muted, marginBottom: 4 }}>Доброго дня 👋</div>
+            <div style={{ fontSize: 13, color: text.muted, marginBottom: 4 }}>{greeting}</div>
             <div style={{ fontSize: 26, fontWeight: 700, color: text.primary, letterSpacing: -0.4 }}>{displayName}</div>
           </div>
           <div style={{ flex: 1 }} />
@@ -732,7 +756,7 @@ function OverviewScreen() {
             <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#e8d9a8" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
             <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#e8d9a8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
           ].map((icon, i) => (
-            <button key={i} onClick={() => toast(i === 0 ? 'Чат підтримки — незабаром' : 'Нових сповіщень немає')} style={{ width: 40, height: 40, borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 10 }}>{icon}</button>
+            <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast('Нових сповіщень немає')} style={{ width: 40, height: 40, borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 10 }}>{icon}</button>
           ))}
         </div>
 
@@ -751,7 +775,7 @@ function OverviewScreen() {
             <ActivityFeed transactions={transactions} />
             {/* Spending stats mini */}
             <div style={{ padding: 20, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22 }}>
-              <div style={{ fontSize: 11, letterSpacing: 1.5, color: text.muted, textTransform: 'uppercase', fontWeight: 600, marginBottom: 14 }}>Витрати цього місяця</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: text.secondary, marginBottom: 14 }}>Витрати цього місяця</div>
               {!spendRows.length && (
                 <div style={{ fontSize: 12, color: text.muted }}>Недостатньо даних для розподілу витрат.</div>
               )}
@@ -780,14 +804,14 @@ function OverviewScreen() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: `${topPad} 18px 8px` }}>
         <div style={{ width: 40, height: 40, borderRadius: '50%', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a2820', fontSize: 13, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(255,220,150,0.5), 0 2px 6px rgba(0,0,0,0.3)' }}>{initials}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.5, marginBottom: 1 }}>Доброго дня</div>
+          <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.5, marginBottom: 1 }}>{greeting}</div>
           <div style={{ fontSize: 15, fontWeight: 600, color: text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName.split(' ')[0]}</div>
         </div>
         {[
           <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#e8d9a8" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
           <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#e8d9a8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
         ].map((icon, i) => (
-          <button key={i} onClick={() => toast(i === 0 ? 'Чат підтримки — незабаром' : 'Нових сповіщень немає')} style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(200,170,100,0.12)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>{icon}</button>
+          <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast('Нових сповіщень немає')} style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(200,170,100,0.12)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>{icon}</button>
         ))}
       </div>
 
@@ -806,17 +830,25 @@ function OverviewScreen() {
 // ─── Cards screen ─────────────────────────────────────────────
 function CardsScreen() {
   const topPad = useTopPad();
-  const { toast, cards: apiCards, refreshDashboard } = useApp();
-  const FALLBACK_CARDS: (CardData & { id: number; type: string; limit: string; used: string })[] = [
-    { id: 0, variant: 'gold', number: '0001', name: 'VYACHESLAW MUNISTER', expiry: '03/29', type: 'Віртуальна', limit: '150 000', used: '48 230', status: 'Активна' },
-    { id: 0, variant: 'emerald', number: '1183', name: 'VYACHESLAW MUNISTER', expiry: '02/29', type: 'Фізична', limit: '80 000', used: '12 400', status: 'Активна' },
-    { id: 0, variant: 'platinum', number: '7147', name: 'VYACHESLAW MUNISTER', expiry: '08/28', type: 'Фізична', limit: '500 000', used: '215 800', status: 'Активна' },
-    { id: 0, variant: 'obsidian', number: '4402', name: 'VYACHESLAW MUNISTER', expiry: '11/30', type: 'Віртуальна', limit: '50 000', used: '0', status: 'Заморожена' },
+  const { toast, cards: apiCards, refreshDashboard, transactions: allTx, account, user } = useApp();
+  const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
+  const FALLBACK_CARDS: (CardData & { id: number; type: string; limit: string; used: string; statusRaw: string; cardTypeRaw: string })[] = [
+    { id: 0, variant: 'gold', number: '0001', name: 'VYACHESLAW MUNISTER', expiry: '03/29', type: 'Віртуальна', limit: '150 000', used: '48 230', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'virtual' },
+    { id: 0, variant: 'emerald', number: '1183', name: 'VYACHESLAW MUNISTER', expiry: '02/29', type: 'Фізична', limit: '80 000', used: '12 400', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'physical' },
+    { id: 0, variant: 'platinum', number: '7147', name: 'VYACHESLAW MUNISTER', expiry: '08/28', type: 'Фізична', limit: '500 000', used: '215 800', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'physical' },
+    { id: 0, variant: 'obsidian', number: '4402', name: 'VYACHESLAW MUNISTER', expiry: '11/30', type: 'Віртуальна', limit: '50 000', used: '0', status: 'Заморожена', statusRaw: 'blocked', cardTypeRaw: 'virtual' },
   ];
-  const cards = apiCards.length > 0 ? apiCards.map(apiCardToData) : FALLBACK_CARDS;
+  const cards = apiCards.length > 0 ? apiCards.map(c => apiCardToData(c, userNameUp)) : FALLBACK_CARDS;
   const [selected, setSelected] = useState(0);
   const safeIdx = Math.min(selected, cards.length - 1);
   const card = cards[safeIdx];
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthTransactions = allTx.filter(tx => new Date(tx.created_at) >= monthStart);
+  const monthOut = monthTransactions.filter(tx => tx.direction === 'out').reduce((s, tx) => s + tx.amount, 0);
+  const busyCardId: number | null = null;
+  const statusLabel = card?.status || 'Активна';
 
   async function toggleBlock() {
     if (apiCards.length === 0) { toast('Демо-режим: API не підключено'); return; }
@@ -845,15 +877,14 @@ function CardsScreen() {
     } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Помилка'); }
   }
 
-  const isFrozen = apiCards.length > 0 ? apiCards[safeIdx]?.status === 'blocked' : card.status === 'Заморожена';
-  const pct = 0;
+  const isFrozen = apiCards.length > 0 ? apiCards[safeIdx]?.status === 'blocked' : card.statusRaw === 'blocked';
 
   return (
     <ContentWrap maxW={760}>
     <div style={{ paddingBottom: 80 }}>
       <div style={{ padding: `${topPad} 22px 16px`, display: 'flex', alignItems: 'center' }}>
         <div>
-          <div style={{ fontSize: 11, letterSpacing: 2, color: text.muted, textTransform: 'uppercase', fontWeight: 500, marginBottom: 4 }}>Гаманець</div>
+          <div style={{ fontSize: 12, color: text.muted, fontWeight: 500, marginBottom: 4 }}>Гаманець</div>
           <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Мої картки</div>
         </div>
         <div style={{ flex: 1 }} />
@@ -998,7 +1029,12 @@ function OperationsScreen() {
   const now = Date.now();
   const startTs = now - periodMs;
   const bucketMs = periodMs / 7;
-  const values = Array.from({ length: 7 }, () => 0);
+  const values = Array.from({ length: 7 }, (_, i) => {
+    const bucketStart = startTs + i * bucketMs;
+    const bucketEnd = bucketStart + bucketMs;
+    return transactions.filter(tx => tx.direction === 'out' && new Date(tx.created_at).getTime() >= bucketStart && new Date(tx.created_at).getTime() < bucketEnd).reduce((s, tx) => s + tx.amount, 0);
+  });
+  const max = Math.max(...values, 1);
   const labels = Array.from({ length: 7 }, (_, i) => {
     const stamp = new Date(startTs + (i + 1) * bucketMs);
     return period === 2
@@ -1054,7 +1090,6 @@ function OperationsScreen() {
     <ContentWrap maxW={720}>
     <div style={{ paddingBottom: 80 }}>
       <div style={{ padding: `${topPad} 22px 14px` }}>
-        <div style={{ fontSize: 11, letterSpacing: 2, color: text.muted, textTransform: 'uppercase', fontWeight: 500, marginBottom: 4 }}>Фінансовий пульс</div>
         <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8, marginBottom: 14 }}>Операції</div>
         {/* Search */}
         <div style={{ position: 'relative' }}>
@@ -1119,7 +1154,7 @@ function OperationsScreen() {
       )}
       {txGroups.map((g, gi) => (
         <div key={gi} style={{ padding: '4px 22px 12px' }}>
-          <div style={{ fontSize: 11, letterSpacing: 1.5, color: 'rgba(232,217,168,0.5)', textTransform: 'uppercase', fontWeight: 600, padding: '0 6px 8px' }}>{g.group}</div>
+          <div style={{ fontSize: 12, color: 'rgba(232,217,168,0.45)', fontWeight: 500, padding: '0 6px 8px' }}>{g.group}</div>
           <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden' }}>
             {g.items.map((t, i) => {
               const s = CAT_STYLES[t.cat];
@@ -1285,7 +1320,7 @@ function ProfileScreen() {
 
       {/* Security */}
       <div style={{ padding: '4px 22px 8px' }}>
-        <div style={{ fontSize: 11, letterSpacing: 1.5, color: 'rgba(232,217,168,0.45)', textTransform: 'uppercase', fontWeight: 600, padding: '0 6px 8px' }}>Безпека</div>
+        <div style={{ fontSize: 12, color: 'rgba(232,217,168,0.45)', fontWeight: 500, padding: '0 6px 8px' }}>Безпека</div>
       </div>
       {section(<>
         <ProfileToggle label="Face ID" sub="Вхід і підтвердження" on={faceid} onChange={setFaceid}
@@ -1303,7 +1338,7 @@ function ProfileScreen() {
 
       {/* Change password */}
       <div style={{ padding: '4px 22px 8px' }}>
-        <div style={{ fontSize: 11, letterSpacing: 1.5, color: 'rgba(232,217,168,0.45)', textTransform: 'uppercase', fontWeight: 600, padding: '0 6px 8px' }}>Пароль</div>
+        <div style={{ fontSize: 12, color: 'rgba(232,217,168,0.45)', fontWeight: 500, padding: '0 6px 8px' }}>Пароль</div>
       </div>
       {section(<>
         <div
@@ -1407,7 +1442,6 @@ function MarketplaceScreen() {
     <ContentWrap maxW={800}>
     <div style={{ paddingBottom: 80 }}>
       <div style={{ padding: `${topPad} 22px 16px` }}>
-        <div style={{ fontSize: 11, letterSpacing: 2, color: text.muted, textTransform: 'uppercase', fontWeight: 500, marginBottom: 4 }}>Army Bank</div>
         <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Магазин</div>
       </div>
 
@@ -1430,7 +1464,13 @@ function MarketplaceScreen() {
       )}
 
       {!loading && filtered.length === 0 && (
-        <div style={{ padding: 60, textAlign: 'center', color: text.muted, fontSize: 14 }}>Товари відсутні</div>
+        <div style={{ padding: '60px 22px', textAlign: 'center' }}>
+          <div style={{ width: 56, height: 56, borderRadius: 18, background: 'rgba(200,170,100,0.08)', border: `1px solid rgba(200,170,100,0.14)`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.4 }}><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9" cy="21" r="1" fill={gold} /><circle cx="19" cy="21" r="1" fill={gold} /></svg>
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: text.secondary, marginBottom: 6 }}>Магазин порожній</div>
+          <div style={{ fontSize: 13, color: text.muted, lineHeight: 1.5 }}>Товари ще не додано.<br />Зверніться до підтримки для налаштування.</div>
+        </div>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, padding: '0 22px' }}>
@@ -1484,7 +1524,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
         {/* Sliding indicator */}
         <div style={{
           position: 'absolute', top: 6, bottom: 6,
-          left: `calc(${activeIdx * 25}% + 6px)`, width: 'calc(25% - 12px)',
+          left: `calc(${activeIdx * 20}% + 6px)`, width: 'calc(20% - 12px)',
           background: 'linear-gradient(135deg, rgba(201,169,100,0.22) 0%, rgba(138,106,47,0.12) 100%)',
           border: `1px solid rgba(200,170,100,0.35)`, borderRadius: 22,
           transition: 'left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -1782,6 +1822,10 @@ export default function App() {
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [transactions, setTransactions] = useState<TxItem[]>([]);
   const [cards, setCards] = useState<CardInfo[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
+  const [refreshingData, setRefreshingData] = useState(false);
+  const [dataError, setDataError] = useState('');
+  const [analytics, setAnalytics] = useState<ApiAnalytics | null>(null);
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const width = useWindowWidth();
   const isDesktop = width >= 768;
