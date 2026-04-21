@@ -1330,7 +1330,9 @@ function ProfileScreen() {
 
   const displayName = user?.full_name ?? 'Користувач';
   const initials = displayName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
-  const phone = user?.phone ? user.phone.replace(/(\d{3})(\d{2})(\d{3})(\d{2})(\d{2})/, '+$1 $2 $3 $4 $5') : '—';
+  const phone = user?.phone
+    ? ('+' + user.phone.replace(/^\+/, '')).replace(/^\+(\d{3})(\d{2})(\d{3})(\d{2})(\d{2})$/, '+$1 $2 $3 $4 $5')
+    : '—';
 
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
