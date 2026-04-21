@@ -974,12 +974,136 @@ const appBase: React.CSSProperties = {
   WebkitFontSmoothing: 'antialiased',
 };
 
+// ─── Login screen ─────────────────────────────────────────────
+function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  const [identity, setIdentity] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [showPass, setShowPass] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identity: identity.trim(), password }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.message || 'Невірні дані');
+      localStorage.setItem('army_bank_token', json.data.token);
+      onLogin();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Помилка входу');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '14px 16px', background: 'rgba(255,255,255,0.05)',
+    border: `1px solid ${bg.border}`, borderRadius: 12, color: text.primary,
+    fontSize: 15, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+  };
+  const labelStyle: React.CSSProperties = {
+    display: 'block', fontSize: 12, color: text.muted, marginBottom: 6, letterSpacing: '0.04em',
+  };
+
+  return (
+    <div style={{ ...appBase, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ width: '100%', maxWidth: 400 }}>
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: 18, margin: '0 auto 16px',
+            background: 'linear-gradient(135deg, #4a3a1a, #d4a84a)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 22, fontWeight: 700, color: '#1a1208', letterSpacing: '-0.02em',
+          }}>AB</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: text.primary, letterSpacing: '-0.02em' }}>ARM Bank</div>
+          <div style={{ fontSize: 14, color: text.muted, marginTop: 4 }}>Ваші фінанси під контролем</div>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit}>
+          <div style={{
+            background: 'rgba(255,255,255,0.03)', border: `1px solid ${bg.border}`,
+            borderRadius: 20, padding: 28,
+          }}>
+            <div style={{ marginBottom: 20 }}>
+              <label style={labelStyle}>Телефон або Email</label>
+              <input
+                style={inputStyle}
+                type="text"
+                value={identity}
+                onChange={e => setIdentity(e.target.value)}
+                placeholder="+380..."
+                autoComplete="username"
+                required
+              />
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label style={labelStyle}>Пароль</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  style={{ ...inputStyle, paddingRight: 44 }}
+                  type={showPass ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(v => !v)}
+                  style={{
+                    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer', color: text.muted, padding: 4,
+                  }}
+                >{showPass ? '🙈' : '👁'}</button>
+              </div>
+            </div>
+
+            {error && (
+              <div style={{
+                marginBottom: 16, padding: '10px 14px', background: 'rgba(200,60,60,0.12)',
+                border: '1px solid rgba(200,60,60,0.25)', borderRadius: 10,
+                color: '#f08080', fontSize: 13,
+              }}>{error}</div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%', padding: '14px', borderRadius: 12, border: 'none',
+                background: loading ? 'rgba(180,140,60,0.4)' : 'linear-gradient(135deg, #8a6a2f, #d4a84a)',
+                color: '#1a1208', fontSize: 15, fontWeight: 700, cursor: loading ? 'default' : 'pointer',
+                fontFamily: 'inherit', letterSpacing: '0.01em',
+              }}
+            >{loading ? 'Вхід...' : 'Увійти'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── App root ─────────────────────────────────────────────────
 export default function App() {
+  const [authed, setAuthed] = useState(() => !!localStorage.getItem('army_bank_token'));
   const [tab, setTab] = useState<TabKey>('overview');
   const width = useWindowWidth();
   const isDesktop = width >= 768;
-  const layout = isDesktop ? 'desktop' : 'mobile';
   const Screen = SCREENS[tab];
+
+  if (!authed) {
+    return <LoginScreen onLogin={() => setAuthed(true)} />;
+  }
 
   if (isDesktop) {
     return (
@@ -997,11 +1121,9 @@ export default function App() {
   return (
     <LayoutCtx.Provider value="mobile">
       <div style={{ ...appBase, overflow: 'hidden' }}>
-        {/* Scrollable content */}
         <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 100 }}>
           <Screen />
         </div>
-        {/* Bottom tab bar */}
         <TabBar active={tab} onChange={setTab} />
       </div>
     </LayoutCtx.Provider>
