@@ -5,7 +5,7 @@ export class ErrorBoundary extends Component<{ children: React.ReactNode }, { er
     super(props);
     this.state = { error: null };
   }
-  static getDerivedStateFromError(err: Error) { return { error: err.message }; }
+  static getDerivedStateFromError(err: Error): { error: string | null } { return { error: err.message }; }
   render() {
     if (this.state.error) {
       return (
