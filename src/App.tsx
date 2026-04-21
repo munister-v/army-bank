@@ -11,10 +11,18 @@ const text = { primary: '#f4ebd0', secondary: '#f0e7cc', muted: 'rgba(232,217,16
 const LayoutCtx = createContext<'mobile' | 'desktop'>('mobile');
 const useLayout = () => useContext(LayoutCtx);
 
-// ─── App context (logout + navigation + toast) ───────────────
+// ─── App context (logout + navigation + toast + user + data) ─
 type TabKey = 'overview' | 'operations' | 'cards' | 'profile';
-interface AppCtxType { logout: () => void; goTo: (tab: TabKey) => void; toast: (msg: string) => void; }
-const AppCtx = createContext<AppCtxType>({ logout: () => {}, goTo: () => {}, toast: () => {} });
+interface UserInfo { full_name: string; phone: string; email: string; bank_account_number?: string; }
+interface AccountInfo { id: number; account_number: string; balance: number; currency: string; }
+interface TxItem { id: number; tx_type: string; direction: 'in' | 'out'; amount: number; description: string; created_at: string; related_account?: string; }
+interface CardInfo { id: number; masked_number: string; expiry_display: string; card_type: string; design: string; status: string; holder_name: string; }
+interface AppCtxType {
+  logout: () => void; goTo: (tab: TabKey) => void; toast: (msg: string) => void;
+  user: UserInfo | null; account: AccountInfo | null;
+  transactions: TxItem[]; cards: CardInfo[]; refreshDashboard: () => void;
+}
+const AppCtx = createContext<AppCtxType>({ logout: () => {}, goTo: () => {}, toast: () => {}, user: null, account: null, transactions: [], cards: [], refreshDashboard: () => {} });
 const useApp = () => useContext(AppCtx);
 
 // ─── Toast notification ───────────────────────────────────────
@@ -28,7 +36,7 @@ function Toast({ msg }: { msg: string }) {
       border: '1px solid rgba(200,170,100,0.25)',
       color: '#e8d9a8', fontSize: 13, fontWeight: 500,
       boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-      whiteSpace: 'nowrap',
+      maxWidth: 'calc(100vw - 40px)', textAlign: 'center',
     }}>{msg}</div>
   );
 }
@@ -90,6 +98,44 @@ const CARD_VARIANTS: Record<CardVariant, {
     shimmer: 'linear-gradient(115deg, transparent 40%, rgba(200,170,100,0.12) 50%, transparent 60%)',
   },
 };
+
+// ─── Data helpers ─────────────────────────────────────────────
+function fmtInt(n: number) {
+  return Math.floor(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
+}
+function fmtDec(n: number) { return ',' + (Math.abs(n) % 1).toFixed(2).slice(2); }
+function fmtDateLabel(iso: string): string {
+  const d = new Date(iso.slice(0, 10) + 'T00:00:00');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const yest = new Date(today); yest.setDate(today.getDate() - 1);
+  if (d >= today) return 'Сьогодні';
+  if (d >= yest) return 'Вчора';
+  return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
+}
+function fmtTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+}
+const DESIGN_TO_VARIANT: Record<string, CardVariant> = {
+  gold: 'gold', navy: 'obsidian', forest: 'emerald', rose: 'gold', slate: 'platinum',
+};
+function txToCat(tx: TxItem): TxCat {
+  if (tx.direction === 'in') return 'income';
+  const m: Record<string, TxCat> = { food: 'food', transport: 'transport', utility: 'utility', shopping: 'shopping', subscription: 'subscription', transfer: 'transfer' };
+  return (m[tx.tx_type] ?? 'transfer') as TxCat;
+}
+function apiCardToData(c: CardInfo): CardData & { id: number; type: string; limit: string; used: string } {
+  return {
+    id: c.id,
+    variant: DESIGN_TO_VARIANT[c.design] ?? 'gold',
+    number: c.masked_number.slice(-4),
+    name: c.holder_name || 'CARDHOLDER',
+    expiry: c.expiry_display,
+    type: c.card_type === 'virtual' ? 'Віртуальна' : 'Фізична',
+    status: c.status === 'active' ? 'Активна' : c.status === 'blocked' ? 'Заморожена' : 'Закрита',
+    limit: '—',
+    used: '—',
+  };
+}
 
 function PremiumCard({ variant, number, name, expiry, style = {} }: CardData & { style?: React.CSSProperties }) {
   const v = CARD_VARIANTS[variant] ?? CARD_VARIANTS.gold;
@@ -253,7 +299,7 @@ const ACTIVITY_ROWS = [
   },
 ];
 
-function BalanceBlock({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+function BalanceBlock({ visible, onToggle, balance, accountNumber }: { visible: boolean; onToggle: () => void; balance: number; accountNumber: string }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -267,25 +313,29 @@ function BalanceBlock({ visible, onToggle }: { visible: boolean; onToggle: () =>
       </div>
       <div style={{ fontFamily: '"SF Pro Display", -apple-system, system-ui', fontSize: 46, fontWeight: 300, letterSpacing: -1.5, color: text.primary, lineHeight: 1, fontFeatureSettings: '"tnum"', display: 'flex', alignItems: 'baseline', gap: 4 }}>
         <span style={{ fontSize: 32, fontWeight: 400, color: gold }}>₴</span>
-        <span>{visible ? '7 986 232' : '• • • • • • •'}</span>
-        <span style={{ fontSize: 24, fontWeight: 400, color: 'rgba(244,235,208,0.5)' }}>,00</span>
+        <span>{visible ? fmtInt(balance) : '• • • • • • •'}</span>
+        <span style={{ fontSize: 24, fontWeight: 400, color: 'rgba(244,235,208,0.5)' }}>{visible ? fmtDec(balance) : ''}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 9px', background: 'rgba(127,184,150,0.12)', border: '1px solid rgba(127,184,150,0.25)', borderRadius: 100, fontSize: 11, color: '#7fb896', fontWeight: 500 }}>
-          <svg width="9" height="9" viewBox="0 0 12 12"><path d="M6 2l4 5H2z" fill="#7fb896" /></svg>
-          +2.4% цього місяця
-        </div>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 9px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(200,170,100,0.15)`, borderRadius: 100, fontSize: 11, color: 'rgba(232,217,168,0.7)', fontWeight: 500 }}>
-          AB-100023
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="2" /><path d="M5 15V5a2 2 0 012-2h10" stroke="currentColor" strokeWidth="2" /></svg>
-        </div>
+        {accountNumber && accountNumber !== '—' && (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 9px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(200,170,100,0.15)`, borderRadius: 100, fontSize: 11, color: 'rgba(232,217,168,0.7)', fontWeight: 500 }}>
+            {accountNumber}
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="2" /><path d="M5 15V5a2 2 0 012-2h10" stroke="currentColor" strokeWidth="2" /></svg>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function ActivityFeed({ title = true }: { title?: boolean }) {
+function ActivityFeed({ title = true, transactions }: { title?: boolean; transactions: TxItem[] }) {
   const { goTo } = useApp();
+  const rows = transactions.slice(0, 5).map(tx => {
+    const cat = txToCat(tx);
+    const s = CAT_STYLES[cat];
+    return { iconBg: s.bg, iconEl: s.icon, title: tx.description, subtitle: fmtTime(tx.created_at), amount: `₴\u00a0${fmtInt(tx.amount)}${fmtDec(tx.amount)}`, positive: tx.direction === 'in' };
+  });
+  const display = rows.length > 0 ? rows : ACTIVITY_ROWS.map(r => ({ ...r }));
   return (
     <div>
       {title && (
@@ -298,10 +348,10 @@ function ActivityFeed({ title = true }: { title?: boolean }) {
         </div>
       )}
       <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden' }}>
-        {ACTIVITY_ROWS.map((r, i) => (
+        {display.map((r, i) => (
           <Fragment key={i}>
             <ActivityRow {...r} onClick={() => goTo('operations')} />
-            {i < ACTIVITY_ROWS.length - 1 && <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 16px' }} />}
+            {i < display.length - 1 && <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 16px' }} />}
           </Fragment>
         ))}
       </div>
@@ -319,10 +369,12 @@ const QUICK_ACTIONS: { label: string; icon: React.ReactNode; tab: TabKey }[] = [
 function OverviewScreen() {
   const layout = useLayout();
   const topPad = useTopPad();
-  const { goTo, toast } = useApp();
+  const { goTo, toast, user, account, transactions, cards: apiCards } = useApp();
+  const displayName = user?.full_name ?? 'Користувач';
+  const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [cardIdx, setCardIdx] = useState(0);
-  const cards: CardData[] = [
+  const cards: CardData[] = apiCards.length > 0 ? apiCards.map(apiCardToData) : [
     { variant: 'gold', number: '0001', name: 'VYACHESLAW MUNISTER', expiry: '03/29' },
     { variant: 'emerald', number: '1183', name: 'VYACHESLAW MUNISTER', expiry: '02/29' },
     { variant: 'platinum', number: '7147', name: 'VYACHESLAW MUNISTER', expiry: '08/28' },
@@ -366,7 +418,7 @@ function OverviewScreen() {
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
           <div>
             <div style={{ fontSize: 13, color: text.muted, marginBottom: 4 }}>Доброго дня 👋</div>
-            <div style={{ fontSize: 26, fontWeight: 700, color: text.primary, letterSpacing: -0.4 }}>Vyacheslaw Munister</div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: text.primary, letterSpacing: -0.4 }}>{displayName}</div>
           </div>
           <div style={{ flex: 1 }} />
           {[
@@ -382,14 +434,14 @@ function OverviewScreen() {
           {/* Left: balance + card + quick actions */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div style={{ padding: 24, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22 }}>
-              <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} />
+              <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} balance={account?.balance ?? 0} accountNumber={account?.account_number ?? '—'} />
             </div>
             {cardSection}
             {quickActionsSection}
           </div>
           {/* Right: activity feed */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <ActivityFeed />
+            <ActivityFeed transactions={transactions} />
             {/* Spending stats mini */}
             <div style={{ padding: 20, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22 }}>
               <div style={{ fontSize: 11, letterSpacing: 1.5, color: text.muted, textTransform: 'uppercase', fontWeight: 600, marginBottom: 14 }}>Витрати цього місяця</div>
@@ -422,10 +474,10 @@ function OverviewScreen() {
     <div style={{ paddingBottom: 20 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: `${topPad} 18px 8px` }}>
-        <div style={{ width: 40, height: 40, borderRadius: '50%', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a2820', fontSize: 13, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(255,220,150,0.5), 0 2px 6px rgba(0,0,0,0.3)' }}>VM</div>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a2820', fontSize: 13, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(255,220,150,0.5), 0 2px 6px rgba(0,0,0,0.3)' }}>{initials}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.5, marginBottom: 1 }}>Доброго дня</div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Vyacheslaw M.</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName.split(' ')[0]}</div>
         </div>
         {[
           <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#e8d9a8" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
@@ -436,13 +488,13 @@ function OverviewScreen() {
       </div>
 
       <div style={{ padding: '24px 22px 20px' }}>
-        <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} />
+        <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} balance={account?.balance ?? 0} accountNumber={account?.account_number ?? '—'} />
       </div>
       <div style={{ padding: '0 22px 4px' }}>{cardSection}</div>
       <div style={{ display: 'flex', gap: 8, padding: '18px 22px 6px' }}>
         {QUICK_ACTIONS.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => goTo(a.tab)} /></Fragment>)}
       </div>
-      <div style={{ padding: '22px 22px 0' }}><ActivityFeed /></div>
+      <div style={{ padding: '22px 22px 0' }}><ActivityFeed transactions={transactions} /></div>
     </div>
   );
 }
@@ -450,18 +502,47 @@ function OverviewScreen() {
 // ─── Cards screen ─────────────────────────────────────────────
 function CardsScreen() {
   const topPad = useTopPad();
-  const { toast } = useApp();
-  const baseCards: (CardData & { type: string; limit: string; used: string })[] = [
-    { variant: 'gold', number: '0001', name: 'VYACHESLAW MUNISTER', expiry: '03/29', type: 'Віртуальна', limit: '150 000', used: '48 230' },
-    { variant: 'emerald', number: '1183', name: 'VYACHESLAW MUNISTER', expiry: '02/29', type: 'Фізична', limit: '80 000', used: '12 400' },
-    { variant: 'platinum', number: '7147', name: 'VYACHESLAW MUNISTER', expiry: '08/28', type: 'Фізична', limit: '500 000', used: '215 800' },
-    { variant: 'obsidian', number: '4402', name: 'VYACHESLAW MUNISTER', expiry: '11/30', type: 'Віртуальна', limit: '50 000', used: '0' },
+  const { toast, cards: apiCards, refreshDashboard } = useApp();
+  const FALLBACK_CARDS: (CardData & { id: number; type: string; limit: string; used: string })[] = [
+    { id: 0, variant: 'gold', number: '0001', name: 'VYACHESLAW MUNISTER', expiry: '03/29', type: 'Віртуальна', limit: '150 000', used: '48 230', status: 'Активна' },
+    { id: 0, variant: 'emerald', number: '1183', name: 'VYACHESLAW MUNISTER', expiry: '02/29', type: 'Фізична', limit: '80 000', used: '12 400', status: 'Активна' },
+    { id: 0, variant: 'platinum', number: '7147', name: 'VYACHESLAW MUNISTER', expiry: '08/28', type: 'Фізична', limit: '500 000', used: '215 800', status: 'Активна' },
+    { id: 0, variant: 'obsidian', number: '4402', name: 'VYACHESLAW MUNISTER', expiry: '11/30', type: 'Віртуальна', limit: '50 000', used: '0', status: 'Заморожена' },
   ];
+  const cards = apiCards.length > 0 ? apiCards.map(apiCardToData) : FALLBACK_CARDS;
   const [selected, setSelected] = useState(0);
-  const [frozen, setFrozen] = useState<boolean[]>([false, false, false, true]);
-  const cards = baseCards.map((c, i) => ({ ...c, status: frozen[i] ? 'Заморожена' : 'Активна' }));
-  const card = cards[selected];
-  const pct = Math.round((parseFloat(card.used.replace(/\s/g, '')) / parseFloat(card.limit.replace(/\s/g, ''))) * 100) || 0;
+  const safeIdx = Math.min(selected, cards.length - 1);
+  const card = cards[safeIdx];
+
+  async function toggleBlock() {
+    if (apiCards.length === 0) { toast('Демо-режим: API не підключено'); return; }
+    const c = apiCards[safeIdx];
+    const token = localStorage.getItem('army_bank_token');
+    try {
+      const r = await fetch(`/api/cards/${c.id}/block`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.message || 'Помилка');
+      toast(c.status === 'active' ? `Картку •• ${card.number} заморожено` : `Картку •• ${card.number} розморожено`);
+      refreshDashboard();
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Помилка'); }
+  }
+
+  async function closeCard() {
+    if (apiCards.length === 0) { toast('Демо-режим: API не підключено'); return; }
+    const c = apiCards[safeIdx];
+    const token = localStorage.getItem('army_bank_token');
+    try {
+      const r = await fetch(`/api/cards/${c.id}/close`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.message || 'Помилка');
+      toast(`Картку •• ${card.number} закрито`);
+      refreshDashboard();
+      setSelected(0);
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Помилка'); }
+  }
+
+  const isFrozen = apiCards.length > 0 ? apiCards[safeIdx]?.status === 'blocked' : card.status === 'Заморожена';
+  const pct = 0;
 
   return (
     <ContentWrap maxW={760}>
@@ -472,7 +553,16 @@ function CardsScreen() {
           <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Мої картки</div>
         </div>
         <div style={{ flex: 1 }} />
-        <button onClick={() => toast('Замовлення нової картки — незабаром')} style={{
+        <button onClick={async () => {
+          if (apiCards.length === 0) { toast('Демо-режим: API не підключено'); return; }
+          const token = localStorage.getItem('army_bank_token');
+          try {
+            const r = await fetch('/api/cards', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ card_type: 'virtual', design: 'gold' }) });
+            const j = await r.json();
+            if (!r.ok || !j.ok) throw new Error(j.message || 'Помилка');
+            toast('Нову картку випущено!'); refreshDashboard();
+          } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Помилка'); }
+        }} style={{
           padding: '10px 16px', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`,
           color: '#1a1208', border: 'none', borderRadius: 100, fontSize: 13, fontWeight: 600,
           fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
@@ -492,8 +582,8 @@ function CardsScreen() {
           <div key={i} style={{ flexShrink: 0, width: 260, scrollSnapAlign: 'center' }}>
             <button onClick={() => setSelected(i)} style={{
               width: '100%', padding: 0, background: 'transparent', border: 'none', cursor: 'pointer',
-              textAlign: 'left', opacity: i === selected ? 1 : 0.55, transition: 'opacity 0.3s',
-              filter: i === selected ? 'none' : 'saturate(0.7)',
+              textAlign: 'left', opacity: i === safeIdx ? 1 : 0.55, transition: 'opacity 0.3s',
+              filter: i === safeIdx ? 'none' : 'saturate(0.7)',
             }}>
               <PremiumCard {...c} style={{ width: '100%' }} />
             </button>
@@ -555,19 +645,16 @@ function CardsScreen() {
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={() => {
-              const next = [...frozen]; next[selected] = !next[selected]; setFrozen(next);
-              toast(next[selected] ? `Картку •• ${card.number} заморожено` : `Картку •• ${card.number} розморожено`);
-            }} style={{
-              flex: 1, padding: '12px', background: frozen[selected] ? 'rgba(127,184,150,0.08)' : 'rgba(232,168,100,0.08)',
-              border: `1px solid ${frozen[selected] ? 'rgba(127,184,150,0.2)' : 'rgba(232,168,100,0.2)'}`, borderRadius: 12,
-              color: frozen[selected] ? '#7fb896' : '#e8a864', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
+            <button onClick={toggleBlock} style={{
+              flex: 1, padding: '12px', background: isFrozen ? 'rgba(127,184,150,0.08)' : 'rgba(232,168,100,0.08)',
+              border: `1px solid ${isFrozen ? 'rgba(127,184,150,0.2)' : 'rgba(232,168,100,0.2)'}`, borderRadius: 12,
+              color: isFrozen ? '#7fb896' : '#e8a864', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" /><path d="M8 11V8a4 4 0 018 0v3" stroke="currentColor" strokeWidth="1.8" /></svg>
-              {frozen[selected] ? 'Розморозити' : 'Заморозити'}
+              {isFrozen ? 'Розморозити' : 'Заморозити'}
             </button>
-            <button onClick={() => toast(`Закриття картки •• ${card.number} — зверніться до підтримки`)} style={{
+            <button onClick={closeCard} style={{
               flex: 1, padding: '12px', background: 'rgba(220,100,110,0.06)',
               border: '1px solid rgba(220,100,110,0.2)', borderRadius: 12,
               color: '#dc646e', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
@@ -599,15 +686,17 @@ const CAT_STYLES: Record<TxCat, { bg: string; color: string; icon: React.ReactNo
 
 function OperationsScreen() {
   const topPad = useTopPad();
-  const { toast } = useApp();
+  const { toast, transactions, account } = useApp();
   const [period, setPeriod] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
   const periodLabels = ['Т', 'М', 'Р'];
   const days = ['П', 'В', 'С', 'Ч', 'П', 'С', 'Н'];
   const allValues = [[28, 45, 62, 30, 88, 54, 70], [60, 72, 48, 95, 55, 80, 65], [40, 55, 70, 85, 62, 90, 75]];
   const values = allValues[period];
   const max = Math.max(...values);
 
-  const txGroups: { group: string; items: { title: string; subtitle: string; amount: string; positive?: boolean; cat: TxCat }[] }[] = [
+  // Build tx groups from real API data (or fallback to static)
+  const STATIC_GROUPS: { group: string; items: { title: string; subtitle: string; amount: string; positive?: boolean; cat: TxCat }[] }[] = [
     { group: 'Сьогодні', items: [
       { title: 'Надходження • ФОП', subtitle: '14:32', amount: '+84 200,00', positive: true, cat: 'income' },
       { title: 'Сільпо', subtitle: '12:18 • Картка •• 0001', amount: '-1 247,50', cat: 'food' },
@@ -624,12 +713,48 @@ function OperationsScreen() {
     ]},
   ];
 
+  const filtered = (searchQuery.trim()
+    ? transactions.filter(tx => tx.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    : transactions
+  );
+
+  const apiGroups = (() => {
+    const map: Record<string, TxItem[]> = {};
+    for (const tx of filtered) { const k = tx.created_at.slice(0, 10); if (!map[k]) map[k] = []; map[k].push(tx); }
+    return Object.entries(map).sort(([a], [b]) => b.localeCompare(a)).map(([dateKey, items]) => ({
+      group: fmtDateLabel(dateKey),
+      items: items.map(tx => ({
+        title: tx.description,
+        subtitle: fmtTime(tx.created_at) + (tx.related_account ? ` • ${tx.related_account}` : ''),
+        amount: (tx.direction === 'in' ? '+' : '-') + fmtInt(tx.amount) + fmtDec(tx.amount),
+        positive: tx.direction === 'in',
+        cat: txToCat(tx),
+      })),
+    }));
+  })();
+
+  const txGroups = apiGroups.length > 0 ? apiGroups : (searchQuery ? [] : STATIC_GROUPS);
+
+  // Spending total from real data
+  const totalSpent = transactions.filter(t => t.direction === 'out').reduce((s, t) => s + t.amount, 0);
+  const spentLabel = account && transactions.length > 0 ? `₴\u00a0${fmtInt(totalSpent)}${fmtDec(totalSpent)}` : '₴\u00a042\u00a0380';
+
   return (
     <ContentWrap maxW={720}>
     <div style={{ paddingBottom: 80 }}>
-      <div style={{ padding: `${topPad} 22px 20px` }}>
+      <div style={{ padding: `${topPad} 22px 14px` }}>
         <div style={{ fontSize: 11, letterSpacing: 2, color: text.muted, textTransform: 'uppercase', fontWeight: 500, marginBottom: 4 }}>Фінансовий пульс</div>
-        <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Операції</div>
+        <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8, marginBottom: 14 }}>Операції</div>
+        {/* Search */}
+        <div style={{ position: 'relative' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.5 }}><circle cx="11" cy="11" r="7" stroke="#e8d9a8" strokeWidth="1.8" /><path d="M20 20l-3-3" stroke="#e8d9a8" strokeWidth="1.8" strokeLinecap="round" /></svg>
+          <input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Пошук транзакцій…"
+            style={{ width: '100%', padding: '10px 14px 10px 36px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(200,170,100,0.14)`, borderRadius: 12, color: '#e8d9a8', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+          />
+        </div>
       </div>
 
       {/* Chart */}
@@ -637,10 +762,9 @@ function OperationsScreen() {
         <div style={{ padding: 20, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
-              <div style={{ fontSize: 11, letterSpacing: 1.2, color: text.muted, textTransform: 'uppercase', fontWeight: 500, marginBottom: 4 }}>Витрати за тиждень</div>
+              <div style={{ fontSize: 11, letterSpacing: 1.2, color: text.muted, textTransform: 'uppercase', fontWeight: 500, marginBottom: 4 }}>Загальні витрати</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ fontSize: 26, fontWeight: 600, color: text.primary, fontFeatureSettings: '"tnum"' }}>₴ 42 380</span>
-                <span style={{ fontSize: 12, color: '#7fb896' }}>-8.4%</span>
+                <span style={{ fontSize: 26, fontWeight: 600, color: text.primary, fontFeatureSettings: '"tnum"' }}>{spentLabel}</span>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 4, padding: 3, background: 'rgba(26,40,32,0.5)', borderRadius: 100 }}>
@@ -677,6 +801,11 @@ function OperationsScreen() {
       </div>
 
       {/* Transactions */}
+      {txGroups.length === 0 && (
+        <div style={{ padding: '40px 22px', textAlign: 'center', color: text.muted, fontSize: 14 }}>
+          {searchQuery ? `Нічого не знайдено за «${searchQuery}»` : 'Транзакцій ще немає'}
+        </div>
+      )}
       {txGroups.map((g, gi) => (
         <div key={gi} style={{ padding: '4px 22px 12px' }}>
           <div style={{ fontSize: 11, letterSpacing: 1.5, color: 'rgba(232,217,168,0.5)', textTransform: 'uppercase', fontWeight: 600, padding: '0 6px 8px' }}>{g.group}</div>
@@ -775,10 +904,39 @@ function ProfileToggle({ label, sub, on, onChange, icon }: { label: string; sub?
 
 function ProfileScreen() {
   const topPad = useTopPad();
-  const { logout } = useApp();
+  const { logout, user, account, toast } = useApp();
   const [faceid, setFaceid] = useState(true);
   const [push, setPush] = useState(true);
   const [twofa, setTwofa] = useState(false);
+  const [changingPwd, setChangingPwd] = useState(false);
+  const [oldPwd, setOldPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [pwdLoading, setPwdLoading] = useState(false);
+
+  const displayName = user?.full_name ?? 'Користувач';
+  const initials = displayName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+  const phone = user?.phone ? user.phone.replace(/(\d{3})(\d{2})(\d{3})(\d{2})(\d{2})/, '+$1 $2 $3 $4 $5') : '—';
+
+  async function changePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPwdLoading(true);
+    try {
+      const token = localStorage.getItem('army_bank_token');
+      const res = await fetch('/api/auth/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ old_password: oldPwd, new_password: newPwd }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.message || 'Помилка');
+      toast('Пароль змінено успішно');
+      setChangingPwd(false); setOldPwd(''); setNewPwd('');
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : 'Помилка зміни пароля');
+    } finally {
+      setPwdLoading(false);
+    }
+  }
 
   const section = (children: React.ReactNode) => (
     <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 20, overflow: 'hidden', margin: '0 22px 14px' }}>
@@ -798,8 +956,8 @@ function ProfileScreen() {
           fontSize: 28, fontWeight: 700, color: '#1a2820', letterSpacing: 0.5,
           boxShadow: `0 0 0 3px rgba(0,0,0,0.6), 0 0 0 5px ${gold}55, inset 0 1px 0 rgba(255,220,150,0.5)`,
           marginBottom: 14,
-        }}>VM</div>
-        <div style={{ fontSize: 20, fontWeight: 700, color: text.primary, letterSpacing: -0.3, marginBottom: 4 }}>Vyacheslaw Munister</div>
+        }}>{initials}</div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: text.primary, letterSpacing: -0.3, marginBottom: 4 }}>{displayName}</div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: 'rgba(127,184,150,0.12)', border: '1px solid rgba(127,184,150,0.25)', borderRadius: 100 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#7fb896' }} />
           <span style={{ fontSize: 11.5, color: '#7fb896', fontWeight: 500 }}>Верифікований</span>
@@ -808,10 +966,10 @@ function ProfileScreen() {
 
       {/* Account info */}
       {section(<>
-        <ProfileRow label="Ім'я" value="Vyacheslaw Munister" />
-        <ProfileRow label="Телефон" value="+380 96 ••• •• 47" mono />
-        <ProfileRow label="IBAN" value="UA 213223130000026007233566001" mono copyable />
-        <ProfileRow label="Рахунок" value="AB-100023" mono copyable last />
+        <ProfileRow label="Ім'я" value={displayName} />
+        <ProfileRow label="Телефон" value={phone} mono />
+        <ProfileRow label="Email" value={user?.email ?? '—'} copyable />
+        <ProfileRow label="Рахунок" value={account?.account_number ?? '—'} mono copyable last />
       </>)}
 
       {/* Security */}
@@ -830,6 +988,46 @@ function ProfileScreen() {
         <ProfileToggle label="2FA" sub="Підтвердження за SMS" on={twofa} onChange={setTwofa}
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg>}
         />
+      </>)}
+
+      {/* Change password */}
+      <div style={{ padding: '4px 22px 8px' }}>
+        <div style={{ fontSize: 11, letterSpacing: 1.5, color: 'rgba(232,217,168,0.45)', textTransform: 'uppercase', fontWeight: 600, padding: '0 6px 8px' }}>Пароль</div>
+      </div>
+      {section(<>
+        <div
+          onClick={() => setChangingPwd(v => !v)}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', cursor: 'pointer' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(200,170,100,0.1)', border: `1px solid rgba(200,170,100,0.18)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg>
+            </div>
+            <span style={{ fontSize: 14, color: text.secondary, fontWeight: 500 }}>Змінити пароль</span>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ transform: changingPwd ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>
+            <path d="M6 4l4 4-4 4" stroke={text.muted} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+        {changingPwd && (
+          <>
+            <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 18px' }} />
+            <form onSubmit={changePassword} style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <input
+                type="password" placeholder="Поточний пароль" value={oldPwd} onChange={e => setOldPwd(e.target.value)} required
+                style={{ padding: '11px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(200,170,100,0.14)`, borderRadius: 10, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}
+              />
+              <input
+                type="password" placeholder="Новий пароль" value={newPwd} onChange={e => setNewPwd(e.target.value)} required
+                style={{ padding: '11px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(200,170,100,0.14)`, borderRadius: 10, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}
+              />
+              <button type="submit" disabled={pwdLoading} style={{
+                padding: '11px', background: pwdLoading ? 'rgba(180,140,60,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+                border: 'none', borderRadius: 10, color: '#1a1208', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: pwdLoading ? 'default' : 'pointer',
+              }}>{pwdLoading ? '…' : 'Зберегти'}</button>
+            </form>
+          </>
+        )}
       </>)}
 
       {/* Sign out */}
@@ -903,7 +1101,9 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
 
 // ─── Desktop sidebar ──────────────────────────────────────────
 function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) => void }) {
-  const { logout } = useApp();
+  const { logout, user, account } = useApp();
+  const name = user?.full_name ?? 'Користувач';
+  const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
   return (
     <div style={{
       width: 260, flexShrink: 0,
@@ -944,9 +1144,9 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 14, fontWeight: 700, color: '#1a2820',
             boxShadow: `0 0 0 2px rgba(0,0,0,0.5), 0 0 0 4px ${gold}44`,
-          }}>VM</div>
+          }}>{initials}</div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: text.primary, marginBottom: 2 }}>Vyacheslaw M.</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: text.primary, marginBottom: 2 }}>{name}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#7fb896' }} />
               <span style={{ fontSize: 11, color: '#7fb896' }}>Верифікований</span>
@@ -981,7 +1181,8 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
       <div style={{ padding: '16px 20px', margin: '0 12px 12px', borderRadius: 16, background: bg.card, border: `1px solid ${bg.border}` }}>
         <div style={{ fontSize: 10, letterSpacing: 1.5, color: text.muted, textTransform: 'uppercase', fontWeight: 500, marginBottom: 8 }}>Загальний баланс</div>
         <div style={{ fontSize: 22, fontWeight: 300, color: text.primary, letterSpacing: -0.8, fontFeatureSettings: '"tnum"' }}>
-          <span style={{ fontSize: 14, color: gold, fontWeight: 400 }}>₴ </span>7 986 232
+          <span style={{ fontSize: 14, color: gold, fontWeight: 400 }}>₴ </span>
+          {account ? fmtInt(account.balance) + fmtDec(account.balance) : '• • •'}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6 }}>
           <svg width="8" height="8" viewBox="0 0 12 12"><path d="M6 2l4 5H2z" fill="#7fb896" /></svg>
@@ -1165,10 +1366,38 @@ export default function App() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem('army_bank_token'));
   const [tab, setTab] = useState<TabKey>('overview');
   const [toastMsg, setToastMsg] = useState('');
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [account, setAccount] = useState<AccountInfo | null>(null);
+  const [transactions, setTransactions] = useState<TxItem[]>([]);
+  const [cards, setCards] = useState<CardInfo[]>([]);
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const width = useWindowWidth();
   const isDesktop = width >= 768;
   const Screen = SCREENS[tab];
+
+  const fetchDashboard = React.useCallback(async () => {
+    const token = localStorage.getItem('army_bank_token');
+    if (!token) return;
+    try {
+      const [dashRes, cardsRes] = await Promise.all([
+        fetch('/api/dashboard', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/cards', { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      const dashJson = await dashRes.json();
+      if (dashJson.ok) {
+        setUser(dashJson.data.user);
+        setAccount(dashJson.data.account);
+        setTransactions(dashJson.data.transactions || []);
+      }
+      const cardsJson = await cardsRes.json();
+      if (cardsJson.ok) setCards(cardsJson.data || []);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => {
+    if (!authed) { setUser(null); setAccount(null); setTransactions([]); setCards([]); return; }
+    fetchDashboard();
+  }, [authed, fetchDashboard]);
 
   const showToast = (msg: string) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -1180,6 +1409,11 @@ export default function App() {
     logout: () => { localStorage.removeItem('army_bank_token'); setAuthed(false); },
     goTo: (t: TabKey) => setTab(t),
     toast: showToast,
+    user,
+    account,
+    transactions,
+    cards,
+    refreshDashboard: fetchDashboard,
   };
 
   if (!authed) {
