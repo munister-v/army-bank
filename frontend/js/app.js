@@ -3489,7 +3489,7 @@ $('#secLogHead')?.addEventListener('click', async () => {
           <div class="sec-log-item">
             <span class="sec-log-icon">${icon}</span>
             <div class="sec-log-body">
-              <div class="sec-log-action">${log.details || log.action}</div>
+              <div class="sec-log-action">${escapeHtml(log.details || log.action)}</div>
               <div class="sec-log-date muted">${formatDate(log.created_at)}</div>
             </div>
           </div>`;
@@ -3752,8 +3752,8 @@ async function loadInsights() {
     }
     el.innerHTML = insights.map(ins => `
       <div class="insight-item">
-        <span class="insight-icon">${ins.icon}</span>
-        <span class="insight-text">${ins.text}</span>
+        <span class="insight-icon">${escapeHtml(ins.icon)}</span>
+        <span class="insight-text">${escapeHtml(ins.text)}</span>
       </div>`).join('');
   } catch(_) {}
 }
