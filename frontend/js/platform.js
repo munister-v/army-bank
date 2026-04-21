@@ -113,10 +113,10 @@ async function loadPlatformUsers() {
     body.innerHTML = users.map((u) => `
       <tr>
         <td><strong>#${u.id}</strong></td>
-        <td><div><strong>${u.full_name}</strong></div><div class="subtle">${u.status || u.military_status || ''}</div></td>
-        <td class="subtle">${u.phone}<br>${u.email}</td>
+        <td><div><strong>${escapeHtml(u.full_name)}</strong></div><div class="subtle">${escapeHtml(u.status || u.military_status || '')}</div></td>
+        <td class="subtle">${escapeHtml(u.phone)}<br>${escapeHtml(u.email)}</td>
         <td>${roleLabels[u.role] || u.role}</td>
-        <td>${u.account_number || '—'}</td>
+        <td>${escapeHtml(u.account_number || '—')}</td>
         <td>${u.balance != null ? formatMoney(u.balance) : '—'}</td>
       </tr>
     `).join('') || '<tr><td colspan="6" class="subtle">Немає даних</td></tr>';
@@ -138,10 +138,10 @@ async function loadPlatformTransactions() {
     list.innerHTML = txs.map((t) => `
       <div class="item">
         <div class="item-header">
-          <strong>#${t.id} ${t.description}</strong>
+          <strong>#${t.id} ${escapeHtml(t.description)}</strong>
           <span class="amount ${t.direction}">${t.direction === 'in' ? '+' : '-'}${formatMoney(t.amount)}</span>
         </div>
-        <div class="muted">${t.tx_type} · ${t.account_number || ''} · ${t.created_at}${t.related_account ? ` · ${t.related_account}` : ''}</div>
+        <div class="muted">${t.tx_type} · ${escapeHtml(t.account_number || '')} · ${t.created_at}${t.related_account ? ` · ${escapeHtml(t.related_account)}` : ''}</div>
       </div>
     `).join('') || '<div class="empty-state">Транзакцій немає</div>';
   } catch (e) {
@@ -158,8 +158,8 @@ async function loadPlatformAudit() {
     list.classList.remove('loading');
     list.innerHTML = logs.map((l) => `
       <div class="item">
-        <div class="item-header"><strong>${l.action}</strong><span class="muted">${l.created_at}</span></div>
-        <div class="muted">user_id: ${l.user_id ?? '—'} · ${l.full_name || ''} · ${l.details || '—'}</div>
+        <div class="item-header"><strong>${escapeHtml(l.action)}</strong><span class="muted">${l.created_at}</span></div>
+        <div class="muted">user_id: ${l.user_id ?? '—'} · ${escapeHtml(l.full_name || '')} · ${escapeHtml(l.details || '—')}</div>
       </div>
     `).join('') || '<div class="empty-state">Логів немає</div>';
   } catch (e) {

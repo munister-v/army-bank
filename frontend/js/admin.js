@@ -193,7 +193,7 @@ function renderTopUsers(topUsers) {
     return `
       <div style="margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
-          <span style="opacity:.8">${u.full_name || '—'}</span>
+          <span style="opacity:.8">${escapeHtml(u.full_name || '—')}</span>
           <span style="font-weight:700">${fmtMoney(u.total_vol)}</span>
         </div>
         <div style="background:rgba(255,255,255,.07);border-radius:4px;height:5px">
@@ -223,8 +223,8 @@ async function loadUsers() {
   body.innerHTML = users.map((u) => `
     <tr data-id="${u.id}">
       <td><strong>#${u.id}</strong></td>
-      <td><div><strong>${u.full_name}</strong></div><div class="subtle">${u.status || u.military_status || ''}</div></td>
-      <td class="subtle" style="font-size:12px">${u.phone || '—'}<br>${u.email || '—'}</td>
+      <td><div><strong>${escapeHtml(u.full_name)}</strong></div><div class="subtle">${escapeHtml(u.status || u.military_status || '')}</div></td>
+      <td class="subtle" style="font-size:12px">${escapeHtml(u.phone || '—')}<br>${escapeHtml(u.email || '—')}</td>
       <td>
         <select class="role-select" data-user-id="${u.id}" style="font-size:12px">
           <option value="soldier"        ${u.role === 'soldier'        ? 'selected' : ''}>Клієнт</option>
@@ -323,12 +323,12 @@ async function loadRegistry(reset) {
       <tr>
         <td><strong>#${t.id}</strong></td>
         <td style="font-size:11px;white-space:nowrap">${fmtDate(t.created_at)}</td>
-        <td style="font-size:12px">${t.full_name || '—'}<br><span class="muted" style="font-size:11px">id:${t.user_id}</span></td>
-        <td style="font-size:11px;font-family:monospace">${t.account_number || '—'}</td>
+        <td style="font-size:12px">${escapeHtml(t.full_name || '—')}<br><span class="muted" style="font-size:11px">id:${t.user_id}</span></td>
+        <td style="font-size:11px;font-family:monospace">${escapeHtml(t.account_number || '—')}</td>
         <td><span style="font-size:11px;background:rgba(255,255,255,.07);padding:2px 7px;border-radius:100px">${TX_TYPE_UA[t.tx_type] || t.tx_type}</span></td>
         <td style="font-size:12px">${t.direction === 'in' ? '<span style="color:#34d399">▲ Прихід</span>' : '<span style="color:#f87171">▼ Витрата</span>'}</td>
         <td style="font-weight:700;white-space:nowrap">${fmtMoney(t.amount)}</td>
-        <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.description || ''}">${t.description || '—'}</td>
+        <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(t.description || '')}">${escapeHtml(t.description || '—')}</td>
       </tr>
     `).join('');
   } catch (e) {
@@ -567,10 +567,10 @@ async function loadAudit() {
       ? logs.map((l) => `
           <div class="item">
             <div class="item-header">
-              <strong>${l.action}</strong>
+              <strong>${escapeHtml(l.action)}</strong>
               <span class="muted">${fmtDate(l.created_at)}</span>
             </div>
-            <div class="muted" style="font-size:12px">user_id: ${l.user_id ?? '—'} · ${l.details || '—'}</div>
+            <div class="muted" style="font-size:12px">user_id: ${l.user_id ?? '—'} · ${escapeHtml(l.details || '—')}</div>
           </div>
         `).join('')
       : '<div class="muted" style="padding:16px;text-align:center">Логів немає.</div>';
@@ -592,7 +592,7 @@ async function loadStatements() {
       <tr>
         <td style="white-space:nowrap">${fmtDate(l.created_at)}</td>
         <td>${l.user_id ?? '—'}</td>
-        <td style="font-size:12px;color:var(--muted)">${l.details || '—'}</td>
+        <td style="font-size:12px;color:var(--muted)">${escapeHtml(l.details || '—')}</td>
       </tr>
     `).join('');
   } catch (e) {
@@ -657,7 +657,7 @@ async function openUserDrawer(userId) {
     $('#drawerTx').innerHTML = (Array.isArray(txs) ? txs : []).map((t) => `
       <div class="item">
         <div class="item-header">
-          <strong style="font-size:13px">${t.description}</strong>
+          <strong style="font-size:13px">${escapeHtml(t.description)}</strong>
           <span class="${t.direction === 'in' ? 'amount in' : 'amount out'}">${t.direction === 'in' ? '+' : '-'}${fmtMoney(t.amount)}</span>
         </div>
         <div class="subtle" style="font-size:11px">${TX_TYPE_UA[t.tx_type] || t.tx_type} · ${fmtDate(t.created_at)}</div>

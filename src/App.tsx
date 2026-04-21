@@ -1,4 +1,24 @@
-import React, { useState, Fragment, useEffect, createContext, useContext } from 'react';
+import React, { useState, Fragment, useEffect, createContext, useContext, Component } from 'react';
+
+export class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: string | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(err: Error): { error: string | null } { return { error: err.message }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ position: 'fixed', inset: 0, background: '#07150f', color: '#e8d9a8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, fontFamily: 'sans-serif' }}>
+          <div style={{ fontSize: 20 }}>⚠️ Щось пішло не так</div>
+          <div style={{ fontSize: 13, color: 'rgba(232,217,168,0.6)', maxWidth: 400, textAlign: 'center' }}>{this.state.error}</div>
+          <button onClick={() => window.location.reload()} style={{ marginTop: 8, padding: '10px 20px', borderRadius: 10, background: '#c9a964', color: '#1a1208', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Оновити сторінку</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ─── Design tokens ────────────────────────────────────────────
 const gold = '#c9a964';
@@ -326,7 +346,7 @@ function apiCardToData(c: CardInfo, holderFallback = 'ARMY BANK'): CardData & { 
   };
 }
 
-function PremiumCard({ variant, number, name, expiry, style = {} }: CardData & { style?: React.CSSProperties }) {
+function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardData & { style?: React.CSSProperties }) {
   const v = CARD_VARIANTS[variant] ?? CARD_VARIANTS.gold;
   const patId = `g-${variant}`;
   return (
@@ -1023,6 +1043,10 @@ function OperationsScreen() {
   const { toast, transactions, account } = useApp();
   const [period, setPeriod] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dlReceipt, setDlReceipt] = useState<number | null>(null);
+  const [dlExport, setDlExport] = useState(false);
+  const token = localStorage.getItem('army_bank_token');
+
   const periodLabels = ['Т', 'М', 'Р'];
   const periodDays = [7, 30, 365][period];
   const periodMs = periodDays * 24 * 60 * 60 * 1000;
@@ -1042,21 +1066,51 @@ function OperationsScreen() {
       : stamp.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
   });
 
+  async function downloadReceipt(txId: number) {
+    setDlReceipt(txId);
+    try {
+      const r = await fetch(`/api/transactions/${txId}/receipt`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) { toast('Помилка завантаження чека'); return; }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `receipt-${txId}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    } catch { toast('Помилка завантаження'); } finally { setDlReceipt(null); }
+  }
+
+  async function downloadExport() {
+    setDlExport(true);
+    try {
+      const r = await fetch('/api/transactions/export', { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) { toast('Помилка експорту'); return; }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'army_bank_transactions.csv'; a.click();
+      URL.revokeObjectURL(url);
+    } catch { toast('Помилка завантаження'); } finally { setDlExport(false); }
+  }
+
+  async function downloadStatement() {
+    try {
+      const r = await fetch('/api/transactions/statement', { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) { toast('Помилка виписки'); return; }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'statement.pdf'; a.click();
+      URL.revokeObjectURL(url);
+    } catch { toast('Помилка завантаження'); }
+  }
+
   // Build tx groups from real API data (or fallback to static)
-  const STATIC_GROUPS: { group: string; items: { title: string; subtitle: string; amount: string; positive?: boolean; cat: TxCat }[] }[] = [
+  const STATIC_GROUPS: { group: string; items: { txId?: number; title: string; subtitle: string; amount: string; positive?: boolean; cat: TxCat }[] }[] = [
     { group: 'Сьогодні', items: [
       { title: 'Надходження • ФОП', subtitle: '14:32', amount: '+84 200,00', positive: true, cat: 'income' },
       { title: 'Сільпо', subtitle: '12:18 • Картка •• 0001', amount: '-1 247,50', cat: 'food' },
       { title: 'Uklon', subtitle: '09:42 • Apple Pay', amount: '-148,00', cat: 'transport' },
     ]},
-    { group: 'Вчора, 19 квітня', items: [
+    { group: 'Вчора', items: [
       { title: 'Комунальні послуги', subtitle: 'Київенерго', amount: '-3 180,00', cat: 'utility' },
       { title: 'Rozetka', subtitle: 'Покупки онлайн', amount: '-6 420,00', cat: 'shopping' },
-      { title: 'Starbucks', subtitle: 'Apple Pay', amount: '-185,00', cat: 'food' },
-    ]},
-    { group: '17 квітня', items: [
-      { title: 'Переказ на картку', subtitle: '•• 1183', amount: '-10 000,00', cat: 'transfer' },
-      { title: 'Spotify', subtitle: 'Підписка', amount: '-199,00', cat: 'subscription' },
     ]},
   ];
 
@@ -1071,6 +1125,7 @@ function OperationsScreen() {
     return Object.entries(map).sort(([a], [b]) => b.localeCompare(a)).map(([dateKey, items]) => ({
       group: fmtDateLabel(dateKey),
       items: items.map(tx => ({
+        txId: tx.id,
         title: tx.description,
         subtitle: fmtTime(tx.created_at) + (tx.related_account ? ` • ${tx.related_account}` : ''),
         amount: (tx.direction === 'in' ? '+' : '-') + fmtInt(tx.amount) + fmtDec(tx.amount),
@@ -1090,7 +1145,13 @@ function OperationsScreen() {
     <ContentWrap maxW={720}>
     <div style={{ paddingBottom: 80 }}>
       <div style={{ padding: `${topPad} 22px 14px` }}>
-        <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8, marginBottom: 14 }}>Операції</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Операції</div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={downloadExport} disabled={dlExport} title="Завантажити CSV" style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold, fontSize: 16 }}>{dlExport ? '…' : '📊'}</button>
+            <button onClick={downloadStatement} title="Виписка PDF" style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold, fontSize: 16 }}>📄</button>
+          </div>
+        </div>
         {/* Search */}
         <div style={{ position: 'relative' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.5 }}><circle cx="11" cy="11" r="7" stroke="#e8d9a8" strokeWidth="1.8" /><path d="M20 20l-3-3" stroke="#e8d9a8" strokeWidth="1.8" strokeLinecap="round" /></svg>
@@ -1160,7 +1221,7 @@ function OperationsScreen() {
               const s = CAT_STYLES[t.cat];
               return (
                 <Fragment key={i}>
-                  <div onClick={() => toast(`${t.title} · ${t.amount} ₴ · ${t.subtitle}`)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
                     <div style={{
                       width: 36, height: 36, borderRadius: 10, background: s.bg,
                       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -1170,9 +1231,13 @@ function OperationsScreen() {
                       <div style={{ fontSize: 14, fontWeight: 500, color: text.secondary, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</div>
                       <div style={{ fontSize: 11.5, color: text.muted }}>{t.subtitle}</div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: t.positive ? '#7fb896' : text.secondary, fontFeatureSettings: '"tnum"' }}>{t.amount} ₴</div>
-                      <Chevron size={12} color="rgba(232,217,168,0.3)" />
+                      {t.txId ? (
+                        <button onClick={() => downloadReceipt(t.txId!)} disabled={dlReceipt === t.txId} title="Завантажити чек" style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(200,170,100,0.08)', border: `1px solid rgba(200,170,100,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13 }}>{dlReceipt === t.txId ? '…' : '🧾'}</button>
+                      ) : (
+                        <Chevron size={12} color="rgba(232,217,168,0.3)" />
+                      )}
                     </div>
                   </div>
                   {i < g.items.length - 1 && <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 16px 0 64px' }} />}
@@ -1396,107 +1461,402 @@ function ProfileScreen() {
 // ─── Bottom tab bar ───────────────────────────────────────────
 
 // ─── Marketplace screen ───────────────────────────────────────
-interface Product { id: number; name: string; description?: string; price: number; category?: string; stock?: number; }
+interface Product { id: number; title: string; description?: string; price: number; currency?: string; image_emoji?: string; badge?: string; stock?: number; slug?: string; }
+interface MarketOrder { id: number; total_amount: number; currency: string; status: string; invoice_number?: string; invoice_status?: string; created_at?: string; items_count?: number; }
+interface MarketInvoice { invoice_number: string; amount: number; currency: string; status: string; due_at?: string; paid_at?: string; created_at?: string; order_id?: number; }
+interface CartItem { product: Product; qty: number; }
+
+const BADGE_COLORS: Record<string, { bg: string; color: string }> = {
+  'HOT':      { bg: 'rgba(220,60,60,0.15)', color: '#e07070' },
+  'NEW':      { bg: 'rgba(60,180,120,0.15)', color: '#7fb896' },
+  'TOP':      { bg: 'rgba(200,170,60,0.15)', color: gold },
+  'SALE':     { bg: 'rgba(220,120,40,0.15)', color: '#e09060' },
+  'PRO':      { bg: 'rgba(120,100,200,0.15)', color: '#a090e0' },
+  'GAMING':   { bg: 'rgba(200,60,220,0.15)', color: '#d070d0' },
+  'ARM DEAL': { bg: 'rgba(200,170,100,0.15)', color: gold },
+  'M3':       { bg: 'rgba(60,120,200,0.15)', color: '#70a0e0' },
+  'M4':       { bg: 'rgba(60,120,200,0.15)', color: '#70a0e0' },
+};
+
+function BadgePill({ badge }: { badge: string }) {
+  const c = BADGE_COLORS[badge] || { bg: 'rgba(200,170,100,0.12)', color: gold };
+  return (
+    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 6, background: c.bg, color: c.color, letterSpacing: 0.5, textTransform: 'uppercase' }}>{badge}</span>
+  );
+}
+
+function ProductDetailDrawer({ product, onClose, onAddToCart }: { product: Product; onClose: () => void; onAddToCart: (p: Product) => void }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }} onClick={onClose}>
+      <div style={{ background: 'rgba(0,0,0,0.5)', position: 'absolute', inset: 0 }} />
+      <div onClick={e => e.stopPropagation()} style={{
+        position: 'relative', background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)',
+        borderRadius: '24px 24px 0 0', padding: '28px 24px 48px',
+        boxShadow: '0 -20px 60px rgba(0,0,0,0.6)', maxHeight: '85vh', overflowY: 'auto',
+        border: '1px solid rgba(200,170,100,0.15)', borderBottom: 'none',
+      }}>
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(200,170,100,0.25)', margin: '0 auto 24px' }} />
+        <div style={{ display: 'flex', gap: 4, marginBottom: 16, flexWrap: 'wrap' }}>
+          {product.badge && <BadgePill badge={product.badge} />}
+          {product.stock !== undefined && product.stock <= 5 && product.stock > 0 && (
+            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 6, background: 'rgba(220,100,60,0.15)', color: '#e07858', letterSpacing: 0.5 }}>ОСТАННІ {product.stock}</span>
+          )}
+        </div>
+        <div style={{ fontSize: 48, textAlign: 'center', marginBottom: 12 }}>{product.image_emoji || '🛍️'}</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: text.primary, marginBottom: 8, lineHeight: 1.25 }}>{product.title}</div>
+        {product.description && (
+          <div style={{ fontSize: 14, color: text.muted, lineHeight: 1.6, marginBottom: 20 }}>{product.description}</div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ fontSize: 30, fontWeight: 800, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(product.price)}{fmtDec(product.price)}</div>
+          {product.stock !== undefined && (
+            <div style={{ fontSize: 12, color: product.stock > 0 ? text.muted : '#e07070' }}>
+              {product.stock > 0 ? `Є в наявності: ${product.stock}` : 'Немає в наявності'}
+            </div>
+          )}
+        </div>
+        <button
+          onClick={() => { onAddToCart(product); onClose(); }}
+          disabled={product.stock !== undefined && product.stock <= 0}
+          style={{
+            width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontSize: 16, fontWeight: 700,
+            background: (product.stock !== undefined && product.stock <= 0) ? 'rgba(180,140,60,0.25)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+            color: '#1a1208', cursor: (product.stock !== undefined && product.stock <= 0) ? 'default' : 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          {(product.stock !== undefined && product.stock <= 0) ? 'Немає в наявності' : '🛒 Додати до кошика'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checkingOut }: {
+  cart: CartItem[]; onClose: () => void;
+  onQtyChange: (id: number, delta: number) => void;
+  onRemove: (id: number) => void;
+  onCheckout: () => void; checkingOut: boolean;
+}) {
+  const total = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }} onClick={onClose}>
+      <div style={{ background: 'rgba(0,0,0,0.5)', position: 'absolute', inset: 0 }} />
+      <div onClick={e => e.stopPropagation()} style={{
+        position: 'relative', background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)',
+        borderRadius: '24px 24px 0 0', padding: '28px 24px 48px',
+        boxShadow: '0 -20px 60px rgba(0,0,0,0.6)', maxHeight: '80vh', overflowY: 'auto',
+        border: '1px solid rgba(200,170,100,0.15)', borderBottom: 'none',
+      }}>
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(200,170,100,0.25)', margin: '0 auto 20px' }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: text.primary }}>Кошик</div>
+          <div style={{ fontSize: 14, color: text.muted }}>{cart.reduce((s,i) => s+i.qty, 0)} товарів</div>
+        </div>
+        {cart.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: text.muted }}>Кошик порожній</div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              {cart.map(item => (
+                <div key={item.product.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 14 }}>
+                  <div style={{ fontSize: 28, flexShrink: 0 }}>{item.product.image_emoji || '🛍️'}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: text.secondary, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product.title}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: gold }}>₴{fmtInt(item.product.price * item.qty)}{fmtDec(item.product.price * item.qty)}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button onClick={() => onQtyChange(item.product.id, -1)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(200,170,100,0.1)', border: `1px solid rgba(200,170,100,0.2)`, color: gold, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: text.primary, minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
+                    <button onClick={() => onQtyChange(item.product.id, 1)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(200,170,100,0.1)', border: `1px solid rgba(200,170,100,0.2)`, color: gold, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                    <button onClick={() => onRemove(item.product.id)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(220,80,80,0.08)', border: '1px solid rgba(220,80,80,0.15)', color: '#e07070', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16, padding: '0 4px' }}>
+              <span style={{ fontSize: 14, color: text.muted }}>Разом:</span>
+              <span style={{ fontSize: 24, fontWeight: 800, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(total)}{fmtDec(total)}</span>
+            </div>
+            <button onClick={onCheckout} disabled={checkingOut} style={{
+              width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontSize: 16, fontWeight: 700,
+              background: checkingOut ? 'rgba(180,140,60,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+              color: '#1a1208', cursor: checkingOut ? 'default' : 'pointer', fontFamily: 'inherit',
+            }}>{checkingOut ? 'Оформлення…' : '✓ Оформити замовлення'}</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type MarketTab = 'catalog' | 'orders' | 'invoices';
 
 function MarketplaceScreen() {
   const topPad = useTopPad();
   const { toast, refreshDashboard } = useApp();
+  const [tab, setTab] = useState<MarketTab>('catalog');
   const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<MarketOrder[]>([]);
+  const [invoices, setInvoices] = useState<MarketInvoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [buying, setBuying] = useState<number | null>(null);
-  const [catFilter, setCatFilter] = useState('');
+  const [dlPdf, setDlPdf] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Product | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [showCart, setShowCart] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    const token = localStorage.getItem('army_bank_token');
-    fetch('/api/marketplace/catalog', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(j => { if (j.ok) setProducts(j.data || []); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const token = localStorage.getItem('army_bank_token');
 
-  const categories = Array.from(new Set(products.map(p => p.category || 'Інше').filter(Boolean)));
-  const filtered = catFilter ? products.filter(p => (p.category || 'Інше') === catFilter) : products;
+  function addToCart(product: Product) {
+    setCart(prev => {
+      const existing = prev.find(i => i.product.id === product.id);
+      if (existing) return prev.map(i => i.product.id === product.id ? { ...i, qty: i.qty + 1 } : i);
+      return [...prev, { product, qty: 1 }];
+    });
+    toast(`✓ ${product.title} — додано до кошика`);
+  }
 
-  async function buy(product: Product) {
-    setBuying(product.id);
-    const token = localStorage.getItem('army_bank_token');
+  function changeQty(id: number, delta: number) {
+    setCart(prev => prev.map(i => i.product.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
+  }
+
+  function removeFromCart(id: number) {
+    setCart(prev => prev.filter(i => i.product.id !== id));
+  }
+
+  async function checkoutCart() {
+    if (cart.length === 0) return;
+    setCheckingOut(true);
     try {
-      const r = await fetch('/api/marketplace/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ product_id: product.id, quantity: 1 }),
-      });
-      const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j.message || 'Помилка');
-      toast(`✓ Замовлення оформлено — ${product.name}`);
+      for (const item of cart) {
+        const r = await fetch('/api/marketplace/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ product_id: item.product.id, quantity: item.qty }),
+        });
+        const j = await r.json();
+        if (!r.ok || !j.ok) throw new Error(j.message || j.error || 'Помилка');
+      }
+      toast(`✓ Замовлення на ${cart.length} товар(ів) оформлено!`);
+      setCart([]);
+      setShowCart(false);
       refreshDashboard();
+      setTimeout(() => setTab('orders'), 800);
     } catch (e: unknown) {
       toast(e instanceof Error ? e.message : 'Помилка оформлення');
     } finally {
-      setBuying(null);
+      setCheckingOut(false);
     }
   }
 
+  const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+
+  useEffect(() => {
+    if (tab === 'catalog') {
+      setLoading(true);
+      fetch('/api/marketplace/catalog', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(j => { if (j.ok) setProducts(Array.isArray(j.data?.items) ? j.data.items : (Array.isArray(j.data) ? j.data : [])); })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    } else if (tab === 'orders') {
+      setLoading(true);
+      fetch('/api/marketplace/orders', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(j => { if (j.ok) setOrders(Array.isArray(j.data?.orders) ? j.data.orders : []); })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    } else if (tab === 'invoices') {
+      setLoading(true);
+      fetch('/api/marketplace/invoices', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(j => { if (j.ok) setInvoices(Array.isArray(j.data?.invoices) ? j.data.invoices : []); })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }
+  }, [tab]);
+
+  async function downloadOrderReceipt(orderId: number) {
+    setDlPdf(`order-${orderId}`);
+    try {
+      const r = await fetch(`/api/marketplace/order/${orderId}/receipt`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) { toast('Помилка завантаження чека'); return; }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `receipt-${orderId}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    } catch { toast('Помилка завантаження'); } finally { setDlPdf(null); }
+  }
+
+  const MARKET_TABS: { k: MarketTab; label: string }[] = [
+    { k: 'catalog', label: 'Каталог' },
+    { k: 'orders', label: 'Замовлення' },
+    { k: 'invoices', label: 'Інвойси' },
+  ];
+
+  const statusColors: Record<string, string> = {
+    paid: '#7fb896', active: '#7fb896', issued: gold, pending: gold,
+    overdue: '#e07070', cancelled: 'rgba(232,217,168,0.4)', expired: 'rgba(232,217,168,0.4)',
+  };
+
+  const filteredProducts = search.trim()
+    ? products.filter(p => p.title.toLowerCase().includes(search.toLowerCase()) || (p.description || '').toLowerCase().includes(search.toLowerCase()))
+    : products;
+
   return (
+    <>
+    {preview && <ProductDetailDrawer product={preview} onClose={() => setPreview(null)} onAddToCart={addToCart} />}
+    {showCart && <CartDrawer cart={cart} onClose={() => setShowCart(false)} onQtyChange={changeQty} onRemove={removeFromCart} onCheckout={checkoutCart} checkingOut={checkingOut} />}
     <ContentWrap maxW={800}>
     <div style={{ paddingBottom: 80 }}>
-      <div style={{ padding: `${topPad} 22px 16px` }}>
-        <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Магазин</div>
-      </div>
-
-      {/* Category chips */}
-      {categories.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, padding: '0 22px 16px', overflowX: 'auto', scrollbarWidth: 'none' }}>
-          {['', ...categories].map(cat => (
-            <button key={cat || '_all'} onClick={() => setCatFilter(cat)} style={{
-              flexShrink: 0, padding: '6px 14px', borderRadius: 100, fontSize: 12, fontWeight: 500,
-              border: `1px solid ${catFilter === cat ? gold : 'rgba(200,170,100,0.2)'}`,
-              background: catFilter === cat ? `linear-gradient(135deg, ${goldDark}, ${gold})` : 'rgba(255,255,255,0.04)',
-              color: catFilter === cat ? '#1a1208' : text.muted, cursor: 'pointer', fontFamily: 'inherit',
-            }}>{cat || 'Всі'}</button>
+      <div style={{ padding: `${topPad} 22px 12px` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Магазин</div>
+          <button onClick={() => setShowCart(true)} style={{ position: 'relative', width: 44, height: 44, borderRadius: 14, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20 }}>
+            🛒
+            {cartCount > 0 && (
+              <span style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: '50%', background: gold, color: '#1a1208', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{cartCount > 9 ? '9+' : cartCount}</span>
+            )}
+          </button>
+        </div>
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 6, padding: 4, background: 'rgba(26,40,32,0.5)', borderRadius: 14, width: 'fit-content', marginBottom: tab === 'catalog' ? 12 : 0 }}>
+          {MARKET_TABS.map(t => (
+            <button key={t.k} onClick={() => setTab(t.k)} style={{
+              padding: '6px 16px', borderRadius: 10, fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              background: tab === t.k ? `linear-gradient(135deg, ${goldDark}, ${gold})` : 'transparent',
+              color: tab === t.k ? '#1a1208' : text.muted,
+            }}>{t.label}</button>
           ))}
         </div>
-      )}
-
-      {loading && (
-        <div style={{ padding: 60, textAlign: 'center', color: text.muted, fontSize: 14 }}>Завантаження…</div>
-      )}
-
-      {!loading && filtered.length === 0 && (
-        <div style={{ padding: '60px 22px', textAlign: 'center' }}>
-          <div style={{ width: 56, height: 56, borderRadius: 18, background: 'rgba(200,170,100,0.08)', border: `1px solid rgba(200,170,100,0.14)`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.4 }}><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9" cy="21" r="1" fill={gold} /><circle cx="19" cy="21" r="1" fill={gold} /></svg>
+        {/* Search (catalog only) */}
+        {tab === 'catalog' && (
+          <div style={{ position: 'relative' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.4 }}><circle cx="11" cy="11" r="7" stroke="#e8d9a8" strokeWidth="1.8" /><path d="M20 20l-3-3" stroke="#e8d9a8" strokeWidth="1.8" strokeLinecap="round" /></svg>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Пошук товарів…" style={{ width: '100%', padding: '10px 14px 10px 36px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(200,170,100,0.14)`, borderRadius: 12, color: '#e8d9a8', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: text.secondary, marginBottom: 6 }}>Магазин порожній</div>
-          <div style={{ fontSize: 13, color: text.muted, lineHeight: 1.5 }}>Товари ще не додано.<br />Зверніться до підтримки для налаштування.</div>
+        )}
+      </div>
+
+      {loading && <div style={{ padding: 60, textAlign: 'center', color: text.muted, fontSize: 14 }}>Завантаження…</div>}
+
+      {/* ── CATALOG ── */}
+      {!loading && tab === 'catalog' && (
+        <>
+          {filteredProducts.length === 0 ? (
+            <div style={{ padding: '60px 22px', textAlign: 'center' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🛍️</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: text.secondary, marginBottom: 6 }}>{search ? 'Нічого не знайдено' : 'Магазин порожній'}</div>
+              <div style={{ fontSize: 13, color: text.muted }}>{search ? `Спробуй інший запит` : 'Товари ще не додано.'}</div>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 10, padding: '8px 22px' }}>
+              {filteredProducts.map(p => (
+                <div key={p.id} onClick={() => setPreview(p)} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'border-color 0.15s' }}>
+                  <div style={{ height: 96, background: `linear-gradient(135deg, rgba(200,170,100,0.08), rgba(138,106,47,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42, position: 'relative' }}>
+                    {p.image_emoji || '🛍️'}
+                    {p.badge && (
+                      <div style={{ position: 'absolute', top: 8, right: 8 }}><BadgePill badge={p.badge} /></div>
+                    )}
+                  </div>
+                  <div style={{ padding: '10px 12px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: text.secondary, lineHeight: 1.3 }}>{p.title}</div>
+                    <div style={{ marginTop: 'auto', paddingTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(p.price)}</span>
+                      <button onClick={e => { e.stopPropagation(); addToCart(p); }} disabled={p.stock !== undefined && p.stock <= 0} style={{
+                        width: 28, height: 28, borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700,
+                        background: (p.stock !== undefined && p.stock <= 0) ? 'rgba(180,140,60,0.2)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+                        color: '#1a1208', cursor: (p.stock !== undefined && p.stock <= 0) ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>+</button>
+                    </div>
+                    {p.stock !== undefined && p.stock > 0 && p.stock <= 5 && (
+                      <div style={{ fontSize: 9, color: '#e0a070', fontWeight: 600 }}>Останніх: {p.stock}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── ORDERS ── */}
+      {!loading && tab === 'orders' && (
+        <div style={{ padding: '8px 22px' }}>
+          {orders.length === 0 ? (
+            <div style={{ padding: '60px 0', textAlign: 'center' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>📦</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: text.secondary, marginBottom: 6 }}>Замовлень ще немає</div>
+              <div style={{ fontSize: 13, color: text.muted }}>Оформіть перше замовлення в каталозі.</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {orders.map(o => (
+                <div key={o.id} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: text.secondary }}>Замовлення #{o.id}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 100, background: `${statusColors[o.status] || gold}22`, color: statusColors[o.status] || gold }}>{o.status}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: text.muted }}>{o.items_count || 0} поз. · {o.created_at ? new Date(o.created_at).toLocaleDateString('uk-UA') : ''}</div>
+                    {o.invoice_number && <div style={{ fontSize: 11, color: text.dim, marginTop: 2 }}>Інвойс: {o.invoice_number}</div>}
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(o.total_amount)}{fmtDec(o.total_amount)}</div>
+                    <button onClick={() => downloadOrderReceipt(o.id)} disabled={dlPdf === `order-${o.id}`} style={{
+                      marginTop: 6, padding: '4px 10px', borderRadius: 8, border: `1px solid rgba(200,170,100,0.25)`,
+                      background: 'transparent', color: gold, fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+                    }}>{dlPdf === `order-${o.id}` ? '…' : '📄 Чек'}</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, padding: '0 22px' }}>
-        {filtered.map(p => (
-          <div key={p.id} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ height: 100, background: `linear-gradient(135deg, rgba(200,170,100,0.08), rgba(138,106,47,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.3 }}><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9" cy="21" r="1" fill={gold} /><circle cx="19" cy="21" r="1" fill={gold} /></svg>
+      {/* ── INVOICES ── */}
+      {!loading && tab === 'invoices' && (
+        <div style={{ padding: '8px 22px' }}>
+          {invoices.length === 0 ? (
+            <div style={{ padding: '60px 0', textAlign: 'center' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🧾</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: text.secondary, marginBottom: 6 }}>Інвойсів ще немає</div>
+              <div style={{ fontSize: 13, color: text.muted }}>Інвойси з'являться після оформлення замовлень.</div>
             </div>
-            <div style={{ padding: '12px 14px 14px', flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {p.category && <span style={{ fontSize: 10, color: text.dim, letterSpacing: 1, textTransform: 'uppercase' }}>{p.category}</span>}
-              <div style={{ fontSize: 13, fontWeight: 600, color: text.secondary, lineHeight: 1.3 }}>{p.name}</div>
-              {p.description && <div style={{ fontSize: 11, color: text.muted, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{p.description}</div>}
-              <div style={{ marginTop: 'auto', paddingTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ fontSize: 15, fontWeight: 700, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(p.price)}{fmtDec(p.price)}</span>
-                <button onClick={() => buy(p)} disabled={buying === p.id} style={{
-                  padding: '6px 12px', borderRadius: 10, border: 'none', fontSize: 12, fontWeight: 600,
-                  background: buying === p.id ? 'rgba(180,140,60,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
-                  color: '#1a1208', cursor: buying === p.id ? 'default' : 'pointer', fontFamily: 'inherit',
-                }}>{buying === p.id ? '…' : 'Купити'}</button>
-              </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {invoices.map(inv => (
+                <div key={inv.invoice_number} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: text.secondary, fontFamily: 'monospace' }}>{inv.invoice_number}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 100, background: `${statusColors[inv.status] || gold}22`, color: statusColors[inv.status] || gold }}>{inv.status}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: text.muted }}>
+                      {inv.created_at ? new Date(inv.created_at).toLocaleDateString('uk-UA') : ''}
+                      {inv.due_at ? ` · до ${new Date(inv.due_at).toLocaleDateString('uk-UA')}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(inv.amount)}{fmtDec(inv.amount)}</div>
+                    {inv.status === 'issued' && inv.order_id && (
+                      <button onClick={() => downloadOrderReceipt(inv.order_id!)} disabled={dlPdf === `order-${inv.order_id}`} style={{
+                        marginTop: 6, padding: '4px 10px', borderRadius: 8, border: `1px solid rgba(200,170,100,0.25)`,
+                        background: 'transparent', color: gold, fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+                      }}>{dlPdf === `order-${inv.order_id}` ? '…' : '📄 Чек'}</button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        ))}
-      </div>
+          )}
+        </div>
+      )}
     </div>
     </ContentWrap>
+    </>
   );
 }
 
@@ -1864,7 +2224,7 @@ export default function App() {
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [transactions, setTransactions] = useState<TxItem[]>([]);
   const [cards, setCards] = useState<CardInfo[]>([]);
-  const [loadingData, setLoadingData] = useState(false);
+  const [loadingData, setLoadingData] = useState(() => !!getToken());
   const [refreshingData, setRefreshingData] = useState(false);
   const [dataError, setDataError] = useState('');
   const [analytics, setAnalytics] = useState<ApiAnalytics | null>(null);
@@ -1913,7 +2273,7 @@ export default function App() {
     setTransactions([]);
     setAnalytics(null);
     setDataError('');
-    setLoadingData(true);
+    setLoadingData(false);
   };
 
   const loadBankData = async (silent = false) => {
