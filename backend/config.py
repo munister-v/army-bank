@@ -85,3 +85,7 @@ CRITICAL_PROCESSING_RATE_LIMIT = int(os.getenv('CRITICAL_PROCESSING_RATE_LIMIT',
 # Обов'язковий заголовок Idempotency-Key для monetary endpoint'ів
 ENFORCE_IDEMPOTENCY_HEADERS = (os.getenv('ENFORCE_IDEMPOTENCY_HEADERS', '1') == '1')
 ENFORCE_IDEMPOTENCY_IN_TESTS = (os.getenv('ENFORCE_IDEMPOTENCY_IN_TESTS', '0') == '1')
+
+# Demo endpoints should be explicitly enabled per environment.
+ALLOW_PLATFORM_DEMO_SEED = (os.getenv('ALLOW_PLATFORM_DEMO_SEED', '0') == '1')
+ALLOW_DEMO_PAYOUT_ACCRUAL = (os.getenv('ALLOW_DEMO_PAYOUT_ACCRUAL', '0') == '1')

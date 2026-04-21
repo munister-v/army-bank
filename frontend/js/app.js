@@ -2919,12 +2919,6 @@ function _genIdempotencyKey() {
   });
 })();
 
-bindJsonForm('#demoPayoutForm', () => '/api/payouts/demo-accrual', {
-  transform: (v) => ({ ...v, amount: Number(v.amount) }),
-  successMessage: 'Виплату нараховано.',
-  afterReset: (form) => { form.title.value = 'Виплата'; form.payout_type.value = 'general'; form.amount.value = '10000'; },
-});
-
 bindJsonForm('#donationForm', () => '/api/donations', {
   transform: (v) => ({ ...v, amount: Number(v.amount) }),
   successMessage: 'Пожертву проведено.',

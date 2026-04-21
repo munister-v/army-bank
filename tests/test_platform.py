@@ -80,8 +80,20 @@ def test_platform_audit_logs_ok(client, platform_admin_headers):
     assert isinstance(data['data'], list)
 
 
-def test_platform_seed_demo_ok(client, platform_admin_headers):
-    """POST /api/platform/seed-demo створює демо-дані."""
+def test_platform_seed_demo_disabled_by_default(client, platform_admin_headers):
+    """POST /api/platform/seed-demo за замовчуванням вимкнено."""
+    r = client.post('/api/platform/seed-demo', json={
+        'users_count': 2,
+        'transactions_per_user': 3,
+    }, headers={**platform_admin_headers, 'Content-Type': 'application/json'})
+    assert r.status_code == 403
+    data = r.get_json()
+    assert data['ok'] is False
+
+
+def test_platform_seed_demo_ok_when_enabled(client, platform_admin_headers):
+    """POST /api/platform/seed-demo працює, якщо флаг увімкнено."""
+    client.application.config['ALLOW_PLATFORM_DEMO_SEED'] = True
     r = client.post('/api/platform/seed-demo', json={
         'users_count': 2,
         'transactions_per_user': 3,

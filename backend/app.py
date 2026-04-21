@@ -21,6 +21,8 @@ from .api_docs import (
     build_postman_environment,
 )
 from .config import (
+    ALLOW_DEMO_PAYOUT_ACCRUAL,
+    ALLOW_PLATFORM_DEMO_SEED,
     BASE_PATH,
     BOOTSTRAP_TOKEN,
     DEBUG,
@@ -66,6 +68,8 @@ def create_app() -> Flask:
     app.config.setdefault('ENABLE_RATE_LIMIT_IN_TESTS', ENABLE_RATE_LIMIT_IN_TESTS)
     app.config.setdefault('ENFORCE_IDEMPOTENCY_HEADERS', ENFORCE_IDEMPOTENCY_HEADERS)
     app.config.setdefault('ENFORCE_IDEMPOTENCY_IN_TESTS', ENFORCE_IDEMPOTENCY_IN_TESTS)
+    app.config.setdefault('ALLOW_PLATFORM_DEMO_SEED', ALLOW_PLATFORM_DEMO_SEED)
+    app.config.setdefault('ALLOW_DEMO_PAYOUT_ACCRUAL', ALLOW_DEMO_PAYOUT_ACCRUAL)
 
     # ── Gzip compression for all text responses (JSON, HTML, CSS, JS) ──
     app.config['COMPRESS_REGISTER'] = False   # manual init below
