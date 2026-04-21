@@ -210,11 +210,11 @@ function QuickAction({ icon, label, onClick }: { icon: React.ReactNode; label: s
   );
 }
 
-function ActivityRow({ iconBg, iconEl, title, subtitle, amount, positive }: {
-  iconBg: string; iconEl: React.ReactNode; title: string; subtitle: string; amount: string; positive?: boolean;
+function ActivityRow({ iconBg, iconEl, title, subtitle, amount, positive, onClick }: {
+  iconBg: string; iconEl: React.ReactNode; title: string; subtitle: string; amount: string; positive?: boolean; onClick?: () => void;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+    <div onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: onClick ? 'pointer' : 'default' }}>
       <div style={{
         width: 38, height: 38, borderRadius: 11, background: iconBg,
         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -224,8 +224,11 @@ function ActivityRow({ iconBg, iconEl, title, subtitle, amount, positive }: {
         <div style={{ fontSize: 14, fontWeight: 500, color: text.secondary, marginBottom: 2 }}>{title}</div>
         <div style={{ fontSize: 12, color: text.muted }}>{subtitle}</div>
       </div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: positive ? '#7fb896' : text.secondary, fontFeatureSettings: '"tnum"' }}>
-        {positive ? '+' : ''}{amount}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: positive ? '#7fb896' : text.secondary, fontFeatureSettings: '"tnum"' }}>
+          {positive ? '+' : ''}{amount}
+        </div>
+        {onClick && <Chevron size={13} color="rgba(232,217,168,0.3)" />}
       </div>
     </div>
   );
@@ -297,7 +300,7 @@ function ActivityFeed({ title = true }: { title?: boolean }) {
       <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden' }}>
         {ACTIVITY_ROWS.map((r, i) => (
           <Fragment key={i}>
-            <ActivityRow {...r} />
+            <ActivityRow {...r} onClick={() => goTo('operations')} />
             {i < ACTIVITY_ROWS.length - 1 && <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 16px' }} />}
           </Fragment>
         ))}
@@ -596,6 +599,7 @@ const CAT_STYLES: Record<TxCat, { bg: string; color: string; icon: React.ReactNo
 
 function OperationsScreen() {
   const topPad = useTopPad();
+  const { toast } = useApp();
   const [period, setPeriod] = useState(0);
   const periodLabels = ['Т', 'М', 'Р'];
   const days = ['П', 'В', 'С', 'Ч', 'П', 'С', 'Н'];
@@ -681,7 +685,7 @@ function OperationsScreen() {
               const s = CAT_STYLES[t.cat];
               return (
                 <Fragment key={i}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+                  <div onClick={() => toast(`${t.title} · ${t.amount} ₴ · ${t.subtitle}`)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer' }}>
                     <div style={{
                       width: 36, height: 36, borderRadius: 10, background: s.bg,
                       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -691,7 +695,10 @@ function OperationsScreen() {
                       <div style={{ fontSize: 14, fontWeight: 500, color: text.secondary, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</div>
                       <div style={{ fontSize: 11.5, color: text.muted }}>{t.subtitle}</div>
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: t.positive ? '#7fb896' : text.secondary, fontFeatureSettings: '"tnum"' }}>{t.amount} ₴</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: t.positive ? '#7fb896' : text.secondary, fontFeatureSettings: '"tnum"' }}>{t.amount} ₴</div>
+                      <Chevron size={12} color="rgba(232,217,168,0.3)" />
+                    </div>
                   </div>
                   {i < g.items.length - 1 && <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 16px 0 64px' }} />}
                 </Fragment>
@@ -1014,8 +1021,12 @@ const appBase: React.CSSProperties = {
 
 // ─── Login screen ─────────────────────────────────────────────
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [identity, setIdentity] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -1025,17 +1036,20 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
+      const isReg = mode === 'register';
+      const res = await fetch(isReg ? '/api/auth/register' : '/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identity: identity.trim(), password }),
+        body: JSON.stringify(isReg
+          ? { full_name: fullName.trim(), phone: phone.trim(), email: email.trim(), password }
+          : { identity: identity.trim(), password }),
       });
       const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.message || 'Невірні дані');
+      if (!res.ok || !json.ok) throw new Error(json.message || (isReg ? 'Помилка реєстрації' : 'Невірні дані'));
       localStorage.setItem('army_bank_token', json.data.token);
       onLogin();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Помилка входу');
+      setError(err instanceof Error ? err.message : 'Помилка');
     } finally {
       setLoading(false);
     }
@@ -1049,12 +1063,13 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const labelStyle: React.CSSProperties = {
     display: 'block', fontSize: 12, color: text.muted, marginBottom: 6, letterSpacing: '0.04em',
   };
+  const fieldStyle = { marginBottom: 16 };
 
   return (
-    <div style={{ ...appBase, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ width: '100%', maxWidth: 400 }}>
+    <div style={{ ...appBase, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
+      <div style={{ width: '100%', maxWidth: 400, paddingTop: 20, paddingBottom: 20 }}>
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{
             width: 64, height: 64, borderRadius: 18, margin: '0 auto 16px',
             background: 'linear-gradient(135deg, #4a3a1a, #d4a84a)',
@@ -1065,26 +1080,52 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           <div style={{ fontSize: 14, color: text.muted, marginTop: 4 }}>Ваші фінанси під контролем</div>
         </div>
 
+        {/* Tab switcher */}
+        <div style={{ display: 'flex', gap: 4, padding: 4, background: 'rgba(255,255,255,0.04)', borderRadius: 14, marginBottom: 20, border: `1px solid ${bg.border}` }}>
+          {(['login', 'register'] as const).map(m => (
+            <button key={m} type="button" onClick={() => { setMode(m); setError(''); }} style={{
+              flex: 1, padding: '10px', borderRadius: 10, border: 'none', cursor: 'pointer',
+              background: mode === m ? 'linear-gradient(135deg, #8a6a2f, #c9a964)' : 'transparent',
+              color: mode === m ? '#1a1208' : text.muted,
+              fontSize: 13, fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.2s',
+            }}>{m === 'login' ? 'Вхід' : 'Реєстрація'}</button>
+          ))}
+        </div>
+
         {/* Form */}
         <form onSubmit={handleSubmit}>
-          <div style={{
-            background: 'rgba(255,255,255,0.03)', border: `1px solid ${bg.border}`,
-            borderRadius: 20, padding: 28,
-          }}>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${bg.border}`, borderRadius: 20, padding: 24 }}>
+            {mode === 'register' && <>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Повне ім'я</label>
+                <input style={inputStyle} type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Іван Петренко" required />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Телефон</label>
+                <input style={inputStyle} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+380XXXXXXXXX" required />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Email</label>
+                <input style={inputStyle} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" required />
+              </div>
+            </>}
+
+            {mode === 'login' && (
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Телефон або Email</label>
+                <input style={inputStyle} type="text" value={identity} onChange={e => setIdentity(e.target.value)} placeholder="+380..." autoComplete="username" required />
+              </div>
+            )}
+
             <div style={{ marginBottom: 20 }}>
-              <label style={labelStyle}>Телефон або Email</label>
-              <input
-                style={inputStyle}
-                type="text"
-                value={identity}
-                onChange={e => setIdentity(e.target.value)}
-                placeholder="+380..."
-                autoComplete="username"
-                required
-              />
-            </div>
-            <div style={{ marginBottom: 24 }}>
-              <label style={labelStyle}>Пароль</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>Пароль</label>
+                {mode === 'login' && (
+                  <button type="button" onClick={() => setError('Зверніться до підтримки для відновлення пароля')} style={{ fontSize: 11, color: gold, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Забули пароль?
+                  </button>
+                )}
+              </div>
               <div style={{ position: 'relative' }}>
                 <input
                   style={{ ...inputStyle, paddingRight: 44 }}
@@ -1092,38 +1133,26 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  autoComplete="current-password"
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                   required
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(v => !v)}
-                  style={{
-                    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', cursor: 'pointer', color: text.muted, padding: 4,
-                  }}
-                >{showPass ? '🙈' : '👁'}</button>
+                <button type="button" onClick={() => setShowPass(v => !v)} style={{
+                  position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', color: text.muted, padding: 4,
+                }}>{showPass ? '🙈' : '👁'}</button>
               </div>
             </div>
 
             {error && (
-              <div style={{
-                marginBottom: 16, padding: '10px 14px', background: 'rgba(200,60,60,0.12)',
-                border: '1px solid rgba(200,60,60,0.25)', borderRadius: 10,
-                color: '#f08080', fontSize: 13,
-              }}>{error}</div>
+              <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(200,60,60,0.12)', border: '1px solid rgba(200,60,60,0.25)', borderRadius: 10, color: '#f08080', fontSize: 13 }}>{error}</div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%', padding: '14px', borderRadius: 12, border: 'none',
-                background: loading ? 'rgba(180,140,60,0.4)' : 'linear-gradient(135deg, #8a6a2f, #d4a84a)',
-                color: '#1a1208', fontSize: 15, fontWeight: 700, cursor: loading ? 'default' : 'pointer',
-                fontFamily: 'inherit', letterSpacing: '0.01em',
-              }}
-            >{loading ? 'Вхід...' : 'Увійти'}</button>
+            <button type="submit" disabled={loading} style={{
+              width: '100%', padding: '14px', borderRadius: 12, border: 'none',
+              background: loading ? 'rgba(180,140,60,0.4)' : 'linear-gradient(135deg, #8a6a2f, #d4a84a)',
+              color: '#1a1208', fontSize: 15, fontWeight: 700, cursor: loading ? 'default' : 'pointer',
+              fontFamily: 'inherit', letterSpacing: '0.01em',
+            }}>{loading ? '...' : mode === 'login' ? 'Увійти' : 'Створити акаунт'}</button>
           </div>
         </form>
       </div>
