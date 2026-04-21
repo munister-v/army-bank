@@ -69,10 +69,8 @@
         var shortEdge = Math.min(Number(window.screen?.width || 0), Number(window.screen?.height || 0));
         var phoneLikeTouch = hasTouch && shortEdge > 0 && shortEdge <= 560;
         var isPhoneOnly = isIPhone || isAndroidPhone || isWindowsPhone || phoneLikeTouch;
-        if (!isPhoneOnly) {
-          root.classList.add('ab-desktop-blocked');
-          window.__AB_DESKTOP_BLOCKED = true;
-        }
+        // Desktop is fully supported — cockpit layout via desktop-cockpit.css
+        void isPhoneOnly;
       } catch(_) {}
 
       try {
@@ -92,14 +90,14 @@
       } catch(_) {}
 
       try {
-        if (!root.classList.contains('ab-desktop-blocked') && window.matchMedia && window.matchMedia('(min-width: 1200px)').matches) {
+        if (window.matchMedia && window.matchMedia('(min-width: 1200px)').matches) {
           root.classList.add('desktop-classic');
           root.classList.add('desktop-cockpit');
         }
       } catch(_) {}
 
       try {
-        if (!root.classList.contains('ab-desktop-blocked') && localStorage.getItem('army_bank_token')) {
+        if (localStorage.getItem('army_bank_token')) {
           /* Hide login page immediately — no flash of auth screen for returning users */
           root.classList.add('ab-authed');
           /* Kick Render cold-start in parallel */
@@ -178,42 +176,7 @@
   </div>
 
   <!-- Desktop Block Screen (mobile-only app policy) -->
-  <section id="desktopBlockScreen" class="desktop-block-screen" aria-labelledby="desktopBlockTitle">
-    <div class="desktop-block-card">
-      <div class="desktop-block-badge">ARM Bank · Mobile Only</div>
-      <div class="desktop-block-grid">
-        <div class="desktop-block-hero">
-          <h1 id="desktopBlockTitle">Відкрийте ARM Bank на телефоні</h1>
-          <p class="desktop-block-text">Скануйте QR та встановіть PWA на головний екран.</p>
-
-          <div class="desktop-block-pills">
-            <span class="desktop-block-pill">iOS: «Поділитися» → «На головний екран»</span>
-            <span class="desktop-block-pill">Android: «Встановити застосунок»</span>
-          </div>
-
-          <a id="desktopBlockLink" class="desktop-block-link" href="https://army-bank.onrender.com/" target="_blank" rel="noopener">army-bank.onrender.com</a>
-
-          <div class="desktop-block-actions">
-            <button id="desktopCopyLinkBtn" type="button" class="desktop-block-btn primary">Скопіювати посилання</button>
-            <a class="desktop-block-btn" href="https://army-bank.onrender.com/" target="_blank" rel="noopener">Відкрити в браузері</a>
-          </div>
-
-          <div class="desktop-block-mini-steps">
-            <span>1. Скануйте QR</span>
-            <span>2. Встановіть PWA</span>
-            <span>3. Користуйтеся з телефона</span>
-          </div>
-        </div>
-
-        <div class="desktop-block-qr-panel">
-          <div class="desktop-block-qr-wrap">
-            <img id="desktopBlockQr" alt="QR-код для відкриття ARM Bank на телефоні" loading="lazy" decoding="async">
-          </div>
-          <div class="desktop-block-qr-caption">Наведіть камеру смартфона на QR</div>
-        </div>
-      </div>
-    </div>
-  </section>
+  <!-- desktop-block screen removed: desktop is now fully supported via cockpit layout -->
 
   <!-- ══ AUTH ══════════════════════════════════════════════ -->
   <div id="authScreen" class="auth-screen">
