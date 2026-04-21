@@ -60,6 +60,30 @@ def create_app() -> Flask:
     try:
         init_db()
         init_admin()
+        # Auto-seed marketplace products on startup (idempotent)
+        try:
+            from .routes.marketplace_routes import _ensure_schema, REAL_PRODUCTS, _unique_slug, _now_sql
+            from .database import get_connection
+            _ensure_schema()
+            with get_connection() as conn:
+                for p in REAL_PRODUCTS:
+                    existing = conn.execute(
+                        'SELECT id FROM marketplace_products WHERE slug = %s LIMIT 1', (p['slug'],)
+                    ).fetchone()
+                    now = _now_sql()
+                    if existing:
+                        conn.execute(
+                            f'UPDATE marketplace_products SET title=%s,description=%s,price=%s,currency=%s,image_emoji=%s,image_url=%s,badge=%s,stock=%s,is_active=TRUE,updated_at={now} WHERE slug=%s',
+                            (p['title'],p['description'],p['price'],p['currency'],p['image_emoji'],p.get('image_url'),p.get('badge'),p.get('stock',10),p['slug'])
+                        )
+                    else:
+                        conn.execute(
+                            f'INSERT INTO marketplace_products(slug,title,description,price,currency,image_emoji,image_url,badge,stock,is_active,created_at,updated_at) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,TRUE,{now},{now})',
+                            (p['slug'],p['title'],p['description'],p['price'],p['currency'],p['image_emoji'],p.get('image_url'),p.get('badge'),p.get('stock',10))
+                        )
+            print(f'[Army Bank] Marketplace sync: {len(REAL_PRODUCTS)} products upserted')
+        except Exception as seed_exc:
+            print(f'[Army Bank] Marketplace seed warning: {seed_exc}')
     except Exception as exc:
         db_boot_ok = False
         print(f'[Army Bank] DB bootstrap warning: {exc}')

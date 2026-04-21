@@ -1464,6 +1464,130 @@ function ProfileScreen() {
 interface Product { id: number; title: string; description?: string; price: number; currency?: string; image_emoji?: string; badge?: string; stock?: number; slug?: string; }
 interface MarketOrder { id: number; total_amount: number; currency: string; status: string; invoice_number?: string; invoice_status?: string; created_at?: string; items_count?: number; }
 interface MarketInvoice { invoice_number: string; amount: number; currency: string; status: string; due_at?: string; paid_at?: string; created_at?: string; order_id?: number; }
+interface CartItem { product: Product; qty: number; }
+
+const BADGE_COLORS: Record<string, { bg: string; color: string }> = {
+  'HOT':      { bg: 'rgba(220,60,60,0.15)', color: '#e07070' },
+  'NEW':      { bg: 'rgba(60,180,120,0.15)', color: '#7fb896' },
+  'TOP':      { bg: 'rgba(200,170,60,0.15)', color: gold },
+  'SALE':     { bg: 'rgba(220,120,40,0.15)', color: '#e09060' },
+  'PRO':      { bg: 'rgba(120,100,200,0.15)', color: '#a090e0' },
+  'GAMING':   { bg: 'rgba(200,60,220,0.15)', color: '#d070d0' },
+  'ARM DEAL': { bg: 'rgba(200,170,100,0.15)', color: gold },
+  'M3':       { bg: 'rgba(60,120,200,0.15)', color: '#70a0e0' },
+  'M4':       { bg: 'rgba(60,120,200,0.15)', color: '#70a0e0' },
+};
+
+function BadgePill({ badge }: { badge: string }) {
+  const c = BADGE_COLORS[badge] || { bg: 'rgba(200,170,100,0.12)', color: gold };
+  return (
+    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 6, background: c.bg, color: c.color, letterSpacing: 0.5, textTransform: 'uppercase' }}>{badge}</span>
+  );
+}
+
+function ProductDetailDrawer({ product, onClose, onAddToCart }: { product: Product; onClose: () => void; onAddToCart: (p: Product) => void }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }} onClick={onClose}>
+      <div style={{ background: 'rgba(0,0,0,0.5)', position: 'absolute', inset: 0 }} />
+      <div onClick={e => e.stopPropagation()} style={{
+        position: 'relative', background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)',
+        borderRadius: '24px 24px 0 0', padding: '28px 24px 48px',
+        boxShadow: '0 -20px 60px rgba(0,0,0,0.6)', maxHeight: '85vh', overflowY: 'auto',
+        border: '1px solid rgba(200,170,100,0.15)', borderBottom: 'none',
+      }}>
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(200,170,100,0.25)', margin: '0 auto 24px' }} />
+        <div style={{ display: 'flex', gap: 4, marginBottom: 16, flexWrap: 'wrap' }}>
+          {product.badge && <BadgePill badge={product.badge} />}
+          {product.stock !== undefined && product.stock <= 5 && product.stock > 0 && (
+            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 6, background: 'rgba(220,100,60,0.15)', color: '#e07858', letterSpacing: 0.5 }}>ОСТАННІ {product.stock}</span>
+          )}
+        </div>
+        <div style={{ fontSize: 48, textAlign: 'center', marginBottom: 12 }}>{product.image_emoji || '🛍️'}</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: text.primary, marginBottom: 8, lineHeight: 1.25 }}>{product.title}</div>
+        {product.description && (
+          <div style={{ fontSize: 14, color: text.muted, lineHeight: 1.6, marginBottom: 20 }}>{product.description}</div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ fontSize: 30, fontWeight: 800, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(product.price)}{fmtDec(product.price)}</div>
+          {product.stock !== undefined && (
+            <div style={{ fontSize: 12, color: product.stock > 0 ? text.muted : '#e07070' }}>
+              {product.stock > 0 ? `Є в наявності: ${product.stock}` : 'Немає в наявності'}
+            </div>
+          )}
+        </div>
+        <button
+          onClick={() => { onAddToCart(product); onClose(); }}
+          disabled={product.stock !== undefined && product.stock <= 0}
+          style={{
+            width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontSize: 16, fontWeight: 700,
+            background: (product.stock !== undefined && product.stock <= 0) ? 'rgba(180,140,60,0.25)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+            color: '#1a1208', cursor: (product.stock !== undefined && product.stock <= 0) ? 'default' : 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          {(product.stock !== undefined && product.stock <= 0) ? 'Немає в наявності' : '🛒 Додати до кошика'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checkingOut }: {
+  cart: CartItem[]; onClose: () => void;
+  onQtyChange: (id: number, delta: number) => void;
+  onRemove: (id: number) => void;
+  onCheckout: () => void; checkingOut: boolean;
+}) {
+  const total = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }} onClick={onClose}>
+      <div style={{ background: 'rgba(0,0,0,0.5)', position: 'absolute', inset: 0 }} />
+      <div onClick={e => e.stopPropagation()} style={{
+        position: 'relative', background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)',
+        borderRadius: '24px 24px 0 0', padding: '28px 24px 48px',
+        boxShadow: '0 -20px 60px rgba(0,0,0,0.6)', maxHeight: '80vh', overflowY: 'auto',
+        border: '1px solid rgba(200,170,100,0.15)', borderBottom: 'none',
+      }}>
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(200,170,100,0.25)', margin: '0 auto 20px' }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: text.primary }}>Кошик</div>
+          <div style={{ fontSize: 14, color: text.muted }}>{cart.reduce((s,i) => s+i.qty, 0)} товарів</div>
+        </div>
+        {cart.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: text.muted }}>Кошик порожній</div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              {cart.map(item => (
+                <div key={item.product.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 14 }}>
+                  <div style={{ fontSize: 28, flexShrink: 0 }}>{item.product.image_emoji || '🛍️'}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: text.secondary, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product.title}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: gold }}>₴{fmtInt(item.product.price * item.qty)}{fmtDec(item.product.price * item.qty)}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button onClick={() => onQtyChange(item.product.id, -1)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(200,170,100,0.1)', border: `1px solid rgba(200,170,100,0.2)`, color: gold, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: text.primary, minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
+                    <button onClick={() => onQtyChange(item.product.id, 1)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(200,170,100,0.1)', border: `1px solid rgba(200,170,100,0.2)`, color: gold, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                    <button onClick={() => onRemove(item.product.id)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(220,80,80,0.08)', border: '1px solid rgba(220,80,80,0.15)', color: '#e07070', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16, padding: '0 4px' }}>
+              <span style={{ fontSize: 14, color: text.muted }}>Разом:</span>
+              <span style={{ fontSize: 24, fontWeight: 800, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(total)}{fmtDec(total)}</span>
+            </div>
+            <button onClick={onCheckout} disabled={checkingOut} style={{
+              width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontSize: 16, fontWeight: 700,
+              background: checkingOut ? 'rgba(180,140,60,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+              color: '#1a1208', cursor: checkingOut ? 'default' : 'pointer', fontFamily: 'inherit',
+            }}>{checkingOut ? 'Оформлення…' : '✓ Оформити замовлення'}</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 type MarketTab = 'catalog' | 'orders' | 'invoices';
 
@@ -1475,10 +1599,58 @@ function MarketplaceScreen() {
   const [orders, setOrders] = useState<MarketOrder[]>([]);
   const [invoices, setInvoices] = useState<MarketInvoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [buying, setBuying] = useState<number | null>(null);
   const [dlPdf, setDlPdf] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Product | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [showCart, setShowCart] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [search, setSearch] = useState('');
 
   const token = localStorage.getItem('army_bank_token');
+
+  function addToCart(product: Product) {
+    setCart(prev => {
+      const existing = prev.find(i => i.product.id === product.id);
+      if (existing) return prev.map(i => i.product.id === product.id ? { ...i, qty: i.qty + 1 } : i);
+      return [...prev, { product, qty: 1 }];
+    });
+    toast(`✓ ${product.title} — додано до кошика`);
+  }
+
+  function changeQty(id: number, delta: number) {
+    setCart(prev => prev.map(i => i.product.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
+  }
+
+  function removeFromCart(id: number) {
+    setCart(prev => prev.filter(i => i.product.id !== id));
+  }
+
+  async function checkoutCart() {
+    if (cart.length === 0) return;
+    setCheckingOut(true);
+    try {
+      for (const item of cart) {
+        const r = await fetch('/api/marketplace/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ product_id: item.product.id, quantity: item.qty }),
+        });
+        const j = await r.json();
+        if (!r.ok || !j.ok) throw new Error(j.message || j.error || 'Помилка');
+      }
+      toast(`✓ Замовлення на ${cart.length} товар(ів) оформлено!`);
+      setCart([]);
+      setShowCart(false);
+      refreshDashboard();
+      setTimeout(() => setTab('orders'), 800);
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Помилка оформлення');
+    } finally {
+      setCheckingOut(false);
+    }
+  }
+
+  const cartCount = cart.reduce((s, i) => s + i.qty, 0);
 
   useEffect(() => {
     if (tab === 'catalog') {
@@ -1505,26 +1677,6 @@ function MarketplaceScreen() {
     }
   }, [tab]);
 
-  async function buy(product: Product) {
-    setBuying(product.id);
-    try {
-      const r = await fetch('/api/marketplace/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ product_id: product.id, quantity: 1 }),
-      });
-      const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j.message || j.error || 'Помилка');
-      toast(`✓ Замовлення оформлено — ${product.title}`);
-      refreshDashboard();
-      setTimeout(() => { setTab('orders'); }, 800);
-    } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : 'Помилка оформлення');
-    } finally {
-      setBuying(null);
-    }
-  }
-
   async function downloadOrderReceipt(orderId: number) {
     setDlPdf(`order-${orderId}`);
     try {
@@ -1548,13 +1700,28 @@ function MarketplaceScreen() {
     overdue: '#e07070', cancelled: 'rgba(232,217,168,0.4)', expired: 'rgba(232,217,168,0.4)',
   };
 
+  const filteredProducts = search.trim()
+    ? products.filter(p => p.title.toLowerCase().includes(search.toLowerCase()) || (p.description || '').toLowerCase().includes(search.toLowerCase()))
+    : products;
+
   return (
+    <>
+    {preview && <ProductDetailDrawer product={preview} onClose={() => setPreview(null)} onAddToCart={addToCart} />}
+    {showCart && <CartDrawer cart={cart} onClose={() => setShowCart(false)} onQtyChange={changeQty} onRemove={removeFromCart} onCheckout={checkoutCart} checkingOut={checkingOut} />}
     <ContentWrap maxW={800}>
     <div style={{ paddingBottom: 80 }}>
       <div style={{ padding: `${topPad} 22px 12px` }}>
-        <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8, marginBottom: 14 }}>Магазин</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Магазин</div>
+          <button onClick={() => setShowCart(true)} style={{ position: 'relative', width: 44, height: 44, borderRadius: 14, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20 }}>
+            🛒
+            {cartCount > 0 && (
+              <span style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: '50%', background: gold, color: '#1a1208', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{cartCount > 9 ? '9+' : cartCount}</span>
+            )}
+          </button>
+        </div>
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 6, padding: 4, background: 'rgba(26,40,32,0.5)', borderRadius: 14, width: 'fit-content' }}>
+        <div style={{ display: 'flex', gap: 6, padding: 4, background: 'rgba(26,40,32,0.5)', borderRadius: 14, width: 'fit-content', marginBottom: tab === 'catalog' ? 12 : 0 }}>
           {MARKET_TABS.map(t => (
             <button key={t.k} onClick={() => setTab(t.k)} style={{
               padding: '6px 16px', borderRadius: 10, fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
@@ -1563,6 +1730,13 @@ function MarketplaceScreen() {
             }}>{t.label}</button>
           ))}
         </div>
+        {/* Search (catalog only) */}
+        {tab === 'catalog' && (
+          <div style={{ position: 'relative' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.4 }}><circle cx="11" cy="11" r="7" stroke="#e8d9a8" strokeWidth="1.8" /><path d="M20 20l-3-3" stroke="#e8d9a8" strokeWidth="1.8" strokeLinecap="round" /></svg>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Пошук товарів…" style={{ width: '100%', padding: '10px 14px 10px 36px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(200,170,100,0.14)`, borderRadius: 12, color: '#e8d9a8', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          </div>
+        )}
       </div>
 
       {loading && <div style={{ padding: 60, textAlign: 'center', color: text.muted, fontSize: 14 }}>Завантаження…</div>}
@@ -1570,33 +1744,34 @@ function MarketplaceScreen() {
       {/* ── CATALOG ── */}
       {!loading && tab === 'catalog' && (
         <>
-          {products.length === 0 ? (
+          {filteredProducts.length === 0 ? (
             <div style={{ padding: '60px 22px', textAlign: 'center' }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>🛍️</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: text.secondary, marginBottom: 6 }}>Магазин порожній</div>
-              <div style={{ fontSize: 13, color: text.muted }}>Товари ще не додано.</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: text.secondary, marginBottom: 6 }}>{search ? 'Нічого не знайдено' : 'Магазин порожній'}</div>
+              <div style={{ fontSize: 13, color: text.muted }}>{search ? `Спробуй інший запит` : 'Товари ще не додано.'}</div>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, padding: '8px 22px' }}>
-              {products.map(p => (
-                <div key={p.id} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ height: 100, background: `linear-gradient(135deg, rgba(200,170,100,0.08), rgba(138,106,47,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 44 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 10, padding: '8px 22px' }}>
+              {filteredProducts.map(p => (
+                <div key={p.id} onClick={() => setPreview(p)} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'border-color 0.15s' }}>
+                  <div style={{ height: 96, background: `linear-gradient(135deg, rgba(200,170,100,0.08), rgba(138,106,47,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42, position: 'relative' }}>
                     {p.image_emoji || '🛍️'}
+                    {p.badge && (
+                      <div style={{ position: 'absolute', top: 8, right: 8 }}><BadgePill badge={p.badge} /></div>
+                    )}
                   </div>
-                  <div style={{ padding: '12px 14px 14px', flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    {p.badge && <span style={{ fontSize: 10, color: gold, letterSpacing: 0.5, fontWeight: 600 }}>{p.badge}</span>}
-                    <div style={{ fontSize: 13, fontWeight: 600, color: text.secondary, lineHeight: 1.3 }}>{p.title}</div>
-                    {p.description && <div style={{ fontSize: 11, color: text.muted, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{p.description}</div>}
-                    <div style={{ marginTop: 'auto', paddingTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                      <span style={{ fontSize: 15, fontWeight: 700, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(p.price)}{fmtDec(p.price)}</span>
-                      <button onClick={() => buy(p)} disabled={buying === p.id || (p.stock !== undefined && p.stock <= 0)} style={{
-                        padding: '6px 12px', borderRadius: 10, border: 'none', fontSize: 12, fontWeight: 600,
-                        background: (buying === p.id || (p.stock !== undefined && p.stock <= 0)) ? 'rgba(180,140,60,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
-                        color: '#1a1208', cursor: (buying === p.id || (p.stock !== undefined && p.stock <= 0)) ? 'default' : 'pointer', fontFamily: 'inherit',
-                      }}>{buying === p.id ? '…' : (p.stock !== undefined && p.stock <= 0) ? 'Немає' : 'Купити'}</button>
+                  <div style={{ padding: '10px 12px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: text.secondary, lineHeight: 1.3 }}>{p.title}</div>
+                    <div style={{ marginTop: 'auto', paddingTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(p.price)}</span>
+                      <button onClick={e => { e.stopPropagation(); addToCart(p); }} disabled={p.stock !== undefined && p.stock <= 0} style={{
+                        width: 28, height: 28, borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700,
+                        background: (p.stock !== undefined && p.stock <= 0) ? 'rgba(180,140,60,0.2)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+                        color: '#1a1208', cursor: (p.stock !== undefined && p.stock <= 0) ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>+</button>
                     </div>
                     {p.stock !== undefined && p.stock > 0 && p.stock <= 5 && (
-                      <div style={{ fontSize: 10, color: '#e0a070' }}>Залишилось: {p.stock}</div>
+                      <div style={{ fontSize: 9, color: '#e0a070', fontWeight: 600 }}>Останніх: {p.stock}</div>
                     )}
                   </div>
                 </div>
@@ -1681,6 +1856,7 @@ function MarketplaceScreen() {
       )}
     </div>
     </ContentWrap>
+    </>
   );
 }
 
