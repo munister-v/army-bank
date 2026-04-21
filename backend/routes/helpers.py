@@ -52,9 +52,8 @@ def auth_required(func):
             from ..config import USE_PG
             with get_connection() as _lsa_conn:
                 _now_sql = 'NOW()' if USE_PG else "datetime('now')"
-                _placeholder = '%s' if USE_PG else '?'
                 _lsa_conn.execute(
-                    f"UPDATE users SET last_seen_at = {_now_sql} WHERE id = {_placeholder}",
+                    f"UPDATE users SET last_seen_at = {_now_sql} WHERE id = %s",
                     (user['id'],),
                 )
         except Exception:
