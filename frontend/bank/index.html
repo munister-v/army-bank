@@ -77,8 +77,8 @@
         text-size-adjust: 100%;
       }
       #root {
-        height: var(--app-vh, 100vh);
-        min-height: var(--app-vh, 100vh);
+        height: max(var(--app-vh, 100vh), 100dvh);
+        min-height: max(var(--app-vh, 100vh), 100dvh);
         /* Isolate stacking context for backdrop-filter on Android */
         isolation: isolate;
       }
@@ -127,9 +127,13 @@
           var ih = window.innerHeight || 0;
           var ch = document.documentElement.clientHeight || 0;
           var vv = (window.visualViewport && window.visualViewport.height) ? Math.round(window.visualViewport.height) : 0;
-          // In standalone PWA mode prefer innerHeight to avoid bottom dead-zones on iPhone.
-          // In browser mode prefer visualViewport to account for dynamic browser chrome.
-          var h = isStandaloneMode() ? (ih || ch || vv) : (vv || ih || ch);
+          var sh = (window.screen && window.screen.height) ? Math.round(window.screen.height) : 0;
+          // iOS standalone may report conservative innerHeight.
+          // Use the largest stable value in standalone to avoid "browser-sized" layout.
+          // In browser mode prefer visualViewport to track dynamic browser chrome.
+          var h = isStandaloneMode()
+            ? Math.max(ih || 0, ch || 0, vv || 0, sh || 0)
+            : (vv || ih || ch || sh);
           if (h > 0) root.style.setProperty('--app-vh', h + 'px');
         }
         setAppVh();
@@ -144,7 +148,7 @@
     </script>
     <script>
       (function () {
-        var buildId = '2026-04-22-10';
+        var buildId = '2026-04-22-11';
         var buildKey = 'army_bank_build_id';
         try {
           var prev = localStorage.getItem(buildKey);
@@ -168,7 +172,7 @@
         } catch (_) {}
       })();
     </script>
-    <script type="module" crossorigin src="/bank/assets/index-BkXQTmhe.js"></script>
+    <script type="module" crossorigin src="/bank/assets/index-DKvOBxE7.js"></script>
     <link rel="stylesheet" crossorigin href="/bank/assets/index-Dz9NfLqY.css">
   </head>
   <body>

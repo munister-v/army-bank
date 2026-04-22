@@ -3572,8 +3572,8 @@ export default function App() {
               minHeight: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
-              paddingBottom: 'max(10px, env(safe-area-inset-bottom, 0px))',
-              scrollPaddingBottom: 'max(16px, env(safe-area-inset-bottom, 0px))',
+              paddingBottom: 6,
+              scrollPaddingBottom: 12,
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
