@@ -2831,7 +2831,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       background: 'linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.62) 38%, rgba(7,21,15,0.98) 100%)',
     }}>
       <div style={{
-        padding: '0 14px max(6px, env(safe-area-inset-bottom, 0px))',
+        padding: '0 14px clamp(2px, env(safe-area-inset-bottom, 0px), 8px)',
         paddingTop: 8,
       }}>
       <div style={{
