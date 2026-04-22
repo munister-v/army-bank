@@ -1,4 +1,4 @@
-import React, { useState, Fragment, useEffect, createContext, useContext, Component } from 'react';
+import React, { useState, Fragment, useEffect, createContext, useContext, Component, useRef } from 'react';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 import florenceCardImage from './assets/cards/florence.png';
 import tuscanyHillsCardImage from './assets/cards/tuscany-hills.png';
@@ -920,6 +920,11 @@ function OverviewScreen() {
     { variant: 'obsidian', number: '4402', name: userNameUp, expiry: '11/30' },
   ];
   const safeCardIdx = Math.min(cardIdx, Math.max(0, cards.length - 1));
+  const swipeStartXRef = useRef<number | null>(null);
+  const swipeStartYRef = useRef<number | null>(null);
+  const swipeAxisRef = useRef<'x' | 'y' | null>(null);
+  const [dragOffsetX, setDragOffsetX] = useState(0);
+  const [isCardDragging, setIsCardDragging] = useState(false);
 
   useEffect(() => {
     if (cardIdx !== safeCardIdx) setCardIdx(safeCardIdx);
@@ -928,6 +933,55 @@ function OverviewScreen() {
   useEffect(() => {
     persistSelectedCardIndex(safeCardIdx);
   }, [safeCardIdx]);
+
+  function resetCardSwipe() {
+    swipeStartXRef.current = null;
+    swipeStartYRef.current = null;
+    swipeAxisRef.current = null;
+    setIsCardDragging(false);
+    setDragOffsetX(0);
+  }
+
+  function handleCardTouchStart(e: React.TouchEvent<HTMLDivElement>) {
+    if (cards.length < 2) return;
+    const t = e.touches[0];
+    swipeStartXRef.current = t.clientX;
+    swipeStartYRef.current = t.clientY;
+    swipeAxisRef.current = null;
+    setIsCardDragging(true);
+    setDragOffsetX(0);
+  }
+
+  function handleCardTouchMove(e: React.TouchEvent<HTMLDivElement>) {
+    if (cards.length < 2) return;
+    if (swipeStartXRef.current == null || swipeStartYRef.current == null) return;
+    const t = e.touches[0];
+    const dx = t.clientX - swipeStartXRef.current;
+    const dy = t.clientY - swipeStartYRef.current;
+    if (!swipeAxisRef.current) {
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        swipeAxisRef.current = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+      }
+    }
+    if (swipeAxisRef.current !== 'x') return;
+    e.preventDefault();
+    const bounded = Math.max(-150, Math.min(150, dx));
+    setDragOffsetX(bounded);
+  }
+
+  function handleCardTouchEnd() {
+    if (cards.length < 2) {
+      resetCardSwipe();
+      return;
+    }
+    const threshold = 52;
+    const swipe = dragOffsetX;
+    if (Math.abs(swipe) >= threshold) {
+      const dir = swipe < 0 ? 1 : -1;
+      setCardIdx(prev => Math.max(0, Math.min(cards.length - 1, prev + dir)));
+    }
+    resetCardSwipe();
+  }
 
   const cardSection = (
     <div>
@@ -952,10 +1006,35 @@ function OverviewScreen() {
         </div>
       ) : (
         <>
-          <div style={{ maxWidth: 380 }}>
-            <PremiumCard {...cards[safeCardIdx]} />
+          <div
+            style={{
+              maxWidth: 380,
+              overflow: 'hidden',
+              borderRadius: 22,
+              touchAction: 'pan-y',
+            }}
+            onTouchStart={handleCardTouchStart}
+            onTouchMove={handleCardTouchMove}
+            onTouchEnd={handleCardTouchEnd}
+            onTouchCancel={handleCardTouchEnd}
+          >
+            <div
+              style={{
+                display: 'flex',
+                width: `${cards.length * 100}%`,
+                transform: `translate3d(calc(${-safeCardIdx * 100}% + ${dragOffsetX}px), 0, 0)`,
+                transition: isCardDragging ? 'none' : 'transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1)',
+                willChange: 'transform',
+              }}
+            >
+              {cards.map((c, i) => (
+                <div key={`${c.number}-${i}`} style={{ width: `${100 / cards.length}%`, flexShrink: 0 }}>
+                  <PremiumCard {...c} />
+                </div>
+              ))}
+            </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-start', gap: 6, marginTop: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 14 }}>
             {cards.map((_, i) => (
               <button key={i} onClick={() => setCardIdx(i)} style={{ width: i === safeCardIdx ? 20 : 6, height: 6, borderRadius: 3, background: i === safeCardIdx ? gold : 'rgba(180,172,155,0.25)', border: 'none', padding: 0, cursor: 'pointer', transition: 'all 0.25s' }} />
             ))}
