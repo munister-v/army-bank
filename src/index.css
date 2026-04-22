@@ -75,23 +75,6 @@
   }
   .animate-glow { animation: glow-pulse 2s ease-in-out infinite; }
 
-  @keyframes luxOrbFloatA {
-    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-    50% { transform: translate3d(-16px, 20px, 0) scale(1.05); }
-  }
-  @keyframes luxOrbFloatB {
-    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-    50% { transform: translate3d(14px, -18px, 0) scale(1.08); }
-  }
-  @keyframes luxOrbFloatC {
-    0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: .85; }
-    50% { transform: translate3d(8px, -14px, 0) scale(1.1); opacity: .55; }
-  }
-  @keyframes luxSweep {
-    0%, 100% { transform: translateX(-6%); opacity: 0.16; }
-    50% { transform: translateX(7%); opacity: 0.34; }
-  }
-
   /* Custom Scrollbar for a polished look */
   ::-webkit-scrollbar {
     width: 8px;
