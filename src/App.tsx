@@ -1217,6 +1217,10 @@ function OverviewScreen() {
 
   const byType = (analytics?.by_type || []).filter(r => r.direction === 'out');
   const totalOut = byType.reduce((s, r) => s + Number(r.total), 0);
+  const monthIn = Number(analytics?.current_month?.total_in || 0);
+  const monthOut = Number(analytics?.current_month?.total_out || 0);
+  const flowNet = monthIn - monthOut;
+  const flowNetSign = flowNet >= 0 ? '+' : '−';
   const SPEND_LABELS: Record<string, string> = { transfer: 'Перекази', food: 'Їжа', transport: 'Транспорт', utility: 'Комунальні', shopping: 'Покупки', subscription: 'Підписки' };
   const SPEND_COLORS: Record<string, string> = { transfer: '#ddd8cc', food: '#e8a864', transport: '#88a8e8', utility: gold, shopping: '#c97db4', subscription: '#78c8b4' };
   const spendRows = totalOut > 0 ? byType.map(r => ({
@@ -1299,6 +1303,52 @@ function OverviewScreen() {
         ].map((icon, i) => (
           <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast('Нових сповіщень немає')} style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.12)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>{icon}</button>
         ))}
+      </div>
+
+      <div style={{ padding: '10px 22px 2px' }}>
+        <div style={{
+          borderRadius: 18,
+          border: '1px solid rgba(220,215,200,0.18)',
+          background: 'linear-gradient(140deg, rgba(16,38,29,0.7) 0%, rgba(11,24,18,0.78) 58%, rgba(20,40,30,0.58) 100%)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 28px rgba(0,0,0,0.22)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          padding: '10px 12px',
+          overflow: 'hidden',
+          position: 'relative',
+        }}>
+          <div style={{
+            position: 'absolute',
+            width: 140,
+            height: 140,
+            borderRadius: '50%',
+            right: -40,
+            top: -56,
+            background: 'radial-gradient(circle, rgba(170,225,190,0.18) 0%, rgba(170,225,190,0) 72%)',
+            pointerEvents: 'none',
+          }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, position: 'relative' }}>
+            <div style={{ fontSize: 10.5, color: 'rgba(220,215,200,0.78)', fontWeight: 600, letterSpacing: 0.7, textTransform: 'uppercase' }}>Private Banking Flow</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#78d19a', boxShadow: '0 0 8px rgba(120,209,154,0.65)' }} />
+              <span style={{ fontSize: 10, color: '#95d8ad', fontWeight: 600 }}>LIVE</span>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, position: 'relative' }}>
+            <div style={{ borderRadius: 12, padding: '8px 9px', border: '1px solid rgba(220,215,200,0.14)', background: 'rgba(255,255,255,0.04)' }}>
+              <div style={{ fontSize: 9.5, color: text.dim, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.6 }}>Net Flow</div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: flowNet >= 0 ? '#94d7aa' : '#e6a0a0' }}>{flowNetSign}₴{fmtInt(Math.abs(flowNet))}</div>
+            </div>
+            <div style={{ borderRadius: 12, padding: '8px 9px', border: '1px solid rgba(220,215,200,0.14)', background: 'rgba(255,255,255,0.04)' }}>
+              <div style={{ fontSize: 9.5, color: text.dim, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.6 }}>Trend</div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#d8cfbe' }}>{analyticsChangeLabel(analytics)}</div>
+            </div>
+            <div style={{ borderRadius: 12, padding: '8px 9px', border: '1px solid rgba(220,215,200,0.14)', background: 'rgba(255,255,255,0.04)' }}>
+              <div style={{ fontSize: 9.5, color: text.dim, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.6 }}>Tier</div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#e0d3bc' }}>Heritage</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div style={{ padding: '24px 22px 20px' }}>
