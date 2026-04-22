@@ -9,10 +9,10 @@ export class ErrorBoundary extends Component<{ children: React.ReactNode }, { er
   render() {
     if (this.state.error) {
       return (
-        <div style={{ position: 'fixed', inset: 0, background: '#07150f', color: '#e8d9a8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, fontFamily: 'sans-serif' }}>
+        <div style={{ position: 'fixed', inset: 0, background: '#07150f', color: '#ddd8cc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, fontFamily: 'sans-serif' }}>
           <div style={{ fontSize: 20 }}>⚠️ Щось пішло не так</div>
-          <div style={{ fontSize: 13, color: 'rgba(232,217,168,0.6)', maxWidth: 400, textAlign: 'center' }}>{this.state.error}</div>
-          <button onClick={() => window.location.reload()} style={{ marginTop: 8, padding: '10px 20px', borderRadius: 10, background: '#c9a964', color: '#1a1208', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Оновити сторінку</button>
+          <div style={{ fontSize: 13, color: 'rgba(220,215,200,0.6)', maxWidth: 400, textAlign: 'center' }}>{this.state.error}</div>
+          <button onClick={() => window.location.reload()} style={{ marginTop: 8, padding: '10px 20px', borderRadius: 10, background: gold, color: text.primary, border: 'none', cursor: 'pointer', fontWeight: 600 }}>Оновити сторінку</button>
         </div>
       );
     }
@@ -268,9 +268,9 @@ function Toast({ msg }: { msg: string }) {
       zIndex: 9999, pointerEvents: 'none',
       padding: '10px 20px', borderRadius: 100,
       background: 'rgba(12,28,20,0.94)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
-      border: '1px solid rgba(200,170,100,0.22)',
+      border: '1px solid rgba(180,172,155,0.22)',
       color: text.primary, ...T.sm, fontWeight: 500,
-      boxShadow: '0 12px 32px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(200,170,100,0.1)',
+      boxShadow: '0 12px 32px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(180,172,155,0.1)',
       maxWidth: 'calc(100vw - 48px)', textAlign: 'center', whiteSpace: 'nowrap',
     }}>{msg}</div>
   );
@@ -338,14 +338,14 @@ const CARD_VARIANTS: Record<CardVariant, {
   bg: string; text: string; muted: string; shimmer: string;
 }> = {
   gold: {
-    bg: 'linear-gradient(135deg, #4a3a1a 0%, #8a6a2f 28%, #d4a84a 50%, #f4d77a 62%, #a07a34 82%, #3a2a10 100%)',
-    text: '#1a1208', muted: 'rgba(26,18,8,0.55)',
-    shimmer: 'linear-gradient(115deg, transparent 40%, rgba(255,245,210,0.35) 50%, transparent 60%)',
+    bg: 'linear-gradient(135deg, #1e2820 0%, #3a4438 28%, #6a7068 50%, #b0aca0 62%, #585450 82%, #141814 100%)',
+    text: '#f0ece4', muted: 'rgba(240,236,228,0.55)',
+    shimmer: 'linear-gradient(115deg, transparent 40%, rgba(220,215,200,0.3) 50%, transparent 60%)',
   },
   emerald: {
     bg: 'linear-gradient(135deg, #0a2018 0%, #143028 30%, #1f4238 55%, #2d5e4a 75%, #0a2018 100%)',
-    text: '#e8d9a8', muted: 'rgba(232,217,168,0.55)',
-    shimmer: 'linear-gradient(115deg, transparent 40%, rgba(200,170,100,0.15) 50%, transparent 60%)',
+    text: '#ddd8cc', muted: 'rgba(220,215,200,0.55)',
+    shimmer: 'linear-gradient(115deg, transparent 40%, rgba(180,172,155,0.15) 50%, transparent 60%)',
   },
   platinum: {
     bg: 'linear-gradient(135deg, #3a3f45 0%, #6b7280 30%, #b8bec5 55%, #e5e7eb 65%, #8a9098 85%, #2d3036 100%)',
@@ -354,8 +354,8 @@ const CARD_VARIANTS: Record<CardVariant, {
   },
   obsidian: {
     bg: 'linear-gradient(135deg, #0a0a0a 0%, #1f1f1f 40%, #2a2a2a 60%, #0a0a0a 100%)',
-    text: '#e8d9a8', muted: 'rgba(232,217,168,0.5)',
-    shimmer: 'linear-gradient(115deg, transparent 40%, rgba(200,170,100,0.12) 50%, transparent 60%)',
+    text: '#ddd8cc', muted: 'rgba(220,215,200,0.5)',
+    shimmer: 'linear-gradient(115deg, transparent 40%, rgba(180,172,155,0.12) 50%, transparent 60%)',
   },
 };
 
@@ -516,7 +516,7 @@ function QuickAction({ icon, label, onClick }: { icon: React.ReactNode; label: s
   return (
     <button onClick={onClick} style={{
       flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9,
-      padding: '14px 6px', background: bg.card, border: `1px solid rgba(200,170,100,0.14)`,
+      padding: '14px 6px', background: bg.card, border: `1px solid rgba(180,172,155,0.14)`,
       borderRadius: radius.lg, color: text.secondary, fontFamily: 'inherit', ...T.caption,
       letterSpacing: 0.4, cursor: 'pointer', transition: 'background 0.15s, border-color 0.15s',
     }}>
@@ -524,7 +524,7 @@ function QuickAction({ icon, label, onClick }: { icon: React.ReactNode; label: s
         width: 40, height: 40, borderRadius: 12,
         background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: `0 4px 10px -4px rgba(201,169,100,0.5), inset 0 1px 0 rgba(255,220,150,0.5)`,
+        boxShadow: `0 4px 10px -4px rgba(180,172,155,0.5), inset 0 1px 0 rgba(230,225,210,0.5)`,
       }}>{icon}</div>
       <span>{label}</span>
     </button>
@@ -539,7 +539,7 @@ function ActivityRow({ iconBg, iconEl, title, subtitle, amount, positive, onClic
       <div style={{
         width: 38, height: 38, borderRadius: 11, background: iconBg,
         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-        border: `1px solid rgba(200,170,100,0.15)`,
+        border: `1px solid rgba(180,172,155,0.15)`,
       }}>{iconEl}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ ...T.body, fontWeight: 500, color: text.secondary, marginBottom: 2 }}>{title}</div>
@@ -549,7 +549,7 @@ function ActivityRow({ iconBg, iconEl, title, subtitle, amount, positive, onClic
         <div style={{ ...T.body, fontWeight: 600, color: positive ? '#7fb896' : text.secondary, ...T.num }}>
           {positive ? '+' : ''}{amount}
         </div>
-        {onClick && <Chevron size={13} color="rgba(232,217,168,0.3)" />}
+        {onClick && <Chevron size={13} color="rgba(220,215,200,0.3)" />}
       </div>
     </div>
   );
@@ -565,8 +565,8 @@ function txActivityVisual(tx: ApiTransaction) {
   }
   if (tx.tx_type === 'transfer') {
     return {
-      iconBg: 'rgba(232,217,168,0.08)',
-      iconEl: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12h16M4 12l5-5M4 12l5 5" stroke="#e8d9a8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+      iconBg: 'rgba(220,215,200,0.08)',
+      iconEl: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12h16M4 12l5-5M4 12l5 5" stroke="#ddd8cc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
       positive: false,
     };
   }
@@ -578,7 +578,7 @@ function txActivityVisual(tx: ApiTransaction) {
     };
   }
   return {
-    iconBg: 'rgba(200,170,100,0.1)',
+    iconBg: 'rgba(180,172,155,0.1)',
     iconEl: <svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke={gold} strokeWidth="1.8" /><path d="M8 12h8M12 8v8" stroke={gold} strokeWidth="1.8" strokeLinecap="round" /></svg>,
     positive: false,
   };
@@ -603,7 +603,7 @@ function BalanceBlock({ visible, onToggle, balance, accountNumber }: { visible: 
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
         {accountNumber && accountNumber !== '—' && (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 9px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(200,170,100,0.15)`, borderRadius: 100, fontSize: 11, color: 'rgba(232,217,168,0.7)', fontWeight: 500 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 9px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.15)`, borderRadius: 100, fontSize: 11, color: 'rgba(220,215,200,0.7)', fontWeight: 500 }}>
             {accountNumber}
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="2" /><path d="M5 15V5a2 2 0 012-2h10" stroke="currentColor" strokeWidth="2" /></svg>
           </div>
@@ -640,7 +640,7 @@ function ActivityFeed({ title = true, transactions }: { title?: boolean; transac
         ) : rows.map((r, i) => (
           <Fragment key={i}>
             <ActivityRow {...r} onClick={() => goTo('operations')} />
-            {i < rows.length - 1 && <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 16px' }} />}
+            {i < rows.length - 1 && <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 16px' }} />}
           </Fragment>
         ))}
       </div>
@@ -700,16 +700,16 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
 
   const inp: React.CSSProperties = {
     width: '100%', padding: '12px 14px', boxSizing: 'border-box',
-    background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(200,170,100,0.16)`,
+    background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.16)`,
     borderRadius: 12, color: '#f4ebd0', fontSize: 15, outline: 'none', fontFamily: 'inherit',
   };
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ width: '100%', maxWidth: 480, background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)', border: '1px solid rgba(200,170,100,0.2)', borderRadius: '24px 24px 0 0', padding: '28px 24px 40px', boxShadow: '0 -20px 60px rgba(0,0,0,0.5)' }}>
+      <div style={{ width: '100%', maxWidth: 480, background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)', border: '1px solid rgba(180,172,155,0.2)', borderRadius: '24px 24px 0 0', padding: '28px 24px 40px', boxShadow: '0 -20px 60px rgba(0,0,0,0.5)' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
           <div style={{ ...T.h2, color: text.primary, flex: 1 }}>{cfg.title}</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(232,217,168,0.5)', padding: 4 }}>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(220,215,200,0.5)', padding: 4 }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
           </button>
         </div>
@@ -729,9 +729,13 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
           </div>
           {error && <div style={{ padding: '10px 14px', background: 'rgba(200,60,60,0.12)', border: '1px solid rgba(200,60,60,0.25)', borderRadius: 10, color: '#f08080', fontSize: 13 }}>{error}</div>}
           <button type="submit" disabled={loading} style={{
-            marginTop: 4, padding: '15px', borderRadius: 14, border: 'none',
-            background: loading ? 'rgba(180,140,60,0.35)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
-            color: '#1a1208', fontSize: 16, fontWeight: 700, cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit',
+            marginTop: 4, padding: '15px', borderRadius: 14,
+            border: `1px solid ${bg.border}`,
+            background: loading ? 'rgba(40,55,45,0.4)' : 'linear-gradient(160deg, rgba(40,58,48,0.95) 0%, rgba(22,38,28,1) 100%)',
+            color: loading ? text.dim : text.primary, fontSize: 15, fontWeight: 600,
+            cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit',
+            boxShadow: loading ? 'none' : '0 1px 0 rgba(255,255,255,0.05) inset',
+            letterSpacing: 0.3,
           }}>{loading ? '…' : cfg.title}</button>
         </form>
       </div>
@@ -740,10 +744,10 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
 }
 
 const QUICK_ACTIONS: { label: string; icon: React.ReactNode; action: TabKey | TransferMode }[] = [
-  { label: 'Поповнити', action: 'topup', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="#1a1208" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  { label: 'На картку', action: 'by_card', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="#1a1208" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  { label: 'За IBAN', action: 'by_account', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 9h18M3 15h18M6 5v14M18 5v14" stroke="#1a1208" strokeWidth="2" strokeLinecap="round" /></svg> },
-  { label: 'Магазин', action: 'market', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke="#1a1208" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9" cy="21" r="1" fill="#1a1208" /><circle cx="19" cy="21" r="1" fill="#1a1208" /></svg> },
+  { label: 'Поповнити', action: 'topup', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="#1c2e22" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+  { label: 'На картку', action: 'by_card', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="#1c2e22" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+  { label: 'За IBAN', action: 'by_account', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 9h18M3 15h18M6 5v14M18 5v14" stroke="#1c2e22" strokeWidth="2" strokeLinecap="round" /></svg> },
+  { label: 'Магазин', action: 'market', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke="#1c2e22" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9" cy="21" r="1" fill="#1c2e22" /><circle cx="19" cy="21" r="1" fill="#1c2e22" /></svg> },
 ];
 
 function OverviewScreen() {
@@ -795,7 +799,7 @@ function OverviewScreen() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-start', gap: 6, marginTop: 14 }}>
             {cards.map((_, i) => (
-              <button key={i} onClick={() => setCardIdx(i)} style={{ width: i === cardIdx ? 20 : 6, height: 6, borderRadius: 3, background: i === cardIdx ? gold : 'rgba(200,170,100,0.25)', border: 'none', padding: 0, cursor: 'pointer', transition: 'all 0.25s' }} />
+              <button key={i} onClick={() => setCardIdx(i)} style={{ width: i === cardIdx ? 20 : 6, height: 6, borderRadius: 3, background: i === cardIdx ? gold : 'rgba(180,172,155,0.25)', border: 'none', padding: 0, cursor: 'pointer', transition: 'all 0.25s' }} />
             ))}
           </div>
         </>
@@ -815,7 +819,7 @@ function OverviewScreen() {
   const byType = (analytics?.by_type || []).filter(r => r.direction === 'out');
   const totalOut = byType.reduce((s, r) => s + Number(r.total), 0);
   const SPEND_LABELS: Record<string, string> = { transfer: 'Перекази', food: 'Їжа', transport: 'Транспорт', utility: 'Комунальні', shopping: 'Покупки', subscription: 'Підписки' };
-  const SPEND_COLORS: Record<string, string> = { transfer: '#e8d9a8', food: '#e8a864', transport: '#88a8e8', utility: gold, shopping: '#c97db4', subscription: '#78c8b4' };
+  const SPEND_COLORS: Record<string, string> = { transfer: '#ddd8cc', food: '#e8a864', transport: '#88a8e8', utility: gold, shopping: '#c97db4', subscription: '#78c8b4' };
   const spendRows = totalOut > 0 ? byType.map(r => ({
     label: SPEND_LABELS[r.tx_type] || r.tx_type,
     pct: Math.round(Number(r.total) / totalOut * 100),
@@ -835,8 +839,8 @@ function OverviewScreen() {
           </div>
           <div style={{ flex: 1 }} />
           {[
-            <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#e8d9a8" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
-            <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#e8d9a8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+            <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
+            <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#ddd8cc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
           ].map((icon, i) => (
             <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast('Нових сповіщень немає')} style={{ width: 40, height: 40, borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 10 }}>{icon}</button>
           ))}
@@ -867,7 +871,7 @@ function OverviewScreen() {
                     <span style={{ fontSize: 12, color: text.secondary }}>{label}</span>
                     <span style={{ fontSize: 12, color: text.muted, fontFeatureSettings: '"tnum"' }}>{pct}%</span>
                   </div>
-                  <div style={{ height: 4, background: 'rgba(200,170,100,0.1)', borderRadius: 4 }}>
+                  <div style={{ height: 4, background: 'rgba(180,172,155,0.1)', borderRadius: 4 }}>
                     <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 4, opacity: 0.8 }} />
                   </div>
                 </div>
@@ -884,16 +888,16 @@ function OverviewScreen() {
     <div style={{ paddingBottom: 20 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: `${topPad} 18px 8px` }}>
-        <div style={{ width: 40, height: 40, borderRadius: '50%', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a2820', fontSize: 13, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(255,220,150,0.5), 0 2px 6px rgba(0,0,0,0.3)' }}>{initials}</div>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a2820', fontSize: 13, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.5), 0 2px 6px rgba(0,0,0,0.3)' }}>{initials}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.5, marginBottom: 1 }}>{greeting}</div>
           <div style={{ fontSize: 15, fontWeight: 600, color: text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName.split(' ')[0]}</div>
         </div>
         {[
-          <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#e8d9a8" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
-          <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#e8d9a8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+          <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
+          <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#ddd8cc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
         ].map((icon, i) => (
-          <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast('Нових сповіщень немає')} style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(200,170,100,0.12)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>{icon}</button>
+          <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast('Нових сповіщень немає')} style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.12)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>{icon}</button>
         ))}
       </div>
 
@@ -998,11 +1002,11 @@ function CardsScreen() {
         <div style={{ flex: 1 }} />
         <button onClick={() => window.open('https://munister.com.ua/messenger', '_blank')} style={{
           padding: '10px 16px', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`,
-          color: '#1a1208', border: 'none', borderRadius: 100, fontSize: 13, fontWeight: 600,
+          color: text.primary, border: 'none', borderRadius: 100, fontSize: 13, fontWeight: 600,
           fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-          boxShadow: `0 4px 10px -4px rgba(201,169,100,0.5), inset 0 1px 0 rgba(255,220,150,0.5)`, opacity: busyCardId === -1 ? 0.65 : 1,
+          boxShadow: `0 4px 10px -4px rgba(180,172,155,0.5), inset 0 1px 0 rgba(230,225,210,0.5)`, opacity: busyCardId === -1 ? 0.65 : 1,
         }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#1a1208" strokeWidth="2.4" strokeLinecap="round" /></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#1c2e22" strokeWidth="2.4" strokeLinecap="round" /></svg>
           {busyCardId === -1 ? 'Створення...' : 'Випустити'}
         </button>
       </div>
@@ -1040,8 +1044,8 @@ function CardsScreen() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
             <div style={{ fontFamily: '"SF Mono", monospace', fontSize: 16, fontWeight: 600, color: text.primary, letterSpacing: 1 }}>•• {card.number}</div>
             <div style={{
-              padding: '3px 8px', borderRadius: 100, background: card.statusRaw === 'active' ? 'rgba(127,184,150,0.15)' : 'rgba(232,217,168,0.1)',
-              color: card.statusRaw === 'active' ? '#7fb896' : 'rgba(232,217,168,0.7)',
+              padding: '3px 8px', borderRadius: 100, background: card.statusRaw === 'active' ? 'rgba(127,184,150,0.15)' : 'rgba(220,215,200,0.1)',
+              color: card.statusRaw === 'active' ? '#7fb896' : 'rgba(220,215,200,0.7)',
               fontSize: 10.5, fontWeight: 600, letterSpacing: 0.3,
             }}>{statusLabel}</div>
             <div style={{ flex: 1 }} />
@@ -1052,7 +1056,7 @@ function CardsScreen() {
           <div style={{ marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'baseline' }}>
               <span style={{ ...T.caption, color: text.muted }}>Активність рахунку за місяць</span>
-              <span style={{ fontSize: 12, color: 'rgba(232,217,168,0.6)', fontFeatureSettings: '"tnum"' }}>{monthTransactions.length} оп.</span>
+              <span style={{ fontSize: 12, color: 'rgba(220,215,200,0.6)', fontFeatureSettings: '"tnum"' }}>{monthTransactions.length} оп.</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
               <span style={{ fontSize: 22, fontWeight: 600, color: text.primary, fontFeatureSettings: '"tnum"' }}>{formatUah(monthOut)}</span>
@@ -1074,8 +1078,8 @@ function CardsScreen() {
               <button key={i} onClick={() => 'action' in a ? a.action() : toast(a.msg as string)} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
                 padding: '10px 4px', background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(200,170,100,0.1)', borderRadius: 14,
-                color: '#e8d9a8', fontSize: 11, fontFamily: 'inherit', fontWeight: 500, cursor: 'pointer',
+                border: '1px solid rgba(180,172,155,0.1)', borderRadius: 14,
+                color: '#ddd8cc', fontSize: 11, fontFamily: 'inherit', fontWeight: 500, cursor: 'pointer',
               }}>
                 {a.icon}{a.label}
               </button>
@@ -1120,9 +1124,9 @@ function CardsScreen() {
           background: 'linear-gradient(180deg,rgba(17,40,32,0.98) 0%,rgba(11,30,22,0.98) 100%)',
           backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
           borderRadius: '24px 24px 0 0', padding: '28px 24px calc(32px + env(safe-area-inset-bottom,0px))',
-          border: '1px solid rgba(200,170,100,0.15)', borderBottom: 'none',
+          border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
         }}>
-          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(200,170,100,0.25)', margin: '0 auto 20px' }} />
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 20px' }} />
           <div style={{ fontSize: 18, fontWeight: 700, color: text.primary, marginBottom: 4 }}>Змінити PIN</div>
           <div style={{ fontSize: 12, color: text.muted, marginBottom: 20 }}>Картка •• {card.number}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -1132,7 +1136,7 @@ function CardsScreen() {
                 type="password" inputMode="numeric" maxLength={4}
                 value={pinValue} onChange={e => setPinValue(e.target.value.replace(/\D/g, '').slice(0, 4))}
                 placeholder="••••"
-                style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(200,170,100,0.18)`, borderRadius: 12, color: text.primary, fontSize: 20, outline: 'none', fontFamily: fontFamily, letterSpacing: 8, boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.18)`, borderRadius: 12, color: text.primary, fontSize: 20, outline: 'none', fontFamily: fontFamily, letterSpacing: 8, boxSizing: 'border-box' }}
               />
             </div>
             <div>
@@ -1141,22 +1145,22 @@ function CardsScreen() {
                 type="password" inputMode="numeric" maxLength={4}
                 value={pinConfirm} onChange={e => setPinConfirm(e.target.value.replace(/\D/g, '').slice(0, 4))}
                 placeholder="••••"
-                style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid ${pinConfirm && pinValue !== pinConfirm ? 'rgba(220,80,80,0.5)' : 'rgba(200,170,100,0.18)'}`, borderRadius: 12, color: text.primary, fontSize: 20, outline: 'none', fontFamily: fontFamily, letterSpacing: 8, boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid ${pinConfirm && pinValue !== pinConfirm ? 'rgba(220,80,80,0.5)' : 'rgba(180,172,155,0.18)'}`, borderRadius: 12, color: text.primary, fontSize: 20, outline: 'none', fontFamily: fontFamily, letterSpacing: 8, boxSizing: 'border-box' }}
               />
               {pinConfirm && pinValue !== pinConfirm && <div style={{ fontSize: 11, color: '#e07070', marginTop: 4 }}>PIN-коди не збігаються</div>}
             </div>
             {/* 4-dot indicator */}
             <div style={{ display: 'flex', justifyContent: 'center', gap: 14, margin: '4px 0' }}>
               {[0,1,2,3].map(i => (
-                <div key={i} style={{ width: 14, height: 14, borderRadius: '50%', background: i < pinValue.length ? gold : 'rgba(200,170,100,0.2)', transition: 'background 0.15s', boxShadow: i < pinValue.length ? `0 0 8px ${gold}88` : 'none' }} />
+                <div key={i} style={{ width: 14, height: 14, borderRadius: '50%', background: i < pinValue.length ? gold : 'rgba(180,172,155,0.2)', transition: 'background 0.15s', boxShadow: i < pinValue.length ? `0 0 8px ${gold}88` : 'none' }} />
               ))}
             </div>
             <button
               onClick={changePin} disabled={pinLoading || pinValue.length !== 4 || pinValue !== pinConfirm}
               style={{
                 width: '100%', padding: '14px', borderRadius: 16, border: 'none', fontSize: 15, fontWeight: 700,
-                background: (pinLoading || pinValue.length !== 4 || pinValue !== pinConfirm) ? 'rgba(180,140,60,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
-                color: '#1a1208', cursor: (pinLoading || pinValue.length !== 4 || pinValue !== pinConfirm) ? 'default' : 'pointer', fontFamily: fontFamily,
+                background: (pinLoading || pinValue.length !== 4 || pinValue !== pinConfirm) ? 'rgba(100,95,80,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+                color: text.primary, cursor: (pinLoading || pinValue.length !== 4 || pinValue !== pinConfirm) ? 'default' : 'pointer', fontFamily: fontFamily,
               }}>{pinLoading ? 'Збереження…' : 'Зберегти PIN'}</button>
           </div>
         </div>
@@ -1173,9 +1177,9 @@ const CAT_STYLES: Record<TxCat, { bg: string; color: string; icon: React.ReactNo
   income:       { bg: 'rgba(127,184,150,0.12)', color: '#7fb896', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M6 16l6 6 6-6" stroke="#7fb896" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
   food:         { bg: 'rgba(232,168,100,0.12)', color: '#e8a864', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 2v8a3 3 0 006 0V2M9 2v6M18 2c-2 0-3 2-3 5s1 5 3 5v8" stroke="#e8a864" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
   transport:    { bg: 'rgba(136,168,232,0.12)', color: '#88a8e8', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 17h14l-2-8H7l-2 8zM7 17v2M17 17v2M9 9V6a3 3 0 016 0v3" stroke="#88a8e8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  utility:      { bg: 'rgba(200,170,100,0.12)', color: gold, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L4 7v6c0 5 4 8 8 9 4-1 8-4 8-9V7l-8-5zM12 8v4l3 2" stroke={gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+  utility:      { bg: 'rgba(180,172,155,0.12)', color: gold, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L4 7v6c0 5 4 8 8 9 4-1 8-4 8-9V7l-8-5zM12 8v4l3 2" stroke={gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
   shopping:     { bg: 'rgba(201,125,180,0.12)', color: '#c97db4', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 7h16l-1.5 11a2 2 0 01-2 1.8h-9a2 2 0 01-2-1.8L4 7zM9 7V5a3 3 0 016 0v2" stroke="#c97db4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  transfer:     { bg: 'rgba(232,217,168,0.1)', color: '#e8d9a8', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M7 17l-4-4 4-4M3 13h13M17 7l4 4-4 4M21 11H8" stroke="#e8d9a8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+  transfer:     { bg: 'rgba(220,215,200,0.1)', color: '#ddd8cc', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M7 17l-4-4 4-4M3 13h13M17 7l4 4-4 4M21 11H8" stroke="#ddd8cc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
   subscription: { bg: 'rgba(120,200,180,0.12)', color: '#78c8b4', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 0115-6.7L21 8M21 3v5h-5M21 12a9 9 0 01-15 6.7L3 16M3 21v-5h5" stroke="#78c8b4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
 };
 
@@ -1295,12 +1299,12 @@ function OperationsScreen() {
         </div>
         {/* Search */}
         <div style={{ position: 'relative' }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.5 }}><circle cx="11" cy="11" r="7" stroke="#e8d9a8" strokeWidth="1.8" /><path d="M20 20l-3-3" stroke="#e8d9a8" strokeWidth="1.8" strokeLinecap="round" /></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.5 }}><circle cx="11" cy="11" r="7" stroke="#ddd8cc" strokeWidth="1.8" /><path d="M20 20l-3-3" stroke="#ddd8cc" strokeWidth="1.8" strokeLinecap="round" /></svg>
           <input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Пошук транзакцій…"
-            style={{ width: '100%', padding: '10px 14px 10px 36px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(200,170,100,0.14)`, borderRadius: 12, color: '#e8d9a8', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '10px 14px 10px 36px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 12, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
           />
         </div>
       </div>
@@ -1320,7 +1324,7 @@ function OperationsScreen() {
                 <button key={p} onClick={() => setPeriod(i)} style={{
                   padding: '4px 11px', fontSize: 11, fontWeight: 500,
                   background: i === period ? `linear-gradient(135deg, ${gold}, ${goldDark})` : 'transparent',
-                  color: i === period ? '#1a1208' : 'rgba(232,217,168,0.6)',
+                  color: i === period ? '#0c1a12' : 'rgba(220,215,200,0.6)',
                   border: 'none', borderRadius: 100, cursor: 'pointer', fontFamily: 'inherit',
                 }}>{p}</button>
               ))}
@@ -1333,16 +1337,16 @@ function OperationsScreen() {
                   width: '100%', height: `${(v / max) * 100}%`,
                   background: i === 6
                     ? `linear-gradient(180deg, ${goldLight} 0%, ${gold} 50%, ${goldDark} 100%)`
-                    : 'linear-gradient(180deg, rgba(200,170,100,0.35) 0%, rgba(138,106,47,0.15) 100%)',
+                    : 'linear-gradient(180deg, rgba(180,172,155,0.35) 0%, rgba(100,95,80,0.15) 100%)',
                   borderRadius: 6,
-                  boxShadow: i === 6 ? '0 0 20px rgba(201,169,100,0.4)' : 'none',
+                  boxShadow: i === 6 ? '0 0 20px rgba(180,172,155,0.4)' : 'none',
                 }} />
               </div>
             ))}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {labels.map((d, i) => (
-              <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: 10, color: i === 6 ? gold : 'rgba(232,217,168,0.4)', fontWeight: i === 6 ? 600 : 400 }}>{d}</div>
+              <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: 10, color: i === 6 ? gold : 'rgba(220,215,200,0.4)', fontWeight: i === 6 ? 600 : 400 }}>{d}</div>
             ))}
           </div>
         </div>
@@ -1375,13 +1379,13 @@ function OperationsScreen() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ ...T.body, fontWeight: 600, color: t.positive ? '#7fb896' : text.secondary, ...T.num }}>{t.amount} ₴</div>
                       {t.txId ? (
-                        <button onClick={() => downloadReceipt(t.txId!)} disabled={dlReceipt === t.txId} title="Завантажити чек" style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(200,170,100,0.08)', border: `1px solid rgba(200,170,100,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13 }}>{dlReceipt === t.txId ? '…' : '🧾'}</button>
+                        <button onClick={() => downloadReceipt(t.txId!)} disabled={dlReceipt === t.txId} title="Завантажити чек" style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(180,172,155,0.08)', border: `1px solid rgba(180,172,155,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13 }}>{dlReceipt === t.txId ? '…' : '🧾'}</button>
                       ) : (
-                        <Chevron size={12} color="rgba(232,217,168,0.3)" />
+                        <Chevron size={12} color="rgba(220,215,200,0.3)" />
                       )}
                     </div>
                   </div>
-                  {i < g.items.length - 1 && <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 16px 0 64px' }} />}
+                  {i < g.items.length - 1 && <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 16px 0 64px' }} />}
                 </Fragment>
               );
             })}
@@ -1411,8 +1415,8 @@ function ProfileRow({ label, value, mono, copyable, last }: { label: string; val
           }}>{value}</span>
           {copyable && (
             <button onClick={copy} style={{
-              width: 26, height: 26, borderRadius: 7, background: `rgba(200,170,100,0.1)`,
-              border: `1px solid rgba(200,170,100,0.2)`,
+              width: 26, height: 26, borderRadius: 7, background: `rgba(180,172,155,0.1)`,
+              border: `1px solid rgba(180,172,155,0.2)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flexShrink: 0,
             }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke={gold} strokeWidth="2" /><path d="M5 15V5a2 2 0 012-2h10" stroke={gold} strokeWidth="2" /></svg>
@@ -1420,7 +1424,7 @@ function ProfileRow({ label, value, mono, copyable, last }: { label: string; val
           )}
         </div>
       </div>
-      {!last && <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 18px' }} />}
+      {!last && <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 18px' }} />}
     </>
   );
 }
@@ -1429,8 +1433,8 @@ function ProfileToggle({ label, sub, on, onChange, icon }: { label: string; sub?
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px' }}>
       <div style={{
-        width: 36, height: 36, borderRadius: 10, background: 'rgba(200,170,100,0.1)',
-        border: `1px solid rgba(200,170,100,0.18)`,
+        width: 36, height: 36, borderRadius: 10, background: 'rgba(180,172,155,0.1)',
+        border: `1px solid rgba(180,172,155,0.18)`,
         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
       }}>{icon}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -1439,9 +1443,9 @@ function ProfileToggle({ label, sub, on, onChange, icon }: { label: string; sub?
       </div>
       <button onClick={() => onChange(!on)} style={{
         width: 44, height: 26, borderRadius: 100,
-        background: on ? `linear-gradient(135deg, ${goldDark}, ${gold})` : 'rgba(200,170,100,0.15)',
+        background: on ? `linear-gradient(135deg, ${goldDark}, ${gold})` : 'rgba(180,172,155,0.15)',
         border: 'none', padding: 0, cursor: 'pointer', position: 'relative', transition: 'background 0.2s',
-        boxShadow: on ? 'inset 0 1px 0 rgba(255,220,150,0.4)' : 'none',
+        boxShadow: on ? 'inset 0 1px 0 rgba(230,225,210,0.4)' : 'none',
       }}>
         <div style={{
           position: 'absolute', top: 3, left: on ? 21 : 3,
@@ -1508,7 +1512,7 @@ function ProfileScreen() {
           background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 28, fontWeight: 700, color: '#1a2820', letterSpacing: 0.5,
-          boxShadow: `0 0 0 3px rgba(0,0,0,0.6), 0 0 0 5px ${gold}55, inset 0 1px 0 rgba(255,220,150,0.5)`,
+          boxShadow: `0 0 0 3px rgba(0,0,0,0.6), 0 0 0 5px ${gold}55, inset 0 1px 0 rgba(230,225,210,0.5)`,
           marginBottom: 14,
         }}>{initials}</div>
         <div style={{ ...T.h2, color: text.primary, marginBottom: 4 }}>{displayName}</div>
@@ -1534,11 +1538,11 @@ function ProfileScreen() {
         <ProfileToggle label="Face ID" sub="Вхід і підтвердження" on={faceid} onChange={setFaceid}
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke={gold} strokeWidth="1.6" /><rect x="14" y="3" width="7" height="7" rx="1.5" stroke={gold} strokeWidth="1.6" /><rect x="3" y="14" width="7" height="7" rx="1.5" stroke={gold} strokeWidth="1.6" /><rect x="14" y="14" width="7" height="7" rx="1.5" stroke={gold} strokeWidth="1.6" /></svg>}
         />
-        <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 18px' }} />
+        <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 18px' }} />
         <ProfileToggle label="Push-сповіщення" on={push} onChange={setPush}
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>}
         />
-        <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 18px' }} />
+        <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 18px' }} />
         <ProfileToggle label="2FA" sub="Підтвердження за SMS" on={twofa} onChange={setTwofa}
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg>}
         />
@@ -1554,7 +1558,7 @@ function ProfileScreen() {
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', cursor: 'pointer' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(200,170,100,0.1)', border: `1px solid rgba(200,170,100,0.18)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(180,172,155,0.1)', border: `1px solid rgba(180,172,155,0.18)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg>
             </div>
             <span style={{ fontSize: 14, color: text.secondary, fontWeight: 500 }}>Змінити пароль</span>
@@ -1565,19 +1569,19 @@ function ProfileScreen() {
         </div>
         {changingPwd && (
           <>
-            <div style={{ height: 1, background: 'rgba(200,170,100,0.08)', margin: '0 18px' }} />
+            <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 18px' }} />
             <form onSubmit={changePassword} style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
               <input
                 type="password" placeholder="Поточний пароль" value={oldPwd} onChange={e => setOldPwd(e.target.value)} required
-                style={{ padding: '11px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(200,170,100,0.14)`, borderRadius: 10, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}
+                style={{ padding: '11px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}
               />
               <input
                 type="password" placeholder="Новий пароль" value={newPwd} onChange={e => setNewPwd(e.target.value)} required
-                style={{ padding: '11px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(200,170,100,0.14)`, borderRadius: 10, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}
+                style={{ padding: '11px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}
               />
               <button type="submit" disabled={pwdLoading} style={{
-                padding: '11px', background: pwdLoading ? 'rgba(180,140,60,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
-                border: 'none', borderRadius: 10, color: '#1a1208', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: pwdLoading ? 'default' : 'pointer',
+                padding: '11px', background: pwdLoading ? 'rgba(100,95,80,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+                border: 'none', borderRadius: 10, color: text.primary, fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: pwdLoading ? 'default' : 'pointer',
               }}>{pwdLoading ? '…' : 'Зберегти'}</button>
             </form>
           </>
@@ -1616,13 +1620,13 @@ const BADGE_COLORS: Record<string, { bg: string; color: string }> = {
   'SALE':     { bg: 'rgba(220,120,40,0.15)', color: '#e09060' },
   'PRO':      { bg: 'rgba(120,100,200,0.15)', color: '#a090e0' },
   'GAMING':   { bg: 'rgba(200,60,220,0.15)', color: '#d070d0' },
-  'ARM DEAL': { bg: 'rgba(200,170,100,0.15)', color: gold },
+  'ARM DEAL': { bg: 'rgba(180,172,155,0.15)', color: gold },
   'M3':       { bg: 'rgba(60,120,200,0.15)', color: '#70a0e0' },
   'M4':       { bg: 'rgba(60,120,200,0.15)', color: '#70a0e0' },
 };
 
 function BadgePill({ badge }: { badge: string }) {
-  const c = BADGE_COLORS[badge] || { bg: 'rgba(200,170,100,0.12)', color: gold };
+  const c = BADGE_COLORS[badge] || { bg: 'rgba(180,172,155,0.12)', color: gold };
   return (
     <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 6, background: c.bg, color: c.color, letterSpacing: 0.5, textTransform: 'uppercase' }}>{badge}</span>
   );
@@ -1636,9 +1640,9 @@ function ProductDetailDrawer({ product, onClose, onAddToCart }: { product: Produ
         position: 'relative', background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)',
         borderRadius: '24px 24px 0 0', padding: '28px 24px 48px',
         boxShadow: '0 -20px 60px rgba(0,0,0,0.6)', maxHeight: '85vh', overflowY: 'auto',
-        border: '1px solid rgba(200,170,100,0.15)', borderBottom: 'none',
+        border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
       }}>
-        <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(200,170,100,0.25)', margin: '0 auto 24px' }} />
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 24px' }} />
         <div style={{ display: 'flex', gap: 4, marginBottom: 16, flexWrap: 'wrap' }}>
           {product.badge && <BadgePill badge={product.badge} />}
           {product.stock !== undefined && product.stock <= 5 && product.stock > 0 && (
@@ -1663,8 +1667,8 @@ function ProductDetailDrawer({ product, onClose, onAddToCart }: { product: Produ
           disabled={product.stock !== undefined && product.stock <= 0}
           style={{
             width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontSize: 16, fontWeight: 700,
-            background: (product.stock !== undefined && product.stock <= 0) ? 'rgba(180,140,60,0.25)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
-            color: '#1a1208', cursor: (product.stock !== undefined && product.stock <= 0) ? 'default' : 'pointer', fontFamily: 'inherit',
+            background: (product.stock !== undefined && product.stock <= 0) ? 'rgba(100,95,80,0.25)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+            color: text.primary, cursor: (product.stock !== undefined && product.stock <= 0) ? 'default' : 'pointer', fontFamily: 'inherit',
           }}
         >
           {(product.stock !== undefined && product.stock <= 0) ? 'Немає в наявності' : '🛒 Додати до кошика'}
@@ -1690,7 +1694,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
 
   const fieldStyle: React.CSSProperties = {
     width: '100%', padding: '11px 14px', background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(200,170,100,0.18)', borderRadius: 12,
+    border: '1px solid rgba(180,172,155,0.18)', borderRadius: 12,
     color: text.primary, fontSize: 14, outline: 'none', fontFamily: fontFamily,
     boxSizing: 'border-box',
   };
@@ -1705,12 +1709,12 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
         backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
         borderRadius: '24px 24px 0 0', padding: '28px 24px calc(24px + env(safe-area-inset-bottom, 0px))',
         boxShadow: '0 -20px 60px rgba(0,0,0,0.6)', maxHeight: '85vh', overflowY: 'auto',
-        border: '1px solid rgba(200,170,100,0.15)', borderBottom: 'none',
+        border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
       }}>
-        <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(200,170,100,0.25)', margin: '0 auto 20px' }} />
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 20px' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
           {step === 'shipping' && (
-            <button onClick={() => setStep('cart')} style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(200,170,100,0.1)', border: '1px solid rgba(200,170,100,0.18)', color: gold, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <button onClick={() => setStep('cart')} style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(180,172,155,0.1)', border: '1px solid rgba(180,172,155,0.18)', color: gold, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8l4 4" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
           )}
@@ -1734,9 +1738,9 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
                       <div style={{ fontSize: 13, fontWeight: 700, color: gold }}>₴{fmtInt(item.product.price * item.qty)}{fmtDec(item.product.price * item.qty)}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <button onClick={() => onQtyChange(item.product.id, -1)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(200,170,100,0.1)', border: `1px solid rgba(200,170,100,0.2)`, color: gold, fontSize: 16, cursor: 'pointer', fontFamily: fontFamily, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                      <button onClick={() => onQtyChange(item.product.id, -1)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(180,172,155,0.1)', border: `1px solid rgba(180,172,155,0.2)`, color: gold, fontSize: 16, cursor: 'pointer', fontFamily: fontFamily, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
                       <span style={{ fontSize: 14, fontWeight: 600, color: text.primary, minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
-                      <button onClick={() => onQtyChange(item.product.id, 1)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(200,170,100,0.1)', border: `1px solid rgba(200,170,100,0.2)`, color: gold, fontSize: 16, cursor: 'pointer', fontFamily: fontFamily, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                      <button onClick={() => onQtyChange(item.product.id, 1)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(180,172,155,0.1)', border: `1px solid rgba(180,172,155,0.2)`, color: gold, fontSize: 16, cursor: 'pointer', fontFamily: fontFamily, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                       <button onClick={() => onRemove(item.product.id)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(220,80,80,0.08)', border: '1px solid rgba(220,80,80,0.15)', color: '#e07070', fontSize: 14, cursor: 'pointer', fontFamily: fontFamily, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                     </div>
                   </div>
@@ -1749,7 +1753,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
               <button onClick={() => setStep('shipping')} style={{
                 width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontSize: 16, fontWeight: 700,
                 background: `linear-gradient(135deg, ${goldDark}, ${gold})`,
-                color: '#1a1208', cursor: 'pointer', fontFamily: fontFamily,
+                color: text.primary, cursor: 'pointer', fontFamily: fontFamily,
               }}>Далі → Доставка</button>
             </>
           )
@@ -1779,8 +1783,8 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
               style={{
                 width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontSize: 16, fontWeight: 700,
                 background: (checkingOut || shipName.trim().length < 2 || shipAddr.trim().length < 8)
-                  ? 'rgba(180,140,60,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
-                color: '#1a1208', cursor: (checkingOut || shipName.trim().length < 2 || shipAddr.trim().length < 8) ? 'default' : 'pointer',
+                  ? 'rgba(100,95,80,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+                color: text.primary, cursor: (checkingOut || shipName.trim().length < 2 || shipAddr.trim().length < 8) ? 'default' : 'pointer',
                 fontFamily: fontFamily,
               }}>{checkingOut ? 'Оформлення…' : '✓ Оформити замовлення'}</button>
           </div>
@@ -1906,7 +1910,7 @@ function MarketplaceScreen() {
 
   const statusColors: Record<string, string> = {
     paid: '#7fb896', active: '#7fb896', issued: gold, pending: gold,
-    overdue: '#e07070', cancelled: 'rgba(232,217,168,0.4)', expired: 'rgba(232,217,168,0.4)',
+    overdue: '#e07070', cancelled: 'rgba(220,215,200,0.4)', expired: 'rgba(220,215,200,0.4)',
   };
 
   const filteredProducts = search.trim()
@@ -1925,7 +1929,7 @@ function MarketplaceScreen() {
           <button onClick={() => setShowCart(true)} style={{ position: 'relative', width: 44, height: 44, borderRadius: 14, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20 }}>
             🛒
             {cartCount > 0 && (
-              <span style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: '50%', background: gold, color: '#1a1208', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{cartCount > 9 ? '9+' : cartCount}</span>
+              <span style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: '50%', background: gold, color: text.primary, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{cartCount > 9 ? '9+' : cartCount}</span>
             )}
           </button>
         </div>
@@ -1935,15 +1939,15 @@ function MarketplaceScreen() {
             <button key={t.k} onClick={() => setTab(t.k)} style={{
               padding: '6px 16px', borderRadius: 10, fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
               background: tab === t.k ? `linear-gradient(135deg, ${goldDark}, ${gold})` : 'transparent',
-              color: tab === t.k ? '#1a1208' : text.muted,
+              color: tab === t.k ? '#0c1a12' : text.muted,
             }}>{t.label}</button>
           ))}
         </div>
         {/* Search (catalog only) */}
         {tab === 'catalog' && (
           <div style={{ position: 'relative' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.4 }}><circle cx="11" cy="11" r="7" stroke="#e8d9a8" strokeWidth="1.8" /><path d="M20 20l-3-3" stroke="#e8d9a8" strokeWidth="1.8" strokeLinecap="round" /></svg>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Пошук товарів…" style={{ width: '100%', padding: '10px 14px 10px 36px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(200,170,100,0.14)`, borderRadius: 12, color: '#e8d9a8', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.4 }}><circle cx="11" cy="11" r="7" stroke="#ddd8cc" strokeWidth="1.8" /><path d="M20 20l-3-3" stroke="#ddd8cc" strokeWidth="1.8" strokeLinecap="round" /></svg>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Пошук товарів…" style={{ width: '100%', padding: '10px 14px 10px 36px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 12, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>
         )}
       </div>
@@ -1963,7 +1967,7 @@ function MarketplaceScreen() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 10, padding: '8px 22px' }}>
               {filteredProducts.map(p => (
                 <div key={p.id} onClick={() => setPreview(p)} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'border-color 0.15s' }}>
-                  <div style={{ height: 96, background: `linear-gradient(135deg, rgba(200,170,100,0.08), rgba(138,106,47,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42, position: 'relative' }}>
+                  <div style={{ height: 96, background: `linear-gradient(135deg, rgba(180,172,155,0.08), rgba(100,95,80,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42, position: 'relative' }}>
                     {p.image_emoji || '🛍️'}
                     {p.badge && (
                       <div style={{ position: 'absolute', top: 8, right: 8 }}><BadgePill badge={p.badge} /></div>
@@ -1975,8 +1979,8 @@ function MarketplaceScreen() {
                       <span style={{ ...T.body, fontWeight: 700, color: gold, ...T.num }}>₴{fmtInt(p.price)}</span>
                       <button onClick={e => { e.stopPropagation(); addToCart(p); }} disabled={p.stock !== undefined && p.stock <= 0} style={{
                         width: 28, height: 28, borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700,
-                        background: (p.stock !== undefined && p.stock <= 0) ? 'rgba(180,140,60,0.2)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
-                        color: '#1a1208', cursor: (p.stock !== undefined && p.stock <= 0) ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: (p.stock !== undefined && p.stock <= 0) ? 'rgba(30,45,35,0.4)' : 'rgba(180,172,155,0.15)', border: `1px solid ${bg.border}`,
+                        color: text.secondary, cursor: (p.stock !== undefined && p.stock <= 0) ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>+</button>
                     </div>
                     {p.stock !== undefined && p.stock > 0 && p.stock <= 5 && (
@@ -2014,7 +2018,7 @@ function MarketplaceScreen() {
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ ...T.bodyLg, fontWeight: 700, color: gold, ...T.num }}>₴{fmtInt(o.total_amount)}{fmtDec(o.total_amount)}</div>
                     <button onClick={() => downloadOrderReceipt(o.id)} disabled={dlPdf === `order-${o.id}`} style={{
-                      marginTop: 6, padding: '4px 10px', borderRadius: 8, border: `1px solid rgba(200,170,100,0.25)`,
+                      marginTop: 6, padding: '4px 10px', borderRadius: 8, border: `1px solid rgba(180,172,155,0.25)`,
                       background: 'transparent', color: gold, fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
                     }}>{dlPdf === `order-${o.id}` ? '…' : '📄 Чек'}</button>
                   </div>
@@ -2052,7 +2056,7 @@ function MarketplaceScreen() {
                     <div style={{ ...T.bodyLg, fontWeight: 700, color: gold, ...T.num }}>₴{fmtInt(inv.amount)}{fmtDec(inv.amount)}</div>
                     {inv.status === 'issued' && inv.order_id && (
                       <button onClick={() => downloadOrderReceipt(inv.order_id!)} disabled={dlPdf === `order-${inv.order_id}`} style={{
-                        marginTop: 6, padding: '4px 10px', borderRadius: 8, border: `1px solid rgba(200,170,100,0.25)`,
+                        marginTop: 6, padding: '4px 10px', borderRadius: 8, border: `1px solid rgba(180,172,155,0.25)`,
                         background: 'transparent', color: gold, fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
                       }}>{dlPdf === `order-${inv.order_id}` ? '…' : '📄 Чек'}</button>
                     )}
@@ -2091,22 +2095,22 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
         background: 'rgba(15,32,26,0.75)',
         backdropFilter: 'blur(24px) saturate(180%)',
         WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-        border: `1px solid rgba(200,170,100,0.22)`,
+        border: `1px solid rgba(180,172,155,0.22)`,
         borderRadius: 28, display: 'flex',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,220,150,0.08)',
+        boxShadow: '0 20px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(230,225,210,0.08)',
       }}>
         {/* Sliding indicator */}
         <div style={{
           position: 'absolute', top: 6, bottom: 6,
           left: `calc(${activeIdx * 20}% + 6px)`, width: 'calc(20% - 12px)',
-          background: 'linear-gradient(135deg, rgba(201,169,100,0.22) 0%, rgba(138,106,47,0.12) 100%)',
-          border: `1px solid rgba(200,170,100,0.35)`, borderRadius: 22,
+          background: 'linear-gradient(135deg, rgba(180,172,155,0.22) 0%, rgba(100,95,80,0.12) 100%)',
+          border: `1px solid rgba(180,172,155,0.35)`, borderRadius: 22,
           transition: 'left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: 'inset 0 1px 0 rgba(255,220,150,0.15)',
+          boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.15)',
         }} />
         {TABS.map(t => {
           const isActive = t.k === active;
-          const color = isActive ? goldLight : 'rgba(232,217,168,0.5)';
+          const color = isActive ? goldLight : 'rgba(220,215,200,0.5)';
           return (
             <button key={t.k} onClick={() => onChange(t.k)} style={{
               flex: 1, padding: '10px 4px', background: 'transparent', border: 'none', cursor: 'pointer',
@@ -2147,9 +2151,9 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
             width: 36, height: 36, borderRadius: 10,
             background: `linear-gradient(145deg, ${goldDark} 0%, ${gold} 60%, ${goldLight} 100%)`,
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            boxShadow: `0 4px 14px rgba(201,169,100,0.35), inset 0 1px 0 rgba(255,230,160,0.5)`,
+            boxShadow: `0 4px 14px rgba(180,172,155,0.35), inset 0 1px 0 rgba(255,230,160,0.5)`,
           }}>
-            <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 2L3 20h3.5l1.8-4h7.4l1.8 4H21L12 2zm-2.6 11L12 7.3 14.6 13H9.4z" fill="#1a1208" /></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 2L3 20h3.5l1.8-4h7.4l1.8 4H21L12 2zm-2.6 11L12 7.3 14.6 13H9.4z" fill="#1c2e22" /></svg>
           </div>
           <div>
             <div style={{ ...T.h3, color: text.primary, lineHeight: 1.1 }}>
@@ -2188,8 +2192,8 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
             <button key={t.k} onClick={() => onChange(t.k)} style={{
               display: 'flex', alignItems: 'center', gap: 11,
               padding: '10px 13px', borderRadius: 12,
-              background: isActive ? 'linear-gradient(135deg, rgba(201,169,100,0.16) 0%, rgba(138,106,47,0.08) 100%)' : 'transparent',
-              border: isActive ? `1px solid rgba(200,170,100,0.24)` : '1px solid transparent',
+              background: isActive ? 'linear-gradient(135deg, rgba(180,172,155,0.16) 0%, rgba(100,95,80,0.08) 100%)' : 'transparent',
+              border: isActive ? `1px solid rgba(180,172,155,0.24)` : '1px solid transparent',
               color: isActive ? text.primary : text.muted,
               fontFamily, fontSize: 13.5, fontWeight: isActive ? 600 : 450,
               cursor: 'pointer', transition: 'color 0.15s, background 0.15s, border-color 0.15s',
@@ -2289,7 +2293,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '13px 16px', background: 'rgba(255,255,255,0.055)',
-    border: `1px solid rgba(200,170,100,0.16)`, borderRadius: radius.md,
+    border: `1px solid rgba(180,172,155,0.16)`, borderRadius: radius.md,
     color: text.primary, fontSize: 15, outline: 'none', fontFamily, boxSizing: 'border-box',
     transition: 'border-color 0.15s',
     WebkitAppearance: 'none',
