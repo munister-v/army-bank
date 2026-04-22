@@ -44,15 +44,15 @@
   <!-- Both stylesheets async (non-blocking) — critical CSS above prevents FOUC -->
   <link rel="stylesheet" href="/css/styles.css?v=32" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="/css/styles.css?v=32"></noscript>
-  <link rel="stylesheet" href="/css/overrides.css?v=51" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/overrides.css?v=51"></noscript>
+  <link rel="stylesheet" href="/css/overrides.css?v=52" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="/css/overrides.css?v=52"></noscript>
   <!-- Preload scripts so browser fetches them in parallel with parsing -->
   <link rel="preload" href="/js/api.js?v=2" as="script">
-  <link rel="preload" href="/js/app.js?v=54" as="script">
+  <link rel="preload" href="/js/app.js?v=55" as="script">
   <!-- Build version check + instant auth state + server wake-up -->
   <script>
     (function(){
-      var BUILD = '54';
+      var BUILD = '55';
       try {
         var stored = localStorage.getItem('ab_build');
         if (stored && stored !== BUILD) {
@@ -1489,7 +1489,7 @@
   <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
 
   <script src="/js/api.js?v=2" defer></script>
-  <script src="/js/app.js?v=54" defer></script>
+  <script src="/js/app.js?v=55" defer></script>
   <script src="/js/overrides.js?v=1" defer></script>
 
   <!-- Transfer confirmation bottom sheet -->

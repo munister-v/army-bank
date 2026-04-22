@@ -1438,16 +1438,42 @@ function _initCarouselInteraction(track) {
   if (!track || track._bankCardsInit) return;
   track._bankCardsInit = true;
 
-  function getCardWidth() {
-    var first = track.querySelector('.bank-card');
+  // Returns the scroll distance between card snap positions.
+  // Uses actual bounding rects of consecutive cards so it works
+  // regardless of gap, padding or snap-align (start vs center).
+  function getSnapStep() {
+    var cards = track.querySelectorAll('.bank-card');
+    if (cards.length >= 2) {
+      var r0 = cards[0].getBoundingClientRect();
+      var r1 = cards[1].getBoundingClientRect();
+      var step = r1.left - r0.left;
+      if (step > 0) return step;
+    }
+    // Fallback: first card width + gap (12px)
+    var first = cards[0];
     return first ? first.offsetWidth + 12 : track.clientWidth;
+  }
+
+  // findClosestCardIndex — picks the card whose centre is nearest
+  // the centre of the visible track area. Works for any snap-align.
+  function findClosestCardIndex() {
+    var cards = Array.from(track.querySelectorAll('.bank-card'));
+    if (!cards.length) return 0;
+    var trackCx = track.getBoundingClientRect().left + track.clientWidth / 2;
+    var best = 0, bestDist = Infinity;
+    cards.forEach(function(card, i) {
+      var r = card.getBoundingClientRect();
+      var cardCx = r.left + r.width / 2;
+      var dist = Math.abs(cardCx - trackCx);
+      if (dist < bestDist) { bestDist = dist; best = i; }
+    });
+    return best;
   }
 
   function updateDots() {
     var dots = document.querySelectorAll('.bc-dot');
     if (!dots.length) return;
-    var cw = getCardWidth();
-    var idx = cw > 0 ? Math.round(track.scrollLeft / cw) : 0;
+    var idx = findClosestCardIndex();
     idx = Math.max(0, Math.min(idx, dots.length - 1));
     dots.forEach(function(d, i) { d.classList.toggle('active', i === idx); });
   }
@@ -1459,7 +1485,14 @@ function _initCarouselInteraction(track) {
     if (!dot) return;
     var dots = Array.from(document.querySelectorAll('.bc-dot'));
     var i = dots.indexOf(dot);
-    if (i >= 0) track.scrollTo({ left: i * getCardWidth(), behavior: 'smooth' });
+    if (i < 0) return;
+    // Scroll to make card[i] the centred one
+    var cards = track.querySelectorAll('.bank-card');
+    if (cards[i]) {
+      cards[i].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    } else {
+      track.scrollTo({ left: i * getSnapStep(), behavior: 'smooth' });
+    }
   });
 
   // Tap-to-flip: distinguish tap from horizontal swipe

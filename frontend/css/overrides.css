@@ -5400,15 +5400,21 @@ button.btn-ghost[type="submit"] {
   }
 }
 
-/* ── ANDROID: Safe Area (gesture nav bar) ──────────────────────
-   env() підтримується в Android Chrome 69+                      */
+/* ── iOS/Android: Safe Area (home indicator / gesture nav bar) ─
+   The pill nav is already offset via `bottom: max(8px, env(safe-area-inset-bottom))`
+   so we must NOT add safe-area padding-bottom inside the nav itself
+   (that would double-count and create a dead zone on iPhone 15).  
+   app-content needs room for: nav height (64px) + nav gap (8px) +
+   safe-area offset + extra breathing room.                         */
 .bottom-nav {
-  padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+  /* Remove extra padding-bottom — nav is a floating pill, already above home bar */
+  padding-bottom: 0 !important;
 }
 .app-content,
 .page-content,
 main {
-  padding-bottom: max(80px, calc(64px + env(safe-area-inset-bottom))) !important;
+  /* 64px nav + 8px base gap + home indicator (safe-area) + 16px breathing */
+  padding-bottom: calc(64px + max(8px, env(safe-area-inset-bottom, 0px)) + 16px) !important;
 }
 
 /* ── TOUCH: прибираємо 300ms затримку ──────────────────────────*/
@@ -5915,7 +5921,8 @@ button.btn-primary:active {
 
 /* Ширина карток: трохи менше 100vw щоб показати сусідню           */
 .app-content {
-  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  /* On small screens keep same formula — already set globally above */
+  padding-bottom: calc(64px + max(8px, env(safe-area-inset-bottom, 0px)) + 20px) !important;
 }
 .bank-cards-track {
   padding-left: max(20px, env(safe-area-inset-left, 0px)) !important;
