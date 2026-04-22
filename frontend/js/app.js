@@ -3189,8 +3189,14 @@ $('#pushBtn')?.addEventListener('click', async () => {
 if ('serviceWorker' in navigator && !DESKTOP_MOBILE_ONLY_BLOCKED) {
   let _swReloading = false;
   let _swUpdateTimer = null;
+  let _swVersionTimer = null;
   let _swPendingReload = false;
   let _swPendingToastAt = 0;
+  let _knownAppCommit = '';
+
+  try {
+    _knownAppCommit = String(localStorage.getItem('ab_app_commit') || '').trim();
+  } catch (_) {}
 
   function _clearSwUpdateTimer() {
     if (_swUpdateTimer) {
@@ -3199,13 +3205,46 @@ if ('serviceWorker' in navigator && !DESKTOP_MOBILE_ONLY_BLOCKED) {
     }
   }
 
+  function _clearSwVersionTimer() {
+    if (_swVersionTimer) {
+      clearInterval(_swVersionTimer);
+      _swVersionTimer = null;
+    }
+  }
+
+  function _clearSwTimers() {
+    _clearSwUpdateTimer();
+    _clearSwVersionTimer();
+  }
+
+  function _rememberCommit(commit) {
+    const normalized = String(commit || '').trim();
+    if (!normalized) return;
+    _knownAppCommit = normalized;
+    try { localStorage.setItem('ab_app_commit', normalized); } catch (_) {}
+  }
+
+  function _extractCommit(payload) {
+    if (!payload || typeof payload !== 'object') return '';
+    return String(payload.git_commit || payload.git_commit_short || '').trim();
+  }
+
+  async function _fetchAppVersion() {
+    const url = `/api/version?cb=${Date.now()}`;
+    const r = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
+    if (!r.ok) throw new Error(`version_status_${r.status}`);
+    const data = await r.json().catch(() => ({}));
+    return _extractCommit(data);
+  }
+
   function _scheduleSwUpdates(reg) {
     _clearSwUpdateTimer();
-    const SW_UPDATE_VISIBLE_MS = 300_000; // 5 min, avoids aggressive mid-session churn
+    const SW_UPDATE_VISIBLE_MS = 120_000; // 2 min
     const updateNow = () => {
       if (document.visibilityState !== 'visible') return;
       if (navigator.onLine === false) return;
       reg.update().catch(() => {});
+      if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
     };
 
     updateNow();
@@ -3218,7 +3257,26 @@ if ('serviceWorker' in navigator && !DESKTOP_MOBILE_ONLY_BLOCKED) {
     window.addEventListener('pageshow', updateNow, { passive: true });
   }
 
-  function _performSwReload() {
+  async function _purgeRuntimeCaches() {
+    if (!('caches' in window)) return;
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => /^army-bank-v/i.test(k)).map((k) => caches.delete(k)));
+    } catch (_) {}
+  }
+
+  function _buildCacheBustUrl() {
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set('_abv', String(Date.now()));
+      return u.toString();
+    } catch (_) {
+      return window.location.href;
+    }
+  }
+
+  function _performSwReload(options = {}) {
+    const bustCache = options.bustCache !== false;
     if (_swReloading) return;
     try {
       const now = Date.now();
@@ -3227,28 +3285,40 @@ if ('serviceWorker' in navigator && !DESKTOP_MOBILE_ONLY_BLOCKED) {
       sessionStorage.setItem('ab_sw_reload_at', String(now));
     } catch (_) {}
     _swReloading = true;
-    setTimeout(() => location.reload(), 120);
+    setTimeout(() => {
+      if (bustCache) {
+        window.location.replace(_buildCacheBustUrl());
+      } else {
+        window.location.reload();
+      }
+    }, 120);
   }
 
-  function _markSwPendingReload() {
+  function _markSwPendingReload(reason) {
     _swPendingReload = true;
     const now = Date.now();
     if ((now - _swPendingToastAt) > 12_000) {
       _swPendingToastAt = now;
-      showToast('Доступне оновлення. Оновлення через 10 сек…', 'success');
-      // Force reload after 10s grace period even if page stays visible
-      setTimeout(() => { if (_swPendingReload && !_swReloading) _performSwReload(); }, 10_000);
+      if (reason === 'version') {
+        showToast('Виявлено нову версію. Оновлення через 8 сек…', 'success');
+      } else {
+        showToast('Доступне оновлення. Оновлення через 8 сек…', 'success');
+      }
+      // Force reload after grace period even if page stays visible
+      setTimeout(() => {
+        if (_swPendingReload && !_swReloading) _performSwReload({ bustCache: true });
+      }, 8_000);
     }
   }
 
   function _swReload(options = {}) {
     const immediate = !!options.immediate;
     if (!immediate && document.visibilityState === 'visible') {
-      _markSwPendingReload();
+      _markSwPendingReload(options.reason || 'sw');
       return;
     }
     _swPendingReload = false;
-    _performSwReload();
+    _performSwReload({ bustCache: true });
   }
 
   function _applyPendingSwReload() {
@@ -3257,14 +3327,75 @@ if ('serviceWorker' in navigator && !DESKTOP_MOBILE_ONLY_BLOCKED) {
     _swReload({ immediate: true });
   }
 
-  navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
+  async function _checkVersionHeartbeat(reg) {
+    if (navigator.onLine === false) return;
+    const commit = await _fetchAppVersion();
+    if (!commit) return;
+
+    if (!_knownAppCommit) {
+      _rememberCommit(commit);
+      return;
+    }
+
+    if (commit !== _knownAppCommit) {
+      _rememberCommit(commit);
+      await _purgeRuntimeCaches();
+      try {
+        await reg.update();
+      } catch (_) {}
+      if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      _markSwPendingReload('version');
+    }
+  }
+
+  function _scheduleVersionHeartbeat(reg) {
+    _clearSwVersionTimer();
+    const SW_VERSION_HEARTBEAT_MS = 90_000;
+
+    const runNow = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (navigator.onLine === false) return;
+      _checkVersionHeartbeat(reg).catch(() => {});
+    };
+
+    runNow();
+    _swVersionTimer = setInterval(runNow, SW_VERSION_HEARTBEAT_MS);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') runNow();
+    });
+    window.addEventListener('online', runNow, { passive: true });
+    window.addEventListener('pageshow', runNow, { passive: true });
+  }
+
+  async function _cleanupLegacyRegistrations() {
+    if (!navigator.serviceWorker.getRegistrations) return;
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(async (r) => {
+        const scriptURL = r.active?.scriptURL || r.waiting?.scriptURL || r.installing?.scriptURL || '';
+        if (!scriptURL) return;
+        let pathname = '';
+        try { pathname = new URL(scriptURL).pathname; } catch (_) { return; }
+        const isBankOrMessengerSw = pathname.endsWith('/sw.js') || pathname.endsWith('/sw-messenger.js');
+        if (!isBankOrMessengerSw) await r.unregister().catch(() => {});
+      }));
+    } catch (_) {}
+  }
+
+  navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(async (reg) => {
     if (!reg) return;
+    await _cleanupLegacyRegistrations();
     // If update is already waiting, activate immediately.
     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
 
     _scheduleSwUpdates(reg);
+    _scheduleVersionHeartbeat(reg);
+    _checkVersionHeartbeat(reg).catch(() => {});
 
     navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'SW_VERSION') return;
+      if (e.data?.type === 'SW_CACHE_CLEARED') return;
       // New SW has already activated and claimed clients — reload immediately so
       // the page is served by the new worker (avoids mixed old-HTML / new-SW state).
       if (e.data?.type === 'SW_UPDATED') _swReload({ immediate: true });
@@ -3282,6 +3413,7 @@ if ('serviceWorker' in navigator && !DESKTOP_MOBILE_ONLY_BLOCKED) {
     // controllerchange fires AFTER the new SW has taken control — always reload
     // immediately (anti-loop guard in _performSwReload prevents infinite cycles).
     navigator.serviceWorker.addEventListener('controllerchange', () => _swReload({ immediate: true }));
+    try { reg.active?.postMessage({ type: 'GET_SW_VERSION' }); } catch (_) {}
   }).catch(() => {});
 
   document.addEventListener('visibilitychange', () => {
@@ -3289,7 +3421,7 @@ if ('serviceWorker' in navigator && !DESKTOP_MOBILE_ONLY_BLOCKED) {
   });
   window.addEventListener('pageshow', _applyPendingSwReload, { passive: true });
   window.addEventListener('focus', _applyPendingSwReload, { passive: true });
-  window.addEventListener('beforeunload', _clearSwUpdateTimer, { passive: true });
+  window.addEventListener('beforeunload', _clearSwTimers, { passive: true });
 }
 
 // ── BOOTSTRAP ────────────────────────────────────────────

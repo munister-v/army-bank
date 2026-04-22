@@ -1,5 +1,6 @@
-/* Army Bank — Service Worker v76 */
-const CACHE = 'army-bank-v76';
+/* Army Bank — Service Worker v77 */
+const SW_VERSION = '2026-04-22-02';
+const CACHE = `army-bank-v${SW_VERSION}`;
 
 /* Keep precache minimal to reduce stale-asset risk */
 const PRECACHE = [
@@ -38,8 +39,13 @@ self.addEventListener('activate', (e) => {
     }
 
     await self.clients.claim();
-    const clients = await self.clients.matchAll({ type: 'window' });
-    clients.forEach((client) => client.postMessage({ type: 'SW_UPDATED' }));
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    clients.forEach((client) => client.postMessage({
+      type: 'SW_UPDATED',
+      swVersion: SW_VERSION,
+      cacheName: CACHE,
+      at: Date.now(),
+    }));
   })());
 });
 
@@ -186,5 +192,25 @@ self.addEventListener('notificationclick', (e) => {
 });
 
 self.addEventListener('message', (e) => {
-  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
+  const msg = e.data || {};
+  if (msg.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+    return;
+  }
+
+  if (msg.type === 'GET_SW_VERSION') {
+    try {
+      e.source?.postMessage({ type: 'SW_VERSION', swVersion: SW_VERSION, cacheName: CACHE });
+    } catch (_) {}
+    return;
+  }
+
+  if (msg.type === 'CLEAR_RUNTIME_CACHES') {
+    e.waitUntil((async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      clients.forEach((client) => client.postMessage({ type: 'SW_CACHE_CLEARED', cacheName: CACHE }));
+    })());
+  }
 });
