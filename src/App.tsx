@@ -2079,7 +2079,12 @@ const TABS: { k: TabKey; label: string; icon: (c: string) => React.ReactNode }[]
 function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) => void }) {
   const activeIdx = TABS.findIndex(t => t.k === active);
   return (
-    <div style={{ position: 'absolute', bottom: 18, left: 14, right: 14, zIndex: 40 }}>
+    <div style={{
+      position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 40,
+      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      background: 'linear-gradient(to top, rgba(7,21,16,0.98) 0%, rgba(7,21,16,0.85) 60%, transparent 100%)',
+    }}>
+      <div style={{ padding: '0 14px 14px', paddingTop: 10 }}>
       <div style={{
         position: 'relative', padding: 6,
         background: 'rgba(15,32,26,0.75)',
@@ -2114,6 +2119,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
             </button>
           );
         })}
+      </div>
       </div>
     </div>
   );
@@ -2640,7 +2646,7 @@ export default function App() {
       <BankDataCtx.Provider value={bankCtx}>
         <LayoutCtx.Provider value="mobile">
           <div style={{ ...appBase, overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 100 }}>
+            <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' }}>
               {dataError && (
                 <div style={{ margin: '10px 12px 0', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(220,100,110,0.25)', background: 'rgba(220,100,110,0.08)', color: '#ffb6bd', fontSize: 13 }}>
                   {dataError}
