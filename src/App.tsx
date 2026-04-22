@@ -3035,41 +3035,23 @@ function WowSplash() {
       }} />
       <div style={{
         position: 'absolute',
-        left: '-2%',
-        right: '-2%',
-        bottom: '-6%',
-        top: '24%',
+        inset: '-4%',
         backgroundImage: `url(${SPLASH_STATIC_BG})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center bottom',
-        opacity: 0.62,
+        opacity: 0.52,
         filter: 'blur(22px) saturate(1.04)',
-        maskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.95) 28%, rgba(0,0,0,1) 100%)',
-        WebkitMaskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.95) 28%, rgba(0,0,0,1) 100%)',
       }} />
       <div style={{
         position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        top: '20%',
+        inset: 0,
         backgroundImage: `url(${SPLASH_STATIC_BG})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center bottom',
         opacity: 0.82,
         filter: 'saturate(1.06) contrast(1.02)',
-        maskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.86) 26%, rgba(0,0,0,1) 100%)',
-        WebkitMaskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.86) 26%, rgba(0,0,0,1) 100%)',
       }} />
-      <div style={{
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        height: '22%',
-        background: 'linear-gradient(180deg, rgba(11,25,18,0) 0%, rgba(10,24,17,0.74) 62%, rgba(8,20,15,0.98) 100%)',
-      }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(6,15,10,0.3) 0%, rgba(6,15,10,0.86) 100%)' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(6,15,10,0.3) 0%, rgba(6,15,10,0.7) 100%)' }} />
       <div style={{
         position: 'absolute',
         inset: 0,
