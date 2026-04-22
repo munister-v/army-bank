@@ -227,6 +227,26 @@ function cardTail(masked?: string): string {
   return digits.length >= 4 ? digits.slice(-4) : '----';
 }
 
+const CARD_INDEX_STORAGE_KEY = 'army_bank_selected_card_idx';
+
+function readSelectedCardIndex(): number {
+  try {
+    const raw = localStorage.getItem(CARD_INDEX_STORAGE_KEY);
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function persistSelectedCardIndex(idx: number) {
+  try {
+    localStorage.setItem(CARD_INDEX_STORAGE_KEY, String(Math.max(0, Math.floor(idx))));
+  } catch {
+    // ignore storage errors (private mode / quota)
+  }
+}
+
 function getToken(): string {
   return localStorage.getItem('army_bank_token') || '';
 }
@@ -891,7 +911,7 @@ function OverviewScreen() {
   const displayName = user?.full_name ?? 'Користувач';
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const [cardIdx, setCardIdx] = useState(0);
+  const [cardIdx, setCardIdx] = useState(() => readSelectedCardIndex());
   const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
   const cards: CardData[] = apiCards.length > 0 ? apiCards.map(c => apiCardToData(c, userNameUp)) : [
     { variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29' },
@@ -899,6 +919,15 @@ function OverviewScreen() {
     { variant: 'platinum', number: '7147', name: userNameUp, expiry: '08/28' },
     { variant: 'obsidian', number: '4402', name: userNameUp, expiry: '11/30' },
   ];
+  const safeCardIdx = Math.min(cardIdx, Math.max(0, cards.length - 1));
+
+  useEffect(() => {
+    if (cardIdx !== safeCardIdx) setCardIdx(safeCardIdx);
+  }, [cardIdx, safeCardIdx]);
+
+  useEffect(() => {
+    persistSelectedCardIndex(safeCardIdx);
+  }, [safeCardIdx]);
 
   const cardSection = (
     <div>
@@ -924,11 +953,11 @@ function OverviewScreen() {
       ) : (
         <>
           <div style={{ maxWidth: 380 }}>
-            <PremiumCard {...cards[cardIdx]} />
+            <PremiumCard {...cards[safeCardIdx]} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-start', gap: 6, marginTop: 14 }}>
             {cards.map((_, i) => (
-              <button key={i} onClick={() => setCardIdx(i)} style={{ width: i === cardIdx ? 20 : 6, height: 6, borderRadius: 3, background: i === cardIdx ? gold : 'rgba(180,172,155,0.25)', border: 'none', padding: 0, cursor: 'pointer', transition: 'all 0.25s' }} />
+              <button key={i} onClick={() => setCardIdx(i)} style={{ width: i === safeCardIdx ? 20 : 6, height: 6, borderRadius: 3, background: i === safeCardIdx ? gold : 'rgba(180,172,155,0.25)', border: 'none', padding: 0, cursor: 'pointer', transition: 'all 0.25s' }} />
             ))}
           </div>
         </>
@@ -1066,7 +1095,7 @@ function CardsScreen() {
       return mapped;
     })
     : FALLBACK_CARDS;
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = useState(() => readSelectedCardIndex());
   const [pinModal, setPinModal] = useState(false);
   const [pinValue, setPinValue] = useState('');
   const [pinConfirm, setPinConfirm] = useState('');
@@ -1075,7 +1104,7 @@ function CardsScreen() {
   const [designMode, setDesignMode] = useState<'current' | 'issue'>('current');
   const [designLoading, setDesignLoading] = useState(false);
   const [selectedDesign, setSelectedDesign] = useState<string>('gold');
-  const safeIdx = Math.min(selected, cards.length - 1);
+  const safeIdx = Math.min(selected, Math.max(0, cards.length - 1));
   const card = cards[safeIdx];
 
   const now = new Date();
@@ -1091,6 +1120,14 @@ function CardsScreen() {
     if (card?.design) setSelectedDesign(card.design);
     else if (!card) setSelectedDesign('florence');
   }, [card?.id, card?.design]);
+
+  useEffect(() => {
+    if (selected !== safeIdx) setSelected(safeIdx);
+  }, [selected, safeIdx]);
+
+  useEffect(() => {
+    persistSelectedCardIndex(safeIdx);
+  }, [safeIdx]);
 
   async function changePin() {
     if (pinValue.length !== 4 || !/^\d{4}$/.test(pinValue)) { toast('PIN має бути 4 цифри'); return; }
@@ -2462,11 +2499,15 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   return (
     <div style={{
       position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 40,
-      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-      background: 'linear-gradient(to top, rgba(7,21,16,0.98) 0%, rgba(7,21,16,0.85) 60%, transparent 100%)',
+      paddingBottom: 0,
+      background: 'transparent',
       pointerEvents: 'none',
     }}>
-      <div style={{ padding: '0 14px 14px', paddingTop: 10, pointerEvents: 'auto' }}>
+      <div style={{
+        padding: '0 14px max(8px, env(safe-area-inset-bottom, 0px))',
+        paddingTop: 8,
+        pointerEvents: 'auto',
+      }}>
       <div style={{
         position: 'relative', padding: 6,
         background: 'rgba(15,32,26,0.75)',
@@ -3128,7 +3169,7 @@ export default function App() {
       <BankDataCtx.Provider value={bankCtx}>
         <LayoutCtx.Provider value="mobile">
           <div style={{ ...appBase, overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 'calc(84px + env(safe-area-inset-bottom, 0px))' }}>
+            <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}>
               {dataError && (
                 <div style={{ margin: '10px 12px 0', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(220,100,110,0.25)', background: 'rgba(220,100,110,0.08)', color: '#ffb6bd', fontSize: 13 }}>
                   {dataError}
