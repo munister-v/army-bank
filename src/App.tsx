@@ -1251,6 +1251,7 @@ function OverviewScreen() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div style={{ padding: 24, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22 }}>
               <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} balance={account?.balance ?? 0} accountNumber={account?.account_number ?? '—'} />
+              <PremiumStatusStrip />
             </div>
             {cardSection}
             {quickActionsSection}
@@ -1302,6 +1303,7 @@ function OverviewScreen() {
 
       <div style={{ padding: '24px 22px 20px' }}>
         <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} balance={account?.balance ?? 0} accountNumber={account?.account_number ?? '—'} />
+        <PremiumStatusStrip />
       </div>
       <div style={{ padding: '0 22px 4px' }}>{cardSection}</div>
       <div style={{ display: 'flex', gap: 8, padding: '18px 22px 6px' }}>
@@ -2946,22 +2948,109 @@ const appBase: React.CSSProperties = {
 };
 
 const AUTH_STATIC_BG = florenceDuomoImage;
-const SPLASH_STATIC_BG = veniceCityImage;
+const SPLASH_STATIC_BG = valdorciaHillsImage;
+
+function LuxuryAmbientFx() {
+  return (
+    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+      <div style={{
+        position: 'absolute',
+        width: 480,
+        height: 480,
+        top: -190,
+        right: -150,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(150,220,185,0.16) 0%, rgba(150,220,185,0) 70%)',
+        filter: 'blur(14px)',
+      }} />
+      <div style={{
+        position: 'absolute',
+        width: 420,
+        height: 420,
+        bottom: -210,
+        left: -120,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(214,174,121,0.18) 0%, rgba(214,174,121,0) 72%)',
+        filter: 'blur(16px)',
+      }} />
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 1px, transparent 1px, transparent 3px)',
+        opacity: 0.09,
+        mixBlendMode: 'soft-light',
+      }} />
+    </div>
+  );
+}
+
+function PremiumStatusStrip() {
+  const chips = [
+    { label: 'Live API', tone: 'rgba(130,210,160,0.16)', color: '#92d5aa' },
+    { label: 'End-to-End Secure', tone: 'rgba(190,180,160,0.16)', color: '#d2cab8' },
+    { label: 'Private Session', tone: 'rgba(170,150,210,0.14)', color: '#b7aad8' },
+  ];
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 6 }}>
+      {chips.map(chip => (
+        <div key={chip.label} style={{
+          padding: '5px 9px',
+          borderRadius: 999,
+          border: '1px solid rgba(220,215,200,0.18)',
+          background: chip.tone,
+          color: chip.color,
+          fontSize: 10.5,
+          fontWeight: 600,
+          letterSpacing: 0.45,
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+        }}>
+          {chip.label}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function WowSplash() {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999, overflow: 'hidden', background: '#07150f' }}>
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage: `url(${SPLASH_STATIC_BG})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          filter: 'saturate(1.02) contrast(1.02)',
-        }}
-      />
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(6,15,10,0.5) 0%, rgba(6,15,10,0.84) 100%)' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 86% 56% at 50% 14%, rgba(34,74,52,0.64) 0%, rgba(10,26,18,0.92) 65%, rgba(6,16,11,1) 100%)' }} />
+      <div style={{
+        position: 'absolute',
+        left: '-2%',
+        right: '-2%',
+        bottom: '-6%',
+        top: '24%',
+        backgroundImage: `url(${SPLASH_STATIC_BG})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center bottom',
+        opacity: 0.62,
+        filter: 'blur(22px) saturate(1.04)',
+        maskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.95) 28%, rgba(0,0,0,1) 100%)',
+        WebkitMaskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.95) 28%, rgba(0,0,0,1) 100%)',
+      }} />
+      <div style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        top: '20%',
+        backgroundImage: `url(${SPLASH_STATIC_BG})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center bottom',
+        opacity: 0.82,
+        filter: 'saturate(1.06) contrast(1.02)',
+        maskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.86) 26%, rgba(0,0,0,1) 100%)',
+        WebkitMaskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.86) 26%, rgba(0,0,0,1) 100%)',
+      }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(6,15,10,0.3) 0%, rgba(6,15,10,0.86) 100%)' }} />
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'linear-gradient(115deg, transparent 0%, rgba(255,245,220,0.12) 48%, transparent 78%)',
+        opacity: 0.28,
+      }} />
       <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 24 }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: -0.8, color: text.primary }}>
@@ -3366,7 +3455,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    const id = setTimeout(() => setShowSplash(false), 2400);
+    const id = setTimeout(() => setShowSplash(false), 3600);
     return () => clearTimeout(id);
   }, []);
 
@@ -3540,6 +3629,7 @@ export default function App() {
         <BankDataCtx.Provider value={bankCtx}>
           <LayoutCtx.Provider value="desktop">
             <div style={{ ...appBase, display: 'flex' }}>
+              <LuxuryAmbientFx />
               <DesktopSidebar active={tab} onChange={setTab} />
               <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
                 {dataError && (
@@ -3567,6 +3657,7 @@ export default function App() {
       <BankDataCtx.Provider value={bankCtx}>
         <LayoutCtx.Provider value="mobile">
           <div style={{ ...appBase, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <LuxuryAmbientFx />
             <div style={{
               flex: 1,
               minHeight: 0,
