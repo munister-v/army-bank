@@ -21,20 +21,21 @@ export class ErrorBoundary extends Component<{ children: React.ReactNode }, { er
 }
 
 // ─── Design tokens ────────────────────────────────────────────
-const gold        = '#c9a964';
-const goldDark    = '#8a6a2f';
-const goldLight   = '#f0cc70';
+// Champagne-platinum palette — muted, private-banking feel
+const gold        = '#b8b09a';   // warm platinum (was bright gold)
+const goldDark    = '#7a7265';   // dark platinum
+const goldLight   = '#d4ccbc';   // light champagne
 const bg = {
-  card:   'rgba(255,255,255,0.045)',
-  card2:  'rgba(255,255,255,0.03)',
-  border: 'rgba(200,170,100,0.11)',
+  card:   'rgba(255,255,255,0.042)',
+  card2:  'rgba(255,255,255,0.026)',
+  border: 'rgba(180,172,155,0.13)',
   hover:  'rgba(255,255,255,0.06)',
 };
 const text = {
-  primary:   '#f5edd8',
-  secondary: '#e8ddc0',
-  muted:     'rgba(220,196,148,0.58)',
-  dim:       'rgba(220,196,148,0.38)',
+  primary:   '#f0ece4',
+  secondary: '#ddd8cc',
+  muted:     'rgba(200,194,180,0.62)',
+  dim:       'rgba(200,194,180,0.38)',
   gold:      gold,
 };
 const radius = { sm: 10, md: 14, lg: 18, xl: 22, '2xl': 28 };
@@ -2300,39 +2301,53 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
   return (
     <div style={{ ...appBase, overflowY: 'auto' }}>
-      <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px' }}>
-      <div style={{ width: '100%', maxWidth: 400 }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+      {/* Full-screen background radial glow */}
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none',
+        background: 'radial-gradient(ellipse 70% 50% at 50% 0%, rgba(30,60,44,0.6) 0%, transparent 70%)',
+      }} />
+      <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 20px', position: 'relative' }}>
+      <div style={{ width: '100%', maxWidth: 380 }}>
+
+        {/* Logo block */}
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          {/* Icon */}
           <div style={{
-            width: 64, height: 64, borderRadius: 18, margin: '0 auto 16px',
-            background: 'linear-gradient(135deg, #4a3a1a 0%, #8a6a2f 40%, #d4a84a 100%)',
+            width: 72, height: 72, borderRadius: 22, margin: '0 auto 20px',
+            background: 'linear-gradient(160deg, #0f2a1e 0%, #0a1c14 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 8px 24px rgba(201,169,100,0.3), inset 0 1px 0 rgba(255,220,150,0.4)',
+            border: `1px solid rgba(180,172,155,0.18)`,
+            boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 16px 40px rgba(0,0,0,0.5)',
           }}>
-            <svg width="32" height="32" viewBox="0 0 24 24"><path d="M12 2L3 20h3.5l1.8-4h7.4l1.8 4H21L12 2zm-2.6 11L12 7.3 14.6 13H9.4z" fill="#1a1208" /></svg>
+            <svg width="34" height="34" viewBox="0 0 32 32">
+              <path d="M16 4L6 28h4l2.2-5.5h7.6L22 28h4L16 4zm-2.8 14.5L16 9.5l2.8 9z" fill={gold} opacity="0.9" />
+            </svg>
           </div>
-          <div style={{ ...T.h1, color: text.primary }}>
-            ARM<span style={{ fontWeight: 300, opacity: 0.75 }}>Bank</span>
+          {/* Wordmark */}
+          <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: -0.5, color: text.primary, fontFamily, lineHeight: 1 }}>
+            ARM<span style={{ fontWeight: 300, color: text.muted }}>Bank</span>
           </div>
-          <div style={{ ...T.sm, color: text.muted, marginTop: 5 }}>Ваші фінанси під контролем</div>
+          <div style={{ ...T.caption, color: text.dim, marginTop: 8, letterSpacing: 2, textTransform: 'uppercase' }}>
+            Private Banking
+          </div>
         </div>
 
         {/* Tab switcher */}
-        <div style={{ display: 'flex', gap: 3, padding: 4, background: 'rgba(255,255,255,0.04)', borderRadius: 14, marginBottom: 18, border: `1px solid ${bg.border}` }}>
+        <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: `1px solid ${bg.border}` }}>
           {(['login', 'register'] as const).map(m => (
             <button key={m} type="button" onClick={() => { setMode(m); setError(''); setConfirmPass(''); }} style={{
-              flex: 1, padding: '9px', borderRadius: 10, border: 'none', cursor: 'pointer',
-              background: mode === m ? `linear-gradient(135deg, ${goldDark}, ${gold})` : 'transparent',
-              color: mode === m ? '#1a1208' : text.muted,
-              fontSize: 13, fontWeight: 600, fontFamily, transition: 'all 0.18s', letterSpacing: 0.1,
+              flex: 1, padding: '10px', background: 'transparent', border: 'none',
+              borderBottom: mode === m ? `2px solid ${gold}` : '2px solid transparent',
+              marginBottom: -1,
+              color: mode === m ? text.primary : text.muted,
+              fontSize: 13, fontWeight: mode === m ? 600 : 400, fontFamily,
+              cursor: 'pointer', transition: 'all 0.18s', letterSpacing: 0.3,
             }}>{m === 'login' ? 'Вхід' : 'Реєстрація'}</button>
           ))}
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit}>
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${bg.border}`, borderRadius: 20, padding: 22 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             {mode === 'register' && <>
               <div style={fieldStyle}>
                 <label style={labelStyle}>Повне ім'я</label>
@@ -2359,7 +2374,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <label style={{ ...labelStyle, marginBottom: 0 }}>Пароль</label>
                 {mode === 'login' && (
-                  <button type="button" onClick={() => setError('Зверніться до підтримки для відновлення пароля')} style={{ fontSize: 11, color: gold, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <button type="button" onClick={() => setError('Зверніться до підтримки для відновлення пароля')} style={{ fontSize: 11, color: text.muted, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 0.2 }}>
                     Забули пароль?
                   </button>
                 )}
@@ -2421,15 +2436,23 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             )}
 
             <button type="submit" disabled={loading} style={{
-              width: '100%', padding: '14px', borderRadius: radius.md, border: 'none',
-              background: loading ? 'rgba(138,106,47,0.4)' : `linear-gradient(135deg, ${goldDark}, #d4a84a)`,
-              color: '#1a1208', ...T.bodyLg, fontWeight: 700, cursor: loading ? 'default' : 'pointer',
-              fontFamily, letterSpacing: 0.1,
-              boxShadow: loading ? 'none' : '0 4px 14px rgba(201,169,100,0.3)',
-              transition: 'opacity 0.15s',
+              width: '100%', padding: '15px', borderRadius: radius.md, border: `1px solid rgba(180,172,155,0.22)`,
+              background: loading
+                ? 'rgba(90,85,75,0.25)'
+                : 'linear-gradient(160deg, rgba(48,62,50,0.9) 0%, rgba(28,42,34,0.95) 100%)',
+              color: loading ? text.dim : text.primary,
+              ...T.bodyLg, fontWeight: 600, cursor: loading ? 'default' : 'pointer',
+              fontFamily, letterSpacing: 0.4,
+              boxShadow: loading ? 'none' : '0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 20px rgba(0,0,0,0.35)',
+              transition: 'all 0.18s',
             }}>{loading ? 'Обробка…' : mode === 'login' ? 'Увійти' : 'Створити акаунт'}</button>
           </div>
         </form>
+
+        {/* Footer */}
+        <div style={{ textAlign: 'center', marginTop: 32, ...T.caption, color: text.dim, letterSpacing: 0.5 }}>
+          ARM BANK · PRIVATE BANKING
+        </div>
       </div>
       </div>
     </div>
