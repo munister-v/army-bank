@@ -45,6 +45,8 @@ def auth_required(func):
 
         g.current_user = user
         g.current_token = token
+        # Backward compatibility: some routes still read g.user_id directly.
+        g.user_id = user.get('id')
 
         # Оновити last_seen_at
         try:

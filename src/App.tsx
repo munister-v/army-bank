@@ -1,5 +1,9 @@
 import React, { useState, Fragment, useEffect, createContext, useContext, Component } from 'react';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
+import florenceCardImage from './assets/cards/florence.png';
+import tuscanyHillsCardImage from './assets/cards/tuscany-hills.png';
+import veniceCardImage from './assets/cards/venice.png';
+import tuscanyVillaCardImage from './assets/cards/tuscany-villa.png';
 
 export class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: string | null }> {
   constructor(props: { children: React.ReactNode }) {
@@ -297,10 +301,19 @@ function Chevron({ size = 16, color = 'currentColor' }: { size?: number; color?:
 }
 
 // ─── Premium card ─────────────────────────────────────────────
-type CardVariant = 'gold' | 'emerald' | 'platinum' | 'obsidian';
+type CardVariant =
+  | 'gold'
+  | 'emerald'
+  | 'platinum'
+  | 'obsidian'
+  | 'florence'
+  | 'tuscany_hills'
+  | 'venice'
+  | 'tuscany_villa';
 
 interface CardData {
   variant: CardVariant;
+  design?: string;
   number: string;
   name: string;
   expiry: string;
@@ -310,22 +323,27 @@ interface CardData {
   used?: string;
 }
 
+const DESIGN_TO_VARIANT: Record<string, CardVariant> = {
+  gold: 'gold',
+  navy: 'obsidian',
+  forest: 'emerald',
+  rose: 'platinum',
+  slate: 'platinum',
+  camo: 'emerald',
+  dark: 'obsidian',
+  florence: 'florence',
+  tuscany_hills: 'tuscany_hills',
+  venice: 'venice',
+  tuscany_villa: 'tuscany_villa',
+};
+
 function cardVariantFromDesign(design?: string | null): CardVariant {
-  switch (String(design || '').toLowerCase()) {
-    case 'forest':
-      return 'emerald';
-    case 'rose':
-      return 'platinum';
-    case 'navy':
-    case 'slate':
-      return 'obsidian';
-    default:
-      return 'gold';
-  }
+  return DESIGN_TO_VARIANT[String(design || '').toLowerCase()] ?? 'gold';
 }
 
 function toUiCard(card: ApiCard, holderName: string): CardData {
   return {
+    design: (card.design || 'gold').toLowerCase(),
     variant: cardVariantFromDesign(card.design),
     number: cardTail(card.masked_number),
     name: (holderName || 'ARMY BANK').toUpperCase().slice(0, 26),
@@ -336,29 +354,115 @@ function toUiCard(card: ApiCard, holderName: string): CardData {
 }
 
 const CARD_VARIANTS: Record<CardVariant, {
-  bg: string; text: string; muted: string; shimmer: string;
+  bg: string;
+  text: string;
+  muted: string;
+  shimmer: string;
+  overlay: string;
+  image?: string;
+  numberPlate: string;
+  bottomPlate: string;
+  badgePlate: string;
 }> = {
   gold: {
     bg: 'linear-gradient(135deg, #1e2820 0%, #3a4438 28%, #6a7068 50%, #b0aca0 62%, #585450 82%, #141814 100%)',
     text: '#f0ece4', muted: 'rgba(240,236,228,0.55)',
     shimmer: 'linear-gradient(115deg, transparent 40%, rgba(220,215,200,0.3) 50%, transparent 60%)',
+    overlay: 'linear-gradient(180deg, rgba(10,14,11,0.1) 0%, rgba(10,14,11,0.22) 100%)',
+    numberPlate: 'rgba(10,14,11,0.32)',
+    bottomPlate: 'rgba(10,14,11,0.24)',
+    badgePlate: 'rgba(12,16,12,0.36)',
   },
   emerald: {
     bg: 'linear-gradient(135deg, #0a2018 0%, #143028 30%, #1f4238 55%, #2d5e4a 75%, #0a2018 100%)',
     text: '#ddd8cc', muted: 'rgba(220,215,200,0.55)',
     shimmer: 'linear-gradient(115deg, transparent 40%, rgba(180,172,155,0.15) 50%, transparent 60%)',
+    overlay: 'linear-gradient(180deg, rgba(8,16,12,0.06) 0%, rgba(8,16,12,0.24) 100%)',
+    numberPlate: 'rgba(8,16,12,0.3)',
+    bottomPlate: 'rgba(8,16,12,0.24)',
+    badgePlate: 'rgba(8,16,12,0.38)',
   },
   platinum: {
     bg: 'linear-gradient(135deg, #3a3f45 0%, #6b7280 30%, #b8bec5 55%, #e5e7eb 65%, #8a9098 85%, #2d3036 100%)',
     text: '#1a1d20', muted: 'rgba(26,29,32,0.55)',
     shimmer: 'linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.4) 50%, transparent 60%)',
+    overlay: 'linear-gradient(180deg, rgba(245,247,250,0.03) 0%, rgba(20,28,35,0.12) 100%)',
+    numberPlate: 'rgba(245,247,250,0.28)',
+    bottomPlate: 'rgba(245,247,250,0.22)',
+    badgePlate: 'rgba(245,247,250,0.34)',
   },
   obsidian: {
     bg: 'linear-gradient(135deg, #0a0a0a 0%, #1f1f1f 40%, #2a2a2a 60%, #0a0a0a 100%)',
     text: '#ddd8cc', muted: 'rgba(220,215,200,0.5)',
     shimmer: 'linear-gradient(115deg, transparent 40%, rgba(180,172,155,0.12) 50%, transparent 60%)',
+    overlay: 'linear-gradient(180deg, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.22) 100%)',
+    numberPlate: 'rgba(0,0,0,0.35)',
+    bottomPlate: 'rgba(0,0,0,0.3)',
+    badgePlate: 'rgba(0,0,0,0.42)',
+  },
+  florence: {
+    bg: 'linear-gradient(135deg, #2f241d 0%, #77543f 40%, #a16f52 70%, #2a2119 100%)',
+    text: '#f6f0e7',
+    muted: 'rgba(246,240,231,0.7)',
+    shimmer: 'linear-gradient(115deg, transparent 35%, rgba(255,234,210,0.18) 50%, transparent 65%)',
+    overlay: 'linear-gradient(180deg, rgba(16,11,8,0.52) 0%, rgba(16,11,8,0.28) 44%, rgba(16,11,8,0.68) 100%)',
+    image: florenceCardImage,
+    numberPlate: 'rgba(10,8,7,0.46)',
+    bottomPlate: 'rgba(10,8,7,0.4)',
+    badgePlate: 'rgba(10,8,7,0.5)',
+  },
+  tuscany_hills: {
+    bg: 'linear-gradient(135deg, #1f3a1f 0%, #53772b 35%, #6f8d3b 65%, #1c3017 100%)',
+    text: '#f3f0e6',
+    muted: 'rgba(243,240,230,0.72)',
+    shimmer: 'linear-gradient(115deg, transparent 30%, rgba(235,242,208,0.14) 50%, transparent 70%)',
+    overlay: 'linear-gradient(180deg, rgba(12,18,9,0.44) 0%, rgba(12,18,9,0.18) 45%, rgba(12,18,9,0.64) 100%)',
+    image: tuscanyHillsCardImage,
+    numberPlate: 'rgba(8,14,7,0.44)',
+    bottomPlate: 'rgba(8,14,7,0.38)',
+    badgePlate: 'rgba(8,14,7,0.48)',
+  },
+  venice: {
+    bg: 'linear-gradient(135deg, #2c3f48 0%, #5b757f 35%, #8fa9b1 62%, #334a52 100%)',
+    text: '#f1ece5',
+    muted: 'rgba(241,236,229,0.7)',
+    shimmer: 'linear-gradient(115deg, transparent 36%, rgba(224,244,255,0.18) 50%, transparent 64%)',
+    overlay: 'linear-gradient(180deg, rgba(10,15,18,0.5) 0%, rgba(10,15,18,0.2) 44%, rgba(10,15,18,0.66) 100%)',
+    image: veniceCardImage,
+    numberPlate: 'rgba(8,12,14,0.46)',
+    bottomPlate: 'rgba(8,12,14,0.4)',
+    badgePlate: 'rgba(8,12,14,0.5)',
+  },
+  tuscany_villa: {
+    bg: 'linear-gradient(135deg, #473225 0%, #866047 36%, #b58d62 68%, #493024 100%)',
+    text: '#f8f0e3',
+    muted: 'rgba(248,240,227,0.72)',
+    shimmer: 'linear-gradient(115deg, transparent 34%, rgba(255,238,216,0.2) 50%, transparent 66%)',
+    overlay: 'linear-gradient(180deg, rgba(20,13,9,0.46) 0%, rgba(20,13,9,0.18) 44%, rgba(20,13,9,0.68) 100%)',
+    image: tuscanyVillaCardImage,
+    numberPlate: 'rgba(14,9,7,0.46)',
+    bottomPlate: 'rgba(14,9,7,0.4)',
+    badgePlate: 'rgba(14,9,7,0.5)',
   },
 };
+
+type CardDesignOption = {
+  design: string;
+  variant: CardVariant;
+  title: string;
+  subtitle: string;
+};
+
+const CARD_DESIGN_OPTIONS: CardDesignOption[] = [
+  { design: 'gold', variant: 'gold', title: 'Classic Gold', subtitle: 'Базовий стиль ARM' },
+  { design: 'forest', variant: 'emerald', title: 'Forest', subtitle: 'Глибокий зелений' },
+  { design: 'slate', variant: 'platinum', title: 'Slate', subtitle: 'Світлий металік' },
+  { design: 'dark', variant: 'obsidian', title: 'Obsidian', subtitle: 'Темний мінімал' },
+  { design: 'florence', variant: 'florence', title: 'Firenze', subtitle: 'Купол і старе місто' },
+  { design: 'venice', variant: 'venice', title: 'Venezia', subtitle: 'Канали та площа' },
+  { design: 'tuscany_hills', variant: 'tuscany_hills', title: "Val d'Orcia", subtitle: 'Тосканські поля' },
+  { design: 'tuscany_villa', variant: 'tuscany_villa', title: 'Villa Toscana', subtitle: 'Теплий пейзаж' },
+];
 
 // ─── Data helpers ─────────────────────────────────────────────
 function fmtInt(n: number) {
@@ -381,21 +485,20 @@ function fmtTime(iso: string): string {
   if (isNaN(d.getTime())) return iso.slice(11, 16) || '—';
   return d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
 }
-const DESIGN_TO_VARIANT: Record<string, CardVariant> = {
-  gold: 'gold', navy: 'obsidian', forest: 'emerald', rose: 'gold', slate: 'platinum',
-};
 function txToCat(tx: TxItem): TxCat {
   if (tx.direction === 'in') return 'income';
   const m: Record<string, TxCat> = { food: 'food', transport: 'transport', utility: 'utility', shopping: 'shopping', subscription: 'subscription', transfer: 'transfer' };
   return (m[tx.tx_type] ?? 'transfer') as TxCat;
 }
 function apiCardToData(c: CardInfo, holderFallback = 'ARMY BANK'): CardData & { id: number; type: string; limit: string; used: string; statusRaw: string; cardTypeRaw: string } {
+  const normalizedDesign = String(c.design || 'gold').toLowerCase();
   return {
     id: c.id,
-    variant: DESIGN_TO_VARIANT[c.design] ?? 'gold',
-    number: c.masked_number.slice(-4),
+    design: normalizedDesign,
+    variant: DESIGN_TO_VARIANT[normalizedDesign] ?? 'gold',
+    number: String(c.masked_number || '').slice(-4) || '0000',
     name: (holderFallback !== 'ARMY BANK' ? holderFallback : (c.holder_name || holderFallback)).toUpperCase().slice(0, 26),
-    expiry: c.expiry_display,
+    expiry: c.expiry_display || '--/--',
     type: c.card_type === 'virtual' ? 'Віртуальна' : 'Фізична',
     status: c.status === 'active' ? 'Активна' : c.status === 'blocked' ? 'Заморожена' : 'Закрита',
     statusRaw: c.status,
@@ -408,6 +511,9 @@ function apiCardToData(c: CardInfo, holderFallback = 'ARMY BANK'): CardData & { 
 function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardData & { style?: React.CSSProperties }) {
   const v = CARD_VARIANTS[variant] ?? CARD_VARIANTS.gold;
   const patId = `g-${variant}`;
+  const hasPhoto = Boolean(v.image);
+  const titleShadow = hasPhoto ? '0 1px 3px rgba(0,0,0,0.62)' : '0 1px 1px rgba(0,0,0,0.2)';
+  const plateBorder = hasPhoto ? '1px solid rgba(245,239,230,0.2)' : '1px solid rgba(255,255,255,0.16)';
   return (
     <div style={{
       position: 'relative', aspectRatio: '1.586 / 1', borderRadius: 22,
@@ -417,7 +523,20 @@ function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardDa
       fontFamily: '"SF Pro Display", -apple-system, system-ui',
       ...style,
     }}>
-      <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, opacity: 0.12, mixBlendMode: 'overlay' }}>
+      <div style={{ position: 'absolute', inset: 0, background: v.bg }} />
+      {v.image && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: `url(${v.image})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          transform: 'scale(1.03)',
+          filter: 'saturate(1.02) contrast(1.01)',
+        }} />
+      )}
+      <div style={{ position: 'absolute', inset: 0, background: v.overlay }} />
+      <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, opacity: hasPhoto ? 0.06 : 0.12, mixBlendMode: 'overlay' }}>
         <defs>
           <pattern id={patId} x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
             <circle cx="30" cy="30" r="28" fill="none" stroke="currentColor" strokeWidth="0.4" />
@@ -437,31 +556,41 @@ function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardDa
             <svg width="24" height="24" viewBox="0 0 24 24">
               <path d="M12 2L3 20h3.5l1.8-4h7.4l1.8 4H21L12 2zm-2.6 11L12 7.3 14.6 13H9.4z" fill={v.text} />
             </svg>
-            <span style={{ fontSize: 15, fontWeight: 500, letterSpacing: 0.5 }}>
+            <span style={{ fontSize: 15, fontWeight: 500, letterSpacing: 0.5, textShadow: titleShadow }}>
               ARM<span style={{ fontWeight: 300 }}>Bank</span>
             </span>
           </div>
-          <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2, color: v.muted, textTransform: 'uppercase' }}>{type || 'Virtual'}</span>
+          <span style={{
+            fontSize: 9, fontWeight: 600, letterSpacing: 1.8, color: v.muted, textTransform: 'uppercase',
+            padding: '5px 8px', borderRadius: 999, background: v.badgePlate, border: plateBorder,
+            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+          }}>{type || 'Virtual'}</span>
         </div>
         <div style={{
           fontFamily: '"SF Mono", monospace', fontSize: 20, fontWeight: 600, letterSpacing: 2,
-          color: v.text, textShadow: '0 1px 0 rgba(255,255,255,0.25), 0 -1px 0 rgba(0,0,0,0.15)',
+          color: v.text, textShadow: titleShadow,
           display: 'flex', gap: 14, alignItems: 'center', marginBottom: -8,
+          padding: '8px 12px', borderRadius: 14, border: plateBorder, background: v.numberPlate,
+          backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
         }}>
           <span style={{ color: v.muted }}>••••</span>
           <span style={{ color: v.muted }}>••••</span>
           <span style={{ color: v.muted }}>••••</span>
           <span>{number}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div style={{
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+          padding: '9px 12px', borderRadius: 13, border: plateBorder, background: v.bottomPlate,
+          backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+        }}>
           <div>
             <div style={{ fontSize: 8, fontWeight: 500, letterSpacing: 1.2, color: v.muted, textTransform: 'uppercase', marginBottom: 3 }}>Cardholder</div>
-            <div style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: 0.4 }}>{name}</div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: 0.4, textShadow: titleShadow }}>{name}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 8, fontWeight: 500, letterSpacing: 1.2, color: v.muted, textTransform: 'uppercase', marginBottom: 3 }}>Valid</div>
-              <div style={{ fontSize: 12.5, fontWeight: 600, fontFamily: '"SF Mono", monospace' }}>{expiry}</div>
+              <div style={{ fontSize: 12.5, fontWeight: 600, fontFamily: '"SF Mono", monospace', textShadow: titleShadow }}>{expiry}</div>
             </div>
             <div style={{ position: 'relative', width: 34, height: 22 }}>
               <div style={{ position: 'absolute', left: 0, top: 0, width: 22, height: 22, borderRadius: '50%', background: '#eb001b' }} />
@@ -920,10 +1049,10 @@ function CardsScreen() {
   const { toast, cards: apiCards, refreshDashboard, transactions: allTx, account, user } = useApp();
   const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
   const FALLBACK_CARDS: (CardData & { id: number; type: string; limit: string; used: string; statusRaw: string; cardTypeRaw: string })[] = [
-    { id: 0, variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29', type: 'Віртуальна', limit: '150 000', used: '48 230', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'virtual' },
-    { id: 0, variant: 'emerald', number: '1183', name: userNameUp, expiry: '02/29', type: 'Фізична', limit: '80 000', used: '12 400', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'physical' },
-    { id: 0, variant: 'platinum', number: '7147', name: userNameUp, expiry: '08/28', type: 'Фізична', limit: '500 000', used: '215 800', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'physical' },
-    { id: 0, variant: 'obsidian', number: '4402', name: userNameUp, expiry: '11/30', type: 'Віртуальна', limit: '50 000', used: '0', status: 'Заморожена', statusRaw: 'blocked', cardTypeRaw: 'virtual' },
+    { id: 0, design: 'gold', variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29', type: 'Віртуальна', limit: '150 000', used: '48 230', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'virtual' },
+    { id: 0, design: 'florence', variant: 'florence', number: '1183', name: userNameUp, expiry: '02/29', type: 'Фізична', limit: '80 000', used: '12 400', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'physical' },
+    { id: 0, design: 'venice', variant: 'venice', number: '7147', name: userNameUp, expiry: '08/28', type: 'Фізична', limit: '500 000', used: '215 800', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'physical' },
+    { id: 0, design: 'tuscany_villa', variant: 'tuscany_villa', number: '4402', name: userNameUp, expiry: '11/30', type: 'Віртуальна', limit: '50 000', used: '0', status: 'Заморожена', statusRaw: 'blocked', cardTypeRaw: 'virtual' },
   ];
   const cards = apiCards.length > 0 ? apiCards.map(c => apiCardToData(c, userNameUp)) : FALLBACK_CARDS;
   const [selected, setSelected] = useState(0);
@@ -931,6 +1060,10 @@ function CardsScreen() {
   const [pinValue, setPinValue] = useState('');
   const [pinConfirm, setPinConfirm] = useState('');
   const [pinLoading, setPinLoading] = useState(false);
+  const [designModal, setDesignModal] = useState(false);
+  const [designMode, setDesignMode] = useState<'current' | 'issue'>('current');
+  const [designLoading, setDesignLoading] = useState(false);
+  const [selectedDesign, setSelectedDesign] = useState<string>('gold');
   const safeIdx = Math.min(selected, cards.length - 1);
   const card = cards[safeIdx];
 
@@ -938,8 +1071,15 @@ function CardsScreen() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthTransactions = allTx.filter(tx => new Date(tx.created_at) >= monthStart);
   const monthOut = monthTransactions.filter(tx => tx.direction === 'out').reduce((s, tx) => s + tx.amount, 0);
-  const busyCardId: number | null = null;
+  const busyCardId: number | null = designLoading && designMode === 'current' ? (apiCards[safeIdx]?.id ?? null) : null;
   const statusLabel = card?.status || 'Активна';
+  const currentDesignOption = CARD_DESIGN_OPTIONS.find(opt => opt.design === String(card?.design || '').toLowerCase());
+  const activeDesignOption = CARD_DESIGN_OPTIONS.find(opt => opt.design === selectedDesign) ?? CARD_DESIGN_OPTIONS[0];
+
+  useEffect(() => {
+    if (card?.design) setSelectedDesign(card.design);
+    else if (!card) setSelectedDesign('florence');
+  }, [card?.id, card?.design, card]);
 
   async function changePin() {
     if (pinValue.length !== 4 || !/^\d{4}$/.test(pinValue)) { toast('PIN має бути 4 цифри'); return; }
@@ -989,7 +1129,58 @@ function CardsScreen() {
     } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Помилка'); }
   }
 
-  const isFrozen = apiCards.length > 0 ? apiCards[safeIdx]?.status === 'blocked' : card.statusRaw === 'blocked';
+  function openDesignModal(mode: 'current' | 'issue') {
+    setDesignMode(mode);
+    if (mode === 'current' && card?.design) setSelectedDesign(card.design);
+    else if (mode === 'issue') setSelectedDesign('florence');
+    setDesignModal(true);
+  }
+
+  async function applyCardDesign() {
+    if (!selectedDesign) return;
+    const token = localStorage.getItem('army_bank_token');
+    if (!token) {
+      toast('Сесія завершилась. Увійдіть знову.');
+      return;
+    }
+    setDesignLoading(true);
+    try {
+      if (designMode === 'current') {
+        if (apiCards.length === 0) {
+          toast('Немає картки для зміни дизайну');
+          return;
+        }
+        const c = apiCards[safeIdx];
+        if (!c) throw new Error('Картку не знайдено.');
+        const r = await fetch(`/api/cards/${c.id}/design`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ design: selectedDesign }),
+        });
+        const j = await r.json();
+        if (!r.ok || !j.ok) throw new Error(j.message || 'Не вдалося оновити дизайн');
+        toast(`Дизайн картки •• ${card.number} оновлено`);
+      } else {
+        const r = await fetch('/api/cards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ card_type: 'virtual', design: selectedDesign }),
+        });
+        const j = await r.json();
+        if (!r.ok || !j.ok) throw new Error(j.message || 'Не вдалося випустити картку');
+        toast('Нову картку випущено');
+      }
+      await refreshDashboard();
+      setDesignModal(false);
+      if (designMode === 'issue') setSelected(0);
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Помилка дизайну картки');
+    } finally {
+      setDesignLoading(false);
+    }
+  }
+
+  const isFrozen = apiCards.length > 0 ? apiCards[safeIdx]?.status === 'blocked' : card?.statusRaw === 'blocked';
 
   return (
     <>
@@ -1001,14 +1192,15 @@ function CardsScreen() {
           <div style={{ ...T.h1, color: text.primary }}>Мої картки</div>
         </div>
         <div style={{ flex: 1 }} />
-        <button onClick={() => window.open('https://munister.com.ua/messenger', '_blank')} style={{
+        <button onClick={() => openDesignModal('issue')} style={{
           padding: '10px 16px', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`,
           color: text.primary, border: 'none', borderRadius: 100, fontSize: 13, fontWeight: 600,
           fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-          boxShadow: `0 4px 10px -4px rgba(180,172,155,0.5), inset 0 1px 0 rgba(230,225,210,0.5)`, opacity: busyCardId === -1 ? 0.65 : 1,
+          boxShadow: `0 4px 10px -4px rgba(180,172,155,0.5), inset 0 1px 0 rgba(230,225,210,0.5)`,
+          opacity: designLoading && designMode === 'issue' ? 0.65 : 1,
         }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#1c2e22" strokeWidth="2.4" strokeLinecap="round" /></svg>
-          {busyCardId === -1 ? 'Створення...' : 'Випустити'}
+          {designLoading && designMode === 'issue' ? 'Створення...' : 'Випустити'}
         </button>
       </div>
 
@@ -1052,6 +1244,18 @@ function CardsScreen() {
             <div style={{ flex: 1 }} />
             <div style={{ fontSize: 11, color: text.muted }}>{card.cardTypeRaw === 'physical' ? 'Фізична' : 'Віртуальна'} • до {card.expiry}</div>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 10 }}>
+            <div style={{ fontSize: 12, color: text.muted }}>
+              Дизайн: <span style={{ color: text.secondary, fontWeight: 600 }}>{currentDesignOption?.title || 'Classic Gold'}</span>
+            </div>
+            <button
+              onClick={() => openDesignModal('current')}
+              style={{
+                padding: '7px 12px', borderRadius: 10, border: '1px solid rgba(180,172,155,0.24)',
+                background: 'rgba(255,255,255,0.04)', color: text.secondary, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              }}
+            >Змінити</button>
+          </div>
 
           {/* Account activity */}
           <div style={{ marginBottom: 18 }}>
@@ -1073,7 +1277,7 @@ function CardsScreen() {
             {[
               { label: 'Деталі', msg: `Картка •• ${card.number} · до ${card.expiry}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M3 10h18" stroke={gold} strokeWidth="1.6" /></svg> },
               { label: 'PIN', action: () => setPinModal(true), icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg> },
-              { label: 'Apple Pay', msg: 'Відкрийте Гаманець на iPhone', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M17 2a4 4 0 00-3 1.7M7 8a5 5 0 015-5c1.7 0 2.5 1 3 1.7M5 14c0 6 5 8 7 8s7-2 7-8-5-6-7-4c-2-2-7 0-7 4z" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+              { label: 'Дизайн', action: () => openDesignModal('current'), icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke={gold} strokeWidth="1.8" strokeLinecap="round" /><circle cx="8" cy="6" r="2" fill={gold} /><circle cx="16" cy="12" r="2" fill={gold} /><circle cx="11" cy="18" r="2" fill={gold} /></svg> },
               { label: 'Рахунок', msg: `Рахунок: ${account?.account_number || '—'}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1116 0" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><path d="M12 12l4-4" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><circle cx="12" cy="12" r="1.5" fill={gold} /></svg> },
             ].map((a, i) => (
               <button key={i} onClick={() => 'action' in a ? a.action() : toast(a.msg as string)} style={{
@@ -1163,6 +1367,88 @@ function CardsScreen() {
                 background: (pinLoading || pinValue.length !== 4 || pinValue !== pinConfirm) ? 'rgba(100,95,80,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
                 color: text.primary, cursor: (pinLoading || pinValue.length !== 4 || pinValue !== pinConfirm) ? 'default' : 'pointer', fontFamily: fontFamily,
               }}>{pinLoading ? 'Збереження…' : 'Зберегти PIN'}</button>
+          </div>
+        </div>
+      </div>
+    )}
+    {designModal && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 320, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => !designLoading && setDesignModal(false)}>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.62)', backdropFilter: 'blur(4px)' }} />
+        <div onClick={e => e.stopPropagation()} style={{
+          position: 'relative', width: '100%', maxWidth: 620,
+          background: 'linear-gradient(180deg,rgba(17,40,32,0.98) 0%,rgba(11,30,22,0.98) 100%)',
+          backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+          borderRadius: '24px 24px 0 0', padding: '24px 20px calc(22px + env(safe-area-inset-bottom,0px))',
+          border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
+          maxHeight: '82vh', overflowY: 'auto',
+        }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 18px' }} />
+          <div style={{ fontSize: 18, fontWeight: 700, color: text.primary, marginBottom: 4 }}>
+            {designMode === 'current' ? 'Оберіть дизайн картки' : 'Випуск нової картки'}
+          </div>
+          <div style={{ fontSize: 12, color: text.muted, marginBottom: 16 }}>
+            {designMode === 'current'
+              ? `Картка •• ${card?.number || '0000'}`
+              : 'Оберіть стиль, потім випустіть віртуальну картку'}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+            {CARD_DESIGN_OPTIONS.map((opt) => (
+              <button
+                key={opt.design}
+                onClick={() => setSelectedDesign(opt.design)}
+                style={{
+                  padding: 10,
+                  borderRadius: 14,
+                  border: selectedDesign === opt.design ? '1px solid rgba(220,215,200,0.42)' : '1px solid rgba(180,172,155,0.18)',
+                  background: selectedDesign === opt.design ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
+                  color: text.secondary,
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}
+              >
+                <PremiumCard
+                  variant={opt.variant}
+                  number={card?.number || '0001'}
+                  name={card?.name || userNameUp}
+                  expiry={card?.expiry || '03/29'}
+                  type={card?.type || 'Віртуальна'}
+                  style={{ width: '100%' }}
+                />
+                <div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: text.primary }}>{opt.title}</div>
+                  <div style={{ fontSize: 11, color: text.muted }}>{opt.subtitle}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 14, fontSize: 12, color: text.muted }}>
+            Обрано: <span style={{ color: text.secondary, fontWeight: 700 }}>{activeDesignOption.title}</span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+            <button
+              onClick={() => setDesignModal(false)}
+              disabled={designLoading}
+              style={{
+                flex: 1, padding: '13px 12px', borderRadius: 14, border: '1px solid rgba(180,172,155,0.22)',
+                background: 'rgba(255,255,255,0.03)', color: text.secondary, fontSize: 14, fontWeight: 600, cursor: designLoading ? 'default' : 'pointer',
+              }}
+            >Скасувати</button>
+            <button
+              onClick={applyCardDesign}
+              disabled={designLoading}
+              style={{
+                flex: 1.2, padding: '13px 12px', borderRadius: 14, border: 'none',
+                background: `linear-gradient(135deg, ${goldDark}, ${gold})`,
+                color: '#1c2e22', fontSize: 14, fontWeight: 800, cursor: designLoading ? 'default' : 'pointer',
+                opacity: designLoading ? 0.7 : 1,
+              }}
+            >{designLoading ? 'Застосування…' : (designMode === 'current' ? 'Застосувати дизайн' : 'Випустити картку')}</button>
           </div>
         </div>
       </div>

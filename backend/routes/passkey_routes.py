@@ -207,4 +207,10 @@ def remove():
 
 def g_user_id() -> int:
     from flask import g
-    return g.user_id
+    current_user = getattr(g, 'current_user', None)
+    if isinstance(current_user, dict) and current_user.get('id') is not None:
+        return int(current_user['id'])
+    legacy_user_id = getattr(g, 'user_id', None)
+    if legacy_user_id is not None:
+        return int(legacy_user_id)
+    raise RuntimeError('Authorized user is missing from request context')

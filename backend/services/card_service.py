@@ -78,7 +78,10 @@ class CardService:
             'expiry_display': self._expiry_display(card['expires_at']),
         }
 
-    _VALID_DESIGNS = {'gold', 'navy', 'forest', 'rose', 'slate', 'camo', 'dark'}
+    _VALID_DESIGNS = {
+        'gold', 'navy', 'forest', 'rose', 'slate', 'camo', 'dark',
+        'florence', 'tuscany_hills', 'venice', 'tuscany_villa',
+    }
 
     def issue_card(self, user_id: int, card_type: str = 'virtual', design: str = 'gold') -> dict:
         if card_type not in ('virtual', 'physical'):

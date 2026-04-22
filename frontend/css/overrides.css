@@ -9778,20 +9778,20 @@ html.install-banner-visible #appScreen .app-content {
 
   /* iOS Safari (browser mode): keep bank tabbar above browser toolbar */
   html.os-ios.browser-safari.app-browser-mode #appScreen #sidebar.bottom-nav {
-    bottom: calc(max(62px, var(--browser-ui-bottom, 0px)) + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: calc(var(--browser-ui-bottom, 0px) + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   html.os-ios.browser-safari.app-browser-mode #appScreen .app-content {
     padding-bottom: calc(
       var(--ab-mobile-nav-height) +
       20px +
-      max(62px, var(--browser-ui-bottom, 0px)) +
+      var(--browser-ui-bottom, 0px) +
       env(safe-area-inset-bottom, 0px)
     ) !important;
     scroll-padding-bottom: calc(
       var(--ab-mobile-nav-height) +
       20px +
-      max(62px, var(--browser-ui-bottom, 0px)) +
+      var(--browser-ui-bottom, 0px) +
       env(safe-area-inset-bottom, 0px)
     ) !important;
   }

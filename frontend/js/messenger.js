@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '46';
+const MESSENGER_ASSET_VERSION = '47';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const BANK_TOKEN_KEY = 'army_bank_token';
@@ -65,6 +65,7 @@ let pollBusyConvPresence = false;
 let pollBusyIncoming = false;
 let pushActionInFlight = false;
 let pushReadyCache = false;
+let lastPushSetupError = '';
 let lastConvPresenceSyncAt = 0;
 let lastFocusSyncAt = 0;
 
@@ -496,57 +497,135 @@ async function getVapidPublicKey() {
   }
 }
 
-async function subscribeWebPush() {
-  if (!token) return false;
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
-  const reg = await navigator.serviceWorker.ready;
-  const vapid = await getVapidPublicKey();
-  if (!vapid) return false;
-
-  let sub = await reg.pushManager.getSubscription();
-  if (!sub) {
-    sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapid),
-    });
+function isStandaloneDisplayMode() {
+  if (!window.matchMedia) return false;
+  try {
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches ||
+      window.matchMedia('(display-mode: minimal-ui)').matches
+    );
+  } catch (_) {
+    return false;
   }
+}
 
-  const p256dhKey = sub.getKey('p256dh');
-  const authKey = sub.getKey('auth');
-  if (!p256dhKey || !authKey) return false;
-  await api('POST', '/push/subscribe', {
-    endpoint: sub.endpoint,
-    p256dh: btoa(String.fromCharCode(...new Uint8Array(p256dhKey))),
-    auth: btoa(String.fromCharCode(...new Uint8Array(authKey))),
-  });
-  setPermFlag('push_subscribed', true);
-  return true;
+function getPushSupportContext() {
+  const ua = navigator.userAgent || '';
+  const isIOS = /iP(hone|ad|od)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = document.documentElement.classList.contains('app-standalone')
+    || isStandaloneDisplayMode()
+    || window.navigator.standalone === true;
+  const secureContext = location.protocol === 'https:' || location.hostname === 'localhost';
+  const hasNotificationApi = !!window.Notification;
+  const hasServiceWorker = ('serviceWorker' in navigator);
+  const hasPushManager = ('PushManager' in window);
+
+  if (!secureContext) {
+    return { ok: false, message: 'Потрібен HTTPS для push-сповіщень.' };
+  }
+  if (!hasNotificationApi) {
+    return { ok: false, message: 'Браузер не підтримує push-сповіщення.' };
+  }
+  if (!hasServiceWorker || !hasPushManager) {
+    if (isIOS && !standalone) {
+      return { ok: false, message: 'На iPhone push працює лише у встановленій PWA. Відкрийте ARM Bank з іконки на Головному екрані.' };
+    }
+    return { ok: false, message: 'Push API недоступний у поточному браузері.' };
+  }
+  if (isIOS && !standalone) {
+    return { ok: false, message: 'На iPhone push працює лише у встановленій PWA. Додайте ARM Bank на Головний екран і відкрийте з іконки.' };
+  }
+  return { ok: true, message: '' };
+}
+
+async function subscribeWebPush() {
+  try {
+    if (!token) return false;
+    const support = getPushSupportContext();
+    if (!support.ok) {
+      lastPushSetupError = support.message || '';
+      return false;
+    }
+    const reg = await navigator.serviceWorker.ready;
+    const vapid = await getVapidPublicKey();
+    if (!vapid) {
+      lastPushSetupError = 'Не вдалося отримати VAPID ключ для push.';
+      return false;
+    }
+
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapid),
+      });
+    }
+
+    const p256dhKey = sub.getKey('p256dh');
+    const authKey = sub.getKey('auth');
+    if (!p256dhKey || !authKey) {
+      lastPushSetupError = 'Некоректні ключі push-підписки. Оновіть підписку ще раз.';
+      return false;
+    }
+    await api('POST', '/push/subscribe', {
+      endpoint: sub.endpoint,
+      p256dh: btoa(String.fromCharCode(...new Uint8Array(p256dhKey))),
+      auth: btoa(String.fromCharCode(...new Uint8Array(authKey))),
+    });
+    setPermFlag('push_subscribed', true);
+    lastPushSetupError = '';
+    return true;
+  } catch (err) {
+    lastPushSetupError = err?.message || 'Не вдалося створити push-підписку.';
+    return false;
+  }
 }
 
 async function forceResubscribeWebPush() {
-  if (!token) return false;
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
-  const reg = await navigator.serviceWorker.ready;
-  const oldSub = await reg.pushManager.getSubscription();
-  if (oldSub) {
-    try { await oldSub.unsubscribe(); } catch (_) {}
+  try {
+    if (!token) return false;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+    const reg = await navigator.serviceWorker.ready;
+    const oldSub = await reg.pushManager.getSubscription();
+    if (oldSub) {
+      try { await oldSub.unsubscribe(); } catch (_) {}
+    }
+    setPermFlag('push_subscribed', false);
+    return subscribeWebPush();
+  } catch (err) {
+    lastPushSetupError = err?.message || 'Не вдалося оновити push-підписку.';
+    return false;
   }
-  setPermFlag('push_subscribed', false);
-  return subscribeWebPush();
 }
 
 async function ensureNotificationPermission(interactive = false) {
-  if (!window.Notification) return false;
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  const support = getPushSupportContext();
+  if (!support.ok) {
+    lastPushSetupError = support.message || '';
+    if (interactive) showToast(support.message || 'Push недоступний у поточному режимі.', true);
+    return false;
+  }
 
   const perm = Notification.permission;
   if (perm === 'granted') {
     setPermFlag('notifications', 'granted');
-    try { await subscribeWebPush(); } catch (_) {}
-    return true;
+    try {
+      const subscribed = await subscribeWebPush();
+      if (!subscribed && !lastPushSetupError) {
+        lastPushSetupError = 'Push не вдалося підписати. Оновіть підписку.';
+      }
+      return !!subscribed;
+    } catch (_) {
+      if (!lastPushSetupError) {
+        lastPushSetupError = 'Push не вдалося підписати. Спробуйте ще раз.';
+      }
+      return false;
+    }
   }
   if (perm === 'denied') {
     setPermFlag('notifications', 'denied');
+    lastPushSetupError = 'Сповіщення заблоковані. Дозвольте їх у налаштуваннях браузера.';
     if (interactive) showToast('Сповіщення заблоковані. Дозвольте їх у налаштуваннях браузера.', true);
     return false;
   }
@@ -558,12 +637,17 @@ async function ensureNotificationPermission(interactive = false) {
     const requested = await Notification.requestPermission();
     if (requested !== 'granted') {
       setPermFlag('notifications', 'denied');
+      lastPushSetupError = 'Доступ до push-сповіщень не надано.';
       return false;
     }
     setPermFlag('notifications', 'granted');
-    await subscribeWebPush();
-    return true;
+    const subscribed = await subscribeWebPush();
+    if (!subscribed && !lastPushSetupError) {
+      lastPushSetupError = 'Дозвіл надано, але підписка на push не створена.';
+    }
+    return !!subscribed;
   } catch (_) {
+    lastPushSetupError = 'Не вдалося запросити дозвіл на push-сповіщення.';
     return false;
   }
 }
@@ -602,16 +686,17 @@ function setPushActionBusy(busy) {
   });
 }
 
-function updatePushActionButtons({ notifPerm, swReady, pushSubscribed }) {
-  if (btnPushEnable) btnPushEnable.hidden = notifPerm === 'granted' && !!pushSubscribed;
-  if (btnPushResubscribe) btnPushResubscribe.hidden = notifPerm !== 'granted' || !swReady;
-  if (btnPushTest) btnPushTest.hidden = notifPerm !== 'granted' || !swReady || !pushSubscribed;
+function updatePushActionButtons({ notifPerm, swReady, pushSubscribed, pushBlocked }) {
+  if (btnPushEnable) btnPushEnable.hidden = !!pushBlocked || (notifPerm === 'granted' && !!pushSubscribed);
+  if (btnPushResubscribe) btnPushResubscribe.hidden = !!pushBlocked || notifPerm !== 'granted' || !swReady;
+  if (btnPushTest) btnPushTest.hidden = !!pushBlocked || notifPerm !== 'granted' || !swReady || !pushSubscribed;
 }
 
 async function runClientDiagnostics(showDoneToast = false) {
   const secureContext = location.protocol === 'https:' || location.hostname === 'localhost';
   const rtcSupported = !!(window.RTCPeerConnection && navigator?.mediaDevices?.getUserMedia);
   const online = navigator.onLine !== false;
+  const pushSupport = getPushSupportContext();
 
   const notifPerm = window.Notification ? Notification.permission : 'unsupported';
   const notifGranted = notifPerm === 'granted';
@@ -623,7 +708,7 @@ async function runClientDiagnostics(showDoneToast = false) {
 
   let swReady = false;
   let pushSubscribed = false;
-  if ('serviceWorker' in navigator && 'PushManager' in window) {
+  if (pushSupport.ok && 'serviceWorker' in navigator && 'PushManager' in window) {
     try {
       const reg = await navigator.serviceWorker.ready;
       swReady = !!reg;
@@ -631,12 +716,12 @@ async function runClientDiagnostics(showDoneToast = false) {
       pushSubscribed = !!sub;
     } catch (_) {}
   }
-  const pushReady = notifGranted && swReady && pushSubscribed;
+  const pushReady = pushSupport.ok && notifGranted && swReady && pushSubscribed;
   const callReady = secureContext && rtcSupported && micGranted && online;
   const overallOk = callReady && pushReady;
   pushReadyCache = !!pushReady;
 
-  setDiagRow(diagPush, pushReady ? 'ok' : (notifPerm === 'denied' ? 'bad' : 'warn'), `Push: ${pushReady ? 'готово' : 'потрібно налаштувати'}`);
+  setDiagRow(diagPush, pushReady ? 'ok' : (!pushSupport.ok || notifPerm === 'denied' ? 'bad' : 'warn'), `Push: ${pushReady ? 'готово' : 'потрібно налаштувати'}`);
   setDiagRow(diagMic, micGranted ? 'ok' : (micPerm === 'denied' ? 'bad' : 'warn'), `Мікрофон: ${micGranted ? 'доступ є' : 'немає доступу'}`);
   setDiagRow(diagCall, callReady ? 'ok' : 'warn', `Дзвінки: ${callReady ? 'готово' : 'є обмеження'}`);
   setDiagRow(diagOverall, overallOk ? 'ok' : 'warn', `Загальний стан: ${overallOk ? 'готово' : 'потребує уваги'}`);
@@ -644,6 +729,7 @@ async function runClientDiagnostics(showDoneToast = false) {
   if (diagNote) {
     let note = 'Усе готово: push для повідомлень і дзвінків працює у фоні PWA.';
     if (!secureContext) note = 'Потрібен HTTPS для мікрофона, дзвінків і push.';
+    else if (!pushSupport.ok) note = pushSupport.message || 'Push недоступний у поточному режимі.';
     else if (!notifGranted) note = 'Push вимкнено: натисніть "Увімкнути push".';
     else if (!swReady) note = 'Service Worker ще не готовий. Зачекайте 2-3 секунди й натисніть "Оновити".';
     else if (!pushSubscribed) note = 'Push не підписано. Натисніть "Оновити підписку".';
@@ -652,7 +738,7 @@ async function runClientDiagnostics(showDoneToast = false) {
     diagNote.textContent = note;
   }
 
-  updatePushActionButtons({ notifPerm, swReady, pushSubscribed });
+  updatePushActionButtons({ notifPerm, swReady, pushSubscribed, pushBlocked: !pushSupport.ok });
   updateNetworkPill();
   updateDataSaverHint();
 
@@ -5136,7 +5222,7 @@ if (btnPushEnable) {
     try {
       const ok = await ensureNotificationPermission(true);
       if (ok) showToast('Push-сповіщення увімкнено.');
-      else showToast('Не вдалося увімкнути push. Перевірте доступ у браузері.', true);
+      else showToast(lastPushSetupError || 'Не вдалося увімкнути push. Перевірте доступ у браузері.', true);
       await runClientDiagnostics();
     } finally {
       setPushActionBusy(false);
@@ -5150,11 +5236,11 @@ if (btnPushResubscribe) {
     try {
       const notifOk = await ensureNotificationPermission(true);
       if (!notifOk) {
-        showToast('Спочатку дозвольте сповіщення.', true);
+        showToast(lastPushSetupError || 'Спочатку дозвольте сповіщення.', true);
       } else {
         const ok = await forceResubscribeWebPush();
         if (ok) showToast('Push-підписку оновлено.');
-        else showToast('Не вдалося оновити push-підписку.', true);
+        else showToast(lastPushSetupError || 'Не вдалося оновити push-підписку.', true);
       }
       await runClientDiagnostics();
     } finally {

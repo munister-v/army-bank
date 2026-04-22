@@ -50,10 +50,21 @@ const DESKTOP_MOBILE_ONLY_BLOCKED = document.documentElement.classList.contains(
     if (vh > 0) root.style.setProperty("--app-vh", String(vh) + "px");
   };
 
+  const getDisplayModeMatch = (mode) => {
+    if (!window.matchMedia) return false;
+    try {
+      return window.matchMedia(`(display-mode: ${mode})`).matches;
+    } catch (_) {
+      return false;
+    }
+  };
+
   const isStandaloneMode = () => {
     try {
       return !!(
-        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+        getDisplayModeMatch('standalone') ||
+        getDisplayModeMatch('fullscreen') ||
+        getDisplayModeMatch('minimal-ui') ||
         window.navigator.standalone === true
       );
     } catch (_) {
@@ -68,12 +79,18 @@ const DESKTOP_MOBILE_ONLY_BLOCKED = document.documentElement.classList.contains(
 
     let inset = 0;
     if (!standalone && isIOS && isSafari) {
+      const vv = window.visualViewport;
       const vvHeight = window.visualViewport?.height || window.innerHeight || 0;
       const innerHeight = window.innerHeight || vvHeight;
-      const dynamicInset = Math.max(0, Math.round(innerHeight - vvHeight));
+      const vvOffsetTop = Number(vv?.offsetTop || 0);
+      const dynamicInset = Math.max(0, Math.round(innerHeight - vvHeight - vvOffsetTop));
       // iOS Safari (browser mode): use real viewport delta only.
       // Hard minimum caused a persistent phantom gap when toolbar collapsed.
-      inset = dynamicInset > 6 ? Math.min(dynamicInset, 120) : 0;
+      if (dynamicInset <= 8 || dynamicInset > 90) {
+        inset = 0;
+      } else {
+        inset = Math.min(dynamicInset, 80);
+      }
     }
     root.classList.toggle("browser-ui-visible", inset > 0);
     root.style.setProperty("--browser-ui-bottom", `${inset}px`);
@@ -89,14 +106,22 @@ const DESKTOP_MOBILE_ONLY_BLOCKED = document.documentElement.classList.contains(
   window.visualViewport?.addEventListener("scroll", syncBrowserUiInset, { passive: true });
   window.addEventListener("orientationchange", syncBrowserUiInset, { passive: true });
   window.addEventListener("pageshow", syncBrowserUiInset, { passive: true });
+  window.addEventListener("load", syncBrowserUiInset, { passive: true });
+  setTimeout(syncBrowserUiInset, 120);
+  setTimeout(syncBrowserUiInset, 420);
+  setTimeout(syncBrowserUiInset, 1200);
 
   if (window.matchMedia) {
-    const standaloneMql = window.matchMedia('(display-mode: standalone)');
-    if (typeof standaloneMql.addEventListener === 'function') {
-      standaloneMql.addEventListener('change', syncBrowserUiInset);
-    } else if (typeof standaloneMql.addListener === 'function') {
-      standaloneMql.addListener(syncBrowserUiInset);
-    }
+    ['standalone', 'fullscreen', 'minimal-ui'].forEach((mode) => {
+      try {
+        const mql = window.matchMedia(`(display-mode: ${mode})`);
+        if (typeof mql.addEventListener === 'function') {
+          mql.addEventListener('change', syncBrowserUiInset);
+        } else if (typeof mql.addListener === 'function') {
+          mql.addListener(syncBrowserUiInset);
+        }
+      } catch (_) {}
+    });
   }
 })();
 
@@ -3068,6 +3093,46 @@ function getNotificationApi() {
   return (typeof window !== 'undefined' && window.Notification) ? window.Notification : null;
 }
 
+function isStandaloneDisplayMode() {
+  if (!window.matchMedia) return false;
+  try {
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches ||
+      window.matchMedia('(display-mode: minimal-ui)').matches
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
+function getPushSupportContext() {
+  const ua = navigator.userAgent || '';
+  const isIOS = /iP(hone|ad|od)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = document.documentElement.classList.contains('app-standalone')
+    || isStandaloneDisplayMode()
+    || window.navigator.standalone === true;
+  const secureContext = location.protocol === 'https:' || location.hostname === 'localhost';
+  const NotificationAPI = getNotificationApi();
+
+  if (!secureContext) {
+    return { ok: false, message: 'Push працює лише через HTTPS.' };
+  }
+  if (!NotificationAPI) {
+    return { ok: false, message: 'Браузер не підтримує сповіщення.' };
+  }
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (isIOS && !standalone) {
+      return { ok: false, message: 'На iPhone push працює лише у встановленій PWA. Відкрийте ARM Bank з іконки на Головному екрані.' };
+    }
+    return { ok: false, message: 'Push API недоступний у поточному браузері.' };
+  }
+  if (isIOS && !standalone) {
+    return { ok: false, message: 'На iPhone push працює лише у встановленій PWA. Додайте ARM Bank на Головний екран і відкрийте з іконки.' };
+  }
+  return { ok: true, message: '' };
+}
+
 async function updatePushDot() {
   const NotificationAPI = getNotificationApi();
   if (!NotificationAPI || !('PushManager' in window)) return;
@@ -3078,15 +3143,12 @@ async function updatePushDot() {
 
 $('#pushBtn')?.addEventListener('click', async () => {
   const btn = $('#pushBtn');
+  const support = getPushSupportContext();
+  if (!support.ok) {
+    showToast(support.message);
+    return;
+  }
   const NotificationAPI = getNotificationApi();
-  if (!NotificationAPI) {
-    showToast('Браузер не підтримує сповіщення.');
-    return;
-  }
-  if (!('PushManager' in window)) {
-    showToast('Push API недоступний. На iPhone — додайте застосунок на Головний екран.');
-    return;
-  }
   if (NotificationAPI.permission === 'denied') {
     showToast('Сповіщення заблоковані. Дозвольте в налаштуваннях браузера / системи.');
     return;
@@ -3106,7 +3168,8 @@ $('#pushBtn')?.addEventListener('click', async () => {
     showToast('Підписка на сповіщення…');
     const ok = await api.subscribePush();
     if (!ok) {
-      showToast('Не вдалося підписатись на сповіщення.');
+      const pushErr = typeof api.getLastPushError === 'function' ? api.getLastPushError() : null;
+      showToast(pushErr?.message || 'Не вдалося підписатись на сповіщення.');
       return;
     }
     updatePushDot();
