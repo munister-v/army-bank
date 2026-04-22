@@ -569,15 +569,37 @@ def _dt_str(v: Any) -> str | None:
 
 
 def _to_payload_product(row: dict[str, Any]) -> dict[str, Any]:
+    slug = row.get('slug', '')
+    image_url = row.get('image_url')
+    if not image_url:
+        k = slug.lower()
+        if 'iphone' in k: image_url = 'https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?q=80&w=400&auto=format&fit=crop'
+        elif 'macbook' in k or 'laptop' in k or 'book' in k: image_url = 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=400&auto=format&fit=crop'
+        elif 'samsung' in k or 'galaxy' in k or 'phone' in k or 'fold' in k: image_url = 'https://images.unsplash.com/photo-1610940985554-150fae9ba852?q=80&w=400&auto=format&fit=crop'
+        elif 'watch' in k or 'band' in k: image_url = 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?q=80&w=400&auto=format&fit=crop'
+        elif 'earbuds' in k or 'airpods' in k or 'headphones' in k: image_url = 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?q=80&w=400&auto=format&fit=crop'
+        elif 'tv' in k or 'monitor' in k: image_url = 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?q=80&w=400&auto=format&fit=crop'
+        elif 'gaming' in k or 'console' in k: image_url = 'https://images.unsplash.com/photo-1486401899868-0e435ed85128?q=80&w=400&auto=format&fit=crop'
+        elif 'vacuum' in k or 'cleaner' in k: image_url = 'https://images.unsplash.com/photo-1558317374-067fb5f30001?q=80&w=400&auto=format&fit=crop'
+        elif 'coffee' in k: image_url = 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=400&auto=format&fit=crop'
+        elif 'kettle' in k or 'kitchen' in k or 'cooker' in k or 'fryer' in k: image_url = 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=80&w=400&auto=format&fit=crop'
+        elif 'fridge' in k: image_url = 'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?q=80&w=400&auto=format&fit=crop'
+        elif 'hoodie' in k or 'apparel' in k: image_url = 'https://images.unsplash.com/photo-1556821840-0a63f95609a7?q=80&w=400&auto=format&fit=crop'
+        elif 'mug' in k: image_url = 'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?q=80&w=400&auto=format&fit=crop'
+        elif 'powerbank' in k or 'charger' in k or 'cable' in k: image_url = 'https://images.unsplash.com/photo-1615526645314-ca018a38ae81?q=80&w=400&auto=format&fit=crop'
+        elif 'camera' in k or 'webcam' in k: image_url = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=400&auto=format&fit=crop'
+        elif 'speaker' in k or 'soundbar' in k: image_url = 'https://images.unsplash.com/photo-1545454675-3531b543be5d?q=80&w=400&auto=format&fit=crop'
+        else: image_url = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=400&auto=format&fit=crop'
+
     return {
         'id': int(row['id']),
-        'slug': row['slug'],
+        'slug': slug,
         'title': row['title'],
         'description': row['description'],
         'price': float(row['price'] or 0),
         'currency': row.get('currency') or 'UAH',
         'image_emoji': row.get('image_emoji') or '🛍️',
-        'image_url': row.get('image_url') or None,
+        'image_url': image_url,
         'badge': row.get('badge'),
         'stock': int(row.get('stock') or 0),
     }
