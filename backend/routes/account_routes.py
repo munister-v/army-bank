@@ -1,6 +1,8 @@
 """Маршрути рахунків та транзакцій."""
 from __future__ import annotations
 
+from datetime import date, datetime
+from decimal import Decimal
 from urllib.parse import quote
 
 from flask import Blueprint, Response, jsonify, request, g
@@ -23,6 +25,18 @@ service = AccountService()
 card_service = CardService()
 feature_service = FeatureService()
 idempotency_service = IdempotencyService()
+
+def _to_json_safe(value):
+    """Convert DB/native values (Decimal/datetime) to JSON-safe primitives."""
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {k: _to_json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_to_json_safe(v) for v in value]
+    return value
 
 
 @account_bp.get('/dashboard')
@@ -110,7 +124,7 @@ def topup():
             if state == 'processing':
                 return api_error('Операція вже виконується. Спробуйте пізніше.', 409)
 
-        result = service.topup(user_id, amount, description)
+        result = _to_json_safe(service.topup(user_id, amount, description))
         payload = {'ok': True, 'data': result}
         if idempotency_key:
             idempotency_service.complete(

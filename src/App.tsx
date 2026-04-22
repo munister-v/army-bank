@@ -272,6 +272,35 @@ function clearToken() {
   localStorage.removeItem('arm_cart');
 }
 
+let apiHealthCache: { ok: boolean; ts: number } | null = null;
+
+async function ensureApiStatusHealthy(): Promise<void> {
+  const now = Date.now();
+  if (apiHealthCache && (now - apiHealthCache.ts) < 15000) {
+    if (!apiHealthCache.ok) throw new Error('API тимчасово недоступне. Спробуйте через кілька секунд.');
+    return;
+  }
+
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 4500);
+  try {
+    const res = await fetch('/api-status', {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller.signal,
+      headers: { Accept: 'text/html' },
+    });
+    const ok = res.ok;
+    apiHealthCache = { ok, ts: now };
+    if (!ok) throw new Error('API статус недоступний.');
+  } catch {
+    apiHealthCache = { ok: false, ts: now };
+    throw new Error('Немає зʼєднання з API. Перевірте мережу або спробуйте пізніше.');
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
   const fullUrl = (url.startsWith('http') || url.startsWith('//')) ? url : `${API_BASE}${url}`;
   const token = getToken();
@@ -825,7 +854,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
   const cfg = {
     topup:      { title: 'Поповнити рахунок', recipientLabel: '', placeholder: 'Опис (опційно)' },
     by_card:    { title: 'Переказ на картку',  recipientLabel: 'Номер картки',   placeholder: 'Коментар' },
-    by_account: { title: 'Переказ за IBAN',    recipientLabel: 'Номер рахунку',   placeholder: 'Коментар' },
+    by_account: { title: 'Переказ за рахунком', recipientLabel: 'Номер рахунку',  placeholder: 'Коментар' },
   }[mode];
 
   function parseAmount(value: string): number {
@@ -847,6 +876,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
     if (!token) { setLoading(false); setError('Сесія завершилась. Увійдіть повторно.'); return; }
     const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
+      await ensureApiStatusHealthy();
       const url = mode === 'topup' ? '/api/transactions/topup'
         : mode === 'by_card' ? '/api/transactions/transfer-by-card'
         : '/api/transactions/transfer';
@@ -901,7 +931,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
           {mode !== 'topup' && (
             <div>
               <label style={{ ...T.caption, color: text.muted, display: 'block', marginBottom: 6 }}>{cfg.recipientLabel}</label>
-              <input style={inp} value={recipient} onChange={e => setRecipient(e.target.value)} placeholder={mode === 'by_card' ? '4721 •••• •••• ••••' : 'UA29 3223 1300 0002 6007 …'} />
+              <input style={inp} value={recipient} onChange={e => setRecipient(e.target.value)} placeholder={mode === 'by_card' ? '4721 •••• •••• ••••' : 'AB-100011'} />
             </div>
           )}
           <div>
@@ -937,7 +967,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
 const QUICK_ACTIONS: { label: string; icon: React.ReactNode; action: TabKey | TransferMode }[] = [
   { label: 'Поповнити', action: 'topup', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="#1c2e22" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
   { label: 'На картку', action: 'by_card', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="#1c2e22" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  { label: 'Між картами', action: 'by_card', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 9h18M3 15h18M6 5v14M18 5v14" stroke="#1c2e22" strokeWidth="2" strokeLinecap="round" /></svg> },
+  { label: 'За рахунком', action: 'by_account', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 9h18M3 15h18M6 5v14M18 5v14" stroke="#1c2e22" strokeWidth="2" strokeLinecap="round" /></svg> },
   { label: 'Магазин', action: 'market', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke="#1c2e22" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9" cy="21" r="1" fill="#1c2e22" /><circle cx="19" cy="21" r="1" fill="#1c2e22" /></svg> },
 ];
 
@@ -2398,6 +2428,7 @@ function MarketplaceScreen() {
     setCheckingOut(true);
     const idempotencyKey = `cart-${Date.now()}`;
     try {
+      await ensureApiStatusHealthy();
       const r = await fetch('/api/marketplace/checkout', {
         method: 'POST',
         headers: {
