@@ -356,6 +356,73 @@ function useWindowWidth() {
   return w;
 }
 
+function useSheetSwipeClose(onClose: () => void, threshold = 88) {
+  const startXRef = useRef<number | null>(null);
+  const startYRef = useRef<number | null>(null);
+  const axisRef = useRef<'x' | 'y' | null>(null);
+  const activeRef = useRef(false);
+  const [offsetY, setOffsetY] = useState(0);
+  const [dragging, setDragging] = useState(false);
+
+  function reset() {
+    startXRef.current = null;
+    startYRef.current = null;
+    axisRef.current = null;
+    activeRef.current = false;
+    setDragging(false);
+    setOffsetY(0);
+  }
+
+  function onTouchStart(e: React.TouchEvent<HTMLDivElement>) {
+    const t = e.touches[0];
+    const el = e.currentTarget;
+    const canDrag = (el.scrollTop || 0) <= 0;
+    activeRef.current = canDrag;
+    startXRef.current = t.clientX;
+    startYRef.current = t.clientY;
+    axisRef.current = null;
+    setDragging(false);
+  }
+
+  function onTouchMove(e: React.TouchEvent<HTMLDivElement>) {
+    if (!activeRef.current || startXRef.current == null || startYRef.current == null) return;
+    const t = e.touches[0];
+    const dx = t.clientX - startXRef.current;
+    const dy = t.clientY - startYRef.current;
+    if (!axisRef.current && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      axisRef.current = Math.abs(dy) >= Math.abs(dx) ? 'y' : 'x';
+    }
+    if (axisRef.current !== 'y' || dy <= 0) return;
+    e.preventDefault();
+    setDragging(true);
+    setOffsetY(Math.max(0, Math.min(220, dy)));
+  }
+
+  function onTouchEnd() {
+    if (offsetY >= threshold) {
+      onClose();
+    }
+    reset();
+  }
+
+  return {
+    offsetY,
+    progress: Math.max(0, Math.min(1, offsetY / 180)),
+    dragging,
+    sheetProps: {
+      onTouchStart,
+      onTouchMove,
+      onTouchEnd,
+      onTouchCancel: onTouchEnd,
+    },
+    sheetStyle: {
+      transform: `translate3d(0, ${offsetY}px, 0)`,
+      transition: dragging ? 'none' : 'transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1)',
+      willChange: 'transform',
+    } as React.CSSProperties,
+  };
+}
+
 // ─── Shared helpers ───────────────────────────────────────────
 function Chevron({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
   return (
@@ -845,6 +912,7 @@ function ActivityFeed({ title = true, transactions }: { title?: boolean; transac
 // ─── Transfer modal ───────────────────────────────────────────
 function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => void }) {
   const { toast, refreshDashboard } = useApp();
+  const sheetSwipe = useSheetSwipeClose(onClose);
   const [amount, setAmount] = useState('');
   const [recipient, setRecipient] = useState('');
   const [description, setDescription] = useState('');
@@ -920,7 +988,11 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ width: '100%', maxWidth: 480, background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)', border: '1px solid rgba(180,172,155,0.2)', borderRadius: '24px 24px 0 0', padding: '28px 24px 40px', boxShadow: '0 -20px 60px rgba(0,0,0,0.5)' }}>
+      <div
+        {...sheetSwipe.sheetProps}
+        style={{ width: '100%', maxWidth: 480, background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)', border: '1px solid rgba(180,172,155,0.2)', borderRadius: '24px 24px 0 0', padding: '28px 24px 40px', boxShadow: '0 -20px 60px rgba(0,0,0,0.5)', ...sheetSwipe.sheetStyle }}
+      >
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '-8px auto 16px' }} />
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
           <div style={{ ...T.h2, color: text.primary, flex: 1 }}>{cfg.title}</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(220,215,200,0.5)', padding: 4 }}>
@@ -1096,6 +1168,7 @@ function OverviewScreen() {
         <>
           <div
             ref={cardViewportRef}
+            data-no-tab-swipe="true"
             style={{
               maxWidth: 380,
               overflow: 'hidden',
@@ -2217,15 +2290,21 @@ function BadgePill({ badge }: { badge: string }) {
 }
 
 function ProductDetailDrawer({ product, onClose, onAddToCart }: { product: Product; onClose: () => void; onAddToCart: (p: Product) => void }) {
+  const sheetSwipe = useSheetSwipeClose(onClose);
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }} onClick={onClose}>
-      <div style={{ background: 'rgba(0,0,0,0.5)', position: 'absolute', inset: 0 }} />
-      <div onClick={e => e.stopPropagation()} style={{
+      <div style={{ background: `rgba(0,0,0,${0.5 - sheetSwipe.progress * 0.32})`, position: 'absolute', inset: 0, transition: sheetSwipe.dragging ? 'none' : 'background 200ms ease' }} />
+      <div
+        {...sheetSwipe.sheetProps}
+        onClick={e => e.stopPropagation()}
+        style={{
         position: 'relative', background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)',
         borderRadius: '24px 24px 0 0', padding: '28px 24px 48px',
         boxShadow: '0 -20px 60px rgba(0,0,0,0.6)', maxHeight: '85vh', overflowY: 'auto',
         border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
-      }}>
+        ...sheetSwipe.sheetStyle,
+      }}
+      >
         <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 24px' }} />
         <div style={{ display: 'flex', gap: 4, marginBottom: 16, flexWrap: 'wrap' }}>
           {product.badge && <BadgePill badge={product.badge} />}
@@ -2270,6 +2349,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
   checkingOut: boolean;
   user: { full_name: string; phone: string } | null;
 }) {
+  const sheetSwipe = useSheetSwipeClose(onClose);
   const total = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
   const [step, setStep] = useState<'cart' | 'shipping'>('cart');
   const [shipName, setShipName] = useState(user?.full_name || '');
@@ -2286,15 +2366,20 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }} onClick={onClose}>
-      <div style={{ background: 'rgba(0,0,0,0.5)', position: 'absolute', inset: 0 }} />
-      <div onClick={e => e.stopPropagation()} style={{
+      <div style={{ background: `rgba(0,0,0,${0.5 - sheetSwipe.progress * 0.32})`, position: 'absolute', inset: 0, transition: sheetSwipe.dragging ? 'none' : 'background 200ms ease' }} />
+      <div
+        {...sheetSwipe.sheetProps}
+        onClick={e => e.stopPropagation()}
+        style={{
         position: 'relative',
         background: 'linear-gradient(180deg,rgba(17,40,32,0.98) 0%,rgba(11,30,22,0.98) 100%)',
         backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
         borderRadius: '24px 24px 0 0', padding: '28px 24px calc(24px + env(safe-area-inset-bottom, 0px))',
         boxShadow: '0 -20px 60px rgba(0,0,0,0.6)', maxHeight: '85vh', overflowY: 'auto',
         border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
-      }}>
+        ...sheetSwipe.sheetStyle,
+      }}
+      >
         <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 20px' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
           {step === 'shipping' && (
@@ -3202,6 +3287,12 @@ export default function App() {
   const [authed, setAuthed] = useState(() => !!getToken());
   const [showSplash, setShowSplash] = useState(true);
   const [tab, setTab] = useState<TabKey>('overview');
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
+  const touchAxisRef = useRef<'x' | 'y' | null>(null);
+  const tabSwipeEnabledRef = useRef(false);
+  const [screenDragX, setScreenDragX] = useState(0);
+  const [screenDragging, setScreenDragging] = useState(false);
   const [tabBarHidden, setTabBarHidden] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -3216,6 +3307,63 @@ export default function App() {
   const width = useWindowWidth();
   const isDesktop = width >= 768;
   const Screen = SCREENS[tab];
+  const tabIndex = TABS.findIndex(t => t.k === tab);
+
+  function shouldIgnoreTabSwipe(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) return true;
+    if (target.closest('[data-no-tab-swipe="true"]')) return true;
+    if (target.closest('input, textarea, select, button, a, [role="button"], [contenteditable="true"]')) return true;
+    return false;
+  }
+
+  function resetTabSwipe() {
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+    touchAxisRef.current = null;
+    tabSwipeEnabledRef.current = false;
+    setScreenDragX(0);
+    setScreenDragging(false);
+  }
+
+  function handleMobileTouchStart(e: React.TouchEvent<HTMLDivElement>) {
+    if (tabBarHidden || transferModal) return;
+    if (shouldIgnoreTabSwipe(e.target)) return;
+    const t = e.touches[0];
+    touchStartXRef.current = t.clientX;
+    touchStartYRef.current = t.clientY;
+    touchAxisRef.current = null;
+    tabSwipeEnabledRef.current = true;
+    setScreenDragX(0);
+    setScreenDragging(false);
+  }
+
+  function handleMobileTouchMove(e: React.TouchEvent<HTMLDivElement>) {
+    if (!tabSwipeEnabledRef.current) return;
+    if (touchStartXRef.current == null || touchStartYRef.current == null) return;
+    const t = e.touches[0];
+    const dx = t.clientX - touchStartXRef.current;
+    const dy = t.clientY - touchStartYRef.current;
+    if (!touchAxisRef.current && (Math.abs(dx) > 9 || Math.abs(dy) > 9)) {
+      touchAxisRef.current = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+    }
+    if (touchAxisRef.current !== 'x') return;
+    e.preventDefault();
+    setScreenDragging(true);
+    setScreenDragX(Math.max(-120, Math.min(120, dx)));
+  }
+
+  function handleMobileTouchEnd() {
+    if (!tabSwipeEnabledRef.current) return;
+    const threshold = 72;
+    if (Math.abs(screenDragX) >= threshold) {
+      if (screenDragX < 0 && tabIndex < TABS.length - 1) {
+        setTab(TABS[tabIndex + 1].k);
+      } else if (screenDragX > 0 && tabIndex > 0) {
+        setTab(TABS[tabIndex - 1].k);
+      }
+    }
+    resetTabSwipe();
+  }
 
   useEffect(() => {
     const id = setTimeout(() => setShowSplash(false), 2400);
@@ -3428,7 +3576,19 @@ export default function App() {
               scrollPaddingBottom: 'max(16px, env(safe-area-inset-bottom, 0px))',
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
-            }}>
+            }}
+            onTouchStart={handleMobileTouchStart}
+            onTouchMove={handleMobileTouchMove}
+            onTouchEnd={handleMobileTouchEnd}
+            onTouchCancel={handleMobileTouchEnd}
+            >
+              <div
+                style={{
+                  transform: `translate3d(${screenDragX}px,0,0)`,
+                  transition: screenDragging ? 'none' : 'transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1)',
+                  willChange: 'transform',
+                }}
+              >
               {dataError && (
                 <div style={{ margin: '10px 12px 0', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(220,100,110,0.25)', background: 'rgba(220,100,110,0.08)', color: '#ffb6bd', fontSize: 13 }}>
                   {dataError}
@@ -3439,6 +3599,7 @@ export default function App() {
               ) : (
                 <Screen />
               )}
+              </div>
             </div>
             {!tabBarHidden && <TabBar active={tab} onChange={setTab} />}
             {toastMsg && <Toast msg={toastMsg} />}
