@@ -115,18 +115,26 @@
       (function () {
         var root = document.documentElement;
         function setAppVh() {
-          var h = window.innerHeight || document.documentElement.clientHeight || 0;
+          var ih = window.innerHeight || 0;
+          var ch = document.documentElement.clientHeight || 0;
+          var vv = (window.visualViewport && window.visualViewport.height) ? Math.round(window.visualViewport.height) : 0;
+          // iOS PWA: prefer visual viewport to avoid phantom extra space under bottom bar.
+          var h = vv || ih || ch;
           if (h > 0) root.style.setProperty('--app-vh', h + 'px');
         }
         setAppVh();
         window.addEventListener('resize', setAppVh, { passive: true });
+        if (window.visualViewport && window.visualViewport.addEventListener) {
+          window.visualViewport.addEventListener('resize', setAppVh, { passive: true });
+          window.visualViewport.addEventListener('scroll', setAppVh, { passive: true });
+        }
         window.addEventListener('orientationchange', setAppVh);
         window.addEventListener('pageshow', setAppVh);
       })();
     </script>
     <script>
       (function () {
-        var buildId = '2026-04-22-04';
+        var buildId = '2026-04-22-05';
         var buildKey = 'army_bank_build_id';
         var reloadKey = 'army_bank_build_reload_' + buildId;
         try {

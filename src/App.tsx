@@ -833,18 +833,23 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
       const url = mode === 'topup' ? '/api/transactions/topup'
         : mode === 'by_card' ? '/api/transactions/transfer-by-card'
         : '/api/transactions/transfer';
+      const normalizedCard = recipient.replace(/\D/g, '').slice(0, 16);
       const body = mode === 'topup'
         ? { amount: amtNum, description: description || 'Поповнення рахунку', idempotency_key: idempotencyKey }
         : mode === 'by_card'
-        ? { card_number: recipient.trim(), amount: amtNum, description: description || 'Переказ', idempotency_key: idempotencyKey }
+        ? { card_number: normalizedCard, amount: amtNum, description: description || 'Переказ', idempotency_key: idempotencyKey }
         : { recipient_account_number: recipient.trim(), amount: amtNum, description: description || 'Переказ', idempotency_key: idempotencyKey };
       const r = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          'Idempotency-Key': idempotencyKey,
+        },
         body: JSON.stringify(body),
       });
       const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j.message || 'Помилка');
+      if (!r.ok || !j.ok) throw new Error(j.error || j.message || 'Помилка');
       toast(mode === 'topup' ? `Рахунок поповнено на ₴\u00a0${amtNum.toFixed(2)}` : `Переказ ₴\u00a0${amtNum.toFixed(2)} виконано`);
       refreshDashboard();
       onClose();
@@ -931,6 +936,8 @@ function OverviewScreen() {
   const swipeStartXRef = useRef<number | null>(null);
   const swipeStartYRef = useRef<number | null>(null);
   const swipeAxisRef = useRef<'x' | 'y' | null>(null);
+  const cardViewportRef = useRef<HTMLDivElement | null>(null);
+  const [cardViewportWidth, setCardViewportWidth] = useState(0);
   const [dragOffsetX, setDragOffsetX] = useState(0);
   const [isCardDragging, setIsCardDragging] = useState(false);
 
@@ -941,6 +948,20 @@ function OverviewScreen() {
   useEffect(() => {
     persistSelectedCardIndex(safeCardIdx);
   }, [safeCardIdx]);
+
+  useEffect(() => {
+    function syncCardViewport() {
+      const nextWidth = cardViewportRef.current?.clientWidth || 0;
+      if (nextWidth > 0) setCardViewportWidth(nextWidth);
+    }
+    syncCardViewport();
+    window.addEventListener('resize', syncCardViewport);
+    window.visualViewport?.addEventListener('resize', syncCardViewport);
+    return () => {
+      window.removeEventListener('resize', syncCardViewport);
+      window.visualViewport?.removeEventListener('resize', syncCardViewport);
+    };
+  }, []);
 
   function resetCardSwipe() {
     swipeStartXRef.current = null;
@@ -1015,6 +1036,7 @@ function OverviewScreen() {
       ) : (
         <>
           <div
+            ref={cardViewportRef}
             style={{
               maxWidth: 380,
               overflow: 'hidden',
@@ -1029,14 +1051,14 @@ function OverviewScreen() {
             <div
               style={{
                 display: 'flex',
-                width: `${cards.length * 100}%`,
-                transform: `translate3d(calc(${-safeCardIdx * 100}% + ${dragOffsetX}px), 0, 0)`,
+                width: '100%',
+                transform: `translate3d(${dragOffsetX - safeCardIdx * (cardViewportWidth || 0)}px, 0, 0)`,
                 transition: isCardDragging ? 'none' : 'transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1)',
                 willChange: 'transform',
               }}
             >
               {cards.map((c, i) => (
-                <div key={`${c.number}-${i}`} style={{ width: `${100 / cards.length}%`, flexShrink: 0 }}>
+                <div key={`${c.number}-${i}`} style={{ flex: '0 0 100%' }}>
                   <PremiumCard {...c} />
                 </div>
               ))}
@@ -1160,6 +1182,7 @@ function OverviewScreen() {
 
 // ─── Cards screen ─────────────────────────────────────────────
 function CardsScreen() {
+  const layout = useLayout();
   const topPad = useTopPad();
   const { toast, cards: apiCards, refreshDashboard, transactions: allTx, account, user } = useApp();
   const { refresh } = useBankData();
@@ -1322,7 +1345,7 @@ function CardsScreen() {
   return (
     <>
     <ContentWrap maxW={760}>
-    <div style={{ paddingBottom: 80 }}>
+    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
       <div style={{ padding: `${topPad} 22px 16px`, display: 'flex', alignItems: 'center' }}>
         <div>
           <div style={{ fontSize: 12, color: text.muted, fontWeight: 500, marginBottom: 4 }}>Гаманець</div>
@@ -1608,6 +1631,7 @@ const CAT_STYLES: Record<TxCat, { bg: string; color: string; icon: React.ReactNo
 };
 
 function OperationsScreen() {
+  const layout = useLayout();
   const topPad = useTopPad();
   const { toast, transactions, account } = useApp();
   const [period, setPeriod] = useState(0);
@@ -1712,7 +1736,7 @@ function OperationsScreen() {
 
   return (
     <ContentWrap maxW={720}>
-    <div style={{ paddingBottom: 80 }}>
+    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
       <div style={{ padding: `${topPad} 22px 14px` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ ...T.h1, color: text.primary }}>Операції</div>
@@ -1883,6 +1907,7 @@ function ProfileToggle({ label, sub, on, onChange, icon }: { label: string; sub?
 }
 
 function ProfileScreen() {
+  const layout = useLayout();
   const topPad = useTopPad();
   const { logout, user, account, toast } = useApp();
   const [faceid, setFaceid] = useState(false);
@@ -1986,7 +2011,7 @@ function ProfileScreen() {
 
   return (
     <ContentWrap maxW={680}>
-    <div style={{ paddingBottom: 80 }}>
+    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
       {/* Avatar */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: `${topPad} 22px 28px` }}>
         <div style={{
@@ -2297,6 +2322,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
 type MarketTab = 'catalog' | 'orders' | 'invoices';
 
 function MarketplaceScreen() {
+  const layout = useLayout();
   const topPad = useTopPad();
   const { toast, refreshDashboard, user: mktUser } = useApp();
   const [tab, setTab] = useState<MarketTab>('catalog');
@@ -2336,17 +2362,22 @@ function MarketplaceScreen() {
   async function checkoutCart(shipping: { name: string; phone: string; address: string }) {
     if (cart.length === 0) return;
     setCheckingOut(true);
+    const idempotencyKey = `cart-${Date.now()}`;
     try {
       const r = await fetch('/api/marketplace/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          'Idempotency-Key': idempotencyKey,
+        },
         body: JSON.stringify({
           items: cart.map(i => ({ product_id: i.product.id, qty: i.qty })),
           shipping_name: shipping.name.trim(),
           shipping_phone: shipping.phone.trim(),
           shipping_address: shipping.address.trim(),
           payment_mode: 'pay_now',
-          idempotency_key: `cart-${Date.now()}`,
+          idempotency_key: idempotencyKey,
         }),
       });
       const j = await r.json();
@@ -2422,7 +2453,7 @@ function MarketplaceScreen() {
     {preview && <ProductDetailDrawer product={preview} onClose={() => setPreview(null)} onAddToCart={addToCart} />}
     {showCart && <CartDrawer cart={cart} onClose={() => setShowCart(false)} onQtyChange={changeQty} onRemove={removeFromCart} onCheckout={checkoutCart} checkingOut={checkingOut} user={mktUser} />}
     <ContentWrap maxW={800}>
-    <div style={{ paddingBottom: 80 }}>
+    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
       <div style={{ padding: `${topPad} 22px 12px` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ ...T.h1, color: text.primary }}>Магазин</div>
@@ -2585,15 +2616,12 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const activeIdx = TABS.findIndex(t => t.k === active);
   return (
     <div style={{
-      position: 'relative', zIndex: 40, flexShrink: 0,
-      paddingBottom: 0,
-      background: 'transparent',
-      pointerEvents: 'auto',
+      flexShrink: 0,
+      background: 'linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.62) 38%, rgba(7,21,15,0.98) 100%)',
     }}>
       <div style={{
-        padding: '0 14px max(8px, env(safe-area-inset-bottom, 0px))',
+        padding: '0 14px max(6px, env(safe-area-inset-bottom, 0px))',
         paddingTop: 8,
-        pointerEvents: 'auto',
       }}>
       <div style={{
         position: 'relative', padding: 6,
@@ -2748,10 +2776,8 @@ const SCREENS = { overview: OverviewScreen, operations: OperationsScreen, cards:
 const appBg = 'radial-gradient(ellipse 80% 60% at 20% 0%, #1a3a2c 0%, transparent 60%), radial-gradient(ellipse 70% 50% at 90% 100%, #2a1a0e 0%, transparent 55%), linear-gradient(180deg, #0a1f18 0%, #07150f 100%)';
 
 const appBase: React.CSSProperties = {
-  position: 'relative',
-  width: '100%',
-  height: 'var(--app-vh, 100vh)',
-  minHeight: 'var(--app-vh, 100vh)',
+  position: 'fixed',
+  inset: 0,
   background: appBg,
   color: text.secondary,
   fontFamily,
@@ -3155,7 +3181,7 @@ export default function App() {
   const Screen = SCREENS[tab];
 
   useEffect(() => {
-    const id = setTimeout(() => setShowSplash(false), 1850);
+    const id = setTimeout(() => setShowSplash(false), 2900);
     return () => clearTimeout(id);
   }, []);
 
@@ -3355,7 +3381,15 @@ export default function App() {
       <BankDataCtx.Provider value={bankCtx}>
         <LayoutCtx.Provider value="mobile">
           <div style={{ ...appBase, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 12 }}>
+            <div style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              scrollPaddingBottom: '24px',
+              overscrollBehavior: 'contain',
+              WebkitOverflowScrolling: 'touch',
+            }}>
               {dataError && (
                 <div style={{ margin: '10px 12px 0', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(220,100,110,0.25)', background: 'rgba(220,100,110,0.08)', color: '#ffb6bd', fontSize: 13 }}>
                   {dataError}
