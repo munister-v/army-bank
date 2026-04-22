@@ -2498,10 +2498,10 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const activeIdx = TABS.findIndex(t => t.k === active);
   return (
     <div style={{
-      position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 40,
+      position: 'relative', zIndex: 40, flexShrink: 0,
       paddingBottom: 0,
       background: 'transparent',
-      pointerEvents: 'none',
+      pointerEvents: 'auto',
     }}>
       <div style={{
         padding: '0 14px max(8px, env(safe-area-inset-bottom, 0px))',
@@ -3168,8 +3168,8 @@ export default function App() {
     <AppCtx.Provider value={appCtx}>
       <BankDataCtx.Provider value={bankCtx}>
         <LayoutCtx.Provider value="mobile">
-          <div style={{ ...appBase, overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}>
+          <div style={{ ...appBase, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 12 }}>
               {dataError && (
                 <div style={{ margin: '10px 12px 0', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(220,100,110,0.25)', background: 'rgba(220,100,110,0.08)', color: '#ffb6bd', fontSize: 13 }}>
                   {dataError}
