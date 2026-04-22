@@ -46,6 +46,7 @@ from .routes.document_routes import doc_bp
 from .routes.messenger_routes import messenger_bp
 from .routes.call_routes import call_bp
 from .routes.marketplace_routes import marketplace_bp
+from .routes.passkey_routes import passkey_bp
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / 'frontend'
@@ -88,6 +89,10 @@ def create_app() -> Flask:
         db_boot_ok = False
         print(f'[Army Bank] DB bootstrap warning: {exc}')
     app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path=BASE_PATH or '')
+    from .config import SECRET_KEY
+    app.secret_key = SECRET_KEY  # needed for Flask session (WebAuthn challenge storage)
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+    app.config['SESSION_COOKIE_SECURE'] = True
     app.config['DB_BOOT_OK'] = db_boot_ok
     app.config.setdefault('ENABLE_RATE_LIMIT_IN_TESTS', ENABLE_RATE_LIMIT_IN_TESTS)
     app.config.setdefault('ENFORCE_IDEMPOTENCY_HEADERS', ENFORCE_IDEMPOTENCY_HEADERS)
@@ -258,6 +263,7 @@ def create_app() -> Flask:
     app.register_blueprint(messenger_bp, url_prefix=prefix + '/api/messenger')
     app.register_blueprint(call_bp,      url_prefix=prefix + '/api/messenger/calls')
     app.register_blueprint(marketplace_bp, url_prefix=prefix + '/api/marketplace')
+    app.register_blueprint(passkey_bp, url_prefix=prefix + '/api/auth/passkey')
 
     @app.get(prefix + '/api' if prefix else '/api')
     @app.get(prefix + '/api/' if prefix else '/api/')

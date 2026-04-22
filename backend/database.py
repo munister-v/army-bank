@@ -890,6 +890,14 @@ def init_db() -> None:
             )
             _pg_exec('ALTER TABLE conversation_participants ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE;',
                      optional=True, label='participants.is_admin')
+            _pg_exec('''CREATE TABLE IF NOT EXISTS passkeys (
+                id            SERIAL PRIMARY KEY,
+                user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                credential_id TEXT NOT NULL UNIQUE,
+                public_key    TEXT NOT NULL,
+                sign_count    INTEGER NOT NULL DEFAULT 0,
+                created_at    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            )''', optional=True, label='passkeys')
     else:
         schema_sql = Path(SCHEMA_PATH).read_text(encoding='utf-8')
         with get_connection_sqlite() as conn:
@@ -1040,6 +1048,17 @@ def init_db() -> None:
                     );"""
                 )
                 conn.execute('CREATE INDEX IF NOT EXISTS idx_compliance_user ON compliance_profiles(user_id);')
+            except Exception:
+                pass
+            try:
+                conn.execute('''CREATE TABLE IF NOT EXISTS passkeys (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    credential_id TEXT NOT NULL UNIQUE,
+                    public_key    TEXT NOT NULL,
+                    sign_count    INTEGER NOT NULL DEFAULT 0,
+                    created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+                )''')
             except Exception:
                 pass
 

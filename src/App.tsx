@@ -1,4 +1,5 @@
 import React, { useState, Fragment, useEffect, createContext, useContext, Component } from 'react';
+import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 
 export class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: string | null }> {
   constructor(props: { children: React.ReactNode }) {
@@ -1461,9 +1462,67 @@ function ProfileToggle({ label, sub, on, onChange, icon }: { label: string; sub?
 function ProfileScreen() {
   const topPad = useTopPad();
   const { logout, user, account, toast } = useApp();
-  const [faceid, setFaceid] = useState(true);
+  const [faceid, setFaceid] = useState(false);
+  const [faceIdReady, setFaceIdReady] = useState(false); // platform auth available
+  const [faceIdBusy, setFaceIdBusy] = useState(false);
   const [push, setPush] = useState(true);
   const [twofa, setTwofa] = useState(false);
+
+  // Check passkey status on mount
+  useEffect(() => {
+    const checkFaceId = async () => {
+      if (!window.PublicKeyCredential) return;
+      const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false);
+      if (!available) return;
+      setFaceIdReady(true);
+      const token = localStorage.getItem('army_bank_token');
+      const res = await fetch('/api/auth/passkey/status', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
+      if (res?.ok) {
+        const json = await res.json();
+        setFaceid(json.data?.has_passkey ?? false);
+      }
+    };
+    checkFaceId();
+  }, []);
+
+  async function handleFaceIdToggle(on: boolean) {
+    if (faceIdBusy) return;
+    setFaceIdBusy(true);
+    const token = localStorage.getItem('army_bank_token');
+    try {
+      if (on) {
+        // Register passkey
+        const optRes = await fetch('/api/auth/passkey/register-options', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: '{}',
+        });
+        const optJson = await optRes.json();
+        if (!optRes.ok || !optJson.ok) throw new Error(optJson.error || 'Помилка');
+        const attResp = await startRegistration({ optionsJSON: optJson.data });
+        const verRes = await fetch('/api/auth/passkey/register', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(attResp),
+        });
+        const verJson = await verRes.json();
+        if (!verRes.ok || !verJson.ok) throw new Error(verJson.error || 'Помилка реєстрації');
+        setFaceid(true);
+        toast('Face ID увімкнено ✓');
+      } else {
+        // Remove passkey
+        const res = await fetch('/api/auth/passkey/remove', { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+        const json = await res.json();
+        if (!res.ok || !json.ok) throw new Error(json.error || 'Помилка');
+        setFaceid(false);
+        toast('Face ID вимкнено');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Помилка';
+      if (!msg.toLowerCase().includes('cancel') && !msg.toLowerCase().includes('abort') && !msg.toLowerCase().includes('not allowed')) {
+        toast(msg);
+      }
+    } finally {
+      setFaceIdBusy(false);
+    }
+  }
   const [changingPwd, setChangingPwd] = useState(false);
   const [oldPwd, setOldPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
@@ -1535,9 +1594,27 @@ function ProfileScreen() {
         <div style={{ ...sectionLabel }}>Безпека</div>
       </div>
       {section(<>
-        <ProfileToggle label="Face ID" sub="Вхід і підтвердження" on={faceid} onChange={setFaceid}
-          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke={gold} strokeWidth="1.6" /><rect x="14" y="3" width="7" height="7" rx="1.5" stroke={gold} strokeWidth="1.6" /><rect x="3" y="14" width="7" height="7" rx="1.5" stroke={gold} strokeWidth="1.6" /><rect x="14" y="14" width="7" height="7" rx="1.5" stroke={gold} strokeWidth="1.6" /></svg>}
-        />
+        {faceIdReady ? (
+          <ProfileToggle
+            label="Face ID"
+            sub={faceIdBusy ? 'Обробка…' : 'Вхід та підтвердження переказів'}
+            on={faceid}
+            onChange={handleFaceIdToggle}
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={gold} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 9V5a2 2 0 012-2h3M2 15v4a2 2 0 002 2h3M22 9V5a2 2 0 00-2-2h-3M22 15v4a2 2 0 01-2 2h-3"/>
+                <circle cx="9" cy="10" r="0.6" fill={gold} stroke="none"/>
+                <circle cx="15" cy="10" r="0.6" fill={gold} stroke="none"/>
+                <path d="M9 15c0 0 1 1.5 3 1.5s3-1.5 3-1.5"/>
+                <path d="M12 7v2"/>
+              </svg>
+            }
+          />
+        ) : (
+          <ProfileToggle label="Face ID" sub="Недоступно на цьому пристрої" on={false} onChange={() => {}}
+            icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(180,172,155,0.35)" strokeWidth="1.5" strokeLinecap="round"><path d="M2 9V5a2 2 0 012-2h3M2 15v4a2 2 0 002 2h3M22 9V5a2 2 0 00-2-2h-3M22 15v4a2 2 0 01-2 2h-3"/></svg>}
+          />
+        )}
         <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 18px' }} />
         <ProfileToggle label="Push-сповіщення" on={push} onChange={setPush}
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>}
@@ -2265,6 +2342,48 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [error, setError] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [faceIdLoading, setFaceIdLoading] = useState(false);
+  const [hasPlatformAuth, setHasPlatformAuth] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.PublicKeyCredential) {
+      window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        .then(ok => setHasPlatformAuth(ok))
+        .catch(() => setHasPlatformAuth(false));
+    }
+  }, []);
+
+  async function handleFaceIdLogin() {
+    setFaceIdLoading(true);
+    setError('');
+    try {
+      // 1. Get challenge
+      const optRes = await fetch('/api/auth/passkey/login-options', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const optJson = await optRes.json();
+      if (!optRes.ok || !optJson.ok) throw new Error(optJson.error || 'Помилка');
+      // 2. Trigger Face ID
+      const assertion = await startAuthentication({ optionsJSON: optJson.data });
+      // 3. Verify
+      const verRes = await fetch('/api/auth/passkey/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(assertion),
+      });
+      const verJson = await verRes.json();
+      if (!verRes.ok || !verJson.ok) throw new Error(verJson.error || 'Помилка верифікації');
+      localStorage.setItem('army_bank_token', verJson.data.token);
+      onLogin();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Помилка Face ID';
+      if (msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('abort') || msg.toLowerCase().includes('not allowed')) {
+        setError('');
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setFaceIdLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -2348,6 +2467,42 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             }}>{m === 'login' ? 'Вхід' : 'Реєстрація'}</button>
           ))}
         </div>
+
+        {/* Face ID button — only on login tab, only if platform auth available */}
+        {mode === 'login' && hasPlatformAuth && (
+          <button
+            type="button"
+            onClick={handleFaceIdLogin}
+            disabled={faceIdLoading}
+            style={{
+              width: '100%', padding: '14px', marginBottom: 16, borderRadius: radius.md,
+              border: `1px solid ${bg.border}`,
+              background: 'linear-gradient(160deg, rgba(28,42,34,0.9) 0%, rgba(16,28,20,0.95) 100%)',
+              color: faceIdLoading ? text.dim : text.primary,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              cursor: faceIdLoading ? 'default' : 'pointer',
+              fontFamily, fontSize: 15, fontWeight: 500, letterSpacing: 0.2,
+              boxShadow: '0 1px 0 rgba(255,255,255,0.05) inset',
+              transition: 'all 0.18s',
+            }}
+          >
+            {faceIdLoading ? (
+              <span style={{ opacity: 0.6 }}>Очікування…</span>
+            ) : (
+              <>
+                {/* Face ID icon */}
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={gold} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 9V5a2 2 0 012-2h3M2 15v4a2 2 0 002 2h3M22 9V5a2 2 0 00-2-2h-3M22 15v4a2 2 0 01-2 2h-3"/>
+                  <circle cx="9" cy="10" r="0.5" fill={gold} stroke="none"/>
+                  <circle cx="15" cy="10" r="0.5" fill={gold} stroke="none"/>
+                  <path d="M9 15c0 0 1 1.5 3 1.5s3-1.5 3-1.5"/>
+                  <path d="M12 7v2"/>
+                </svg>
+                <span>Увійти з Face ID</span>
+              </>
+            )}
+          </button>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit}>
