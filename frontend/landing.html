@@ -9,6 +9,9 @@
   <meta property="og:type" content="website" />
   <meta name="theme-color" content="#080808" />
   <title>Army Bank — Банкінг для захисників України</title>
+  <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg?v=2026-04-09-01" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png?v=2026-04-09-01" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png?v=2026-04-09-01" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -101,7 +104,13 @@
       color: var(--text);
       flex-shrink: 0;
     }
-    .logo svg { width: 36px; height: 36px; filter: drop-shadow(0 0 8px var(--accent-glow)); }
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      display: block;
+      border-radius: 10px;
+      filter: drop-shadow(0 0 8px var(--accent-glow));
+    }
     .logo-text { font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em; }
     .logo-text span { color: var(--accent); }
 
@@ -321,7 +330,12 @@
       margin-bottom: 24px;
     }
     .app-card-logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.9rem; }
-    .app-card-logo svg { width: 28px; height: 28px; }
+    .app-logo-mark {
+      width: 28px;
+      height: 28px;
+      display: block;
+      border-radius: 8px;
+    }
 
     .card-chip {
       width: 36px; height: 26px;
@@ -766,7 +780,12 @@
       text-align: center;
     }
     .footer-logo { display: flex; align-items: center; gap: 10px; }
-    .footer-logo svg { width: 32px; height: 32px; }
+    .footer-logo-mark {
+      width: 32px;
+      height: 32px;
+      display: block;
+      border-radius: 9px;
+    }
     .footer-logo-text { font-weight: 800; font-size: 1.1rem; }
     .footer-logo-text span { color: var(--accent); }
 
@@ -914,16 +933,7 @@
 <header id="header">
   <div class="header-inner">
     <a href="#" class="logo">
-      <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M18 2L4 8v10c0 8.418 5.952 16.296 14 18 8.048-1.704 14-9.582 14-18V8L18 2z" fill="url(#shg)" stroke="rgba(200,168,75,.4)" stroke-width="1"/>
-        <path d="M14 17.5l2.8 2.8 5.2-5.8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <defs>
-          <linearGradient id="shg" x1="4" y1="2" x2="32" y2="36" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#c8a84b"/>
-            <stop offset="100%" stop-color="#6b5220"/>
-          </linearGradient>
-        </defs>
-      </svg>
+      <img class="logo-mark" src="/icons/icon-96.png" alt="" width="36" height="36" loading="eager" decoding="async">
       <span class="logo-text">Army <span>Bank</span></span>
     </a>
 
@@ -976,16 +986,7 @@
       <div class="app-card">
         <div class="app-card-header">
           <div class="app-card-logo">
-            <svg width="28" height="28" viewBox="0 0 36 36" fill="none">
-              <path d="M18 2L4 8v10c0 8.418 5.952 16.296 14 18 8.048-1.704 14-9.582 14-18V8L18 2z" fill="url(#shg2)" stroke="rgba(200,168,75,.5)" stroke-width="1"/>
-              <path d="M14 17.5l2.8 2.8 5.2-5.8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <defs>
-                <linearGradient id="shg2" x1="4" y1="2" x2="32" y2="36" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stop-color="#c8a84b"/>
-                  <stop offset="100%" stop-color="#6b5220"/>
-                </linearGradient>
-              </defs>
-            </svg>
+            <img class="app-logo-mark" src="/icons/icon-96.png" alt="" width="28" height="28" loading="lazy" decoding="async">
             Army Bank
           </div>
           <div class="card-chip"></div>
@@ -1200,16 +1201,7 @@
 <footer>
   <div class="footer-inner">
     <div class="footer-logo">
-      <svg width="32" height="32" viewBox="0 0 36 36" fill="none">
-        <path d="M18 2L4 8v10c0 8.418 5.952 16.296 14 18 8.048-1.704 14-9.582 14-18V8L18 2z" fill="url(#shgf)" stroke="rgba(200,168,75,.4)" stroke-width="1"/>
-        <path d="M14 17.5l2.8 2.8 5.2-5.8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <defs>
-          <linearGradient id="shgf" x1="4" y1="2" x2="32" y2="36" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#c8a84b"/>
-            <stop offset="100%" stop-color="#6b5220"/>
-          </linearGradient>
-        </defs>
-      </svg>
+      <img class="footer-logo-mark" src="/icons/icon-96.png" alt="" width="32" height="32" loading="lazy" decoding="async">
       <span class="footer-logo-text">Army <span>Bank</span></span>
     </div>
     <p class="footer-tagline">Цифровий банкінг для захисників України</p>

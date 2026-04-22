@@ -32,6 +32,18 @@ function txTypeBadge(type) {
   return badge(type, map[type] || type);
 }
 
+function kycStatusBadge(status) {
+  const map = {
+    verified: 'KYC пройдена',
+    in_review: 'На перевірці',
+    pending: 'Очікує',
+    rejected: 'Відхилено',
+    not_started: 'Не почато',
+  };
+  const safe = status || 'pending';
+  return badge(`kyc-${safe}`, map[safe] || safe);
+}
+
 function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -56,6 +68,9 @@ let modalUserId = null;
 let selectedPayoutUser = null;
 let txOffset = 0;
 const TX_LIMIT = 50;
+let selectedKycUserId = null;
+let selectedKycScanData = '';
+let selectedKycScanMeta = null;
 
 /* ══════════════════════════════════════════════
    NAVIGATION
@@ -68,7 +83,16 @@ function navigate(page) {
   if (section) section.classList.add('active');
   const navItem = document.querySelector(`[data-page="${page}"]`);
   if (navItem) navItem.classList.add('active');
-  const titles = { dashboard: 'Дешборд', users: 'Користувачі', transactions: 'Транзакції', payouts: 'Виплати', audit: 'Аудит' };
+  const titles = {
+    dashboard: 'Дешборд',
+    users: 'Користувачі',
+    kyc: 'KYC',
+    transactions: 'Транзакції',
+    payouts: 'Виплати',
+    analytics: 'Аналітика',
+    'messenger-analytics': 'Месенджер',
+    audit: 'Аудит',
+  };
   document.getElementById('topbarTitle').textContent = titles[page] || page;
   closeSidebar();
   loadPage(page);
@@ -78,7 +102,10 @@ function loadPage(page) {
   switch (page) {
     case 'dashboard':    loadDashboard(); break;
     case 'users':        loadUsers(); break;
+    case 'kyc':          loadKycUsers(); break;
     case 'transactions': loadTransactions(); break;
+    case 'analytics':    loadAnalyticsOverview(); break;
+    case 'messenger-analytics': loadMessengerAnalytics(); break;
     case 'audit':        loadAuditLogs(); break;
   }
 }
@@ -258,6 +285,7 @@ async function loadUsers() {
         <td style="font-size:.82rem">${escHtml(u.phone || '—')}</td>
         <td style="color:var(--text-muted);font-size:.82rem">${escHtml(u.email || '—')}</td>
         <td>${roleBadge(u.role)}</td>
+        <td style="font-size:.78rem;color:var(--text-muted)">${escHtml(u.military_status || '—')}</td>
         <td style="color:var(--text-muted);font-size:.78rem">${fmt(u.created_at)}</td>
         <td><button class="btn-table" onclick="openUserModal(${u.id})">Деталі →</button></td>
       </tr>
@@ -272,6 +300,209 @@ const debouncedSearch = debounce(loadUsers, 380);
 document.getElementById('userSearch').addEventListener('input', debouncedSearch);
 document.getElementById('userRoleFilter').addEventListener('change', loadUsers);
 document.getElementById('searchUsersBtn').addEventListener('click', loadUsers);
+
+/* ══════════════════════════════════════════════
+   KYC
+══════════════════════════════════════════════ */
+function resetKycVerifierState() {
+  selectedKycScanData = '';
+  selectedKycScanMeta = null;
+  document.getElementById('kycScanFile').value = '';
+  document.getElementById('kycScanPreview').classList.add('hidden');
+  document.getElementById('kycScanPreview').innerHTML = '';
+  document.getElementById('kycVerifyMsg').className = 'form-msg hidden';
+  document.getElementById('kycVerifyMsg').textContent = '';
+  document.getElementById('kycChecks').classList.add('hidden');
+  document.getElementById('kycChecks').innerHTML = '';
+  document.getElementById('kycManualConfirm').checked = false;
+}
+
+function renderKycChecks(checks = []) {
+  const wrap = document.getElementById('kycChecks');
+  if (!checks.length) {
+    wrap.classList.add('hidden');
+    wrap.innerHTML = '';
+    return;
+  }
+  wrap.innerHTML = checks.map((item) => `
+    <div class="kyc-check-item ${item.passed ? 'ok' : 'fail'}">
+      <span>${item.passed ? '✓' : '✕'} ${escHtml(item.label || item.id || 'Check')}</span>
+      <small>${escHtml(item.detail || '')}</small>
+    </div>
+  `).join('');
+  wrap.classList.remove('hidden');
+}
+
+async function loadKycUsers() {
+  const search = document.getElementById('kycSearch').value.trim();
+  const kycStatus = document.getElementById('kycStatusFilter').value;
+  try {
+    const params = { limit: 120, offset: 0 };
+    if (search) params.search = search;
+    if (kycStatus) params.kyc_status = kycStatus;
+    const res = await api.complianceUsers(params);
+    const rows = res.data || [];
+    const tbody = document.getElementById('kycBody');
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Немає записів.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map((u) => `
+      <tr data-user-id="${u.id}" class="${selectedKycUserId === u.id ? 'is-selected' : ''}">
+        <td style="color:var(--text-muted);font-size:.8rem">${u.id}</td>
+        <td>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <b>${escHtml(u.full_name || '—')}</b>
+            <span style="font-size:.76rem;color:var(--text-muted)">${escHtml(u.email || u.phone || '—')}</span>
+          </div>
+        </td>
+        <td>${kycStatusBadge(u.kyc_status_eff || 'pending')}</td>
+        <td>${u.aml_flag_eff ? badge('out', 'Flag') : badge('in', 'OK')}</td>
+        <td>${escHtml(u.risk_level_eff || 'low')}</td>
+        <td style="font-size:.78rem;color:var(--text-muted)">${fmt(u.updated_at || u.created_at)}</td>
+        <td><button class="btn-table open-kyc-btn" data-user-id="${u.id}">Верифікація</button></td>
+      </tr>
+    `).join('');
+
+    document.querySelectorAll('.open-kyc-btn').forEach((btn) => {
+      btn.addEventListener('click', () => openKycUser(parseInt(btn.dataset.userId, 10)));
+    });
+  } catch (err) {
+    showToast('KYC: ' + err.message, 'error');
+  }
+}
+
+async function openKycUser(userId) {
+  if (!userId) return;
+  selectedKycUserId = userId;
+  resetKycVerifierState();
+  try {
+    const res = await api.complianceUser(userId);
+    const row = res.data || {};
+    const profile = row.compliance || {};
+
+    document.getElementById('kycUserName').textContent = row.full_name || '—';
+    document.getElementById('kycUserEmail').textContent = row.email || '—';
+    document.getElementById('kycUserPhone').textContent = row.phone || '—';
+    document.getElementById('kycCurrentStatus').innerHTML = kycStatusBadge(profile.kyc_status || 'pending');
+    document.getElementById('kycDocumentName').value = row.full_name || '';
+    document.getElementById('kycPassportNumber').value = '';
+
+    document.getElementById('kycPlaceholder').classList.add('hidden');
+    document.getElementById('kycVerifier').classList.remove('hidden');
+
+    document.querySelectorAll('#kycBody tr').forEach((tr) => {
+      tr.classList.toggle('is-selected', parseInt(tr.dataset.userId || '0', 10) === userId);
+    });
+  } catch (err) {
+    showToast('KYC профіль: ' + err.message, 'error');
+  }
+}
+
+function handleKycScanFile(file) {
+  if (!file) return;
+  if (file.size > 8 * 1024 * 1024) {
+    showToast('Файл занадто великий (макс 8MB).', 'error');
+    return;
+  }
+  selectedKycScanMeta = {
+    name: file.name || 'passport_scan',
+    type: file.type || 'application/octet-stream',
+    size: file.size || 0,
+  };
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    selectedKycScanData = String(reader.result || '');
+    const preview = document.getElementById('kycScanPreview');
+    if ((file.type || '').startsWith('image/')) {
+      preview.innerHTML = `<img src="${selectedKycScanData}" alt="scan preview" />`;
+    } else {
+      preview.innerHTML = `<div class="kyc-file-pill">FILE: ${escHtml(file.name)} · ${Math.round(file.size / 1024)} KB</div>`;
+    }
+    preview.classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('kycScanFile').addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  if (file) handleKycScanFile(file);
+});
+
+const debouncedKycSearch = debounce(loadKycUsers, 380);
+document.getElementById('kycSearch').addEventListener('input', debouncedKycSearch);
+document.getElementById('kycStatusFilter').addEventListener('change', loadKycUsers);
+document.getElementById('searchKycBtn').addEventListener('click', loadKycUsers);
+document.getElementById('refreshKycBtn').addEventListener('click', loadKycUsers);
+
+document.getElementById('kycVerifyBtn').addEventListener('click', async () => {
+  if (!selectedKycUserId) {
+    showToast('Оберіть користувача для KYC.', 'error');
+    return;
+  }
+  const passportNumber = document.getElementById('kycPassportNumber').value.trim().toUpperCase();
+  const documentName = document.getElementById('kycDocumentName').value.trim();
+  const manualConfirm = document.getElementById('kycManualConfirm').checked;
+  const msgEl = document.getElementById('kycVerifyMsg');
+  const btn = document.getElementById('kycVerifyBtn');
+
+  if (!selectedKycScanData) {
+    msgEl.textContent = 'Завантажте скан паспорта.';
+    msgEl.className = 'form-msg error';
+    return;
+  }
+  if (!passportNumber) {
+    msgEl.textContent = 'Вкажіть номер паспорта.';
+    msgEl.className = 'form-msg error';
+    return;
+  }
+  if (!documentName) {
+    msgEl.textContent = 'Вкажіть ПІБ із документа.';
+    msgEl.className = 'form-msg error';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Перевірка…';
+  msgEl.className = 'form-msg hidden';
+  try {
+    const res = await api.verifyPassport(selectedKycUserId, {
+      scan_data: selectedKycScanData,
+      scan_mime: selectedKycScanMeta?.type || '',
+      file_name: selectedKycScanMeta?.name || 'passport_scan',
+      passport_number: passportNumber,
+      document_full_name: documentName,
+      manual_confirm: manualConfirm,
+    });
+    const data = res.data || {};
+    renderKycChecks(data.checks || []);
+    const scoreText = Number.isFinite(data.kyc_score) ? ` (score: ${data.kyc_score}/100)` : '';
+    const reasonText = data.decision_reason ? ` ${data.decision_reason}` : '';
+    msgEl.textContent = `${data.status || (data.verified ? 'KYC пройдена' : 'Потрібна додаткова перевірка')}${scoreText}.${reasonText}`;
+    let msgCls = 'warning';
+    if (data.kyc_status === 'verified') msgCls = 'success';
+    if (data.kyc_status === 'rejected') msgCls = 'error';
+    msgEl.className = `form-msg ${msgCls}`;
+    document.getElementById('kycCurrentStatus').innerHTML = kycStatusBadge(data.kyc_status || 'in_review');
+    if (data.verified) {
+      showToast('KYC успішно підтверджено', 'success');
+    } else if (data.kyc_status === 'rejected') {
+      showToast('KYC відхилено', 'error');
+    } else {
+      showToast('KYC передано на додаткову перевірку', 'success');
+    }
+    await loadKycUsers();
+  } catch (err) {
+    msgEl.textContent = err.message || 'Помилка верифікації.';
+    msgEl.className = 'form-msg error';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Підтвердити KYC';
+  }
+});
 
 /* ── USER MODAL ── */
 function switchModalTab(tab) {
@@ -537,6 +768,97 @@ document.getElementById('submitPayoutBtn').addEventListener('click', async () =>
 });
 
 /* ══════════════════════════════════════════════
+   ANALYTICS
+══════════════════════════════════════════════ */
+async function loadAnalyticsOverview() {
+  try {
+    const res = await api.analyticsOverview();
+    const d = res.data || {};
+    const t = d.totals || {};
+    const k = d.kyc || {};
+    const q = d.action_queue || {};
+    const alerts = d.alerts || [];
+    document.getElementById('analyticsKpiGrid').innerHTML = `
+      <div class="mini-kpi-card"><div class="kpi-label">Користувачі</div><div class="kpi-value">${t.users_total || 0}</div><div class="kpi-sub">+${t.users_new_7d || 0} за 7 днів</div></div>
+      <div class="mini-kpi-card"><div class="kpi-label">Активні сесії</div><div class="kpi-value">${t.active_sessions || 0}</div><div class="kpi-sub">online now</div></div>
+      <div class="mini-kpi-card"><div class="kpi-label">Оборот 24г</div><div class="kpi-value">${fmtMoney(t.tx_volume_24h || 0)}</div><div class="kpi-sub">${t.tx_24h || 0} транзакцій</div></div>
+      <div class="mini-kpi-card"><div class="kpi-label">Оборот 30д</div><div class="kpi-value">${fmtMoney(t.tx_volume_30d || 0)}</div><div class="kpi-sub">Payout 30д: ${fmtMoney(t.payout_30d || 0)}</div></div>
+      <div class="mini-kpi-card"><div class="kpi-label">Загальний баланс</div><div class="kpi-value">${fmtMoney(t.total_balance || 0)}</div><div class="kpi-sub">Платформа</div></div>
+      <div class="mini-kpi-card"><div class="kpi-label">KYC verified</div><div class="kpi-value">${k.verified_rate || 0}%</div><div class="kpi-sub">${k.verified || 0}/${k.profiled || 0}</div></div>
+    `;
+
+    document.getElementById('analyticsActionQueueBody').innerHTML = `
+      <tr><td>KYC in_review</td><td>${q.kyc_in_review || 0}</td></tr>
+      <tr><td>KYC rejected</td><td>${q.kyc_rejected || 0}</td></tr>
+      <tr><td>KYC pending</td><td>${q.kyc_pending || 0}</td></tr>
+      <tr><td>Payment rejected (24h)</td><td>${q.payment_rejected_24h || 0}</td></tr>
+    `;
+
+    document.getElementById('analyticsAlertsBody').innerHTML = alerts.length
+      ? alerts.map((a) => `<tr><td>${escHtml(a.message || a.code || 'alert')}</td><td>${escHtml(a.severity || 'info')}</td></tr>`).join('')
+      : '<tr><td colspan="2" style="text-align:center;color:var(--text-muted)">Алертів немає</td></tr>';
+
+    const topTypes = d.top_tx_types || [];
+    document.getElementById('analyticsTopTypesBody').innerHTML = topTypes.length
+      ? topTypes.map((r) => `<tr><td>${escHtml(r.tx_type || '—')}</td><td>${r.cnt || 0}</td><td>${fmtMoney(r.amount_sum || 0)}</td></tr>`).join('')
+      : '<tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Немає даних</td></tr>';
+
+    const flow = d.daily_flow_30d || [];
+    document.getElementById('analyticsDailyFlowBody').innerHTML = flow.length
+      ? flow.map((r) => {
+        const net = Number(r.total_in || 0) - Number(r.total_out || 0);
+        return `<tr><td>${escHtml(r.d || '—')}</td><td class="amount-in">${fmtMoney(r.total_in || 0)}</td><td class="amount-out">${fmtMoney(r.total_out || 0)}</td><td class="${net >= 0 ? 'amount-in' : 'amount-out'}">${fmtMoney(net)}</td></tr>`;
+      }).join('')
+      : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Немає даних</td></tr>';
+  } catch (err) {
+    showToast('Аналітика: ' + err.message, 'error');
+  }
+}
+
+async function loadMessengerAnalytics() {
+  try {
+    const res = await api.messengerAnalytics();
+    const d = res.data || {};
+    const o = d.overview || {};
+    const c = d.calls_30d || {};
+    const c24 = d.calls_24h || {};
+    const alerts = d.alerts || [];
+    document.getElementById('messengerKpiGrid').innerHTML = `
+      <div class="mini-kpi-card"><div class="kpi-label">Діалоги</div><div class="kpi-value">${o.conversations_total || 0}</div><div class="kpi-sub">Груп: ${o.groups_total || 0}</div></div>
+      <div class="mini-kpi-card"><div class="kpi-label">Повідомлення</div><div class="kpi-value">${o.messages_total || 0}</div><div class="kpi-sub">24г: ${o.messages_24h || 0}</div></div>
+      <div class="mini-kpi-card"><div class="kpi-label">Активні відправники (24г)</div><div class="kpi-value">${o.active_senders_24h || 0}</div><div class="kpi-sub">увачів</div></div>
+      <div class="mini-kpi-card"><div class="kpi-label">Push підписок</div><div class="kpi-value">${o.push_subscriptions_total || 0}</div><div class="kpi-sub">Покриття: ${o.push_coverage_active || 0}%</div></div>
+      <div class="mini-kpi-card"><div class="kpi-label">Дзвінків (30д)</div><div class="kpi-value">${c.calls_total || 0}</div><div class="kpi-sub">Connected: ${c.connected_calls || 0}</div></div>
+      <div class="mini-kpi-card"><div class="kpi-label">Call connect rate</div><div class="kpi-value">${c.connect_rate || 0}%</div><div class="kpi-sub">24г: ${c24.connected || 0}/${c24.total || 0}, AVG: ${c.avg_duration_sec || 0}s</div></div>
+    `;
+
+    document.getElementById('messengerAlertsBody').innerHTML = alerts.length
+      ? alerts.map((a) => `<tr><td>${escHtml(a.message || a.code || 'alert')}</td><td>${escHtml(a.severity || 'info')}</td></tr>`).join('')
+      : '<tr><td colspan="2" style="text-align:center;color:var(--text-muted)">Алертів немає</td></tr>';
+
+    const msgTypes = d.message_types_30d || [];
+    document.getElementById('messengerMsgTypesBody').innerHTML = msgTypes.length
+      ? msgTypes.map((r) => `<tr><td>${escHtml(r.msg_type || 'text')}</td><td>${r.cnt || 0}</td></tr>`).join('')
+      : '<tr><td colspan="2" style="text-align:center;color:var(--text-muted)">Немає даних</td></tr>';
+
+    const topConv = d.top_conversations_7d || [];
+    document.getElementById('messengerTopConversationsBody').innerHTML = topConv.length
+      ? topConv.map((r) => `<tr><td>${escHtml(r.title || ('#' + r.id))}</td><td>${r.is_group ? 'Так' : 'Ні'}</td><td>${r.msg_count || 0}</td></tr>`).join('')
+      : '<tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Немає даних</td></tr>';
+
+    const callsDaily = d.calls_daily_30d || [];
+    document.getElementById('messengerCallsDailyBody').innerHTML = callsDaily.length
+      ? callsDaily.map((r) => `<tr><td>${escHtml(r.d || '—')}</td><td>${r.calls_count || 0}</td></tr>`).join('')
+      : '<tr><td colspan="2" style="text-align:center;color:var(--text-muted)">Немає даних</td></tr>';
+  } catch (err) {
+    showToast('Месенджер аналітика: ' + err.message, 'error');
+  }
+}
+
+document.getElementById('refreshAnalyticsBtn').addEventListener('click', loadAnalyticsOverview);
+document.getElementById('refreshMessengerAnalyticsBtn').addEventListener('click', loadMessengerAnalytics);
+
+/* ══════════════════════════════════════════════
    AUDIT LOG
 ══════════════════════════════════════════════ */
 async function loadAuditLogs() {
@@ -549,6 +871,7 @@ async function loadAuditLogs() {
       admin_role_change: 'Зміна ролі', donation: 'Донат',
       transfer_out: 'Переказ (вих.)', transfer_in: 'Переказ (вх.)',
       withdrawal: 'Зняття', deposit: 'Депозит',
+      admin_kyc_passport_verify: 'KYC: перевірка паспорта',
     };
     document.getElementById('auditBody').innerHTML = logs.map(l => `
       <tr>

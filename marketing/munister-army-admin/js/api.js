@@ -65,6 +65,36 @@ class AdminAPI {
     const q = new URLSearchParams(params).toString();
     return this.get(`/api/admin/audit-logs${q ? '?' + q : ''}`);
   }
+
+  // ── Compliance / KYC ──
+  complianceStats() {
+    return this.get('/api/admin/compliance/stats');
+  }
+
+  complianceUsers(params = {}) {
+    const q = new URLSearchParams(params).toString();
+    return this.get(`/api/admin/compliance/users${q ? '?' + q : ''}`);
+  }
+
+  complianceUser(id) {
+    return this.get(`/api/admin/compliance/users/${id}`);
+  }
+
+  updateCompliance(id, payload) {
+    return this.patch(`/api/admin/compliance/users/${id}`, payload);
+  }
+
+  verifyPassport(id, payload) {
+    return this.post(`/api/admin/compliance/users/${id}/verify-passport`, payload);
+  }
+
+  analyticsOverview() {
+    return this.get('/api/admin/analytics/overview');
+  }
+
+  messengerAnalytics() {
+    return this.get('/api/admin/analytics/messenger');
+  }
 }
 
 window.api = new AdminAPI();

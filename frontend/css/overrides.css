@@ -43,6 +43,99 @@
   --border-2: rgba(20, 34, 21, 0.2);
 }
 
+/* ── Messenger promo card ───────────────────────────────────────── */
+.messenger-promo-card {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(30, 99, 71, 0.24) !important;
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(46, 132, 92, 0.11) 0%, rgba(46, 132, 92, 0) 62%),
+    linear-gradient(180deg, rgba(255,255,255,.96), rgba(247,251,248,.98));
+}
+.messenger-promo-head {
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(38, 87, 65, 0.12);
+}
+.messenger-promo-icon {
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 16px !important;
+  background: linear-gradient(145deg, rgba(31,107,76,.14), rgba(52,143,102,.2)) !important;
+  color: #1f6b4c !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.75);
+}
+.messenger-promo-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.messenger-promo-title-wrap {
+  display: grid;
+  gap: 6px;
+}
+.messenger-promo-chip {
+  display: inline-flex;
+  width: fit-content;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(29, 99, 71, 0.11);
+  border: 1px solid rgba(29, 99, 71, 0.2);
+  color: #2b6a50;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.messenger-promo-card .card-head h3 {
+  margin: 0 !important;
+  letter-spacing: -.01em;
+}
+.messenger-promo-text {
+  color: var(--mono-muted);
+  margin: 12px 0 12px;
+  line-height: 1.45;
+  font-size: 16px;
+}
+.messenger-promo-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.messenger-promo-points span {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2d5e49;
+  background: rgba(231, 242, 235, 0.95);
+  border: 1px solid rgba(55, 116, 87, 0.18);
+  border-radius: 999px;
+  padding: 5px 10px;
+}
+.messenger-promo-btn {
+  min-height: 48px;
+  border-radius: 14px !important;
+  border-color: rgba(30, 99, 71, 0.34) !important;
+  background: linear-gradient(135deg, #245f45, #2f7a56) !important;
+  color: #f2f7f3 !important;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.messenger-promo-btn:hover {
+  background: linear-gradient(135deg, #2b6e4f, #378763) !important;
+}
+
+@media (max-width: 720px) {
+  .messenger-promo-text {
+    font-size: 15px;
+  }
+  .messenger-promo-btn {
+    width: 100%;
+    min-height: 46px;
+  }
+}
+
 html,
 body {
   background: var(--mono-bg) !important;
@@ -463,7 +556,8 @@ body {
   border-radius: 20px !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.22),
+    0 8px 24px rgba(4, 16, 10, 0.20),
+    0 2px 8px rgba(4, 16, 10, 0.10),
     inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
   overflow: hidden !important;
   position: relative !important;
@@ -669,7 +763,8 @@ body {
 .bank-card-slate {
   background: none !important;
   box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.22),
+    0 8px 24px rgba(4, 16, 10, 0.20),
+    0 2px 8px rgba(4, 16, 10, 0.10),
     inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
 .bank-card-gold::before,
@@ -722,7 +817,7 @@ body {
   inset: 0 !important;
   pointer-events: none !important;
   z-index: 2 !important;
-  background: radial-gradient(ellipse 60% 50% at 88% 94%, rgba(0,0,0,0.16) 0%, transparent 55%) !important;
+  background: radial-gradient(ellipse 62% 54% at 88% 94%, rgba(0,0,0,0.08) 0%, transparent 60%) !important;
   border-radius: 20px !important;
 }
 /* Gold sheen override */
@@ -2632,6 +2727,25 @@ textarea:focus,
 }
 
 /* ── Notification panel (closed by default) ───────── */
+.notif-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 390 !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: opacity 0.2s ease, visibility 0.2s ease !important;
+}
+
+.notif-overlay.open {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
 .notif-panel {
   position: fixed !important;
   left: 0 !important;
@@ -2647,14 +2761,16 @@ textarea:focus,
   box-shadow: 0 18px 34px rgba(16, 24, 38, 0.18) !important;
   transform: translateY(120%) !important;
   opacity: 0 !important;
+  visibility: hidden !important;
   pointer-events: none !important;
-  transition: transform 0.24s ease, opacity 0.24s ease !important;
+  transition: transform 0.24s ease, opacity 0.24s ease, visibility 0.24s ease !important;
   z-index: 520 !important;
 }
 
 .notif-panel.open {
   transform: translateY(0) !important;
   opacity: 1 !important;
+  visibility: visible !important;
   pointer-events: auto !important;
 }
 
@@ -2691,59 +2807,61 @@ textarea:focus,
 
 .nav-item,
 .menu-btn {
-  color: var(--mono-muted-2) !important;
+  color: #7f9485 !important;
   border: none !important;
   background: transparent !important;
-  border-radius: 16px !important;
-  font-size: 12px !important;
+  border-radius: 20px !important;
+  font-size: 10px !important;
   font-weight: 600 !important;
   letter-spacing: 0 !important;
   text-transform: none !important;
-  padding: 7px 4px 8px !important;
+  padding: 6px 10px 7px !important;
   position: relative !important;
-  transition: color var(--mono-motion-fast) ease, transform var(--mono-motion-fast) ease !important;
+  transition: color 160ms ease, background 160ms ease, transform 130ms ease !important;
+  min-width: 52px !important;
 }
 
 .nav-item svg,
 .menu-btn svg {
-  stroke: var(--mono-muted-2) !important;
+  stroke: #7f9485 !important;
+  transition: stroke 160ms ease !important;
 }
 
 .nav-item.active,
 .nav-link.active,
 .menu-btn.active {
-  color: var(--mono-blue-top) !important;
-  background: transparent !important;
+  color: #1a2e20 !important;
+  background: rgba(26, 46, 32, 0.09) !important;
+}
+.nav-item.active span,
+.nav-link.active span,
+.menu-btn.active span {
+  color: #1a2e20 !important;
+  font-weight: 700 !important;
 }
 
 .nav-item:active,
 .menu-btn:active {
-  transform: scale(0.88) !important;
+  transform: scale(0.86) !important;
 }
 
 .nav-item:focus-visible,
 .menu-btn:focus-visible {
   outline: none !important;
-  box-shadow: var(--mono-focus-ring) !important;
+  box-shadow: 0 0 0 2px rgba(31,107,76,.3) !important;
 }
 
+/* Remove old dot indicator */
 .nav-item.active::after,
 .menu-btn.active::after {
-  content: "" !important;
-  position: absolute !important;
-  bottom: 2px !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: 20px !important;
-  height: 3px !important;
-  border-radius: 999px !important;
-  background: var(--mono-blue-top) !important;
+  display: none !important;
 }
 
 .nav-item.active svg,
 .nav-link.active svg,
 .menu-btn.active svg {
-  stroke: var(--mono-blue-top) !important;
+  stroke: #1a2e20 !important;
+  stroke-width: 2.2 !important;
 }
 
 .screen.active-screen > .section-header-row,
@@ -2766,7 +2884,7 @@ textarea:focus,
 /* ╔══════════════════════════════════════════════════════════════╗
    ║  DESKTOP LAYOUT ≥960px — справжній sidebar, не phone frame   ║
    ╚══════════════════════════════════════════════════════════════╝ */
-@media (min-width: 960px) {
+@media (min-width: 960px) and (max-width: 1199px) {
 
   /* Body: нейтральний фон */
   body {
@@ -4874,17 +4992,15 @@ body {
   background: rgba(255,255,255,.20) !important;
 }
 
-/* ── 5. НАВБАР — frosted glass, без кольорів ────────────
-   iOS-стиль: єдина прозора поверхня
-   ─────────────────────────────────────────────────────── */
-.bottom-nav {
-  background: rgba(242,244,241,.88) !important;
-  backdrop-filter: saturate(200%) blur(24px) !important;
-  -webkit-backdrop-filter: saturate(200%) blur(24px) !important;
-  border-top: 0.5px solid rgba(0,0,0,.08) !important;
-  box-shadow: none !important;
-}
+/* ── 5. НАВБАР — frosted glass, без кольорів (mobile only) ───── */
 @media (max-width: 959px) {
+  .bottom-nav {
+    background: rgba(242,244,241,.88) !important;
+    backdrop-filter: saturate(200%) blur(24px) !important;
+    -webkit-backdrop-filter: saturate(200%) blur(24px) !important;
+    border-top: 0.5px solid rgba(0,0,0,.08) !important;
+    box-shadow: none !important;
+  }
   .nav-item svg { stroke: #94a39a !important; }
   .nav-item .nav-label { color: #94a39a !important; font-weight: 500 !important; }
   .nav-item.active {
@@ -5179,50 +5295,51 @@ h2, h1 {
   opacity: 1 !important;
 }
 
-/* ── ШВИДКІ ДІЇ: іконки прямо на темному, без боксів ─── */
-.quick-actions {
-  padding: 4px 0 8px !important;
-  gap: 0 !important;
-}
-.quick-actions .qa-btn {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  padding: 8px 4px 10px !important;
-  gap: 7px !important;
-  transition: opacity .15s !important;
-}
-.quick-actions .qa-btn:active { opacity: .6 !important; transform: none !important; }
+/* ── ШВИДКІ ДІЇ: mobile-only style ──────────────────────── */
+@media (max-width: 959px) {
+  .quick-actions {
+    padding: 4px 0 8px !important;
+    gap: 0 !important;
+  }
+  .quick-actions .qa-btn {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 8px 4px 10px !important;
+    gap: 7px !important;
+    transition: opacity .15s !important;
+  }
+  .quick-actions .qa-btn:active { opacity: .6 !important; transform: none !important; }
 
-/* Іконки: тонке коло-обведення замість залитого квадрата */
-.quick-actions .qa-icon,
-#dashboard .quick-actions .qa-icon {
-  width: 48px !important;
-  height: 48px !important;
-  border-radius: 999px !important;
-  background: rgba(255,255,255,.10) !important;
-  border: 1.5px solid rgba(255,255,255,.18) !important;
-  box-shadow: none !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-.quick-actions .qa-icon svg {
-  stroke: rgba(255,255,255,.85) !important;
-  width: 20px !important;
-  height: 20px !important;
-}
-.quick-actions .qa-label,
-#dashboard .quick-actions .qa-label {
-  font-size: 10.5px !important;
-  font-weight: 500 !important;
-  color: rgba(255,255,255,.55) !important;
-  text-transform: none !important;
-  letter-spacing: 0 !important;
-  line-height: 1.2 !important;
-  width: 100% !important;
+  .quick-actions .qa-icon,
+  #dashboard .quick-actions .qa-icon {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 999px !important;
+    background: rgba(255,255,255,.10) !important;
+    border: 1.5px solid rgba(255,255,255,.18) !important;
+    box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .quick-actions .qa-icon svg {
+    stroke: rgba(255,255,255,.85) !important;
+    width: 20px !important;
+    height: 20px !important;
+  }
+  .quick-actions .qa-label,
+  #dashboard .quick-actions .qa-label {
+    font-size: 10.5px !important;
+    font-weight: 500 !important;
+    color: rgba(255,255,255,.55) !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    line-height: 1.2 !important;
+    width: 100% !important;
+  }
 }
 
 /* ── КАРТКИ: мінімалістська білосніжна поверхня ─────────
@@ -5264,45 +5381,44 @@ h2, h1 {
   padding: 0 !important;
 }
 
-/* ── НАВБАР: повністю переосмислений ───────────────────── */
-.bottom-nav {
-  background: rgba(255,255,255,.92) !important;
-  backdrop-filter: saturate(180%) blur(20px) !important;
-  -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
-  border-top: 1px solid rgba(0,0,0,.07) !important;
-  box-shadow: none !important;
-  padding: 10px 8px 16px !important;
-  gap: 0 !important;
-  /* Фікс: top перебиває bottom — явно скидаємо */
-  top: auto !important;
-  bottom: 8px !important;
-  left: 10px !important;
-  right: 10px !important;
-}
-.nav-item {
-  flex: 1 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  gap: 4px !important;
-  padding: 6px 2px 4px !important;
-  border-radius: 12px !important;
-  background: transparent !important;
-  transition: background .12s !important;
-}
-.nav-item svg {
-  stroke: #9aa39e !important;
-  width: 22px !important;
-  height: 22px !important;
-  stroke-width: 1.8 !important;
-}
-.nav-label {
-  font-size: 10px !important;
-  font-weight: 500 !important;
-  color: #9aa39e !important;
-  letter-spacing: .01em !important;
-}
+/* ── НАВБАР: mobile-only redesign ───────────────────────── */
 @media (max-width: 959px) {
+  .bottom-nav {
+    background: rgba(255,255,255,.92) !important;
+    backdrop-filter: saturate(180%) blur(20px) !important;
+    -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+    border-top: 1px solid rgba(0,0,0,.07) !important;
+    box-shadow: none !important;
+    padding: 10px 8px 16px !important;
+    gap: 0 !important;
+    top: auto !important;
+    bottom: 8px !important;
+    left: 10px !important;
+    right: 10px !important;
+  }
+  .nav-item {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 6px 2px 4px !important;
+    border-radius: 12px !important;
+    background: transparent !important;
+    transition: background .12s !important;
+  }
+  .nav-item svg {
+    stroke: #9aa39e !important;
+    width: 22px !important;
+    height: 22px !important;
+    stroke-width: 1.8 !important;
+  }
+  .nav-label {
+    font-size: 10px !important;
+    font-weight: 500 !important;
+    color: #9aa39e !important;
+    letter-spacing: .01em !important;
+  }
   .nav-item.active {
     background: transparent !important;
   }
@@ -5374,6 +5490,12 @@ button.btn-ghost[type="submit"] {
   border-radius: 16px !important;
 }
 
+.empty-state.hidden,
+#cardsEmpty.hidden,
+.hidden.empty-state {
+  display: none !important;
+}
+
 /* ╔══════════════════════════════════════════════════════════════╗
    ║  ANDROID FIX + DESIGN POLISH v3                              ║
    ║  1. Android Chrome fallbacks (backdrop-filter, safe-area)    ║
@@ -5400,21 +5522,17 @@ button.btn-ghost[type="submit"] {
   }
 }
 
-/* ── iOS/Android: Safe Area (home indicator / gesture nav bar) ─
-   The pill nav is already offset via `bottom: max(8px, env(safe-area-inset-bottom))`
-   so we must NOT add safe-area padding-bottom inside the nav itself
-   (that would double-count and create a dead zone on iPhone 15).  
-   app-content needs room for: nav height (64px) + nav gap (8px) +
-   safe-area offset + extra breathing room.                         */
-.bottom-nav {
-  /* Remove extra padding-bottom — nav is a floating pill, already above home bar */
-  padding-bottom: 0 !important;
-}
-.app-content,
-.page-content,
-main {
-  /* 64px nav + 8px base gap + home indicator (safe-area) + 16px breathing */
-  padding-bottom: calc(64px + max(8px, env(safe-area-inset-bottom, 0px)) + 16px) !important;
+/* ── ANDROID: Safe Area (gesture nav bar) ──────────────────────
+   env() підтримується в Android Chrome 69+                      */
+@media (max-width: 959px) {
+  .bottom-nav {
+    padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+  }
+  .app-content,
+  .page-content,
+  main {
+    padding-bottom: max(80px, calc(64px + env(safe-area-inset-bottom))) !important;
+  }
 }
 
 /* ── TOUCH: прибираємо 300ms затримку ──────────────────────────*/
@@ -5446,9 +5564,11 @@ body, html {
 /* ── ANDROID: GPU-compositing тільки для навбару ───────────────
    УВАГА: transform на .app-header ламає position:fixed дітей!
    translateZ тільки на самому nav                              */
-.bottom-nav {
-  transform: translateZ(0) !important;
-  will-change: transform !important;
+@media (max-width: 959px) {
+  .bottom-nav {
+    transform: translateZ(0) !important;
+    will-change: transform !important;
+  }
 }
 /* app-header — БЕЗ transform (інакше nav буде відносним до нього) */
 
@@ -5560,7 +5680,7 @@ input[type="number"] {
 }
 
 /* ── НАЛШТУВАННЯ ДЕСКТОПА (виправлення overrides) ──────── */
-@media (min-width: 768px) {
+@media (min-width: 768px) and (max-width: 959px) {
   #appScreen.app-shell {
     flex-direction: row !important;
     background: #1c261e !important; /* Глибокий благородний темний зелений сайдбмару */
@@ -5958,7 +6078,7 @@ button.btn-primary:active {
   height: 6px !important;
   border-radius: 50% !important;
   background: rgba(255,255,255,.25) !important;
-  transition: all .22s cubic-bezier(.22,.68,0,1.2) !important;
+  transition: transform .24s cubic-bezier(.22,.68,0,1.2), width .24s cubic-bezier(.22,.68,0,1.2), background .2s ease !important;
   display: inline-block !important;
   cursor: pointer !important;
 }
@@ -5966,6 +6086,13 @@ button.btn-primary:active {
   background: rgba(255,255,255,.90) !important;
   width: 18px !important;
   border-radius: 3px !important;
+  animation: bankDotPulse .42s cubic-bezier(.22,.68,0,1.2) !important;
+}
+
+@keyframes bankDotPulse {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  55% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 /* Контейнер dots — centered */
@@ -5985,16 +6112,10 @@ button.btn-primary:active {
 .nav-item:active {
   opacity: .6 !important;
 }
-/* Active indicator: pill під іконкою */
-.nav-item.active::after {
-  content: '' !important;
-  display: block !important;
-  width: 4px !important;
-  height: 4px !important;
-  border-radius: 2px !important;
-  background: #1a2e20 !important;
-  margin: 0 auto !important;
-  margin-top: -2px !important;
+/* No dot indicator — active state shown by background only */
+.nav-item.active::after,
+.menu-btn.active::after {
+  display: none !important;
 }
 
 /* ── QA-btn tap animation ─────────────────────────────────────── */
@@ -6007,7 +6128,7 @@ button.btn-primary:active {
    ║  DESKTOP OVERRIDES — найвищий пріоритет (кінець файлу)       ║
    ╚══════════════════════════════════════════════════════════════╝ */
 
-@media (min-width: 960px) {
+@media (min-width: 960px) and (max-width: 1199px) {
   /* Quick actions — 2×2 у сайдбарі (перебиває repeat(4,...)) */
   .quick-actions,
   #dashboard .quick-actions {
@@ -6101,4 +6222,4050 @@ button.btn-primary:active {
 @keyframes screenFadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── PWA visual stability patch (mobile) ───────────────────────── */
+@media (max-width: 959px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden !important;
+  }
+
+  #appScreen.app-shell {
+    min-height: 100dvh !important;
+    height: auto !important;
+    overflow: hidden !important;
+  }
+
+  .app-header,
+  .app-content,
+  .header-user,
+  .header-info {
+    min-width: 0 !important;
+  }
+
+  .header-top {
+    gap: 8px !important;
+  }
+
+  .header-info {
+    max-width: calc(100vw - 190px) !important;
+  }
+
+  .bank-cards-carousel {
+    overflow: hidden !important;
+  }
+
+  .bank-cards-track {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overscroll-behavior-x: contain !important;
+  }
+
+  .quick-actions {
+    width: 100% !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+  }
+
+  .quick-actions .qa-btn,
+  #dashboard .quick-actions .qa-btn {
+    min-width: 0 !important;
+  }
+
+  .quick-actions .qa-label,
+  #dashboard .quick-actions .qa-label {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Keep bottom nav geometry stable with safe area (no squeezed icons).
+     Nav sits at bottom:0 and uses padding-bottom to clear the home indicator —
+     this avoids double-counting the safe-area inset that caused the stretched look. */
+  .bottom-nav {
+    left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
+    height: 64px !important;
+    min-height: 64px !important;
+    padding: 0 8px 0 !important;
+    align-items: center !important;
+  }
+
+  /* Generic safe-area rule above should not override tab-bar internals. */
+  .bottom-nav,
+  [class*="bottom-nav"] {
+    --bottom-pad: 0px !important;
+  }
+
+  .nav-item,
+  .menu-btn {
+    min-width: 0 !important;
+    justify-content: center !important;
+  }
+
+  .nav-item span,
+  .menu-btn span {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .app-content {
+    padding-left: max(14px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(14px, env(safe-area-inset-right, 0px)) !important;
+    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important;
+    overscroll-behavior-y: contain !important;
+  }
+
+  .notif-panel {
+    left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .modal-overlay {
+    padding:
+      max(12px, env(safe-area-inset-top, 0px))
+      max(12px, env(safe-area-inset-right, 0px))
+      max(12px, env(safe-area-inset-bottom, 0px))
+      max(12px, env(safe-area-inset-left, 0px)) !important;
+  }
+
+  .tc-overlay {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  .tc-sheet {
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px)) !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .header-info {
+    max-width: calc(100vw - 180px) !important;
+  }
+
+  .balance-amount {
+    font-size: clamp(2.25rem, 12.2vw, 3.3rem) !important;
+  }
+
+  .qa-label {
+    font-size: 10px !important;
+    letter-spacing: 0.01em !important;
+    text-transform: none !important;
+  }
+
+  .nav-item,
+  .menu-btn {
+    font-size: 11px !important;
+    padding: 7px 2px 8px !important;
+  }
+
+  .notif-panel {
+    max-height: min(62vh, 500px) !important;
+  }
+}
+
+/* ── Desktop visual stability patch ───────────────────────────── */
+@media (min-width: 960px) and (max-width: 1199px) {
+  body {
+    overflow: hidden !important;
+  }
+
+  #appScreen.app-shell {
+    display: flex !important;
+    flex-direction: row !important;
+    min-height: 100dvh !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  .app-header {
+    width: 300px !important;
+    min-width: 300px !important;
+    height: 100dvh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 20px 18px 14px !important;
+  }
+
+  .header-info {
+    max-width: calc(300px - 120px) !important;
+  }
+
+  .bank-cards-track {
+    overflow-x: auto !important;
+    padding-bottom: 10px !important;
+  }
+
+  .bank-cards-track .bank-card {
+    max-height: none !important;
+    aspect-ratio: 85.6 / 54 !important;
+  }
+
+  .quick-actions,
+  #dashboard .quick-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    padding: 8px 0 0 !important;
+  }
+
+  .quick-actions .qa-btn {
+    padding: 12px 8px !important;
+    min-height: 84px !important;
+  }
+
+  .quick-actions .qa-label,
+  #dashboard .quick-actions .qa-label {
+    font-size: 11px !important;
+    color: rgba(255, 255, 255, 0.88) !important;
+    letter-spacing: 0.01em !important;
+    text-transform: none !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+  }
+
+  .bottom-nav {
+    position: sticky !important;
+    bottom: 0 !important;
+    margin-top: auto !important;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    border-radius: 16px !important;
+  }
+
+  .nav-item,
+  .menu-btn.nav-item {
+    min-height: 40px !important;
+    padding: 10px 12px !important;
+    font-size: 13px !important;
+  }
+
+  .nav-item span,
+  .menu-btn span {
+    color: rgba(255, 255, 255, 0.88) !important;
+  }
+
+  .app-content {
+    height: 100dvh !important;
+    padding: 24px 28px 40px !important;
+    overflow: auto !important;
+  }
+
+  .screen {
+    max-width: 980px !important;
+  }
+
+  .card,
+  #transactions .card,
+  #profile .card,
+  #recentTransactionsCard,
+  #dashboardActionForms .card {
+    padding: 18px !important;
+  }
+
+  .card-head,
+  .cards-row > .card .card-head {
+    padding: 0 !important;
+    margin-bottom: 12px !important;
+  }
+}
+
+/* ── Render polish + performance pack ─────────────────────────── */
+:root {
+  --app-vh: 1vh;
+  --browser-ui-bottom: 0px;
+}
+
+#appScreen.app-shell {
+  min-height: calc(var(--app-vh) * 100) !important;
+}
+
+.app-content {
+  scrollbar-gutter: stable both-edges;
+  contain: paint;
+}
+
+/* Large, dynamic lists: paint only when near viewport */
+#recentTransactions,
+#transactionsList,
+#donationsList,
+#goalsList,
+#contactsList,
+#securityLogList,
+#sessionsList,
+.cards-manage-list,
+.achievements-grid,
+.insights-list {
+  content-visibility: auto;
+  contain-intrinsic-size: 420px;
+}
+
+/* Smoother compositing for floating layers */
+.notif-panel,
+.tc-sheet,
+.modal-box,
+.bank-card-inner {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Do not transform app-header: it breaks fixed/sticky nav positioning */
+.app-header {
+  transform: none !important;
+}
+
+/* Auto quality profile for weaker devices */
+.render-lite .notif-panel,
+.render-lite .modal-overlay,
+.render-lite .tc-overlay,
+.render-lite .auth-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.render-lite #appScreen.app-loading #heroBalance,
+.render-lite #appScreen.app-loading #userName,
+.render-lite #appScreen.app-loading #heroAccount,
+.no-animations #appScreen.app-loading #heroBalance,
+.no-animations #appScreen.app-loading #userName,
+.no-animations #appScreen.app-loading #heroAccount {
+  animation: none !important;
+  opacity: 0.78 !important;
+}
+
+.render-lite .screen.active-screen > .section-header-row,
+.render-lite .screen.active-screen > .card,
+.render-lite .screen.active-screen > .cards-row {
+  animation: none !important;
+}
+
+.render-lite .qa-btn,
+.render-lite .icon-btn,
+.render-lite .btn-primary,
+.render-lite .btn-accent,
+.render-lite .btn-ghost {
+  transition-duration: 120ms !important;
+}
+
+html.render-lite,
+html.render-lite body,
+html.render-lite .app-content,
+html.no-animations,
+html.no-animations body,
+html.no-animations .app-content {
+  scroll-behavior: auto !important;
+}
+
+.render-lite .bank-card,
+.render-lite .qa-btn,
+.render-lite .balance-amount,
+.render-lite .app-content .card,
+.no-animations .bank-card,
+.no-animations .qa-btn,
+.no-animations .balance-amount,
+.no-animations .app-content .card {
+  animation: none !important;
+}
+
+.render-lite .bank-card-gold .bank-card-front::before,
+.no-animations .bank-card-gold .bank-card-front::before {
+  animation: none !important;
+  opacity: 0.22 !important;
+}
+
+.render-lite .bank-card-inner {
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html,
+  body,
+  .app-content {
+    scroll-behavior: auto !important;
+  }
+
+  .screen.active-screen > .section-header-row,
+  .screen.active-screen > .card,
+  .screen.active-screen > .cards-row,
+  .qa-btn,
+  .icon-btn,
+  .btn-primary,
+  .btn-accent,
+  .btn-ghost,
+  .bottom-nav,
+  .notif-panel,
+  .bank-card-inner {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ── Hotfix: mobile dashboard nav overlap + extra desktop polish ─────────── */
+@media (max-width: 959px) {
+  #appScreen.screen-dashboard .app-header {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #appScreen.screen-dashboard .quick-actions,
+  #dashboard .quick-actions {
+    margin-bottom: 10px !important;
+  }
+}
+
+@media (min-width: 960px) and (max-width: 1199px) {
+  .bank-cards-carousel {
+    margin-bottom: 10px !important;
+  }
+
+  .quick-actions,
+  #dashboard .quick-actions {
+    margin-top: 6px !important;
+  }
+}
+
+/* ── Cross-browser UI/UX hardening pack ───────────────────────── */
+:root {
+  color-scheme: light;
+}
+
+@supports not (height: 100dvh) {
+  .auth-screen,
+  #appScreen.app-shell {
+    min-height: 100vh !important;
+    height: auto !important;
+  }
+}
+
+/* Reliable keyboard focus for all browsers */
+:where(button, a, input, select, textarea, [role="button"], .nav-item, .qa-btn):focus-visible {
+  outline: 2px solid #2f63d8 !important;
+  outline-offset: 2px !important;
+}
+
+@supports not selector(:focus-visible) {
+  :where(button, a, input, select, textarea, [role="button"], .nav-item, .qa-btn):focus {
+    outline: 2px solid #2f63d8 !important;
+    outline-offset: 2px !important;
+  }
+}
+
+/* Touch ergonomics */
+@media (hover: none) and (pointer: coarse) {
+  .icon-btn,
+  .qa-btn,
+  .nav-item,
+  .menu-btn,
+  .btn-primary,
+  .btn-accent,
+  .btn-ghost,
+  .auth-submit {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+
+  .nav-item,
+  .menu-btn {
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+  }
+}
+
+/* Feature fallbacks driven by JS profile classes */
+.no-backdrop-filter .bottom-nav,
+.no-backdrop-filter .notif-panel,
+.no-backdrop-filter .auth-card,
+.no-backdrop-filter .modal-overlay,
+.no-backdrop-filter .tc-overlay,
+.no-backdrop-filter .tc-sheet {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.no-backdrop-filter .bottom-nav {
+  background: rgba(246, 249, 241, 0.98) !important;
+}
+
+.no-content-visibility #recentTransactions,
+.no-content-visibility #transactionsList,
+.no-content-visibility #donationsList,
+.no-content-visibility #goalsList,
+.no-content-visibility #contactsList,
+.no-content-visibility #securityLogList,
+.no-content-visibility #sessionsList,
+.no-content-visibility .cards-manage-list,
+.no-content-visibility .achievements-grid,
+.no-content-visibility .insights-list {
+  content-visibility: visible !important;
+  contain-intrinsic-size: auto !important;
+}
+
+.no-scrollbar-gutter .app-content {
+  padding-right: 16px !important;
+}
+
+/* Browser/OS specific stability */
+.browser-firefox .app-content {
+  scrollbar-width: thin;
+}
+
+.browser-firefox .bank-cards-track {
+  scrollbar-width: none;
+}
+
+.os-ios .app-content {
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.os-ios #appScreen.screen-dashboard .app-header {
+  padding-bottom: calc(102px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* .os-ios .bottom-nav — no extra padding needed; nav is already positioned
+   above the safe-area via bottom: max(6/8px, safe-area-inset-bottom) */
+
+/* Prevent text clipping in very narrow browsers */
+@media (max-width: 380px) {
+  .header-name {
+    font-size: 16px !important;
+  }
+
+  .header-role {
+    font-size: 12px !important;
+  }
+
+  .balance-amount {
+    font-size: clamp(2rem, 11.2vw, 3rem) !important;
+  }
+}
+
+/* Accessibility/contrast modes */
+@media (forced-colors: active) {
+  .bottom-nav,
+  .card,
+  .auth-card,
+  .modal-box,
+  .notif-panel {
+    border: 1px solid CanvasText !important;
+    background: Canvas !important;
+    color: CanvasText !important;
+    box-shadow: none !important;
+  }
+
+  .btn-primary,
+  .btn-accent,
+  .auth-submit,
+  .btn-ghost {
+    border: 1px solid CanvasText !important;
+    background: ButtonFace !important;
+    color: ButtonText !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .card,
+  .auth-card,
+  .modal-box,
+  .notif-panel,
+  .bottom-nav {
+    border-color: rgba(20, 26, 21, 0.35) !important;
+  }
+
+  .muted,
+  .header-role,
+  .balance-label,
+  .qa-label {
+    color: #3c4a3f !important;
+  }
+}
+
+/* ── Scroll/animation/overlay stability hardening ───────────────────────── */
+html.app-scroll-locked,
+body.app-scroll-locked {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+}
+
+body.app-scroll-locked .app-content {
+  overscroll-behavior-y: none !important;
+}
+
+.app-content {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-content {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Guard against stale overlay hitboxes after class/state races */
+#txDrawer.hidden,
+#drawerBackdrop.hidden,
+#receiptOverlay.hidden,
+#statementOverlay.hidden,
+#transferConfirmOverlay.hidden,
+#confirmDialog.hidden,
+#confirmBackdrop.hidden,
+#pinLockOverlay.hidden,
+#onboardingOverlay.hidden {
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+#notifOverlay,
+#notifOverlay:not(.open) {
+  pointer-events: none;
+  visibility: hidden;
+}
+
+#notifPanel:not(.open) {
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+/* ── Layering + keyboard-open stabilization ─────────────────────────────── */
+:root {
+  --z-nav: 500;
+  --z-notif-panel: 520;
+  --z-modal: 3000;
+  --z-sheet: 4000;
+  --z-toast: 7000;
+}
+
+.bottom-nav { z-index: var(--z-nav) !important; }
+.notif-panel { z-index: var(--z-notif-panel) !important; }
+.modal-overlay { z-index: var(--z-modal) !important; }
+.tc-overlay,
+.pin-overlay,
+.onboarding-overlay { z-index: var(--z-sheet) !important; }
+.toast { z-index: var(--z-toast) !important; }
+
+.keyboard-open .bottom-nav,
+.keyboard-open .notif-panel,
+.keyboard-open #notifOverlay {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.keyboard-open .bottom-nav {
+  transform: translateY(130%) !important;
+}
+
+#appScreen.app-shell {
+  isolation: isolate;
+}
+
+@media (max-width: 959px) {
+  .keyboard-open .app-content {
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .keyboard-open #appScreen.screen-dashboard .app-header {
+    padding-bottom: 18px !important;
+  }
+}
+
+/* ── Desktop Classic Bank Layout v2 (web-like desktop workspace) ───────── */
+@media (min-width: 1200px) {
+  html.desktop-classic body {
+    overflow: hidden !important;
+    background:
+      radial-gradient(120% 100% at 106% -16%, rgba(196, 153, 67, 0.18) 0%, transparent 56%),
+      radial-gradient(110% 90% at -14% 120%, rgba(54, 87, 65, 0.22) 0%, transparent 62%),
+      linear-gradient(180deg, #e7eee7 0%, #dfe8e1 100%) !important;
+  }
+
+  html.desktop-classic #appScreen.app-shell {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 332px !important;
+    grid-template-rows: 116px 64px minmax(0, 1fr) !important;
+    gap: 16px !important;
+    padding: 16px !important;
+    min-height: 100vh !important;
+    height: 100vh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    background: transparent !important;
+    position: relative !important;
+  }
+
+  html.desktop-classic #appScreen.app-shell::before {
+    content: '' !important;
+    position: absolute !important;
+    inset: 16px !important;
+    border-radius: 22px !important;
+    background:
+      radial-gradient(150% 88% at 0% 0%, rgba(44, 72, 53, 0.16) 0%, rgba(44, 72, 53, 0) 58%),
+      radial-gradient(120% 90% at 100% 100%, rgba(180, 140, 62, 0.14) 0%, rgba(180, 140, 62, 0) 62%) !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+  }
+
+  html.desktop-classic .header-top,
+  html.desktop-classic .balance-block,
+  html.desktop-classic #sidebar.bottom-nav,
+  html.desktop-classic .quick-actions,
+  html.desktop-classic .app-content {
+    position: relative !important;
+    z-index: 1 !important;
+  }
+
+  html.desktop-classic .app-header {
+    display: contents !important;
+    position: static !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+  }
+
+  html.desktop-classic .header-top {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    padding: 16px 18px !important;
+    background: linear-gradient(135deg, #203727 0%, #2c4b37 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 12px 26px rgba(22, 39, 29, 0.24) !important;
+    min-height: 0 !important;
+    position: relative !important;
+    overflow: hidden !important;
+  }
+
+  html.desktop-classic .header-top::before {
+    content: '' !important;
+    position: absolute !important;
+    top: -20px !important;
+    right: -24px !important;
+    width: 200px !important;
+    height: 120px !important;
+    border-radius: 999px !important;
+    background: radial-gradient(ellipse at center, rgba(222, 183, 94, 0.3) 0%, rgba(222, 183, 94, 0) 72%) !important;
+    pointer-events: none !important;
+  }
+
+  html.desktop-classic .header-top .header-user {
+    min-width: 0 !important;
+  }
+
+  html.desktop-classic .header-top .header-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex: 0 0 auto !important;
+  }
+
+  html.desktop-classic .header-top .icon-btn {
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.11) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    color: #eef7ef !important;
+    transition: transform .18s ease, background .18s ease !important;
+  }
+
+  html.desktop-classic .header-top .icon-btn:hover {
+    transform: translateY(-1px) !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+  }
+
+  html.desktop-classic .header-name {
+    color: #f4fbf4 !important;
+    font-size: 24px !important;
+    line-height: 1.05 !important;
+  }
+
+  html.desktop-classic .header-role {
+    color: rgba(238, 249, 239, 0.76) !important;
+    font-size: 14px !important;
+  }
+
+  html.desktop-classic .balance-block {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    background: linear-gradient(145deg, #5a3f15 0%, #9a7030 52%, #3d2a0e 100%) !important;
+    border: 1px solid rgba(255, 228, 168, 0.22) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 12px 26px rgba(52, 34, 12, 0.3) !important;
+    padding: 14px 16px !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+  }
+
+  html.desktop-classic .balance-label,
+  html.desktop-classic .balance-amount,
+  html.desktop-classic #heroAccount {
+    color: #f4fbf4 !important;
+  }
+
+  html.desktop-classic .balance-label-row {
+    justify-content: flex-start !important;
+  }
+
+  html.desktop-classic #appScreen .balance-amount {
+    color: #f6fff6 !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em !important;
+    text-shadow: none !important;
+  }
+
+  html.desktop-classic #appScreen.app-loading #heroBalance,
+  html.desktop-classic #appScreen.app-loading #userName,
+  html.desktop-classic #appScreen.app-loading #heroAccount {
+    opacity: 0.78 !important;
+  }
+
+  html.desktop-classic .balance-label {
+    font-size: 10px !important;
+    letter-spacing: .11em !important;
+    opacity: .8 !important;
+  }
+
+  html.desktop-classic .balance-amount {
+    font-size: clamp(1.6rem, 1.95vw, 2.2rem) !important;
+    line-height: 1.04 !important;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav {
+    grid-column: 1 / 3 !important;
+    grid-row: 2 !important;
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 6px !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(41, 62, 48, 0.32) !important;
+    background: rgba(28, 44, 33, 0.68) !important;
+    box-shadow: 0 10px 20px rgba(20, 34, 21, 0.16) !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    transform: none !important;
+    opacity: 1 !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav::before,
+  html.desktop-classic #sidebar.bottom-nav::after {
+    content: none !important;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav.nav-hidden {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item {
+    min-height: 48px !important;
+    border-radius: 10px !important;
+    padding: 0 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    color: #e2efe3 !important;
+    transition: transform .18s ease, background .18s ease, border-color .18s ease !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item span {
+    display: inline !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: inherit !important;
+    opacity: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item svg {
+    width: 17px !important;
+    height: 17px !important;
+    stroke: currentColor !important;
+    opacity: 1 !important;
+    margin: 0 !important;
+    flex: 0 0 auto !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item.active {
+    background: linear-gradient(135deg, rgba(208, 227, 208, 0.94) 0%, rgba(235, 246, 226, 0.94) 100%) !important;
+    border: 1px solid #c9ddca !important;
+    color: #1f3327 !important;
+    box-shadow: 0 6px 14px rgba(15, 30, 20, 0.2) !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item:hover:not(.active) {
+    transform: translateY(-1px) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    border: 1px solid rgba(232, 243, 233, 0.24) !important;
+  }
+
+  html.desktop-classic .bank-cards-carousel {
+    display: none !important;
+  }
+
+  html.desktop-classic .bank-cards-track {
+    min-height: 176px !important;
+    height: 100% !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 2px 0 8px !important;
+  }
+
+  html.desktop-classic .bank-card {
+    flex: 0 0 340px !important;
+    width: 340px !important;
+    max-width: calc(100% - 8px) !important;
+    aspect-ratio: 85.6 / 54 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin-right: 0 !important;
+  }
+
+  html.desktop-classic .quick-actions {
+    grid-column: 2 !important;
+    grid-row: 3 !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(32, 52, 39, 0.35) !important;
+    background: linear-gradient(180deg, #1f3327 0%, #273f30 100%) !important;
+    box-shadow: 0 12px 24px rgba(18, 31, 23, 0.24) !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: auto repeat(2, minmax(84px, 98px)) minmax(132px, 1fr) !important;
+    gap: 10px !important;
+    align-content: stretch !important;
+    overflow: hidden !important;
+  }
+
+  html.desktop-classic .quick-actions::before {
+    content: 'Швидкі дії' !important;
+    grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
+    color: rgba(229, 241, 230, 0.92) !important;
+    font-size: 11px !important;
+    letter-spacing: .11em !important;
+    text-transform: uppercase !important;
+    font-weight: 800 !important;
+    margin: 2px 2px 4px !important;
+  }
+
+  html.desktop-classic .quick-actions::after {
+    content: 'ARM DESK' !important;
+    grid-column: 1 / -1 !important;
+    grid-row: 4 !important;
+    align-self: stretch !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(238, 245, 239, 0.16) !important;
+    background:
+      linear-gradient(150deg, rgba(234, 244, 235, 0.08) 0%, rgba(234, 244, 235, 0.03) 60%),
+      radial-gradient(80% 85% at 95% 5%, rgba(213, 171, 85, 0.2) 0%, rgba(213, 171, 85, 0) 75%) !important;
+    color: rgba(234, 245, 235, 0.78) !important;
+    font-family: "JetBrains Mono", monospace !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    letter-spacing: .14em !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    justify-content: flex-start !important;
+    padding: 14px !important;
+  }
+
+  html.desktop-classic .qa-btn {
+    min-height: 84px !important;
+    height: auto !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #f0f8f1 !important;
+    transition: transform .18s ease, background .18s ease, border-color .18s ease !important;
+  }
+
+  html.desktop-classic .quick-actions .qa-btn:nth-child(1) { grid-column: 1 !important; grid-row: 2 !important; }
+  html.desktop-classic .quick-actions .qa-btn:nth-child(2) { grid-column: 2 !important; grid-row: 2 !important; }
+  html.desktop-classic .quick-actions .qa-btn:nth-child(3) { grid-column: 1 !important; grid-row: 3 !important; }
+  html.desktop-classic .quick-actions .qa-btn:nth-child(4) { grid-column: 2 !important; grid-row: 3 !important; }
+
+  html.desktop-classic .qa-btn:hover {
+    transform: translateY(-1px) !important;
+    background: rgba(255, 255, 255, 0.16) !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+  }
+
+  html.desktop-classic .quick-actions .qa-icon {
+    background: rgba(244, 251, 245, 0.2) !important;
+    color: #f5fff6 !important;
+  }
+
+  html.desktop-classic .quick-actions .qa-btn svg,
+  html.desktop-classic .quick-actions .qa-icon svg {
+    stroke: currentColor !important;
+    opacity: 1 !important;
+  }
+
+  html.desktop-classic .quick-actions .qa-label {
+    color: #f0f9f0 !important;
+    font-weight: 700 !important;
+    opacity: 1 !important;
+  }
+
+  html.desktop-classic .quick-actions .qa-btn:nth-child(1) .qa-icon { background: linear-gradient(135deg, #2e8f56 0%, #1f6f43 100%) !important; }
+  html.desktop-classic .quick-actions .qa-btn:nth-child(2) .qa-icon { background: linear-gradient(135deg, #2f6fb0 0%, #23568c 100%) !important; }
+  html.desktop-classic .quick-actions .qa-btn:nth-child(3) .qa-icon { background: linear-gradient(135deg, #8b6b28 0%, #6f541f 100%) !important; }
+  html.desktop-classic .quick-actions .qa-btn:nth-child(4) .qa-icon { background: linear-gradient(135deg, #7f3f53 0%, #653245 100%) !important; }
+
+  html.desktop-classic .app-content {
+    grid-column: 1 !important;
+    grid-row: 3 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: auto !important;
+    overscroll-behavior: contain !important;
+    scrollbar-gutter: stable both-edges !important;
+    padding: 16px !important;
+    border-radius: 16px !important;
+    border: 1px solid #d4e0d6 !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbf7 100%) !important;
+    box-shadow: 0 8px 20px rgba(20, 34, 21, 0.08) !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .quick-actions {
+    display: none !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .app-content {
+    grid-column: 1 / 3 !important;
+  }
+
+  html.desktop-classic .screen {
+    max-width: none !important;
+    margin: 0 !important;
+  }
+
+  html.desktop-classic .section-title {
+    font-family: "Cormorant Garamond", serif !important;
+    font-size: clamp(34px, 3vw, 42px) !important;
+    line-height: 0.95 !important;
+    letter-spacing: 0.01em !important;
+    color: #203327 !important;
+    margin-bottom: 12px !important;
+  }
+
+  html.desktop-classic #dashboard {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.18fr) minmax(280px, .82fr) !important;
+    gap: 14px !important;
+    align-items: start !important;
+    position: relative !important;
+  }
+
+  html.desktop-classic #dashboard::before {
+    content: 'ARM DESK' !important;
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    justify-self: end !important;
+    align-self: center !important;
+    font-family: "JetBrains Mono", monospace !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: .16em !important;
+    color: rgba(34, 53, 41, 0.62) !important;
+    padding: 8px 12px !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(60, 91, 69, 0.22) !important;
+    background: rgba(249, 253, 249, 0.78) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+  }
+
+  html.desktop-classic #dashboard > .section-title {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    margin-bottom: 0 !important;
+  }
+
+  html.desktop-classic #dashboard #recentTransactionsCard {
+    grid-column: 1 !important;
+    grid-row: 2 / span 2 !important;
+    min-height: 360px !important;
+  }
+
+  html.desktop-classic #dashboard .month-strip {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    margin: 0 !important;
+  }
+
+  html.desktop-classic #dashboard #sparklineCard {
+    grid-column: 2 !important;
+    grid-row: 3 !important;
+    margin: 0 !important;
+  }
+
+  html.desktop-classic #dashboard .currency-card {
+    grid-column: 1 / -1 !important;
+  }
+
+  html.desktop-classic #dashboard #velocityCard,
+  html.desktop-classic #dashboard #topRecipientsCard,
+  html.desktop-classic #dashboard #budgetProgressCard,
+  html.desktop-classic #dashboard #dashboardActionForms {
+    grid-column: 1 / -1 !important;
+  }
+
+  html.desktop-classic #dashboard .card {
+    position: relative !important;
+    overflow: hidden !important;
+    border-color: #d7e2d8 !important;
+    box-shadow: 0 10px 20px rgba(24, 39, 29, 0.08) !important;
+  }
+
+  html.desktop-classic #dashboard .card::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 2px !important;
+    background: linear-gradient(90deg, rgba(48, 83, 61, 0.82) 0%, rgba(196, 154, 69, 0.76) 100%) !important;
+    pointer-events: none !important;
+  }
+
+  html.desktop-classic #dashboard .ms-item {
+    text-align: left !important;
+    border-radius: 14px !important;
+    padding: 12px 14px !important;
+    background: linear-gradient(180deg, #f4f8f3 0%, #ecf2ec 100%) !important;
+  }
+
+  html.desktop-classic #dashboard .ms-item.green {
+    border-color: rgba(39, 111, 66, 0.24) !important;
+  }
+
+  html.desktop-classic #dashboard .ms-item.red {
+    border-color: rgba(153, 56, 56, 0.24) !important;
+  }
+
+  html.desktop-classic .card-head h3 {
+    color: #253a2d !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  /* Cards screen (desktop): compact list rows instead of glossy card tiles */
+  html.desktop-classic #cards .cards-manage-list {
+    gap: 8px !important;
+  }
+
+  html.desktop-classic #cards .card-manage-item {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+    border: 1px solid #d9e2d6 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+
+  html.desktop-classic #cards .cmi-chip,
+  html.desktop-classic #cards .cmi-design {
+    display: none !important;
+  }
+
+  html.desktop-classic #cards .cmi-number {
+    margin: 0 !important;
+    font-size: 18px !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0.02em !important;
+    color: #1f3429 !important;
+  }
+
+  html.desktop-classic #cards .cmi-meta {
+    margin-top: 4px !important;
+    font-size: 12px !important;
+    color: #6a7c6d !important;
+  }
+
+  html.desktop-classic #cards .cmi-right {
+    gap: 8px !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-end !important;
+  }
+
+  html.desktop-classic #cards .cmi-actions {
+    margin-left: 0 !important;
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  html.desktop-classic #cards .btn-card-action {
+    min-height: 34px !important;
+    padding: 0 10px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* ── Final Stability Layer (Phase 1) ─────────────────────────────────────── */
+@media (max-width: 959px) {
+  #appScreen.app-shell {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 100dvh !important;
+    height: auto !important;
+  }
+
+  .app-header {
+    position: relative !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .app-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior-y: contain !important;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .bottom-nav {
+    position: fixed !important;
+    left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    max-width: 460px !important;
+    margin: 0 auto !important;
+    height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+    transform: translateY(0) !important;
+  }
+
+  /* Keep nav compositing cheap on mobile to avoid long-frame jank. */
+  .bottom-nav {
+    will-change: auto !important;
+  }
+
+  .bottom-nav.nav-hidden {
+    will-change: transform !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  html.desktop-classic #sidebar.bottom-nav {
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    transform: none !important;
+  }
+
+  html.desktop-classic .app-content {
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: auto !important;
+  }
+}
+
+/* Canonical 960-1199 layout guard to neutralize legacy cascade drift. */
+@media (min-width: 960px) and (max-width: 1199px) {
+  body {
+    overflow: hidden !important;
+  }
+
+  #appScreen.app-shell {
+    display: flex !important;
+    flex-direction: row !important;
+    min-height: 100dvh !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  .app-header {
+    width: 300px !important;
+    min-width: 300px !important;
+    height: 100dvh !important;
+    position: sticky !important;
+    top: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 20px 18px 14px !important;
+  }
+
+  #sidebar.bottom-nav {
+    position: sticky !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: auto !important;
+    right: auto !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin-top: auto !important;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    border-radius: 16px !important;
+    transform: none !important;
+  }
+
+  .quick-actions,
+  #dashboard .quick-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    padding: 8px 0 0 !important;
+  }
+
+  .quick-actions .qa-btn {
+    min-height: 84px !important;
+    padding: 12px 8px !important;
+  }
+
+  .quick-actions .qa-label,
+  #dashboard .quick-actions .qa-label {
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+    text-transform: none !important;
+  }
+
+  .app-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100dvh !important;
+    overflow: auto !important;
+    padding: 24px 28px 40px !important;
+  }
+}
+
+/* ── Premium Refinement Layer (contrast + premium composition) ─────────── */
+:root {
+  --ab-premium-ink: #edf5ef;
+  --ab-premium-ink-soft: rgba(237, 245, 239, 0.76);
+  --ab-premium-surface: #f6f8f4;
+}
+
+/* Account row under balance: always readable, including inline-opacity button. */
+#heroAccountCopyBtn {
+  opacity: 1 !important;
+  color: var(--ab-premium-ink-soft) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.03em !important;
+  line-height: 1.25 !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.28) !important;
+}
+
+#heroAccountCopyBtn:hover,
+#heroAccountCopyBtn:focus-visible {
+  color: var(--ab-premium-ink) !important;
+}
+
+#heroAccountCopyBtn svg,
+#heroAccount {
+  color: inherit !important;
+  stroke: currentColor !important;
+}
+
+/* Gentle render optimization for long dashboards on modern browsers. */
+.app-content .card {
+  content-visibility: auto;
+  contain-intrinsic-size: 320px;
+}
+
+@media (max-width: 959px) {
+  body {
+    background:
+      radial-gradient(120% 85% at 50% -12%, rgba(198, 158, 74, 0.2) 0%, rgba(198, 158, 74, 0) 52%),
+      linear-gradient(180deg, #ecf1eb 0%, #e6ede6 62%, #eef2ee 100%) !important;
+  }
+
+  #appScreen.screen-dashboard .app-header {
+    background:
+      radial-gradient(120% 88% at 86% -18%, rgba(214, 170, 74, 0.24) 0%, rgba(214, 170, 74, 0) 56%),
+      linear-gradient(160deg, #0f3d29 0%, #184631 55%, #103624 100%) !important;
+    border-bottom-left-radius: 30px !important;
+    border-bottom-right-radius: 30px !important;
+    box-shadow: 0 18px 38px rgba(9, 24, 16, 0.34) !important;
+  }
+
+  #appScreen.screen-dashboard .header-top {
+    margin-bottom: 6px !important;
+  }
+
+  #appScreen.screen-dashboard .header-name {
+    color: #f3faf3 !important;
+    letter-spacing: -0.01em !important;
+    font-size: clamp(1.6rem, 4vw, 2rem) !important;
+  }
+
+  #appScreen.screen-dashboard .header-role {
+    color: rgba(226, 237, 227, 0.8) !important;
+    font-size: 13px !important;
+  }
+
+  #appScreen.screen-dashboard .balance-label {
+    color: rgba(231, 241, 233, 0.86) !important;
+  }
+
+  #appScreen.screen-dashboard .balance-amount {
+    color: #f8fff8 !important;
+    text-shadow: 0 4px 20px rgba(5, 18, 11, 0.34) !important;
+    font-size: clamp(2.9rem, 14vw, 4.6rem) !important;
+  }
+
+  #appScreen.screen-dashboard #heroAccountCopyBtn {
+    margin-top: 8px !important;
+    padding: 6px 10px !important;
+    border-radius: 11px !important;
+    background: rgba(236, 246, 237, 0.1) !important;
+    border: 1px solid rgba(236, 246, 237, 0.17) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+
+  #appScreen.screen-dashboard .bank-cards-carousel {
+    margin-top: 8px !important;
+  }
+
+  #appScreen.screen-dashboard .bank-card {
+    border-radius: 24px !important;
+    box-shadow: 0 20px 40px rgba(6, 16, 10, 0.34) !important;
+  }
+
+  #appScreen.screen-dashboard .quick-actions {
+    margin-top: 8px !important;
+    gap: 12px !important;
+  }
+
+  #appScreen.screen-dashboard .qa-btn {
+    border-radius: 18px !important;
+    padding: 10px 8px !important;
+    border: 1px solid rgba(226, 239, 229, 0.2) !important;
+    background: linear-gradient(180deg, rgba(244, 251, 246, 0.19) 0%, rgba(244, 251, 246, 0.12) 100%) !important;
+    box-shadow: 0 10px 20px rgba(9, 26, 17, 0.22) !important;
+  }
+
+  #appScreen.screen-dashboard .qa-icon {
+    background: rgba(244, 251, 246, 0.24) !important;
+    border: 1px solid rgba(244, 251, 246, 0.24) !important;
+  }
+
+  #appScreen.screen-dashboard .qa-label {
+    color: rgba(240, 248, 241, 0.96) !important;
+    font-size: 11px !important;
+    font-weight: 650 !important;
+    text-transform: none !important;
+    letter-spacing: 0.01em !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar.bottom-nav {
+    background: rgba(248, 250, 247, 0.88) !important;
+    border: 1px solid rgba(47, 74, 55, 0.16) !important;
+    box-shadow: 0 16px 30px rgba(27, 47, 34, 0.16) !important;
+    backdrop-filter: blur(18px) saturate(155%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(155%) !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar .nav-item span {
+    font-weight: 650 !important;
+    letter-spacing: 0.01em !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  html.desktop-classic body {
+    background:
+      radial-gradient(100% 120% at 12% 0%, rgba(214, 176, 97, 0.14) 0%, rgba(214, 176, 97, 0) 55%),
+      radial-gradient(115% 140% at 100% 100%, rgba(52, 90, 66, 0.16) 0%, rgba(52, 90, 66, 0) 62%),
+      linear-gradient(180deg, #e8eee8 0%, #e3e9e3 100%) !important;
+  }
+
+  html.desktop-classic.ab-authed #appScreen {
+    width: min(1520px, calc(100vw - 28px)) !important;
+    min-height: calc(100vh - 28px) !important;
+    height: calc(100vh - 28px) !important;
+    margin: 14px auto !important;
+    border-radius: 24px !important;
+    border: 1px solid rgba(49, 77, 59, 0.16) !important;
+    box-shadow: 0 24px 46px rgba(16, 33, 23, 0.14) !important;
+    overflow: hidden !important;
+    padding: 14px !important;
+    gap: 12px !important;
+    grid-template-columns: minmax(0, 1fr) 344px !important;
+    grid-template-rows: 112px 60px minmax(0, 1fr) !important;
+  }
+
+  html.desktop-classic .app-header {
+    border-radius: 18px !important;
+    border: 1px solid rgba(240, 249, 241, 0.18) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 14px 28px rgba(14, 29, 20, 0.2) !important;
+  }
+
+  html.desktop-classic .header-name {
+    font-size: 26px !important;
+    letter-spacing: -0.012em !important;
+  }
+
+  html.desktop-classic .header-role {
+    color: rgba(235, 245, 236, 0.78) !important;
+  }
+
+  html.desktop-classic .balance-block {
+    border-radius: 16px !important;
+    background:
+      radial-gradient(130% 110% at 92% -8%, rgba(233, 199, 122, 0.28) 0%, rgba(233, 199, 122, 0) 58%),
+      linear-gradient(155deg, #284f37 0%, #325c41 45%, #1f3d2b 100%) !important;
+    border: 1px solid rgba(234, 247, 235, 0.16) !important;
+    box-shadow: 0 14px 28px rgba(20, 37, 27, 0.24) !important;
+  }
+
+  html.desktop-classic #heroAccountCopyBtn {
+    color: rgba(238, 249, 238, 0.88) !important;
+  }
+
+  html.desktop-classic #dashboard::before,
+  html.desktop-classic .quick-actions::after {
+    content: none !important;
+  }
+
+  html.desktop-classic .quick-actions {
+    padding: 12px !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(39, 61, 47, 0.28) !important;
+    background: linear-gradient(180deg, #1f3327 0%, #263d2f 100%) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: auto repeat(2, minmax(90px, auto)) !important;
+    gap: 10px !important;
+  }
+
+  html.desktop-classic .quick-actions::before {
+    margin: 0 0 2px !important;
+    color: rgba(228, 240, 229, 0.85) !important;
+    letter-spacing: 0.1em !important;
+  }
+
+  html.desktop-classic .qa-btn {
+    min-height: 90px !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(240, 250, 241, 0.14) !important;
+    background: linear-gradient(180deg, rgba(240, 250, 241, 0.13) 0%, rgba(240, 250, 241, 0.08) 100%) !important;
+  }
+
+  html.desktop-classic .qa-btn:hover {
+    transform: translateY(-1px) !important;
+    background: linear-gradient(180deg, rgba(244, 252, 246, 0.2) 0%, rgba(244, 252, 246, 0.12) 100%) !important;
+  }
+
+  html.desktop-classic .qa-label {
+    text-transform: none !important;
+    letter-spacing: 0.01em !important;
+    font-size: 12px !important;
+    font-weight: 650 !important;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav {
+    border-radius: 14px !important;
+    border: 1px solid rgba(39, 62, 48, 0.26) !important;
+    background: rgba(27, 42, 32, 0.72) !important;
+    box-shadow: 0 8px 18px rgba(18, 29, 21, 0.18) !important;
+  }
+
+  html.desktop-classic .app-content {
+    background: var(--ab-premium-surface) !important;
+    border: 1px solid rgba(46, 75, 55, 0.14) !important;
+    box-shadow: 0 10px 24px rgba(16, 32, 23, 0.08) !important;
+  }
+
+  html.desktop-classic .section-title {
+    font-size: clamp(32px, 2.5vw, 40px) !important;
+    margin-bottom: 10px !important;
+  }
+}
+
+@media (min-width: 960px) and (max-width: 1199px) {
+  .bank-cards-track {
+    gap: 12px !important;
+    padding-top: 2px !important;
+  }
+
+  .bank-card {
+    flex: 0 0 min(340px, calc(50vw - 34px)) !important;
+    width: min(340px, calc(50vw - 34px)) !important;
+    aspect-ratio: 85.6 / 54 !important;
+    min-height: 186px !important;
+    max-height: none !important;
+    margin-right: 0 !important;
+  }
+}
+
+/* ── Premium Direction 1: Luxe Fintech pass ─────────────────────────────── */
+:root {
+  --ab-luxe-gold: #ceb06f;
+  --ab-luxe-gold-soft: rgba(206, 176, 111, 0.22);
+  --ab-luxe-ink: #223429;
+  --ab-luxe-surface: #f9fbf8;
+  --ab-luxe-surface-2: #f2f6f1;
+}
+
+#appScreen.screen-dashboard .card {
+  border-radius: 18px !important;
+  border: 1px solid rgba(45, 74, 54, 0.1) !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f7faf7 100%) !important;
+  box-shadow: 0 8px 20px rgba(15, 31, 21, 0.06) !important;
+}
+
+#appScreen.screen-dashboard .card-head h3,
+#appScreen.screen-dashboard .section-title {
+  color: var(--ab-luxe-ink) !important;
+}
+
+#appScreen.screen-dashboard .chip,
+#appScreen.screen-dashboard .badge,
+#appScreen.screen-dashboard .tag-chip {
+  border-radius: 999px !important;
+}
+
+@media (max-width: 959px) {
+  #appScreen.screen-dashboard .app-header {
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #appScreen.screen-dashboard .balance-block {
+    padding-bottom: 18px !important;
+  }
+
+  #appScreen.screen-dashboard .balance-label-row {
+    gap: 10px !important;
+  }
+
+  #appScreen.screen-dashboard #toggleBalanceBtn {
+    opacity: 0.8 !important;
+    color: rgba(242, 251, 244, 0.84) !important;
+  }
+
+  #appScreen.screen-dashboard .bank-card {
+    border: 1px solid rgba(245, 233, 198, 0.24) !important;
+  }
+
+  #appScreen.screen-dashboard .bank-card-gold {
+    box-shadow: 0 24px 46px rgba(11, 22, 15, 0.36), 0 0 0 1px rgba(214, 183, 109, 0.34) !important;
+  }
+
+  #appScreen.screen-dashboard .bank-card-dark,
+  #appScreen.screen-dashboard .bank-card-navy {
+    box-shadow: 0 24px 46px rgba(8, 18, 25, 0.36), 0 0 0 1px rgba(122, 150, 206, 0.28) !important;
+  }
+
+  #appScreen.screen-dashboard .quick-actions {
+    padding-inline: 4px !important;
+  }
+
+  #appScreen.screen-dashboard .qa-btn {
+    min-height: 92px !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar.bottom-nav .nav-item.active {
+    background: linear-gradient(180deg, #f7fbf7 0%, #edf4ee 100%) !important;
+    border: 1px solid rgba(46, 75, 55, 0.2) !important;
+    color: #22372a !important;
+    box-shadow: 0 4px 10px rgba(23, 41, 30, 0.12) !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar.bottom-nav .nav-item:not(.active) {
+    color: rgba(33, 54, 41, 0.68) !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  html.desktop-classic.ab-authed #appScreen {
+    grid-template-columns: minmax(0, 1fr) 356px !important;
+    grid-template-rows: 114px 60px minmax(0, 1fr) !important;
+    gap: 14px !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.2) 100%),
+      linear-gradient(180deg, #edf3ee 0%, #e6ece7 100%) !important;
+  }
+
+  html.desktop-classic .header-top .icon-btn {
+    border-radius: 12px !important;
+    border: 1px solid rgba(248, 253, 249, 0.22) !important;
+    background: linear-gradient(180deg, rgba(248, 253, 249, 0.16) 0%, rgba(248, 253, 249, 0.08) 100%) !important;
+  }
+
+  html.desktop-classic .balance-label {
+    color: rgba(239, 249, 240, 0.8) !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  html.desktop-classic .balance-amount {
+    font-size: clamp(1.75rem, 2.1vw, 2.36rem) !important;
+  }
+
+  html.desktop-classic #heroAccountCopyBtn {
+    border: 1px solid rgba(236, 247, 237, 0.24) !important;
+    border-radius: 10px !important;
+    padding: 5px 9px !important;
+    background: rgba(236, 247, 237, 0.08) !important;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav {
+    gap: 8px !important;
+    padding: 8px !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item {
+    min-height: 50px !important;
+    border-radius: 11px !important;
+    font-weight: 700 !important;
+    text-transform: none !important;
+    letter-spacing: 0.01em !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item.active {
+    background: linear-gradient(180deg, #f7fbf7 0%, #edf4ee 100%) !important;
+    border: 1px solid rgba(45, 74, 54, 0.24) !important;
+    box-shadow: 0 6px 12px rgba(19, 34, 25, 0.14) !important;
+  }
+
+  html.desktop-classic .app-content {
+    border-radius: 16px !important;
+    padding: 18px !important;
+    background:
+      radial-gradient(120% 80% at 98% -16%, var(--ab-luxe-gold-soft) 0%, rgba(206, 176, 111, 0) 58%),
+      var(--ab-luxe-surface) !important;
+  }
+
+  html.desktop-classic #dashboard {
+    grid-template-columns: minmax(0, 1.24fr) minmax(286px, 0.76fr) !important;
+    gap: 16px !important;
+  }
+
+  html.desktop-classic #dashboard #recentTransactionsCard {
+    min-height: 390px !important;
+  }
+
+  html.desktop-classic #dashboard .card {
+    border: 1px solid rgba(42, 70, 51, 0.1) !important;
+    box-shadow: 0 10px 22px rgba(16, 32, 23, 0.08) !important;
+  }
+
+  html.desktop-classic #dashboard .card::before {
+    height: 1px !important;
+    background: linear-gradient(90deg, rgba(68, 104, 79, 0.5) 0%, rgba(206, 176, 111, 0.56) 100%) !important;
+  }
+
+  html.desktop-classic .ms-item {
+    border-radius: 12px !important;
+    border: 1px solid rgba(44, 73, 53, 0.09) !important;
+    background: linear-gradient(180deg, var(--ab-luxe-surface) 0%, var(--ab-luxe-surface-2) 100%) !important;
+  }
+}
+
+/* ── iPhone Fit & Finish (mobile dashboard) ─────────────────────────────── */
+@media (max-width: 767px) {
+  #appScreen.screen-dashboard.app-shell {
+    padding-top: 0 !important;
+  }
+
+  #appScreen.screen-dashboard .app-header {
+    padding-top: max(20px, env(safe-area-inset-top, 0px)) !important;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(16px, env(safe-area-inset-right, 0px)) !important;
+    padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px)) !important;
+    border-bottom-left-radius: 34px !important;
+    border-bottom-right-radius: 34px !important;
+  }
+
+  #appScreen.screen-dashboard .header-top {
+    align-items: flex-start !important;
+    gap: 8px !important;
+    padding: 6px 0 12px !important;
+  }
+
+  #appScreen.screen-dashboard .header-user {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    gap: 10px !important;
+  }
+
+  #appScreen.screen-dashboard .header-actions {
+    gap: 6px !important;
+    flex: 0 0 auto !important;
+  }
+
+  #appScreen.screen-dashboard .icon-btn {
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    border-radius: 11px !important;
+  }
+
+  #appScreen.screen-dashboard .header-info {
+    max-width: calc(100vw - 184px) !important;
+  }
+
+  #appScreen.screen-dashboard .header-name {
+    font-size: clamp(1.16rem, 5.2vw, 1.5rem) !important;
+    line-height: 1.06 !important;
+    letter-spacing: -0.014em !important;
+  }
+
+  #appScreen.screen-dashboard .header-role {
+    font-size: 12px !important;
+    opacity: 0.92 !important;
+  }
+
+  #appScreen.screen-dashboard .balance-label {
+    font-size: 11px !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  #appScreen.screen-dashboard .balance-amount {
+    font-size: clamp(2.6rem, 14.2vw, 4.2rem) !important;
+    line-height: 0.98 !important;
+  }
+
+  #appScreen.screen-dashboard #heroAccountCopyBtn {
+    margin-top: 10px !important;
+    padding: 7px 12px !important;
+    border-radius: 12px !important;
+    font-size: 12px !important;
+  }
+
+  /* Card clipping fix: remove conflicting vw math and align to header width. */
+  #appScreen.screen-dashboard .bank-cards-carousel {
+    margin: 10px 0 0 !important;
+    overflow: visible !important;
+  }
+
+  #appScreen.screen-dashboard .bank-cards-track {
+    gap: 12px !important;
+    padding: 2px 0 18px !important;
+    scroll-padding-left: 0 !important;
+    scroll-padding-right: 0 !important;
+  }
+
+  #appScreen.screen-dashboard .bank-cards-track .bank-card,
+  #appScreen.screen-dashboard .bank-card {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin-right: 0 !important;
+    aspect-ratio: 85.6 / 54 !important;
+    border-radius: 24px !important;
+  }
+
+  #appScreen.screen-dashboard .bank-card-content {
+    padding: 16px 18px 14px !important;
+  }
+
+  #appScreen.screen-dashboard .quick-actions {
+    margin-top: 10px !important;
+    padding-inline: 0 !important;
+    gap: 10px !important;
+  }
+
+  #appScreen.screen-dashboard .qa-btn {
+    min-height: 88px !important;
+    border-radius: 18px !important;
+    background: linear-gradient(180deg, rgba(245, 252, 247, 0.2) 0%, rgba(245, 252, 247, 0.12) 100%) !important;
+  }
+
+  #appScreen.screen-dashboard .qa-icon {
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 15px !important;
+  }
+
+  #appScreen.screen-dashboard .qa-label {
+    font-size: 10px !important;
+    font-weight: 650 !important;
+    letter-spacing: 0.01em !important;
+  }
+}
+
+/* ── iPhone Premium Banking Pass v2 ─────────────────────────────────────── */
+@media (max-width: 767px) {
+  #appScreen.screen-dashboard .app-header {
+    background:
+      radial-gradient(140% 92% at 88% -22%, rgba(226, 186, 97, 0.2) 0%, rgba(226, 186, 97, 0) 54%),
+      radial-gradient(128% 78% at 4% 100%, rgba(55, 112, 83, 0.24) 0%, rgba(55, 112, 83, 0) 60%),
+      linear-gradient(158deg, #0e3f2a 0%, #124631 52%, #0c3724 100%) !important;
+    box-shadow: 0 22px 42px rgba(7, 22, 14, 0.36) !important;
+  }
+
+  .os-ios #appScreen.screen-dashboard .app-header {
+    padding-top: max(52px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
+  }
+
+  #appScreen.screen-dashboard .avatar {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 50% !important;
+    border: 1px solid rgba(233, 244, 235, 0.42) !important;
+    background: rgba(233, 244, 235, 0.1) !important;
+  }
+
+  #appScreen.screen-dashboard .header-name {
+    color: #f3fbf4 !important;
+    text-shadow: 0 2px 14px rgba(5, 17, 10, 0.22) !important;
+  }
+
+  #appScreen.screen-dashboard .header-role {
+    color: rgba(226, 239, 229, 0.8) !important;
+  }
+
+  #appScreen.screen-dashboard .balance-block {
+    text-align: center !important;
+  }
+
+  #appScreen.screen-dashboard #heroAccountCopyBtn {
+    background: linear-gradient(180deg, rgba(239, 248, 240, 0.13) 0%, rgba(239, 248, 240, 0.08) 100%) !important;
+    border-color: rgba(239, 248, 240, 0.2) !important;
+  }
+
+  #appScreen.screen-dashboard .bank-cards-track {
+    gap: 14px !important;
+    padding-bottom: 20px !important;
+  }
+
+  #appScreen.screen-dashboard .bank-card {
+    border: 1px solid rgba(236, 244, 237, 0.18) !important;
+    box-shadow: 0 24px 46px rgba(6, 18, 11, 0.34) !important;
+  }
+
+  #appScreen.screen-dashboard .bank-card-number {
+    font-size: clamp(15px, 4.8vw, 18px) !important;
+    letter-spacing: 0.16em !important;
+  }
+
+  #appScreen.screen-dashboard .bank-card-label {
+    font-size: 9px !important;
+    opacity: 0.72 !important;
+  }
+
+  #appScreen.screen-dashboard .bank-card-name,
+  #appScreen.screen-dashboard .bank-card-date {
+    font-size: 13px !important;
+    letter-spacing: 0.04em !important;
+  }
+
+  #appScreen.screen-dashboard .quick-actions {
+    gap: 11px !important;
+    margin-top: 12px !important;
+  }
+
+  #appScreen.screen-dashboard .qa-btn {
+    border: 1px solid rgba(236, 247, 238, 0.24) !important;
+    box-shadow: 0 12px 22px rgba(10, 29, 19, 0.2) !important;
+  }
+
+  #appScreen.screen-dashboard .qa-icon {
+    background: linear-gradient(180deg, rgba(241, 250, 243, 0.24) 0%, rgba(241, 250, 243, 0.16) 100%) !important;
+    border: 1px solid rgba(241, 250, 243, 0.22) !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar.bottom-nav {
+    left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(70px + env(safe-area-inset-bottom, 0px)) !important;
+    height: auto !important;
+    padding: 6px 6px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    border-radius: 28px !important;
+    background: rgba(244, 248, 243, 0.9) !important;
+    border: 1px solid rgba(50, 79, 59, 0.16) !important;
+    box-shadow: 0 18px 34px rgba(20, 39, 28, 0.18) !important;
+    backdrop-filter: blur(20px) saturate(165%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(165%) !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar .nav-item {
+    min-height: 54px !important;
+    border-radius: 16px !important;
+    padding: 6px 4px !important;
+    gap: 3px !important;
+    border: 1px solid transparent !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar .nav-item svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar .nav-item span {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.01em !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar .nav-item.active {
+    background: linear-gradient(180deg, #ffffff 0%, #f3f8f3 100%) !important;
+    border: 1px solid rgba(50, 78, 58, 0.2) !important;
+    box-shadow: 0 7px 12px rgba(20, 39, 29, 0.12) !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar .nav-item.active::after {
+    content: none !important;
+  }
+}
+
+/* ── Desktop Signature 2026 (modern premium visual language) ───────────── */
+@media (min-width: 1200px) {
+  html.desktop-classic body {
+    background:
+      radial-gradient(120% 140% at 8% -10%, rgba(219, 184, 110, 0.2) 0%, rgba(219, 184, 110, 0) 56%),
+      radial-gradient(130% 160% at 100% 100%, rgba(44, 86, 62, 0.22) 0%, rgba(44, 86, 62, 0) 58%),
+      linear-gradient(180deg, #e7eee8 0%, #e1e9e2 100%) !important;
+  }
+
+  html.desktop-classic.ab-authed #appScreen {
+    width: min(1540px, calc(100vw - 24px)) !important;
+    min-height: calc(100vh - 24px) !important;
+    height: calc(100vh - 24px) !important;
+    margin: 12px auto !important;
+    padding: 14px !important;
+    gap: 14px !important;
+    border-radius: 26px !important;
+    border: 1px solid rgba(43, 74, 55, 0.15) !important;
+    box-shadow: 0 28px 54px rgba(15, 31, 22, 0.15) !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.18) 100%),
+      linear-gradient(180deg, #edf3ee 0%, #e4ebe5 100%) !important;
+    grid-template-columns: minmax(0, 1fr) 362px !important;
+    grid-template-rows: 114px 62px minmax(0, 1fr) !important;
+  }
+
+  html.desktop-classic .app-header {
+    border-radius: 18px !important;
+    background:
+      radial-gradient(130% 96% at 88% -28%, rgba(218, 182, 102, 0.24) 0%, rgba(218, 182, 102, 0) 56%),
+      linear-gradient(154deg, #173f2b 0%, #1f4f37 54%, #153826 100%) !important;
+    border: 1px solid rgba(238, 248, 239, 0.16) !important;
+    box-shadow: 0 16px 30px rgba(13, 29, 20, 0.24) !important;
+  }
+
+  html.desktop-classic .header-top .icon-btn {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+
+  html.desktop-classic .app-content {
+    border-radius: 18px !important;
+    border: 1px solid rgba(43, 73, 54, 0.14) !important;
+    background:
+      radial-gradient(112% 72% at 100% -10%, rgba(208, 176, 104, 0.12) 0%, rgba(208, 176, 104, 0) 56%),
+      linear-gradient(180deg, #f9fcf8 0%, #f3f7f3 100%) !important;
+    box-shadow: 0 12px 26px rgba(15, 31, 22, 0.1) !important;
+    padding: 20px !important;
+  }
+
+  html.desktop-classic .section-title {
+    font-size: clamp(34px, 2.6vw, 42px) !important;
+    line-height: 0.96 !important;
+    margin-bottom: 12px !important;
+    letter-spacing: 0.01em !important;
+    color: #1f3429 !important;
+  }
+
+  html.desktop-classic #dashboard {
+    grid-template-columns: minmax(0, 1.26fr) minmax(300px, 0.74fr) !important;
+    gap: 16px !important;
+  }
+
+  html.desktop-classic #dashboard .card {
+    border-radius: 16px !important;
+    border: 1px solid rgba(44, 75, 55, 0.1) !important;
+    box-shadow: 0 10px 20px rgba(15, 30, 22, 0.08) !important;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease !important;
+  }
+
+  html.desktop-classic #dashboard .card:hover {
+    transform: translateY(-2px) !important;
+    border-color: rgba(60, 94, 72, 0.2) !important;
+    box-shadow: 0 16px 30px rgba(15, 30, 22, 0.12) !important;
+  }
+
+  html.desktop-classic #dashboard .card::before {
+    height: 1px !important;
+    background: linear-gradient(90deg, rgba(54, 86, 66, 0.46) 0%, rgba(206, 175, 104, 0.56) 100%) !important;
+  }
+
+  html.desktop-classic #dashboard #recentTransactionsCard {
+    min-height: 420px !important;
+  }
+
+  html.desktop-classic .ms-item {
+    border-radius: 13px !important;
+    border: 1px solid rgba(45, 74, 54, 0.1) !important;
+    background: linear-gradient(180deg, #fbfdfb 0%, #f1f6f1 100%) !important;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav {
+    border-radius: 15px !important;
+    border: 1px solid rgba(40, 64, 49, 0.24) !important;
+    background: rgba(23, 39, 30, 0.72) !important;
+    box-shadow: 0 10px 20px rgba(15, 28, 20, 0.2) !important;
+    backdrop-filter: blur(10px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item {
+    border-radius: 11px !important;
+    border: 1px solid transparent !important;
+    min-height: 50px !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item:hover:not(.active) {
+    border-color: rgba(232, 244, 234, 0.2) !important;
+    background: rgba(240, 248, 241, 0.14) !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item.active {
+    background: linear-gradient(180deg, #fbfefb 0%, #eef5ef 100%) !important;
+    border: 1px solid rgba(46, 74, 55, 0.22) !important;
+    box-shadow: 0 8px 14px rgba(17, 30, 22, 0.14) !important;
+  }
+
+  html.desktop-classic .quick-actions {
+    border-radius: 16px !important;
+    border: 1px solid rgba(36, 60, 46, 0.3) !important;
+    background:
+      radial-gradient(120% 90% at 90% -20%, rgba(218, 184, 104, 0.18) 0%, rgba(218, 184, 104, 0) 56%),
+      linear-gradient(180deg, #1e3327 0%, #263d2f 100%) !important;
+    box-shadow: 0 14px 26px rgba(15, 29, 21, 0.24) !important;
+  }
+
+  html.desktop-classic .quick-actions::before {
+    color: rgba(232, 242, 233, 0.88) !important;
+    letter-spacing: 0.11em !important;
+  }
+
+  html.desktop-classic .qa-btn {
+    border-radius: 13px !important;
+    border: 1px solid rgba(242, 251, 243, 0.16) !important;
+    background: linear-gradient(180deg, rgba(242, 251, 243, 0.14) 0%, rgba(242, 251, 243, 0.08) 100%) !important;
+    box-shadow: none !important;
+  }
+
+  html.desktop-classic .qa-btn:hover {
+    transform: translateY(-1px) !important;
+    border-color: rgba(242, 251, 243, 0.28) !important;
+    background: linear-gradient(180deg, rgba(245, 253, 246, 0.2) 0%, rgba(245, 253, 246, 0.12) 100%) !important;
+  }
+
+  html.desktop-classic .qa-label {
+    font-size: 12px !important;
+    font-weight: 680 !important;
+    color: #f2faf3 !important;
+  }
+}
+
+/* ── Final Fit Pass (mobile bottom + desktop subsection harmony) ───────── */
+@media (max-width: 767px) {
+  #appScreen.screen-dashboard .app-header {
+    padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #appScreen.screen-dashboard .quick-actions {
+    margin-bottom: 20px !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar.bottom-nav {
+    min-height: 74px !important;
+    height: auto !important;
+    padding: 4px 6px max(6px, min(10px, env(safe-area-inset-bottom, 0px))) !important;
+    border-radius: 22px !important;
+    box-shadow: 0 14px 24px rgba(19, 35, 26, 0.16) !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar .nav-item {
+    min-height: 46px !important;
+    padding: 4px 2px 5px !important;
+    border-radius: 12px !important;
+  }
+
+  #appScreen.screen-dashboard #sidebar .nav-item span {
+    font-size: 10px !important;
+    letter-spacing: 0 !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  /* Sub-screens: remove stretched controls and restore visual rhythm */
+  html.desktop-classic #appScreen:not(.screen-dashboard) .app-content {
+    padding: 22px 28px 34px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen {
+    max-width: 1120px !important;
+    margin: 0 auto !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen > .section-header-row,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen > .card,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen > .cards-row {
+    max-width: 1040px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .cards-row {
+    gap: 14px !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .card {
+    border-radius: 14px !important;
+    padding: 16px 16px 14px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .form-compact,
+  html.desktop-classic #appScreen:not(.screen-dashboard) form:not(.auth-form):not(#loginForm):not(#registerForm) {
+    max-width: 640px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl input,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl select,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl textarea {
+    min-height: 44px !important;
+    border-radius: 10px !important;
+    padding: 10px 12px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .btn-primary,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .btn-accent,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .btn-ghost,
+  html.desktop-classic #appScreen:not(.screen-dashboard) button[type="submit"] {
+    width: auto !important;
+    min-width: 160px !important;
+    max-width: 320px !important;
+    min-height: 42px !important;
+    padding: 10px 16px !important;
+    border-radius: 11px !important;
+    align-self: flex-start !important;
+    justify-content: center !important;
+  }
+
+  html.desktop-classic #transactionsFilters.filters-row {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto !important;
+    gap: 10px !important;
+    align-items: end !important;
+  }
+}
+
+/* ── Desktop Screen-Stack Guard (prevents mixed-screen overlays) ───────── */
+@media (min-width: 1200px) {
+  html.desktop-classic #appScreen .app-content {
+    position: relative !important;
+    isolation: isolate !important;
+  }
+
+  html.desktop-classic #appScreen .screen {
+    display: none !important;
+    position: relative !important;
+    inset: auto !important;
+    z-index: auto !important;
+    opacity: 1 !important;
+    transform: none !important;
+    pointer-events: auto !important;
+  }
+
+  html.desktop-classic #appScreen .screen.active-screen {
+    display: block !important;
+    z-index: 2 !important;
+  }
+
+  html.desktop-classic #appScreen .screen.screen-exit,
+  html.desktop-classic #appScreen .screen-exit,
+  html.desktop-classic #appScreen .screen-exit-ltr,
+  html.desktop-classic #appScreen .screen-exit-rtl {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+}
+
+/* ── Install Banner Harmonization (non-blocking on mobile) ─────────────── */
+html.install-banner-visible #appScreen .app-content {
+  padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important;
+  scroll-padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+@media (max-width: 767px) {
+  .install-banner {
+    left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 16px) !important;
+    padding: 10px 12px !important;
+    gap: 8px !important;
+    border-radius: 12px !important;
+    z-index: 1800 !important;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35) !important;
+  }
+
+  .install-banner-icon {
+    font-size: 18px !important;
+  }
+
+  .install-banner-text b {
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+  }
+
+  .install-banner-text span {
+    display: block !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    margin-top: 2px !important;
+    color: rgba(226, 239, 231, 0.9) !important;
+  }
+
+  .install-banner-btn {
+    padding: 9px 12px !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    border-radius: 10px !important;
+  }
+
+  .install-banner-close {
+    width: 22px !important;
+    height: 22px !important;
+  }
+}
+
+/* ── Desktop Harmony Pass (final) ─────────────────────────────────────── */
+@media (min-width: 1200px) {
+  html.desktop-classic.ab-authed #appScreen.app-shell {
+    width: min(1540px, calc(100vw - 26px)) !important;
+    min-height: calc(100vh - 26px) !important;
+    height: calc(100vh - 26px) !important;
+    margin: 13px auto !important;
+    padding: 12px !important;
+    gap: 12px !important;
+    grid-template-columns: minmax(0, 1fr) 328px !important;
+    grid-template-rows: 98px 56px auto minmax(0, 1fr) !important;
+    border-radius: 24px !important;
+    border: 1px solid rgba(47, 75, 56, 0.15) !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.48) 0%, rgba(255, 255, 255, 0.2) 100%),
+      linear-gradient(180deg, #ecf2ed 0%, #e4ebe5 100%) !important;
+    box-shadow: 0 26px 50px rgba(15, 33, 23, 0.14) !important;
+  }
+
+  html.desktop-classic .header-top {
+    border-radius: 16px !important;
+    padding: 14px 16px !important;
+  }
+
+  html.desktop-classic .header-name {
+    font-size: clamp(1.95rem, 2.15vw, 2.4rem) !important;
+    letter-spacing: -0.016em !important;
+  }
+
+  html.desktop-classic .balance-block {
+    border-radius: 16px !important;
+    padding: 12px 14px !important;
+    background:
+      radial-gradient(140% 110% at 92% -10%, rgba(224, 191, 114, 0.2) 0%, rgba(224, 191, 114, 0) 58%),
+      linear-gradient(145deg, #244c35 0%, #2e5a3f 50%, #1c3d2a 100%) !important;
+  }
+
+  html.desktop-classic #sidebar.bottom-nav {
+    padding: 7px !important;
+    gap: 8px !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(44, 67, 52, 0.26) !important;
+    background: rgba(33, 51, 39, 0.72) !important;
+    box-shadow: 0 10px 20px rgba(16, 30, 21, 0.16) !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item {
+    min-height: 42px !important;
+    border-radius: 10px !important;
+    padding: 0 10px !important;
+    gap: 7px !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item span {
+    font-size: 13px !important;
+    letter-spacing: 0.01em !important;
+  }
+
+  html.desktop-classic #sidebar .nav-item.active {
+    background: linear-gradient(180deg, #ffffff 0%, #f2f7f2 100%) !important;
+    border: 1px solid rgba(43, 71, 52, 0.2) !important;
+    box-shadow: 0 7px 13px rgba(16, 31, 22, 0.14) !important;
+  }
+
+  html.desktop-classic .app-content {
+    grid-column: 1 / 3 !important;
+    grid-row: 4 !important;
+    border-radius: 16px !important;
+    padding: 14px 16px 18px !important;
+    border: 1px solid rgba(45, 73, 54, 0.14) !important;
+    background: linear-gradient(180deg, #fbfdfb 0%, #f4f8f4 100%) !important;
+    box-shadow: 0 10px 24px rgba(16, 33, 23, 0.08) !important;
+  }
+
+  html.desktop-classic #dashboard #recentTransactionsCard {
+    min-height: 280px !important;
+  }
+
+  html.desktop-classic .quick-actions {
+    grid-column: 1 / 3 !important;
+    grid-row: 3 !important;
+    align-self: stretch !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 10px 12px !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(36, 60, 46, 0.3) !important;
+    background:
+      radial-gradient(120% 92% at 90% -18%, rgba(216, 182, 102, 0.16) 0%, rgba(216, 182, 102, 0) 58%),
+      linear-gradient(180deg, #1f3327 0%, #263d2f 100%) !important;
+    box-shadow: 0 14px 28px rgba(15, 29, 21, 0.22) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-template-rows: auto minmax(78px, auto) !important;
+    gap: 8px !important;
+    align-content: stretch !important;
+  }
+
+  html.desktop-classic .quick-actions::before {
+    grid-column: 1 / -1 !important;
+    margin: 0 0 2px !important;
+    color: rgba(231, 242, 233, 0.88) !important;
+    letter-spacing: 0.1em !important;
+  }
+
+  html.desktop-classic .quick-actions::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  html.desktop-classic .quick-actions .qa-btn:nth-child(n) {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  html.desktop-classic .qa-btn {
+    min-height: 78px !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(242, 251, 243, 0.14) !important;
+    background: linear-gradient(180deg, rgba(242, 251, 243, 0.14) 0%, rgba(242, 251, 243, 0.08) 100%) !important;
+    padding: 8px 6px !important;
+  }
+
+  html.desktop-classic .qa-icon {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  html.desktop-classic .qa-label {
+    text-transform: none !important;
+    font-size: 11px !important;
+    font-weight: 680 !important;
+    letter-spacing: 0.01em !important;
+  }
+}
+
+/* ── Desktop Cockpit (reference-style rebuild) ─────────────────────────── */
+@media (min-width: 1200px) {
+  html.desktop-cockpit body {
+    background: #eef2f8 !important;
+    overflow: hidden !important;
+  }
+
+  html.desktop-cockpit.ab-authed #appScreen.app-shell {
+    display: grid !important;
+    grid-template-columns: 262px minmax(0, 1fr) !important;
+    grid-template-rows: 1fr !important;
+    width: 100vw !important;
+    max-width: none !important;
+    min-height: 100vh !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    border-radius: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: #eef2f8 !important;
+    overflow: hidden !important;
+  }
+
+  html.desktop-cockpit #appScreen.app-shell::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  html.desktop-cockpit .app-header {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto !important;
+    grid-auto-flow: row !important;
+    grid-auto-rows: auto !important;
+    gap: 10px !important;
+    column-gap: 0 !important;
+    align-content: start !important;
+    height: 100vh !important;
+    padding: 14px 12px !important;
+    border-right: 1px solid #d8dfec !important;
+    background: linear-gradient(180deg, #f8f9fd 0%, #f2f5fb 100%) !important;
+    overflow: hidden !important;
+  }
+
+  html.desktop-cockpit .app-header > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    justify-self: stretch !important;
+  }
+
+  html.desktop-cockpit .header-top,
+  html.desktop-cockpit .balance-block,
+  html.desktop-cockpit #sidebar.bottom-nav,
+  html.desktop-cockpit .bank-cards-carousel,
+  html.desktop-cockpit .quick-actions {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  html.desktop-cockpit #sidebar.bottom-nav {
+    grid-row: 2 !important;
+  }
+
+  html.desktop-cockpit .balance-block {
+    grid-row: 3 !important;
+  }
+
+  html.desktop-cockpit .bank-cards-carousel {
+    grid-row: 4 !important;
+  }
+
+  html.desktop-cockpit .quick-actions {
+    grid-row: 5 !important;
+  }
+
+  html.desktop-cockpit .header-top {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    column-gap: 8px !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 4px 4px !important;
+    min-height: 0 !important;
+  }
+
+  html.desktop-cockpit .header-top::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  html.desktop-cockpit .header-user {
+    display: flex !important;
+    align-items: center !important;
+    flex: 1 1 auto !important;
+    gap: 10px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  html.desktop-cockpit .header-info {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  html.desktop-cockpit #appScreen.screen-dashboard .avatar,
+  html.desktop-cockpit .avatar {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 50% !important;
+    background: #e7edf8 !important;
+    border: 1px solid #d4dff1 !important;
+    color: #516184 !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+  }
+
+  html.desktop-cockpit .header-name {
+    color: #263758 !important;
+    font-size: 20px !important;
+    letter-spacing: -0.015em !important;
+    line-height: 1.1 !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  html.desktop-cockpit .header-role {
+    color: #7b88a5 !important;
+    font-size: 12px !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  html.desktop-cockpit #messengerBtn,
+  html.desktop-cockpit #notifBtn,
+  html.desktop-cockpit #pushBtn {
+    display: none !important;
+  }
+
+  html.desktop-cockpit .header-actions {
+    gap: 6px !important;
+    margin-left: auto !important;
+  }
+
+  html.desktop-cockpit .header-top .icon-btn {
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    border-radius: 10px !important;
+    border: 1px solid #d4dff1 !important;
+    background: #e7edf8 !important;
+    color: #5b6d90 !important;
+  }
+
+  html.desktop-cockpit .balance-block {
+    background: #ffffff !important;
+    border: 1px solid #d8dfec !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 18px rgba(53, 74, 111, 0.08) !important;
+    padding: 10px 11px !important;
+    text-align: left !important;
+  }
+
+  html.desktop-cockpit .balance-label-row {
+    justify-content: flex-start !important;
+    gap: 6px !important;
+  }
+
+  html.desktop-cockpit .balance-label {
+    color: #7f8ca8 !important;
+    font-size: 10px !important;
+    letter-spacing: 0.09em !important;
+  }
+
+  html.desktop-cockpit .balance-amount {
+    color: #2f4670 !important;
+    font-size: clamp(1.35rem, 1.6vw, 1.86rem) !important;
+    line-height: 1.08 !important;
+    letter-spacing: -0.012em !important;
+    text-shadow: none !important;
+  }
+
+  html.desktop-cockpit #heroAccountCopyBtn,
+  html.desktop-cockpit #heroAccount {
+    color: #7788a9 !important;
+    font-size: 12px !important;
+    text-shadow: none !important;
+  }
+
+  html.desktop-cockpit #sidebar.bottom-nav {
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    transform: none !important;
+    opacity: 1 !important;
+    margin: 0 !important;
+    padding: 6px 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+  }
+
+  html.desktop-cockpit #sidebar.bottom-nav::before,
+  html.desktop-cockpit #sidebar.bottom-nav::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item,
+  html.desktop-cockpit #sidebar .menu-btn.nav-item {
+    min-height: 42px !important;
+    border-radius: 10px !important;
+    border: 1px solid transparent !important;
+    padding: 0 10px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 9px !important;
+    color: #6b7894 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item svg {
+    width: 18px !important;
+    height: 18px !important;
+    stroke: #8ca0c4 !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item span {
+    font-size: 14px !important;
+    font-weight: 650 !important;
+    letter-spacing: 0.01em !important;
+    color: #6b7894 !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item:hover:not(.active) {
+    background: #edf2fb !important;
+    border-color: #dce4f3 !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item.active {
+    background: #e8eefb !important;
+    border-color: #cfdbf5 !important;
+    box-shadow: inset 3px 0 0 #4f84ff !important;
+    color: #2f4d80 !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item.active svg {
+    stroke: #4f84ff !important;
+  }
+
+  html.desktop-cockpit #sidebar .nav-item.active span {
+    color: #2f4d80 !important;
+  }
+
+  html.desktop-cockpit .bank-cards-carousel {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: auto !important;
+    min-height: 0 !important;
+  }
+
+  html.desktop-cockpit .bank-cards-dots {
+    display: none !important;
+  }
+
+  html.desktop-cockpit .bank-cards-track {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    align-content: start !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  html.desktop-cockpit .bank-card {
+    width: auto !important;
+    max-width: none !important;
+    min-height: 98px !important;
+    height: auto !important;
+    aspect-ratio: auto !important;
+    flex: none !important;
+    margin-right: 0 !important;
+    border-radius: 12px !important;
+  }
+
+  html.desktop-cockpit .bank-card-bg,
+  html.desktop-cockpit .bank-card-noise,
+  html.desktop-cockpit .bank-card-chip,
+  html.desktop-cockpit .bank-card-network {
+    display: none !important;
+  }
+
+  html.desktop-cockpit .bank-card .bank-card-front {
+    border-radius: 12px !important;
+    border: 1px solid #d7deec !important;
+    background: #ffffff !important;
+    box-shadow: 0 5px 12px rgba(54, 77, 114, 0.08) !important;
+  }
+
+  html.desktop-cockpit .bank-card-content {
+    padding: 10px 11px !important;
+    gap: 8px !important;
+  }
+
+  html.desktop-cockpit .bank-card-logo-text,
+  html.desktop-cockpit .bank-card-type,
+  html.desktop-cockpit .bank-card-number,
+  html.desktop-cockpit .bank-card-name,
+  html.desktop-cockpit .bank-card-date {
+    color: #415378 !important;
+  }
+
+  html.desktop-cockpit .bank-card-number {
+    font-size: 12px !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  html.desktop-cockpit .bank-card-label {
+    color: #92a0bd !important;
+    font-size: 9px !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  html.desktop-cockpit .quick-actions {
+    margin-top: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: auto repeat(2, minmax(72px, auto)) !important;
+    gap: 8px !important;
+    align-content: start !important;
+  }
+
+  html.desktop-cockpit .quick-actions::before {
+    content: 'Швидкі дії' !important;
+    grid-column: 1 / -1 !important;
+    margin: 0 2px !important;
+    color: #8491ad !important;
+    font-size: 11px !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    font-weight: 800 !important;
+  }
+
+  html.desktop-cockpit .quick-actions::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  html.desktop-cockpit .quick-actions .qa-btn:nth-child(n) {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  html.desktop-cockpit .qa-btn {
+    min-height: 72px !important;
+    border-radius: 10px !important;
+    border: 1px solid #d8e1f0 !important;
+    background: #ffffff !important;
+    box-shadow: 0 4px 10px rgba(56, 77, 111, 0.08) !important;
+    color: #445b84 !important;
+    padding: 6px !important;
+  }
+
+  html.desktop-cockpit .qa-icon {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 10px !important;
+    background: #eef3fc !important;
+    border: 1px solid #dbe5f5 !important;
+    color: #4f7ac5 !important;
+  }
+
+  html.desktop-cockpit .qa-label {
+    color: #526381 !important;
+    font-size: 12px !important;
+    text-transform: none !important;
+    font-weight: 650 !important;
+  }
+
+  html.desktop-cockpit .app-content {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    min-height: 0 !important;
+    height: 100vh !important;
+    overflow: auto !important;
+    padding: 18px 20px 28px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: linear-gradient(180deg, #f6f8fc 0%, #eef2f8 100%) !important;
+  }
+
+  html.desktop-cockpit #dashboard {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 360px !important;
+    gap: 14px !important;
+    align-content: start !important;
+  }
+
+  html.desktop-cockpit .section-title {
+    grid-column: 1 / -1 !important;
+    font-size: 31px !important;
+    line-height: 1.02 !important;
+    margin-bottom: 2px !important;
+    color: #2d3f61 !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  html.desktop-cockpit #dashboard .card {
+    border-radius: 12px !important;
+    border: 1px solid #d8dfec !important;
+    background: #ffffff !important;
+    box-shadow: 0 10px 20px rgba(61, 80, 111, 0.08) !important;
+  }
+
+  html.desktop-cockpit #dashboard .card::before {
+    height: 1px !important;
+    background: #e8edf7 !important;
+  }
+
+  html.desktop-cockpit #dashboard #recentTransactionsCard {
+    grid-column: 1 !important;
+    min-height: 380px !important;
+  }
+
+  html.desktop-cockpit #dashboard > .card:nth-of-type(2) {
+    grid-column: 2 !important;
+    min-height: 220px !important;
+  }
+
+  html.desktop-cockpit #dashboard .month-strip,
+  html.desktop-cockpit #dashboard .sparkline-card,
+  html.desktop-cockpit #dashboard .velocity-card,
+  html.desktop-cockpit #dashboard #topRecipientsCard,
+  html.desktop-cockpit #dashboard #budgetProgressCard,
+  html.desktop-cockpit #dashboard #dashboardActionForms {
+    grid-column: 1 / -1 !important;
+  }
+
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .app-content {
+    padding: 20px 26px 34px !important;
+  }
+
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .quick-actions {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  html.desktop-classic #appScreen .app-content,
+  html.desktop-cockpit #appScreen .app-content {
+    position: relative !important;
+    isolation: isolate !important;
+  }
+
+  html.desktop-classic #appScreen .screen,
+  html.desktop-cockpit #appScreen .screen {
+    display: none !important;
+    position: relative !important;
+    inset: auto !important;
+    opacity: 1 !important;
+    transform: none !important;
+    z-index: auto !important;
+    pointer-events: auto !important;
+  }
+
+  html.desktop-classic #appScreen .screen.active-screen,
+  html.desktop-cockpit #appScreen .screen.active-screen {
+    display: block !important;
+    z-index: 2 !important;
+  }
+
+  html.desktop-classic #appScreen .screen.screen-exit,
+  html.desktop-classic #appScreen .screen-exit,
+  html.desktop-classic #appScreen .screen-exit-ltr,
+  html.desktop-classic #appScreen .screen-exit-rtl,
+  html.desktop-cockpit #appScreen .screen.screen-exit,
+  html.desktop-cockpit #appScreen .screen-exit,
+  html.desktop-cockpit #appScreen .screen-exit-ltr,
+  html.desktop-cockpit #appScreen .screen-exit-rtl {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .app-content,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .app-content {
+    padding: 24px 30px 40px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen.active-screen,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .screen.active-screen {
+    max-width: 1120px !important;
+    margin: 0 auto !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen.active-screen > .section-header-row,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen.active-screen > .card,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .screen.active-screen > .cards-row,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .screen.active-screen > .section-header-row,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .screen.active-screen > .card,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .screen.active-screen > .cards-row {
+    max-width: 1080px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .cards-row,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .cards-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .card,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .card {
+    border-radius: 16px !important;
+    padding: 18px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .form-compact,
+  html.desktop-classic #appScreen:not(.screen-dashboard) form:not(.auth-form):not(#loginForm):not(#registerForm),
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .lbl,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .form-compact,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) form:not(.auth-form):not(#loginForm):not(#registerForm) {
+    max-width: 720px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl input,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl select,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .lbl textarea,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .lbl input,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .lbl select,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .lbl textarea {
+    min-height: 46px !important;
+    border-radius: 11px !important;
+    padding: 11px 13px !important;
+  }
+
+  html.desktop-classic #appScreen:not(.screen-dashboard) .btn-primary,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .btn-accent,
+  html.desktop-classic #appScreen:not(.screen-dashboard) .btn-ghost,
+  html.desktop-classic #appScreen:not(.screen-dashboard) button[type="submit"],
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .btn-primary,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .btn-accent,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) .btn-ghost,
+  html.desktop-cockpit #appScreen:not(.screen-dashboard) button[type="submit"] {
+    width: auto !important;
+    min-width: 168px !important;
+    max-width: 320px !important;
+    min-height: 42px !important;
+    padding: 10px 16px !important;
+    border-radius: 11px !important;
+    align-self: flex-start !important;
+  }
+
+  html.desktop-classic #transactionsFilters.filters-row,
+  html.desktop-cockpit #transactionsFilters.filters-row {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto !important;
+    gap: 10px !important;
+    align-items: end !important;
+  }
+
+  html.desktop-classic #cards .cards-manage-list,
+  html.desktop-cockpit #cards .cards-manage-list {
+    gap: 8px !important;
+  }
+
+  html.desktop-classic #cards .card-manage-item,
+  html.desktop-cockpit #cards .card-manage-item {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+  }
+
+  html.desktop-classic #cards .cmi-chip,
+  html.desktop-classic #cards .cmi-design,
+  html.desktop-cockpit #cards .cmi-chip,
+  html.desktop-cockpit #cards .cmi-design {
+    display: none !important;
+  }
+
+  html.desktop-classic #cards .cmi-number,
+  html.desktop-cockpit #cards .cmi-number {
+    margin: 0 !important;
+    font-size: 18px !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0.02em !important;
+  }
+}
+
+/* ── Mobile Bottom Area Final Fix (single source of truth) ───────────── */
+@media (max-width: 767px) {
+  #dashboard .quick-actions,
+  .quick-actions {
+    margin-top: 8px !important;
+    margin-bottom: 8px !important;
+    gap: 8px !important;
+    padding: 0 !important;
+  }
+
+  #dashboard .quick-actions .qa-btn,
+  .quick-actions .qa-btn {
+    min-height: 96px !important;
+    border-radius: 18px !important;
+    padding: 10px 8px !important;
+    background: linear-gradient(180deg, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0.12) 100%) !important;
+    border: 1px solid rgba(255,255,255,0.24) !important;
+    box-shadow: 0 10px 22px rgba(8, 20, 14, 0.18), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+  }
+
+  .quick-actions .qa-icon,
+  #dashboard .quick-actions .qa-icon {
+    box-shadow: 0 6px 14px rgba(10, 28, 18, 0.24), inset 0 1px 0 rgba(255,255,255,.22) !important;
+    border: 1px solid rgba(255,255,255,.22) !important;
+  }
+
+  .bottom-nav {
+    left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    bottom: max(6px, env(safe-area-inset-bottom, 0px)) !important;
+    height: 76px !important;
+    min-height: 76px !important;
+    padding: 8px 8px 8px !important;
+    border-radius: 26px !important;
+    background: linear-gradient(180deg, rgba(244, 250, 245, 0.96) 0%, rgba(232, 241, 234, 0.94) 100%) !important;
+    border: 1px solid rgba(40, 65, 48, 0.12) !important;
+    box-shadow: 0 14px 34px rgba(9, 21, 15, 0.17), 0 2px 8px rgba(9, 21, 15, 0.1) !important;
+    backdrop-filter: blur(12px) saturate(120%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(120%) !important;
+  }
+
+  .bottom-nav .nav-item,
+  .bottom-nav .menu-btn.nav-item {
+    min-height: 56px !important;
+    border-radius: 18px !important;
+    padding: 7px 4px 8px !important;
+  }
+
+  .bottom-nav .nav-item.active,
+  .bottom-nav .menu-btn.nav-item.active {
+    background: linear-gradient(180deg, #fcfffc 0%, #f2f8f3 100%) !important;
+    box-shadow: 0 6px 14px rgba(19, 35, 24, 0.14), inset 0 1px 0 rgba(255,255,255,.8) !important;
+  }
+
+  .bottom-nav .nav-item.active svg,
+  .bottom-nav .menu-btn.nav-item.active svg {
+    transform: translateY(-1px) scale(1.04) !important;
+    color: #1d422e !important;
+  }
+
+  .bottom-nav .nav-item.active span,
+  .bottom-nav .menu-btn.nav-item.active span {
+    color: #1d422e !important;
+    font-weight: 700 !important;
+  }
+
+  .app-content {
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(116px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* ── Mobile Dashboard: stable lower area + swipe depth animation (final) ── */
+@media (max-width: 767px) {
+  #dashboard .quick-actions,
+  .quick-actions {
+    margin-top: 10px !important;
+    margin-bottom: 12px !important;
+    gap: 10px !important;
+  }
+
+  #dashboard .quick-actions .qa-btn,
+  .quick-actions .qa-btn {
+    min-height: 92px !important;
+    border-radius: 17px !important;
+    padding: 9px 8px !important;
+    background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.11) 100%) !important;
+    border: 1px solid rgba(255,255,255,0.23) !important;
+    box-shadow: 0 8px 16px rgba(8, 22, 14, 0.15), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+  }
+
+  .bottom-nav {
+    left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    bottom: max(6px, env(safe-area-inset-bottom, 0px)) !important;
+    height: 72px !important;
+    min-height: 72px !important;
+    padding: 7px 8px 7px !important;
+    border-radius: 24px !important;
+    background: linear-gradient(180deg, rgba(244,249,244,.96), rgba(233,241,234,.94)) !important;
+    border: 1px solid rgba(35, 63, 45, 0.11) !important;
+    box-shadow: 0 10px 24px rgba(10, 24, 16, 0.14), 0 2px 8px rgba(10,24,16,0.08) !important;
+  }
+
+  .bottom-nav .nav-item,
+  .bottom-nav .menu-btn.nav-item {
+    min-height: 54px !important;
+    border-radius: 16px !important;
+    padding: 6px 4px 7px !important;
+  }
+
+  .bottom-nav .nav-item.active,
+  .bottom-nav .menu-btn.nav-item.active {
+    background: linear-gradient(180deg, #ffffff 0%, #f2f8f3 100%) !important;
+    box-shadow: 0 4px 10px rgba(18, 34, 24, 0.12) !important;
+  }
+
+  .app-content {
+    padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .bank-cards-track {
+    scroll-snap-type: x mandatory !important;
+  }
+
+  .bank-cards-track .bank-card {
+    transition: transform .24s ease, opacity .24s ease, filter .24s ease !important;
+    transform: scale(.965) !important;
+    opacity: .88 !important;
+    filter: saturate(.94) !important;
+  }
+
+  .bank-cards-track .bank-card.is-active {
+    transform: scale(1) !important;
+    opacity: 1 !important;
+    filter: saturate(1) !important;
+  }
+
+  .bank-cards-track .bank-card.is-prev,
+  .bank-cards-track .bank-card.is-next {
+    transform: scale(.978) !important;
+    opacity: .95 !important;
+  }
+
+  html.no-animations .bank-cards-track .bank-card,
+  body.no-animations .bank-cards-track .bank-card {
+    transition: transform .18s ease, opacity .18s ease, filter .18s ease !important;
+  }
+}
+
+/* ── Card layer hotfix: keep dashboard cards strictly front-face only ── */
+#bankCardsTrack .bank-card-inner,
+#bankCardsTrack .bank-card.is-flipped .bank-card-inner {
+  transform: none !important;
+  transform-style: flat !important;
+}
+
+#bankCardsTrack .bank-card-back,
+#bankCardsTrack .bank-card.is-flipped .bank-card-back {
+  display: none !important;
+}
+
+#bankCardsTrack .bank-card-front {
+  transform: none !important;
+  backface-visibility: visible !important;
+  -webkit-backface-visibility: visible !important;
+}
+
+/* ── Mobile final: dots animation + no blank tail under app ────────────── */
+@media (max-width: 767px) {
+  #appScreen.app-shell {
+    min-height: 100svh !important;
+    height: 100svh !important;
+  }
+
+  body.ab-authed {
+    overflow: hidden !important;
+  }
+
+  #appScreen.screen-dashboard .app-content {
+    padding-bottom: calc(94px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(98px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #bankCardsDots .bc-dot {
+    transition: transform .26s ease, width .26s ease, opacity .2s ease !important;
+    opacity: .72 !important;
+  }
+
+  #bankCardsDots .bc-dot.active {
+    opacity: 1 !important;
+    animation: bankDotPulse .44s cubic-bezier(.22,.68,0,1.2) !important;
+  }
+
+  html.no-animations #bankCardsDots .bc-dot,
+  body.no-animations #bankCardsDots .bc-dot {
+    transition: transform .2s ease, width .2s ease, opacity .18s ease !important;
+  }
+}
+
+/* ── Dashboard card flip restored (monobank-inspired back face) ─────────── */
+#bankCardsTrack .bank-card {
+  perspective: 1200px !important;
+}
+
+#bankCardsTrack .bank-card-inner {
+  transform-style: preserve-3d !important;
+  transition: transform .52s cubic-bezier(.22,.68,0,1.02) !important;
+}
+
+#bankCardsTrack .bank-card.is-flipped .bank-card-inner {
+  transform: rotateY(180deg) !important;
+}
+
+#bankCardsTrack .bank-card-front,
+#bankCardsTrack .bank-card-back {
+  position: absolute !important;
+  inset: 0 !important;
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  border-radius: 22px !important;
+  overflow: hidden !important;
+}
+
+#bankCardsTrack .bank-card-back {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  transform: rotateY(180deg) !important;
+  background: linear-gradient(158deg, #11171f 0%, #1b2430 52%, #0f141b 100%) !important;
+  border: 1px solid rgba(237, 244, 246, 0.14) !important;
+}
+
+#bankCardsTrack .bank-card-mag-stripe {
+  margin-top: 14px !important;
+  height: 34px !important;
+  background: linear-gradient(180deg, #0a0e12 0%, #05070a 100%) !important;
+}
+
+#bankCardsTrack .bank-card-back-body {
+  padding: 10px 14px 12px !important;
+}
+
+#bankCardsTrack .bank-card-sig-strip {
+  margin-top: 8px !important;
+  background: linear-gradient(90deg, #e7e8df 0%, #f2f3ec 100%) !important;
+  border-radius: 8px !important;
+}
+
+#bankCardsTrack .bank-card-cvv-box {
+  background: #f7f8f2 !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(17, 24, 39, 0.18) !important;
+}
+
+#bankCardsTrack .bank-card-cvv-label {
+  color: rgba(35, 46, 62, 0.75) !important;
+}
+
+#bankCardsTrack .bank-card-cvv-value {
+  color: #121a24 !important;
+  letter-spacing: .08em !important;
+}
+
+@media (max-width: 767px) {
+  html.ab-authed body {
+    overflow: hidden !important;
+  }
+
+  #appScreen.screen-dashboard .bank-cards-track {
+    touch-action: pan-x !important;
+    overflow-x: auto !important;
+  }
+
+  #appScreen.screen-dashboard .app-content {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* ── No fake cards state ─────────────────────────────────────────────── */
+#bankCardsTrack .bank-cards-empty {
+  width: 100% !important;
+  min-height: 148px !important;
+  border-radius: 20px !important;
+  border: 1px dashed rgba(236, 247, 238, 0.28) !important;
+  background: linear-gradient(180deg, rgba(241, 250, 243, 0.12) 0%, rgba(241, 250, 243, 0.06) 100%) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 16px !important;
+  text-align: center !important;
+}
+
+#bankCardsTrack .bank-cards-empty-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: rgba(239, 248, 241, 0.92) !important;
+}
+
+#bankCardsTrack .bank-cards-empty-sub {
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+  color: rgba(222, 238, 226, 0.78) !important;
+}
+
+#bankCardsTrack .bank-cards-empty-btn {
+  margin-top: 2px !important;
+  min-height: 34px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(236, 247, 238, 0.28) !important;
+  background: rgba(242, 251, 244, 0.14) !important;
+  color: rgba(244, 251, 246, 0.95) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  padding: 6px 12px !important;
+}
+
+/* ── Dashboard gesture balance: vertical page scroll + horizontal card swipe ── */
+@media (max-width: 767px) {
+  #appScreen.screen-dashboard .bank-cards-track {
+    touch-action: auto !important;
+    overscroll-behavior-x: contain !important;
+    overscroll-behavior-y: auto !important;
+  }
+
+  #appScreen.screen-dashboard .quick-actions {
+    touch-action: pan-y !important;
+  }
+}
+
+/* ── Mobile Stability Final (single source of truth) ───────────────────── */
+@media (max-width: 767px) {
+  html,
+  body {
+    height: 100% !important;
+    min-height: 100% !important;
+  }
+
+  html.ab-authed body {
+    background: radial-gradient(140% 120% at 50% 100%, #0f6a46 0%, #0d5b3d 42%, #0a4a33 100%) !important;
+  }
+
+  #appScreen.app-shell {
+    min-height: 100dvh !important;
+    height: 100dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  #appScreen .app-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+    padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px) + var(--browser-ui-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px) + var(--browser-ui-bottom, 0px)) !important;
+  }
+
+  #appScreen.screen-dashboard .app-header {
+    padding-bottom: calc(126px + env(safe-area-inset-bottom, 0px) + var(--browser-ui-bottom, 0px)) !important;
+  }
+
+  #appScreen #sidebar.bottom-nav {
+    position: fixed !important;
+    z-index: 120 !important;
+    left: max(8px, env(safe-area-inset-left, 0px)) !important;
+    right: max(8px, env(safe-area-inset-right, 0px)) !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 8px + var(--browser-ui-bottom, 0px)) !important;
+    min-height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 6px 7px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+}
+
+/* ── HOTFIX 2026-04-10: mobile main scroll + bottom overlap stability ──── */
+@media (max-width: 959px) {
+  :root {
+    --ab-mobile-nav-height: 72px;
+    --ab-mobile-nav-gap: 8px;
+  }
+
+  html.app-browser-mode #authScreen.auth-screen {
+    min-height: calc(100dvh - var(--browser-ui-bottom, 0px)) !important;
+    padding-bottom: calc(14px + var(--browser-ui-bottom, 0px)) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  #appScreen.screen-dashboard .app-header {
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #appScreen.screen-dashboard .app-content {
+    min-height: max(36svh, 260px) !important;
+  }
+
+  #appScreen .app-content {
+    padding-bottom: calc(
+      var(--ab-mobile-nav-height) +
+      var(--ab-mobile-nav-gap) +
+      18px +
+      env(safe-area-inset-bottom, 0px) +
+      var(--browser-ui-bottom, 0px)
+    ) !important;
+    scroll-padding-bottom: calc(
+      var(--ab-mobile-nav-height) +
+      var(--ab-mobile-nav-gap) +
+      18px +
+      env(safe-area-inset-bottom, 0px) +
+      var(--browser-ui-bottom, 0px)
+    ) !important;
+  }
+
+  #appScreen #sidebar.bottom-nav {
+    bottom: calc(
+      env(safe-area-inset-bottom, 0px) +
+      var(--ab-mobile-nav-gap) +
+      var(--browser-ui-bottom, 0px)
+    ) !important;
+    min-height: calc(var(--ab-mobile-nav-height) + env(safe-area-inset-bottom, 0px)) !important;
+    height: calc(var(--ab-mobile-nav-height) + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* iOS Safari (browser mode): keep bank tabbar above browser toolbar */
+  html.os-ios.browser-safari.app-browser-mode #appScreen #sidebar.bottom-nav {
+    bottom: calc(var(--browser-ui-bottom, 0px) + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  html.os-ios.browser-safari.app-browser-mode #appScreen .app-content {
+    padding-bottom: calc(
+      var(--ab-mobile-nav-height) +
+      20px +
+      var(--browser-ui-bottom, 0px) +
+      env(safe-area-inset-bottom, 0px)
+    ) !important;
+    scroll-padding-bottom: calc(
+      var(--ab-mobile-nav-height) +
+      20px +
+      var(--browser-ui-bottom, 0px) +
+      env(safe-area-inset-bottom, 0px)
+    ) !important;
+  }
+
+  /* Re-enable hide-on-scroll behavior for bottom nav */
+  #appScreen #sidebar.bottom-nav.nav-hidden {
+    transform: translateY(calc(132% + var(--browser-ui-bottom, 0px))) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  /* Browser mode: nav must stay visible to avoid "missing tabbar" UX */
+  html.app-browser-mode #appScreen #sidebar.bottom-nav.nav-hidden {
+    transform: none !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  /* Browser-mode nav visual polish */
+  html.app-browser-mode #appScreen #sidebar.bottom-nav {
+    z-index: 160 !important;
+    border: 1px solid rgba(233, 243, 236, 0.78) !important;
+    box-shadow: 0 10px 26px rgba(5, 24, 15, 0.24) !important;
+    backdrop-filter: blur(10px) saturate(1.08) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(1.08) !important;
+  }
+
+  /* Compact dashboard after first scroll for cleaner rhythm */
+  #appScreen.screen-dashboard.dashboard-scrolled .bank-cards-carousel {
+    margin-top: 0 !important;
+  }
+
+  #appScreen.screen-dashboard.dashboard-scrolled .bank-cards-track {
+    padding-bottom: 12px !important;
+  }
+
+  #appScreen.screen-dashboard.dashboard-scrolled .quick-actions,
+  #appScreen.screen-dashboard.dashboard-scrolled #dashboard .quick-actions {
+    gap: 8px !important;
+    padding-top: 4px !important;
+  }
+
+  #appScreen.screen-dashboard.dashboard-scrolled .quick-actions .qa-btn,
+  #appScreen.screen-dashboard.dashboard-scrolled #dashboard .quick-actions .qa-btn {
+    min-height: 76px !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+  }
+
+  #appScreen.screen-dashboard.dashboard-scrolled #dashboardActionForms.open {
+    margin-top: 8px !important;
+  }
+}
+
+/* ── HOTFIX 2026-04-10-2: stable true card back (Safari/iOS-safe) ─────── */
+#bankCardsTrack .bank-card-inner {
+  transform: none !important;
+  transform-style: preserve-3d !important;
+  transition: none !important;
+}
+
+#bankCardsTrack .bank-card-front,
+#bankCardsTrack .bank-card-back {
+  position: absolute !important;
+  inset: 0 !important;
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  transform-style: preserve-3d !important;
+  transition: transform .46s cubic-bezier(.22,.68,0,1.02) !important;
+  z-index: 1 !important;
+}
+
+#bankCardsTrack .bank-card-front {
+  transform: rotateY(0deg) translateZ(0.1px) !important;
+}
+
+#bankCardsTrack .bank-card-back {
+  transform: rotateY(180deg) translateZ(0.1px) !important;
+  display: flex !important;
+}
+
+#bankCardsTrack .bank-card.is-flipped .bank-card-front {
+  transform: rotateY(-180deg) translateZ(0.1px) !important;
+}
+
+#bankCardsTrack .bank-card.is-flipped .bank-card-back {
+  transform: rotateY(0deg) translateZ(0.1px) !important;
+}
+
+/* ── HOTFIX 2026-04-10-3: realistic bank-card back composition ────────── */
+#bankCardsTrack .bank-card-back {
+  border: 1px solid rgba(235, 242, 238, 0.2) !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
+}
+
+#bankCardsTrack .bank-card-gold .bank-card-back {
+  background: linear-gradient(140deg, #b17f1b 0%, #d8a63a 46%, #8f6620 100%) !important;
+}
+
+#bankCardsTrack .bank-card-navy .bank-card-back,
+#bankCardsTrack .bank-card-dark .bank-card-back,
+#bankCardsTrack .bank-card-slate .bank-card-back {
+  background: linear-gradient(148deg, #1a2434 0%, #243249 52%, #131c2b 100%) !important;
+}
+
+#bankCardsTrack .bank-card-forest .bank-card-back,
+#bankCardsTrack .bank-card-camo .bank-card-back {
+  background: linear-gradient(145deg, #2a5a42 0%, #3f7858 52%, #1d4331 100%) !important;
+}
+
+#bankCardsTrack .bank-card-rose .bank-card-back {
+  background: linear-gradient(145deg, #6c2f43 0%, #934663 50%, #512234 100%) !important;
+}
+
+#bankCardsTrack .bank-card-back-topline {
+  height: 16px !important;
+  padding: 3px 12px 0 !important;
+  font-size: 7px !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+#bankCardsTrack .bank-card-mag-stripe {
+  margin-top: 2px !important;
+  height: 30px !important;
+  background: linear-gradient(180deg, #090b0f 0%, #1a1e24 100%) !important;
+}
+
+#bankCardsTrack .bank-card-back-body {
+  padding: 10px 12px 10px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 7px !important;
+}
+
+#bankCardsTrack .bank-card-sig-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+
+#bankCardsTrack .bank-card-sig-strip {
+  height: 24px !important;
+  margin-top: 0 !important;
+  border-radius: 4px !important;
+  padding: 0 8px !important;
+  justify-content: flex-start !important;
+  background: repeating-linear-gradient(
+    90deg,
+    #efeee9 0px, #efeee9 8px,
+    #e4e2db 8px, #e4e2db 16px
+  ) !important;
+}
+
+#bankCardsTrack .bank-card-sig-text {
+  font-size: 8px !important;
+  font-family: "JetBrains Mono", monospace !important;
+  color: rgba(31, 38, 49, 0.82) !important;
+  letter-spacing: 0.04em !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#bankCardsTrack .bank-card-cvv-box {
+  min-width: 52px !important;
+  border-radius: 4px !important;
+  padding: 2px 8px 3px !important;
+}
+
+#bankCardsTrack .bank-card-cvv-label {
+  font-size: 6px !important;
+  line-height: 1.1 !important;
+}
+
+#bankCardsTrack .bank-card-cvv-value {
+  font-size: 13px !important;
+  line-height: 1.1 !important;
+}
+
+#bankCardsTrack .bank-card-security-note {
+  font-size: 7px !important;
+  line-height: 1.32 !important;
+  color: rgba(248, 251, 249, 0.82) !important;
+}
+
+#bankCardsTrack .bank-card-full-number {
+  min-height: 11px !important;
+  margin-top: 1px !important;
+  font-size: 9px !important;
+  letter-spacing: 0.12em !important;
+  color: rgba(243, 249, 245, 0.9) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+#bankCardsTrack .bank-card-back-footer {
+  margin-top: auto !important;
+  align-items: center !important;
+}
+
+#bankCardsTrack .bank-card-back-info {
+  font-size: 8px !important;
+  color: rgba(244, 250, 246, 0.8) !important;
+}
+
+#bankCardsTrack .bank-card-back-network svg {
+  width: 32px !important;
+  height: 20px !important;
+}
+
+/* ── HOTFIX 2026-04-11-4: CVV readability + loading/error states ───────── */
+#bankCardsTrack .bank-card-cvv-box {
+  background: #fdfefe !important;
+  border: 1px solid rgba(10, 18, 22, 0.22) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.8) !important;
+  position: relative !important;
+}
+
+#bankCardsTrack .bank-card-cvv-value {
+  font-size: 15px !important;
+  font-weight: 900 !important;
+  color: #0d1720 !important;
+  letter-spacing: .14em !important;
+  min-width: 3ch !important;
+  text-align: center !important;
+}
+
+#bankCardsTrack .bank-card-cvv-hint {
+  margin-top: 1px !important;
+  font-size: 7px !important;
+  line-height: 1.05 !important;
+  letter-spacing: .06em !important;
+  text-transform: uppercase !important;
+  color: rgba(18, 33, 42, 0.54) !important;
+  text-align: center !important;
+}
+
+#bankCardsTrack .bank-card-cvv-box::after {
+  content: "SEC"; /* subtle security mark */
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 6px;
+  letter-spacing: .12em;
+  color: rgba(16, 30, 39, 0.38);
+  font-weight: 700;
+}
+
+#bankCardsTrack .bank-card-cvv-value.bc-loading {
+  opacity: .72 !important;
+  animation: cvvPulse .72s ease-in-out infinite !important;
+}
+
+#bankCardsTrack .bank-card-cvv-value.cvv-error {
+  color: #8a1f2e !important;
+  opacity: .92 !important;
+}
+
+#bankCardsTrack .bank-card-full-number {
+  font-family: "JetBrains Mono", monospace !important;
+  font-weight: 600 !important;
+  letter-spacing: .16em !important;
+  opacity: .96 !important;
+}
+
+#bankCardsTrack .bank-card.is-flipped .bank-card-front {
+  pointer-events: none !important;
+}
+
+#bankCardsTrack .bank-card.is-flipped .bank-card-back {
+  pointer-events: auto !important;
+}
+
+@keyframes cvvPulse {
+  0%,100% { opacity: .56; }
+  50% { opacity: .95; }
+}
+
+/* ── HOTFIX 2026-04-11-07: reliable vertical scroll on mobile main ────── */
+@media (max-width: 959px) {
+  html.ab-authed,
+  html.ab-authed body {
+    height: 100% !important;
+    min-height: 100% !important;
+  }
+
+  html.ab-authed body {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  #appScreen.app-shell {
+    min-height: 100dvh !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  #appScreen .app-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+    padding-bottom: calc(
+      var(--ab-mobile-nav-height, 72px) +
+      26px +
+      env(safe-area-inset-bottom, 0px) +
+      max(0px, var(--browser-ui-bottom, 0px))
+    ) !important;
+    scroll-padding-bottom: calc(
+      var(--ab-mobile-nav-height, 72px) +
+      30px +
+      env(safe-area-inset-bottom, 0px) +
+      max(0px, var(--browser-ui-bottom, 0px))
+    ) !important;
+  }
+}
+
+/* ── HOTFIX 2026-04-11-08: anti-stuck vertical scroll safeguard ───────── */
+@media (max-width: 959px) {
+  html.ab-authed:not(.app-scroll-locked) body {
+    overflow-y: auto !important;
+    overscroll-behavior-y: auto !important;
+  }
+
+  html.ab-authed:not(.app-scroll-locked) #appScreen .app-content {
+    overflow-y: auto !important;
+    overscroll-behavior-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   HOTFIX 2026-04-13: Bottom nav — canonical mobile layout
+   Перебиває всі попередні конфліктуючі правила.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  .bottom-nav {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: max(10px, env(safe-area-inset-bottom, 10px)) !important;
+    top: auto !important;
+    width: auto !important;
+    max-width: 460px !important;
+    margin: 0 auto !important;
+    height: 62px !important;
+    min-height: 62px !important;
+    max-height: 62px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    padding: 0 6px !important;
+    border-radius: 32px !important;
+    background: rgba(243, 246, 240, 0.96) !important;
+    backdrop-filter: saturate(180%) blur(20px) !important;
+    -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+    border: 1px solid rgba(0,0,0,.08) !important;
+    box-shadow: 0 8px 24px rgba(18,28,20,.14) !important;
+    z-index: 500 !important;
+    gap: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .nav-item,
+  .bottom-nav .menu-btn {
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+    max-width: 88px !important;
+    height: 100% !important;
+    padding: 6px 4px !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 24px !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    transition: background .15s ease, color .15s ease !important;
+    overflow: hidden !important;
+  }
+
+  .nav-item svg,
+  .bottom-nav .menu-btn svg {
+    width: 22px !important;
+    height: 22px !important;
+    stroke: #8fa396 !important;
+    stroke-width: 1.8 !important;
+    flex-shrink: 0 !important;
+  }
+
+  .nav-item span,
+  .bottom-nav .menu-btn span {
+    display: block !important;
+    font-size: 10px !important;
+    font-weight: 500 !important;
+    color: #8fa396 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+
+  .nav-item.active,
+  .bottom-nav .menu-btn.active {
+    background: rgba(26, 46, 32, 0.09) !important;
+  }
+
+  .nav-item.active svg,
+  .bottom-nav .menu-btn.active svg {
+    stroke: #1a2e20 !important;
+    stroke-width: 2.2 !important;
+  }
+
+  .nav-item.active span,
+  .bottom-nav .menu-btn.active span {
+    color: #1a2e20 !important;
+    font-weight: 700 !important;
+  }
+
+  .nav-item.active::after,
+  .bottom-nav .menu-btn.active::after {
+    display: none !important;
+  }
+
+  /* Content padding so bottom nav doesn't overlap last items */
+  .app-content,
+  #appScreen .app-content {
+    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   PWA STANDALONE FIX: высокоспецифичные правила (specificity 0,4,1)
+   перебивают #appScreen #sidebar.bottom-nav (specificity 0,2,1) которые
+   задают min-height: calc(72px + env(safe-area-inset-bottom)) = 106px
+   на iPhone → навигация растягивалась в PWA но была нормальной в браузере
+   ══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  html.app-standalone #appScreen #sidebar.bottom-nav {
+    height: 62px !important;
+    min-height: 62px !important;
+    max-height: 62px !important;
+    padding: 0 6px !important;
+    /* В standalone bottom = safe-area чтобы nav сидел над home-indicator */
+    bottom: env(safe-area-inset-bottom, 0px) !important;
+  }
+
+  /* Контент: в standalone нет browser-toolbar, только safe-area + nav */
+  html.app-standalone #appScreen .app-content {
+    padding-bottom: calc(
+      62px + 8px +
+      env(safe-area-inset-bottom, 0px)
+    ) !important;
+    scroll-padding-bottom: calc(
+      62px + 8px +
+      env(safe-area-inset-bottom, 0px)
+    ) !important;
+  }
 }

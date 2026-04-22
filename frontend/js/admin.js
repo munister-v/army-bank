@@ -193,7 +193,7 @@ function renderTopUsers(topUsers) {
     return `
       <div style="margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
-          <span style="opacity:.8">${u.full_name || '—'}</span>
+          <span style="opacity:.8">${escapeHtml(u.full_name || '—')}</span>
           <span style="font-weight:700">${fmtMoney(u.total_vol)}</span>
         </div>
         <div style="background:rgba(255,255,255,.07);border-radius:4px;height:5px">
@@ -223,8 +223,8 @@ async function loadUsers() {
   body.innerHTML = users.map((u) => `
     <tr data-id="${u.id}">
       <td><strong>#${u.id}</strong></td>
-      <td><div><strong>${u.full_name}</strong></div><div class="subtle">${u.status || u.military_status || ''}</div></td>
-      <td class="subtle" style="font-size:12px">${u.phone || '—'}<br>${u.email || '—'}</td>
+      <td><div><strong>${escapeHtml(u.full_name)}</strong></div><div class="subtle">${escapeHtml(u.status || u.military_status || '')}</div></td>
+      <td class="subtle" style="font-size:12px">${escapeHtml(u.phone || '—')}<br>${escapeHtml(u.email || '—')}</td>
       <td>
         <select class="role-select" data-user-id="${u.id}" style="font-size:12px">
           <option value="soldier"        ${u.role === 'soldier'        ? 'selected' : ''}>Клієнт</option>
@@ -323,12 +323,12 @@ async function loadRegistry(reset) {
       <tr>
         <td><strong>#${t.id}</strong></td>
         <td style="font-size:11px;white-space:nowrap">${fmtDate(t.created_at)}</td>
-        <td style="font-size:12px">${t.full_name || '—'}<br><span class="muted" style="font-size:11px">id:${t.user_id}</span></td>
-        <td style="font-size:11px;font-family:monospace">${t.account_number || '—'}</td>
+        <td style="font-size:12px">${escapeHtml(t.full_name || '—')}<br><span class="muted" style="font-size:11px">id:${t.user_id}</span></td>
+        <td style="font-size:11px;font-family:monospace">${escapeHtml(t.account_number || '—')}</td>
         <td><span style="font-size:11px;background:rgba(255,255,255,.07);padding:2px 7px;border-radius:100px">${TX_TYPE_UA[t.tx_type] || t.tx_type}</span></td>
         <td style="font-size:12px">${t.direction === 'in' ? '<span style="color:#34d399">▲ Прихід</span>' : '<span style="color:#f87171">▼ Витрата</span>'}</td>
         <td style="font-weight:700;white-space:nowrap">${fmtMoney(t.amount)}</td>
-        <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.description || ''}">${t.description || '—'}</td>
+        <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(t.description || '')}">${escapeHtml(t.description || '—')}</td>
       </tr>
     `).join('');
   } catch (e) {
@@ -567,10 +567,10 @@ async function loadAudit() {
       ? logs.map((l) => `
           <div class="item">
             <div class="item-header">
-              <strong>${l.action}</strong>
+              <strong>${escapeHtml(l.action)}</strong>
               <span class="muted">${fmtDate(l.created_at)}</span>
             </div>
-            <div class="muted" style="font-size:12px">user_id: ${l.user_id ?? '—'} · ${l.details || '—'}</div>
+            <div class="muted" style="font-size:12px">user_id: ${l.user_id ?? '—'} · ${escapeHtml(l.details || '—')}</div>
           </div>
         `).join('')
       : '<div class="muted" style="padding:16px;text-align:center">Логів немає.</div>';
@@ -592,7 +592,7 @@ async function loadStatements() {
       <tr>
         <td style="white-space:nowrap">${fmtDate(l.created_at)}</td>
         <td>${l.user_id ?? '—'}</td>
-        <td style="font-size:12px;color:var(--muted)">${l.details || '—'}</td>
+        <td style="font-size:12px;color:var(--muted)">${escapeHtml(l.details || '—')}</td>
       </tr>
     `).join('');
   } catch (e) {
@@ -613,7 +613,8 @@ function switchTab(tabId) {
   if (tabId === 'registry') { resetRegistry(); }
   if (tabId === 'audit')    { loadAudit(); loadStatements(); }
   if (tabId === 'security') { loadFraudStats(); loadOrders(); loadRiskEvents(); }
-  if (tabId === 'docs')     { loadDocTemplates(); loadDocAssignments(); }
+  if (tabId === 'docs')        { loadDocTemplates(); loadDocAssignments(); }
+  if (tabId === 'marketplace') { loadMarketplaceStats(); loadAdminProducts(); }
 }
 
 // ── Drawer ───────────────────────────────────────────────────────────────────
@@ -656,7 +657,7 @@ async function openUserDrawer(userId) {
     $('#drawerTx').innerHTML = (Array.isArray(txs) ? txs : []).map((t) => `
       <div class="item">
         <div class="item-header">
-          <strong style="font-size:13px">${t.description}</strong>
+          <strong style="font-size:13px">${escapeHtml(t.description)}</strong>
           <span class="${t.direction === 'in' ? 'amount in' : 'amount out'}">${t.direction === 'in' ? '+' : '-'}${fmtMoney(t.amount)}</span>
         </div>
         <div class="subtle" style="font-size:11px">${TX_TYPE_UA[t.tx_type] || t.tx_type} · ${fmtDate(t.created_at)}</div>
@@ -880,3 +881,688 @@ async function loadDocAssignments() {
 
   switchTab('users');
 })();
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  MARKETPLACE ADMIN
+// ═══════════════════════════════════════════════════════════════════
+
+let _mktProductsPage = 1;
+let _mktOrdersPage   = 1;
+let _productDebounceTimer = null;
+let _currentOrderId = null;
+
+function switchMktSubtab(name) {
+  document.querySelectorAll('.mkt-subtab').forEach(b =>
+    b.classList.toggle('active', b.dataset.subtab === name));
+  ['Products','Orders','Customers','Analytics'].forEach(t => {
+    const el = document.getElementById('mkt' + t);
+    if (el) el.style.display = (name === t.toLowerCase()) ? '' : 'none';
+  });
+  if (name === 'orders')    loadAdminOrders();
+  if (name === 'customers') loadAdminCustomers();
+  if (name === 'analytics') { loadAdminAnalytics(); loadLowStockAlert(); }
+}
+
+function debounceLoadProducts() {
+  clearTimeout(_productDebounceTimer);
+  _productDebounceTimer = setTimeout(() => { _mktProductsPage = 1; loadAdminProducts(); }, 350);
+}
+
+// ── Stats ────────────────────────────────────────────────────────
+
+async function loadMarketplaceStats() {
+  const container = document.getElementById('mktStats');
+  try {
+    const _r = await apiRaw('/api/marketplace/admin/stats'); const d = _r.data ?? _r;
+    const fmt = v => fmtMoney(v);
+    const cards = [
+      { label: 'Товарів',       val: d.total_products,  cls: '' },
+      { label: 'Активних',      val: d.active_products,  cls: 'success' },
+      { label: 'Мало залишку',  val: d.low_stock,        cls: d.low_stock  > 0 ? 'warn'   : '' },
+      { label: 'Немає в наявн.', val: d.out_of_stock,    cls: d.out_of_stock > 0 ? 'danger' : '' },
+      { label: 'Замовлень',     val: d.total_orders,     cls: '' },
+      { label: 'Оплачено',      val: d.paid_orders,      cls: 'success' },
+      { label: 'Очікують',      val: d.pending_orders,   cls: d.pending_orders > 0 ? 'warn' : '' },
+      { label: 'Виручка',       val: fmt(d.revenue),     cls: 'success' },
+    ];
+    container.innerHTML = cards.map(c => `
+      <div class="mkt-stat-card ${c.cls}">
+        <div class="mkt-stat-val">${c.val}</div>
+        <div class="mkt-stat-lbl">${c.label}</div>
+      </div>`).join('');
+
+    if (d.top_products?.length) {
+      container.insertAdjacentHTML('afterend', `
+        <div style="margin-bottom:18px">
+          <div style="font-size:12px;color:rgba(255,255,255,.45);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">
+            Топ продажів
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            ${d.top_products.map(p => `
+              <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px">
+                <span style="font-size:1.4rem">${p.emoji}</span>
+                <div>
+                  <div style="font-size:13px;font-weight:600;color:#fff">${escapeHtml(p.title)}</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.45)">${p.sold} прод. · ${fmtMoney(p.revenue)} · залишок: ${p.stock}</div>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`);
+    }
+  } catch (e) {
+    container.innerHTML = `<div class="muted">Помилка завантаження статистики</div>`;
+  }
+}
+
+// ── Products list ────────────────────────────────────────────────
+
+async function loadAdminProducts() {
+  const tbody = document.getElementById('mktProductsBody');
+  const pager = document.getElementById('mktProductsPager');
+  const search = (document.getElementById('mktSearch')?.value || '').trim();
+  const active = document.getElementById('mktActiveFilter')?.value || '';
+
+  tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr>`;
+  try {
+    const params = new URLSearchParams({ page: _mktProductsPage });
+    if (search) params.set('search', search);
+    if (active) params.set('active', active);
+    const _r = await apiRaw(`/api/marketplace/admin/products?${params}`); const d = _r.data ?? _r;
+
+    if (!d.items?.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Товарів не знайдено</td></tr>`;
+      pager.innerHTML = '';
+      return;
+    }
+
+    tbody.innerHTML = d.items.map(p => `
+      <tr>
+        <td style="color:rgba(255,255,255,.4);font-size:12px">#${p.id}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:1.3rem">${p.image_emoji}</span>
+            <div>
+              <div style="font-weight:600;color:#fff">${escapeHtml(p.title)}</div>
+              <div style="font-size:11px;color:rgba(255,255,255,.4)">${p.badge ? `<span style="color:#f59e0b">[${escapeHtml(p.badge)}]</span> ` : ''}${escapeHtml(p.slug)}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-weight:700;color:#22c55e">${fmtMoney(p.price)}</td>
+        <td>
+          <input class="stock-edit-input"
+                 value="${p.stock}"
+                 style="${p.stock===0?'color:#ef4444;font-weight:700':p.stock<=5?'color:#f59e0b;font-weight:600':''}"
+                 onchange="quickUpdateStock(${p.id}, this)"
+                 onclick="this.select()"
+                 title="Клікни для редагування залишку">
+        </td>
+        <td>
+          <span class="status-pill ${p.is_active ? 'active' : 'inactive'}">${p.is_active ? 'Активний' : 'Неактивний'}</span>
+        </td>
+        <td>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="secondary-btn" style="padding:4px 10px;font-size:12px" onclick="openProductModal(${JSON.stringify(p)})">✏️</button>
+            <button class="secondary-btn" style="padding:4px 10px;font-size:12px" onclick="toggleProduct(${p.id}, ${p.is_active})">${p.is_active ? '🔴' : '🟢'}</button>
+            <button class="secondary-btn" style="padding:4px 10px;font-size:12px;color:#ef4444" onclick="deleteProduct(${p.id})">🗑️</button>
+          </div>
+        </td>
+      </tr>`).join('');
+
+    // Pager
+    pager.innerHTML = d.pages > 1 ? `
+      <button class="secondary-btn" style="padding:4px 12px" ${_mktProductsPage <= 1 ? 'disabled' : ''} onclick="_mktProductsPage--;loadAdminProducts()">‹</button>
+      <span style="color:rgba(255,255,255,.5);font-size:13px">${_mktProductsPage} / ${d.pages}</span>
+      <button class="secondary-btn" style="padding:4px 12px" ${_mktProductsPage >= d.pages ? 'disabled' : ''} onclick="_mktProductsPage++;loadAdminProducts()">›</button>` : '';
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">${escapeHtml(e.message || 'Помилка')}</td></tr>`;
+  }
+}
+
+// ── Product modal ────────────────────────────────────────────────
+
+function openProductModal(product) {
+  const modal = document.getElementById('productModal');
+  const titleEl = document.getElementById('productModalTitle');
+  if (product && typeof product === 'object') {
+    titleEl.textContent = 'Редагувати товар';
+    document.getElementById('productId').value        = product.id;
+    document.getElementById('pTitle').value           = product.title || '';
+    document.getElementById('pDescription').value     = product.description || '';
+    document.getElementById('pPrice').value           = product.price || 0;
+    document.getElementById('pStock').value           = product.stock || 0;
+    document.getElementById('pEmoji').value           = product.image_emoji || '🛍️';
+    document.getElementById('pBadge').value           = product.badge || '';
+    document.getElementById('pActive').checked        = product.is_active !== false;
+  } else {
+    titleEl.textContent = 'Додати товар';
+    document.getElementById('productId').value = '';
+    document.getElementById('productForm').reset();
+    document.getElementById('pEmoji').value  = '🛍️';
+    document.getElementById('pActive').checked = true;
+  }
+  modal.classList.add('open');
+}
+
+function closeProductModal() {
+  document.getElementById('productModal').classList.remove('open');
+}
+
+async function saveProduct(e) {
+  e.preventDefault();
+  const btn = document.getElementById('productSaveBtn');
+  const id  = document.getElementById('productId').value;
+  const body = {
+    title:       document.getElementById('pTitle').value.trim(),
+    description: document.getElementById('pDescription').value.trim(),
+    price:       parseFloat(document.getElementById('pPrice').value) || 0,
+    stock:       parseInt(document.getElementById('pStock').value)   || 0,
+    image_emoji: document.getElementById('pEmoji').value.trim() || '🛍️',
+    badge:       document.getElementById('pBadge').value || null,
+    is_active:   document.getElementById('pActive').checked,
+  };
+
+  btn.disabled = true;
+  btn.textContent = 'Збереження…';
+  try {
+    if (id) {
+      await apiRaw(`/api/marketplace/admin/products/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+      showToast('Товар оновлено');
+    } else {
+      await apiRaw('/api/marketplace/admin/products', { method: 'POST', body: JSON.stringify(body) });
+      showToast('Товар додано');
+    }
+    closeProductModal();
+    loadAdminProducts();
+    loadMarketplaceStats();
+  } catch (err) {
+    showToast(err.message || 'Помилка збереження', true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Зберегти';
+  }
+}
+
+async function toggleProduct(id, currentActive) {
+  try {
+    const _r = await apiRaw(`/api/marketplace/admin/products/${id}/toggle`, { method: 'PATCH' }); const d = _r.data ?? _r;
+    showToast(d.is_active ? 'Товар активовано' : 'Товар деактивовано');
+    loadAdminProducts();
+    loadMarketplaceStats();
+  } catch (e) {
+    showToast(e.message || 'Помилка', true);
+  }
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Видалити товар? Якщо він є в замовленнях — буде деактивовано.')) return;
+  try {
+    const _r = await apiRaw(`/api/marketplace/admin/products/${id}`, { method: 'DELETE' }); const d = _r.data ?? _r;
+    showToast(d.deactivated ? 'Товар деактивовано (є в замовленнях)' : 'Товар видалено');
+    loadAdminProducts();
+    loadMarketplaceStats();
+  } catch (e) {
+    showToast(e.message || 'Помилка', true);
+  }
+}
+
+// ── Orders ────────────────────────────────────────────────────────
+
+const ORDER_STATUS_LABELS = {
+  paid: 'Оплачено', shipped: 'Відправлено', delivered: 'Доставлено',
+  cancelled: 'Скасовано', awaiting_payment: 'Очікує оплати', processing: 'В обробці',
+};
+const ORDER_STATUS_CSS = {
+  paid: 'paid', shipped: 'shipped', delivered: 'delivered',
+  cancelled: 'cancelled', awaiting_payment: 'pending', processing: 'pending',
+};
+
+async function loadAdminOrders() {
+  const tbody = document.getElementById('mktOrdersBody');
+  const pager = document.getElementById('mktOrdersPager');
+  const status     = document.getElementById('mktOrderStatus')?.value || '';
+  const dateFrom   = document.getElementById('mktOrderFrom')?.value || '';
+  const dateTo     = document.getElementById('mktOrderTo')?.value   || '';
+  const custSearch = (document.getElementById('mktOrderCustSearch')?.value || '').trim();
+  tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr>`;
+  try {
+    const params = new URLSearchParams({ page: _mktOrdersPage });
+    if (status)     params.set('status',    status);
+    if (dateFrom)   params.set('date_from', dateFrom);
+    if (dateTo)     params.set('date_to',   dateTo);
+    if (custSearch) params.set('search',    custSearch);
+    const _r = await apiRaw(`/api/marketplace/admin/orders?${params}`); const d = _r.data ?? _r;
+
+    if (!d.items?.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Замовлень не знайдено</td></tr>`;
+      pager.innerHTML = '';
+      return;
+    }
+
+    tbody.innerHTML = d.items.map(o => `
+      <tr>
+        <td style="font-weight:700;color:rgba(255,255,255,.7)">#${o.id}</td>
+        <td>
+          <div style="font-weight:600;color:#fff">${escapeHtml(o.user_name || o.user_phone || '—')}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.4)">${escapeHtml(o.shipping_name || '')} · ${escapeHtml(o.shipping_phone || '')}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.35)">${fmtShortDate(o.created_at)}</div>
+        </td>
+        <td style="font-size:12px;color:rgba(255,255,255,.6)">${escapeHtml(o.shipping_address || '—')}</td>
+        <td style="font-weight:700;color:#22c55e">${fmtMoney(o.total_amount)}</td>
+        <td><span class="status-pill ${ORDER_STATUS_CSS[o.status] || ''}">${ORDER_STATUS_LABELS[o.status] || o.status}</span></td>
+        <td>
+          <div style="display:flex;gap:5px;flex-wrap:wrap">
+            <button class="secondary-btn" style="padding:4px 9px;font-size:12px" onclick="openOrderDetailModal(${o.id})">👁</button>
+            <button class="secondary-btn" style="padding:4px 9px;font-size:12px" onclick="openOrderStatusModal(${o.id}, '${o.status}')">✎ Статус</button>
+          </div>
+        </td>
+      </tr>`).join('');
+
+    pager.innerHTML = d.pages > 1 ? `
+      <button class="secondary-btn" style="padding:4px 12px" ${_mktOrdersPage <= 1 ? 'disabled' : ''} onclick="_mktOrdersPage--;loadAdminOrders()">‹</button>
+      <span style="color:rgba(255,255,255,.5);font-size:13px">${_mktOrdersPage} / ${d.pages}</span>
+      <button class="secondary-btn" style="padding:4px 12px" ${_mktOrdersPage >= d.pages ? 'disabled' : ''} onclick="_mktOrdersPage++;loadAdminOrders()">›</button>` : '';
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">${escapeHtml(e.message || 'Помилка')}</td></tr>`;
+  }
+}
+
+function openOrderStatusModal(orderId, currentStatus) {
+  _currentOrderId = orderId;
+  document.getElementById('osOrderId').textContent = orderId;
+  document.getElementById('osStatus').value = currentStatus;
+  document.getElementById('orderStatusModal').classList.add('open');
+}
+
+function closeOrderStatusModal() {
+  document.getElementById('orderStatusModal').classList.remove('open');
+}
+
+async function confirmOrderStatus() {
+  const status = document.getElementById('osStatus').value;
+  if (!_currentOrderId || !status) return;
+  try {
+    await apiRaw(`/api/marketplace/admin/orders/${_currentOrderId}/status`, {
+      method: 'PATCH', body: JSON.stringify({ status }),
+    });
+    showToast('Статус оновлено');
+    closeOrderStatusModal();
+    loadAdminOrders();
+  } catch (e) {
+    showToast(e.message || 'Помилка', true);
+  }
+}
+
+// Close modals on backdrop click
+document.addEventListener('click', e => {
+  if (e.target.id === 'productModal')        closeProductModal();
+  if (e.target.id === 'orderStatusModal')    closeOrderStatusModal();
+  if (e.target.id === 'customerDetailModal') closeCustomerModal();
+  if (e.target.id === 'orderDetailModal')    closeOrderDetailModal();
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  MARKETPLACE CRM — Customers
+// ═══════════════════════════════════════════════════════════════════
+
+let _mktCustomersPage = 1;
+let _custDebounceTimer = null;
+let _ordersDebounceTimer = null;
+
+function debounceLoadCustomers() {
+  clearTimeout(_custDebounceTimer);
+  _custDebounceTimer = setTimeout(() => { _mktCustomersPage = 1; loadAdminCustomers(); }, 350);
+}
+
+function debounceLoadOrders() {
+  clearTimeout(_ordersDebounceTimer);
+  _ordersDebounceTimer = setTimeout(() => { _mktOrdersPage = 1; loadAdminOrders(); }, 350);
+}
+
+async function loadAdminCustomers() {
+  const tbody = document.getElementById('mktCustomersBody');
+  const pager = document.getElementById('mktCustomersPager');
+  if (!tbody) return;
+  const search = (document.getElementById('mktCustSearch')?.value || '').trim();
+  tbody.innerHTML = `<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr>`;
+  try {
+    const params = new URLSearchParams({ page: _mktCustomersPage });
+    if (search) params.set('search', search);
+    const _r = await apiRaw(`/api/marketplace/admin/customers?${params}`);
+    const d = _r.data ?? _r;
+
+    if (!d.items?.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Клієнтів не знайдено</td></tr>`;
+      if (pager) pager.innerHTML = '';
+      return;
+    }
+
+    tbody.innerHTML = d.items.map(c => `
+      <tr>
+        <td>
+          <div style="font-weight:600;color:#fff">${escapeHtml(c.full_name || '—')}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.4)">${escapeHtml(c.phone || '')}</div>
+        </td>
+        <td style="text-align:center;font-weight:700">${c.total_orders}</td>
+        <td style="font-weight:700;color:#22c55e">${fmtMoney(c.total_spent)}</td>
+        <td style="font-size:12px;color:rgba(255,255,255,.5)">${fmtDate(c.last_order_at)}</td>
+        <td>
+          <button class="secondary-btn" style="padding:4px 10px;font-size:12px"
+                  onclick="openCustomerModal(${c.user_id})">Профіль →</button>
+        </td>
+      </tr>`).join('');
+
+    if (pager) {
+      pager.innerHTML = d.pages > 1 ? `
+        <button class="secondary-btn" style="padding:4px 12px" ${_mktCustomersPage<=1?'disabled':''} onclick="_mktCustomersPage--;loadAdminCustomers()">‹</button>
+        <span style="color:rgba(255,255,255,.5);font-size:13px">${_mktCustomersPage} / ${d.pages}</span>
+        <button class="secondary-btn" style="padding:4px 12px" ${_mktCustomersPage>=d.pages?'disabled':''} onclick="_mktCustomersPage++;loadAdminCustomers()">›</button>` : '';
+    }
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">${escapeHtml(e.message||'Помилка')}</td></tr>`;
+  }
+}
+
+async function openCustomerModal(userId) {
+  const modal = document.getElementById('customerDetailModal');
+  const body  = document.getElementById('custModalBody');
+  const title = document.getElementById('custModalTitle');
+  if (!modal) return;
+  body.innerHTML = '<div class="muted" style="padding:30px;text-align:center">Завантаження…</div>';
+  modal.classList.add('open');
+  try {
+    const _r = await apiRaw(`/api/marketplace/admin/customers/${userId}`);
+    const c = _r.data ?? _r;
+    title.textContent = `${c.full_name || 'Клієнт'} · ${c.phone}`;
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+        <div class="mkt-stat-card">
+          <div class="mkt-stat-val">${c.total_orders}</div>
+          <div class="mkt-stat-lbl">Замовлень</div>
+        </div>
+        <div class="mkt-stat-card success">
+          <div class="mkt-stat-val">${fmtMoney(c.total_spent)}</div>
+          <div class="mkt-stat-lbl">Витрачено</div>
+        </div>
+      </div>
+      <h4 style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.45);margin:0 0 10px">Замовлення</h4>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr>
+            <th style="width:50px">ID</th>
+            <th style="width:130px">Дата</th>
+            <th>Адреса</th>
+            <th style="width:110px">Сума</th>
+            <th style="width:100px">Статус</th>
+            <th style="width:70px"></th>
+          </tr></thead>
+          <tbody>
+            ${(c.orders||[]).map(o => `
+              <tr>
+                <td style="color:rgba(255,255,255,.4)">#${o.id}</td>
+                <td style="font-size:12px;color:rgba(255,255,255,.6)">${fmtDate(o.created_at)}</td>
+                <td style="font-size:12px;color:rgba(255,255,255,.6)">${escapeHtml(o.shipping_address||'—')}</td>
+                <td style="font-weight:700;color:#22c55e">${fmtMoney(o.total_amount)}</td>
+                <td><span class="status-pill ${ORDER_STATUS_CSS[o.status]||''}">${ORDER_STATUS_LABELS[o.status]||o.status}</span></td>
+                <td><button class="secondary-btn" style="font-size:11px;padding:3px 8px" onclick="openOrderDetailModal(${o.id})">👁</button></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch (e) {
+    body.innerHTML = `<div class="muted" style="padding:30px;text-align:center">${escapeHtml(e.message||'Помилка')}</div>`;
+  }
+}
+
+function closeCustomerModal() {
+  document.getElementById('customerDetailModal')?.classList.remove('open');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Order detail modal
+// ═══════════════════════════════════════════════════════════════════
+
+async function openOrderDetailModal(orderId) {
+  const modal = document.getElementById('orderDetailModal');
+  const body  = document.getElementById('orderDetailBody');
+  const title = document.getElementById('orderDetailTitle');
+  if (!modal) return;
+  title.textContent = `Замовлення #${orderId}`;
+  body.innerHTML = '<div class="muted" style="padding:30px;text-align:center">Завантаження…</div>';
+  modal.classList.add('open');
+  try {
+    const _r = await apiRaw(`/api/marketplace/admin/orders/${orderId}`);
+    const o = _r.data ?? _r;
+    const statusPill = `<span class="status-pill ${ORDER_STATUS_CSS[o.status]||''}">${ORDER_STATUS_LABELS[o.status]||o.status}</span>`;
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;font-size:13px;line-height:1.7">
+        <div><span style="opacity:.5">Клієнт:</span>&nbsp;<strong>${escapeHtml(o.user_name||o.user_phone||'—')}</strong></div>
+        <div><span style="opacity:.5">Телефон:</span>&nbsp;${escapeHtml(o.user_phone||'—')}</div>
+        <div><span style="opacity:.5">Отримувач:</span>&nbsp;${escapeHtml(o.shipping_name||'—')}</div>
+        <div><span style="opacity:.5">Тел. доставки:</span>&nbsp;${escapeHtml(o.shipping_phone||'—')}</div>
+        <div style="grid-column:span 2"><span style="opacity:.5">Адреса:</span>&nbsp;${escapeHtml(o.shipping_address||'—')}</div>
+        <div><span style="opacity:.5">Статус:</span>&nbsp;${statusPill}</div>
+        <div><span style="opacity:.5">Сума:</span>&nbsp;<strong style="color:#22c55e">${fmtMoney(o.total_amount)}</strong></div>
+        <div><span style="opacity:.5">Дата:</span>&nbsp;${fmtDate(o.created_at)}</div>
+        <div><span style="opacity:.5">Оплата:</span>&nbsp;${o.payment_mode === 'invoice' ? '🧾 Рахунок' : '💳 Одразу'}</div>
+        ${o.note ? `<div style="grid-column:span 2"><span style="opacity:.5">Нотатка:</span>&nbsp;${escapeHtml(o.note)}</div>` : ''}
+      </div>
+      <h4 style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.45);margin:0 0 10px">Склад замовлення</h4>
+      <div class="table-wrap" style="margin-bottom:16px">
+        <table class="data-table">
+          <thead><tr>
+            <th>Товар</th>
+            <th style="width:60px;text-align:center">К-сть</th>
+            <th style="width:110px">Ціна</th>
+            <th style="width:110px">Разом</th>
+          </tr></thead>
+          <tbody>
+            ${(o.items||[]).map(it => `
+              <tr>
+                <td><span style="margin-right:6px;font-size:1.1rem">${it.image_emoji}</span>${escapeHtml(it.title)}</td>
+                <td style="text-align:center;font-weight:700">${it.qty}</td>
+                <td>${fmtMoney(it.price)}</td>
+                <td style="font-weight:700;color:#22c55e">${fmtMoney(it.line_total)}</td>
+              </tr>`).join('')}
+            <tr style="border-top:2px solid rgba(255,255,255,.12)">
+              <td colspan="3" style="text-align:right;opacity:.6;font-weight:600">Всього:</td>
+              <td style="font-weight:800;font-size:1.05em;color:#22c55e">${fmtMoney(o.total_amount)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="secondary-btn" onclick="openOrderStatusModal(${o.id},'${o.status}');closeOrderDetailModal()">Змінити статус</button>
+      </div>`;
+  } catch (e) {
+    body.innerHTML = `<div class="muted" style="padding:30px;text-align:center">${escapeHtml(e.message||'Помилка')}</div>`;
+  }
+}
+
+function closeOrderDetailModal() {
+  document.getElementById('orderDetailModal')?.classList.remove('open');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Analytics & Low-stock
+// ═══════════════════════════════════════════════════════════════════
+
+async function loadAdminAnalytics() {
+  const wrap = document.getElementById('mktRevenueChartWrap');
+  const topEl = document.getElementById('mktTopProducts');
+  if (!wrap) return;
+  try {
+    const _r = await apiRaw('/api/marketplace/admin/analytics');
+    const d = _r.data ?? _r;
+    renderMktRevenueChart(d.daily || [], wrap);
+    if (topEl && d.top_products?.length) {
+      topEl.innerHTML = `
+        <h3 style="font-size:13px;font-weight:700;margin:0 0 12px;opacity:.75">Топ товарів за виручкою</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Товар</th><th style="width:90px;text-align:center">Продано шт.</th><th style="width:130px">Виручка</th></tr></thead>
+            <tbody>
+              ${d.top_products.map((p,i) => `
+                <tr>
+                  <td>
+                    <span style="color:rgba(255,255,255,.3);font-size:12px;margin-right:8px">#${i+1}</span>
+                    <span style="margin-right:6px">${p.emoji}</span>
+                    ${escapeHtml(p.title)}
+                  </td>
+                  <td style="text-align:center;font-weight:700">${p.units}</td>
+                  <td style="font-weight:700;color:#22c55e">${fmtMoney(p.revenue)}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    } else if (topEl) {
+      topEl.innerHTML = '';
+    }
+  } catch (e) {
+    if (wrap) wrap.innerHTML = `<div class="muted" style="padding:20px;text-align:center">${escapeHtml(e.message||'Помилка')}</div>`;
+  }
+}
+
+function renderMktRevenueChart(daily, wrap) {
+  if (!daily.length) {
+    wrap.innerHTML = '<div class="muted" style="padding:20px;text-align:center">Даних за останні 30 днів немає</div>';
+    return;
+  }
+  const W = Math.max(wrap.offsetWidth || 620, 320);
+  const H = 150;
+  const pad = { top: 12, right: 10, bottom: 32, left: 8 };
+  const innerW = W - pad.left - pad.right;
+  const innerH = H - pad.top - pad.bottom;
+  const maxVal = Math.max(...daily.map(d => d.revenue || 0), 1);
+  const barW   = Math.max(4, Math.floor(innerW / daily.length) - 2);
+
+  const bars = daily.map((d, i) => {
+    const x = pad.left + Math.floor(i * (innerW / daily.length));
+    const h = Math.max(2, Math.round((d.revenue / maxVal) * innerH));
+    const y = pad.top + innerH - h;
+    // Show every ~5th label to avoid crowding
+    const showLabel = daily.length <= 10 || i % Math.ceil(daily.length / 10) === 0 || i === daily.length - 1;
+    const label = showLabel ? (d.day || '').slice(5) : ''; // MM-DD
+    const tooltip = `${d.day}: ${fmtMoney(d.revenue)} (${d.orders_count} зам.)`;
+    return `
+      <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="2" fill="${d.revenue>0?'#22c55e':'rgba(255,255,255,.1)'}" opacity=".8">
+        <title>${tooltip}</title>
+      </rect>
+      ${label ? `<text x="${x + barW/2}" y="${H - 5}" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.35)">${label}</text>` : ''}`;
+  }).join('');
+
+  const maxLabel = fmtMoney(maxVal);
+  wrap.innerHTML = `
+    <svg width="100%" viewBox="0 0 ${W} ${H}" style="overflow:visible;display:block">
+      <text x="${pad.left}" y="${pad.top}" font-size="9" fill="rgba(255,255,255,.3)">${maxLabel}</text>
+      ${bars}
+    </svg>
+    <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:6px;display:flex;gap:12px">
+      <span><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:2px;margin-right:4px;vertical-align:middle"></span>Виручка (₴)</span>
+      <span>Всього: <strong>${fmtMoney(daily.reduce((s,d)=>s+d.revenue,0))}</strong></span>
+      <span>Замовлень: <strong>${daily.reduce((s,d)=>s+d.orders_count,0)}</strong></span>
+    </div>`;
+}
+
+async function loadLowStockAlert() {
+  const panel = document.getElementById('mktLowStockPanel');
+  if (!panel) return;
+  try {
+    const _r = await apiRaw('/api/marketplace/admin/products?active=true&per_page=200');
+    const items = (_r.data ?? _r).items || [];
+    const low = items.filter(p => p.stock <= 5);
+    if (!low.length) { panel.innerHTML = ''; return; }
+    panel.innerHTML = `
+      <div class="low-stock-alert">
+        <h4>⚠️ Малий залишок — ${low.length} товарів</h4>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${low.map(p => `
+            <div style="background:rgba(255,255,255,.05);border-radius:8px;padding:7px 11px;display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer"
+                 onclick="openProductModal(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+              <span style="font-size:1.3rem">${p.image_emoji}</span>
+              <div>
+                <div style="font-weight:600;color:#fff">${escapeHtml(p.title)}</div>
+                <div style="color:${p.stock===0?'#ef4444':'#f59e0b'};font-weight:700">
+                  ${p.stock===0 ? '❌ Немає в наявності' : `Залишок: ${p.stock} шт.`}
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  } catch (_) { panel.innerHTML = ''; }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Quick stock update
+// ═══════════════════════════════════════════════════════════════════
+
+async function quickUpdateStock(productId, inputEl) {
+  const stock = Math.max(0, parseInt(inputEl.value) || 0);
+  inputEl.value = stock;
+  try {
+    await apiRaw(`/api/marketplace/admin/products/${productId}/stock`, {
+      method: 'PATCH',
+      body: JSON.stringify({ stock }),
+    });
+    showToast('Залишок оновлено');
+    inputEl.style.color = stock === 0 ? '#ef4444' : stock <= 5 ? '#f59e0b' : '';
+    inputEl.style.fontWeight = stock <= 5 ? '700' : '400';
+    loadMarketplaceStats();
+  } catch (e) {
+    showToast(e.message || 'Помилка оновлення', true);
+    loadAdminProducts();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CSV Export
+// ═══════════════════════════════════════════════════════════════════
+
+async function exportMktOrdersCsv() {
+  try {
+    const dateFrom   = document.getElementById('mktOrderFrom')?.value || '';
+    const dateTo     = document.getElementById('mktOrderTo')?.value   || '';
+    const status     = document.getElementById('mktOrderStatus')?.value || '';
+    const custSearch = (document.getElementById('mktOrderCustSearch')?.value || '').trim();
+    const params = new URLSearchParams({ per_page: 5000, page: 1 });
+    if (status)     params.set('status',    status);
+    if (dateFrom)   params.set('date_from', dateFrom);
+    if (dateTo)     params.set('date_to',   dateTo);
+    if (custSearch) params.set('search',    custSearch);
+
+    showToast('Підготовка CSV…');
+    const _r = await apiRaw(`/api/marketplace/admin/orders?${params}`);
+    const rows = (_r.data ?? _r).items || [];
+    if (!rows.length) { showToast('Немає даних для експорту'); return; }
+
+    const esc = v => `"${String(v??'').replace(/"/g,'""')}"`;
+    const headers = ['ID','Дата','Клієнт','Телефон акаунту','Отримувач','Тел. доставки','Адреса','Сума','Валюта','Статус','Інвойс'];
+    const lines = [
+      headers.join(','),
+      ...rows.map(o => [
+        o.id,
+        esc(fmtDate(o.created_at)),
+        esc(o.user_name),
+        esc(o.user_phone),
+        esc(o.shipping_name),
+        esc(o.shipping_phone),
+        esc(o.shipping_address),
+        Number(o.total_amount).toFixed(2),
+        o.currency,
+        o.status,
+        esc(o.invoice_number),
+      ].join(','))
+    ];
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `marketplace-orders-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+    showToast(`✅ Експортовано ${rows.length} замовлень`);
+  } catch (e) {
+    showToast(e.message || 'Помилка експорту', true);
+  }
+}

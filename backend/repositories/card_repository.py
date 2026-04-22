@@ -52,6 +52,13 @@ class CardRepository(BaseRepository):
                 (status, card_id, account_id),
             )
 
+    def set_design(self, card_id: int, account_id: int, design: str) -> None:
+        with self.connection() as conn:
+            conn.execute(
+                'UPDATE cards SET design = %s WHERE id = %s AND account_id = %s',
+                (design, card_id, account_id),
+            )
+
     def count_active(self, account_id: int) -> int:
         with self.connection() as conn:
             row = conn.execute(

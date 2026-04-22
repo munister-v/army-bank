@@ -1,195 +1,135 @@
-/* ╔══════════════════════════════════════════════════════════════╗
-   ║  overrides.js — анімації переходів + карусель карток         ║
-   ║  Завантажується після app.js, патчить switchScreen           ║
-   ╚══════════════════════════════════════════════════════════════╝ */
+/* Non-invasive UI polish hooks.
+   Important: no routing/swipe overrides here. Core navigation stays in app.js. */
 
 (function () {
   'use strict';
 
-  /* ── 1. SCREEN TRANSITION PATCH ─────────────────────────────
-     Перехоплюємо switchScreen: додаємо напрям + клас animate     */
-
-  var NAV_ORDER = ['dashboard', 'transactions', 'cards', 'profile'];
-  var _prevScreen = 'dashboard';
-  var _originalSwitchScreen = null;
-
-  function patchSwitchScreen() {
-    if (typeof window.switchScreen !== 'function') return;
-    if (window.__overridesSwitchPatched) return;
-    window.__overridesSwitchPatched = true;
-
-    _originalSwitchScreen = window.switchScreen;
-
-    window.switchScreen = function (screenId) {
-      var nextIndex = NAV_ORDER.indexOf(screenId);
-      var prevIndex = NAV_ORDER.indexOf(_prevScreen);
-      var direction = (nextIndex >= prevIndex) ? 'ltr' : 'rtl'; // left→right = forward
-
-      // Mark outgoing screen for exit animation
-      var outgoing = document.querySelector('.screen.active-screen');
-      if (outgoing && outgoing.id !== screenId) {
-        outgoing.classList.add('screen-exit');
-        outgoing.classList.add('screen-exit-' + direction);
-        // Remove after animation
-        var _out = outgoing;
-        setTimeout(function () {
-          _out.classList.remove('screen-exit', 'screen-exit-ltr', 'screen-exit-rtl');
-        }, 220);
-      }
-
-      // Call original
-      _originalSwitchScreen(screenId);
-
-      // Add enter animation class to incoming screen
-      var incoming = document.getElementById(screenId);
-      if (incoming) {
-        incoming.classList.remove('screen-enter', 'screen-enter-ltr', 'screen-enter-rtl');
-        void incoming.offsetWidth; // force reflow
-        incoming.classList.add('screen-enter');
-        incoming.classList.add('screen-enter-' + direction);
-        setTimeout(function () {
-          incoming.classList.remove('screen-enter', 'screen-enter-ltr', 'screen-enter-rtl');
-        }, 320);
-      }
-
-      _prevScreen = screenId;
-    };
+  function scheduleIdle(task) {
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(function () { task(); }, { timeout: 1200 });
+      return;
+    }
+    setTimeout(task, 220);
   }
 
-  /* ── 2. CARD CAROUSEL SCROLL DEPTH EFFECT ──────────────────
-     При скролі карусель масштабує сусідні картки (parallax)       */
+  function isReducedMotionContext() {
+    var root = document.documentElement;
+    var reduceByMedia = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    return reduceByMedia || root.classList.contains('no-animations') || root.classList.contains('render-lite');
+  }
+
+  function getTrack() {
+    return document.querySelector('.bank-cards-track');
+  }
+
+  function shouldEnhanceCarousel(track) {
+    if (!track) return false;
+    var root = document.documentElement;
+    // Desktop classic >=1200 does not use the cards carousel visually.
+    if (root.classList.contains('desktop-classic') && window.matchMedia('(min-width: 1200px)').matches) {
+      return false;
+    }
+    return true;
+  }
+
+  function isDesktopWheelContext() {
+    return window.matchMedia('(min-width: 960px)').matches;
+  }
 
   function initCarouselDepth() {
-    var track = document.querySelector('.bank-cards-track');
+    var track = getTrack();
+    if (!shouldEnhanceCarousel(track)) return;
     if (!track || track._depthInit) return;
     track._depthInit = true;
 
+    if (isReducedMotionContext()) {
+      track.querySelectorAll('.bank-card').forEach(function (card) {
+        card.style.transform = '';
+        card.style.opacity = '';
+        card.style.transition = '';
+      });
+      return;
+    }
+
+    var raf = 0;
     function updateCardScale() {
+      raf = 0;
+      if (track.offsetParent === null) return;
+
       var cards = track.querySelectorAll('.bank-card');
       if (!cards.length) return;
-      var trackCenter = track.scrollLeft + track.clientWidth / 2;
 
+      var trackCenter = track.scrollLeft + track.clientWidth / 2;
       cards.forEach(function (card) {
         var cardCenter = card.offsetLeft + card.offsetWidth / 2;
         var dist = Math.abs(trackCenter - cardCenter);
-        var maxDist = track.clientWidth * 0.9;
+        var maxDist = Math.max(track.clientWidth * 0.9, 1);
         var ratio = Math.max(0, 1 - dist / maxDist);
-        var scale = 0.88 + 0.12 * ratio;
-        var opacity = 0.55 + 0.45 * ratio;
+        var scale = 0.9 + 0.1 * ratio;
+        var opacity = 0.6 + 0.4 * ratio;
         card.style.transform = 'scale(' + scale.toFixed(3) + ')';
         card.style.opacity = opacity.toFixed(3);
         card.style.transition = 'transform .18s ease, opacity .18s ease';
       });
     }
 
-    track.addEventListener('scroll', updateCardScale, { passive: true });
-    updateCardScale();
+    function queueUpdate() {
+      if (raf) return;
+      raf = requestAnimationFrame(updateCardScale);
+    }
 
-    // Re-init after cards loaded
-    var observer = new MutationObserver(function () {
-      track._depthInit = false;
-      initCarouselDepth();
-    });
-    observer.observe(track, { childList: true });
+    track.addEventListener('scroll', queueUpdate, { passive: true });
+    window.addEventListener('resize', queueUpdate, { passive: true });
+
+    if (!track._depthObserver && typeof MutationObserver !== 'undefined') {
+      track._depthObserver = new MutationObserver(queueUpdate);
+      track._depthObserver.observe(track, { childList: true, subtree: false });
+    }
+
+    queueUpdate();
   }
-
-  /* ── 3. SWIPE GESTURE FOR SCREEN NAVIGATION ─────────────────
-     Горизонтальний свайп по app-content → переключення екрану     */
-
-  function initScreenSwipe() {
-    var content = document.getElementById('appScreen');
-    if (!content || content._swipeInit) return;
-    content._swipeInit = true;
-
-    var startX = 0, startY = 0, startTime = 0;
-    var THRESHOLD = 60, MAX_Y = 80, MAX_TIME = 380;
-
-    content.addEventListener('touchstart', function (e) {
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      startTime = Date.now();
-    }, { passive: true });
-
-    content.addEventListener('touchend', function (e) {
-      if (!e.changedTouches.length) return;
-      var dx = e.changedTouches[0].clientX - startX;
-      var dy = e.changedTouches[0].clientY - startY;
-      var dt = Date.now() - startTime;
-
-      // Ignore vertical scrolls
-      if (Math.abs(dy) > MAX_Y) return;
-      if (Math.abs(dx) < THRESHOLD) return;
-      if (dt > MAX_TIME) return;
-
-      // Only swipe in main tab bar screens
-      var currentId = document.querySelector('.screen.active-screen')?.id;
-      if (!NAV_ORDER.includes(currentId)) return;
-
-      var curIdx = NAV_ORDER.indexOf(currentId);
-      var nextIdx;
-      if (dx < 0) {
-        // swipe left → go to next tab
-        nextIdx = Math.min(NAV_ORDER.length - 1, curIdx + 1);
-      } else {
-        // swipe right → go to prev tab
-        nextIdx = Math.max(0, curIdx - 1);
-      }
-
-      if (nextIdx !== curIdx && typeof window.switchScreen === 'function') {
-        var nextScreen = NAV_ORDER[nextIdx];
-        window.history.pushState(null, '', (window.getBasePath ? window.getBasePath() : '') + '/' + nextScreen);
-        window.switchScreen(nextScreen);
-      }
-    }, { passive: true });
-  }
-
-  /* ── 4. CAROUSEL SNAP MOMENTUM (keyboard/mouse) ─────────────
-     Забезпечуємо щоб колесо миші теж снепало по одній карті      */
 
   function initCarouselWheelSnap() {
-    var track = document.querySelector('.bank-cards-track');
+    var track = getTrack();
+    if (!shouldEnhanceCarousel(track)) return;
     if (!track || track._wheelInit) return;
     track._wheelInit = true;
 
-    var _snapTimer = null;
+    if (isReducedMotionContext()) return;
+
+    var snapTimer = null;
     track.addEventListener('wheel', function (e) {
+      if (!isDesktopWheelContext()) return;
+      if (track.offsetParent === null) return;
+
       e.preventDefault();
-      var cardW = (track.querySelector('.bank-card')?.offsetWidth || track.clientWidth) + 14;
+      var baseCard = track.querySelector('.bank-card');
+      var cardW = (baseCard ? baseCard.offsetWidth : track.clientWidth) + 14;
       var dir = e.deltaX !== 0 ? Math.sign(e.deltaX) : Math.sign(e.deltaY);
+      if (!dir) return;
       var cur = Math.round(track.scrollLeft / cardW);
       var next = Math.max(0, cur + dir);
-      clearTimeout(_snapTimer);
-      _snapTimer = setTimeout(function () {
+      clearTimeout(snapTimer);
+      snapTimer = setTimeout(function () {
         track.scrollTo({ left: next * cardW, behavior: 'smooth' });
       }, 50);
     }, { passive: false });
   }
 
-  /* ── 5. INIT ─────────────────────────────────────────────── */
-
   function init() {
-    patchSwitchScreen();
-    initCarouselDepth();
-    initScreenSwipe();
-    initCarouselWheelSnap();
-
-    // Re-try carousel init after data loads (cards are async)
-    setTimeout(function () {
-      initCarouselDepth();
-      initCarouselWheelSnap();
-    }, 1500);
+    scheduleIdle(initCarouselDepth);
+    scheduleIdle(initCarouselWheelSnap);
 
     setTimeout(function () {
-      initCarouselDepth();
-      initCarouselWheelSnap();
-    }, 4000);
+      scheduleIdle(initCarouselDepth);
+      scheduleIdle(initCarouselWheelSnap);
+    }, 1200);
   }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
-    // Already loaded — wait one tick so app.js finishes
     setTimeout(init, 0);
   }
-
+  window.addEventListener('pageshow', init, { passive: true });
 })();

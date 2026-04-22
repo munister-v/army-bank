@@ -45,6 +45,21 @@ def auth_required(func):
 
         g.current_user = user
         g.current_token = token
+        # Backward compatibility: some routes still read g.user_id directly.
+        g.user_id = user.get('id')
+
+        # Оновити last_seen_at
+        try:
+            from ..database import get_connection
+            from ..config import USE_PG
+            with get_connection() as _lsa_conn:
+                _now_sql = 'NOW()' if USE_PG else "datetime('now')"
+                _lsa_conn.execute(
+                    f"UPDATE users SET last_seen_at = {_now_sql} WHERE id = %s",
+                    (user['id'],),
+                )
+        except Exception:
+            pass
 
         # Автооновлення сесії якщо залишилось < 7 днів
         if should_refresh_session(user.get('expires_at', '')):

@@ -58,3 +58,14 @@ def close_card(card_id: int):
         return jsonify({'ok': True, 'data': service.close_card(g.current_user['id'], card_id)})
     except Exception as exc:
         return api_error(str(exc))
+
+
+@card_bp.patch('/cards/<int:card_id>/design')
+@auth_required
+def update_card_design(card_id: int):
+    try:
+        data = request.get_json(force=True) or {}
+        design = (data.get('design') or '').strip()
+        return jsonify({'ok': True, 'data': service.update_design(g.current_user['id'], card_id, design)})
+    except Exception as exc:
+        return api_error(str(exc))

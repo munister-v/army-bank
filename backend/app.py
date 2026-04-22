@@ -12,6 +12,7 @@ from flask import Flask, Response, abort, jsonify, redirect, send_from_directory
 from flask_compress import Compress
 
 from .api_docs import (
+    augment_openapi_with_runtime_routes,
     build_api_catalog,
     build_api_version,
     build_docs_html,
@@ -20,6 +21,8 @@ from .api_docs import (
     build_postman_environment,
 )
 from .config import (
+    ALLOW_DEMO_PAYOUT_ACCRUAL,
+    ALLOW_PLATFORM_DEMO_SEED,
     BASE_PATH,
     BOOTSTRAP_TOKEN,
     DEBUG,
@@ -40,6 +43,10 @@ from .routes.payment_audit_routes import payment_audit_bp
 from .routes.admin_cards_routes import admin_cards_bp
 from .routes.admin_compliance_routes import admin_compliance_bp
 from .routes.document_routes import doc_bp
+from .routes.messenger_routes import messenger_bp
+from .routes.call_routes import call_bp
+from .routes.marketplace_routes import marketplace_bp
+from .routes.passkey_routes import passkey_bp
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / 'frontend'
@@ -54,14 +61,44 @@ def create_app() -> Flask:
     try:
         init_db()
         init_admin()
+        # Auto-seed marketplace products on startup (idempotent)
+        try:
+            from .routes.marketplace_routes import _ensure_schema, REAL_PRODUCTS, _unique_slug, _now_sql
+            from .database import get_connection
+            _ensure_schema()
+            with get_connection() as conn:
+                for p in REAL_PRODUCTS:
+                    existing = conn.execute(
+                        'SELECT id FROM marketplace_products WHERE slug = %s LIMIT 1', (p['slug'],)
+                    ).fetchone()
+                    now = _now_sql()
+                    if existing:
+                        conn.execute(
+                            f'UPDATE marketplace_products SET title=%s,description=%s,price=%s,currency=%s,image_emoji=%s,image_url=%s,badge=%s,stock=%s,is_active=TRUE,updated_at={now} WHERE slug=%s',
+                            (p['title'],p['description'],p['price'],p['currency'],p['image_emoji'],p.get('image_url'),p.get('badge'),p.get('stock',10),p['slug'])
+                        )
+                    else:
+                        conn.execute(
+                            f'INSERT INTO marketplace_products(slug,title,description,price,currency,image_emoji,image_url,badge,stock,is_active,created_at,updated_at) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,TRUE,{now},{now})',
+                            (p['slug'],p['title'],p['description'],p['price'],p['currency'],p['image_emoji'],p.get('image_url'),p.get('badge'),p.get('stock',10))
+                        )
+            print(f'[Army Bank] Marketplace sync: {len(REAL_PRODUCTS)} products upserted')
+        except Exception as seed_exc:
+            print(f'[Army Bank] Marketplace seed warning: {seed_exc}')
     except Exception as exc:
         db_boot_ok = False
         print(f'[Army Bank] DB bootstrap warning: {exc}')
     app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path=BASE_PATH or '')
+    from .config import SECRET_KEY
+    app.secret_key = SECRET_KEY  # needed for Flask session (WebAuthn challenge storage)
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+    app.config['SESSION_COOKIE_SECURE'] = True
     app.config['DB_BOOT_OK'] = db_boot_ok
     app.config.setdefault('ENABLE_RATE_LIMIT_IN_TESTS', ENABLE_RATE_LIMIT_IN_TESTS)
     app.config.setdefault('ENFORCE_IDEMPOTENCY_HEADERS', ENFORCE_IDEMPOTENCY_HEADERS)
     app.config.setdefault('ENFORCE_IDEMPOTENCY_IN_TESTS', ENFORCE_IDEMPOTENCY_IN_TESTS)
+    app.config.setdefault('ALLOW_PLATFORM_DEMO_SEED', ALLOW_PLATFORM_DEMO_SEED)
+    app.config.setdefault('ALLOW_DEMO_PAYOUT_ACCRUAL', ALLOW_DEMO_PAYOUT_ACCRUAL)
 
     # ── Gzip compression for all text responses (JSON, HTML, CSS, JS) ──
     app.config['COMPRESS_REGISTER'] = False   # manual init below
@@ -77,6 +114,7 @@ def create_app() -> Flask:
     _ALLOWED_ORIGINS = {
         'https://munister.com.ua',
         'https://www.munister.com.ua',
+        'https://bank.munister.com.ua',
         'http://localhost:9099',
         'http://localhost:5173',
         'http://127.0.0.1:5500',
@@ -115,7 +153,7 @@ def create_app() -> Flask:
         resp.headers['X-Content-Type-Options'] = 'nosniff'
         resp.headers.setdefault('X-Frame-Options', 'DENY')
         resp.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
-        resp.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
+        # Permissions-Policy set below, after norm_path is known (messenger needs microphone)
         resp.headers.setdefault('Cross-Origin-Opener-Policy', 'same-origin')
         resp.headers.setdefault('Cross-Origin-Resource-Policy', 'same-origin')
         req_id = str(getattr(g, 'request_id', '') or '').strip()
@@ -136,22 +174,40 @@ def create_app() -> Flask:
             _append_expose_header(resp, 'X-Request-Id')
         if _req.is_secure:
             resp.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
-        # Cache-Control for static assets (CSS, JS, fonts, images)
+        # Cache-Control policy (prefix-aware): avoids stale PWA shells and old bundles.
         path = _req.path
+        norm_path = path
+        if prefix and norm_path.startswith(prefix + '/'):
+            norm_path = norm_path[len(prefix):]
+        elif prefix and norm_path == prefix:
+            norm_path = '/'
+
+        # Messenger needs microphone for voice messages and WebRTC calls
+        is_messenger = norm_path in ('/messenger', '/messenger.html') or norm_path.startswith('/messenger/')
+        if is_messenger:
+            resp.headers.setdefault('Permissions-Policy', 'microphone=(self), camera=(), geolocation=(), payment=()')
+        else:
+            resp.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
+
         content_type = (resp.headers.get('Content-Type') or '').lower()
         is_html = 'text/html' in content_type
+        is_versioned_asset = bool((_req.args.get('v') or '').strip())
         if is_html:
-            resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
-        elif path.endswith('/sw.js') or path == '/sw.js':
-            # Service Worker script must be revalidated every load to deliver updates immediately.
+            # Always fetch fresh HTML to prevent old auth/dashboard shell flashes.
             resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        elif path == '/manifest.json':
+        elif norm_path.endswith('/sw.js') or norm_path == '/sw.js' or norm_path.endswith('/sw-messenger.js'):
+            # Service Worker scripts must be revalidated every load to deliver updates immediately.
+            resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        elif norm_path.endswith('/manifest.json') or norm_path == '/manifest.json' or norm_path.endswith('/manifest-messenger.json'):
             resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
-        elif path.endswith(('.woff2', '.woff', '.ttf', '.png', '.jpg', '.ico', '.webp')):
+        elif norm_path.endswith(('.woff2', '.woff', '.ttf', '.png', '.jpg', '.ico', '.webp')):
             resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
-        elif path.endswith(('.css', '.js', '.svg')):
-            resp.headers['Cache-Control'] = 'public, max-age=300, must-revalidate'
-        elif path.startswith('/api/'):
+        elif norm_path.endswith(('.css', '.js', '.mjs', '.svg')):
+            if is_versioned_asset:
+                resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+            else:
+                resp.headers['Cache-Control'] = 'public, max-age=300, must-revalidate'
+        elif norm_path.startswith('/api/'):
             resp.headers['Cache-Control'] = 'no-store'
         return resp
 
@@ -188,7 +244,9 @@ def create_app() -> Flask:
 
     @app.errorhandler(500)
     def server_error(_e):
-        return jsonify({'ok': False, 'error': 'Внутрішня помилка сервера.'}), 500
+        import traceback, logging
+        logging.getLogger(__name__).error('500 error: %s', traceback.format_exc())
+        return jsonify({'ok': False, 'error': 'Внутрішня помилка сервера.', 'detail': str(_e)}), 500
 
     app.register_blueprint(auth_bp, url_prefix=prefix + '/api/auth')
     app.register_blueprint(account_bp, url_prefix=prefix + '/api')
@@ -202,6 +260,10 @@ def create_app() -> Flask:
     app.register_blueprint(admin_cards_bp, url_prefix=prefix + '/api/admin')
     app.register_blueprint(admin_compliance_bp, url_prefix=prefix + '/api/admin/compliance')
     app.register_blueprint(doc_bp, url_prefix=prefix + '/api/admin')
+    app.register_blueprint(messenger_bp, url_prefix=prefix + '/api/messenger')
+    app.register_blueprint(call_bp,      url_prefix=prefix + '/api/messenger/calls')
+    app.register_blueprint(marketplace_bp, url_prefix=prefix + '/api/marketplace')
+    app.register_blueprint(passkey_bp, url_prefix=prefix + '/api/auth/passkey')
 
     @app.get(prefix + '/api' if prefix else '/api')
     @app.get(prefix + '/api/' if prefix else '/api/')
@@ -213,11 +275,17 @@ def create_app() -> Flask:
         payload = build_api_version()
         payload['ok'] = True
         payload['base_path'] = prefix or '/'
+        payload['feature_flags'] = {
+            'allow_platform_demo_seed': bool(app.config.get('ALLOW_PLATFORM_DEMO_SEED', False)),
+            'allow_demo_payout_accrual': bool(app.config.get('ALLOW_DEMO_PAYOUT_ACCRUAL', False)),
+        }
         return jsonify(payload)
 
     @app.get(prefix + '/api/openapi.json' if prefix else '/api/openapi.json')
     def api_openapi():
-        return jsonify(build_openapi_schema(prefix))
+        schema = build_openapi_schema(prefix)
+        schema = augment_openapi_with_runtime_routes(schema, app, prefix)
+        return jsonify(schema)
 
     @app.get(prefix + '/api/postman/collection' if prefix else '/api/postman/collection')
     def api_postman_collection():
@@ -229,7 +297,7 @@ def create_app() -> Flask:
 
     @app.get(prefix + '/api/docs' if prefix else '/api/docs')
     def api_docs():
-        return Response(build_docs_html(prefix), mimetype='text/html')
+        return Response(build_docs_html(prefix, app), mimetype='text/html')
 
     # ── Bootstrap: одноразове підняття першого користувача до platform_admin ──
     @app.route('/api/bootstrap', methods=['POST'])
@@ -285,11 +353,33 @@ def create_app() -> Flask:
         content = content.replace('</head>', f'<script>window.ARMY_BANK_BASE="{prefix}";</script>\n</head>')
         return Response(content, mimetype='text/html')
 
+    def is_messenger_host() -> bool:
+        from flask import request as _req
+
+        raw_host = (_req.headers.get('X-Forwarded-Host') or _req.host or '')
+        host = raw_host.split(',')[0].strip().lower()
+        if ':' in host:
+            host = host.split(':', 1)[0]
+        return host == 'messenger.munister.com.ua' or host.startswith('messenger.')
+
     def send_index():
+        # Custom-domain shell switch:
+        # bank.munister.com.ua -> banking PWA
+        # messenger.munister.com.ua -> messenger shell
+        if is_messenger_host():
+            return send_html('messenger.html')
+        react_build = FRONTEND_DIR / 'bank' / 'index.html'
+        if react_build.exists():
+            content = react_build.read_text(encoding='utf-8')
+            content = content.replace('</head>', f'<script>window.ARMY_BANK_BASE="{prefix}";</script>\n</head>')
+            return Response(content, mimetype='text/html')
         return send_html('index.html')
 
     @app.get(prefix + '/' if prefix else '/')
     def index():
+        if is_messenger_host():
+            target = (prefix + '/messenger') if prefix else '/messenger'
+            return redirect(target, 308)
         # Без BASE_PATH (Render): корінь = той самий PWA що й /app (вхід), без дубля портфоліо.
         # Портфоліо лише на /army-bank/ (як на munister.com.ua/army-bank/).
         if not prefix:
@@ -322,6 +412,24 @@ def create_app() -> Flask:
     @app.get(prefix + '/api-status')
     def api_status_page():
         return send_html('api-status.html')
+
+    @app.get(prefix + '/messenger' if prefix else '/messenger')
+    def messenger_page():
+        return send_html('messenger.html')
+
+    @app.get(prefix + '/marketplace' if prefix else '/marketplace')
+    @app.get(prefix + '/marketplace/' if prefix else '/marketplace/')
+    def marketplace_page():
+        react_build = FRONTEND_DIR / 'marketplace' / 'index.html'
+        if react_build.exists():
+            content = react_build.read_text(encoding='utf-8')
+            content = content.replace('</head>', f'<script>window.ARMY_BANK_BASE="{prefix}";</script>\n</head>')
+            return Response(content, mimetype='text/html')
+        return send_html('marketplace.html')
+
+    @app.get(prefix + '/turn-test.html' if prefix else '/turn-test.html')
+    def turn_test_page():
+        return send_html('turn-test.html')
 
     @app.get(prefix + '/health')
     def health():

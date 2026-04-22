@@ -61,14 +61,43 @@ def get_connection_pg() -> Iterator:
     """Отримує з'єднання з пулу, повертає після використання."""
     pool = _get_pg_pool()
     conn = pool.getconn()
+    had_error = False
+
+    # Pool can return stale SSL connections after idle periods on Render.
+    # Validate once on checkout and replace dead connections immediately.
+    try:
+        cur = conn.cursor()
+        cur.execute('SELECT 1')
+        cur.fetchone()
+        cur.close()
+    except Exception:
+        try:
+            pool.putconn(conn, close=True)
+        except Exception:
+            pass
+        conn = pool.getconn()
+
     try:
         yield conn
         conn.commit()
     except Exception:
-        conn.rollback()
+        had_error = True
+        try:
+            if not getattr(conn, 'closed', 1):
+                conn.rollback()
+        except Exception:
+            # Ignore rollback failure on broken/closed connections.
+            pass
         raise
     finally:
-        pool.putconn(conn)
+        try:
+            is_closed = bool(getattr(conn, 'closed', 1))
+            if had_error or is_closed:
+                pool.putconn(conn, close=True)
+            else:
+                pool.putconn(conn)
+        except Exception:
+            pass
 
 
 class _SqliteConnWrapper:
@@ -424,6 +453,159 @@ CREATE INDEX IF NOT EXISTS idx_api_idempotency_created ON api_idempotency(create
 """
 
 
+MESSENGER_DDL = """
+CREATE TABLE IF NOT EXISTS conversations (
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_message_at TIMESTAMPTZ,
+    last_message_text VARCHAR(200)
+);
+CREATE TABLE IF NOT EXISTS conversation_participants (
+    id SERIAL PRIMARY KEY,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_read_at TIMESTAMPTZ,
+    is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+    UNIQUE(conversation_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS messages (
+    id SERIAL PRIMARY KEY,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conv_participants_user ON conversation_participants(user_id);
+"""
+
+MESSENGER_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS conversations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_message_at TEXT,
+    last_message_text TEXT
+);
+CREATE TABLE IF NOT EXISTS conversation_participants (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_read_at TEXT,
+    is_admin INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(conversation_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_conv_participants_user ON conversation_participants(user_id);
+"""
+
+MESSENGER_GROUPS_DDL = """
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_group BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS group_name VARCHAR(100);
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS msg_type VARCHAR(20) NOT NULL DEFAULT 'text';
+CREATE TABLE IF NOT EXISTS calls (
+    id SERIAL PRIMARY KEY,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    caller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    sdp_offer TEXT,
+    sdp_answer TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at TIMESTAMPTZ,
+    ended_at TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS call_ice (
+    id SERIAL PRIMARY KEY,
+    call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    candidate TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_calls_conv ON calls(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_call_ice_call ON call_ice(call_id, created_at);
+CREATE TABLE IF NOT EXISTS call_members (
+    id SERIAL PRIMARY KEY,
+    call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    state VARCHAR(20) NOT NULL DEFAULT 'invited',
+    joined_at TIMESTAMPTZ,
+    left_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(call_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS call_signals (
+    id SERIAL PRIMARY KEY,
+    call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+    from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    to_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    signal_type VARCHAR(20) NOT NULL,
+    payload TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_call_members_call ON call_members(call_id);
+CREATE INDEX IF NOT EXISTS idx_call_members_user ON call_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_call_signals_call ON call_signals(call_id, id);
+CREATE INDEX IF NOT EXISTS idx_call_signals_target ON call_signals(call_id, to_user_id, id);
+"""
+
+MESSENGER_GROUPS_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS calls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    caller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'pending',
+    sdp_offer TEXT,
+    sdp_answer TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    started_at TEXT,
+    ended_at TEXT
+);
+CREATE TABLE IF NOT EXISTS call_ice (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    candidate TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_calls_conv ON calls(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_call_ice_call ON call_ice(call_id);
+CREATE TABLE IF NOT EXISTS call_members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    state TEXT NOT NULL DEFAULT 'invited',
+    joined_at TEXT,
+    left_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(call_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS call_signals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+    from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    to_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    signal_type TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_call_members_call ON call_members(call_id);
+CREATE INDEX IF NOT EXISTS idx_call_members_user ON call_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_call_signals_call ON call_signals(call_id, id);
+CREATE INDEX IF NOT EXISTS idx_call_signals_target ON call_signals(call_id, to_user_id, id);
+"""
+
 DOC_TEMPLATES_DDL = """
 CREATE TABLE IF NOT EXISTS document_templates (
     id SERIAL PRIMARY KEY,
@@ -517,6 +699,11 @@ def init_db() -> None:
                 'ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash TEXT;',
                 optional=True,
                 label='users.pin_hash',
+            )
+            _pg_exec(
+                'ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ DEFAULT NULL;',
+                optional=True,
+                label='users.last_seen_at',
             )
             _pg_exec(
                 "ALTER TABLE cards ADD COLUMN IF NOT EXISTS design VARCHAR(20) NOT NULL DEFAULT 'gold';",
@@ -628,6 +815,62 @@ def init_db() -> None:
             _pg_exec(IDEMPOTENCY_DDL, optional=True, label='api_idempotency')
             _pg_exec(DOC_TEMPLATES_DDL, optional=True, label='document_templates')
             _pg_exec(USER_DOCS_DDL, optional=True, label='user_documents')
+            _pg_exec(MESSENGER_DDL, optional=True, label='messenger')
+            # messenger_groups_calls — each statement individually (psycopg2 execute() is single-statement)
+            _pg_exec("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_group BOOLEAN NOT NULL DEFAULT FALSE;",
+                     optional=True, label='conversations.is_group')
+            _pg_exec("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS group_name VARCHAR(100);",
+                     optional=True, label='conversations.group_name')
+            _pg_exec("ALTER TABLE messages ADD COLUMN IF NOT EXISTS msg_type VARCHAR(20) NOT NULL DEFAULT 'text';",
+                     optional=True, label='messages.msg_type')
+            _pg_exec("""CREATE TABLE IF NOT EXISTS calls (
+                id SERIAL PRIMARY KEY,
+                conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+                caller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                sdp_offer TEXT, sdp_answer TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                started_at TIMESTAMPTZ, ended_at TIMESTAMPTZ
+            );""", optional=True, label='calls')
+            _pg_exec("""CREATE TABLE IF NOT EXISTS call_ice (
+                id SERIAL PRIMARY KEY,
+                call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                candidate TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );""", optional=True, label='call_ice')
+            _pg_exec("CREATE INDEX IF NOT EXISTS idx_calls_conv ON calls(conversation_id);",
+                     optional=True, label='idx_calls_conv')
+            _pg_exec("CREATE INDEX IF NOT EXISTS idx_call_ice_call ON call_ice(call_id, created_at);",
+                     optional=True, label='idx_call_ice_call')
+            _pg_exec("""CREATE TABLE IF NOT EXISTS call_members (
+                id SERIAL PRIMARY KEY,
+                call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                state VARCHAR(20) NOT NULL DEFAULT 'invited',
+                joined_at TIMESTAMPTZ,
+                left_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE(call_id, user_id)
+            );""", optional=True, label='call_members')
+            _pg_exec("""CREATE TABLE IF NOT EXISTS call_signals (
+                id SERIAL PRIMARY KEY,
+                call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+                from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                to_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                signal_type VARCHAR(20) NOT NULL,
+                payload TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );""", optional=True, label='call_signals')
+            _pg_exec("CREATE INDEX IF NOT EXISTS idx_call_members_call ON call_members(call_id);",
+                     optional=True, label='idx_call_members_call')
+            _pg_exec("CREATE INDEX IF NOT EXISTS idx_call_members_user ON call_members(user_id);",
+                     optional=True, label='idx_call_members_user')
+            _pg_exec("CREATE INDEX IF NOT EXISTS idx_call_signals_call ON call_signals(call_id, id);",
+                     optional=True, label='idx_call_signals_call')
+            _pg_exec("CREATE INDEX IF NOT EXISTS idx_call_signals_target ON call_signals(call_id, to_user_id, id);",
+                     optional=True, label='idx_call_signals_target')
             _pg_exec(
                 """CREATE TABLE IF NOT EXISTS compliance_profiles (
                     id SERIAL PRIMARY KEY,
@@ -645,6 +888,16 @@ def init_db() -> None:
                 'CREATE INDEX IF NOT EXISTS idx_compliance_user ON compliance_profiles(user_id);',
                 optional=True, label='idx_compliance_user'
             )
+            _pg_exec('ALTER TABLE conversation_participants ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE;',
+                     optional=True, label='participants.is_admin')
+            _pg_exec('''CREATE TABLE IF NOT EXISTS passkeys (
+                id            SERIAL PRIMARY KEY,
+                user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                credential_id TEXT NOT NULL UNIQUE,
+                public_key    TEXT NOT NULL,
+                sign_count    INTEGER NOT NULL DEFAULT 0,
+                created_at    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            )''', optional=True, label='passkeys')
     else:
         schema_sql = Path(SCHEMA_PATH).read_text(encoding='utf-8')
         with get_connection_sqlite() as conn:
@@ -658,6 +911,21 @@ def init_db() -> None:
             conn.executescript(IDEMPOTENCY_DDL_SQLITE)
             conn.executescript(DOC_TEMPLATES_DDL_SQLITE)
             conn.executescript(USER_DOCS_DDL_SQLITE)
+            conn.executescript(MESSENGER_DDL_SQLITE)
+            conn.executescript(MESSENGER_GROUPS_DDL_SQLITE)
+            # Alter messenger tables (idempotent tries)
+            try:
+                conn.execute("ALTER TABLE conversations ADD COLUMN is_group INTEGER NOT NULL DEFAULT 0;")
+            except Exception:
+                pass
+            try:
+                conn.execute("ALTER TABLE conversations ADD COLUMN group_name TEXT;")
+            except Exception:
+                pass
+            try:
+                conn.execute("ALTER TABLE messages ADD COLUMN msg_type TEXT NOT NULL DEFAULT 'text';")
+            except Exception:
+                pass
             try:
                 conn.execute('ALTER TABLE transactions ADD COLUMN payment_order_id INTEGER;')
             except Exception:
@@ -672,6 +940,14 @@ def init_db() -> None:
                 pass
             try:
                 conn.execute('ALTER TABLE users ADD COLUMN pin_hash TEXT;')
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE users ADD COLUMN last_seen_at TEXT DEFAULT NULL;')
+            except Exception:
+                pass
+            try:
+                conn.execute("ALTER TABLE conversation_participants ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
             except Exception:
                 pass
             try:
@@ -772,6 +1048,17 @@ def init_db() -> None:
                     );"""
                 )
                 conn.execute('CREATE INDEX IF NOT EXISTS idx_compliance_user ON compliance_profiles(user_id);')
+            except Exception:
+                pass
+            try:
+                conn.execute('''CREATE TABLE IF NOT EXISTS passkeys (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    credential_id TEXT NOT NULL UNIQUE,
+                    public_key    TEXT NOT NULL,
+                    sign_count    INTEGER NOT NULL DEFAULT 0,
+                    created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+                )''')
             except Exception:
                 pass
 

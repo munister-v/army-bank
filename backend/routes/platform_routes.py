@@ -1,7 +1,7 @@
 """Маршрути для платформенного адміна: огляд системи, генерація демо-даних."""
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, request, g
+from flask import Blueprint, jsonify, request, g, current_app
 
 from ..repositories.platform_repository import PlatformRepository
 from ..services.platform_service import seed_demo
@@ -70,6 +70,8 @@ def list_platform_audit_logs():
 @role_required('platform_admin')
 def post_seed_demo():
     """Генерує демо-користувачів, рахунки та транзакції."""
+    if not bool(current_app.config.get('ALLOW_PLATFORM_DEMO_SEED', False)):
+        return api_error('Генерація демо-даних вимкнена на цьому середовищі.', 403)
     try:
         data = request.get_json(force=True) or {}
         users_count = min(int(data.get('users_count', 10)), 50)

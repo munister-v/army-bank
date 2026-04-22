@@ -1,5 +1,6 @@
 """Конфігурація застосунку WeeGo Army Bank (з .env)."""
 from pathlib import Path
+import json
 import os
 
 from dotenv import load_dotenv
@@ -31,6 +32,43 @@ ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', '').strip()
 # One-time bootstrap hardening: якщо задано, /api/bootstrap вимагає X-Bootstrap-Token
 BOOTSTRAP_TOKEN = os.getenv('BOOTSTRAP_TOKEN', '').strip()
 
+# Messenger at-rest encryption keys (Fernet, base64 urlsafe, 32-byte).
+# Multiple keys allowed for rotation: "new_key,old_key".
+MESSENGER_ENCRYPTION_KEYS = os.getenv('MESSENGER_ENCRYPTION_KEYS', '').strip()
+MESSENGER_CALL_PENDING_TIMEOUT_SECONDS = int(os.getenv('MESSENGER_CALL_PENDING_TIMEOUT_SECONDS', '45'))
+MESSENGER_CALL_ACTIVE_STALE_SECONDS = int(os.getenv('MESSENGER_CALL_ACTIVE_STALE_SECONDS', '21600'))
+MESSENGER_CALL_FORCE_RELAY = (os.getenv('MESSENGER_CALL_FORCE_RELAY', '1') == '1')
+_default_ice_servers = [
+    {'urls': 'stun:stun.l.google.com:19302'},
+    {'urls': 'stun:stun1.l.google.com:19302'},
+]
+_ice_json = os.getenv('MESSENGER_ICE_SERVERS', '').strip()
+_turn_urls_raw = os.getenv('MESSENGER_TURN_URLS', '').strip()
+_turn_username = os.getenv('MESSENGER_TURN_USERNAME', '').strip()
+_turn_credential = os.getenv('MESSENGER_TURN_CREDENTIAL', '').strip()
+if _ice_json:
+    try:
+        _parsed_ice = json.loads(_ice_json)
+        if isinstance(_parsed_ice, list):
+            MESSENGER_ICE_SERVERS = _parsed_ice
+        else:
+            MESSENGER_ICE_SERVERS = _default_ice_servers
+    except Exception:
+        MESSENGER_ICE_SERVERS = _default_ice_servers
+else:
+    _turn_urls = [u.strip() for u in _turn_urls_raw.split(',') if u.strip()]
+    if _turn_urls and _turn_username and _turn_credential:
+        MESSENGER_ICE_SERVERS = [
+            *_default_ice_servers,
+            {
+                'urls': _turn_urls,
+                'username': _turn_username,
+                'credential': _turn_credential,
+            },
+        ]
+    else:
+        MESSENGER_ICE_SERVERS = _default_ice_servers
+
 # Примітивний anti-bruteforce rate-limit для auth endpoints
 AUTH_RATE_LIMIT_ENABLED = (os.getenv('AUTH_RATE_LIMIT_ENABLED', '1') == '1')
 AUTH_RATE_WINDOW_SECONDS = int(os.getenv('AUTH_RATE_WINDOW_SECONDS', '60'))
@@ -47,3 +85,7 @@ CRITICAL_PROCESSING_RATE_LIMIT = int(os.getenv('CRITICAL_PROCESSING_RATE_LIMIT',
 # Обов'язковий заголовок Idempotency-Key для monetary endpoint'ів
 ENFORCE_IDEMPOTENCY_HEADERS = (os.getenv('ENFORCE_IDEMPOTENCY_HEADERS', '1') == '1')
 ENFORCE_IDEMPOTENCY_IN_TESTS = (os.getenv('ENFORCE_IDEMPOTENCY_IN_TESTS', '0') == '1')
+
+# Demo endpoints should be explicitly enabled per environment.
+ALLOW_PLATFORM_DEMO_SEED = (os.getenv('ALLOW_PLATFORM_DEMO_SEED', '0') == '1')
+ALLOW_DEMO_PAYOUT_ACCRUAL = (os.getenv('ALLOW_DEMO_PAYOUT_ACCRUAL', '0') == '1')

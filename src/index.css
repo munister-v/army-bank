@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  /* Deep, sophisticated palette — harmonized with ARM Bank */
+  --color-black: #1d2e20;       /* bank --mono-ink / dark sidebar green */
+  --color-brand-light: #2f4a37; /* bank --mono-blue-top */
+  --color-accent: #a8792a;      /* gold accent — unchanged */
+  --color-surface: #f1f5ee;     /* warm sage-white, matches bank body tones */
+  --color-muted: #6b7c6d;       /* bank --mono-muted */
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-black antialiased selection:bg-accent selection:text-white;
+  }
+  
+  /* SVG Noise Overlay for authentic texture */
+  body::after {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-black uppercase tracking-tighter;
+  }
+}
+
+@layer components {
+  .u24-border {
+    @apply border-2 border-black;
+  }
+  
+  .u24-button {
+    @apply px-8 py-4 bg-black text-white font-black uppercase tracking-widest text-xs transition-all duration-300 hover:bg-accent hover:text-white hover:shadow-[4px_4px_0px_0px_#1d4636] hover:-translate-y-1 hover:-translate-x-1 border-2 border-black active:translate-y-0 active:translate-x-0 active:shadow-none flex items-center justify-center gap-3;
+  }
+
+  .u24-button-outline {
+    @apply px-8 py-4 bg-transparent text-black font-black uppercase tracking-widest text-xs transition-all duration-300 hover:bg-black hover:text-white hover:shadow-[4px_4px_0px_0px_#a8792a] hover:-translate-y-1 hover:-translate-x-1 border-2 border-black active:translate-y-0 active:translate-x-0 active:shadow-none flex items-center justify-center gap-3;
+  }
+  
+  .u24-card {
+    @apply border-2 border-black bg-surface transition-all duration-500 hover:shadow-[8px_8px_0px_0px_#1d2e20] hover:-translate-y-1 hover:-translate-x-1 flex flex-col relative overflow-hidden;
+  }
+
+  /* Warm muted text helper */
+  .text-muted {
+    color: var(--color-muted);
+  }
+
+  /* Scrolling ticker animation */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+  @keyframes ticker {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .animate-ticker {
+    animation: ticker 22s linear infinite;
+  }
+  .animate-ticker:hover { animation-play-state: paused; }
+
+  /* Pulse glow for online indicator */
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(168,121,42,.5); }
+    50%       { box-shadow: 0 0 0 6px rgba(168,121,42,0); }
+  }
+  .animate-glow { animation: glow-pulse 2s ease-in-out infinite; }
+
+  /* Custom Scrollbar for a polished look */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-surface border-l-2 border-black;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-black border-2 border-surface;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-accent;
+  }
+}

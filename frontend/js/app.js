@@ -9,6 +9,364 @@ const state = {
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+const DESKTOP_MOBILE_ONLY_BLOCKED = document.documentElement.classList.contains('ab-desktop-blocked');
+
+(function initRenderProfile() {
+  const root = document.documentElement;
+  const ua = navigator.userAgent || "";
+  const isIOS = /iP(hone|ad|od)/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(ua);
+  const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+  const isFirefox = /Firefox|FxiOS/i.test(ua);
+  const isChromium = !!window.chrome && /Chrome|CriOS|Edg/i.test(ua);
+
+  root.classList.toggle("os-ios", isIOS);
+  root.classList.toggle("os-android", isAndroid);
+  root.classList.toggle("browser-safari", isSafari);
+  root.classList.toggle("browser-firefox", isFirefox);
+  root.classList.toggle("browser-chromium", isChromium);
+
+  const cores = Number(navigator.hardwareConcurrency || 0);
+  const memory = Number(navigator.deviceMemory || 0);
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const saveData = !!conn && conn.saveData === true;
+  const slowNetwork = !!conn && /2g/i.test(String(conn.effectiveType || ""));
+  const lowEndDevice = saveData || slowNetwork || (cores > 0 && cores <= 4) || (memory > 0 && memory <= 4);
+  root.classList.toggle("render-lite", lowEndDevice);
+  root.classList.toggle("render-rich", !lowEndDevice);
+
+  const supportsBackdrop = !!(window.CSS && CSS.supports && (
+    CSS.supports("backdrop-filter: blur(2px)") || CSS.supports("-webkit-backdrop-filter: blur(2px)")
+  ));
+  const supportsContentVisibility = !!(window.CSS && CSS.supports && CSS.supports("content-visibility: auto"));
+  const supportsScrollbarGutter = !!(window.CSS && CSS.supports && CSS.supports("scrollbar-gutter: stable both-edges"));
+
+  root.classList.toggle("no-backdrop-filter", !supportsBackdrop);
+  root.classList.toggle("no-content-visibility", !supportsContentVisibility);
+  root.classList.toggle("no-scrollbar-gutter", !supportsScrollbarGutter);
+
+  const syncViewportUnit = () => {
+    const vh = (window.visualViewport?.height || window.innerHeight || 0) * 0.01;
+    if (vh > 0) root.style.setProperty("--app-vh", String(vh) + "px");
+  };
+
+  const getDisplayModeMatch = (mode) => {
+    if (!window.matchMedia) return false;
+    try {
+      return window.matchMedia(`(display-mode: ${mode})`).matches;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const isStandaloneMode = () => {
+    try {
+      return !!(
+        getDisplayModeMatch('standalone') ||
+        getDisplayModeMatch('fullscreen') ||
+        getDisplayModeMatch('minimal-ui') ||
+        window.navigator.standalone === true
+      );
+    } catch (_) {
+      return window.navigator.standalone === true;
+    }
+  };
+
+  const syncBrowserUiInset = () => {
+    const standalone = isStandaloneMode();
+    root.classList.toggle("app-standalone", standalone);
+    root.classList.toggle("app-browser-mode", !standalone);
+
+    let inset = 0;
+    if (!standalone && isIOS && isSafari) {
+      const vv = window.visualViewport;
+      const vvHeight = window.visualViewport?.height || window.innerHeight || 0;
+      const innerHeight = window.innerHeight || vvHeight;
+      const vvOffsetTop = Number(vv?.offsetTop || 0);
+      const dynamicInset = Math.max(0, Math.round(innerHeight - vvHeight - vvOffsetTop));
+      // iOS Safari (browser mode): use real viewport delta only.
+      // Hard minimum caused a persistent phantom gap when toolbar collapsed.
+      if (dynamicInset <= 8 || dynamicInset > 90) {
+        inset = 0;
+      } else {
+        inset = Math.min(dynamicInset, 80);
+      }
+    }
+    root.classList.toggle("browser-ui-visible", inset > 0);
+    root.style.setProperty("--browser-ui-bottom", `${inset}px`);
+  };
+
+  syncViewportUnit();
+  syncBrowserUiInset();
+  window.addEventListener("resize", syncViewportUnit, { passive: true });
+  window.visualViewport?.addEventListener("resize", syncViewportUnit, { passive: true });
+  window.addEventListener("orientationchange", syncViewportUnit, { passive: true });
+  window.addEventListener("resize", syncBrowserUiInset, { passive: true });
+  window.visualViewport?.addEventListener("resize", syncBrowserUiInset, { passive: true });
+  window.visualViewport?.addEventListener("scroll", syncBrowserUiInset, { passive: true });
+  window.addEventListener("orientationchange", syncBrowserUiInset, { passive: true });
+  window.addEventListener("pageshow", syncBrowserUiInset, { passive: true });
+  window.addEventListener("load", syncBrowserUiInset, { passive: true });
+  setTimeout(syncBrowserUiInset, 120);
+  setTimeout(syncBrowserUiInset, 420);
+  setTimeout(syncBrowserUiInset, 1200);
+
+  if (window.matchMedia) {
+    ['standalone', 'fullscreen', 'minimal-ui'].forEach((mode) => {
+      try {
+        const mql = window.matchMedia(`(display-mode: ${mode})`);
+        if (typeof mql.addEventListener === 'function') {
+          mql.addEventListener('change', syncBrowserUiInset);
+        } else if (typeof mql.addListener === 'function') {
+          mql.addListener(syncBrowserUiInset);
+        }
+      } catch (_) {}
+    });
+  }
+})();
+
+(function initMobileKeyboardGuard() {
+  const root = document.documentElement;
+  const isMobileViewport = () => window.matchMedia('(max-width: 959px)').matches;
+  const isEditable = (el) => {
+    if (!el) return false;
+    if (el.isContentEditable) return true;
+    const tag = (el.tagName || '').toUpperCase();
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  };
+
+  let baseline = Math.max(window.innerHeight || 0, window.visualViewport?.height || 0);
+  const threshold = 140;
+
+  const recalcBaseline = () => {
+    baseline = Math.max(window.innerHeight || 0, window.visualViewport?.height || 0);
+  };
+
+  const update = () => {
+    if (!isMobileViewport()) {
+      root.classList.remove('keyboard-open');
+      recalcBaseline();
+      return;
+    }
+
+    const active = document.activeElement;
+    const h = window.visualViewport?.height || window.innerHeight || 0;
+    const delta = Math.max(0, baseline - h);
+    const opened = isEditable(active) && delta >= threshold;
+    root.classList.toggle('keyboard-open', opened);
+
+    if (!opened && !isEditable(active)) recalcBaseline();
+  };
+
+  recalcBaseline();
+  update();
+
+  window.addEventListener('focusin', update, { passive: true });
+  window.addEventListener('focusout', () => {
+    setTimeout(() => {
+      root.classList.remove('keyboard-open');
+      recalcBaseline();
+    }, 120);
+  }, { passive: true });
+
+  window.visualViewport?.addEventListener('resize', update, { passive: true });
+  window.addEventListener('resize', update, { passive: true });
+  window.addEventListener('orientationchange', () => {
+    root.classList.remove('keyboard-open');
+    setTimeout(() => {
+      recalcBaseline();
+      update();
+    }, 260);
+  }, { passive: true });
+})();
+
+// ── Mobile scroll stability watchdog ───────────────────────
+(function initMobileScrollWatchdog() {
+  const root = document.documentElement;
+  const isMobileViewport = () => window.matchMedia('(max-width: 959px)').matches;
+  const isEditable = (el) => {
+    if (!el) return false;
+    if (el.isContentEditable) return true;
+    const tag = (el.tagName || '').toUpperCase();
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  };
+
+  function hasVisibleBlockingLayers() {
+    const ids = [
+      'txDrawer', 'drawerBackdrop', 'receiptOverlay', 'statementOverlay',
+      'transferConfirmOverlay', 'confirmDialog', 'confirmBackdrop',
+      'pinLockOverlay', 'onboardingOverlay',
+    ];
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (el && !el.classList.contains('hidden')) return true;
+    }
+    const notifPanel = document.getElementById('notifPanel');
+    if (notifPanel && notifPanel.classList.contains('open')) return true;
+    return false;
+  }
+
+  function syncNavHeightVar() {
+    const nav = document.querySelector('#appScreen #sidebar.bottom-nav');
+    if (!nav) return;
+    const h = Math.max(64, Math.round(nav.getBoundingClientRect().height || 0));
+    root.style.setProperty('--ab-mobile-nav-height', `${h}px`);
+  }
+
+  function enforceScrollableState() {
+    if (!isMobileViewport()) return;
+    const body = document.body;
+    const content = document.querySelector('#appScreen .app-content');
+    if (!body || !content) return;
+
+    // If lock class got stale while no overlays are visible, recover.
+    if (root.classList.contains('app-scroll-locked') && !hasVisibleBlockingLayers()) {
+      clearBodyScrollLocks({ keepPin: false });
+    }
+    if (root.classList.contains('keyboard-open') && !isEditable(document.activeElement)) {
+      root.classList.remove('keyboard-open');
+    }
+
+    if (!root.classList.contains('app-scroll-locked')) {
+      body.style.setProperty('overflow-y', 'auto', 'important');
+      body.style.setProperty('overflow-x', 'hidden', 'important');
+      content.style.setProperty('overflow-y', 'auto', 'important');
+      content.style.setProperty('overflow-x', 'hidden', 'important');
+      content.style.setProperty('-webkit-overflow-scrolling', 'touch', 'important');
+      content.style.setProperty('touch-action', 'pan-y', 'important');
+    }
+  }
+
+  let raf = 0;
+  const schedule = () => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      syncNavHeightVar();
+      enforceScrollableState();
+    });
+  };
+
+  window.addEventListener('resize', schedule, { passive: true });
+  window.addEventListener('orientationchange', schedule, { passive: true });
+  window.addEventListener('pageshow', schedule, { passive: true });
+  window.addEventListener('ab:screen-changed', schedule);
+  window.addEventListener('focus', schedule, { passive: true });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') schedule();
+  });
+
+  schedule();
+})();
+
+const _desktopClassicMql = window.matchMedia('(min-width: 1200px)');
+let _desktopClassicSyncFrame = 0;
+
+function applyDesktopClassicMode() {
+  const desktop = _desktopClassicMql.matches;
+  const root = document.documentElement;
+  root.classList.toggle('desktop-classic', desktop);
+  root.classList.toggle('desktop-cockpit', desktop);
+}
+
+function syncDesktopClassicMode() {
+  if (typeof requestAnimationFrame !== 'function') {
+    applyDesktopClassicMode();
+    return;
+  }
+  if (_desktopClassicSyncFrame) return;
+  _desktopClassicSyncFrame = requestAnimationFrame(() => {
+    _desktopClassicSyncFrame = 0;
+    applyDesktopClassicMode();
+  });
+}
+
+applyDesktopClassicMode();
+if (typeof _desktopClassicMql.addEventListener === 'function') {
+  _desktopClassicMql.addEventListener('change', syncDesktopClassicMode);
+} else if (typeof _desktopClassicMql.addListener === 'function') {
+  _desktopClassicMql.addListener(syncDesktopClassicMode);
+}
+window.addEventListener('resize', syncDesktopClassicMode, { passive: true });
+window.addEventListener('orientationchange', syncDesktopClassicMode, { passive: true });
+
+const _scrollLocks = new Set();
+
+function _applyScrollLockState() {
+  const locked = _scrollLocks.size > 0;
+  document.documentElement.classList.toggle('app-scroll-locked', locked);
+  document.body.classList.toggle('app-scroll-locked', locked);
+  document.body.style.overflow = locked ? 'hidden' : '';
+}
+
+function lockBodyScroll(reason) {
+  const token = String(reason || 'global');
+  _scrollLocks.add(token);
+  _applyScrollLockState();
+  return token;
+}
+
+function unlockBodyScroll(reason) {
+  const token = String(reason || 'global');
+  _scrollLocks.delete(token);
+  _applyScrollLockState();
+}
+
+function clearBodyScrollLocks(options = {}) {
+  const keepPin = !!options.keepPin;
+  const pin = document.getElementById('pinLockOverlay');
+  const pinVisible = !!pin && !pin.classList.contains('hidden');
+  _scrollLocks.clear();
+  if (keepPin && pinVisible) _scrollLocks.add('pin-lock');
+  _applyScrollLockState();
+}
+
+function closeTransientLayers(options = {}) {
+  const keepPin = !!options.keepPin;
+  [
+    '#txDrawer', '#drawerBackdrop', '#receiptOverlay', '#statementOverlay',
+    '#transferConfirmOverlay', '#confirmDialog', '#confirmBackdrop', '#onboardingOverlay'
+  ].forEach((sel) => {
+    const el = document.querySelector(sel);
+    if (el) el.classList.add('hidden');
+  });
+
+  if (!keepPin) {
+    const pin = document.getElementById('pinLockOverlay');
+    if (pin) pin.classList.add('hidden');
+  }
+
+  const notifPanel = document.getElementById('notifPanel');
+  if (notifPanel) notifPanel.classList.remove('open');
+  const notifOverlay = document.getElementById('notifOverlay');
+  if (notifOverlay) notifOverlay.classList.remove('open');
+
+  clearBodyScrollLocks({ keepPin });
+}
+
+function reconcileTransientState() {
+  const hasPanel = !!document.getElementById('notifPanel')?.classList.contains('open');
+  const hasPin = !!document.getElementById('pinLockOverlay') && !document.getElementById('pinLockOverlay').classList.contains('hidden');
+  const hasLayer = [
+    '#txDrawer', '#drawerBackdrop', '#receiptOverlay', '#statementOverlay',
+    '#transferConfirmOverlay', '#confirmDialog', '#confirmBackdrop', '#onboardingOverlay'
+  ].some((sel) => {
+    const el = document.querySelector(sel);
+    return !!el && !el.classList.contains('hidden');
+  });
+
+  if (!hasPanel && !hasLayer && !hasPin) {
+    clearBodyScrollLocks({ keepPin: false });
+  } else if (hasPin) {
+    clearBodyScrollLocks({ keepPin: true });
+  }
+}
+
+window.addEventListener('pageshow', reconcileTransientState);
+window.addEventListener('popstate', () => setTimeout(reconcileTransientState, 0));
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') reconcileTransientState();
+});
 
 function showToast(message, type = '') {
   const toast = $('#toast');
@@ -47,9 +405,39 @@ async function _pollBalance() {
   } catch (_) {}
 }
 
+const BALANCE_POLL_VISIBLE_MS = 40_000;
+const BALANCE_POLL_BG_MS = 180_000;
+const BALANCE_POLL_SLOW_MS = 75_000;
+
+function _getBalancePollIntervalMs() {
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const saveData = !!conn && conn.saveData === true;
+  const slowNetwork = !!conn && /2g/i.test(String(conn.effectiveType || ""));
+  if (document.visibilityState !== 'visible') return BALANCE_POLL_BG_MS;
+  return (saveData || slowNetwork) ? BALANCE_POLL_SLOW_MS : BALANCE_POLL_VISIBLE_MS;
+}
+
+async function _runBalancePoll(force = false) {
+  if (!api.token || !state.account) return;
+  if (!force && document.visibilityState !== 'visible') return;
+  if (navigator.onLine === false) return;
+  await _pollBalance();
+}
+
+function _rescheduleBalancePolling() {
+  if (state._pollTimer) {
+    clearInterval(state._pollTimer);
+    state._pollTimer = null;
+  }
+  if (!api.token) return;
+  state._pollTimer = setInterval(() => {
+    _runBalancePoll(false).catch(() => {});
+  }, _getBalancePollIntervalMs());
+}
+
 function startPolling() {
-  stopPolling();
-  state._pollTimer = setInterval(_pollBalance, 40_000);
+  _rescheduleBalancePolling();
+  _runBalancePoll(true).catch(() => {});
 }
 
 function stopPolling() {
@@ -59,6 +447,18 @@ function stopPolling() {
   }
   state._lastBalance = null;
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (!api.token) return;
+  if (!state._pollTimer) return;
+  _rescheduleBalancePolling();
+  if (document.visibilityState === 'visible') _runBalancePoll(true).catch(() => {});
+});
+
+window.addEventListener('online', () => {
+  if (!api.token || !state._pollTimer) return;
+  _runBalancePoll(true).catch(() => {});
+});
 
 let _bootstrapRetryTimer = null;
 
@@ -78,9 +478,14 @@ function stopNotifPolling() {
 async function performLogout(options = {}) {
   const showMessage = options.showMessage !== false;
   const reason = options.reason || '';
+  if (options.confirm === true) {
+    const ok = window.confirm('Вийти з акаунту ARM Bank?');
+    if (!ok) return false;
+  }
   stopPolling();
   stopNotifPolling();
   clearBootstrapRetryTimer();
+  closeTransientLayers({ keepPin: false });
   stopSessionEngine();
   try { await api.request('/api/auth/logout', { method: 'POST' }); } catch (_) {}
   api.setToken('');
@@ -92,6 +497,10 @@ async function performLogout(options = {}) {
     else if (reason === 'expired') showToast('Термін дії сесії вичерпано. Увійдіть повторно.', 'warning');
     else showToast('Ви вийшли з системи.');
   }
+  if (options.broadcast !== false) {
+    try { window._bcChannel?.postMessage({ type: 'LOGOUT' }); } catch (_) {}
+  }
+  return true;
 }
 
 function isAuthErrorResponse(error) {
@@ -108,6 +517,7 @@ function setAuthenticated(authenticated) {
   $('#appScreen').classList.toggle('hidden', !authenticated);
   $('#sidebar')?.classList.toggle('hidden', !authenticated);
   document.body.classList.toggle('auth-mode', !authenticated);
+  if (!authenticated) closeTransientLayers({ keepPin: false });
 }
 
 function formatMoney(value) {
@@ -118,6 +528,8 @@ function setListLoading(containerSelector, loading) {
   const container = $(containerSelector);
   if (!container) return;
   container.classList.toggle('loading', !!loading);
+  container.classList.toggle('is-loading', !!loading);
+  if (loading) container.classList.remove('is-empty');
 }
 
 function setButtonLoading(button, loading) {
@@ -133,14 +545,34 @@ function setButtonLoading(button, loading) {
 }
 
 function renderList(containerSelector, items, renderer, emptyText) {
-  const container = $(containerSelector);
+  const container = document.querySelector(containerSelector);
   if (!container) return;
+
+  if (container._renderFrame) {
+    cancelAnimationFrame(container._renderFrame);
+    container._renderFrame = 0;
+  }
+
   container.classList.remove('loading');
+  container.classList.remove('is-loading');
   if (!items.length) {
+    container.classList.add('is-empty');
+    container.classList.remove('has-items');
     container.innerHTML = `<div class="empty-state"><strong>Нічого немає</strong>${emptyText || 'Даних поки немає.'}</div>`;
     return;
   }
-  container.innerHTML = items.map(renderer).join('');
+
+  container.classList.add('has-items');
+  container.classList.remove('is-empty');
+  const html = items.map(renderer).join('');
+  if (typeof requestAnimationFrame === 'function') {
+    container._renderFrame = requestAnimationFrame(() => {
+      container.innerHTML = html;
+      container._renderFrame = 0;
+    });
+  } else {
+    container.innerHTML = html;
+  }
 }
 
 const TX_TYPE_LABELS = {
@@ -465,10 +897,16 @@ function renderTransactions(list, container = '#transactionsList') {
   const el = $(container);
   if (!el) return;
   el.classList.remove('loading');
+  el.classList.remove('is-loading');
   if (!list.length) {
+    el.classList.add('is-empty');
+    el.classList.remove('has-items');
     el.innerHTML = '<div class="empty-state"><strong>Нічого немає</strong>Транзакцій поки немає.</div>';
     return;
   }
+
+  el.classList.add('has-items');
+  el.classList.remove('is-empty');
 
   // Group by date
   const groups = {};
@@ -564,13 +1002,13 @@ function renderSimpleList(container, list, mapFn, emptyText) {
 function openDrawer() {
   $('#txDrawer')?.classList.remove('hidden');
   $('#drawerBackdrop')?.classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
+  lockBodyScroll('drawer');
 }
 
 function closeDrawer() {
   $('#txDrawer')?.classList.add('hidden');
   $('#drawerBackdrop')?.classList.add('hidden');
-  document.body.style.overflow = '';
+  unlockBodyScroll('drawer');
 }
 
 async function openTxDrawer(txId) {
@@ -708,12 +1146,14 @@ function confirmAction(title, msg, onOk) {
   $('#confirmMsg').textContent = msg;
   dialog?.classList.remove('hidden');
   backdrop?.classList.remove('hidden');
+  lockBodyScroll('confirm');
   _confirmCallback = onOk;
 }
 
 function closeConfirm() {
   $('#confirmDialog')?.classList.add('hidden');
   $('#confirmBackdrop')?.classList.add('hidden');
+  unlockBodyScroll('confirm');
   _confirmCallback = null;
 }
 
@@ -868,7 +1308,7 @@ const receipt = (() => {
 
     $('#receiptDownloadBtn').disabled = !_txId;
     $('#receiptOverlay')?.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('receipt');
   }
 
   async function download() {
@@ -898,7 +1338,7 @@ const receipt = (() => {
 
   function close() {
     $('#receiptOverlay')?.classList.add('hidden');
-    document.body.style.overflow = '';
+    unlockBodyScroll('receipt');
   }
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -1100,13 +1540,13 @@ const receipt = (() => {
     if (curMonthBtn) { curMonthBtn.classList.add('active'); applyPeriod('cur_month'); }
 
     overlay()?.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('statement');
     loadRecentOrders().catch(() => {});
   }
 
   function closeStatementModal() {
     overlay()?.classList.add('hidden');
-    document.body.style.overflow = '';
+    unlockBodyScroll('statement');
   }
 
   async function downloadStatement() {
@@ -1327,12 +1767,39 @@ $('#profileLogoutBtn')?.addEventListener('click', async () => {
   await performLogout();
 });
 
+function getMessengerPath() {
+  const base = getBasePath();
+  return base ? `${base}/messenger` : '/messenger';
+}
+
+function getMarketplacePath() {
+  const base = getBasePath();
+  return base ? `${base}/marketplace` : '/marketplace';
+}
+
+function openMessengerScreen() {
+  window.location.href = getMessengerPath();
+}
+
+function openMarketplaceScreen() {
+  try { localStorage.setItem('army_bank_base', window.ARMY_BANK_BASE || ''); } catch {}
+  window.location.href = getMarketplacePath();
+}
+
+$('#messengerBtn')?.addEventListener('click', openMessengerScreen);
+$('#marketplaceBtn')?.addEventListener('click', openMarketplaceScreen);
+$('#profileMessengerBtn')?.addEventListener('click', openMessengerScreen);
+$('#profileMarketplaceBtn')?.addEventListener('click', openMarketplaceScreen);
+$$('[data-open-messenger]').forEach((btn) => btn.addEventListener('click', openMessengerScreen));
+$$('[data-open-marketplace]').forEach((btn) => btn.addEventListener('click', openMarketplaceScreen));
+
 // ── NAVIGATION ──────────────────────────────────────────
 const ALLOWED_SCREENS = [
   'dashboard', 'transactions', 'cards', 'profile',
   'donations', 'savings', 'analytics',
   'contacts', 'calendar', 'recurring', 'debts', 'tax',
 ];
+const _screenScrollMemory = Object.create(null);
 
 function getBasePath() {
   return (typeof window !== 'undefined' && window.ARMY_BANK_BASE) || '';
@@ -1348,6 +1815,24 @@ function getScreenIdFromPath() {
 
 function switchScreen(screenId) {
   const id = ALLOWED_SCREENS.includes(screenId) ? screenId : 'dashboard';
+  const content = document.querySelector('.app-content');
+  const prevActive = document.querySelector('.screen.active-screen');
+  const prevId = prevActive ? prevActive.id : '';
+  if (content && prevId) {
+    _screenScrollMemory[prevId] = content.scrollTop || 0;
+  }
+
+  closeTransientLayers({ keepPin: true });
+
+  // Defensive cleanup: remove any stale transition artifacts from legacy clients.
+  $$('.screen').forEach((s) => {
+    s.classList.remove('screen-enter-ltr', 'screen-enter-rtl', 'screen-exit', 'screen-exit-ltr', 'screen-exit-rtl');
+    s.style.removeProperty('transform');
+    s.style.removeProperty('opacity');
+    s.style.removeProperty('z-index');
+    s.style.removeProperty('position');
+    s.style.removeProperty('inset');
+  });
 
   $$('.screen').forEach((s) => s.classList.remove('active-screen'));
   const el = $(`#${id}`);
@@ -1366,6 +1851,15 @@ function switchScreen(screenId) {
     appShell.dataset.screen = id;
   }
   $('.bottom-nav')?.classList.remove('nav-hidden');
+  if (content) {
+    var remembered = Number(_screenScrollMemory[id] || 0);
+    content.scrollTop = Number.isFinite(remembered) ? remembered : 0;
+  }
+  try {
+    window.dispatchEvent(new CustomEvent('ab:screen-changed', { detail: { screen: id } }));
+  } catch (_) {
+    window.dispatchEvent(new Event('ab:screen-changed'));
+  }
 
   if (id === 'transactions') loadTransactionsWithFilters();
   if (id === 'profile')    renderProfileScreen();
@@ -1438,52 +1932,166 @@ function _initCarouselInteraction(track) {
   if (!track || track._bankCardsInit) return;
   track._bankCardsInit = true;
 
-  // Returns the scroll distance between card snap positions.
-  // Uses actual bounding rects of consecutive cards so it works
-  // regardless of gap, padding or snap-align (start vs center).
-  function getSnapStep() {
-    var cards = track.querySelectorAll('.bank-card');
-    if (cards.length >= 2) {
-      var r0 = cards[0].getBoundingClientRect();
-      var r1 = cards[1].getBoundingClientRect();
-      var step = r1.left - r0.left;
-      if (step > 0) return step;
-    }
-    // Fallback: first card width + gap (12px)
-    var first = cards[0];
-    return first ? first.offsetWidth + 12 : track.clientWidth;
+  var dotsHost = document.getElementById('bankCardsDots');
+  var rafId = 0;
+  var revealControllers = Object.create(null);
+
+  function getCardWidth() {
+    var first = track.querySelector('.bank-card');
+    if (!first) return track.clientWidth || 1;
+    var styles = window.getComputedStyle(track);
+    var gap = parseFloat(styles.columnGap || styles.gap || '0') || 0;
+    return first.getBoundingClientRect().width + gap;
   }
 
-  // findClosestCardIndex — picks the card whose centre is nearest
-  // the centre of the visible track area. Works for any snap-align.
-  function findClosestCardIndex() {
-    var cards = Array.from(track.querySelectorAll('.bank-card'));
-    if (!cards.length) return 0;
-    var trackCx = track.getBoundingClientRect().left + track.clientWidth / 2;
-    var best = 0, bestDist = Infinity;
-    cards.forEach(function(card, i) {
-      var r = card.getBoundingClientRect();
-      var cardCx = r.left + r.width / 2;
-      var dist = Math.abs(cardCx - trackCx);
-      if (dist < bestDist) { bestDist = dist; best = i; }
-    });
-    return best;
-  }
-
-  function updateDots() {
-    var dots = document.querySelectorAll('.bc-dot');
+  function updateDotsImmediate() {
+    var dots = dotsHost ? dotsHost.querySelectorAll('.bc-dot') : [];
     if (!dots.length) return;
     var idx = findClosestCardIndex();
     idx = Math.max(0, Math.min(idx, dots.length - 1));
     dots.forEach(function(d, i) { d.classList.toggle('active', i === idx); });
+    updateDeckState(idx);
+  }
+
+  function updateDeckState(activeIdx) {
+    var cards = Array.from(track.querySelectorAll('.bank-card'));
+    cards.forEach(function(card, i) {
+      card.classList.toggle('is-active', i === activeIdx);
+      card.classList.toggle('is-prev', i === activeIdx - 1);
+      card.classList.toggle('is-next', i === activeIdx + 1);
+      // Keep only active card flippable/visible on back side.
+      if (i !== activeIdx && card.classList.contains('is-flipped')) {
+        card.classList.remove('is-flipped');
+        if (card._flipAutoHideTimer) {
+          clearTimeout(card._flipAutoHideTimer);
+          card._flipAutoHideTimer = null;
+        }
+      }
+    });
+  }
+
+  function updateDots() {
+    if (rafId) return;
+    rafId = window.requestAnimationFrame(function() {
+      rafId = 0;
+      updateDotsImmediate();
+    });
+  }
+
+  function formatFullCardNumber(raw) {
+    var digits = String(raw || '').replace(/\D/g, '').slice(0, 19);
+    if (!digits) return '';
+    return digits.replace(/(.{4})/g, '$1 ').trim();
+  }
+
+  function revealCardSecrets(cardEl, cardId) {
+    var cvvEl = cardEl.querySelector('.bank-card-cvv-value');
+    var numEl = cardEl.querySelector('.bank-card-full-number');
+    var hintEl = cardEl.querySelector('.bank-card-cvv-hint');
+    if (!cvvEl) return;
+
+    cvvEl.classList.remove('cvv-error');
+
+    if (_cvvCache[cardId]) {
+      cvvEl.textContent = String(_cvvCache[cardId].cvv || '•••').slice(0, 3);
+      cvvEl.classList.remove('bc-loading');
+      if (numEl) numEl.textContent = formatFullCardNumber(_cvvCache[cardId].card_number || '');
+      if (hintEl) hintEl.textContent = 'Захищено';
+      return;
+    }
+
+    if (revealControllers[cardId]) {
+      try { revealControllers[cardId].abort(); } catch (_) {}
+      revealControllers[cardId] = null;
+    }
+    var controller = new AbortController();
+    revealControllers[cardId] = controller;
+
+    cvvEl.classList.add('bc-loading');
+    if (hintEl) hintEl.textContent = 'Завантаження…';
+    api.request('/api/cards/' + cardId + '/reveal?_=' + Date.now(), {
+      signal: controller.signal
+    })
+      .then(function(data) {
+        if (controller.signal.aborted) return;
+        _cvvCache[cardId] = data || {};
+        if (cvvEl.isConnected) {
+          cvvEl.textContent = String((data && data.cvv) || '•••').slice(0, 3);
+          cvvEl.classList.remove('bc-loading');
+          cvvEl.classList.remove('cvv-error');
+        }
+        if (numEl && numEl.isConnected) {
+          numEl.textContent = formatFullCardNumber((data && data.card_number) || '');
+        }
+        if (hintEl && hintEl.isConnected) hintEl.textContent = 'Захищено';
+      })
+      .catch(function() {
+        if (controller.signal.aborted) return;
+        if (cvvEl.isConnected) {
+          cvvEl.textContent = '•••';
+          cvvEl.classList.remove('bc-loading');
+          cvvEl.classList.add('cvv-error');
+        }
+        if (numEl && numEl.isConnected) {
+          numEl.textContent = '';
+        }
+        if (hintEl && hintEl.isConnected) hintEl.textContent = 'Повторити';
+        var now = Date.now();
+        if (!track._lastCvvErrorTs || (now - track._lastCvvErrorTs) > 2200) {
+          track._lastCvvErrorTs = now;
+          if (typeof showToast === 'function') {
+            showToast('Не вдалося завантажити CVV. Спробуйте ще раз.', 'error');
+          }
+        }
+      });
+  }
+
+  function scheduleAutoHide(cardEl) {
+    if (!cardEl) return;
+    if (cardEl._flipAutoHideTimer) {
+      clearTimeout(cardEl._flipAutoHideTimer);
+    }
+    cardEl._flipAutoHideTimer = setTimeout(function() {
+      cardEl.classList.remove('is-flipped');
+      cardEl._flipAutoHideTimer = null;
+    }, 15000);
+  }
+
+  function toggleCardFlipFromTarget(target) {
+    var cardEl = target && target.closest ? target.closest('.bank-card[data-card-id]') : null;
+    if (!cardEl) return false;
+
+    var cardId = parseInt(cardEl.dataset.cardId, 10);
+    if (!cardId) return false;
+
+    var nextFlipped = !cardEl.classList.contains('is-flipped');
+    track.querySelectorAll('.bank-card.is-flipped').forEach(function(c) {
+      if (c !== cardEl) {
+        c.classList.remove('is-flipped');
+        if (c._flipAutoHideTimer) {
+          clearTimeout(c._flipAutoHideTimer);
+          c._flipAutoHideTimer = null;
+        }
+      }
+    });
+    cardEl.classList.toggle('is-flipped', nextFlipped);
+    if (nextFlipped) {
+      revealCardSecrets(cardEl, cardId);
+      scheduleAutoHide(cardEl);
+    } else if (cardEl._flipAutoHideTimer) {
+      clearTimeout(cardEl._flipAutoHideTimer);
+      cardEl._flipAutoHideTimer = null;
+    }
+    return true;
   }
 
   track.addEventListener('scroll', updateDots, { passive: true });
+  window.addEventListener('resize', updateDotsImmediate, { passive: true });
 
-  document.getElementById('bankCardsDots')?.addEventListener('click', function(e) {
+  dotsHost?.addEventListener('click', function(e) {
     var dot = e.target.closest('.bc-dot');
     if (!dot) return;
-    var dots = Array.from(document.querySelectorAll('.bc-dot'));
+    var dots = Array.from(dotsHost.querySelectorAll('.bc-dot'));
     var i = dots.indexOf(dot);
     if (i < 0) return;
     // Scroll to make card[i] the centred one
@@ -1495,55 +2103,45 @@ function _initCarouselInteraction(track) {
     }
   });
 
-  // Tap-to-flip: distinguish tap from horizontal swipe
+  // Tap-to-flip: distinguish tap from horizontal swipe.
   track.addEventListener('pointerdown', function(e) {
     track._flipStartX = e.clientX;
     track._flipStartY = e.clientY;
+    track._flipStartScrollLeft = track.scrollLeft;
   }, { passive: true });
 
   track.addEventListener('pointerup', function(e) {
     var dx = Math.abs(e.clientX - (track._flipStartX || e.clientX));
     var dy = Math.abs(e.clientY - (track._flipStartY || e.clientY));
-    if (dx > 10 || dy > 10) return; // swipe — ignore
+    var ds = Math.abs(track.scrollLeft - (track._flipStartScrollLeft || track.scrollLeft));
+    if (dx > 10 || dy > 10 || ds > 8) return; // swipe/scroll — ignore
+    toggleCardFlipFromTarget(e.target);
+    track._lastFlipTs = Date.now();
+  });
 
+  // Safari fallback: sometimes pointerup may be swallowed after momentum touch.
+  track.addEventListener('click', function(e) {
+    if ((Date.now() - (track._lastFlipTs || 0)) < 260) return;
     var cardEl = e.target.closest('.bank-card[data-card-id]');
     if (!cardEl) return;
+    toggleCardFlipFromTarget(e.target);
+  }, { passive: true });
 
-    var cardId = parseInt(cardEl.dataset.cardId, 10);
-    if (!cardId) return;
-
-    var isFlipped = cardEl.classList.toggle('is-flipped');
-
-    // On first flip: fetch CVV
-    if (isFlipped) {
-      var cvvEl = cardEl.querySelector('.bank-card-cvv-value');
-      var numEl = cardEl.querySelector('.bank-card-full-number');
-      if (!cvvEl) return;
-
-      if (_cvvCache[cardId]) {
-        cvvEl.textContent = _cvvCache[cardId].cvv || '•••';
-        if (numEl) numEl.textContent = _cvvCache[cardId].card_number || '';
-      } else {
-        cvvEl.classList.add('bc-loading');
-        api.request('/api/cards/' + cardId + '/reveal')
-          .then(function(data) {
-            _cvvCache[cardId] = data;
-            /* Guard: card may have been re-rendered while request was in-flight */
-            if (cvvEl.isConnected) {
-              cvvEl.textContent = data.cvv || '•••';
-              cvvEl.classList.remove('bc-loading');
-            }
-            if (numEl && numEl.isConnected) numEl.textContent = data.card_number || '';
-          })
-          .catch(function() {
-            if (cvvEl.isConnected) {
-              cvvEl.textContent = '•••';
-              cvvEl.classList.remove('bc-loading');
-            }
-          });
+  // Tap outside carousel closes any opened back side.
+  document.addEventListener('pointerdown', function(e) {
+    if (!track.isConnected) return;
+    if (track.contains(e.target)) return;
+    track.querySelectorAll('.bank-card.is-flipped').forEach(function(c) {
+      c.classList.remove('is-flipped');
+      if (c._flipAutoHideTimer) {
+        clearTimeout(c._flipAutoHideTimer);
+        c._flipAutoHideTimer = null;
       }
-    }
-  });
+    });
+  }, { passive: true });
+
+  // Keep active indicator in sync on first render too.
+  updateDotsImmediate();
 }
 
 async function _updateBankCards() {
@@ -1556,37 +2154,26 @@ async function _updateBankCards() {
 
   // Try to load real issued cards
   var cards = [];
-  try { const r = await api.request('/api/cards'); cards = (Array.isArray(r) ? r : []).filter(function(c){ return c.status !== 'closed'; }); }
+  try {
+    const r = await api.request('/api/cards?_=' + Date.now());
+    cards = Array.isArray(r) ? r : (Array.isArray(r && r.data) ? r.data : []);
+  }
   catch(_) {}
 
   if (!cards.length) {
-    // No real cards — update placeholder fields and keep static HTML
-    var el1 = document.getElementById('bankCardNumber');
-    var acct = state.account && state.account.account_number ? state.account.account_number : '';
-    var digits = acct.replace(/\D/g, '').padStart(16, '0').slice(-16);
-    if (el1) el1.textContent = digits.replace(/(.{4})/g, '$1 ').trim();
-    var el2 = document.getElementById('bankCardName');
-    if (el2) el2.textContent = holderName;
-    var el3 = document.getElementById('bankCardSavingsNumber');
-    if (el3) el3.textContent = '•••• •••• •••• ••••';
-    var el4 = document.getElementById('bankCardSavingsName');
-    if (el4) el4.textContent = holderName;
-
-    // Add CTA card "Issue your first card"
-    if (!track.querySelector('.bank-card-cta')) {
-      var ctaCard = document.createElement('div');
-      ctaCard.className = 'bank-card bank-card-cta';
-      ctaCard.innerHTML = '<div class="bank-card-inner"><div class="bank-card-front" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px">'
-        + '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(100,120,100,.5)" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="3"/><line x1="1" y1="10" x2="23" y2="10"/></svg>'
-        + '<div style="font-size:13px;color:rgba(60,80,60,.6);line-height:1.4">Картки ще не випущені<br><span style="font-size:11px;color:rgba(70,100,74,.5)">Перейдіть до розділу «Картки»</span></div>'
-        + '</div></div>';
-      ctaCard.addEventListener('click', function() {
-        window.history.pushState(null, '', (getBasePath()||'') + '/cards');
-        switchScreen('cards');
-      });
-      track.appendChild(ctaCard);
-      if (dotsEl) dotsEl.innerHTML += '<span class="bc-dot"></span>';
-    }
+    track._bankCardsInit = false;
+    track.innerHTML = ''
+      + '<div class="bank-cards-empty" id="bankCardsEmpty">'
+      +   '<div class="bank-cards-empty-title">Картки ще не випущені</div>'
+      +   '<div class="bank-cards-empty-sub">Відкрийте розділ «Картки» і випустіть першу картку.</div>'
+      +   '<button type="button" class="bank-cards-empty-btn" id="issueFirstCardBtn">Випустити картку</button>'
+      + '</div>';
+    if (dotsEl) dotsEl.innerHTML = '';
+    var issueBtn = document.getElementById('issueFirstCardBtn');
+    issueBtn?.addEventListener('click', function() {
+      window.history.pushState(null, '', (getBasePath() || '') + '/cards');
+      switchScreen('cards');
+    });
     _initCarouselInteraction(track);
     return;
   }
@@ -1649,18 +2236,22 @@ async function _updateBankCards() {
     // ── Back side HTML ──
     var backHtml =
         '<div class="bank-card-back">'
+      + '<div class="bank-card-back-topline">This card is property of ARM Bank</div>'
       + '<div class="bank-card-mag-stripe"></div>'
       + '<div class="bank-card-back-body">'
-      +   '<div class="bank-card-sig-strip">'
+      +   '<div class="bank-card-sig-row">'
+      +     '<div class="bank-card-sig-strip"><span class="bank-card-sig-text">' + holderName + '</span></div>'
       +     '<div class="bank-card-cvv-box">'
       +       '<div class="bank-card-cvv-label">CVV</div>'
       +       '<div class="bank-card-cvv-value bc-loading">•••</div>'
+      +       '<div class="bank-card-cvv-hint">Торкніться</div>'
       +     '</div>'
       +   '</div>'
-      +   '<div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.06em;font-variant-numeric:tabular-nums" class="bank-card-full-number"></div>'
+      +   '<div class="bank-card-security-note">Security code (CVV/CVC) is required for online purchases. Never share this code.</div>'
+      +   '<div class="bank-card-full-number"></div>'
       +   '<div class="bank-card-back-footer">'
-      +     '<div class="bank-card-back-info">ARM<strong>Bank</strong><br>' + location.hostname + '</div>'
-      +     '<div>' + s.network + '</div>'
+      +     '<div class="bank-card-back-info">ARM<strong>Bank</strong> · ' + location.hostname + '</div>'
+      +     '<div class="bank-card-back-network">' + s.network + '</div>'
       +   '</div>'
       + '</div>'
       + '</div>';
@@ -1822,6 +2413,9 @@ async function refreshAllData() {
 
     const { transactions, payouts, donations, goals, contacts } = d;
 
+    // Always sync dashboard carousel with actual issued cards.
+    _updateBankCards().catch(function() {});
+
     renderTransactions(transactions.slice(0, 5), '#recentTransactions');
     renderTransactions(transactions, '#transactionsList');
     renderTransferQuickRecipients(buildQuickRecipients(contacts, transactions));
@@ -1829,8 +2423,8 @@ async function refreshAllData() {
 
     renderSimpleList('#donationsList', donations, (row) => `
       <div class="item">
-        <div class="item-header"><strong>${row.fund_name}</strong><span class="amount out">−${formatMoney(row.amount)}</span></div>
-        <div class="muted">${row.comment || 'Без коментаря'} · ${formatDate(row.created_at)}</div>
+        <div class="item-header"><strong>${escapeHtml(row.fund_name)}</strong><span class="amount out">−${formatMoney(row.amount)}</span></div>
+        <div class="muted">${escapeHtml(row.comment || 'Без коментаря')} · ${formatDate(row.created_at)}</div>
       </div>
     `, 'Пожертв поки немає.');
 
@@ -1901,15 +2495,15 @@ async function refreshAllData() {
     renderSimpleList('#contactsList', contacts, (row) => `
       <div class="item item-with-actions">
         <div class="item-main">
-          <div class="item-header"><strong>${row.contact_name}</strong><span class="muted">${row.relation_type}</span></div>
-          <div class="muted">${row.phone || 'Телефон не вказано'}${row.account_number ? ` · ${row.account_number}` : ''}</div>
+          <div class="item-header"><strong>${escapeHtml(row.contact_name)}</strong><span class="muted">${escapeHtml(row.relation_type)}</span></div>
+          <div class="muted">${escapeHtml(row.phone || 'Телефон не вказано')}${row.account_number ? ` · ${escapeHtml(row.account_number)}` : ''}</div>
         </div>
         <div class="item-btns">
           ${row.account_number ? `
-            <button class="btn-icon-history" data-history-account="${row.account_number}" data-history-name="${row.contact_name}" title="Історія переказів">
+            <button class="btn-icon-history" data-history-account="${escapeHtml(row.account_number)}" data-history-name="${escapeHtml(row.contact_name)}" title="Історія переказів">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             </button>
-            <button class="btn-icon-transfer" data-transfer-account="${row.account_number}" title="Переказ" aria-label="Переказ">
+            <button class="btn-icon-transfer" data-transfer-account="${escapeHtml(row.account_number)}" title="Переказ" aria-label="Переказ">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </button>` : ''}
           <button class="btn-icon-danger" data-delete-contact="${row.id}" title="Видалити" aria-label="Видалити">
@@ -2014,6 +2608,7 @@ async function handleAuth(form, endpoint) {
     await hydrateAuthenticatedApp();
   } catch (error) {
     if (!isAuthErrorResponse(error)) {
+      setAuthenticated(false);
       scheduleBootstrapRetry();
     } else {
       api.setToken('');
@@ -2319,7 +2914,7 @@ function _genIdempotencyKey() {
     }
 
     overlay.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('transfer-confirm');
     confirmBtn.focus();
   }
 
@@ -2327,7 +2922,7 @@ function _genIdempotencyKey() {
 
   function closeOverlay() {
     overlay.classList.add('hidden');
-    document.body.style.overflow = '';
+    unlockBodyScroll('transfer-confirm');
     confirmBtn.disabled = false;
     confirmBtn.textContent = 'Підтвердити';
     form._transferConfirmed = false;
@@ -2355,12 +2950,6 @@ function _genIdempotencyKey() {
     }
   });
 })();
-
-bindJsonForm('#demoPayoutForm', () => '/api/payouts/demo-accrual', {
-  transform: (v) => ({ ...v, amount: Number(v.amount) }),
-  successMessage: 'Виплату нараховано.',
-  afterReset: (form) => { form.title.value = 'Виплата'; form.payout_type.value = 'general'; form.amount.value = '10000'; },
-});
 
 bindJsonForm('#donationForm', () => '/api/donations', {
   transform: (v) => ({ ...v, amount: Number(v.amount) }),
@@ -2407,6 +2996,14 @@ $$('.nav-item.nav-link, .nav-link').forEach((btn) => {
     const screen = btn.dataset.screen;
     if (screen) {
       event.preventDefault();
+      const activeScreen = document.querySelector('.screen.active-screen')?.id || '';
+      const content = document.querySelector('.app-content');
+      if (activeScreen === screen && content) {
+        const nearTop = (content.scrollTop || 0) < 24;
+        content.scrollTo({ top: nearTop ? content.scrollHeight : 0, behavior: 'smooth' });
+        if (typeof navigator.vibrate === 'function') navigator.vibrate(8);
+        return;
+      }
       const base = getBasePath();
       window.history.pushState(null, '', base ? base + '/' + screen : '/' + screen);
       switchScreen(screen);
@@ -2422,6 +3019,15 @@ window.addEventListener('popstate', () => {
 $$('[data-jump]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.jump;
+    if (id === 'messenger') {
+      openMessengerScreen();
+      return;
+    }
+    if (id === 'marketplace') {
+      openMarketplaceScreen();
+      return;
+    }
+
     const screenMap = {
       history: 'transactions',
       transactions: 'transactions',
@@ -2485,37 +3091,80 @@ $$('.auth-tab').forEach((tab) => {
 
 // Logout (header button)
 $('#logoutBtn')?.addEventListener('click', async () => {
-  await performLogout();
+  await performLogout({ confirm: true });
 });
 
 // ── Push notification bell button ─────────────────────────
+function getNotificationApi() {
+  return (typeof window !== 'undefined' && window.Notification) ? window.Notification : null;
+}
+
+function isStandaloneDisplayMode() {
+  if (!window.matchMedia) return false;
+  try {
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches ||
+      window.matchMedia('(display-mode: minimal-ui)').matches
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
+function getPushSupportContext() {
+  const ua = navigator.userAgent || '';
+  const isIOS = /iP(hone|ad|od)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = document.documentElement.classList.contains('app-standalone')
+    || isStandaloneDisplayMode()
+    || window.navigator.standalone === true;
+  const secureContext = location.protocol === 'https:' || location.hostname === 'localhost';
+  const NotificationAPI = getNotificationApi();
+
+  if (!secureContext) {
+    return { ok: false, message: 'Push працює лише через HTTPS.' };
+  }
+  if (!NotificationAPI) {
+    return { ok: false, message: 'Браузер не підтримує сповіщення.' };
+  }
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (isIOS && !standalone) {
+      return { ok: false, message: 'На iPhone push працює лише у встановленій PWA. Відкрийте ARM Bank з іконки на Головному екрані.' };
+    }
+    return { ok: false, message: 'Push API недоступний у поточному браузері.' };
+  }
+  if (isIOS && !standalone) {
+    return { ok: false, message: 'На iPhone push працює лише у встановленій PWA. Додайте ARM Bank на Головний екран і відкрийте з іконки.' };
+  }
+  return { ok: true, message: '' };
+}
+
 async function updatePushDot() {
-  if (!('Notification' in window) || !('PushManager' in window)) return;
-  const granted = Notification.permission === 'granted';
+  const NotificationAPI = getNotificationApi();
+  if (!NotificationAPI || !('PushManager' in window)) return;
+  const granted = NotificationAPI.permission === 'granted';
   const dot = $('#pushDot');
   if (dot) dot.style.display = granted ? 'block' : 'none';
 }
 
 $('#pushBtn')?.addEventListener('click', async () => {
   const btn = $('#pushBtn');
-  if (!('Notification' in window)) {
-    showToast('Браузер не підтримує сповіщення.');
+  const support = getPushSupportContext();
+  if (!support.ok) {
+    showToast(support.message);
     return;
   }
-  if (!('PushManager' in window)) {
-    showToast('Push API недоступний. На iPhone — додайте застосунок на Головний екран.');
-    return;
-  }
-  if (Notification.permission === 'denied') {
+  const NotificationAPI = getNotificationApi();
+  if (NotificationAPI.permission === 'denied') {
     showToast('Сповіщення заблоковані. Дозвольте в налаштуваннях браузера / системи.');
     return;
   }
 
   btn.disabled = true;
   try {
-    if (Notification.permission !== 'granted') {
+    if (NotificationAPI.permission !== 'granted') {
       showToast('Запит дозволу на сповіщення…');
-      const perm = await Notification.requestPermission();
+      const perm = await NotificationAPI.requestPermission();
       if (perm !== 'granted') {
         showToast('Сповіщення не дозволені.');
         return;
@@ -2525,7 +3174,8 @@ $('#pushBtn')?.addEventListener('click', async () => {
     showToast('Підписка на сповіщення…');
     const ok = await api.subscribePush();
     if (!ok) {
-      showToast('Не вдалося підписатись на сповіщення.');
+      const pushErr = typeof api.getLastPushError === 'function' ? api.getLastPushError() : null;
+      showToast(pushErr?.message || 'Не вдалося підписатись на сповіщення.');
       return;
     }
     updatePushDot();
@@ -2542,27 +3192,219 @@ $('#pushBtn')?.addEventListener('click', async () => {
 });
 
 // ── SW update detection ───────────────────────────────────
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && !DESKTOP_MOBILE_ONLY_BLOCKED) {
   let _swReloading = false;
-  function _swReload() {
-    if (_swReloading) return;
-    _swReloading = true;
-    setTimeout(() => location.reload(), 200);
+  let _swUpdateTimer = null;
+  let _swVersionTimer = null;
+  let _swPendingReload = false;
+  let _swPendingToastAt = 0;
+  let _knownAppCommit = '';
+
+  try {
+    _knownAppCommit = String(localStorage.getItem('ab_app_commit') || '').trim();
+  } catch (_) {}
+
+  function _clearSwUpdateTimer() {
+    if (_swUpdateTimer) {
+      clearInterval(_swUpdateTimer);
+      _swUpdateTimer = null;
+    }
   }
 
-  navigator.serviceWorker.register('/sw.js?v=36', { updateViaCache: 'none' }).then(reg => {
+  function _clearSwVersionTimer() {
+    if (_swVersionTimer) {
+      clearInterval(_swVersionTimer);
+      _swVersionTimer = null;
+    }
+  }
+
+  function _clearSwTimers() {
+    _clearSwUpdateTimer();
+    _clearSwVersionTimer();
+  }
+
+  function _rememberCommit(commit) {
+    const normalized = String(commit || '').trim();
+    if (!normalized) return;
+    _knownAppCommit = normalized;
+    try { localStorage.setItem('ab_app_commit', normalized); } catch (_) {}
+  }
+
+  function _extractCommit(payload) {
+    if (!payload || typeof payload !== 'object') return '';
+    return String(payload.git_commit || payload.git_commit_short || '').trim();
+  }
+
+  async function _fetchAppVersion() {
+    const url = `/api/version?cb=${Date.now()}`;
+    const r = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
+    if (!r.ok) throw new Error(`version_status_${r.status}`);
+    const data = await r.json().catch(() => ({}));
+    return _extractCommit(data);
+  }
+
+  function _scheduleSwUpdates(reg) {
+    _clearSwUpdateTimer();
+    const SW_UPDATE_VISIBLE_MS = 120_000; // 2 min
+    const updateNow = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (navigator.onLine === false) return;
+      reg.update().catch(() => {});
+      if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    };
+
+    updateNow();
+    _swUpdateTimer = setInterval(updateNow, SW_UPDATE_VISIBLE_MS);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') updateNow();
+    });
+    window.addEventListener('online', updateNow, { passive: true });
+    window.addEventListener('pageshow', updateNow, { passive: true });
+  }
+
+  async function _purgeRuntimeCaches() {
+    if (!('caches' in window)) return;
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => /^army-bank-v/i.test(k)).map((k) => caches.delete(k)));
+    } catch (_) {}
+  }
+
+  function _buildCacheBustUrl() {
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set('_abv', String(Date.now()));
+      return u.toString();
+    } catch (_) {
+      return window.location.href;
+    }
+  }
+
+  function _performSwReload(options = {}) {
+    const bustCache = options.bustCache !== false;
+    if (_swReloading) return;
+    try {
+      const now = Date.now();
+      const last = Number(sessionStorage.getItem('ab_sw_reload_at') || 0);
+      if (last && (now - last) < 12_000) return;
+      sessionStorage.setItem('ab_sw_reload_at', String(now));
+    } catch (_) {}
+    _swReloading = true;
+    setTimeout(() => {
+      if (bustCache) {
+        window.location.replace(_buildCacheBustUrl());
+      } else {
+        window.location.reload();
+      }
+    }, 120);
+  }
+
+  function _markSwPendingReload(reason) {
+    _swPendingReload = true;
+    const now = Date.now();
+    if ((now - _swPendingToastAt) > 12_000) {
+      _swPendingToastAt = now;
+      if (reason === 'version') {
+        showToast('Виявлено нову версію. Оновлення через 8 сек…', 'success');
+      } else {
+        showToast('Доступне оновлення. Оновлення через 8 сек…', 'success');
+      }
+      // Force reload after grace period even if page stays visible
+      setTimeout(() => {
+        if (_swPendingReload && !_swReloading) _performSwReload({ bustCache: true });
+      }, 8_000);
+    }
+  }
+
+  function _swReload(options = {}) {
+    const immediate = !!options.immediate;
+    if (!immediate && document.visibilityState === 'visible') {
+      _markSwPendingReload(options.reason || 'sw');
+      return;
+    }
+    _swPendingReload = false;
+    _performSwReload({ bustCache: true });
+  }
+
+  function _applyPendingSwReload() {
+    if (!_swPendingReload || _swReloading) return;
+    if (document.visibilityState !== 'visible') return;
+    _swReload({ immediate: true });
+  }
+
+  async function _checkVersionHeartbeat(reg) {
+    if (navigator.onLine === false) return;
+    const commit = await _fetchAppVersion();
+    if (!commit) return;
+
+    if (!_knownAppCommit) {
+      _rememberCommit(commit);
+      return;
+    }
+
+    if (commit !== _knownAppCommit) {
+      _rememberCommit(commit);
+      await _purgeRuntimeCaches();
+      try {
+        await reg.update();
+      } catch (_) {}
+      if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      _markSwPendingReload('version');
+    }
+  }
+
+  function _scheduleVersionHeartbeat(reg) {
+    _clearSwVersionTimer();
+    const SW_VERSION_HEARTBEAT_MS = 90_000;
+
+    const runNow = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (navigator.onLine === false) return;
+      _checkVersionHeartbeat(reg).catch(() => {});
+    };
+
+    runNow();
+    _swVersionTimer = setInterval(runNow, SW_VERSION_HEARTBEAT_MS);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') runNow();
+    });
+    window.addEventListener('online', runNow, { passive: true });
+    window.addEventListener('pageshow', runNow, { passive: true });
+  }
+
+  async function _cleanupLegacyRegistrations() {
+    if (!navigator.serviceWorker.getRegistrations) return;
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(async (r) => {
+        const scriptURL = r.active?.scriptURL || r.waiting?.scriptURL || r.installing?.scriptURL || '';
+        if (!scriptURL) return;
+        let pathname = '';
+        try { pathname = new URL(scriptURL).pathname; } catch (_) { return; }
+        const isBankOrMessengerSw = pathname.endsWith('/sw.js') || pathname.endsWith('/sw-messenger.js');
+        if (!isBankOrMessengerSw) await r.unregister().catch(() => {});
+      }));
+    } catch (_) {}
+  }
+
+  navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(async (reg) => {
     if (!reg) return;
+    await _cleanupLegacyRegistrations();
     // If update is already waiting, activate immediately.
     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
 
-    reg.update().catch(() => {});
-    setInterval(() => reg.update().catch(() => {}), 30_000);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') reg.update().catch(() => {});
-    });
+    _scheduleSwUpdates(reg);
+    _scheduleVersionHeartbeat(reg);
+    _checkVersionHeartbeat(reg).catch(() => {});
 
     navigator.serviceWorker.addEventListener('message', e => {
-      if (e.data?.type === 'SW_UPDATED') _swReload();
+      if (e.data?.type === 'SW_VERSION') return;
+      if (e.data?.type === 'SW_CACHE_CLEARED') return;
+      // New SW has already activated and claimed clients — reload immediately so
+      // the page is served by the new worker (avoids mixed old-HTML / new-SW state).
+      if (e.data?.type === 'SW_UPDATED') _swReload({ immediate: true });
     });
 
     reg.addEventListener('updatefound', () => {
@@ -2574,8 +3416,18 @@ if ('serviceWorker' in navigator) {
       });
     });
 
-    navigator.serviceWorker.addEventListener('controllerchange', _swReload);
+    // controllerchange fires AFTER the new SW has taken control — always reload
+    // immediately (anti-loop guard in _performSwReload prevents infinite cycles).
+    navigator.serviceWorker.addEventListener('controllerchange', () => _swReload({ immediate: true }));
+    try { reg.active?.postMessage({ type: 'GET_SW_VERSION' }); } catch (_) {}
   }).catch(() => {});
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') _applyPendingSwReload();
+  });
+  window.addEventListener('pageshow', _applyPendingSwReload, { passive: true });
+  window.addEventListener('focus', _applyPendingSwReload, { passive: true });
+  window.addEventListener('beforeunload', _clearSwTimers, { passive: true });
 }
 
 // ── BOOTSTRAP ────────────────────────────────────────────
@@ -2596,7 +3448,7 @@ async function hydrateAuthenticatedApp() {
     startSessionEngine();
     updatePushDot();
     if (typeof window._startNotifPolling === 'function') window._startNotifPolling();
-    if (Notification?.permission === 'granted') api.subscribePush().catch(() => {});
+    if (getNotificationApi()?.permission === 'granted') api.subscribePush().catch(() => {});
   }
 }
 
@@ -2608,13 +3460,28 @@ function scheduleBootstrapRetry() {
     try {
       await hydrateAuthenticatedApp();
       showToast('Зʼєднання відновлено.', 'success');
-    } catch (_) {
-      scheduleBootstrapRetry();
+    } catch (err) {
+      if (isAuthErrorResponse(err)) {
+        stopPolling();
+        stopNotifPolling();
+        api.setToken('');
+        setAuthenticated(false);
+        showToast('Сесію завершено. Увійдіть повторно.');
+      } else {
+        setAuthenticated(false);
+        scheduleBootstrapRetry();
+      }
     }
   }, 10000);
 }
 
 (async function bootstrap() {
+  if (DESKTOP_MOBILE_ONLY_BLOCKED) {
+    stopPolling();
+    stopNotifPolling();
+    clearBootstrapRetryTimer();
+    return;
+  }
   if (!api.token) {
     setAuthenticated(false);
     return;
@@ -2632,6 +3499,7 @@ function scheduleBootstrapRetry() {
       setAuthenticated(false);
       showToast('Сесію завершено. Увійдіть повторно.');
     } else {
+      setAuthenticated(false);
       showToast('Сервер тимчасово недоступний. Спробуємо знову…');
       scheduleBootstrapRetry();
     }
@@ -2822,7 +3690,7 @@ $('#secLogHead')?.addEventListener('click', async () => {
           <div class="sec-log-item">
             <span class="sec-log-icon">${icon}</span>
             <div class="sec-log-body">
-              <div class="sec-log-action">${log.details || log.action}</div>
+              <div class="sec-log-action">${escapeHtml(log.details || log.action)}</div>
               <div class="sec-log-date muted">${formatDate(log.created_at)}</div>
             </div>
           </div>`;
@@ -3085,8 +3953,8 @@ async function loadInsights() {
     }
     el.innerHTML = insights.map(ins => `
       <div class="insight-item">
-        <span class="insight-icon">${ins.icon}</span>
-        <span class="insight-text">${ins.text}</span>
+        <span class="insight-icon">${escapeHtml(ins.icon)}</span>
+        <span class="insight-text">${escapeHtml(ins.text)}</span>
       </div>`).join('');
   } catch(_) {}
 }
@@ -3145,7 +4013,7 @@ function updateConverter() {
   $(sel)?.addEventListener('change', updateConverter);
 });
 
-loadCurrencyRates();
+if (!DESKTOP_MOBILE_ONLY_BLOCKED) loadCurrencyRates();
 
 // ── KEYBOARD SHORTCUTS ────────────────────────────────
 let _kbBuffer = '';
@@ -3292,7 +4160,10 @@ function shareTransaction(tx) {
 
 function _showShareModal(text) {
   const existing = document.getElementById('_shareModal');
-  if (existing) existing.remove();
+  if (existing) {
+    existing.remove();
+    unlockBodyScroll('share-modal');
+  }
   const modal = document.createElement('div');
   modal.id = '_shareModal';
   modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px';
@@ -3305,15 +4176,22 @@ function _showShareModal(text) {
         <button id="_shareCloseBtn" class="btn-ghost">Закрити</button>
       </div>
     </div>`;
+  const closeShareModal = () => {
+    modal.remove();
+    unlockBodyScroll('share-modal');
+  };
+
   document.body.appendChild(modal);
+  lockBodyScroll('share-modal');
+
   document.getElementById('_shareCopyBtn')?.addEventListener('click', () => {
     const ta = document.getElementById('_shareText');
     ta.select(); ta.setSelectionRange(0, 99999);
     try { document.execCommand('copy'); showToast('Скопійовано!', 'success'); } catch(_) {}
-    modal.remove();
+    closeShareModal();
   });
-  document.getElementById('_shareCloseBtn')?.addEventListener('click', () => modal.remove());
-  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  document.getElementById('_shareCloseBtn')?.addEventListener('click', closeShareModal);
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeShareModal(); });
 }
 
 // ── SESSION MANAGEMENT ─────────────────────────────────
@@ -3651,12 +4529,18 @@ async function loadForecast() {
   if (!('BroadcastChannel' in window)) return;
   const bc = new BroadcastChannel('army_bank_sync');
   window._bcChannel = bc;
+  const tabId = `tab_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  let suppressBroadcast = false;
 
   bc.addEventListener('message', e => {
-    if (e.data?.type === 'DATA_UPDATED' && api.token) {
-      refreshAllData().catch(() => {});
+    if (!e.data || e.data.from === tabId) return;
+    if (e.data.type === 'DATA_UPDATED' && api.token) {
+      suppressBroadcast = true;
+      Promise.resolve(window.refreshAllData ? window.refreshAllData() : refreshAllData())
+        .catch(() => {})
+        .finally(() => { suppressBroadcast = false; });
     }
-    if (e.data?.type === 'LOGOUT') {
+    if (e.data.type === 'LOGOUT') {
       stopPolling();
       stopNotifPolling();
       clearBootstrapRetryTimer();
@@ -3669,15 +4553,10 @@ async function loadForecast() {
   const _origRefreshAllData = window.refreshAllData || refreshAllData;
   window.refreshAllData = async function() {
     await _origRefreshAllData();
-    bc.postMessage({ type: 'DATA_UPDATED' });
+    if (!suppressBroadcast) {
+      bc.postMessage({ type: 'DATA_UPDATED', from: tabId, at: Date.now() });
+    }
   };
-
-  const logoutBtn = $('#logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      bc.postMessage({ type: 'LOGOUT' });
-    });
-  }
 })();
 
 // ═══════════════════════════════════════════════════════════
@@ -3741,7 +4620,7 @@ function showPinLock() {
   updatePinDots();
   const overlay = $('#pinLockOverlay');
   if (overlay) overlay.classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
+  lockBodyScroll('pin-lock');
 }
 
 function hidePinLock() {
@@ -3750,7 +4629,7 @@ function hidePinLock() {
   updatePinDots();
   const overlay = $('#pinLockOverlay');
   if (overlay) overlay.classList.add('hidden');
-  document.body.style.overflow = '';
+  unlockBodyScroll('pin-lock');
   resetInactivityTimer();
 }
 
@@ -3788,7 +4667,7 @@ $('#pinBackBtn')?.addEventListener('click', function() {
 
 $('#pinLogoutBtn')?.addEventListener('click', async function() {
   hidePinLock();
-  await performLogout();
+  await performLogout({ confirm: true });
 });
 
 async function checkPinStatus() {
@@ -4245,13 +5124,60 @@ var ONBOARDING_STEPS = [
   { icon: '\ud83d\udcca', title: 'Аналітика та захист', text: 'Детальна аналітика, бюджетні ліміти, PIN-захист і звіти. Контролюйте фінанси повністю.' },
 ];
 var _obStep = 0;
+var _obAutoTimer = 0;
+
+function _isOnboardingVisible() {
+  var overlay = $('#onboardingOverlay');
+  if (!overlay) return false;
+  return !overlay.classList.contains('hidden');
+}
+
+function _finishOnboarding(markDone) {
+  var overlay = $('#onboardingOverlay');
+  if (overlay) overlay.classList.add('hidden');
+  if (markDone) {
+    try { localStorage.setItem('army_bank_onboarded', '1'); } catch (_) {}
+  }
+  window.dispatchEvent(new Event('ab:onboarding-visibility'));
+}
+
+function cancelOnboardingAutoShow() {
+  if (_obAutoTimer) {
+    clearTimeout(_obAutoTimer);
+    _obAutoTimer = 0;
+  }
+}
+
+function scheduleOnboardingAutoShow(delayMs) {
+  cancelOnboardingAutoShow();
+  try {
+    if (localStorage.getItem('army_bank_onboarded')) return;
+  } catch (_) {}
+  _obAutoTimer = setTimeout(function() {
+    _obAutoTimer = 0;
+    try {
+      if (localStorage.getItem('army_bank_onboarded')) return;
+    } catch (_) {}
+    if (document.hidden) return;
+    var active = document.querySelector('.screen.active-screen')?.id || $('#appScreen')?.dataset?.screen || 'dashboard';
+    // Do not interrupt users while they are already in sub-screens.
+    if (active !== 'dashboard') return;
+    if (document.documentElement.classList.contains('install-banner-visible')) return;
+    showOnboarding();
+  }, Number(delayMs) || 4200);
+}
 
 function showOnboarding() {
   var overlay = $('#onboardingOverlay');
   if (!overlay) return;
+  if (_isOnboardingVisible()) return;
+  try {
+    if (localStorage.getItem('army_bank_onboarded')) return;
+  } catch (_) {}
   _obStep = 0;
   renderOnboardingStep();
   overlay.classList.remove('hidden');
+  window.dispatchEvent(new Event('ab:onboarding-visibility'));
 }
 
 function renderOnboardingStep() {
@@ -4271,18 +5197,30 @@ function renderOnboardingStep() {
 $('#obNextBtn')?.addEventListener('click', function() {
   _obStep++;
   if (_obStep >= ONBOARDING_STEPS.length) {
-    var overlay = $('#onboardingOverlay');
-    if (overlay) overlay.classList.add('hidden');
-    localStorage.setItem('army_bank_onboarded', '1');
+    _finishOnboarding(true);
   } else {
     renderOnboardingStep();
   }
 });
 
 $('#obSkipBtn')?.addEventListener('click', function() {
-  var overlay = $('#onboardingOverlay');
-  if (overlay) overlay.classList.add('hidden');
-  localStorage.setItem('army_bank_onboarded', '1');
+  _finishOnboarding(true);
+});
+
+$('#onboardingOverlay')?.addEventListener('click', function(e) {
+  if (e.target === e.currentTarget) _finishOnboarding(true);
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && _isOnboardingVisible()) _finishOnboarding(true);
+});
+
+window.addEventListener('ab:screen-changed', function(e) {
+  var screen = e?.detail?.screen || document.querySelector('.screen.active-screen')?.id || '';
+  if (screen && screen !== 'dashboard') {
+    cancelOnboardingAutoShow();
+    if (_isOnboardingVisible()) _finishOnboarding(true);
+  }
 });
 
 // ── Balance CountUp on refresh ───────────────────────────
@@ -4320,9 +5258,7 @@ if (!window._ab_refresh_patched) {
   var _wave5_origHandleAuth = window.handleAuth || handleAuth;
   window.handleAuth = async function(form, endpoint) {
     await _wave5_origHandleAuth(form, endpoint);
-    if (!localStorage.getItem('army_bank_onboarded')) {
-      setTimeout(showOnboarding, 2000);
-    }
+    scheduleOnboardingAutoShow(4200);
   };
 }
 
@@ -4331,10 +5267,78 @@ console.log('[Army Bank] UX core modules loaded');
 // ── A2HS Install Banner ───────────────────────────────────
 (function() {
   var deferredPrompt = null;
+  var canOfferInstall = false;
   var banner = document.getElementById('installBanner');
   var installBtn = document.getElementById('installBtn');
   var dismissBtn = document.getElementById('installDismiss');
+  var bannerTitle = document.getElementById('installBannerTitle');
+  var bannerSub = document.getElementById('installBannerSub');
   if (!banner) return;
+
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var isAndroid = /android/i.test(navigator.userAgent);
+  var isInStandalone = ('standalone' in window.navigator) && window.navigator.standalone;
+
+  function getActiveScreenForInstall() {
+    return document.querySelector('.screen.active-screen')?.id || document.getElementById('appScreen')?.dataset?.screen || 'dashboard';
+  }
+
+  function isOnboardingBlockingInstall() {
+    var overlay = document.getElementById('onboardingOverlay');
+    return !!overlay && !overlay.classList.contains('hidden');
+  }
+
+  function setInstallBannerVisible(visible) {
+    banner.classList.toggle('hidden', !visible);
+    document.documentElement.classList.toggle('install-banner-visible', !!visible);
+  }
+
+  function applyInstallBannerPlatformContent() {
+    if (!installBtn) return;
+    if (isIOS && !isInStandalone && !deferredPrompt) {
+      banner.dataset.platform = 'ios';
+      if (bannerTitle) bannerTitle.textContent = 'Додайте ARM Bank на iPhone';
+      if (bannerSub) bannerSub.textContent = 'Safari: Поділитися → На екран Додому';
+      installBtn.textContent = 'Як додати';
+      return;
+    }
+    if (isAndroid) {
+      banner.dataset.platform = 'android';
+      if (bannerTitle) bannerTitle.textContent = 'Встановіть ARM Bank на Android';
+      if (bannerSub) bannerSub.textContent = 'Одне натискання — і застосунок на головному екрані';
+      installBtn.textContent = 'Встановити';
+      return;
+    }
+    banner.dataset.platform = 'other';
+    if (bannerTitle) bannerTitle.textContent = 'Встановіть ARM Bank';
+    if (bannerSub) bannerSub.textContent = 'Швидкий доступ і робота як застосунок';
+    installBtn.textContent = 'Встановити';
+  }
+
+  function refreshInstallBanner() {
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setInstallBannerVisible(false);
+      return;
+    }
+    if (localStorage.getItem('ab_install_dismissed')) {
+      setInstallBannerVisible(false);
+      return;
+    }
+    if (!canOfferInstall || !api.token) {
+      setInstallBannerVisible(false);
+      return;
+    }
+    if (getActiveScreenForInstall() !== 'dashboard') {
+      setInstallBannerVisible(false);
+      return;
+    }
+    if (isOnboardingBlockingInstall()) {
+      setInstallBannerVisible(false);
+      return;
+    }
+    setInstallBannerVisible(true);
+    applyInstallBannerPlatformContent();
+  }
 
   // Don't show if already installed or dismissed
   if (window.matchMedia('(display-mode: standalone)').matches) return;
@@ -4343,19 +5347,29 @@ console.log('[Army Bank] UX core modules loaded');
   window.addEventListener('beforeinstallprompt', function(e) {
     e.preventDefault();
     deferredPrompt = e;
-    // Show banner after 3 seconds if not authenticated
+    // Show banner lazily and only on dashboard.
     setTimeout(function() {
-      if (api.token) banner.classList.remove('hidden');
+      canOfferInstall = true;
+      refreshInstallBanner();
     }, 3000);
   });
 
   if (installBtn) {
     installBtn.addEventListener('click', function() {
-      if (!deferredPrompt) return;
+      if (isIOS && !isInStandalone && !deferredPrompt) {
+        showToast('Safari: Поділитися → На екран Додому → Додати', '');
+        return;
+      }
+      if (!deferredPrompt) {
+        if (isAndroid) {
+          showToast('Відкрийте меню браузера і натисніть "Встановити застосунок".', '');
+        }
+        return;
+      }
       deferredPrompt.prompt();
       deferredPrompt.userChoice.then(function(choice) {
         deferredPrompt = null;
-        banner.classList.add('hidden');
+        setInstallBannerVisible(false);
         if (choice.outcome === 'accepted') {
           showToast('Додаток встановлено!', 'success');
         }
@@ -4365,26 +5379,75 @@ console.log('[Army Bank] UX core modules loaded');
 
   if (dismissBtn) {
     dismissBtn.addEventListener('click', function() {
-      banner.classList.add('hidden');
+      setInstallBannerVisible(false);
       localStorage.setItem('ab_install_dismissed', '1');
     });
   }
 
   // iOS Safari install hint
-  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  var isInStandalone = ('standalone' in window.navigator) && window.navigator.standalone;
   if (isIOS && !isInStandalone && !localStorage.getItem('ab_install_dismissed')) {
     setTimeout(function() {
-      if (!api.token) return;
-      if (installBtn) installBtn.textContent = '+ Додати';
-      installBtn.addEventListener('click', function() {
-        showToast('Натисніть "Поділитися" → "На головний екран"', '');
-        banner.classList.add('hidden');
-        localStorage.setItem('ab_install_dismissed', '1');
-      });
-      banner.classList.remove('hidden');
+      canOfferInstall = true;
+      refreshInstallBanner();
     }, 4000);
   }
+
+  window.addEventListener('ab:screen-changed', refreshInstallBanner);
+  window.addEventListener('ab:onboarding-visibility', refreshInstallBanner);
+  window.addEventListener('focus', refreshInstallBanner, { passive: true });
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) refreshInstallBanner();
+  }, { passive: true });
+
+  // Initial post-auth reconciliation.
+  setTimeout(refreshInstallBanner, 1200);
+})();
+
+// ── Account block drag-to-scroll proxy (mobile dashboard) ──────────────
+(function() {
+  var accountBtn = document.getElementById('heroAccountCopyBtn');
+  var content = document.querySelector('.app-content');
+  if (!accountBtn || !content) return;
+
+  var active = false;
+  var startY = 0;
+  var lastY = 0;
+  var moved = false;
+  var mobileMql = window.matchMedia('(max-width: 959px)');
+
+  function isMobileLayout() {
+    return !!mobileMql.matches;
+  }
+
+  accountBtn.addEventListener('touchstart', function(e) {
+    if (!isMobileLayout()) return;
+    active = true;
+    moved = false;
+    startY = e.touches[0].clientY;
+    lastY = startY;
+  }, { passive: true });
+
+  accountBtn.addEventListener('touchmove', function(e) {
+    if (!active || !isMobileLayout()) return;
+    var y = e.touches[0].clientY;
+    var dy = y - lastY;
+    if (Math.abs(y - startY) > 5) moved = true;
+
+    var maxTop = Math.max(0, content.scrollHeight - content.clientHeight);
+    var nextTop = Math.max(0, Math.min(maxTop, content.scrollTop - dy));
+    content.scrollTop = nextTop;
+    lastY = y;
+
+    if (moved) e.preventDefault();
+  }, { passive: false });
+
+  accountBtn.addEventListener('touchend', function() {
+    active = false;
+  }, { passive: true });
+
+  accountBtn.addEventListener('touchcancel', function() {
+    active = false;
+  }, { passive: true });
 })();
 
 // ── Pull-to-refresh ───────────────────────────────────────
@@ -4392,12 +5455,44 @@ console.log('[Army Bank] UX core modules loaded');
   var content = document.querySelector('.app-content');
   var indicator = document.getElementById('pullRefreshIndicator');
   if (!content || !indicator) return;
-  var startY = 0, pulling = false, pullDistance = 0, threshold = 70;
+  var indicatorText = indicator.querySelector('span');
+  var startY = 0, pulling = false, pullDistance = 0;
+  var SOFT_THRESHOLD = 72;
+  var HARD_THRESHOLD = 132;
+  var refreshing = false;
+
+  function setIndicatorText(txt) {
+    if (indicatorText) indicatorText.textContent = txt;
+  }
+
+  async function hardRefresh() {
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+        var regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(function(reg) {
+          return reg.update().catch(function() {});
+        }));
+        regs.forEach(function(reg) {
+          if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        });
+      }
+    } catch (_) {}
+
+    try {
+      var url = new URL(window.location.href);
+      url.searchParams.set('_r', String(Date.now()));
+      window.location.replace(url.toString());
+    } catch (_) {
+      window.location.reload();
+    }
+  }
 
   content.addEventListener('touchstart', function(e) {
+    if (refreshing) return;
     if (content.scrollTop <= 0) {
       startY = e.touches[0].clientY;
       pullDistance = 0;
+      setIndicatorText('Потягніть вниз для оновлення');
       return;
     }
     startY = 0;
@@ -4405,7 +5500,7 @@ console.log('[Army Bank] UX core modules loaded');
   }, { passive: true });
 
   content.addEventListener('touchmove', function(e) {
-    if (!startY) return;
+    if (!startY || refreshing) return;
     var dy = e.touches[0].clientY - startY;
     if (dy <= 0) return;
     pullDistance = dy;
@@ -4413,20 +5508,131 @@ console.log('[Army Bank] UX core modules loaded');
       pulling = true;
       indicator.classList.add('visible');
     }
+    if (dy >= HARD_THRESHOLD) {
+      setIndicatorText('Відпустіть для повного перезавантаження');
+    } else if (dy >= SOFT_THRESHOLD) {
+      setIndicatorText('Відпустіть для оновлення даних');
+    } else {
+      setIndicatorText('Потягніть ще трохи');
+    }
   }, { passive: true });
 
-  content.addEventListener('touchend', function() {
-    if (pulling && pullDistance >= threshold) {
-      refreshAllData().finally(function() {
-        indicator.classList.remove('visible');
-      });
-    } else {
+  content.addEventListener('touchend', async function() {
+    if (refreshing) return;
+    if (!(pulling && pullDistance >= SOFT_THRESHOLD)) {
       indicator.classList.remove('visible');
+      setIndicatorText('Оновлення…');
+      pulling = false;
+      pullDistance = 0;
+      startY = 0;
+      return;
     }
+
+    refreshing = true;
+    setIndicatorText(pullDistance >= HARD_THRESHOLD
+      ? 'Перезавантаження сторінки…'
+      : 'Оновлення даних…'
+    );
+
+    try {
+      if (pullDistance >= HARD_THRESHOLD) {
+        await hardRefresh();
+        return;
+      }
+      await refreshAllData();
+      showToast('Оновлено', 'success');
+    } catch (_) {
+      showToast('Помилка оновлення', 'error');
+    } finally {
+      refreshing = false;
+      indicator.classList.remove('visible');
+      setIndicatorText('Оновлення…');
+    }
+
     pulling = false;
     pullDistance = 0;
     startY = 0;
   }, { passive: true });
+})();
+
+// ── Dashboard header scroll proxy (mobile) ───────────────
+(function() {
+  var header = document.querySelector('#appScreen .app-header');
+  var content = document.querySelector('.app-content');
+  if (!header || !content) return;
+
+  var touchActive = false;
+  var startX = 0;
+  var startY = 0;
+  var lastY = 0;
+  var mobileMql = window.matchMedia('(max-width: 959px)');
+
+  function isMobileLayout() {
+    return !!mobileMql.matches;
+  }
+
+  function isDashboard() {
+    var activeEl = document.querySelector('.screen.active-screen');
+    if (activeEl) return activeEl.id === 'dashboard';
+    var shell = document.getElementById('appScreen');
+    return (shell?.dataset?.screen || '').toLowerCase() === 'dashboard' || shell?.classList.contains('screen-dashboard');
+  }
+
+  function isInteractiveTarget(target) {
+    if (!target || !target.closest) return false;
+    return !!target.closest(
+      'input, textarea, select, ' +
+      '.icon-btn, .bottom-nav, .nav-item, [data-no-header-scroll-proxy]'
+    );
+  }
+
+  header.addEventListener('touchstart', function(e) {
+    if (!isMobileLayout() || !isDashboard() || isInteractiveTarget(e.target)) {
+      touchActive = false;
+      return;
+    }
+    touchActive = true;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    lastY = e.touches[0].clientY;
+  }, { passive: true });
+
+  header.addEventListener('touchmove', function(e) {
+    if (!touchActive || !isMobileLayout() || !isDashboard()) return;
+    if (!content || (content.scrollHeight - content.clientHeight) <= 1) return;
+    var x = e.touches[0].clientX;
+    var y = e.touches[0].clientY;
+    var absDx = Math.abs(x - startX);
+    var absDy = Math.abs(y - startY);
+    // Keep native horizontal gestures for card carousel.
+    if (absDx > absDy * 1.08) return;
+    var dy = y - lastY;
+    if (Math.abs(dy) < 1.5) return;
+    var maxTop = Math.max(0, content.scrollHeight - content.clientHeight);
+    var nextTop = Math.max(0, Math.min(maxTop, content.scrollTop - dy));
+    if (Math.abs(nextTop - content.scrollTop) < 0.5) return;
+    content.scrollTop = nextTop;
+    lastY = y;
+    e.preventDefault();
+  }, { passive: false });
+
+  header.addEventListener('touchend', function() {
+    touchActive = false;
+  }, { passive: true });
+
+  header.addEventListener('touchcancel', function() {
+    touchActive = false;
+  }, { passive: true });
+
+  header.addEventListener('wheel', function(e) {
+    if (!isDashboard() || isInteractiveTarget(e.target)) return;
+    content.scrollTop = Math.max(0, content.scrollTop + e.deltaY);
+    e.preventDefault();
+  }, { passive: false });
+
+  window.addEventListener('ab:screen-changed', function() {
+    touchActive = false;
+  });
 })();
 
 // ── Swipe between screens ─────────────────────────────────
@@ -4435,7 +5641,8 @@ console.log('[Army Bank] UX core modules loaded');
   var content = document.querySelector('.app-content');
   if (!content) return;
   var startX = 0, startY = 0, swipeEligible = false;
-  var EDGE_GUTTER = 28;
+  var EDGE_GUTTER = 20;
+  var NAV_GUARD_ZONE = 132; // ignore gestures near bottom nav area
 
   function isInteractiveTarget(target) {
     if (!target || !target.closest) return false;
@@ -4456,6 +5663,11 @@ console.log('[Army Bank] UX core modules loaded');
   content.addEventListener('touchstart', function(e) {
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
+    var fromBottomNavZone = startY >= (window.innerHeight - NAV_GUARD_ZONE);
+    if (fromBottomNavZone) {
+      swipeEligible = false;
+      return;
+    }
     var fromEdge = startX <= EDGE_GUTTER || startX >= (window.innerWidth - EDGE_GUTTER);
     swipeEligible = fromEdge && !isInteractiveTarget(e.target) && !hasOpenOverlay();
   }, { passive: true });
@@ -4497,35 +5709,48 @@ console.log('[Army Bank] UX core modules loaded');
 
   var lastY = 0;
   var ticking = false;
+  var mobileMql = window.matchMedia('(max-width: 959px)');
 
   function isMobileLayout() {
-    return window.matchMedia('(max-width: 959px)').matches;
+    return !!mobileMql.matches;
   }
 
   function showNav() {
     nav.classList.remove('nav-hidden');
   }
 
+  function isBrowserMode() {
+    return document.documentElement.classList.contains('app-browser-mode');
+  }
+
+  function hideNav() {
+    if (isBrowserMode()) {
+      showNav();
+      return;
+    }
+    nav.classList.add('nav-hidden');
+  }
+
   function updateNav() {
     ticking = false;
-    if (!isMobileLayout()) {
+    if (!isMobileLayout()) return;
+    if (isBrowserMode()) {
       showNav();
+      lastY = content.scrollTop || 0;
       return;
     }
     var y = content.scrollTop || 0;
     var dy = y - lastY;
-    var notifOpen = document.getElementById('notifPanel')?.classList.contains('open');
-    if (notifOpen) {
+    var nearTop = y < 8;
+    var nearBottom = (content.scrollHeight - (y + content.clientHeight)) < 18;
+
+    if (nearTop || nearBottom || dy < -2) {
       showNav();
-      lastY = y;
-      return;
+    } else if (dy > 3 && y > 8) {
+      hideNav();
     }
-    if (y < 20 || dy < -6) {
-      showNav();
-    } else if (dy > 8) {
-      nav.classList.add('nav-hidden');
-    }
-    lastY = y < 0 ? 0 : y;
+
+    lastY = y;
   }
 
   content.addEventListener('scroll', function() {
@@ -4541,6 +5766,48 @@ console.log('[Army Bank] UX core modules loaded');
   window.addEventListener('resize', showNav, { passive: true });
   window.addEventListener('orientationchange', showNav, { passive: true });
   window.addEventListener('popstate', showNav);
+  if (typeof mobileMql.addEventListener === 'function') {
+    mobileMql.addEventListener('change', showNav);
+  } else if (typeof mobileMql.addListener === 'function') {
+    mobileMql.addListener(showNav);
+  }
+})();
+
+// ── Dashboard scroll state (mobile polish) ─────────────────────────────
+(function() {
+  var content = document.querySelector('.app-content');
+  var shell = document.getElementById('appScreen');
+  if (!content || !shell) return;
+
+  var mql = window.matchMedia('(max-width: 959px)');
+  var ticking = false;
+
+  function isDashboard() {
+    var active = document.querySelector('.screen.active-screen');
+    if (active) return active.id === 'dashboard';
+    return shell.classList.contains('screen-dashboard');
+  }
+
+  function applyState() {
+    ticking = false;
+    if (!mql.matches || !isDashboard()) {
+      shell.classList.remove('dashboard-scrolled');
+      return;
+    }
+    var y = content.scrollTop || 0;
+    shell.classList.toggle('dashboard-scrolled', y > 18);
+  }
+
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(applyState);
+  }
+
+  content.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('ab:screen-changed', applyState);
+  window.addEventListener('resize', applyState, { passive: true });
+  applyState();
 })();
 
 // ── NOTIFICATION CENTER ────────────────────────────────────────
@@ -4553,7 +5820,7 @@ console.log('[Army Bank] UX core modules loaded');
   var notifCloseBtn   = document.getElementById('notifCloseBtn');
   var notifMarkAllBtn = document.getElementById('notifMarkAllBtn');
 
-  if (!notifBtn || !notifPanel) return;
+  if (!notifBtn || !notifPanel || !notifOverlay) return;
 
   var ICON_MAP = {
     transfer_received: '💸',
@@ -4575,14 +5842,17 @@ console.log('[Army Bank] UX core modules loaded');
   }
 
   function openNotifPanel() {
+    if (notifPanel.classList.contains('open')) return;
     notifPanel.classList.add('open');
-    notifOverlay.style.display = 'block';
+    notifOverlay.classList.add('open');
+    lockBodyScroll('notif-panel');
     loadNotifications();
   }
 
   function closeNotifPanel() {
     notifPanel.classList.remove('open');
-    notifOverlay.style.display = 'none';
+    notifOverlay.classList.remove('open');
+    unlockBodyScroll('notif-panel');
   }
 
   notifBtn.addEventListener('click', openNotifPanel);
@@ -4652,19 +5922,56 @@ console.log('[Army Bank] UX core modules loaded');
   }
 
   var notifPollTimer = null;
+  var notifVisibilityBound = false;
+
+  function getNotifPollDelay() {
+    var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    var saveData = !!conn && conn.saveData === true;
+    var slowNetwork = !!conn && /2g/i.test(String(conn.effectiveType || ''));
+    if (document.visibilityState !== 'visible') return 180000;
+    if (saveData || slowNetwork) return 120000;
+    return 60000;
+  }
+
+  function notifPollTick(force) {
+    if (!api.token) {
+      window._stopNotifPolling();
+      return;
+    }
+    if (!force && document.visibilityState !== 'visible') return;
+    if (navigator.onLine === false) return;
+    refreshBadge();
+  }
+
+  function rescheduleNotifPolling() {
+    if (notifPollTimer) {
+      clearInterval(notifPollTimer);
+      notifPollTimer = null;
+    }
+    if (!api.token) return;
+    notifPollTimer = setInterval(function() {
+      notifPollTick(false);
+    }, getNotifPollDelay());
+  }
 
   // Poll badge every 60 seconds once logged in
   window._startNotifPolling = function() {
     if (!api.token) return;
-    refreshBadge();
-    if (notifPollTimer) return;
-    notifPollTimer = setInterval(function() {
-      if (!api.token) {
-        window._stopNotifPolling();
-        return;
-      }
-      refreshBadge();
-    }, 60000);
+    notifPollTick(true);
+    rescheduleNotifPolling();
+
+    if (!notifVisibilityBound) {
+      notifVisibilityBound = true;
+      document.addEventListener('visibilitychange', function() {
+        if (!api.token || !notifPollTimer) return;
+        rescheduleNotifPolling();
+        if (document.visibilityState === 'visible') notifPollTick(true);
+      });
+      window.addEventListener('online', function() {
+        if (!api.token || !notifPollTimer) return;
+        notifPollTick(true);
+      }, { passive: true });
+    }
   };
 
   window._stopNotifPolling = function() {
@@ -4803,27 +6110,8 @@ function _cardDesignOptions() {
   ];
 }
 
-function _cardDesignStorageKey() {
-  return 'ab_card_design_overrides_v1';
-}
-
 function _cardStatusClass(status) {
   return status === 'active' ? 'card-status-active' : status === 'blocked' ? 'card-status-blocked' : 'card-status-closed';
-}
-
-function _readCardDesignOverrides() {
-  try {
-    const raw = localStorage.getItem(_cardDesignStorageKey());
-    const parsed = raw ? JSON.parse(raw) : {};
-    return (parsed && typeof parsed === 'object') ? parsed : {};
-  } catch (_) {
-    return {};
-  }
-}
-
-function _writeCardDesignOverrides(map) {
-  try { localStorage.setItem(_cardDesignStorageKey(), JSON.stringify(map || {})); }
-  catch (_) {}
 }
 
 function _isSupportedCardDesign(design) {
@@ -4831,17 +6119,8 @@ function _isSupportedCardDesign(design) {
 }
 
 function _getEffectiveCardDesign(card) {
-  const overrides = _readCardDesignOverrides();
-  const fromStorage = overrides[String(card.id)];
-  const resolved = fromStorage || card.design || 'gold';
+  const resolved = card.design || 'gold';
   return _isSupportedCardDesign(resolved) ? resolved : 'gold';
-}
-
-function _setCardDesignOverride(cardId, design) {
-  if (!_isSupportedCardDesign(design)) return;
-  const map = _readCardDesignOverrides();
-  map[String(cardId)] = design;
-  _writeCardDesignOverrides(map);
 }
 
 function _getCardDesignLabel(design) {
@@ -4922,19 +6201,27 @@ async function loadCards() {
   const list = $('#cardsList');
   const emptyEl = $('#cardsEmpty');
   if (!list) return;
+  list.classList.add('is-loading');
+  list.classList.remove('is-empty', 'has-items');
   list.innerHTML = '<div class="loading-spinner-sm"></div>';
   if (emptyEl) emptyEl.classList.add('hidden');
   try {
     const cards = await api.request('/api/cards');
     const active = cards.filter(c => c.status !== 'closed');
     if (!cards.length) {
+      list.classList.remove('is-loading', 'has-items');
+      list.classList.add('is-empty');
       list.innerHTML = '';
       if (emptyEl) emptyEl.classList.remove('hidden');
     } else {
+      list.classList.remove('is-loading', 'is-empty');
+      list.classList.add('has-items');
       list.innerHTML = cards.map(renderCardItem).join('');
       bindCardActions();
     }
   } catch (e) {
+    list.classList.remove('is-loading', 'has-items');
+    list.classList.add('is-empty');
     list.innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
   }
 }
@@ -4990,28 +6277,20 @@ function bindCardActions() {
       if (!cardId || !design || !_isSupportedCardDesign(design)) return;
       if (btn.classList.contains('active')) return;
 
-      _setCardDesignOverride(cardId, design);
-      _updateBankCards().catch(function() {});
-
-      let savedOnServer = false;
+      btn.disabled = true;
       try {
-        await api.request(`/api/cards/${cardId}`, {
+        await api.request(`/api/cards/${cardId}/design`, {
           method: 'PATCH',
           body: JSON.stringify({ design: design }),
         });
-        savedOnServer = true;
-      } catch (_) {
-        try {
-          await api.request(`/api/cards/${cardId}/design`, {
-            method: 'PATCH',
-            body: JSON.stringify({ design: design }),
-          });
-          savedOnServer = true;
-        } catch (_) {}
+        showToast('Дизайн картки оновлено.', 'success');
+        await loadCards();
+        _updateBankCards().catch(function() {});
+      } catch (e) {
+        showToast(e.message || 'Не вдалося оновити дизайн картки.');
+      } finally {
+        btn.disabled = false;
       }
-
-      showToast(savedOnServer ? 'Дизайн картки оновлено.' : 'Дизайн застосовано локально.', 'success');
-      loadCards();
     });
   });
 }

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0f2e18"/>
+  <title>ARM Marketplace</title>
+  <link rel="manifest" href="/manifest-marketplace.json"/>
+  <link rel="icon" type="image/svg+xml" href="/icons/market-favicon.svg"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/market-icon-32.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/market-icon-180.png"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="ARMMarket"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link rel="stylesheet" href="/css/marketplace.css?v=30"/>
+  <link rel="stylesheet" href="/css/marketplace-v2.css?v=4"/>
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="rz-header" role="banner">
+    <div class="rz-shell rz-header-inner">
+      <a href="/dashboard" class="arm-logo-block" aria-label="ARM Market — На головну">
+        <div class="arm-logo-inner">ARM</div>
+        <div class="arm-logo-shadow"></div>
+      </a>
+      <div class="arm-brand-text">
+        <span class="arm-brand-name">MARKET</span>
+        <span class="arm-brand-version">SYS.VER.2.0.4</span>
+      </div>
+
+      <!-- Desktop Nav (категорії — JS вставить) -->
+      <nav class="rz-header-nav" id="header-nav" aria-label="Категорії товарів"></nav>
+
+      <!-- Search (desktop) -->
+      <div class="rz-header-search">
+        <label for="catalog-search" class="visually-hidden">Пошук товарів</label>
+        <i class="bi bi-search rz-search-icon" aria-hidden="true"></i>
+        <input id="catalog-search" type="search" placeholder="ПОШУК ТОВАРІВ..." autocomplete="off"/>
+      </div>
+
+      <!-- Actions -->
+      <div class="rz-header-actions">
+        <!-- User dropdown -->
+        <div class="rz-user-menu">
+          <button id="user-menu-btn" class="rz-action-btn rz-user-btn" type="button" aria-label="Акаунт">
+            <i class="bi bi-person" aria-hidden="true"></i>
+          </button>
+          <div class="rz-user-dropdown" hidden>
+            <div class="rz-user-info">
+              <span id="account-number" class="rz-mono">—</span>
+              <strong id="account-balance" class="rz-mono rz-balance-val">₴0.00</strong>
+            </div>
+            <button id="login-to-bank" class="rz-dropdown-item" type="button">
+              <i class="bi bi-box-arrow-in-right"></i> Увійти
+            </button>
+            <button id="logout-btn" class="rz-dropdown-item" type="button" hidden>
+              <i class="bi bi-box-arrow-right"></i> Вийти
+            </button>
+            <a id="back-to-bank" class="rz-dropdown-item" href="/dashboard">
+              <i class="bi bi-bank"></i> До банку
+            </a>
+          </div>
+        </div>
+
+        <!-- Cart button -->
+        <button id="cart-header-btn" class="rz-action-btn rz-cart-btn" type="button" aria-label="Кошик">
+          <i class="bi bi-bag" aria-hidden="true"></i>
+          <span id="cart-badge-count" class="rz-cart-badge-count" data-count="0"></span>
+        </button>
+
+        <!-- До банку link (desktop) -->
+        <a href="/dashboard" class="rz-btn-back-to-bank">ДО БАНКУ</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== HERO ===== -->
+  <section class="rz-hero">
+    <div class="rz-shell">
+      <div class="rz-hero-grid">
+        <!-- LEFT: Typography block -->
+        <div class="rz-hero-main">
+          <div class="rz-hero-tag">
+            <span class="rz-pulse-dot"></span> ARM MARKETPLACE · ОФІЦІЙНИЙ МАГАЗИН
+          </div>
+          <h1 class="rz-hero-title">
+            Преміум<br>
+            <span class="rz-hero-title-accent">техніка</span><br>
+            напряму
+          </h1>
+          <div class="rz-hero-footer">
+            <div class="rz-hero-desc">
+              iPhone, MacBook, Sony, Samsung та інші —<br>
+              оплата прямо з ARM Bank рахунку.<br>
+              Миттєвий розрахунок без комісії.
+            </div>
+            <button class="rz-btn-primary rz-hero-cta" type="button"
+              onclick="document.querySelector('.rz-catalog-section').scrollIntoView({behavior:'smooth'})">
+              Переглянути каталог <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- RIGHT: Bento blocks -->
+        <div class="rz-hero-bento">
+          <div class="rz-hero-featured">
+            <div class="rz-hero-featured-tag">FEATURED</div>
+            <div class="rz-hero-featured-icon"><i class="bi bi-phone" aria-hidden="true"></i></div>
+            <div class="rz-hero-featured-info">
+              <span>iPhone 15 Pro 256GB</span>
+              <span class="rz-mono">₴44,999</span>
+            </div>
+          </div>
+          <div class="rz-hero-promo">
+            <div class="rz-hero-promo-bg-text">5%</div>
+            <h3>Кешбек<br>На Все</h3>
+            <p>Оплачуйте через ARM Bank та отримуйте миттєвий кешбек.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== STATS BAR ===== -->
+  <section class="rz-stats-bar" aria-label="Переваги">
+    <div class="rz-stat-item">
+      <span class="rz-stat-num rz-mono">01</span>
+      <div class="rz-stat-text">
+        <h4>Безпека</h4>
+        <span>SYS.SECURE.TX</span>
+      </div>
+      <div class="rz-stat-bg-num" aria-hidden="true">01</div>
+    </div>
+    <div class="rz-stat-item">
+      <span class="rz-stat-num rz-mono">02</span>
+      <div class="rz-stat-text">
+        <h4>Швидкість</h4>
+        <span>DELIVERY.24H</span>
+      </div>
+      <div class="rz-stat-bg-num" aria-hidden="true">02</div>
+    </div>
+    <div class="rz-stat-item">
+      <span class="rz-stat-num rz-mono">03</span>
+      <div class="rz-stat-text">
+        <h4>Вигода</h4>
+        <span>0%_INSTALLMENT</span>
+      </div>
+      <div class="rz-stat-bg-num" aria-hidden="true">03</div>
+    </div>
+  </section>
+
+  <!-- ===== GUEST BANNER ===== -->
+  <div id="guest-banner" class="rz-guest-banner" role="status" hidden></div>
+
+  <!-- ===== CATALOG SECTION ===== -->
+  <section class="rz-catalog-section" aria-label="Каталог товарів">
+    <div class="rz-shell">
+      <!-- Section title -->
+      <div class="rz-catalog-title-block">
+        <h2 class="rz-catalog-heading">
+          Каталог<br><span class="rz-catalog-heading-muted">Товарів</span>
+        </h2>
+        <span id="catalog-count" class="rz-catalog-count rz-mono"></span>
+      </div>
+
+      <!-- Sticky filter bar -->
+      <div class="rz-filter-bar" role="search">
+        <!-- Search (mobile) -->
+        <div class="rz-filter-search-wrap">
+          <i class="bi bi-search" aria-hidden="true"></i>
+          <input class="rz-filter-search-input" id="catalog-search-mobile" type="search" placeholder="ПОШУК..."/>
+        </div>
+        <!-- Category pills (JS рендерить) -->
+        <div class="rz-filter-cats" id="filter-cats-scroll" role="list"></div>
+        <!-- Sort -->
+        <div class="rz-filter-sort-wrap">
+          <label for="catalog-sort" class="visually-hidden">Сортування</label>
+          <select id="catalog-sort">
+            <option value="popular">ПОПУЛЯРНІ</option>
+            <option value="cheap">ДЕШЕВШІ</option>
+            <option value="expensive">ДОРОЖЧІ</option>
+            <option value="rating">РЕЙТИНГ</option>
+            <option value="title">A-Я</option>
+          </select>
+          <i class="bi bi-chevron-down" aria-hidden="true"></i>
+        </div>
+        <!-- Filter toggle (mobile) -->
+        <button id="toggle-filters" class="rz-filter-toggle-btn" type="button">
+          <i class="bi bi-sliders" aria-hidden="true"></i> Фільтри
+        </button>
+      </div>
+
+      <!-- Expanded filter panel (mobile drawer) -->
+      <div id="filters-expanded" class="rz-filter-expanded" hidden>
+        <div class="rz-filter-expanded-inner">
+          <div class="filter-block">
+            <h4>Категорії</h4>
+            <div class="category-list" id="category-list" role="listbox" aria-label="Категорії"></div>
+          </div>
+          <div class="filter-block">
+            <button id="filter-reset" class="rz-btn-reset" type="button">Скинути фільтри</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Price range filter -->
+      <div class="rz-price-filter" id="price-filter-row">
+        <label class="rz-price-label">Ціна, ₴</label>
+        <input id="price-min" class="rz-price-input" type="number" min="0" step="100" placeholder="від"/>
+        <span class="rz-price-dash">—</span>
+        <input id="price-max" class="rz-price-input" type="number" min="0" step="100" placeholder="до"/>
+      </div>
+
+      <!-- Total count label -->
+      <div id="catalog-total-count" class="rz-catalog-total rz-mono" hidden></div>
+
+      <!-- Product grid -->
+      <div class="rz-grid" id="catalog-grid" role="list" aria-label="Список товарів"></div>
+
+      <!-- Empty state placeholder (managed by JS) -->
+      <div id="catalog-empty" class="rz-catalog-empty" hidden>
+        <div class="rz-catalog-empty-icon">🔍</div>
+        <p>Нічого не знайдено</p>
+        <button class="rz-btn-reset" type="button" onclick="clearAjaxFilters()">Скинути фільтри</button>
+      </div>
+
+      <!-- Catalog spinner -->
+      <div id="catalog-spinner" class="rz-catalog-spinner" hidden>
+        <span class="rz-spin-dot"></span>
+        <span class="rz-spin-dot"></span>
+        <span class="rz-spin-dot"></span>
+      </div>
+
+      <!-- Load more -->
+      <button id="catalog-load-more" class="rz-load-more-btn" type="button" hidden>
+        Завантажити ще <i class="bi bi-arrow-down" aria-hidden="true"></i>
+      </button>
+    </div>
+  </section>
+
+  <!-- ===== PRODUCT DETAIL MODAL ===== -->
+  <div id="product-modal" class="pm-overlay" hidden role="dialog" aria-modal="true" aria-label="Деталі товару">
+    <div class="pm-dialog">
+      <button id="product-modal-close" class="pm-close" type="button" aria-label="Закрити">
+        <i class="bi bi-x-lg" aria-hidden="true"></i>
+      </button>
+      <div id="product-modal-inner" class="pm-inner">
+        <!-- skeleton or content injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ORDERS SECTION ===== -->
+  <section class="rz-orders-section orders-panel" id="orders-panel" aria-label="Замовлення">
+    <div class="rz-shell">
+      <div class="rz-orders-header">
+        <h2>МОЇ ЗАМОВЛЕННЯ <span id="orders-count" class="rz-orders-count">0</span></h2>
+      </div>
+      <div id="orders-list" class="rz-orders-list" role="list"></div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="rz-footer" role="contentinfo">
+    <div class="rz-shell">
+      <div class="rz-footer-grid">
+        <div class="rz-footer-brand">
+          <a href="/dashboard" class="arm-logo-block rz-footer-logo" aria-label="ARM Market">
+            <div class="arm-logo-inner">ARM</div>
+            <div class="arm-logo-shadow"></div>
+          </a>
+          <h2>MARKET</h2>
+          <p>Ми створюємо майбутнє банківського рітейлу.</p>
+        </div>
+        <div class="rz-footer-links">
+          <h4>КАТАЛОГ</h4>
+          <ul id="footer-cats"></ul>
+        </div>
+        <div class="rz-footer-contacts">
+          <h4>КОНТАКТИ</h4>
+          <ul>
+            <li><i class="bi bi-telephone" aria-hidden="true"></i> 0 800 500 500</li>
+            <li><i class="bi bi-envelope" aria-hidden="true"></i> support@arm.ua</li>
+          </ul>
+        </div>
+      </div>
+      <div class="rz-footer-bottom">
+        <span class="rz-mono">© 2025 ARM MARKET. ALL RIGHTS RESERVED.</span>
+      </div>
+    </div>
+    <div class="rz-footer-massive" aria-hidden="true">ARM MARKET</div>
+  </footer>
+
+  <!-- ===== CART SIDEBAR ===== -->
+  <div id="cart-sidebar" class="rz-cart-sidebar" hidden aria-modal="true" role="dialog" aria-label="Кошик">
+    <div class="rz-cart-backdrop" id="cart-backdrop"></div>
+    <div class="rz-cart-panel">
+      <div class="rz-cart-header">
+        <h2>ВАШ КОШИК</h2>
+        <button id="cart-close-btn" class="rz-cart-close" type="button" aria-label="Закрити кошик">
+          <i class="bi bi-x" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <div class="rz-cart-body">
+        <!-- Empty state -->
+        <div id="cart-empty" class="rz-cart-empty">
+          <div class="rz-cart-empty-icon"><i class="bi bi-bag" aria-hidden="true"></i></div>
+          <h3>КОШИК ПОРОЖНІЙ</h3>
+          <p>Час щось додати</p>
+        </div>
+
+        <!-- Cart items -->
+        <div id="cart-items" class="rz-cart-items-list"></div>
+
+        <!-- Checkout wrap -->
+        <div class="rz-checkout-wrap" id="checkout-wrap" hidden>
+          <h3 class="rz-checkout-title">ОФОРМЛЕННЯ</h3>
+          <form id="checkout-form" class="rz-checkout-form" novalidate>
+            <div class="rz-field">
+              <label for="shipping-name">ПІБ ОТРИМУВАЧА</label>
+              <input id="shipping-name" type="text" required placeholder="Іванов Іван Іванович" autocomplete="name"/>
+            </div>
+            <div class="rz-field">
+              <label for="shipping-phone">ТЕЛЕФОН ОТРИМУВАЧА</label>
+              <input id="shipping-phone" type="tel" placeholder="+380 XX XXX XX XX" autocomplete="tel"/>
+            </div>
+            <div class="rz-field">
+              <label for="shipping-address">АДРЕСА ДОСТАВКИ</label>
+              <textarea id="shipping-address" required rows="2" placeholder="Київ, вул. Хрещатик, 1"></textarea>
+            </div>
+            <div class="rz-field">
+              <label for="payment-mode">СПОСІБ ОПЛАТИ</label>
+              <div class="rz-select-wrap">
+                <select id="payment-mode">
+                  <option value="pay_now">Списати з ARM Bank одразу</option>
+                  <option value="invoice">Виставити інвойс (24 год)</option>
+                </select>
+                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+              </div>
+              <div id="payment-mode-hint" class="rz-field-hint"></div>
+            </div>
+
+            <!-- Payment balance -->
+            <div id="payment-balance" class="rz-payment-balance" hidden></div>
+
+            <!-- Order receipt -->
+            <div id="order-receipt" class="rz-order-receipt" hidden></div>
+
+            <!-- Submit -->
+            <button type="submit" id="checkout-btn" class="rz-btn-primary rz-btn-checkout" disabled>
+              Оформити через ARM Bank
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Cart footer with total -->
+      <div class="rz-cart-footer" id="cart-footer" hidden>
+        <div class="rz-cart-total-row">
+          <span>РАЗОМ ДО ОПЛАТИ</span>
+          <span id="cart-total" class="rz-mono" aria-live="polite">₴0,00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TOAST ===== -->
+  <div id="toast" class="rz-toast" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+
+  <!-- ===== CONFIRM MODAL ===== -->
+  <div id="confirm-overlay" class="rz-overlay" hidden>
+    <div class="rz-confirm-modal" role="dialog" aria-modal="true" aria-label="Підтвердження замовлення">
+      <button id="confirm-cancel-btn" class="rz-modal-close" type="button" aria-label="Закрити">&times;</button>
+      <h2>ПІДТВЕРДЖЕННЯ</h2>
+      <ul id="confirm-items" class="rz-confirm-items"></ul>
+      <div class="rz-confirm-summary">
+        <div class="rz-confirm-row">
+          <span>Разом:</span>
+          <strong id="confirm-total" class="rz-mono"></strong>
+        </div>
+        <div class="rz-confirm-row">
+          <span>Баланс:</span>
+          <span id="confirm-balance" class="rz-mono"></span>
+        </div>
+        <div id="confirm-balance-after-row" class="rz-confirm-row">
+          <span>Залишок після оплати:</span>
+          <span id="confirm-balance-after" class="rz-mono"></span>
+        </div>
+        <div id="confirm-invoice-note" class="rz-confirm-invoice-note" hidden>
+          Товар буде зарезервовано. Оплатіть протягом 24 год.
+        </div>
+        <div id="confirm-warning" class="rz-confirm-warning" hidden></div>
+      </div>
+      <div class="rz-confirm-actions">
+        <button id="confirm-pay-btn" class="rz-btn-primary" type="button">Підтвердити</button>
+        <button id="confirm-cancel-link" class="rz-btn-ghost" type="button">Скасувати</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== AUTH MODAL ===== -->
+  <div id="auth-overlay" class="rz-overlay" hidden>
+    <div class="rz-auth-modal" role="dialog" aria-modal="true" aria-label="Авторизація">
+      <div class="rz-auth-header">
+        <div>
+          <h3>АВТОРИЗАЦІЯ</h3>
+          <p class="rz-mono rz-auth-sub">SECURE.LOGIN.PROTOCOL</p>
+        </div>
+        <button id="auth-close" class="rz-modal-close" type="button" aria-label="Закрити">&times;</button>
+      </div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-auth-tab="login" type="button">Увійти</button>
+        <button class="auth-tab" data-auth-tab="register" type="button">Реєстрація</button>
+      </div>
+      <form id="auth-login-form" class="rz-auth-form">
+        <div class="rz-field">
+          <label for="auth-login-identity">Email або телефон</label>
+          <input id="auth-login-identity" class="auth-input" type="text" placeholder="+380..." required autocomplete="username"/>
+        </div>
+        <div class="rz-field">
+          <label for="auth-login-password">Пароль</label>
+          <input id="auth-login-password" class="auth-input" type="password" placeholder="Ваш пароль" required autocomplete="current-password"/>
+        </div>
+        <button class="rz-btn-primary rz-btn-auth" type="submit">Увійти в ARM Bank</button>
+      </form>
+      <form id="auth-register-form" class="rz-auth-form" hidden>
+        <div class="rz-field">
+          <label for="auth-reg-name">Повне ім'я</label>
+          <input id="auth-reg-name" class="auth-input" type="text" placeholder="Іванов Іван" required autocomplete="name"/>
+        </div>
+        <div class="rz-field">
+          <label for="auth-reg-email">Email</label>
+          <input id="auth-reg-email" class="auth-input" type="email" placeholder="email@example.com" required autocomplete="email"/>
+        </div>
+        <div class="rz-field">
+          <label for="auth-reg-phone">Телефон</label>
+          <input id="auth-reg-phone" class="auth-input" type="tel" placeholder="+380..." required autocomplete="tel"/>
+        </div>
+        <div class="rz-field">
+          <label for="auth-reg-password">Пароль</label>
+          <input id="auth-reg-password" class="auth-input" type="password" placeholder="Мінімум 6 символів" required autocomplete="new-password"/>
+        </div>
+        <button class="rz-btn-primary rz-btn-auth" type="submit">Створити акаунт</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== FILTERS BACKDROP ===== -->
+  <div id="filters-backdrop" class="rz-filters-backdrop" hidden></div>
+
+  <script src="/js/api.js?v=13"></script>
+  <script src="/js/marketplace.js?v=30"></script>
+</body>
+</html>

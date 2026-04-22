@@ -1,0 +1,20 @@
+{
+  "name": "ARM Bank — Месенджер",
+  "short_name": "AB Chat",
+  "description": "Захищений месенджер ARM Bank для військовослужбовців",
+  "start_url": "/messenger",
+  "scope": "/messenger",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f3f7f3",
+  "theme_color": "#0f3b2d",
+  "lang": "uk",
+  "icons": [
+    { "src": "/icons/chat-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/chat-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/chat-icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/chat-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "categories": ["finance", "social"],
+  "screenshots": []
+}

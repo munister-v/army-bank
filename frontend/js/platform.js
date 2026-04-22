@@ -2,6 +2,7 @@
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 const escapeHtml = (v) => String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+let seedFeatureEnabled = false;
 
 function showToast(msg) {
   const t = $('#toast');
@@ -47,6 +48,32 @@ function switchTab(tabId) {
   if (tabId === 'audit') loadPlatformAudit();
 }
 
+function hideSeedUi(message) {
+  const seedMenuBtn = $('.menu-btn[data-tab="seed"]');
+  const seedTab = $('#seedTab');
+  if (seedMenuBtn) seedMenuBtn.style.display = 'none';
+  if (seedTab) {
+    seedTab.innerHTML = `
+      <h1>Генерація демо-даних</h1>
+      <div class="empty-state">${escapeHtml(message || 'Генерація демо-даних вимкнена.')}</div>
+    `;
+  }
+  if ($('.menu-btn[data-tab="seed"].active')) switchTab('overview');
+}
+
+async function syncFeatureFlags() {
+  try {
+    const version = await api.request('/api/version');
+    seedFeatureEnabled = !!version?.feature_flags?.allow_platform_demo_seed;
+    if (!seedFeatureEnabled) {
+      hideSeedUi('На цьому середовищі функцію вимкнено. Працюємо лише з реальними даними.');
+    }
+  } catch (_) {
+    seedFeatureEnabled = false;
+    hideSeedUi('Не вдалося визначити доступність функції. Вкладку приховано.');
+  }
+}
+
 async function loadOverview() {
   const el = $('#overviewStats');
   el.classList.add('loading');
@@ -86,10 +113,10 @@ async function loadPlatformUsers() {
     body.innerHTML = users.map((u) => `
       <tr>
         <td><strong>#${u.id}</strong></td>
-        <td><div><strong>${u.full_name}</strong></div><div class="subtle">${u.status || u.military_status || ''}</div></td>
-        <td class="subtle">${u.phone}<br>${u.email}</td>
+        <td><div><strong>${escapeHtml(u.full_name)}</strong></div><div class="subtle">${escapeHtml(u.status || u.military_status || '')}</div></td>
+        <td class="subtle">${escapeHtml(u.phone)}<br>${escapeHtml(u.email)}</td>
         <td>${roleLabels[u.role] || u.role}</td>
-        <td>${u.account_number || '—'}</td>
+        <td>${escapeHtml(u.account_number || '—')}</td>
         <td>${u.balance != null ? formatMoney(u.balance) : '—'}</td>
       </tr>
     `).join('') || '<tr><td colspan="6" class="subtle">Немає даних</td></tr>';
@@ -111,10 +138,10 @@ async function loadPlatformTransactions() {
     list.innerHTML = txs.map((t) => `
       <div class="item">
         <div class="item-header">
-          <strong>#${t.id} ${t.description}</strong>
+          <strong>#${t.id} ${escapeHtml(t.description)}</strong>
           <span class="amount ${t.direction}">${t.direction === 'in' ? '+' : '-'}${formatMoney(t.amount)}</span>
         </div>
-        <div class="muted">${t.tx_type} · ${t.account_number || ''} · ${t.created_at}${t.related_account ? ` · ${t.related_account}` : ''}</div>
+        <div class="muted">${t.tx_type} · ${escapeHtml(t.account_number || '')} · ${t.created_at}${t.related_account ? ` · ${escapeHtml(t.related_account)}` : ''}</div>
       </div>
     `).join('') || '<div class="empty-state">Транзакцій немає</div>';
   } catch (e) {
@@ -131,8 +158,8 @@ async function loadPlatformAudit() {
     list.classList.remove('loading');
     list.innerHTML = logs.map((l) => `
       <div class="item">
-        <div class="item-header"><strong>${l.action}</strong><span class="muted">${l.created_at}</span></div>
-        <div class="muted">user_id: ${l.user_id ?? '—'} · ${l.full_name || ''} · ${l.details || '—'}</div>
+        <div class="item-header"><strong>${escapeHtml(l.action)}</strong><span class="muted">${l.created_at}</span></div>
+        <div class="muted">user_id: ${l.user_id ?? '—'} · ${escapeHtml(l.full_name || '')} · ${escapeHtml(l.details || '—')}</div>
       </div>
     `).join('') || '<div class="empty-state">Логів немає</div>';
   } catch (e) {
@@ -155,6 +182,10 @@ async function loadPlatformAudit() {
 
   $('#seedForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!seedFeatureEnabled) {
+      showToast('Генерація демо-даних вимкнена.');
+      return;
+    }
     const form = e.currentTarget;
     const btn = form.querySelector('button[type="submit"]');
     const resultEl = $('#seedResult');
@@ -193,5 +224,6 @@ async function loadPlatformAudit() {
     window.location.href = basePath() || '/';
   });
 
+  await syncFeatureFlags();
   switchTab('overview');
 })();

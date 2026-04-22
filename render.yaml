@@ -25,3 +25,11 @@ services:
         value: "720"                   # 30 днів
       - key: DEBUG
         value: "0"
+      - key: MESSENGER_CALL_PENDING_TIMEOUT_SECONDS
+        value: "45"
+      - key: MESSENGER_TURN_URLS
+        sync: false
+      - key: MESSENGER_TURN_USERNAME
+        sync: false
+      - key: MESSENGER_TURN_CREDENTIAL
+        sync: false

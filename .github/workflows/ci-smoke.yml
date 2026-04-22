@@ -1,0 +1,41 @@
+name: CI Smoke
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  smoke-regressions:
+    name: Smoke Regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run smoke regression suite
+        env:
+          DATABASE_URL: ""
+          ARMY_BANK_DATABASE_PATH: /tmp/army_bank_ci_smoke.db
+          SECRET_KEY: ci-smoke-secret
+        run: |
+          pytest -q \
+            tests/test_admin.py::test_admin_stats_ok \
+            tests/test_statement_exports.py \
+            tests/test_cache_freshness.py

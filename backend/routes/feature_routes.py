@@ -1,7 +1,7 @@
 """Маршрути додаткових функцій Army Bank."""
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, request, g
+from flask import Blueprint, jsonify, request, g, current_app
 
 from ..services.feature_service import FeatureService
 from .helpers import api_error, auth_required
@@ -105,6 +105,8 @@ def list_payouts():
 @feature_bp.post('/payouts/demo-accrual')
 @auth_required
 def demo_payout():
+    if not bool(current_app.config.get('ALLOW_DEMO_PAYOUT_ACCRUAL', False)):
+        return api_error('Демо-нарахування вимкнено на цьому середовищі.', 403)
     try:
         return jsonify({'ok': True, 'data': service.create_demo_payout(g.current_user['id'], request.get_json(force=True))})
     except Exception as exc:

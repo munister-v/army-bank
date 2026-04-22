@@ -8,6 +8,7 @@ from flask import Blueprint, jsonify, request, g
 from ..config import (
     CRITICAL_ADMIN_MUTATION_RATE_LIMIT,
     CRITICAL_RATE_LIMIT_WINDOW_SECONDS,
+    USE_PG,
 )
 from ..repositories.account_repository import AccountRepository
 from ..repositories.feature_repository import FeatureRepository
@@ -127,6 +128,14 @@ def update_user_role(user_id: int):
 def get_stats():
     """Зведена статистика для дешборду адмінки."""
     try:
+        if USE_PG:
+            month_start_expr = "date_trunc('month', NOW())"
+            today_expr = "CURRENT_DATE"
+        else:
+            # SQLite-compatible date expressions.
+            month_start_expr = "DATE('now', 'start of month')"
+            today_expr = "DATE('now')"
+
         with get_connection() as conn:
             total_users   = conn.execute('SELECT COUNT(*) as n FROM users').fetchone()['n']
             total_balance = conn.execute('SELECT COALESCE(SUM(balance),0) as s FROM accounts').fetchone()['s']
@@ -134,19 +143,19 @@ def get_stats():
             total_payouts = conn.execute("SELECT COALESCE(SUM(amount),0) as s FROM transactions WHERE tx_type='payout' AND direction='in'").fetchone()['s']
             total_donations = conn.execute('SELECT COALESCE(SUM(amount),0) as s FROM donations').fetchone()['s']
             net_flow_month = conn.execute(
-                """SELECT
+                f"""SELECT
                     COALESCE(SUM(CASE WHEN direction='in'  THEN amount ELSE 0 END),0) -
                     COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END),0) as net
                    FROM transactions
-                   WHERE created_at >= date_trunc('month', NOW())"""
+                   WHERE created_at >= {month_start_expr}"""
             ).fetchone()
             new_users_today = conn.execute(
-                "SELECT COUNT(*) as n FROM users WHERE DATE(created_at) = CURRENT_DATE"
+                f"SELECT COUNT(*) as n FROM users WHERE DATE(created_at) = {today_expr}"
             ).fetchone()
             active_today = conn.execute(
-                """SELECT COUNT(DISTINCT a.user_id) as n FROM transactions t
+                f"""SELECT COUNT(DISTINCT a.user_id) as n FROM transactions t
                    JOIN accounts a ON a.id = t.account_id
-                   WHERE DATE(t.created_at) = CURRENT_DATE"""
+                   WHERE DATE(t.created_at) = {today_expr}"""
             ).fetchone()
             by_role = conn.execute(
                 "SELECT role, COUNT(*) as cnt FROM users GROUP BY role"
@@ -165,6 +174,407 @@ def get_stats():
             'active_today':     int(active_today['n'] or 0),
             'by_role':          by_role,
             'recent_tx':        recent_tx,
+        }})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@admin_bp.get('/analytics/overview')
+@auth_required
+@role_required('admin', 'platform_admin')
+def analytics_overview():
+    """Extended platform analytics for admin dashboard."""
+    try:
+        if USE_PG:
+            now_sql = 'NOW()'
+            day_ago_sql = "NOW() - INTERVAL '1 day'"
+            week_ago_sql = "NOW() - INTERVAL '7 days'"
+            month_ago_sql = "NOW() - INTERVAL '30 days'"
+        else:
+            now_sql = "datetime('now')"
+            day_ago_sql = "datetime('now', '-1 day')"
+            week_ago_sql = "datetime('now', '-7 day')"
+            month_ago_sql = "datetime('now', '-30 day')"
+
+        with get_connection() as conn:
+            totals = conn.execute(
+                '''
+                SELECT
+                  (SELECT COUNT(*) FROM users) AS users_total,
+                  (SELECT COUNT(*) FROM users WHERE created_at >= ''' + week_ago_sql + ''') AS users_new_7d,
+                  (SELECT COUNT(*) FROM sessions WHERE expires_at >= ''' + now_sql + ''') AS active_sessions,
+                  (SELECT COALESCE(SUM(balance),0) FROM accounts) AS total_balance,
+                  (SELECT COUNT(*) FROM transactions) AS tx_total,
+                  (SELECT COUNT(*) FROM transactions WHERE created_at >= ''' + day_ago_sql + ''') AS tx_24h,
+                  (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE created_at >= ''' + day_ago_sql + ''') AS tx_volume_24h,
+                  (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE created_at >= ''' + month_ago_sql + ''') AS tx_volume_30d
+                '''
+            ).fetchone()
+
+            kyc = conn.execute(
+                '''
+                SELECT
+                  COUNT(*) AS profiled,
+                  SUM(CASE WHEN kyc_status='verified' THEN 1 ELSE 0 END) AS verified,
+                  SUM(CASE WHEN kyc_status='in_review' THEN 1 ELSE 0 END) AS in_review,
+                  SUM(CASE WHEN kyc_status='rejected' THEN 1 ELSE 0 END) AS rejected
+                FROM compliance_profiles
+                '''
+            ).fetchone()
+
+            payout = conn.execute(
+                '''
+                SELECT
+                  COALESCE(SUM(CASE WHEN tx_type='payout' THEN amount ELSE 0 END),0) AS payout_total,
+                  COALESCE(SUM(CASE WHEN tx_type='payout' AND created_at >= ''' + month_ago_sql + ''' THEN amount ELSE 0 END),0) AS payout_30d
+                FROM transactions
+                '''
+            ).fetchone()
+
+            top_types = conn.execute(
+                '''
+                SELECT tx_type, COUNT(*) AS cnt, COALESCE(SUM(amount),0) AS amount_sum
+                FROM transactions
+                WHERE created_at >= ''' + month_ago_sql + '''
+                GROUP BY tx_type
+                ORDER BY cnt DESC
+                LIMIT 8
+                '''
+            ).fetchall()
+
+            daily_flow = conn.execute(
+                '''
+                SELECT DATE(created_at) AS d,
+                       COALESCE(SUM(CASE WHEN direction='in' THEN amount ELSE 0 END),0) AS total_in,
+                       COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END),0) AS total_out
+                FROM transactions
+                WHERE created_at >= ''' + month_ago_sql + '''
+                GROUP BY DATE(created_at)
+                ORDER BY d ASC
+                '''
+            ).fetchall()
+
+            risk_leaderboard = conn.execute(
+                '''
+                SELECT u.id, u.full_name, u.email,
+                       COALESCE(cp.risk_level, 'low') AS risk_level,
+                       COALESCE(cp.kyc_status, 'pending') AS kyc_status,
+                       COALESCE(cp.updated_at, u.created_at) AS updated_at
+                FROM users u
+                LEFT JOIN compliance_profiles cp ON cp.user_id = u.id
+                WHERE COALESCE(cp.risk_level, 'low') IN ('high', 'critical')
+                   OR COALESCE(cp.kyc_status, 'pending') IN ('in_review', 'rejected')
+                ORDER BY
+                  CASE COALESCE(cp.risk_level, 'low')
+                    WHEN 'critical' THEN 0
+                    WHEN 'high' THEN 1
+                    WHEN 'medium' THEN 2
+                    ELSE 3
+                  END ASC,
+                  COALESCE(cp.updated_at, u.created_at) DESC
+                LIMIT 20
+                '''
+            ).fetchall()
+
+            action_queue = conn.execute(
+                '''
+                SELECT
+                  SUM(CASE WHEN kyc_status = 'in_review' THEN 1 ELSE 0 END) AS kyc_in_review,
+                  SUM(CASE WHEN kyc_status = 'rejected' THEN 1 ELSE 0 END) AS kyc_rejected,
+                  SUM(CASE WHEN kyc_status = 'pending' THEN 1 ELSE 0 END) AS kyc_pending
+                FROM compliance_profiles
+                '''
+            ).fetchone()
+
+            failed_tx_24h = None
+            try:
+                failed_tx_24h = conn.execute(
+                    '''
+                    SELECT COUNT(*) AS cnt
+                    FROM payment_audit_log
+                    WHERE decision = 'rejected' AND created_at >= ''' + day_ago_sql + '''
+                    '''
+                ).fetchone()
+            except Exception:
+                failed_tx_24h = {'cnt': 0}
+
+        profiled = int(kyc['profiled'] or 0) if kyc else 0
+        verified = int(kyc['verified'] or 0) if kyc else 0
+        verified_rate = round((verified / profiled) * 100, 2) if profiled else 0.0
+        in_review_cnt = int(action_queue['kyc_in_review'] or 0) if action_queue else 0
+        rejected_cnt = int(action_queue['kyc_rejected'] or 0) if action_queue else 0
+        pending_cnt = int(action_queue['kyc_pending'] or 0) if action_queue else 0
+
+        alerts: list[dict] = []
+        if verified_rate < 60:
+            alerts.append({'severity': 'high', 'code': 'KYC_RATE_LOW', 'message': f'Низький KYC verified rate: {verified_rate}%.'})
+        if in_review_cnt >= 20:
+            alerts.append({'severity': 'medium', 'code': 'KYC_REVIEW_BACKLOG', 'message': f'Черга KYC in_review: {in_review_cnt}.'})
+        if rejected_cnt >= 10:
+            alerts.append({'severity': 'medium', 'code': 'KYC_REJECT_SPIKE', 'message': f'Багато відхилених KYC: {rejected_cnt}.'})
+        if (totals['tx_24h'] or 0) == 0:
+            alerts.append({'severity': 'high', 'code': 'NO_TX_ACTIVITY_24H', 'message': 'За останні 24 години немає транзакцій.'})
+        if float(totals['tx_volume_24h'] or 0) <= 0:
+            alerts.append({'severity': 'medium', 'code': 'TX_VOLUME_LOW', 'message': 'Оборот за 24 години нульовий.'})
+        if failed_tx_24h and int(failed_tx_24h['cnt'] or 0) >= 15:
+            alerts.append({'severity': 'high', 'code': 'PAYMENT_REJECT_SPIKE', 'message': f"Відхилених payment decision за 24г: {int(failed_tx_24h['cnt'] or 0)}."})
+
+        return jsonify({'ok': True, 'data': {
+            'totals': {
+                'users_total': int(totals['users_total'] or 0),
+                'users_new_7d': int(totals['users_new_7d'] or 0),
+                'active_sessions': int(totals['active_sessions'] or 0),
+                'total_balance': round(float(totals['total_balance'] or 0), 2),
+                'tx_total': int(totals['tx_total'] or 0),
+                'tx_24h': int(totals['tx_24h'] or 0),
+                'tx_volume_24h': round(float(totals['tx_volume_24h'] or 0), 2),
+                'tx_volume_30d': round(float(totals['tx_volume_30d'] or 0), 2),
+                'payout_total': round(float(payout['payout_total'] or 0), 2) if payout else 0.0,
+                'payout_30d': round(float(payout['payout_30d'] or 0), 2) if payout else 0.0,
+            },
+            'kyc': {
+                'profiled': profiled,
+                'verified': verified,
+                'in_review': int(kyc['in_review'] or 0) if kyc else 0,
+                'rejected': int(kyc['rejected'] or 0) if kyc else 0,
+                'verified_rate': verified_rate,
+            },
+            'action_queue': {
+                'kyc_in_review': in_review_cnt,
+                'kyc_rejected': rejected_cnt,
+                'kyc_pending': pending_cnt,
+                'payment_rejected_24h': int(failed_tx_24h['cnt'] or 0) if failed_tx_24h else 0,
+            },
+            'alerts': alerts,
+            'top_tx_types': [dict(r) for r in top_types],
+            'daily_flow_30d': [dict(r) for r in daily_flow],
+            'risk_leaderboard': [dict(r) for r in risk_leaderboard],
+        }})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@admin_bp.get('/analytics/messenger')
+@auth_required
+@role_required('admin', 'platform_admin')
+def analytics_messenger():
+    """Messenger analytics: chats, messages, calls, push delivery basis."""
+    try:
+        if USE_PG:
+            day_ago_sql = "NOW() - INTERVAL '1 day'"
+            week_ago_sql = "NOW() - INTERVAL '7 days'"
+            month_ago_sql = "NOW() - INTERVAL '30 days'"
+            call_dur_sql = "COALESCE(EXTRACT(EPOCH FROM (ended_at - started_at)), 0)"
+        else:
+            day_ago_sql = "datetime('now', '-1 day')"
+            week_ago_sql = "datetime('now', '-7 day')"
+            month_ago_sql = "datetime('now', '-30 day')"
+            call_dur_sql = "COALESCE((strftime('%s', ended_at) - strftime('%s', started_at)), 0)"
+
+        with get_connection() as conn:
+            overview = conn.execute(
+                '''
+                SELECT
+                  (SELECT COUNT(*) FROM conversations) AS conversations_total,
+                  (SELECT COALESCE(SUM(CASE WHEN COALESCE(is_group, FALSE) THEN 1 ELSE 0 END), 0) FROM conversations) AS groups_total,
+                  (SELECT COUNT(*) FROM messages) AS messages_total,
+                  (SELECT COUNT(*) FROM messages WHERE created_at >= ''' + day_ago_sql + ''') AS messages_24h,
+                  (SELECT COUNT(DISTINCT sender_id) FROM messages WHERE created_at >= ''' + day_ago_sql + ''') AS active_senders_24h,
+                  (SELECT COUNT(*) FROM push_subscriptions) AS push_subscriptions_total,
+                  (SELECT COUNT(DISTINCT user_id) FROM push_subscriptions) AS push_users_total
+                '''
+            ).fetchone()
+
+            msg_types = conn.execute(
+                '''
+                SELECT COALESCE(msg_type, 'text') AS msg_type, COUNT(*) AS cnt
+                FROM messages
+                WHERE created_at >= ''' + month_ago_sql + ''' AND COALESCE(is_deleted, FALSE) = FALSE
+                GROUP BY COALESCE(msg_type, 'text')
+                ORDER BY cnt DESC
+                '''
+            ).fetchall()
+
+            conv_activity = conn.execute(
+                '''
+                SELECT c.id, COALESCE(c.group_name, 'Direct #' || c.id) AS title,
+                       CASE WHEN COALESCE(c.is_group, FALSE) THEN 1 ELSE 0 END AS is_group,
+                       COUNT(m.id) AS msg_count
+                FROM conversations c
+                LEFT JOIN messages m ON m.conversation_id = c.id AND m.created_at >= ''' + week_ago_sql + '''
+                GROUP BY c.id, c.group_name, c.is_group
+                ORDER BY msg_count DESC
+                LIMIT 10
+                '''
+            ).fetchall()
+
+            calls_overview = conn.execute(
+                '''
+                SELECT
+                  COUNT(*) AS calls_total,
+                  SUM(CASE WHEN status = 'active' OR status = 'ended' THEN 1 ELSE 0 END) AS connected_calls,
+                  SUM(CASE WHEN status = 'missed' THEN 1 ELSE 0 END) AS missed_calls,
+                  SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected_calls,
+                  AVG(CASE WHEN ended_at IS NOT NULL AND started_at IS NOT NULL THEN ''' + call_dur_sql + ''' ELSE NULL END) AS avg_duration_sec
+                FROM calls
+                WHERE created_at >= ''' + month_ago_sql + '''
+                '''
+            ).fetchone()
+
+            calls_daily = conn.execute(
+                '''
+                SELECT DATE(created_at) AS d, COUNT(*) AS calls_count
+                FROM calls
+                WHERE created_at >= ''' + month_ago_sql + '''
+                GROUP BY DATE(created_at)
+                ORDER BY d ASC
+                '''
+            ).fetchall()
+
+            unread_summary = conn.execute(
+                '''
+                SELECT COUNT(*) AS unread_total
+                FROM messages m
+                JOIN conversation_participants cp ON cp.conversation_id = m.conversation_id
+                WHERE COALESCE(m.is_deleted, FALSE) = FALSE
+                  AND cp.user_id != m.sender_id
+                  AND (cp.last_read_at IS NULL OR m.created_at > cp.last_read_at)
+                '''
+            ).fetchone()
+
+            resp_time = conn.execute(
+                '''
+                WITH seq AS (
+                  SELECT m.conversation_id, m.sender_id, m.created_at,
+                         LAG(m.sender_id) OVER (PARTITION BY m.conversation_id ORDER BY m.created_at) AS prev_sender,
+                         LAG(m.created_at) OVER (PARTITION BY m.conversation_id ORDER BY m.created_at) AS prev_created_at
+                  FROM messages m
+                  WHERE COALESCE(m.is_deleted, FALSE) = FALSE AND m.created_at >= ''' + week_ago_sql + '''
+                )
+                SELECT AVG(
+                  CASE
+                    WHEN prev_sender IS NOT NULL AND prev_sender <> sender_id
+                    THEN EXTRACT(EPOCH FROM (created_at - prev_created_at))
+                    ELSE NULL
+                  END
+                ) AS avg_reply_sec
+                FROM seq
+                '''
+            ).fetchone() if USE_PG else conn.execute(
+                '''
+                WITH seq AS (
+                  SELECT m.conversation_id, m.sender_id, m.created_at,
+                         LAG(m.sender_id) OVER (PARTITION BY m.conversation_id ORDER BY m.created_at) AS prev_sender,
+                         LAG(m.created_at) OVER (PARTITION BY m.conversation_id ORDER BY m.created_at) AS prev_created_at
+                  FROM messages m
+                  WHERE COALESCE(m.is_deleted, FALSE) = FALSE AND m.created_at >= ''' + week_ago_sql + '''
+                )
+                SELECT AVG(
+                  CASE
+                    WHEN prev_sender IS NOT NULL AND prev_sender <> sender_id
+                    THEN (strftime('%s', created_at) - strftime('%s', prev_created_at))
+                    ELSE NULL
+                  END
+                ) AS avg_reply_sec
+                FROM seq
+                '''
+            ).fetchone()
+
+            groups_load = conn.execute(
+                '''
+                SELECT c.id, COALESCE(c.group_name, 'Group #' || c.id) AS group_name,
+                       COUNT(m.id) AS msg_count_7d
+                FROM conversations c
+                LEFT JOIN messages m ON m.conversation_id = c.id
+                     AND m.created_at >= ''' + week_ago_sql + '''
+                     AND COALESCE(m.is_deleted, FALSE) = FALSE
+                WHERE COALESCE(c.is_group, FALSE) = TRUE
+                GROUP BY c.id, c.group_name
+                ORDER BY msg_count_7d DESC
+                LIMIT 10
+                '''
+            ).fetchall() if USE_PG else conn.execute(
+                '''
+                SELECT c.id, COALESCE(c.group_name, 'Group #' || c.id) AS group_name,
+                       COUNT(m.id) AS msg_count_7d
+                FROM conversations c
+                LEFT JOIN messages m ON m.conversation_id = c.id
+                     AND m.created_at >= ''' + week_ago_sql + '''
+                     AND COALESCE(m.is_deleted, FALSE) = FALSE
+                WHERE COALESCE(c.is_group, 0) = 1
+                GROUP BY c.id, c.group_name
+                ORDER BY msg_count_7d DESC
+                LIMIT 10
+                '''
+            ).fetchall()
+
+            call_state_24h = conn.execute(
+                '''
+                SELECT
+                  SUM(CASE WHEN status IN ('active', 'ended') THEN 1 ELSE 0 END) AS connected_24h,
+                  SUM(CASE WHEN status = 'missed' THEN 1 ELSE 0 END) AS missed_24h,
+                  SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected_24h,
+                  COUNT(*) AS total_24h
+                FROM calls
+                WHERE created_at >= ''' + day_ago_sql + '''
+                '''
+            ).fetchone()
+
+        connected = int(calls_overview['connected_calls'] or 0) if calls_overview else 0
+        total_calls = int(calls_overview['calls_total'] or 0) if calls_overview else 0
+        connect_rate = round((connected / total_calls) * 100, 2) if total_calls else 0.0
+        users_total = max(1, int((overview['active_senders_24h'] or 0)))
+        push_users_total = int(overview['push_users_total'] or 0)
+        push_coverage = round((push_users_total / users_total) * 100, 2) if users_total else 0.0
+
+        call_alerts: list[dict] = []
+        if call_state_24h:
+            total24 = int(call_state_24h['total_24h'] or 0)
+            missed24 = int(call_state_24h['missed_24h'] or 0)
+            rej24 = int(call_state_24h['rejected_24h'] or 0)
+            if total24 >= 10:
+                miss_rate = (missed24 / total24) * 100
+                if miss_rate > 30:
+                    call_alerts.append({'severity': 'high', 'code': 'CALL_MISS_RATE_HIGH', 'message': f'Високий miss rate дзвінків за 24г: {round(miss_rate,2)}%.'})
+            if rej24 >= 8:
+                call_alerts.append({'severity': 'medium', 'code': 'CALL_REJECTED_SPIKE', 'message': f'Багато відхилених дзвінків за 24г: {rej24}.'})
+        if push_coverage < 40:
+            call_alerts.append({'severity': 'medium', 'code': 'PUSH_COVERAGE_LOW', 'message': f'Низьке push-покриття активних користувачів: {push_coverage}%.'})
+
+        return jsonify({'ok': True, 'data': {
+            'overview': {
+                'conversations_total': int(overview['conversations_total'] or 0),
+                'groups_total': int(overview['groups_total'] or 0),
+                'messages_total': int(overview['messages_total'] or 0),
+                'messages_24h': int(overview['messages_24h'] or 0),
+                'active_senders_24h': int(overview['active_senders_24h'] or 0),
+                'push_subscriptions_total': int(overview['push_subscriptions_total'] or 0),
+                'push_users_total': push_users_total,
+                'push_coverage_active': push_coverage,
+            },
+            'message_types_30d': [dict(r) for r in msg_types],
+            'top_conversations_7d': [dict(r) for r in conv_activity],
+            'calls_30d': {
+                'calls_total': total_calls,
+                'connected_calls': connected,
+                'missed_calls': int(calls_overview['missed_calls'] or 0) if calls_overview else 0,
+                'rejected_calls': int(calls_overview['rejected_calls'] or 0) if calls_overview else 0,
+                'avg_duration_sec': round(float(calls_overview['avg_duration_sec'] or 0), 1) if calls_overview else 0.0,
+                'connect_rate': connect_rate,
+            },
+            'calls_daily_30d': [dict(r) for r in calls_daily],
+            'alerts': call_alerts,
+            'calls_24h': {
+                'total': int(call_state_24h['total_24h'] or 0) if call_state_24h else 0,
+                'connected': int(call_state_24h['connected_24h'] or 0) if call_state_24h else 0,
+                'missed': int(call_state_24h['missed_24h'] or 0) if call_state_24h else 0,
+                'rejected': int(call_state_24h['rejected_24h'] or 0) if call_state_24h else 0,
+            },
+            'quality': {
+                'avg_reply_sec_7d': round(float(resp_time['avg_reply_sec'] or 0), 1) if resp_time else 0.0,
+                'unread_total': int(unread_summary['unread_total'] or 0) if unread_summary else 0,
+            },
+            'group_load_7d': [dict(r) for r in groups_load],
         }})
     except Exception as exc:
         return api_error(str(exc))
