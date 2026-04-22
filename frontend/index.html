@@ -1,6 +1,14 @@
 <!doctype html>
 <html lang="uk">
 <head>
+  <script>
+    if (localStorage.getItem('FORCE_RELOAD_VER') !== 'v78') {
+      localStorage.setItem('FORCE_RELOAD_VER', 'v78');
+      if ('caches' in window) caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k); }); });
+      if (navigator.serviceWorker) navigator.serviceWorker.getRegistrations().then(function(rs){ rs.forEach(function(r){ r.unregister(); }); });
+      setTimeout(function(){ window.location.reload(true); }, 200);
+    }
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>ARM Bank</title>
