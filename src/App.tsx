@@ -8,10 +8,6 @@ import veniceCityImage from './assets/italy/venice-city.png';
 import florenceDuomoImage from './assets/italy/florence-duomo.png';
 import valdorciaHillsImage from './assets/italy/valdorcia-hills.png';
 import valdorciaChapelImage from './assets/italy/valdorcia-chapel.png';
-import tuscanyRoadImage from './assets/italy/tuscany-road.png';
-import florenceLineartImage from './assets/italy/florence-lineart.png';
-import danteCutoutImage from './assets/italy/dante-cutout.png';
-import sicilyEmblemImage from './assets/italy/sicily-emblem.png';
 
 export class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: string | null }> {
   constructor(props: { children: React.ReactNode }) {
@@ -2786,8 +2782,8 @@ const appBase: React.CSSProperties = {
   textRendering: 'optimizeLegibility',
 };
 
-const AUTH_STATIC_BG = tuscanyRoadImage;
-const SPLASH_STATIC_BG = valdorciaHillsImage;
+const AUTH_STATIC_BG = florenceDuomoImage;
+const SPLASH_STATIC_BG = veniceCityImage;
 
 function WowSplash() {
   return (
@@ -2799,38 +2795,12 @@ function WowSplash() {
           backgroundImage: `url(${SPLASH_STATIC_BG})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          filter: 'saturate(1.04) contrast(1.03)',
+          filter: 'saturate(1.02) contrast(1.02)',
         }}
       />
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(6,15,10,0.5) 0%, rgba(6,15,10,0.84) 100%)' }} />
-      <img
-        src={florenceLineartImage}
-        alt=""
-        style={{
-          position: 'absolute',
-          right: -80,
-          bottom: -60,
-          width: 'min(72vw, 520px)',
-          opacity: 0.14,
-          pointerEvents: 'none',
-        }}
-      />
-      <img
-        src={danteCutoutImage}
-        alt=""
-        style={{
-          position: 'absolute',
-          left: -38,
-          bottom: -20,
-          width: 'min(38vw, 230px)',
-          opacity: 0.16,
-          transform: 'rotate(-3deg)',
-          pointerEvents: 'none',
-        }}
-      />
       <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 24 }}>
         <div style={{ textAlign: 'center' }}>
-          <img src={sicilyEmblemImage} alt="" style={{ width: 44, height: 44, opacity: 0.9, marginBottom: 14 }} />
           <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: -0.8, color: text.primary }}>
             ARM<span style={{ fontWeight: 300, color: 'rgba(220,215,200,0.82)' }}>Bank</span>
           </div>
@@ -2943,24 +2913,12 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         position: 'fixed', inset: 0, pointerEvents: 'none',
         backgroundImage: `url(${AUTH_STATIC_BG})`,
         backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        opacity: 0.95,
+        backgroundPosition: 'center top',
+        opacity: 0.82,
       }} />
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none',
         background: 'radial-gradient(ellipse 72% 50% at 50% 0%, rgba(20,46,32,0.48) 0%, rgba(6,14,10,0.74) 58%, rgba(5,11,8,0.9) 100%)',
       }} />
-      <img
-        src={florenceLineartImage}
-        alt=""
-        style={{
-          position: 'fixed',
-          right: -90,
-          top: '18%',
-          width: 'min(62vw, 460px)',
-          opacity: 0.13,
-          pointerEvents: 'none',
-        }}
-      />
       <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 20px', position: 'relative' }}>
       <div style={{ width: '100%', maxWidth: 380 }}>
 
@@ -3181,7 +3139,7 @@ export default function App() {
   const Screen = SCREENS[tab];
 
   useEffect(() => {
-    const id = setTimeout(() => setShowSplash(false), 2900);
+    const id = setTimeout(() => setShowSplash(false), 2400);
     return () => clearTimeout(id);
   }, []);
 

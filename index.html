@@ -134,38 +134,27 @@
     </script>
     <script>
       (function () {
-        var buildId = '2026-04-22-05';
+        var buildId = '2026-04-22-06';
         var buildKey = 'army_bank_build_id';
-        var reloadKey = 'army_bank_build_reload_' + buildId;
         try {
           var prev = localStorage.getItem(buildKey);
           localStorage.setItem(buildKey, buildId);
           var isUpgrade = !!prev && prev !== buildId;
           if (!isUpgrade) return;
-          if (sessionStorage.getItem(reloadKey) === '1') return;
-          sessionStorage.setItem(reloadKey, '1');
 
           if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function (regs) {
               regs.forEach(function (reg) {
                 try { reg.update(); } catch (_) {}
-                try { if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' }); } catch (_) {}
-                try { if (reg.active) reg.active.postMessage({ type: 'CLEAR_RUNTIME_CACHES' }); } catch (_) {}
               });
             }).catch(function () {});
           }
 
-          if ('caches' in window) {
-            caches.keys().then(function (keys) {
-              return Promise.all(keys.filter(function (k) {
-                return /^army-bank-v/i.test(String(k || ''));
-              }).map(function (k) { return caches.delete(k); }));
-            }).catch(function () {});
-          }
-
           var url = new URL(window.location.href);
-          url.searchParams.set('v', buildId);
-          window.location.replace(url.toString());
+          if (url.searchParams.get('v') !== buildId) {
+            url.searchParams.set('v', buildId);
+            window.history.replaceState(null, '', url.toString());
+          }
         } catch (_) {}
       })();
     </script>
