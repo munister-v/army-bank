@@ -26,6 +26,16 @@ const goldDark = '#8a6a2f';
 const goldLight = '#f4d77a';
 const bg = { card: 'rgba(255,255,255,0.04)', border: 'rgba(200,170,100,0.12)' };
 const text = { primary: '#f4ebd0', secondary: '#f0e7cc', muted: 'rgba(232,217,168,0.55)', dim: 'rgba(232,217,168,0.45)' };
+const fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+// Liquid glass card style helper
+const glassCard = (extra?: React.CSSProperties): React.CSSProperties => ({
+  background: 'rgba(255,255,255,0.05)',
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
+  border: '1px solid rgba(200,170,100,0.14)',
+  borderRadius: 22,
+  ...extra,
+});
 
 // ─── Layout context ───────────────────────────────────────────
 const LayoutCtx = createContext<'mobile' | 'desktop'>('mobile');
@@ -313,7 +323,9 @@ function fmtInt(n: number) {
 }
 function fmtDec(n: number) { return ',' + (Math.abs(n) % 1).toFixed(2).slice(2); }
 function fmtDateLabel(iso: string): string {
+  if (!iso) return '—';
   const d = new Date(iso.slice(0, 10) + 'T00:00:00');
+  if (isNaN(d.getTime())) return iso.slice(0, 10) || '—';
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const yest = new Date(today); yest.setDate(today.getDate() - 1);
   if (d >= today) return 'Сьогодні';
@@ -321,7 +333,10 @@ function fmtDateLabel(iso: string): string {
   return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
 }
 function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso.slice(11, 16) || '—';
+  return d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
 }
 const DESIGN_TO_VARIANT: Record<string, CardVariant> = {
   gold: 'gold', navy: 'obsidian', forest: 'emerald', rose: 'gold', slate: 'platinum',
@@ -419,7 +434,7 @@ function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardDa
 // ─── Screen top padding helper ───────────────────────────────
 function useTopPad() {
   const layout = useLayout();
-  return layout === 'desktop' ? '28px' : 'env(safe-area-inset-top, 20px)';
+  return layout === 'desktop' ? '28px' : 'max(20px, env(safe-area-inset-top, 20px))';
 }
 
 // ─── Desktop content wrapper: max-width + padding ────────────
@@ -865,6 +880,10 @@ function CardsScreen() {
   ];
   const cards = apiCards.length > 0 ? apiCards.map(c => apiCardToData(c, userNameUp)) : FALLBACK_CARDS;
   const [selected, setSelected] = useState(0);
+  const [pinModal, setPinModal] = useState(false);
+  const [pinValue, setPinValue] = useState('');
+  const [pinConfirm, setPinConfirm] = useState('');
+  const [pinLoading, setPinLoading] = useState(false);
   const safeIdx = Math.min(selected, cards.length - 1);
   const card = cards[safeIdx];
 
@@ -874,6 +893,27 @@ function CardsScreen() {
   const monthOut = monthTransactions.filter(tx => tx.direction === 'out').reduce((s, tx) => s + tx.amount, 0);
   const busyCardId: number | null = null;
   const statusLabel = card?.status || 'Активна';
+
+  async function changePin() {
+    if (pinValue.length !== 4 || !/^\d{4}$/.test(pinValue)) { toast('PIN має бути 4 цифри'); return; }
+    if (pinValue !== pinConfirm) { toast('PIN-коди не збігаються'); return; }
+    if (apiCards.length === 0) { toast('Демо-режим: зміна PIN недоступна'); return; }
+    const c = apiCards[safeIdx];
+    const token = localStorage.getItem('army_bank_token');
+    setPinLoading(true);
+    try {
+      const r = await fetch(`/api/cards/${c.id}/pin`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ pin: pinValue }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.message || 'Помилка зміни PIN');
+      toast(`✓ PIN картки •• ${card.number} змінено`);
+      setPinModal(false); setPinValue(''); setPinConfirm('');
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Помилка зміни PIN'); }
+    finally { setPinLoading(false); }
+  }
 
   async function toggleBlock() {
     if (apiCards.length === 0) { toast('Демо-режим: API не підключено'); return; }
@@ -905,12 +945,13 @@ function CardsScreen() {
   const isFrozen = apiCards.length > 0 ? apiCards[safeIdx]?.status === 'blocked' : card.statusRaw === 'blocked';
 
   return (
+    <>
     <ContentWrap maxW={760}>
     <div style={{ paddingBottom: 80 }}>
       <div style={{ padding: `${topPad} 22px 16px`, display: 'flex', alignItems: 'center' }}>
         <div>
           <div style={{ fontSize: 12, color: text.muted, fontWeight: 500, marginBottom: 4 }}>Гаманець</div>
-          <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Мої картки</div>
+          <div style={{ fontFamily: fontFamily, fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Мої картки</div>
         </div>
         <div style={{ flex: 1 }} />
         <button onClick={() => window.open('https://munister.com.ua/messenger', '_blank')} style={{
@@ -984,11 +1025,11 @@ function CardsScreen() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
             {[
               { label: 'Деталі', msg: `Картка •• ${card.number} · до ${card.expiry}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M3 10h18" stroke={gold} strokeWidth="1.6" /></svg> },
-              { label: 'PIN', msg: 'PIN можна змінити у підтримці.', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg> },
+              { label: 'PIN', action: () => setPinModal(true), icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg> },
               { label: 'Apple Pay', msg: 'Відкрийте Гаманець на iPhone', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M17 2a4 4 0 00-3 1.7M7 8a5 5 0 015-5c1.7 0 2.5 1 3 1.7M5 14c0 6 5 8 7 8s7-2 7-8-5-6-7-4c-2-2-7 0-7 4z" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg> },
               { label: 'Рахунок', msg: `Рахунок: ${account?.account_number || '—'}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1116 0" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><path d="M12 12l4-4" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><circle cx="12" cy="12" r="1.5" fill={gold} /></svg> },
             ].map((a, i) => (
-              <button key={i} onClick={() => toast(a.msg)} style={{
+              <button key={i} onClick={() => 'action' in a ? a.action() : toast(a.msg as string)} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
                 padding: '10px 4px', background: 'rgba(255,255,255,0.03)',
                 border: '1px solid rgba(200,170,100,0.1)', borderRadius: 14,
@@ -1027,6 +1068,59 @@ function CardsScreen() {
       </div>
     </div>
     </ContentWrap>
+
+    {/* PIN Change Modal */}
+    {pinModal && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setPinModal(false)}>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+        <div onClick={e => e.stopPropagation()} style={{
+          position: 'relative', width: '100%', maxWidth: 480,
+          background: 'linear-gradient(180deg,rgba(17,40,32,0.98) 0%,rgba(11,30,22,0.98) 100%)',
+          backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+          borderRadius: '24px 24px 0 0', padding: '28px 24px calc(32px + env(safe-area-inset-bottom,0px))',
+          border: '1px solid rgba(200,170,100,0.15)', borderBottom: 'none',
+        }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(200,170,100,0.25)', margin: '0 auto 20px' }} />
+          <div style={{ fontSize: 18, fontWeight: 700, color: text.primary, marginBottom: 4 }}>Змінити PIN</div>
+          <div style={{ fontSize: 12, color: text.muted, marginBottom: 20 }}>Картка •• {card.number}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 5, display: 'block' }}>Новий PIN (4 цифри)</label>
+              <input
+                type="password" inputMode="numeric" maxLength={4}
+                value={pinValue} onChange={e => setPinValue(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="••••"
+                style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(200,170,100,0.18)`, borderRadius: 12, color: text.primary, fontSize: 20, outline: 'none', fontFamily: fontFamily, letterSpacing: 8, boxSizing: 'border-box' }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 5, display: 'block' }}>Підтвердити PIN</label>
+              <input
+                type="password" inputMode="numeric" maxLength={4}
+                value={pinConfirm} onChange={e => setPinConfirm(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="••••"
+                style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid ${pinConfirm && pinValue !== pinConfirm ? 'rgba(220,80,80,0.5)' : 'rgba(200,170,100,0.18)'}`, borderRadius: 12, color: text.primary, fontSize: 20, outline: 'none', fontFamily: fontFamily, letterSpacing: 8, boxSizing: 'border-box' }}
+              />
+              {pinConfirm && pinValue !== pinConfirm && <div style={{ fontSize: 11, color: '#e07070', marginTop: 4 }}>PIN-коди не збігаються</div>}
+            </div>
+            {/* 4-dot indicator */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 14, margin: '4px 0' }}>
+              {[0,1,2,3].map(i => (
+                <div key={i} style={{ width: 14, height: 14, borderRadius: '50%', background: i < pinValue.length ? gold : 'rgba(200,170,100,0.2)', transition: 'background 0.15s', boxShadow: i < pinValue.length ? `0 0 8px ${gold}88` : 'none' }} />
+              ))}
+            </div>
+            <button
+              onClick={changePin} disabled={pinLoading || pinValue.length !== 4 || pinValue !== pinConfirm}
+              style={{
+                width: '100%', padding: '14px', borderRadius: 16, border: 'none', fontSize: 15, fontWeight: 700,
+                background: (pinLoading || pinValue.length !== 4 || pinValue !== pinConfirm) ? 'rgba(180,140,60,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+                color: '#1a1208', cursor: (pinLoading || pinValue.length !== 4 || pinValue !== pinConfirm) ? 'default' : 'pointer', fontFamily: fontFamily,
+              }}>{pinLoading ? 'Збереження…' : 'Зберегти PIN'}</button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -1151,7 +1245,7 @@ function OperationsScreen() {
     <div style={{ paddingBottom: 80 }}>
       <div style={{ padding: `${topPad} 22px 14px` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Операції</div>
+          <div style={{ fontFamily: fontFamily, fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Операції</div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={downloadExport} disabled={dlExport} title="Завантажити CSV" style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold, fontSize: 16 }}>{dlExport ? '…' : '📊'}</button>
             <button onClick={downloadStatement} title="Виписка PDF" style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold, fontSize: 16 }}>📄</button>
@@ -1171,7 +1265,7 @@ function OperationsScreen() {
 
       {/* Chart */}
       <div style={{ padding: '0 22px 18px' }}>
-        <div style={{ padding: 20, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22 }}>
+        <div style={{ padding: 20, ...glassCard() }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
               <div style={{ fontSize: 11, letterSpacing: 1.2, color: text.muted, textTransform: 'uppercase', fontWeight: 500, marginBottom: 4 }}>Загальні витрати</div>
@@ -1538,58 +1632,116 @@ function ProductDetailDrawer({ product, onClose, onAddToCart }: { product: Produ
   );
 }
 
-function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checkingOut }: {
+function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checkingOut, user }: {
   cart: CartItem[]; onClose: () => void;
   onQtyChange: (id: number, delta: number) => void;
   onRemove: (id: number) => void;
-  onCheckout: () => void; checkingOut: boolean;
+  onCheckout: (shipping: { name: string; phone: string; address: string }) => void;
+  checkingOut: boolean;
+  user: { full_name: string; phone: string } | null;
 }) {
   const total = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
+  const [step, setStep] = useState<'cart' | 'shipping'>('cart');
+  const [shipName, setShipName] = useState(user?.full_name || '');
+  const [shipPhone, setShipPhone] = useState(user?.phone || '');
+  const [shipAddr, setShipAddr] = useState('');
+
+  const fieldStyle: React.CSSProperties = {
+    width: '100%', padding: '11px 14px', background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(200,170,100,0.18)', borderRadius: 12,
+    color: text.primary, fontSize: 14, outline: 'none', fontFamily: fontFamily,
+    boxSizing: 'border-box',
+  };
+  const labelStyle: React.CSSProperties = { fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 5, display: 'block' };
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }} onClick={onClose}>
       <div style={{ background: 'rgba(0,0,0,0.5)', position: 'absolute', inset: 0 }} />
       <div onClick={e => e.stopPropagation()} style={{
-        position: 'relative', background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)',
-        borderRadius: '24px 24px 0 0', padding: '28px 24px 48px',
-        boxShadow: '0 -20px 60px rgba(0,0,0,0.6)', maxHeight: '80vh', overflowY: 'auto',
+        position: 'relative',
+        background: 'linear-gradient(180deg,rgba(17,40,32,0.98) 0%,rgba(11,30,22,0.98) 100%)',
+        backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+        borderRadius: '24px 24px 0 0', padding: '28px 24px calc(24px + env(safe-area-inset-bottom, 0px))',
+        boxShadow: '0 -20px 60px rgba(0,0,0,0.6)', maxHeight: '85vh', overflowY: 'auto',
         border: '1px solid rgba(200,170,100,0.15)', borderBottom: 'none',
       }}>
         <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(200,170,100,0.25)', margin: '0 auto 20px' }} />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: text.primary }}>Кошик</div>
-          <div style={{ fontSize: 14, color: text.muted }}>{cart.reduce((s,i) => s+i.qty, 0)} товарів</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+          {step === 'shipping' && (
+            <button onClick={() => setStep('cart')} style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(200,170,100,0.1)', border: '1px solid rgba(200,170,100,0.18)', color: gold, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8l4 4" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          )}
+          <div style={{ flex: 1, fontSize: 20, fontWeight: 700, color: text.primary }}>
+            {step === 'cart' ? 'Кошик' : 'Доставка'}
+          </div>
+          {step === 'cart' && <div style={{ fontSize: 14, color: text.muted }}>{cart.reduce((s,i) => s+i.qty, 0)} товарів</div>}
         </div>
-        {cart.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: text.muted }}>Кошик порожній</div>
-        ) : (
-          <>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-              {cart.map(item => (
-                <div key={item.product.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 14 }}>
-                  <div style={{ fontSize: 28, flexShrink: 0 }}>{item.product.image_emoji || '🛍️'}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: text.secondary, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product.title}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: gold }}>₴{fmtInt(item.product.price * item.qty)}{fmtDec(item.product.price * item.qty)}</div>
+
+        {step === 'cart' && (
+          cart.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: text.muted }}>Кошик порожній</div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+                {cart.map(item => (
+                  <div key={item.product.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${bg.border}`, borderRadius: 14 }}>
+                    <div style={{ fontSize: 28, flexShrink: 0 }}>{item.product.image_emoji || '🛍️'}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: text.secondary, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product.title}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: gold }}>₴{fmtInt(item.product.price * item.qty)}{fmtDec(item.product.price * item.qty)}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button onClick={() => onQtyChange(item.product.id, -1)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(200,170,100,0.1)', border: `1px solid rgba(200,170,100,0.2)`, color: gold, fontSize: 16, cursor: 'pointer', fontFamily: fontFamily, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: text.primary, minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
+                      <button onClick={() => onQtyChange(item.product.id, 1)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(200,170,100,0.1)', border: `1px solid rgba(200,170,100,0.2)`, color: gold, fontSize: 16, cursor: 'pointer', fontFamily: fontFamily, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                      <button onClick={() => onRemove(item.product.id)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(220,80,80,0.08)', border: '1px solid rgba(220,80,80,0.15)', color: '#e07070', fontSize: 14, cursor: 'pointer', fontFamily: fontFamily, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <button onClick={() => onQtyChange(item.product.id, -1)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(200,170,100,0.1)', border: `1px solid rgba(200,170,100,0.2)`, color: gold, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: text.primary, minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
-                    <button onClick={() => onQtyChange(item.product.id, 1)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(200,170,100,0.1)', border: `1px solid rgba(200,170,100,0.2)`, color: gold, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
-                    <button onClick={() => onRemove(item.product.id)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(220,80,80,0.08)', border: '1px solid rgba(220,80,80,0.15)', color: '#e07070', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16, padding: '0 4px' }}>
+                <span style={{ fontSize: 14, color: text.muted }}>Разом:</span>
+                <span style={{ fontSize: 24, fontWeight: 800, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(total)}{fmtDec(total)}</span>
+              </div>
+              <button onClick={() => setStep('shipping')} style={{
+                width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontSize: 16, fontWeight: 700,
+                background: `linear-gradient(135deg, ${goldDark}, ${gold})`,
+                color: '#1a1208', cursor: 'pointer', fontFamily: fontFamily,
+              }}>Далі → Доставка</button>
+            </>
+          )
+        )}
+
+        {step === 'shipping' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={labelStyle}>Отримувач</label>
+              <input value={shipName} onChange={e => setShipName(e.target.value)} placeholder="Прізвище Ім'я По-батькові" style={fieldStyle} />
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16, padding: '0 4px' }}>
-              <span style={{ fontSize: 14, color: text.muted }}>Разом:</span>
-              <span style={{ fontSize: 24, fontWeight: 800, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(total)}{fmtDec(total)}</span>
+            <div>
+              <label style={labelStyle}>Телефон</label>
+              <input value={shipPhone} onChange={e => setShipPhone(e.target.value)} placeholder="+380XXXXXXXXX" style={fieldStyle} />
             </div>
-            <button onClick={onCheckout} disabled={checkingOut} style={{
-              width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontSize: 16, fontWeight: 700,
-              background: checkingOut ? 'rgba(180,140,60,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
-              color: '#1a1208', cursor: checkingOut ? 'default' : 'pointer', fontFamily: 'inherit',
-            }}>{checkingOut ? 'Оформлення…' : '✓ Оформити замовлення'}</button>
-          </>
+            <div>
+              <label style={labelStyle}>Адреса доставки</label>
+              <input value={shipAddr} onChange={e => setShipAddr(e.target.value)} placeholder="м. Київ, вул. Хрещатик 1, кв. 5" style={fieldStyle} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '4px 4px 0' }}>
+              <span style={{ fontSize: 13, color: text.muted }}>До оплати:</span>
+              <span style={{ fontSize: 20, fontWeight: 800, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(total)}{fmtDec(total)}</span>
+            </div>
+            <button
+              onClick={() => onCheckout({ name: shipName, phone: shipPhone, address: shipAddr })}
+              disabled={checkingOut || shipName.trim().length < 2 || shipAddr.trim().length < 8}
+              style={{
+                width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontSize: 16, fontWeight: 700,
+                background: (checkingOut || shipName.trim().length < 2 || shipAddr.trim().length < 8)
+                  ? 'rgba(180,140,60,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+                color: '#1a1208', cursor: (checkingOut || shipName.trim().length < 2 || shipAddr.trim().length < 8) ? 'default' : 'pointer',
+                fontFamily: fontFamily,
+              }}>{checkingOut ? 'Оформлення…' : '✓ Оформити замовлення'}</button>
+          </div>
         )}
       </div>
     </div>
@@ -1600,7 +1752,7 @@ type MarketTab = 'catalog' | 'orders' | 'invoices';
 
 function MarketplaceScreen() {
   const topPad = useTopPad();
-  const { toast, refreshDashboard } = useApp();
+  const { toast, refreshDashboard, user: mktUser } = useApp();
   const [tab, setTab] = useState<MarketTab>('catalog');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<MarketOrder[]>([]);
@@ -1635,20 +1787,25 @@ function MarketplaceScreen() {
     setCart(prev => prev.filter(i => i.product.id !== id));
   }
 
-  async function checkoutCart() {
+  async function checkoutCart(shipping: { name: string; phone: string; address: string }) {
     if (cart.length === 0) return;
     setCheckingOut(true);
     try {
-      for (const item of cart) {
-        const r = await fetch('/api/marketplace/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ product_id: item.product.id, quantity: item.qty }),
-        });
-        const j = await r.json();
-        if (!r.ok || !j.ok) throw new Error(j.message || j.error || 'Помилка');
-      }
-      toast(`✓ Замовлення на ${cart.length} товар(ів) оформлено!`);
+      const r = await fetch('/api/marketplace/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          items: cart.map(i => ({ product_id: i.product.id, qty: i.qty })),
+          shipping_name: shipping.name.trim(),
+          shipping_phone: shipping.phone.trim(),
+          shipping_address: shipping.address.trim(),
+          payment_mode: 'pay_now',
+          idempotency_key: `cart-${Date.now()}`,
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.message || j.error || 'Помилка оформлення');
+      toast(`✓ Замовлення оформлено!`);
       setCart([]);
       setShowCart(false);
       refreshDashboard();
@@ -1717,12 +1874,12 @@ function MarketplaceScreen() {
   return (
     <>
     {preview && <ProductDetailDrawer product={preview} onClose={() => setPreview(null)} onAddToCart={addToCart} />}
-    {showCart && <CartDrawer cart={cart} onClose={() => setShowCart(false)} onQtyChange={changeQty} onRemove={removeFromCart} onCheckout={checkoutCart} checkingOut={checkingOut} />}
+    {showCart && <CartDrawer cart={cart} onClose={() => setShowCart(false)} onQtyChange={changeQty} onRemove={removeFromCart} onCheckout={checkoutCart} checkingOut={checkingOut} user={mktUser} />}
     <ContentWrap maxW={800}>
     <div style={{ paddingBottom: 80 }}>
       <div style={{ padding: `${topPad} 22px 12px` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ fontFamily: '"SF Pro Display", -apple-system', fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Магазин</div>
+          <div style={{ fontFamily: fontFamily, fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Магазин</div>
           <button onClick={() => setShowCart(true)} style={{ position: 'relative', width: 44, height: 44, borderRadius: 14, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20 }}>
             🛒
             {cartCount > 0 && (
@@ -2038,7 +2195,7 @@ const appBase: React.CSSProperties = {
   position: 'fixed', inset: 0,
   background: appBg,
   color: '#e8d9a8',
-  fontFamily: "'Manrope', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+  fontFamily: fontFamily,
   WebkitFontSmoothing: 'antialiased',
 };
 
@@ -2348,6 +2505,13 @@ export default function App() {
   useEffect(() => {
     if (!authed) return;
     loadBankData(false).catch(() => {});
+    // Auto-refresh every 30s (admin sync — picks up admin balance/card changes)
+    const interval = setInterval(() => {
+      if (document.visibilityState !== 'hidden') {
+        loadBankData(true).catch(() => {});
+      }
+    }, 30_000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed]);
 
