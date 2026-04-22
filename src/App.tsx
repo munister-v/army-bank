@@ -1255,7 +1255,6 @@ function OverviewScreen() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div style={{ padding: 24, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22 }}>
               <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} balance={account?.balance ?? 0} accountNumber={account?.account_number ?? '—'} />
-              <PremiumStatusStrip />
             </div>
             {cardSection}
             {quickActionsSection}
@@ -1305,55 +1304,8 @@ function OverviewScreen() {
         ))}
       </div>
 
-      <div style={{ padding: '10px 22px 2px' }}>
-        <div style={{
-          borderRadius: 18,
-          border: '1px solid rgba(220,215,200,0.18)',
-          background: 'linear-gradient(140deg, rgba(16,38,29,0.7) 0%, rgba(11,24,18,0.78) 58%, rgba(20,40,30,0.58) 100%)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 28px rgba(0,0,0,0.22)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          padding: '10px 12px',
-          overflow: 'hidden',
-          position: 'relative',
-        }}>
-          <div style={{
-            position: 'absolute',
-            width: 140,
-            height: 140,
-            borderRadius: '50%',
-            right: -40,
-            top: -56,
-            background: 'radial-gradient(circle, rgba(170,225,190,0.18) 0%, rgba(170,225,190,0) 72%)',
-            pointerEvents: 'none',
-          }} />
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, position: 'relative' }}>
-            <div style={{ fontSize: 10.5, color: 'rgba(220,215,200,0.78)', fontWeight: 600, letterSpacing: 0.7, textTransform: 'uppercase' }}>Private Banking Flow</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#78d19a', boxShadow: '0 0 8px rgba(120,209,154,0.65)' }} />
-              <span style={{ fontSize: 10, color: '#95d8ad', fontWeight: 600 }}>LIVE</span>
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, position: 'relative' }}>
-            <div style={{ borderRadius: 12, padding: '8px 9px', border: '1px solid rgba(220,215,200,0.14)', background: 'rgba(255,255,255,0.04)' }}>
-              <div style={{ fontSize: 9.5, color: text.dim, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.6 }}>Net Flow</div>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: flowNet >= 0 ? '#94d7aa' : '#e6a0a0' }}>{flowNetSign}₴{fmtInt(Math.abs(flowNet))}</div>
-            </div>
-            <div style={{ borderRadius: 12, padding: '8px 9px', border: '1px solid rgba(220,215,200,0.14)', background: 'rgba(255,255,255,0.04)' }}>
-              <div style={{ fontSize: 9.5, color: text.dim, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.6 }}>Trend</div>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#d8cfbe' }}>{analyticsChangeLabel(analytics)}</div>
-            </div>
-            <div style={{ borderRadius: 12, padding: '8px 9px', border: '1px solid rgba(220,215,200,0.14)', background: 'rgba(255,255,255,0.04)' }}>
-              <div style={{ fontSize: 9.5, color: text.dim, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.6 }}>Tier</div>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#e0d3bc' }}>Heritage</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div style={{ padding: '24px 22px 20px' }}>
         <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} balance={account?.balance ?? 0} accountNumber={account?.account_number ?? '—'} />
-        <PremiumStatusStrip />
       </div>
       <div style={{ padding: '0 22px 4px' }}>{cardSection}</div>
       <div style={{ display: 'flex', gap: 8, padding: '18px 22px 6px' }}>
