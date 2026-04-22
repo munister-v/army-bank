@@ -5522,16 +5522,20 @@ button.btn-ghost[type="submit"] {
   }
 }
 
-/* ── ANDROID: Safe Area (gesture nav bar) ──────────────────────
-   env() підтримується в Android Chrome 69+                      */
+/* ── iOS/Android: Safe Area (home indicator / gesture nav bar) ──────
+   The pill nav already sits above the home indicator via
+   bottom: max(8px, env(safe-area-inset-bottom)).
+   Do NOT add padding-bottom inside the nav — that double-counts safe-area
+   and creates a dead zone on iPhone 15 in PWA mode.
+   app-content needs: nav height + nav bottom offset + breathing room. */
 @media (max-width: 959px) {
   .bottom-nav {
-    padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+    padding-bottom: 0 !important;
   }
   .app-content,
   .page-content,
   main {
-    padding-bottom: max(80px, calc(64px + env(safe-area-inset-bottom))) !important;
+    padding-bottom: calc(64px + max(8px, env(safe-area-inset-bottom, 0px)) + 16px) !important;
   }
 }
 

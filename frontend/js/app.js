@@ -1944,6 +1944,26 @@ function _initCarouselInteraction(track) {
     return first.getBoundingClientRect().width + gap;
   }
 
+  // Alias used by dot-click fallback
+  function getSnapStep() { return getCardWidth(); }
+
+  // Picks the card whose centre is nearest the visible track centre.
+  // Works for any scroll-snap-align (start, center, end).
+  function findClosestCardIndex() {
+    var cards = Array.from(track.querySelectorAll('.bank-card'));
+    if (!cards.length) return 0;
+    var trackRect = track.getBoundingClientRect();
+    var trackCx = trackRect.left + trackRect.width / 2;
+    var best = 0, bestDist = Infinity;
+    cards.forEach(function(card, i) {
+      var r = card.getBoundingClientRect();
+      var cardCx = r.left + r.width / 2;
+      var dist = Math.abs(cardCx - trackCx);
+      if (dist < bestDist) { bestDist = dist; best = i; }
+    });
+    return best;
+  }
+
   function updateDotsImmediate() {
     var dots = dotsHost ? dotsHost.querySelectorAll('.bc-dot') : [];
     if (!dots.length) return;
