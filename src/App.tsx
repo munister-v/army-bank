@@ -21,21 +21,61 @@ export class ErrorBoundary extends Component<{ children: React.ReactNode }, { er
 }
 
 // ─── Design tokens ────────────────────────────────────────────
-const gold = '#c9a964';
-const goldDark = '#8a6a2f';
-const goldLight = '#f4d77a';
-const bg = { card: 'rgba(255,255,255,0.04)', border: 'rgba(200,170,100,0.12)' };
-const text = { primary: '#f4ebd0', secondary: '#f0e7cc', muted: 'rgba(232,217,168,0.55)', dim: 'rgba(232,217,168,0.45)' };
-const fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-// Liquid glass card style helper
+const gold        = '#c9a964';
+const goldDark    = '#8a6a2f';
+const goldLight   = '#f0cc70';
+const bg = {
+  card:   'rgba(255,255,255,0.045)',
+  card2:  'rgba(255,255,255,0.03)',
+  border: 'rgba(200,170,100,0.11)',
+  hover:  'rgba(255,255,255,0.06)',
+};
+const text = {
+  primary:   '#f5edd8',
+  secondary: '#e8ddc0',
+  muted:     'rgba(220,196,148,0.58)',
+  dim:       'rgba(220,196,148,0.38)',
+  gold:      gold,
+};
+const radius = { sm: 10, md: 14, lg: 18, xl: 22, '2xl': 28 };
+const fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
+// ─── Type scale helpers ───────────────────────────────────────
+const T = {
+  /** 36px display — balance hero */
+  hero:    { fontSize: 36, fontWeight: 700, letterSpacing: -1.2, lineHeight: 1.1 } as React.CSSProperties,
+  /** 28px screen title */
+  h1:      { fontSize: 28, fontWeight: 700, letterSpacing: -0.7, lineHeight: 1.2 } as React.CSSProperties,
+  /** 22px section heading */
+  h2:      { fontSize: 22, fontWeight: 600, letterSpacing: -0.4, lineHeight: 1.25 } as React.CSSProperties,
+  /** 17px card/panel title */
+  h3:      { fontSize: 17, fontWeight: 600, letterSpacing: -0.2, lineHeight: 1.3 } as React.CSSProperties,
+  /** 15px body large */
+  bodyLg:  { fontSize: 15, fontWeight: 400, lineHeight: 1.5 } as React.CSSProperties,
+  /** 14px body default */
+  body:    { fontSize: 14, fontWeight: 400, lineHeight: 1.5 } as React.CSSProperties,
+  /** 13px small */
+  sm:      { fontSize: 13, fontWeight: 400, lineHeight: 1.45 } as React.CSSProperties,
+  /** 11px caption — uppercase labels */
+  caption: { fontSize: 11, fontWeight: 600, letterSpacing: 1.1, textTransform: 'uppercase' as const, lineHeight: 1.2 } as React.CSSProperties,
+  /** tabular numbers */
+  num:     { fontFeatureSettings: '"tnum" 1, "kern" 1' } as React.CSSProperties,
+};
+
+// ─── Liquid glass card ────────────────────────────────────────
 const glassCard = (extra?: React.CSSProperties): React.CSSProperties => ({
   background: 'rgba(255,255,255,0.05)',
   backdropFilter: 'blur(20px)',
   WebkitBackdropFilter: 'blur(20px)',
-  border: '1px solid rgba(200,170,100,0.14)',
-  borderRadius: 22,
+  border: `1px solid ${bg.border}`,
+  borderRadius: radius.xl,
   ...extra,
 });
+
+// ─── Shared section-label style ───────────────────────────────
+const sectionLabel: React.CSSProperties = {
+  ...T.caption, color: text.dim, padding: '0 6px 10px',
+};
 
 // ─── Layout context ───────────────────────────────────────────
 const LayoutCtx = createContext<'mobile' | 'desktop'>('mobile');
@@ -222,14 +262,15 @@ async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T>
 function Toast({ msg }: { msg: string }) {
   return (
     <div style={{
-      position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
+      position: 'fixed', bottom: 'calc(90px + env(safe-area-inset-bottom, 0px))',
+      left: '50%', transform: 'translateX(-50%)',
       zIndex: 9999, pointerEvents: 'none',
-      padding: '10px 18px', borderRadius: 100,
-      background: 'rgba(15,32,24,0.92)', backdropFilter: 'blur(16px)',
-      border: '1px solid rgba(200,170,100,0.25)',
-      color: '#e8d9a8', fontSize: 13, fontWeight: 500,
-      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-      maxWidth: 'calc(100vw - 40px)', textAlign: 'center',
+      padding: '10px 20px', borderRadius: 100,
+      background: 'rgba(12,28,20,0.94)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+      border: '1px solid rgba(200,170,100,0.22)',
+      color: text.primary, ...T.sm, fontWeight: 500,
+      boxShadow: '0 12px 32px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(200,170,100,0.1)',
+      maxWidth: 'calc(100vw - 48px)', textAlign: 'center', whiteSpace: 'nowrap',
     }}>{msg}</div>
   );
 }
@@ -453,8 +494,8 @@ function DesktopHeader({ title, subtitle, children }: { title: string; subtitle?
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
       <div>
-        {subtitle && <div style={{ fontSize: 11, letterSpacing: 2, color: text.muted, textTransform: 'uppercase', fontWeight: 500, marginBottom: 4 }}>{subtitle}</div>}
-        <div style={{ fontSize: 28, fontWeight: 700, color: text.primary, letterSpacing: -0.6 }}>{title}</div>
+        {subtitle && <div style={{ ...T.caption, color: text.muted, marginBottom: 4 }}>{subtitle}</div>}
+        <div style={{ ...T.h1, color: text.primary }}>{title}</div>
       </div>
       {children && <div style={{ display: 'flex', gap: 10 }}>{children}</div>}
     </div>
@@ -473,10 +514,10 @@ function timeGreeting(): string {
 function QuickAction({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
   return (
     <button onClick={onClick} style={{
-      flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+      flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9,
       padding: '14px 6px', background: bg.card, border: `1px solid rgba(200,170,100,0.14)`,
-      borderRadius: 18, color: '#e8d9a8', fontFamily: 'inherit', fontSize: 12, fontWeight: 500,
-      letterSpacing: 0.1, cursor: 'pointer',
+      borderRadius: radius.lg, color: text.secondary, fontFamily: 'inherit', ...T.caption,
+      letterSpacing: 0.4, cursor: 'pointer', transition: 'background 0.15s, border-color 0.15s',
     }}>
       <div style={{
         width: 40, height: 40, borderRadius: 12,
@@ -500,11 +541,11 @@ function ActivityRow({ iconBg, iconEl, title, subtitle, amount, positive, onClic
         border: `1px solid rgba(200,170,100,0.15)`,
       }}>{iconEl}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 500, color: text.secondary, marginBottom: 2 }}>{title}</div>
-        <div style={{ fontSize: 12, color: text.muted }}>{subtitle}</div>
+        <div style={{ ...T.body, fontWeight: 500, color: text.secondary, marginBottom: 2 }}>{title}</div>
+        <div style={{ ...T.sm, color: text.muted }}>{subtitle}</div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: positive ? '#7fb896' : text.secondary, fontFeatureSettings: '"tnum"' }}>
+        <div style={{ ...T.body, fontWeight: 600, color: positive ? '#7fb896' : text.secondary, ...T.num }}>
           {positive ? '+' : ''}{amount}
         </div>
         {onClick && <Chevron size={13} color="rgba(232,217,168,0.3)" />}
@@ -546,7 +587,7 @@ function BalanceBlock({ visible, onToggle, balance, accountNumber }: { visible: 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span style={{ fontSize: 12, color: text.muted, fontWeight: 500 }}>Загальний баланс</span>
+        <span style={{ ...T.caption, color: text.muted }}>Загальний баланс</span>
         <button onClick={onToggle} style={{ width: 22, height: 22, borderRadius: '50%', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {visible
             ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" stroke={text.muted} strokeWidth="1.6" /><circle cx="12" cy="12" r="3" stroke={text.muted} strokeWidth="1.6" /></svg>
@@ -554,10 +595,10 @@ function BalanceBlock({ visible, onToggle, balance, accountNumber }: { visible: 
           }
         </button>
       </div>
-      <div style={{ fontFamily: '"SF Pro Display", -apple-system, system-ui', fontSize: 46, fontWeight: 300, letterSpacing: -1.5, color: text.primary, lineHeight: 1, fontFeatureSettings: '"tnum"', display: 'flex', alignItems: 'baseline', gap: 4 }}>
-        <span style={{ fontSize: 32, fontWeight: 400, color: gold }}>₴</span>
+      <div style={{ ...T.num, fontSize: 48, fontWeight: 300, letterSpacing: -2, color: text.primary, lineHeight: 1, display: 'flex', alignItems: 'baseline', gap: 4 }}>
+        <span style={{ fontSize: 28, fontWeight: 500, color: gold, letterSpacing: -0.5 }}>₴</span>
         <span>{visible ? fmtInt(balance) : '• • • • • • •'}</span>
-        <span style={{ fontSize: 24, fontWeight: 400, color: 'rgba(244,235,208,0.5)' }}>{visible ? fmtDec(balance) : ''}</span>
+        <span style={{ fontSize: 26, fontWeight: 300, color: 'rgba(244,235,208,0.42)', letterSpacing: -0.5 }}>{visible ? fmtDec(balance) : ''}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
         {accountNumber && accountNumber !== '—' && (
@@ -582,9 +623,9 @@ function ActivityFeed({ title = true, transactions }: { title?: boolean; transac
     <div>
       {title && (
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: text.secondary }}>Остання активність</span>
+          <span style={{ ...T.h3, color: text.secondary }}>Остання активність</span>
           <div style={{ flex: 1 }} />
-          <button onClick={() => goTo('operations')} style={{ fontSize: 12, color: gold, background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: 3, fontFamily: 'inherit', fontWeight: 500, cursor: 'pointer' }}>
+          <button onClick={() => goTo('operations')} style={{ ...T.sm, color: gold, background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: 3, fontFamily: 'inherit', fontWeight: 600, cursor: 'pointer', letterSpacing: -0.1 }}>
             Історія <Chevron size={12} color={gold} />
           </button>
         </div>
@@ -666,7 +707,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={{ width: '100%', maxWidth: 480, background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)', border: '1px solid rgba(200,170,100,0.2)', borderRadius: '24px 24px 0 0', padding: '28px 24px 40px', boxShadow: '0 -20px 60px rgba(0,0,0,0.5)' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#f4ebd0', flex: 1 }}>{cfg.title}</div>
+          <div style={{ ...T.h2, color: text.primary, flex: 1 }}>{cfg.title}</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(232,217,168,0.5)', padding: 4 }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
           </button>
@@ -674,12 +715,12 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {mode !== 'topup' && (
             <div>
-              <label style={{ fontSize: 11, color: 'rgba(232,217,168,0.55)', letterSpacing: 1, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{cfg.recipientLabel}</label>
+              <label style={{ ...T.caption, color: text.muted, display: 'block', marginBottom: 6 }}>{cfg.recipientLabel}</label>
               <input style={inp} value={recipient} onChange={e => setRecipient(e.target.value)} placeholder={mode === 'by_card' ? '4721 •••• •••• ••••' : 'UA29 3223 1300 0002 6007 …'} />
             </div>
           )}
           <div>
-            <label style={{ fontSize: 11, color: 'rgba(232,217,168,0.55)', letterSpacing: 1, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Сума (₴)</label>
+            <label style={{ ...T.caption, color: text.muted, display: 'block', marginBottom: 6 }}>Сума (₴)</label>
             <input style={{ ...inp, fontSize: 26, fontWeight: 300, letterSpacing: -0.5 }} type="number" min="0.01" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00" />
           </div>
           <div>
@@ -728,8 +769,8 @@ function OverviewScreen() {
   const cardSection = (
     <div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: text.secondary }}>Мої картки</span>
-        <span style={{ fontSize: 11, color: text.dim }}>• {cards.length}</span>
+        <span style={{ ...T.h3, color: text.secondary }}>Мої картки</span>
+        <span style={{ ...T.sm, color: text.dim }}>• {cards.length}</span>
         <div style={{ flex: 1 }} />
         <button onClick={() => goTo('cards')} style={{ fontSize: 12, color: gold, background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: 3, fontFamily: 'inherit', fontWeight: 500, cursor: 'pointer' }}>
           Усі <Chevron size={12} color={gold} />
@@ -763,7 +804,7 @@ function OverviewScreen() {
 
   const quickActionsSection = (
     <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: text.secondary, marginBottom: 12 }}>Швидкі дії</div>
+      <div style={{ ...T.h3, color: text.secondary, marginBottom: 12 }}>Швидкі дії</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
         {QUICK_ACTIONS.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => handleQuickAction(a.action)} /></Fragment>)}
       </div>
@@ -788,8 +829,8 @@ function OverviewScreen() {
         {/* Top greeting bar */}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
           <div>
-            <div style={{ fontSize: 13, color: text.muted, marginBottom: 4 }}>{greeting}</div>
-            <div style={{ fontSize: 26, fontWeight: 700, color: text.primary, letterSpacing: -0.4 }}>{displayName}</div>
+            <div style={{ ...T.sm, color: text.muted, marginBottom: 4 }}>{greeting}</div>
+            <div style={{ ...T.h1, fontSize: 26, color: text.primary }}>{displayName}</div>
           </div>
           <div style={{ flex: 1 }} />
           {[
@@ -815,7 +856,7 @@ function OverviewScreen() {
             <ActivityFeed transactions={transactions} />
             {/* Spending stats mini */}
             <div style={{ padding: 20, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: text.secondary, marginBottom: 14 }}>Витрати цього місяця</div>
+              <div style={{ ...T.h3, color: text.secondary, marginBottom: 14 }}>Витрати цього місяця</div>
               {!spendRows.length && (
                 <div style={{ fontSize: 12, color: text.muted }}>Недостатньо даних для розподілу витрат.</div>
               )}
@@ -951,7 +992,7 @@ function CardsScreen() {
       <div style={{ padding: `${topPad} 22px 16px`, display: 'flex', alignItems: 'center' }}>
         <div>
           <div style={{ fontSize: 12, color: text.muted, fontWeight: 500, marginBottom: 4 }}>Гаманець</div>
-          <div style={{ fontFamily: fontFamily, fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Мої картки</div>
+          <div style={{ ...T.h1, color: text.primary }}>Мої картки</div>
         </div>
         <div style={{ flex: 1 }} />
         <button onClick={() => window.open('https://munister.com.ua/messenger', '_blank')} style={{
@@ -1009,7 +1050,7 @@ function CardsScreen() {
           {/* Account activity */}
           <div style={{ marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'baseline' }}>
-              <span style={{ fontSize: 11, letterSpacing: 1.2, color: text.muted, textTransform: 'uppercase', fontWeight: 500 }}>Активність рахунку за місяць</span>
+              <span style={{ ...T.caption, color: text.muted }}>Активність рахунку за місяць</span>
               <span style={{ fontSize: 12, color: 'rgba(232,217,168,0.6)', fontFeatureSettings: '"tnum"' }}>{monthTransactions.length} оп.</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
@@ -1245,7 +1286,7 @@ function OperationsScreen() {
     <div style={{ paddingBottom: 80 }}>
       <div style={{ padding: `${topPad} 22px 14px` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ fontFamily: fontFamily, fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Операції</div>
+          <div style={{ ...T.h1, color: text.primary }}>Операції</div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={downloadExport} disabled={dlExport} title="Завантажити CSV" style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold, fontSize: 16 }}>{dlExport ? '…' : '📊'}</button>
             <button onClick={downloadStatement} title="Виписка PDF" style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold, fontSize: 16 }}>📄</button>
@@ -1268,9 +1309,9 @@ function OperationsScreen() {
         <div style={{ padding: 20, ...glassCard() }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
-              <div style={{ fontSize: 11, letterSpacing: 1.2, color: text.muted, textTransform: 'uppercase', fontWeight: 500, marginBottom: 4 }}>Загальні витрати</div>
+              <div style={{ ...sectionLabel, padding: 0, marginBottom: 4 }}>Загальні витрати</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ fontSize: 26, fontWeight: 600, color: text.primary, fontFeatureSettings: '"tnum"' }}>{spentLabel}</span>
+                <span style={{ ...T.h1, ...T.num, color: text.primary }}>{spentLabel}</span>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 4, padding: 3, background: 'rgba(26,40,32,0.5)', borderRadius: 100 }}>
@@ -1314,7 +1355,7 @@ function OperationsScreen() {
       )}
       {txGroups.map((g, gi) => (
         <div key={gi} style={{ padding: '4px 22px 12px' }}>
-          <div style={{ fontSize: 12, color: 'rgba(232,217,168,0.45)', fontWeight: 500, padding: '0 6px 8px' }}>{g.group}</div>
+          <div style={{ ...sectionLabel }}>{g.group}</div>
           <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden' }}>
             {g.items.map((t, i) => {
               const s = CAT_STYLES[t.cat];
@@ -1327,11 +1368,11 @@ function OperationsScreen() {
                       border: `1px solid ${s.color}22`,
                     }}>{s.icon}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: text.secondary, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</div>
-                      <div style={{ fontSize: 11.5, color: text.muted }}>{t.subtitle}</div>
+                      <div style={{ ...T.body, fontWeight: 500, color: text.secondary, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</div>
+                      <div style={{ ...T.sm, color: text.muted }}>{t.subtitle}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: t.positive ? '#7fb896' : text.secondary, fontFeatureSettings: '"tnum"' }}>{t.amount} ₴</div>
+                      <div style={{ ...T.body, fontWeight: 600, color: t.positive ? '#7fb896' : text.secondary, ...T.num }}>{t.amount} ₴</div>
                       {t.txId ? (
                         <button onClick={() => downloadReceipt(t.txId!)} disabled={dlReceipt === t.txId} title="Завантажити чек" style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(200,170,100,0.08)', border: `1px solid rgba(200,170,100,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13 }}>{dlReceipt === t.txId ? '…' : '🧾'}</button>
                       ) : (
@@ -1360,7 +1401,7 @@ function ProfileRow({ label, value, mono, copyable, last }: { label: string; val
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', gap: 12 }}>
-        <span style={{ fontSize: 12, letterSpacing: 1, color: text.muted, textTransform: 'uppercase', fontWeight: 500 }}>{label}</span>
+        <span style={{ ...T.caption, color: text.muted }}>{label}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           <span style={{
             fontSize: 14, color: text.secondary, fontWeight: 500,
@@ -1469,7 +1510,7 @@ function ProfileScreen() {
           boxShadow: `0 0 0 3px rgba(0,0,0,0.6), 0 0 0 5px ${gold}55, inset 0 1px 0 rgba(255,220,150,0.5)`,
           marginBottom: 14,
         }}>{initials}</div>
-        <div style={{ fontSize: 20, fontWeight: 700, color: text.primary, letterSpacing: -0.3, marginBottom: 4 }}>{displayName}</div>
+        <div style={{ ...T.h2, color: text.primary, marginBottom: 4 }}>{displayName}</div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: 'rgba(127,184,150,0.12)', border: '1px solid rgba(127,184,150,0.25)', borderRadius: 100 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#7fb896' }} />
           <span style={{ fontSize: 11.5, color: '#7fb896', fontWeight: 500 }}>Верифікований</span>
@@ -1486,7 +1527,7 @@ function ProfileScreen() {
 
       {/* Security */}
       <div style={{ padding: '4px 22px 8px' }}>
-        <div style={{ fontSize: 12, color: 'rgba(232,217,168,0.45)', fontWeight: 500, padding: '0 6px 8px' }}>Безпека</div>
+        <div style={{ ...sectionLabel }}>Безпека</div>
       </div>
       {section(<>
         <ProfileToggle label="Face ID" sub="Вхід і підтвердження" on={faceid} onChange={setFaceid}
@@ -1504,7 +1545,7 @@ function ProfileScreen() {
 
       {/* Change password */}
       <div style={{ padding: '4px 22px 8px' }}>
-        <div style={{ fontSize: 12, color: 'rgba(232,217,168,0.45)', fontWeight: 500, padding: '0 6px 8px' }}>Пароль</div>
+        <div style={{ ...sectionLabel }}>Пароль</div>
       </div>
       {section(<>
         <div
@@ -1604,12 +1645,12 @@ function ProductDetailDrawer({ product, onClose, onAddToCart }: { product: Produ
           )}
         </div>
         <div style={{ fontSize: 48, textAlign: 'center', marginBottom: 12 }}>{product.image_emoji || '🛍️'}</div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: text.primary, marginBottom: 8, lineHeight: 1.25 }}>{product.title}</div>
+        <div style={{ ...T.h2, color: text.primary, marginBottom: 8 }}>{product.title}</div>
         {product.description && (
-          <div style={{ fontSize: 14, color: text.muted, lineHeight: 1.6, marginBottom: 20 }}>{product.description}</div>
+          <div style={{ ...T.bodyLg, color: text.muted, lineHeight: 1.6, marginBottom: 20 }}>{product.description}</div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <div style={{ fontSize: 30, fontWeight: 800, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(product.price)}{fmtDec(product.price)}</div>
+          <div style={{ ...T.hero, fontWeight: 800, color: gold, ...T.num }}>₴{fmtInt(product.price)}{fmtDec(product.price)}</div>
           {product.stock !== undefined && (
             <div style={{ fontSize: 12, color: product.stock > 0 ? text.muted : '#e07070' }}>
               {product.stock > 0 ? `Є в наявності: ${product.stock}` : 'Немає в наявності'}
@@ -1672,10 +1713,10 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8l4 4" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
           )}
-          <div style={{ flex: 1, fontSize: 20, fontWeight: 700, color: text.primary }}>
+          <div style={{ ...T.h2, color: text.primary, flex: 1 }}>
             {step === 'cart' ? 'Кошик' : 'Доставка'}
           </div>
-          {step === 'cart' && <div style={{ fontSize: 14, color: text.muted }}>{cart.reduce((s,i) => s+i.qty, 0)} товарів</div>}
+          {step === 'cart' && <div style={{ ...T.body, color: text.muted }}>{cart.reduce((s,i) => s+i.qty, 0)} товарів</div>}
         </div>
 
         {step === 'cart' && (
@@ -1702,7 +1743,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16, padding: '0 4px' }}>
                 <span style={{ fontSize: 14, color: text.muted }}>Разом:</span>
-                <span style={{ fontSize: 24, fontWeight: 800, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(total)}{fmtDec(total)}</span>
+                <span style={{ ...T.h2, fontWeight: 800, color: gold, ...T.num }}>₴{fmtInt(total)}{fmtDec(total)}</span>
               </div>
               <button onClick={() => setStep('shipping')} style={{
                 width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontSize: 16, fontWeight: 700,
@@ -1729,7 +1770,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '4px 4px 0' }}>
               <span style={{ fontSize: 13, color: text.muted }}>До оплати:</span>
-              <span style={{ fontSize: 20, fontWeight: 800, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(total)}{fmtDec(total)}</span>
+              <span style={{ ...T.h2, fontWeight: 800, color: gold, ...T.num }}>₴{fmtInt(total)}{fmtDec(total)}</span>
             </div>
             <button
               onClick={() => onCheckout({ name: shipName, phone: shipPhone, address: shipAddr })}
@@ -1879,7 +1920,7 @@ function MarketplaceScreen() {
     <div style={{ paddingBottom: 80 }}>
       <div style={{ padding: `${topPad} 22px 12px` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ fontFamily: fontFamily, fontSize: 32, fontWeight: 600, color: text.primary, letterSpacing: -0.8 }}>Магазин</div>
+          <div style={{ ...T.h1, color: text.primary }}>Магазин</div>
           <button onClick={() => setShowCart(true)} style={{ position: 'relative', width: 44, height: 44, borderRadius: 14, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20 }}>
             🛒
             {cartCount > 0 && (
@@ -1928,9 +1969,9 @@ function MarketplaceScreen() {
                     )}
                   </div>
                   <div style={{ padding: '10px 12px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: text.secondary, lineHeight: 1.3 }}>{p.title}</div>
+                    <div style={{ ...T.sm, fontWeight: 600, color: text.secondary, lineHeight: 1.3 }}>{p.title}</div>
                     <div style={{ marginTop: 'auto', paddingTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(p.price)}</span>
+                      <span style={{ ...T.body, fontWeight: 700, color: gold, ...T.num }}>₴{fmtInt(p.price)}</span>
                       <button onClick={e => { e.stopPropagation(); addToCart(p); }} disabled={p.stock !== undefined && p.stock <= 0} style={{
                         width: 28, height: 28, borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700,
                         background: (p.stock !== undefined && p.stock <= 0) ? 'rgba(180,140,60,0.2)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
@@ -1970,7 +2011,7 @@ function MarketplaceScreen() {
                     {o.invoice_number && <div style={{ fontSize: 11, color: text.dim, marginTop: 2 }}>Інвойс: {o.invoice_number}</div>}
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(o.total_amount)}{fmtDec(o.total_amount)}</div>
+                    <div style={{ ...T.bodyLg, fontWeight: 700, color: gold, ...T.num }}>₴{fmtInt(o.total_amount)}{fmtDec(o.total_amount)}</div>
                     <button onClick={() => downloadOrderReceipt(o.id)} disabled={dlPdf === `order-${o.id}`} style={{
                       marginTop: 6, padding: '4px 10px', borderRadius: 8, border: `1px solid rgba(200,170,100,0.25)`,
                       background: 'transparent', color: gold, fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
@@ -2007,7 +2048,7 @@ function MarketplaceScreen() {
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: gold, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(inv.amount)}{fmtDec(inv.amount)}</div>
+                    <div style={{ ...T.bodyLg, fontWeight: 700, color: gold, ...T.num }}>₴{fmtInt(inv.amount)}{fmtDec(inv.amount)}</div>
                     {inv.status === 'issued' && inv.order_id && (
                       <button onClick={() => downloadOrderReceipt(inv.order_id!)} disabled={dlPdf === `order-${inv.order_id}`} style={{
                         marginTop: 6, padding: '4px 10px', borderRadius: 8, border: `1px solid rgba(200,170,100,0.25)`,
@@ -2065,8 +2106,8 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
               flex: 1, padding: '10px 4px', background: 'transparent', border: 'none', cursor: 'pointer',
               position: 'relative', zIndex: 1,
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-              color, fontSize: 10.5, fontWeight: isActive ? 600 : 500,
-              letterSpacing: 0.1, fontFamily: 'inherit', transition: 'color 0.2s',
+              color, fontSize: 10, fontWeight: isActive ? 700 : 500,
+              letterSpacing: 0.3, fontFamily: 'inherit', transition: 'color 0.2s',
             }}>
               {t.icon(color)}
               <span>{t.label}</span>
@@ -2085,71 +2126,69 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
   const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
   return (
     <div style={{
-      width: 260, flexShrink: 0,
+      width: 252, flexShrink: 0,
       display: 'flex', flexDirection: 'column',
-      borderRight: '1px solid rgba(200,170,100,0.12)',
-      background: 'rgba(8,22,16,0.6)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
+      borderRight: `1px solid ${bg.border}`,
+      background: 'rgba(6,18,12,0.72)',
+      backdropFilter: 'blur(28px)',
+      WebkitBackdropFilter: 'blur(28px)',
     }}>
       {/* Logo */}
-      <div style={{ padding: '32px 24px 28px', borderBottom: '1px solid rgba(200,170,100,0.08)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ padding: '30px 22px 22px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
           <div style={{
-            width: 38, height: 38, borderRadius: 11,
-            background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: `0 4px 12px rgba(201,169,100,0.3), inset 0 1px 0 rgba(255,220,150,0.5)`,
+            width: 36, height: 36, borderRadius: 10,
+            background: `linear-gradient(145deg, ${goldDark} 0%, ${gold} 60%, ${goldLight} 100%)`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            boxShadow: `0 4px 14px rgba(201,169,100,0.35), inset 0 1px 0 rgba(255,230,160,0.5)`,
           }}>
-            <svg width="20" height="20" viewBox="0 0 24 24">
-              <path d="M12 2L3 20h3.5l1.8-4h7.4l1.8 4H21L12 2zm-2.6 11L12 7.3 14.6 13H9.4z" fill="#1a1208" />
-            </svg>
+            <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 2L3 20h3.5l1.8-4h7.4l1.8 4H21L12 2zm-2.6 11L12 7.3 14.6 13H9.4z" fill="#1a1208" /></svg>
           </div>
           <div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: text.primary, letterSpacing: -0.3 }}>
-              ARM<span style={{ fontWeight: 300 }}>Bank</span>
+            <div style={{ ...T.h3, color: text.primary, lineHeight: 1.1 }}>
+              ARM<span style={{ fontWeight: 300, opacity: 0.8 }}>Bank</span>
             </div>
-            <div style={{ fontSize: 10.5, color: text.muted, letterSpacing: 0.5 }}>Особистий кабінет</div>
+            <div style={{ fontSize: 10, color: text.dim, letterSpacing: 0.6, marginTop: 1 }}>Особистий кабінет</div>
           </div>
         </div>
       </div>
 
       {/* User */}
-      <div style={{ padding: '20px 24px 20px', borderBottom: '1px solid rgba(200,170,100,0.08)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ padding: '14px 22px 16px', borderTop: `1px solid ${bg.border}`, borderBottom: `1px solid ${bg.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
           <div style={{
-            width: 44, height: 44, borderRadius: '50%',
-            background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`,
+            width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+            background: `linear-gradient(145deg, ${gold} 0%, ${goldDark} 100%)`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 14, fontWeight: 700, color: '#1a2820',
-            boxShadow: `0 0 0 2px rgba(0,0,0,0.5), 0 0 0 4px ${gold}44`,
+            fontSize: 13, fontWeight: 700, color: '#1a2820',
+            boxShadow: `0 0 0 2px rgba(0,0,0,0.5), 0 0 0 3.5px ${gold}50`,
           }}>{initials}</div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: text.primary, marginBottom: 2 }}>{name}</div>
+            <div style={{ ...T.body, fontWeight: 600, color: text.primary, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#7fb896' }} />
-              <span style={{ fontSize: 11, color: '#7fb896' }}>Верифікований</span>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#6ec98a', boxShadow: '0 0 6px #6ec98a88' }} />
+              <span style={{ fontSize: 10.5, color: '#6ec98a', fontWeight: 500, letterSpacing: 0.2 }}>Верифікований</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav style={{ flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
         {TABS.map(t => {
           const isActive = t.k === active;
           return (
             <button key={t.k} onClick={() => onChange(t.k)} style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              padding: '11px 14px', borderRadius: 14,
-              background: isActive ? 'linear-gradient(135deg, rgba(201,169,100,0.18) 0%, rgba(138,106,47,0.1) 100%)' : 'transparent',
-              border: isActive ? `1px solid rgba(200,170,100,0.28)` : '1px solid transparent',
-              color: isActive ? goldLight : 'rgba(232,217,168,0.55)',
-              fontFamily: 'inherit', fontSize: 14, fontWeight: isActive ? 600 : 500,
-              cursor: 'pointer', transition: 'all 0.18s', textAlign: 'left',
-              boxShadow: isActive ? 'inset 0 1px 0 rgba(255,220,150,0.1)' : 'none',
+              display: 'flex', alignItems: 'center', gap: 11,
+              padding: '10px 13px', borderRadius: 12,
+              background: isActive ? 'linear-gradient(135deg, rgba(201,169,100,0.16) 0%, rgba(138,106,47,0.08) 100%)' : 'transparent',
+              border: isActive ? `1px solid rgba(200,170,100,0.24)` : '1px solid transparent',
+              color: isActive ? text.primary : text.muted,
+              fontFamily, fontSize: 13.5, fontWeight: isActive ? 600 : 450,
+              cursor: 'pointer', transition: 'color 0.15s, background 0.15s, border-color 0.15s',
+              textAlign: 'left', letterSpacing: -0.1,
             }}>
-              {t.icon(isActive ? goldLight : 'rgba(232,217,168,0.5)')}
+              {t.icon(isActive ? gold : text.muted)}
               {t.label}
             </button>
           );
@@ -2157,29 +2196,30 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
       </nav>
 
       {/* Balance summary */}
-      <div style={{ padding: '16px 20px', margin: '0 12px 12px', borderRadius: 16, background: bg.card, border: `1px solid ${bg.border}` }}>
-        <div style={{ fontSize: 10, letterSpacing: 1.5, color: text.muted, textTransform: 'uppercase', fontWeight: 500, marginBottom: 8 }}>Загальний баланс</div>
-        <div style={{ fontSize: 22, fontWeight: 300, color: text.primary, letterSpacing: -0.8, fontFeatureSettings: '"tnum"' }}>
-          <span style={{ fontSize: 14, color: gold, fontWeight: 400 }}>₴ </span>
-          {account ? fmtInt(account.balance) + fmtDec(account.balance) : '• • •'}
+      <div style={{ margin: '0 10px 10px', padding: '14px 16px', borderRadius: 14, background: bg.card, border: `1px solid ${bg.border}` }}>
+        <div style={{ ...sectionLabel, padding: 0, marginBottom: 7 }}>Загальний баланс</div>
+        <div style={{ ...T.num, fontSize: 21, fontWeight: 600, color: text.primary, letterSpacing: -0.7 }}>
+          <span style={{ fontSize: 13, color: gold, fontWeight: 500 }}>₴ </span>
+          {account ? fmtInt(account.balance) + fmtDec(account.balance) : '———'}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6 }}>
-          <svg width="8" height="8" viewBox="0 0 12 12"><path d="M6 2l4 5H2z" fill="#7fb896" /></svg>
-          <span style={{ fontSize: 11, color: '#7fb896', fontWeight: 500 }}>{account?.account_number || 'Рахунок недоступний'}</span>
-        </div>
+        {account?.account_number && (
+          <div style={{ marginTop: 5, fontSize: 10.5, color: text.dim, fontWeight: 500, letterSpacing: 0.3 }}>
+            {account.account_number}
+          </div>
+        )}
       </div>
 
       {/* Logout */}
-      <div style={{ padding: '0 12px 24px' }}>
+      <div style={{ padding: '0 10px 20px' }}>
         <button onClick={logout} style={{
-          width: '100%', padding: '11px', borderRadius: 12,
-          background: 'transparent', border: '1px solid rgba(220,100,110,0.18)',
-          color: 'rgba(220,100,110,0.7)', fontFamily: 'inherit', fontSize: 13, fontWeight: 500,
+          width: '100%', padding: '10px', borderRadius: 11,
+          background: 'transparent', border: '1px solid rgba(220,100,110,0.16)',
+          color: 'rgba(220,110,118,0.65)', fontFamily, fontSize: 12.5, fontWeight: 500,
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-          transition: 'all 0.18s',
+          transition: 'border-color 0.15s, color 0.15s', letterSpacing: 0.1,
         }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M17 16l4-4-4-4M21 12H9M13 4a9 9 0 100 16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          Вийти
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M17 16l4-4-4-4M21 12H9M13 4a9 9 0 100 16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          Вийти з акаунту
         </button>
       </div>
     </div>
@@ -2194,9 +2234,11 @@ const appBg = 'radial-gradient(ellipse 80% 60% at 20% 0%, #1a3a2c 0%, transparen
 const appBase: React.CSSProperties = {
   position: 'fixed', inset: 0,
   background: appBg,
-  color: '#e8d9a8',
-  fontFamily: fontFamily,
+  color: text.secondary,
+  fontFamily,
   WebkitFontSmoothing: 'antialiased',
+  MozOsxFontSmoothing: 'grayscale',
+  textRendering: 'optimizeLegibility',
 };
 
 // ─── Login screen ─────────────────────────────────────────────
@@ -2239,14 +2281,16 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   }
 
   const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '14px 16px', background: 'rgba(255,255,255,0.05)',
-    border: `1px solid ${bg.border}`, borderRadius: 12, color: text.primary,
-    fontSize: 15, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+    width: '100%', padding: '13px 16px', background: 'rgba(255,255,255,0.055)',
+    border: `1px solid rgba(200,170,100,0.16)`, borderRadius: radius.md,
+    color: text.primary, fontSize: 15, outline: 'none', fontFamily, boxSizing: 'border-box',
+    transition: 'border-color 0.15s',
+    WebkitAppearance: 'none',
   };
   const labelStyle: React.CSSProperties = {
-    display: 'block', fontSize: 12, color: text.muted, marginBottom: 6, letterSpacing: '0.04em',
+    display: 'block', ...T.caption, color: text.muted, marginBottom: 7,
   };
-  const fieldStyle = { marginBottom: 16 };
+  const fieldStyle = { marginBottom: 14 };
 
   return (
     <div style={{ ...appBase, overflowY: 'auto' }}>
@@ -2262,27 +2306,27 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           }}>
             <svg width="32" height="32" viewBox="0 0 24 24"><path d="M12 2L3 20h3.5l1.8-4h7.4l1.8 4H21L12 2zm-2.6 11L12 7.3 14.6 13H9.4z" fill="#1a1208" /></svg>
           </div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: text.primary, letterSpacing: '-0.02em' }}>
-            ARM<span style={{ fontWeight: 300 }}>Bank</span>
+          <div style={{ ...T.h1, color: text.primary }}>
+            ARM<span style={{ fontWeight: 300, opacity: 0.75 }}>Bank</span>
           </div>
-          <div style={{ fontSize: 13, color: text.muted, marginTop: 4 }}>Ваші фінанси під контролем</div>
+          <div style={{ ...T.sm, color: text.muted, marginTop: 5 }}>Ваші фінанси під контролем</div>
         </div>
 
         {/* Tab switcher */}
-        <div style={{ display: 'flex', gap: 4, padding: 4, background: 'rgba(255,255,255,0.04)', borderRadius: 14, marginBottom: 20, border: `1px solid ${bg.border}` }}>
+        <div style={{ display: 'flex', gap: 3, padding: 4, background: 'rgba(255,255,255,0.04)', borderRadius: 14, marginBottom: 18, border: `1px solid ${bg.border}` }}>
           {(['login', 'register'] as const).map(m => (
             <button key={m} type="button" onClick={() => { setMode(m); setError(''); setConfirmPass(''); }} style={{
-              flex: 1, padding: '10px', borderRadius: 10, border: 'none', cursor: 'pointer',
-              background: mode === m ? 'linear-gradient(135deg, #8a6a2f, #c9a964)' : 'transparent',
+              flex: 1, padding: '9px', borderRadius: 10, border: 'none', cursor: 'pointer',
+              background: mode === m ? `linear-gradient(135deg, ${goldDark}, ${gold})` : 'transparent',
               color: mode === m ? '#1a1208' : text.muted,
-              fontSize: 13, fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.2s',
+              fontSize: 13, fontWeight: 600, fontFamily, transition: 'all 0.18s', letterSpacing: 0.1,
             }}>{m === 'login' ? 'Вхід' : 'Реєстрація'}</button>
           ))}
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit}>
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${bg.border}`, borderRadius: 20, padding: 24 }}>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${bg.border}`, borderRadius: 20, padding: 22 }}>
             {mode === 'register' && <>
               <div style={fieldStyle}>
                 <label style={labelStyle}>Повне ім'я</label>
@@ -2367,15 +2411,17 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             )}
 
             {error && (
-              <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(200,60,60,0.12)', border: '1px solid rgba(200,60,60,0.25)', borderRadius: 10, color: '#f08080', fontSize: 13 }}>{error}</div>
+              <div style={{ marginBottom: 14, padding: '10px 14px', background: 'rgba(200,60,60,0.1)', border: '1px solid rgba(200,60,60,0.22)', borderRadius: radius.sm, color: '#f09090', ...T.sm }}>{error}</div>
             )}
 
             <button type="submit" disabled={loading} style={{
-              width: '100%', padding: '14px', borderRadius: 12, border: 'none',
-              background: loading ? 'rgba(180,140,60,0.4)' : 'linear-gradient(135deg, #8a6a2f, #d4a84a)',
-              color: '#1a1208', fontSize: 15, fontWeight: 700, cursor: loading ? 'default' : 'pointer',
-              fontFamily: 'inherit', letterSpacing: '0.01em',
-            }}>{loading ? '...' : mode === 'login' ? 'Увійти' : 'Створити акаунт'}</button>
+              width: '100%', padding: '14px', borderRadius: radius.md, border: 'none',
+              background: loading ? 'rgba(138,106,47,0.4)' : `linear-gradient(135deg, ${goldDark}, #d4a84a)`,
+              color: '#1a1208', ...T.bodyLg, fontWeight: 700, cursor: loading ? 'default' : 'pointer',
+              fontFamily, letterSpacing: 0.1,
+              boxShadow: loading ? 'none' : '0 4px 14px rgba(201,169,100,0.3)',
+              transition: 'opacity 0.15s',
+            }}>{loading ? 'Обробка…' : mode === 'login' ? 'Увійти' : 'Створити акаунт'}</button>
           </div>
         </form>
       </div>

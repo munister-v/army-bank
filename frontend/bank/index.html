@@ -2,35 +2,83 @@
 <html lang="uk">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>ARM Bank — Ваші фінанси</title>
     <meta name="description" content="ARM Bank — управляйте фінансами, картками та переказами." />
     <meta property="og:title" content="ARM Bank" />
     <meta property="og:description" content="Сучасний банкінг у вашому пристрої." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://army-bank.onrender.com/" />
-    <meta name="theme-color" content="#0a1f18" />
+    <meta name="theme-color" content="#071510" />
     <!-- iOS PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="ARM Bank" />
-    <!-- Fonts: Inter -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231d4636'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='11' font-weight='bold' fill='%23a8792a' text-anchor='middle'%3EARM%3C/text%3E%3C/svg%3E" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231d4636'/%3E%3Cpath d='M16 4L6 26h4.5l2.2-5h6.6l2.2 5H26L16 4zm-2.8 14L16 10l2.8 8z' fill='%23c9a964'/%3E%3C/svg%3E" />
     <style>
-      * { -webkit-tap-highlight-color: transparent; }
-      body { margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
-      /* iOS safe area */
+      *, *::before, *::after {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+      }
       :root {
         --sat: env(safe-area-inset-top, 0px);
         --sar: env(safe-area-inset-right, 0px);
         --sab: env(safe-area-inset-bottom, 0px);
         --sal: env(safe-area-inset-left, 0px);
+        /* Type scale */
+        --text-xs: 10px;
+        --text-sm: 12px;
+        --text-base: 14px;
+        --text-md: 15px;
+        --text-lg: 17px;
+        --text-xl: 20px;
+        --text-2xl: 24px;
+        --text-3xl: 30px;
+        --text-4xl: 36px;
+        /* Spacing */
+        --sp-1: 4px; --sp-2: 8px; --sp-3: 12px;
+        --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+        --sp-8: 32px; --sp-10: 40px;
+        /* Radii */
+        --r-sm: 10px; --r-md: 14px; --r-lg: 18px;
+        --r-xl: 22px; --r-2xl: 28px;
       }
+      html { height: 100%; overscroll-behavior: none; }
+      body {
+        margin: 0;
+        height: 100%;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: 'kern' 1, 'liga' 1;
+        overscroll-behavior: none;
+        overflow: hidden;
+      }
+      #root { height: 100%; }
+      /* Custom scrollbar */
+      ::-webkit-scrollbar { width: 4px; height: 4px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(200,170,100,0.2); border-radius: 100px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(200,170,100,0.35); }
+      /* Input reset */
+      input, button, select, textarea {
+        font-family: inherit;
+        font-size: inherit;
+        line-height: inherit;
+      }
+      input[type="number"] { -moz-appearance: textfield; }
+      input::-webkit-outer-spin-button,
+      input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+      /* Selection */
+      ::selection { background: rgba(201,169,100,0.25); color: #f4ebd0; }
     </style>
-    <script type="module" crossorigin src="/bank/assets/index-BenGWO0X.js"></script>
+    <script type="module" crossorigin src="/bank/assets/index-BH6xmVGm.js"></script>
     <link rel="stylesheet" crossorigin href="/bank/assets/index-Dz9NfLqY.css">
   </head>
   <body>
