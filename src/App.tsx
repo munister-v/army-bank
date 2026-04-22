@@ -103,8 +103,20 @@ interface AppCtxType {
   user: UserInfo | null; account: AccountInfo | null;
   transactions: TxItem[]; cards: CardInfo[]; refreshDashboard: () => void;
   openTransfer: (mode: TransferMode) => void;
+  setTabBarHidden: (hidden: boolean) => void;
 }
-const AppCtx = createContext<AppCtxType>({ logout: () => {}, goTo: () => {}, toast: () => {}, user: null, account: null, transactions: [], cards: [], refreshDashboard: () => {}, openTransfer: () => {} });
+const AppCtx = createContext<AppCtxType>({
+  logout: () => {},
+  goTo: () => {},
+  toast: () => {},
+  user: null,
+  account: null,
+  transactions: [],
+  cards: [],
+  refreshDashboard: () => {},
+  openTransfer: () => {},
+  setTabBarHidden: () => {},
+});
 const useApp = () => useContext(AppCtx);
 
 type ApiUser = {
@@ -629,7 +641,7 @@ function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardDa
 // ─── Screen top padding helper ───────────────────────────────
 function useTopPad() {
   const layout = useLayout();
-  return layout === 'desktop' ? '28px' : 'max(20px, env(safe-area-inset-top, 20px))';
+  return layout === 'desktop' ? '28px' : 'max(20px, calc(env(safe-area-inset-top, 0px) + 12px))';
 }
 
 // ─── Desktop content wrapper: max-width + padding ────────────
@@ -2341,7 +2353,7 @@ type MarketTab = 'catalog' | 'orders' | 'invoices';
 function MarketplaceScreen() {
   const layout = useLayout();
   const topPad = useTopPad();
-  const { toast, refreshDashboard, user: mktUser } = useApp();
+  const { toast, refreshDashboard, user: mktUser, setTabBarHidden } = useApp();
   const [tab, setTab] = useState<MarketTab>('catalog');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<MarketOrder[]>([]);
@@ -2356,6 +2368,11 @@ function MarketplaceScreen() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [search, setSearch] = useState('');
   useEffect(() => { localStorage.setItem('arm_cart', JSON.stringify(cart)); }, [cart]);
+  useEffect(() => {
+    const hidden = Boolean(showCart || preview);
+    setTabBarHidden(hidden);
+    return () => setTabBarHidden(false);
+  }, [showCart, preview, setTabBarHidden]);
 
   const token = localStorage.getItem('army_bank_token');
 
@@ -3154,6 +3171,7 @@ export default function App() {
   const [authed, setAuthed] = useState(() => !!getToken());
   const [showSplash, setShowSplash] = useState(true);
   const [tab, setTab] = useState<TabKey>('overview');
+  const [tabBarHidden, setTabBarHidden] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [user, setUser] = useState<UserInfo | null>(null);
   const [account, setAccount] = useState<AccountInfo | null>(null);
@@ -3312,6 +3330,7 @@ export default function App() {
     cards,
     refreshDashboard: fetchDashboard,
     openTransfer: (mode: TransferMode) => setTransferModal(mode),
+    setTabBarHidden,
   };
 
   const bankCtx: BankDataCtxType = {
@@ -3390,7 +3409,7 @@ export default function App() {
                 <Screen />
               )}
             </div>
-            <TabBar active={tab} onChange={setTab} />
+            {!tabBarHidden && <TabBar active={tab} onChange={setTab} />}
             {toastMsg && <Toast msg={toastMsg} />}
             {transferModal && <TransferModal mode={transferModal} onClose={() => setTransferModal(null)} />}
           </div>
