@@ -513,7 +513,6 @@ function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardDa
   const patId = `g-${variant}`;
   const hasPhoto = Boolean(v.image);
   const titleShadow = hasPhoto ? '0 1px 3px rgba(0,0,0,0.62)' : '0 1px 1px rgba(0,0,0,0.2)';
-  const plateBorder = hasPhoto ? '1px solid rgba(245,239,230,0.2)' : '1px solid rgba(255,255,255,0.16)';
   return (
     <div style={{
       position: 'relative', aspectRatio: '1.586 / 1', borderRadius: 22,
@@ -562,7 +561,7 @@ function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardDa
           </div>
           <span style={{
             fontSize: 9, fontWeight: 600, letterSpacing: 1.8, color: v.muted, textTransform: 'uppercase',
-            padding: '5px 8px', borderRadius: 999, background: v.badgePlate, border: plateBorder,
+            padding: '5px 8px', borderRadius: 999, background: v.badgePlate,
             backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
           }}>{type || 'Virtual'}</span>
         </div>
@@ -570,7 +569,7 @@ function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardDa
           fontFamily: '"SF Mono", monospace', fontSize: 20, fontWeight: 600, letterSpacing: 2,
           color: v.text, textShadow: titleShadow,
           display: 'flex', gap: 14, alignItems: 'center', marginBottom: -8,
-          padding: '8px 12px', borderRadius: 14, border: plateBorder, background: v.numberPlate,
+          padding: '8px 12px', borderRadius: 14, background: v.numberPlate,
           backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
         }}>
           <span style={{ color: v.muted }}>••••</span>
@@ -580,7 +579,7 @@ function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardDa
         </div>
         <div style={{
           display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-          padding: '9px 12px', borderRadius: 13, border: plateBorder, background: v.bottomPlate,
+          padding: '9px 12px', borderRadius: 13, background: v.bottomPlate,
           backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
         }}>
           <div>
@@ -1047,6 +1046,7 @@ function OverviewScreen() {
 function CardsScreen() {
   const topPad = useTopPad();
   const { toast, cards: apiCards, refreshDashboard, transactions: allTx, account, user } = useApp();
+  const { refresh } = useBankData();
   const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
   const FALLBACK_CARDS: (CardData & { id: number; type: string; limit: string; used: string; statusRaw: string; cardTypeRaw: string })[] = [
     { id: 0, design: 'gold', variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29', type: 'Віртуальна', limit: '150 000', used: '48 230', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'virtual' },
@@ -1054,7 +1054,18 @@ function CardsScreen() {
     { id: 0, design: 'venice', variant: 'venice', number: '7147', name: userNameUp, expiry: '08/28', type: 'Фізична', limit: '500 000', used: '215 800', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'physical' },
     { id: 0, design: 'tuscany_villa', variant: 'tuscany_villa', number: '4402', name: userNameUp, expiry: '11/30', type: 'Віртуальна', limit: '50 000', used: '0', status: 'Заморожена', statusRaw: 'blocked', cardTypeRaw: 'virtual' },
   ];
-  const cards = apiCards.length > 0 ? apiCards.map(c => apiCardToData(c, userNameUp)) : FALLBACK_CARDS;
+  const [designOverrides, setDesignOverrides] = useState<Record<number, string>>({});
+  const cards = apiCards.length > 0
+    ? apiCards.map(c => {
+      const mapped = apiCardToData(c, userNameUp);
+      const forcedDesign = designOverrides[c.id];
+      if (forcedDesign) {
+        mapped.design = forcedDesign;
+        mapped.variant = DESIGN_TO_VARIANT[forcedDesign] ?? mapped.variant;
+      }
+      return mapped;
+    })
+    : FALLBACK_CARDS;
   const [selected, setSelected] = useState(0);
   const [pinModal, setPinModal] = useState(false);
   const [pinValue, setPinValue] = useState('');
@@ -1159,6 +1170,7 @@ function CardsScreen() {
         });
         const j = await r.json();
         if (!r.ok || !j.ok) throw new Error(j.message || 'Не вдалося оновити дизайн');
+        setDesignOverrides(prev => ({ ...prev, [c.id]: selectedDesign }));
         toast(`Дизайн картки •• ${card.number} оновлено`);
       } else {
         const r = await fetch('/api/cards', {
@@ -1170,6 +1182,7 @@ function CardsScreen() {
         if (!r.ok || !j.ok) throw new Error(j.message || 'Не вдалося випустити картку');
         toast('Нову картку випущено');
       }
+      await refresh().catch(() => {});
       await refreshDashboard();
       setDesignModal(false);
       if (designMode === 'issue') setSelected(0);
@@ -2451,8 +2464,9 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 40,
       paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       background: 'linear-gradient(to top, rgba(7,21,16,0.98) 0%, rgba(7,21,16,0.85) 60%, transparent 100%)',
+      pointerEvents: 'none',
     }}>
-      <div style={{ padding: '0 14px 14px', paddingTop: 10 }}>
+      <div style={{ padding: '0 14px 14px', paddingTop: 10, pointerEvents: 'auto' }}>
       <div style={{
         position: 'relative', padding: 6,
         background: 'rgba(15,32,26,0.75)',
@@ -3114,7 +3128,7 @@ export default function App() {
       <BankDataCtx.Provider value={bankCtx}>
         <LayoutCtx.Provider value="mobile">
           <div style={{ ...appBase, overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' }}>
+            <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 'calc(84px + env(safe-area-inset-bottom, 0px))' }}>
               {dataError && (
                 <div style={{ margin: '10px 12px 0', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(220,100,110,0.25)', background: 'rgba(220,100,110,0.08)', color: '#ffb6bd', fontSize: 13 }}>
                   {dataError}
