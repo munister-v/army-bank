@@ -2955,6 +2955,7 @@ const appBase: React.CSSProperties = {
 };
 
 const AUTH_STATIC_BG = florenceDuomoImage;
+const SPLASH_BASE_BG = tuscanyHillsCardImage;
 const SPLASH_STATIC_BG = valdorciaHillsImage;
 
 function LuxuryAmbientFx() {
@@ -3025,6 +3026,15 @@ function WowSplash() {
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 86% 56% at 50% 14%, rgba(34,74,52,0.64) 0%, rgba(10,26,18,0.92) 65%, rgba(6,16,11,1) 100%)' }} />
       <div style={{
         position: 'absolute',
+        inset: 0,
+        backgroundImage: `url(${SPLASH_BASE_BG})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center bottom',
+        opacity: 0.46,
+        filter: 'saturate(1.02) contrast(1.01)',
+      }} />
+      <div style={{
+        position: 'absolute',
         left: '-2%',
         right: '-2%',
         bottom: '-6%',
@@ -3050,6 +3060,14 @@ function WowSplash() {
         filter: 'saturate(1.06) contrast(1.02)',
         maskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.86) 26%, rgba(0,0,0,1) 100%)',
         WebkitMaskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.86) 26%, rgba(0,0,0,1) 100%)',
+      }} />
+      <div style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: '22%',
+        background: 'linear-gradient(180deg, rgba(11,25,18,0) 0%, rgba(10,24,17,0.74) 62%, rgba(8,20,15,0.98) 100%)',
       }} />
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(6,15,10,0.3) 0%, rgba(6,15,10,0.86) 100%)' }} />
       <div style={{

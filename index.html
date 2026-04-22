@@ -77,8 +77,8 @@
         text-size-adjust: 100%;
       }
       #root {
-        height: var(--app-vh, 100dvh);
-        min-height: var(--app-vh, 100dvh);
+        height: var(--app-vh, 100lvh);
+        min-height: var(--app-vh, 100lvh);
         /* Isolate stacking context for backdrop-filter on Android */
         isolation: isolate;
       }
@@ -136,6 +136,9 @@
           if (h > 0) root.style.setProperty('--app-vh', h + 'px');
         }
         setAppVh();
+        requestAnimationFrame(setAppVh);
+        setTimeout(setAppVh, 120);
+        setTimeout(setAppVh, 600);
         window.addEventListener('resize', setAppVh, { passive: true });
         if (window.visualViewport && window.visualViewport.addEventListener) {
           window.visualViewport.addEventListener('resize', setAppVh, { passive: true });
@@ -147,7 +150,7 @@
     </script>
     <script>
       (function () {
-        var buildId = '2026-04-22-18';
+        var buildId = '2026-04-22-19';
         var buildKey = 'army_bank_build_id';
         try {
           var prev = localStorage.getItem(buildKey);
