@@ -561,16 +561,16 @@ function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardDa
           </div>
           <span style={{
             fontSize: 9, fontWeight: 600, letterSpacing: 1.8, color: v.muted, textTransform: 'uppercase',
-            padding: '5px 8px', borderRadius: 999, background: v.badgePlate,
-            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+            padding: 0,
+            background: 'transparent',
           }}>{type || 'Virtual'}</span>
         </div>
         <div style={{
           fontFamily: '"SF Mono", monospace', fontSize: 20, fontWeight: 600, letterSpacing: 2,
           color: v.text, textShadow: titleShadow,
           display: 'flex', gap: 14, alignItems: 'center', marginBottom: -8,
-          padding: '8px 12px', borderRadius: 14, background: v.numberPlate,
-          backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+          padding: 0,
+          background: 'transparent',
         }}>
           <span style={{ color: v.muted }}>••••</span>
           <span style={{ color: v.muted }}>••••</span>
@@ -579,8 +579,8 @@ function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardDa
         </div>
         <div style={{
           display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-          padding: '9px 12px', borderRadius: 13, background: v.bottomPlate,
-          backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+          padding: 0,
+          background: 'transparent',
         }}>
           <div>
             <div style={{ fontSize: 8, fontWeight: 500, letterSpacing: 1.2, color: v.muted, textTransform: 'uppercase', marginBottom: 3 }}>Cardholder</div>
