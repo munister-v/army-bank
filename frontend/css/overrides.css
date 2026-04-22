@@ -9478,22 +9478,21 @@ html.install-banner-visible #appScreen .app-content {
   }
 
   .bank-cards-track .bank-card {
-    transition: transform .24s ease, opacity .24s ease, filter .24s ease !important;
-    transform: scale(.965) !important;
-    opacity: .88 !important;
-    filter: saturate(.94) !important;
-  }
-
-  .bank-cards-track .bank-card.is-active {
-    transform: scale(1) !important;
+    transition: opacity .24s ease, filter .24s ease !important;
+    transform: none !important;
+    /* Force high opacity for all cards to ensure they are visible during swipe */
     opacity: 1 !important;
     filter: saturate(1) !important;
+    visibility: visible !important;
   }
 
+  /* Active/Prev/Next markers for high-depth visual sync if needed elsewhere, 
+     but keeping opacity 1 for all for core visibility. */
+  .bank-cards-track .bank-card.is-active,
   .bank-cards-track .bank-card.is-prev,
   .bank-cards-track .bank-card.is-next {
-    /* transform removed to fix iOS Safari scroll-snap aborting bug */
-    opacity: .95 !important;
+    opacity: 1 !important;
+    filter: saturate(1) !important;
   }
 
   html.no-animations .bank-cards-track .bank-card,
