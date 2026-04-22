@@ -4,6 +4,14 @@ import florenceCardImage from './assets/cards/florence.png';
 import tuscanyHillsCardImage from './assets/cards/tuscany-hills.png';
 import veniceCardImage from './assets/cards/venice.png';
 import tuscanyVillaCardImage from './assets/cards/tuscany-villa.png';
+import veniceCityImage from './assets/italy/venice-city.png';
+import florenceDuomoImage from './assets/italy/florence-duomo.png';
+import valdorciaHillsImage from './assets/italy/valdorcia-hills.png';
+import valdorciaChapelImage from './assets/italy/valdorcia-chapel.png';
+import tuscanyRoadImage from './assets/italy/tuscany-road.png';
+import florenceLineartImage from './assets/italy/florence-lineart.png';
+import danteCutoutImage from './assets/italy/dante-cutout.png';
+import sicilyEmblemImage from './assets/italy/sicily-emblem.png';
 
 export class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: string | null }> {
   constructor(props: { children: React.ReactNode }) {
@@ -2752,6 +2760,63 @@ const appBase: React.CSSProperties = {
   textRendering: 'optimizeLegibility',
 };
 
+const AUTH_STATIC_BG = tuscanyRoadImage;
+const SPLASH_STATIC_BG = valdorciaHillsImage;
+
+function WowSplash() {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, overflow: 'hidden', background: '#07150f' }}>
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: `url(${SPLASH_STATIC_BG})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          filter: 'saturate(1.04) contrast(1.03)',
+        }}
+      />
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(6,15,10,0.5) 0%, rgba(6,15,10,0.84) 100%)' }} />
+      <img
+        src={florenceLineartImage}
+        alt=""
+        style={{
+          position: 'absolute',
+          right: -80,
+          bottom: -60,
+          width: 'min(72vw, 520px)',
+          opacity: 0.14,
+          pointerEvents: 'none',
+        }}
+      />
+      <img
+        src={danteCutoutImage}
+        alt=""
+        style={{
+          position: 'absolute',
+          left: -38,
+          bottom: -20,
+          width: 'min(38vw, 230px)',
+          opacity: 0.16,
+          transform: 'rotate(-3deg)',
+          pointerEvents: 'none',
+        }}
+      />
+      <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 24 }}>
+        <div style={{ textAlign: 'center' }}>
+          <img src={sicilyEmblemImage} alt="" style={{ width: 44, height: 44, opacity: 0.9, marginBottom: 14 }} />
+          <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: -0.8, color: text.primary }}>
+            ARM<span style={{ fontWeight: 300, color: 'rgba(220,215,200,0.82)' }}>Bank</span>
+          </div>
+          <div style={{ ...T.caption, color: 'rgba(220,215,200,0.72)', marginTop: 8, letterSpacing: 2.2 }}>
+            Toscana Private Flow
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Login screen ─────────────────────────────────────────────
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -2834,23 +2899,42 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   }
 
   const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '13px 16px', background: 'rgba(255,255,255,0.055)',
-    border: `1px solid rgba(180,172,155,0.16)`, borderRadius: radius.md,
+    width: '100%', padding: '13px 16px', background: 'rgba(6,14,10,0.52)',
+    border: `1px solid rgba(220,215,200,0.26)`, borderRadius: radius.md,
     color: text.primary, fontSize: 15, outline: 'none', fontFamily, boxSizing: 'border-box',
-    transition: 'border-color 0.15s',
+    transition: 'border-color 0.15s, background 0.15s',
     WebkitAppearance: 'none',
   };
   const labelStyle: React.CSSProperties = {
-    display: 'block', ...T.caption, color: text.muted, marginBottom: 7,
+    display: 'block', ...T.caption, color: 'rgba(230,225,210,0.78)', marginBottom: 7,
   };
   const fieldStyle = { marginBottom: 14 };
 
   return (
     <div style={{ ...appBase, overflowY: 'auto' }}>
-      {/* Full-screen background radial glow */}
-      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse 70% 50% at 50% 0%, rgba(30,60,44,0.6) 0%, transparent 70%)',
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', background: '#07150f' }} />
+      <div style={{
+        position: 'fixed', inset: 0, pointerEvents: 'none',
+        backgroundImage: `url(${AUTH_STATIC_BG})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        opacity: 0.95,
       }} />
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none',
+        background: 'radial-gradient(ellipse 72% 50% at 50% 0%, rgba(20,46,32,0.48) 0%, rgba(6,14,10,0.74) 58%, rgba(5,11,8,0.9) 100%)',
+      }} />
+      <img
+        src={florenceLineartImage}
+        alt=""
+        style={{
+          position: 'fixed',
+          right: -90,
+          top: '18%',
+          width: 'min(62vw, 460px)',
+          opacity: 0.13,
+          pointerEvents: 'none',
+        }}
+      />
       <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 20px', position: 'relative' }}>
       <div style={{ width: '100%', maxWidth: 380 }}>
 
@@ -2877,14 +2961,23 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           </div>
         </div>
 
+        <div style={{
+          borderRadius: 22,
+          border: '1px solid rgba(220,215,200,0.22)',
+          background: 'linear-gradient(180deg, rgba(8,18,13,0.74) 0%, rgba(6,12,9,0.78) 100%)',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          padding: '14px 14px 16px',
+        }}>
         {/* Tab switcher */}
-        <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: `1px solid ${bg.border}` }}>
+        <div style={{ display: 'flex', gap: 0, marginBottom: 18, borderBottom: `1px solid rgba(220,215,200,0.2)` }}>
           {(['login', 'register'] as const).map(m => (
             <button key={m} type="button" onClick={() => { setMode(m); setError(''); setConfirmPass(''); }} style={{
               flex: 1, padding: '10px', background: 'transparent', border: 'none',
               borderBottom: mode === m ? `2px solid ${gold}` : '2px solid transparent',
               marginBottom: -1,
-              color: mode === m ? text.primary : text.muted,
+              color: mode === m ? text.primary : 'rgba(220,215,200,0.72)',
               fontSize: 13, fontWeight: mode === m ? 600 : 400, fontFamily,
               cursor: 'pointer', transition: 'all 0.18s', letterSpacing: 0.3,
             }}>{m === 'login' ? 'Вхід' : 'Реєстрація'}</button>
@@ -2899,8 +2992,8 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             disabled={faceIdLoading}
             style={{
               width: '100%', padding: '14px', marginBottom: 16, borderRadius: radius.md,
-              border: `1px solid ${bg.border}`,
-              background: 'linear-gradient(160deg, rgba(28,42,34,0.9) 0%, rgba(16,28,20,0.95) 100%)',
+              border: '1px solid rgba(220,215,200,0.28)',
+              background: 'linear-gradient(160deg, rgba(20,36,28,0.95) 0%, rgba(9,18,13,0.96) 100%)',
               color: faceIdLoading ? text.dim : text.primary,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
               cursor: faceIdLoading ? 'default' : 'pointer',
@@ -2956,7 +3049,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <label style={{ ...labelStyle, marginBottom: 0 }}>Пароль</label>
                 {mode === 'login' && (
-                  <button type="button" onClick={() => setError('Зверніться до підтримки для відновлення пароля')} style={{ fontSize: 11, color: text.muted, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 0.2 }}>
+                  <button type="button" onClick={() => setError('Зверніться до підтримки для відновлення пароля')} style={{ fontSize: 11, color: 'rgba(220,215,200,0.78)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 0.2 }}>
                     Забули пароль?
                   </button>
                 )}
@@ -3021,7 +3114,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
               width: '100%', padding: '15px', borderRadius: radius.md, border: `1px solid rgba(180,172,155,0.22)`,
               background: loading
                 ? 'rgba(90,85,75,0.25)'
-                : 'linear-gradient(160deg, rgba(48,62,50,0.9) 0%, rgba(28,42,34,0.95) 100%)',
+                : 'linear-gradient(160deg, rgba(58,72,60,0.94) 0%, rgba(34,48,38,0.96) 100%)',
               color: loading ? text.dim : text.primary,
               ...T.bodyLg, fontWeight: 600, cursor: loading ? 'default' : 'pointer',
               fontFamily, letterSpacing: 0.4,
@@ -3030,9 +3123,10 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             }}>{loading ? 'Обробка…' : mode === 'login' ? 'Увійти' : 'Створити акаунт'}</button>
           </div>
         </form>
+        </div>
 
         {/* Footer */}
-        <div style={{ textAlign: 'center', marginTop: 32, ...T.caption, color: text.dim, letterSpacing: 0.5 }}>
+        <div style={{ textAlign: 'center', marginTop: 24, ...T.caption, color: 'rgba(220,215,200,0.72)', letterSpacing: 0.6 }}>
           ARM BANK · PRIVATE BANKING
         </div>
       </div>
@@ -3044,6 +3138,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 // ─── App root ─────────────────────────────────────────────────
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getToken());
+  const [showSplash, setShowSplash] = useState(true);
   const [tab, setTab] = useState<TabKey>('overview');
   const [toastMsg, setToastMsg] = useState('');
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -3058,6 +3153,11 @@ export default function App() {
   const width = useWindowWidth();
   const isDesktop = width >= 768;
   const Screen = SCREENS[tab];
+
+  useEffect(() => {
+    const id = setTimeout(() => setShowSplash(false), 1850);
+    return () => clearTimeout(id);
+  }, []);
 
   const fetchDashboard = React.useCallback(async () => {
     const token = localStorage.getItem('army_bank_token');
@@ -3213,6 +3313,10 @@ export default function App() {
     mutateCard,
     issueCard,
   };
+
+  if (showSplash) {
+    return <WowSplash />;
+  }
 
   if (!authed) {
     return <LoginScreen onLogin={() => setAuthed(true)} />;
