@@ -1090,7 +1090,7 @@ function CardsScreen() {
   useEffect(() => {
     if (card?.design) setSelectedDesign(card.design);
     else if (!card) setSelectedDesign('florence');
-  }, [card?.id, card?.design, card]);
+  }, [card?.id, card?.design]);
 
   async function changePin() {
     if (pinValue.length !== 4 || !/^\d{4}$/.test(pinValue)) { toast('PIN має бути 4 цифри'); return; }
