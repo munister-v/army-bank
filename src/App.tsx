@@ -2661,7 +2661,10 @@ const SCREENS = { overview: OverviewScreen, operations: OperationsScreen, cards:
 const appBg = 'radial-gradient(ellipse 80% 60% at 20% 0%, #1a3a2c 0%, transparent 60%), radial-gradient(ellipse 70% 50% at 90% 100%, #2a1a0e 0%, transparent 55%), linear-gradient(180deg, #0a1f18 0%, #07150f 100%)';
 
 const appBase: React.CSSProperties = {
-  position: 'fixed', inset: 0,
+  position: 'relative',
+  width: '100%',
+  height: 'var(--app-vh, 100vh)',
+  minHeight: 'var(--app-vh, 100vh)',
   background: appBg,
   color: text.secondary,
   fontFamily,

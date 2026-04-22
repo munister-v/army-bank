@@ -55,14 +55,14 @@
          collapsible address bar, preventing layout jumps */
       html {
         height: 100%;
-        height: 100dvh;
+        min-height: 100%;
         overscroll-behavior: none;
         background: #071510;
       }
       body {
         margin: 0;
         height: 100%;
-        height: 100dvh;
+        min-height: 100%;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
@@ -77,8 +77,8 @@
         text-size-adjust: 100%;
       }
       #root {
-        height: 100%;
-        height: 100dvh;
+        height: var(--app-vh, 100vh);
+        min-height: var(--app-vh, 100vh);
         /* Isolate stacking context for backdrop-filter on Android */
         isolation: isolate;
       }
@@ -111,7 +111,57 @@
       /* Selection */
       ::selection { background: rgba(201,169,100,0.25); color: #f4ebd0; }
     </style>
-    <script type="module" crossorigin src="/bank/assets/index-CtxE2yi4.js"></script>
+    <script>
+      (function () {
+        var root = document.documentElement;
+        function setAppVh() {
+          var h = window.innerHeight || document.documentElement.clientHeight || 0;
+          if (h > 0) root.style.setProperty('--app-vh', h + 'px');
+        }
+        setAppVh();
+        window.addEventListener('resize', setAppVh, { passive: true });
+        window.addEventListener('orientationchange', setAppVh);
+        window.addEventListener('pageshow', setAppVh);
+      })();
+    </script>
+    <script>
+      (function () {
+        var buildId = '2026-04-22-04';
+        var buildKey = 'army_bank_build_id';
+        var reloadKey = 'army_bank_build_reload_' + buildId;
+        try {
+          var prev = localStorage.getItem(buildKey);
+          localStorage.setItem(buildKey, buildId);
+          var isUpgrade = !!prev && prev !== buildId;
+          if (!isUpgrade) return;
+          if (sessionStorage.getItem(reloadKey) === '1') return;
+          sessionStorage.setItem(reloadKey, '1');
+
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+              regs.forEach(function (reg) {
+                try { reg.update(); } catch (_) {}
+                try { if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' }); } catch (_) {}
+                try { if (reg.active) reg.active.postMessage({ type: 'CLEAR_RUNTIME_CACHES' }); } catch (_) {}
+              });
+            }).catch(function () {});
+          }
+
+          if ('caches' in window) {
+            caches.keys().then(function (keys) {
+              return Promise.all(keys.filter(function (k) {
+                return /^army-bank-v/i.test(String(k || ''));
+              }).map(function (k) { return caches.delete(k); }));
+            }).catch(function () {});
+          }
+
+          var url = new URL(window.location.href);
+          url.searchParams.set('v', buildId);
+          window.location.replace(url.toString());
+        } catch (_) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/bank/assets/index-0oCuHJGC.js"></script>
     <link rel="stylesheet" crossorigin href="/bank/assets/index-Dz9NfLqY.css">
   </head>
   <body>
