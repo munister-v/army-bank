@@ -2779,6 +2779,11 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const activeIdx = TABS.findIndex(t => t.k === active);
   return (
     <div style={{
+      position: 'fixed',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 120,
       flexShrink: 0,
       background: 'linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.62) 38%, rgba(7,21,15,0.98) 100%)',
     }}>
@@ -3665,8 +3670,8 @@ export default function App() {
               minHeight: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
-              paddingBottom: 0,
-              scrollPaddingBottom: 0,
+              paddingBottom: 'calc(102px + env(safe-area-inset-bottom, 0px))',
+              scrollPaddingBottom: 'calc(102px + env(safe-area-inset-bottom, 0px))',
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
