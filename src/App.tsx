@@ -8,6 +8,7 @@ import veniceCityImage from './assets/italy/venice-city.png';
 import florenceDuomoImage from './assets/italy/florence-duomo.png';
 import valdorciaHillsImage from './assets/italy/valdorcia-hills.png';
 import valdorciaChapelImage from './assets/italy/valdorcia-chapel.png';
+import sicilyMarkImage from './assets/branding/sicily-mark.png';
 
 export class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: string | null }> {
   constructor(props: { children: React.ReactNode }) {
@@ -35,9 +36,9 @@ const gold        = '#b8b09a';   // warm platinum (was bright gold)
 const goldDark    = '#7a7265';   // dark platinum
 const goldLight   = '#d4ccbc';   // light champagne
 const bg = {
-  card:   'rgba(255,255,255,0.042)',
-  card2:  'rgba(255,255,255,0.026)',
-  border: 'rgba(180,172,155,0.13)',
+  card:   'rgba(255,255,255,0.036)',
+  card2:  'rgba(255,255,255,0.02)',
+  border: 'rgba(180,172,155,0.085)',
   hover:  'rgba(255,255,255,0.06)',
 };
 const text = {
@@ -209,6 +210,19 @@ const uahFmt = new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximu
 
 function formatUah(value: number): string {
   return `₴ ${uahFmt.format(Number.isFinite(value) ? value : 0)}`;
+}
+
+function triggerHaptic(kind: 'light' | 'medium' | 'success' | 'error' = 'light') {
+  try {
+    if ('vibrate' in navigator) {
+      if (kind === 'success') navigator.vibrate?.([14, 18, 24]);
+      else if (kind === 'error') navigator.vibrate?.([20, 26, 20]);
+      else if (kind === 'medium') navigator.vibrate?.(16);
+      else navigator.vibrate?.(8);
+    }
+  } catch {
+    // ignore haptic errors
+  }
 }
 
 function analyticsChangeLabel(analytics?: ApiAnalytics | null): string {
@@ -874,6 +888,47 @@ function BalanceBlock({ visible, onToggle, balance, accountNumber }: { visible: 
   );
 }
 
+function PremiumStatusStrip() {
+  const { account, transactions } = useApp();
+  const { analytics } = useBankData();
+  const accountBalance = Number(account?.balance || 0);
+  const txCount = transactions.length;
+  const dynamicLabel = analyticsChangeLabel(analytics);
+  return (
+    <div style={{
+      marginTop: 14,
+      borderRadius: 14,
+      border: '1px solid rgba(180,172,155,0.16)',
+      background: 'linear-gradient(130deg, rgba(17,39,30,0.66) 0%, rgba(11,27,20,0.74) 56%, rgba(18,40,29,0.62) 100%)',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 10px 20px rgba(0,0,0,0.2)',
+      padding: '10px 12px',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        position: 'absolute',
+        width: 130,
+        height: 130,
+        borderRadius: '50%',
+        top: -50,
+        right: -46,
+        background: 'radial-gradient(circle, rgba(189,223,171,0.2) 0%, rgba(189,223,171,0) 70%)',
+        pointerEvents: 'none',
+      }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative', zIndex: 1 }}>
+        <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#88d59d', boxShadow: '0 0 10px rgba(136,213,157,0.8)' }} />
+        <div style={{ fontSize: 11.5, color: 'rgba(220,215,200,0.86)', fontWeight: 600, letterSpacing: 0.3 }}>Private Flow Active</div>
+        <div style={{ flex: 1 }} />
+        <div style={{ fontSize: 11, color: 'rgba(220,215,200,0.62)' }}>{txCount} операцій</div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 6, gap: 10, position: 'relative', zIndex: 1 }}>
+        <div style={{ fontSize: 11.5, color: 'rgba(220,215,200,0.74)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{dynamicLabel}</div>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: goldLight, fontFeatureSettings: '"tnum" 1' }}>{formatUah(accountBalance)}</div>
+      </div>
+    </div>
+  );
+}
+
 function ActivityFeed({ title = true, transactions }: { title?: boolean; transactions: TxItem[] }) {
   const { goTo } = useApp();
   const rows = transactions.slice(0, 5).map(tx => {
@@ -971,9 +1026,11 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
         throw new Error(backendMsg || `Помилка операції (${r.status})`);
       }
       toast(mode === 'topup' ? `Рахунок поповнено на ₴\u00a0${amtNum.toFixed(2)}` : `Переказ ₴\u00a0${amtNum.toFixed(2)} виконано`);
+      triggerHaptic('success');
       refreshDashboard();
       onClose();
     } catch (err: unknown) {
+      triggerHaptic('error');
       setError(err instanceof Error ? err.message : 'Помилка');
     } finally {
       setLoading(false);
@@ -1071,6 +1128,8 @@ function OverviewScreen() {
   const [cardViewportWidth, setCardViewportWidth] = useState(0);
   const [dragOffsetX, setDragOffsetX] = useState(0);
   const [isCardDragging, setIsCardDragging] = useState(false);
+  const [cardTiltX, setCardTiltX] = useState(0);
+  const [cardTiltY, setCardTiltY] = useState(0);
 
   useEffect(() => {
     if (cardIdx !== safeCardIdx) setCardIdx(safeCardIdx);
@@ -1100,6 +1159,8 @@ function OverviewScreen() {
     swipeAxisRef.current = null;
     setIsCardDragging(false);
     setDragOffsetX(0);
+    setCardTiltX(0);
+    setCardTiltY(0);
   }
 
   function handleCardTouchStart(e: React.TouchEvent<HTMLDivElement>) {
@@ -1127,6 +1188,13 @@ function OverviewScreen() {
     e.preventDefault();
     const bounded = Math.max(-150, Math.min(150, dx));
     setDragOffsetX(bounded);
+    const rect = cardViewportRef.current?.getBoundingClientRect();
+    if (rect) {
+      const relX = ((t.clientX - rect.left) / rect.width) - 0.5;
+      const relY = ((t.clientY - rect.top) / rect.height) - 0.5;
+      setCardTiltY(Math.max(-7, Math.min(7, relX * 12)));
+      setCardTiltX(Math.max(-5, Math.min(5, -relY * 8)));
+    }
   }
 
   function handleCardTouchEnd() {
@@ -1139,6 +1207,7 @@ function OverviewScreen() {
     if (Math.abs(swipe) >= threshold) {
       const dir = swipe < 0 ? 1 : -1;
       setCardIdx(prev => Math.max(0, Math.min(cards.length - 1, prev + dir)));
+      triggerHaptic('light');
     }
     resetCardSwipe();
   }
@@ -1179,12 +1248,25 @@ function OverviewScreen() {
             onTouchMove={handleCardTouchMove}
             onTouchEnd={handleCardTouchEnd}
             onTouchCancel={handleCardTouchEnd}
+            onClick={(e) => {
+              if (cards.length < 2 || Math.abs(dragOffsetX) > 4) return;
+              const rect = cardViewportRef.current?.getBoundingClientRect();
+              if (!rect) return;
+              const rel = (e.clientX - rect.left) / rect.width;
+              if (rel < 0.35 && safeCardIdx > 0) {
+                setCardIdx(safeCardIdx - 1);
+                triggerHaptic('light');
+              } else if (rel > 0.65 && safeCardIdx < cards.length - 1) {
+                setCardIdx(safeCardIdx + 1);
+                triggerHaptic('light');
+              }
+            }}
           >
             <div
               style={{
                 display: 'flex',
                 width: '100%',
-                transform: `translate3d(${dragOffsetX - safeCardIdx * (cardViewportWidth || 0)}px, 0, 0)`,
+                transform: `perspective(900px) rotateX(${cardTiltX}deg) rotateY(${cardTiltY}deg) translate3d(${dragOffsetX - safeCardIdx * (cardViewportWidth || 0)}px, 0, 0)`,
                 transition: isCardDragging ? 'none' : 'transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1)',
                 willChange: 'transform',
               }}
@@ -1198,7 +1280,7 @@ function OverviewScreen() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 14 }}>
             {cards.map((_, i) => (
-              <button key={i} onClick={() => setCardIdx(i)} style={{ width: i === safeCardIdx ? 20 : 6, height: 6, borderRadius: 3, background: i === safeCardIdx ? gold : 'rgba(180,172,155,0.25)', border: 'none', padding: 0, cursor: 'pointer', transition: 'all 0.25s' }} />
+              <button key={i} onClick={() => { setCardIdx(i); triggerHaptic('light'); }} style={{ width: i === safeCardIdx ? 20 : 6, height: 6, borderRadius: 3, background: i === safeCardIdx ? gold : 'rgba(180,172,155,0.25)', border: 'none', padding: 0, cursor: 'pointer', transition: 'all 0.25s' }} />
             ))}
           </div>
         </>
@@ -1217,10 +1299,6 @@ function OverviewScreen() {
 
   const byType = (analytics?.by_type || []).filter(r => r.direction === 'out');
   const totalOut = byType.reduce((s, r) => s + Number(r.total), 0);
-  const monthIn = Number(analytics?.current_month?.total_in || 0);
-  const monthOut = Number(analytics?.current_month?.total_out || 0);
-  const flowNet = monthIn - monthOut;
-  const flowNetSign = flowNet >= 0 ? '+' : '−';
   const SPEND_LABELS: Record<string, string> = { transfer: 'Перекази', food: 'Їжа', transport: 'Транспорт', utility: 'Комунальні', shopping: 'Покупки', subscription: 'Підписки' };
   const SPEND_COLORS: Record<string, string> = { transfer: '#ddd8cc', food: '#e8a864', transport: '#88a8e8', utility: gold, shopping: '#c97db4', subscription: '#78c8b4' };
   const spendRows = totalOut > 0 ? byType.map(r => ({
@@ -1307,45 +1385,51 @@ function OverviewScreen() {
 
       <div style={{ padding: '10px 22px 2px' }}>
         <div style={{
-          borderRadius: 18,
-          border: '1px solid rgba(220,215,200,0.18)',
-          background: 'linear-gradient(140deg, rgba(16,38,29,0.7) 0%, rgba(11,24,18,0.78) 58%, rgba(20,40,30,0.58) 100%)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 28px rgba(0,0,0,0.22)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          padding: '10px 12px',
+          borderRadius: 20,
+          border: '1px solid rgba(220,215,200,0.2)',
+          background: 'linear-gradient(142deg, rgba(16,38,29,0.72) 0%, rgba(10,24,17,0.8) 58%, rgba(19,36,29,0.64) 100%)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 14px 28px rgba(0,0,0,0.24)',
+          backdropFilter: 'blur(18px)',
+          WebkitBackdropFilter: 'blur(18px)',
+          padding: '12px 14px',
           overflow: 'hidden',
           position: 'relative',
         }}>
           <div style={{
             position: 'absolute',
-            width: 140,
-            height: 140,
+            width: 170,
+            height: 170,
             borderRadius: '50%',
-            right: -40,
-            top: -56,
-            background: 'radial-gradient(circle, rgba(170,225,190,0.18) 0%, rgba(170,225,190,0) 72%)',
+            right: -44,
+            top: -66,
+            background: 'radial-gradient(circle, rgba(170,225,190,0.2) 0%, rgba(170,225,190,0) 72%)',
             pointerEvents: 'none',
           }} />
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, position: 'relative' }}>
-            <div style={{ fontSize: 10.5, color: 'rgba(220,215,200,0.78)', fontWeight: 600, letterSpacing: 0.7, textTransform: 'uppercase' }}>Private Banking Flow</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#78d19a', boxShadow: '0 0 8px rgba(120,209,154,0.65)' }} />
-              <span style={{ fontSize: 10, color: '#95d8ad', fontWeight: 600 }}>LIVE</span>
+          <div style={{
+            position: 'absolute',
+            left: -42,
+            bottom: -56,
+            width: 160,
+            height: 160,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(214,174,121,0.2) 0%, rgba(214,174,121,0) 72%)',
+            pointerEvents: 'none',
+          }} />
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(112deg, transparent 0%, rgba(255,244,214,0.17) 45%, transparent 74%)',
+            opacity: 0.36,
+          }} />
+          <div style={{ position: 'relative' }}>
+            <div style={{ fontSize: 10.5, color: 'rgba(220,215,200,0.78)', fontWeight: 600, letterSpacing: 0.84, textTransform: 'uppercase', marginBottom: 6 }}>
+              Private Signature
             </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, position: 'relative' }}>
-            <div style={{ borderRadius: 12, padding: '8px 9px', border: '1px solid rgba(220,215,200,0.14)', background: 'rgba(255,255,255,0.04)' }}>
-              <div style={{ fontSize: 9.5, color: text.dim, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.6 }}>Net Flow</div>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: flowNet >= 0 ? '#94d7aa' : '#e6a0a0' }}>{flowNetSign}₴{fmtInt(Math.abs(flowNet))}</div>
+            <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: -0.25, color: '#ece5d5', marginBottom: 3 }}>
+              Liquid Glass Experience
             </div>
-            <div style={{ borderRadius: 12, padding: '8px 9px', border: '1px solid rgba(220,215,200,0.14)', background: 'rgba(255,255,255,0.04)' }}>
-              <div style={{ fontSize: 9.5, color: text.dim, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.6 }}>Trend</div>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#d8cfbe' }}>{analyticsChangeLabel(analytics)}</div>
-            </div>
-            <div style={{ borderRadius: 12, padding: '8px 9px', border: '1px solid rgba(220,215,200,0.14)', background: 'rgba(255,255,255,0.04)' }}>
-              <div style={{ fontSize: 9.5, color: text.dim, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.6 }}>Tier</div>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#e0d3bc' }}>Heritage</div>
+            <div style={{ fontSize: 11.5, color: 'rgba(220,215,200,0.66)', letterSpacing: 0.2 }}>
+              pure cinematic flow
             </div>
           </div>
         </div>
@@ -2839,16 +2923,16 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
         background: 'rgba(15,32,26,0.75)',
         backdropFilter: 'blur(24px) saturate(180%)',
         WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-        border: `1px solid rgba(180,172,155,0.22)`,
+        border: `1px solid rgba(180,172,155,0.13)`,
         borderRadius: 28, display: 'flex',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(230,225,210,0.08)',
+        boxShadow: '0 20px 40px rgba(0,0,0,0.34), inset 0 1px 0 rgba(230,225,210,0.06)',
       }}>
         {/* Sliding indicator */}
         <div style={{
           position: 'absolute', top: 6, bottom: 6,
           left: `calc(${activeIdx * 20}% + 6px)`, width: 'calc(20% - 12px)',
           background: 'linear-gradient(135deg, rgba(180,172,155,0.22) 0%, rgba(100,95,80,0.12) 100%)',
-          border: `1px solid rgba(180,172,155,0.35)`, borderRadius: 22,
+          border: `1px solid rgba(180,172,155,0.2)`, borderRadius: 22,
           transition: 'left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
           boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.15)',
         }} />
@@ -2897,7 +2981,7 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             boxShadow: `0 4px 14px rgba(180,172,155,0.35), inset 0 1px 0 rgba(255,230,160,0.5)`,
           }}>
-            <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 2L3 20h3.5l1.8-4h7.4l1.8 4H21L12 2zm-2.6 11L12 7.3 14.6 13H9.4z" fill="#1c2e22" /></svg>
+            <img src={sicilyMarkImage} alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />
           </div>
           <div>
             <div style={{ ...T.h3, color: text.primary, lineHeight: 1.1 }}>
@@ -3012,6 +3096,7 @@ function LuxuryAmbientFx() {
         borderRadius: '50%',
         background: 'radial-gradient(circle, rgba(150,220,185,0.16) 0%, rgba(150,220,185,0) 70%)',
         filter: 'blur(14px)',
+        animation: 'luxOrbFloatA 16s ease-in-out infinite',
       }} />
       <div style={{
         position: 'absolute',
@@ -3022,6 +3107,18 @@ function LuxuryAmbientFx() {
         borderRadius: '50%',
         background: 'radial-gradient(circle, rgba(214,174,121,0.18) 0%, rgba(214,174,121,0) 72%)',
         filter: 'blur(16px)',
+        animation: 'luxOrbFloatB 18s ease-in-out infinite',
+      }} />
+      <div style={{
+        position: 'absolute',
+        width: 300,
+        height: 300,
+        left: '38%',
+        top: '34%',
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(120,185,210,0.08) 0%, rgba(120,185,210,0) 72%)',
+        filter: 'blur(18px)',
+        animation: 'luxOrbFloatC 22s ease-in-out infinite',
       }} />
       <div style={{
         position: 'absolute',
@@ -3030,34 +3127,13 @@ function LuxuryAmbientFx() {
         opacity: 0.09,
         mixBlendMode: 'soft-light',
       }} />
-    </div>
-  );
-}
-
-function PremiumStatusStrip() {
-  const chips = [
-    { label: 'Live API', tone: 'rgba(130,210,160,0.16)', color: '#92d5aa' },
-    { label: 'End-to-End Secure', tone: 'rgba(190,180,160,0.16)', color: '#d2cab8' },
-    { label: 'Private Session', tone: 'rgba(170,150,210,0.14)', color: '#b7aad8' },
-  ];
-  return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 6 }}>
-      {chips.map(chip => (
-        <div key={chip.label} style={{
-          padding: '5px 9px',
-          borderRadius: 999,
-          border: '1px solid rgba(220,215,200,0.18)',
-          background: chip.tone,
-          color: chip.color,
-          fontSize: 10.5,
-          fontWeight: 600,
-          letterSpacing: 0.45,
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-        }}>
-          {chip.label}
-        </div>
-      ))}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'linear-gradient(120deg, transparent 0%, rgba(255,245,220,0.09) 47%, transparent 75%)',
+        opacity: 0.26,
+        animation: 'luxSweep 15s ease-in-out infinite',
+      }} />
     </div>
   );
 }
@@ -3103,11 +3179,25 @@ function WowSplash() {
       }} />
       <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 24 }}>
         <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: 70,
+            height: 70,
+            margin: '0 auto 16px',
+            borderRadius: 20,
+            background: 'linear-gradient(160deg, rgba(15,38,28,0.82) 0%, rgba(8,22,15,0.9) 100%)',
+            border: '1px solid rgba(220,215,200,0.16)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 14px 28px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.1)',
+          }}>
+            <img src={sicilyMarkImage} alt="" style={{ width: 42, height: 42, objectFit: 'contain', opacity: 0.95 }} />
+          </div>
           <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: -0.8, color: text.primary }}>
             ARM<span style={{ fontWeight: 300, color: 'rgba(220,215,200,0.82)' }}>Bank</span>
           </div>
           <div style={{ ...T.caption, color: 'rgba(220,215,200,0.72)', marginTop: 8, letterSpacing: 2.2 }}>
-            Toscana Private Flow
+            Sicilia Private Flow
           </div>
         </div>
       </div>
@@ -3231,12 +3321,10 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             width: 72, height: 72, borderRadius: 22, margin: '0 auto 20px',
             background: 'linear-gradient(160deg, #0f2a1e 0%, #0a1c14 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: `1px solid rgba(180,172,155,0.18)`,
-            boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 16px 40px rgba(0,0,0,0.5)',
+            border: `1px solid rgba(180,172,155,0.12)`,
+            boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 16px 40px rgba(0,0,0,0.42)',
           }}>
-            <svg width="34" height="34" viewBox="0 0 32 32">
-              <path d="M16 4L6 28h4l2.2-5.5h7.6L22 28h4L16 4zm-2.8 14.5L16 9.5l2.8 9z" fill={gold} opacity="0.9" />
-            </svg>
+            <img src={sicilyMarkImage} alt="" style={{ width: 40, height: 40, objectFit: 'contain', opacity: 0.96 }} />
           </div>
           {/* Wordmark */}
           <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: -0.5, color: text.primary, fontFamily, lineHeight: 1 }}>
@@ -3249,9 +3337,9 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
         <div style={{
           borderRadius: 22,
-          border: '1px solid rgba(220,215,200,0.22)',
+          border: '1px solid rgba(220,215,200,0.14)',
           background: 'linear-gradient(180deg, rgba(8,18,13,0.74) 0%, rgba(6,12,9,0.78) 100%)',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.08)',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.06)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
           padding: '14px 14px 16px',
@@ -3509,6 +3597,10 @@ export default function App() {
     return () => clearTimeout(id);
   }, []);
 
+  useEffect(() => {
+    triggerHaptic('light');
+  }, [tab]);
+
   const fetchDashboard = React.useCallback(async () => {
     const token = localStorage.getItem('army_bank_token');
     if (!token) return;
@@ -3713,8 +3805,8 @@ export default function App() {
               minHeight: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
-              paddingBottom: 6,
-              scrollPaddingBottom: 12,
+              paddingBottom: `calc(14px + env(safe-area-inset-bottom, 0px))`,
+              scrollPaddingBottom: `calc(18px + env(safe-area-inset-bottom, 0px))`,
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
