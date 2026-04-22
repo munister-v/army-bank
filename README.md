@@ -1,127 +1,195 @@
-# WeeGo Army Bank — базовий робочий кістяк
+# ARM Bank
 
-Це стартова версія проєкту Army Bank з такими частинами:
+> Повнофункціональний мобільний банкінг — dark glass UI, React PWA + Flask API + PostgreSQL
 
-- backend на **Python + Flask**;
-- база даних **PostgreSQL** (опційно SQLite через `.env`);
-- фронтенд для ПК на **HTML + CSS + JavaScript**;
-- реалізовані сценарії: реєстрація, вхід, баланс, поповнення, переказ, бойові виплати (демо), донати, накопичення, контакти родини, історія транзакцій.
+[![Live](https://img.shields.io/badge/live-army--bank.onrender.com-c9a964?style=flat-square&logo=render)](https://army-bank.onrender.com)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://typescriptlang.org)
 
-## Структура
+---
 
-- `backend/` — API, сервіси, репозиторії, валідація, безпека;
-- `frontend/` — desktop-first інтерфейс;
-- `database/` — SQL-схема і файл БД після запуску;
-- `start.py` — головна точка запуску.
+## Що це
 
-## Запуск
+ARM Bank — приватний банківський застосунок із преміальним liquid glass інтерфейсом. Написаний як єдиний React SPA поверх Flask REST API. Розгорнутий на Render.com, підтримує iOS PWA зі збереженням Safe Area та Dynamic Island.
 
-Скопіюйте `.env.example` в `.env` і заповніть змінні (зокрема `DATABASE_URL` для PostgreSQL).
+---
+
+## Стек
+
+### Frontend
+| Технологія | Призначення |
+|---|---|
+| React 19 + TypeScript | SPA, хуки, контексти |
+| Vite 6 | Збірка, HMR |
+| Inter (Google Fonts) | Типографіка з variable opsz |
+| CSS-in-JS (inline styles) | Design tokens, glass-morphism |
+
+### Backend
+| Технологія | Призначення |
+|---|---|
+| Python 3.11 + Flask | REST API (`/api/*`) |
+| PostgreSQL / SQLite | Основна БД (Render Postgres) |
+| JWT (Bearer token) | Аутентифікація |
+| Gunicorn | Production WSGI |
+
+---
+
+## Функціонал
+
+### Банкінг
+- **Огляд** — поточний баланс, картки (carousel), швидкі дії, остання активність
+- **Операції** — повна історія транзакцій, пошук, групування по датах, графік витрат (тиждень / місяць / рік), CSV-експорт, PDF-виписка, чеки
+- **Картки** — кілька карток (Gold · Emerald · Platinum · Obsidian), заморозка, закриття, зміна PIN, випуск нових
+- **Переказ** — поповнення рахунку, переказ на картку, переказ за IBAN
+- **Профіль** — персональні дані, Face ID / Push / 2FA toggles, зміна пароля
+
+### Маркетплейс
+- Каталог товарів із пошуком, бейджами (HOT / NEW / TOP / SALE)
+- Кошик з persistence через `localStorage`, 2-кроковий флоу оформлення
+- Замовлення та інвойси з PDF-чеками
+
+### UX / PWA
+- Адаптивний layout: мобільний (TabBar + bottom sheet) і десктоп (Sidebar 252px)
+- iOS Dynamic Island / notch — `env(safe-area-inset-*)`, `viewport-fit=cover`
+- Блокування масштабування: `user-scalable=no, maximum-scale=1.0`
+- Toast-сповіщення, liquid glass модалки, `backdrop-filter: blur`
+
+### Адмін-синхронізація
+- Авто-оновлення даних кожні 30 с (поки вкладка активна)
+- Сумісний із [army-admin](https://github.com/munister-v/army-admin)
+
+---
+
+## Структура репозиторію
+
+```
+army-bank/
+├── src/
+│   └── App.tsx          # весь фронтенд — один файл (~2700 рядків)
+├── backend/
+│   ├── app.py           # Flask application factory
+│   ├── routes/          # Blueprint-и: auth, transactions, cards, marketplace…
+│   ├── models/          # SQLAlchemy моделі
+│   └── services/        # бізнес-логіка
+├── frontend/bank/       # Vite build output (комітиться для Render)
+├── index.html           # PWA shell
+├── vite.config.ts
+├── requirements.txt
+└── render.yaml          # Render deploy spec
+```
+
+---
+
+## Локальний запуск
+
+### 1. Backend
 
 ```bash
+git clone https://github.com/munister-v/army-bank
+cd army-bank
+
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+
+cp .env.example .env        # заповніть DATABASE_URL, SECRET_KEY, JWT_SECRET
 python start.py
+# → http://127.0.0.1:5050
 ```
 
-Після цього відкрийте в браузері:
-
-```text
-http://127.0.0.1:5050
-```
-
-### Розміщення на сайті під підшляхом (наприклад munister.com.ua/bank)
-
-Встановіть у `.env` змінну **BASE_PATH=/bank**. Усі маршрути та статика будуть під префіксом `/bank`. На основному сайті налаштуйте проксування: усі запити на `https://munister.com.ua/bank` та `https://munister.com.ua/bank/*` передавати на ваш Flask-сервер (наприклад Gunicorn). Приклад для Nginx:
-
-```nginx
-location /bank {
-    proxy_pass http://127.0.0.1:5000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
-```
-
-Після цього застосунок буде доступний за адресою **https://munister.com.ua/bank** із тією самою базою даних та логікою.
-
-## Що вже працює
-
-1. Реєстрація нового користувача.
-2. Автоматичне створення основного рахунку.
-3. Авторизація через токен сесії.
-4. Поповнення рахунку.
-5. Переказ на інший рахунок.
-6. Історія транзакцій.
-7. Демо-нарахування бойових виплат.
-8. Донати.
-9. Цілі накопичення та внески в них.
-10. Список довірених сімейних контактів.
-
-## Тести
+### 2. Frontend dev-сервер
 
 ```bash
-source .venv/bin/activate
-pytest tests/ -v
+npm install
+npm run dev    # → http://localhost:5173
 ```
 
-## Ролі та перший адмін
+### 3. Frontend production build
 
-- За замовчуванням реєстрація створює користувача з роллю **soldier**.
-- Інтерфейс **оператора** (`/operator`) — нарахування виплат військовим.
-- Інтерфейс **адміна** (`/admin`) — користувачі, зміна ролей, аудит-логи.
-- Щоб зробити першого адміна: зареєструйтеся, потім у БД виконайте  
-  `UPDATE users SET role = 'admin' WHERE id = 1;` (або відповідний id).
-- Щоб зробити платформенного адміна (перегляд усієї системи, генерація демо‑даних):  
-  `UPDATE users SET role = 'platform_admin' WHERE id = 1;`
+```bash
+npm run build  # → frontend/bank/
+```
 
-## Додатково реалізовано
+Render підхоплює статику автоматично — окремий Node.js-сервер не потрібен.
 
-- Ролі **адміністратор** та **оператор** з окремими інтерфейсами.
-- Конфігурація через `.env`.
-- База даних **PostgreSQL** (підтримка SQLite через змінну оточення).
-- Unit-тести (pytest).
-- Окремі сторінки замість одного dashboard.
-- Система прав доступу за ролями.
-- Шаблони платежів та фільтри історії транзакцій.
+---
 
-## Деплой на Render (army-bank.onrender.com)
+## Змінні середовища
 
-Див. **RENDER.md** — покрокова інструкція для https://army-bank.onrender.com.
+| Змінна | Приклад | Опис |
+|---|---|---|
+| `DATABASE_URL` | `postgresql://…` | PostgreSQL або `sqlite:///db.sqlite3` |
+| `SECRET_KEY` | `rand-string` | Flask secret |
+| `JWT_SECRET` | `rand-string` | JWT підпис |
+| `BASE_PATH` | *(порожньо)* | Префікс маршрутів (наприклад `/bank`) |
+| `FLASK_ENV` | `production` | Режим Flask |
 
-## API для сторонніх розробників
+---
 
-- API catalog: `GET /api`
-- API version: `GET /api/version`
-- Людинозрозумілі docs: `GET /api/docs`
-- OpenAPI schema (3.0.3): `GET /api/openapi.json`
-- Postman collection: `GET /api/postman/collection`
-- Postman environment: `GET /api/postman/environment`
-- Healthcheck: `GET /health`
-- Correlation header: `X-Request-Id` (опційно, повертається у відповіді)
-- Monetary safety header: `Idempotency-Key` (обов'язково для грошових mutation endpoint'ів)
-- Statement order flow: `POST /api/transactions/statement/order` + `GET /api/transactions/statement/orders`
+## Деплой на Render
 
-Локальні файли в репозиторії:
+`render.yaml` вже налаштований:
 
-- `postman/army-bank.postman_collection.json`
-- `postman/army-bank.postman_environment.json`
+```yaml
+services:
+  - type: web
+    name: army-bank
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn start:app --workers 2 --bind 0.0.0.0:$PORT
+    staticPublishPath: frontend/bank
+```
 
-Продакшн-приклади:
+Кожен `git push` → автоматичний деплой.
 
-- https://army-bank.onrender.com/api
-- https://army-bank.onrender.com/api/version
-- https://army-bank.onrender.com/api/docs
-- https://army-bank.onrender.com/api/openapi.json
-- https://army-bank.onrender.com/api/postman/collection
-- https://army-bank.onrender.com/api/postman/environment
-- https://army-bank.onrender.com/health
+---
 
-Детальний handoff-док для інтеграцій: **API_HANDOFF.md**.
+## API — короткий довідник
 
-## Покращення (останні зміни)
+| Метод | Ендпоінт | Опис |
+|---|---|---|
+| `POST` | `/api/auth/login` | Вхід → JWT |
+| `POST` | `/api/auth/register` | Реєстрація |
+| `GET` | `/api/account/me` | Профіль + рахунок |
+| `GET` | `/api/transactions` | Список транзакцій |
+| `POST` | `/api/transactions/topup` | Поповнення |
+| `POST` | `/api/transactions/transfer` | Переказ за IBAN |
+| `POST` | `/api/transactions/transfer-by-card` | Переказ на картку |
+| `GET` | `/api/cards` | Список карток |
+| `PUT` | `/api/cards/:id/pin` | Зміна PIN |
+| `PATCH` | `/api/cards/:id/block` | Заморозити / розморозити |
+| `POST` | `/api/marketplace/checkout` | Оформити замовлення |
+| `GET` | `/api/marketplace/orders` | Замовлення |
 
-- **Валідація:** мінімум 6 символів для пароля; верхня межа суми операцій; обмеження довжини телефону/email.
-- **Безпека:** заголовок `X-Content-Type-Options: nosniff`; єдиний обробник помилок API (400/404/500) з JSON-відповіддю.
-- **Frontend:** індикатори завантаження для списків і кнопок; покращені порожні стани; `aria-live` для повідомлень; `focus-visible` для клавіатурної навігації; коректна обробка не-JSON відповіді від сервера.
+Повна документація — [postman/](postman/).
+
+---
+
+## Дизайн-система
+
+```
+gold        = #c9a964   goldDark = #8a6a2f   goldLight = #f0cc70
+bg gradient = radial-gradient(…#1a3a2c … #07150f)
+glass card  = rgba(255,255,255,0.05) + backdrop-filter: blur(20px)
+border      = rgba(200,170,100,0.11)
+
+Type scale:
+  hero 36/700  h1 28/700  h2 22/600  h3 17/600
+  body 14/400  sm 13/400  caption 11/600/uppercase
+```
+
+---
+
+## Суміжні проєкти
+
+| | |
+|---|---|
+| [army-admin](https://github.com/munister-v/army-admin) | Адмін-панель (той самий бекенд) |
+| [messenger](https://army-bank.onrender.com/messenger) | Захищений месенджер + казино |
+
+---
+
+## Ліцензія
+
+MIT © [munister-v](https://github.com/munister-v)
