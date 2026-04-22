@@ -90,20 +90,20 @@ def _f(bold: bool = False) -> str:
     return _FONT_NAME_BOLD if bold else _FONT_NAME
 
 
-# ── Кольорова схема Army Bank ──────────────────────────────────────────────
-_NAVY   = colors.HexColor('#162c5c')
-_NAVY2  = colors.HexColor('#0d1e3d')   # darker navy for header banner
-_BLUE   = colors.HexColor('#1a56db')
-_LIGHT  = colors.HexColor('#e8eef8')
-_GREEN  = colors.HexColor('#16a34a')
-_RED    = colors.HexColor('#dc2626')
-_MUTED  = colors.HexColor('#6b7280')
-_BG     = colors.HexColor('#f8fafc')
+# ── Кольорова схема Army Bank (glass green + champagne) ────────────────────
+_NAVY   = colors.HexColor('#173126')
+_NAVY2  = colors.HexColor('#0c1f16')
+_BLUE   = colors.HexColor('#7b7264')
+_LIGHT  = colors.HexColor('#d8d2c2')
+_GREEN  = colors.HexColor('#66b08c')
+_RED    = colors.HexColor('#d57c74')
+_MUTED  = colors.HexColor('#8f9288')
+_BG     = colors.HexColor('#f2efe6')
 _WHITE  = colors.white
-_STEEL  = colors.HexColor('#334155')   # dark body text
-_LGGREEN = colors.HexColor('#dcfce7')  # light green bg (positive)
-_LGRED   = colors.HexColor('#fee2e2')  # light red bg (negative)
-_GOLD    = colors.HexColor('#d97706')  # amber accent (tax report)
+_STEEL  = colors.HexColor('#213229')
+_LGGREEN = colors.HexColor('#e6f5ed')
+_LGRED   = colors.HexColor('#f9e9e7')
+_GOLD    = colors.HexColor('#b9ab8f')
 
 _TX_TYPE_LABELS = {
     'transfer': 'Переказ',
@@ -436,10 +436,10 @@ class StatementService:
 
         # ── Navy header band ─────────────────────────────────────────────────
         wt = ParagraphStyle('wt', fontName=_f(True), fontSize=14, textColor=_WHITE, leading=18)
-        wn = ParagraphStyle('wn', fontName=_f(), fontSize=8.5, textColor=colors.HexColor('#93b4f8'),
+        wn = ParagraphStyle('wn', fontName=_f(), fontSize=8.5, textColor=colors.HexColor('#c9c3b4'),
                             leading=11, alignment=2)
         hdr = Table(
-            [[Paragraph('Army<font color="#6ba3f7">Bank</font>', wt),
+            [[Paragraph('Army<font color="#b9ab8f">Bank</font>', wt),
               Paragraph(f'Квитанція\n#{tx_num}', wn)]],
             colWidths=[None, 28 * mm],
         )
@@ -455,8 +455,8 @@ class StatementService:
 
         # ── Amount block ─────────────────────────────────────────────────────
         amt_bg  = _LGGREEN if is_in else _LGRED
-        amt_fg  = colors.HexColor('#15803d') if is_in else colors.HexColor('#b91c1c')
-        lbl_fg  = colors.HexColor('#166534') if is_in else colors.HexColor('#991b1b')
+        amt_fg  = colors.HexColor('#2d6f54') if is_in else colors.HexColor('#a24f47')
+        lbl_fg  = colors.HexColor('#376950') if is_in else colors.HexColor('#8c4b43')
         amt_t = Table(
             [[Paragraph(amount_str,
                         ParagraphStyle('aa', fontName=_f(True), fontSize=24, textColor=amt_fg,
@@ -507,7 +507,7 @@ class StatementService:
         det_t = Table(rows, colWidths=[30 * mm, None])
         n_rows = len(rows)
         det_t.setStyle(TableStyle([
-            ('LINEBELOW', (0, 0), (-1, n_rows - 2), 0.25, colors.HexColor('#dce6f3')),
+            ('LINEBELOW', (0, 0), (-1, n_rows - 2), 0.25, colors.HexColor('#d8d2c2')),
             ('BACKGROUND', (0, n_rows - 1), (-1, n_rows - 1), colors.HexColor('#f0fdf4')),
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
@@ -630,9 +630,9 @@ class StatementService:
         # Banner styles (white on navy)
         banner_brand  = ParagraphStyle('bb', parent=styles['Normal'], fontSize=18, fontName=_f(True), textColor=_WHITE)
         banner_type   = ParagraphStyle('bt', parent=styles['Normal'], fontSize=9.5, fontName=_f(True),
-                                       textColor=colors.HexColor('#93b4f8'), alignment=1)
+                                       textColor=colors.HexColor('#b9ab8f'), alignment=1)
         banner_period = ParagraphStyle('bp', parent=styles['Normal'], fontSize=9.5, fontName=_f(),
-                                       textColor=colors.HexColor('#bfcfe8'), alignment=2)
+                                       textColor=colors.HexColor('#c9c3b4'), alignment=2)
 
         # Info styles
         subtitle = ParagraphStyle('sub', parent=styles['Normal'], fontSize=8.3, fontName=_f(), textColor=_MUTED)
@@ -646,7 +646,7 @@ class StatementService:
 
         # ── Row 0: navy banner spanning full width ────────────────────────────
         banner = Table(
-            [[Paragraph('Army<font color="#6ba3f7">Bank</font>', banner_brand),
+            [[Paragraph('Army<font color="#b9ab8f">Bank</font>', banner_brand),
               Paragraph(report_label.upper(), banner_type),
               Paragraph(period_label, banner_period)]],
             colWidths=['35%', '35%', '30%'],
@@ -854,8 +854,8 @@ class StatementService:
             ('BACKGROUND', (0, 0), (-1, -1), _LIGHT),
             ('BACKGROUND', (1, 0), (1, 0), colors.HexColor('#f0fdf4')),
             ('BACKGROUND', (2, 0), (2, 0), colors.HexColor('#fff1f2')),
-            ('BOX',        (0, 0), (-1, -1), 0.6, colors.HexColor('#c7d9f5')),
-            ('INNERGRID',  (0, 0), (-1, -1), 0.5, colors.HexColor('#d4def0')),
+            ('BOX',        (0, 0), (-1, -1), 0.6, colors.HexColor('#cfc8b7')),
+            ('INNERGRID',  (0, 0), (-1, -1), 0.5, colors.HexColor('#ddd7c8')),
             ('TOPPADDING', (0, 0), (-1, -1), 8),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
             ('LEFTPADDING', (0, 0), (-1, -1), 4),
@@ -884,8 +884,8 @@ class StatementService:
         table = Table(rows, colWidths=['68%', '32%'])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), _WHITE),
-            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#dbe4f1')),
-            ('INNERGRID', (0, 0), (-1, -1), 0.35, colors.HexColor('#e5edf8')),
+            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#d6d0bf')),
+            ('INNERGRID', (0, 0), (-1, -1), 0.35, colors.HexColor('#e2dccd')),
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
             ('LEFTPADDING', (0, 0), (-1, -1), 6),
@@ -919,7 +919,7 @@ class StatementService:
         table = Table(data, colWidths=['28%', '12%', '20%', '20%', '20%'], repeatRows=1)
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), _NAVY),
-            ('GRID', (0, 0), (-1, -1), 0.35, colors.HexColor('#dbe4f1')),
+            ('GRID', (0, 0), (-1, -1), 0.35, colors.HexColor('#d6d0bf')),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [_WHITE, _BG]),
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
@@ -957,7 +957,7 @@ class StatementService:
         table = Table(data, colWidths=['20%', '14%', '22%', '22%', '22%'], repeatRows=1)
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), _NAVY),
-            ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#dbe4f1')),
+            ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#d6d0bf')),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [_WHITE, _BG]),
             ('TOPPADDING', (0, 0), (-1, -1), 3.5),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 3.5),
@@ -1029,7 +1029,7 @@ class StatementService:
         table = Table(data, colWidths=['28%', '10%', '22%', '20%', '20%'], repeatRows=1)
         ts = [
             ('BACKGROUND', (0, 0), (-1, 0), _NAVY),
-            ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#dbe4f1')),
+            ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#d6d0bf')),
             ('ROWBACKGROUNDS', (0, 1), (-1, -2), [_WHITE, _BG]),
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),

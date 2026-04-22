@@ -816,14 +816,23 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
     by_account: { title: 'Переказ за IBAN',    recipientLabel: 'Номер рахунку',   placeholder: 'Коментар' },
   }[mode];
 
+  function parseAmount(value: string): number {
+    const normalized = String(value || '')
+      .replace(/\s+/g, '')
+      .replace(',', '.')
+      .replace(/[^\d.]/g, '');
+    return parseFloat(normalized);
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    const amtNum = parseFloat(amount.replace(',', '.'));
+    const amtNum = parseAmount(amount);
     if (!amtNum || amtNum <= 0) { setError('Вкажіть суму'); return; }
     if (mode !== 'topup' && !recipient.trim()) { setError('Вкажіть отримувача'); return; }
     setLoading(true);
     const token = localStorage.getItem('army_bank_token');
+    if (!token) { setLoading(false); setError('Сесія завершилась. Увійдіть повторно.'); return; }
     const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
       const url = mode === 'topup' ? '/api/transactions/topup'
@@ -844,8 +853,13 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
         },
         body: JSON.stringify(body),
       });
-      const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j.error || j.message || 'Помилка');
+      const raw = await r.text();
+      let j: Record<string, unknown> = {};
+      try { j = raw ? JSON.parse(raw) : {}; } catch { j = {}; }
+      if (!r.ok || j.ok === false) {
+        const backendMsg = String((j && (j.error || j.message)) || '').trim();
+        throw new Error(backendMsg || `Помилка операції (${r.status})`);
+      }
       toast(mode === 'topup' ? `Рахунок поповнено на ₴\u00a0${amtNum.toFixed(2)}` : `Переказ ₴\u00a0${amtNum.toFixed(2)} виконано`);
       refreshDashboard();
       onClose();
@@ -880,7 +894,14 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
           )}
           <div>
             <label style={{ ...T.caption, color: text.muted, display: 'block', marginBottom: 6 }}>Сума (₴)</label>
-            <input style={{ ...inp, fontSize: 26, fontWeight: 300, letterSpacing: -0.5 }} type="number" min="0.01" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00" />
+            <input
+              style={{ ...inp, fontSize: 26, fontWeight: 300, letterSpacing: -0.5 }}
+              type="text"
+              inputMode="decimal"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              placeholder="0,00"
+            />
           </div>
           <div>
             <input style={{ ...inp, fontSize: 13 }} value={description} onChange={e => setDescription(e.target.value)} placeholder={cfg.placeholder} />
@@ -904,7 +925,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
 const QUICK_ACTIONS: { label: string; icon: React.ReactNode; action: TabKey | TransferMode }[] = [
   { label: 'Поповнити', action: 'topup', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="#1c2e22" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
   { label: 'На картку', action: 'by_card', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="#1c2e22" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  { label: 'За IBAN', action: 'by_account', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 9h18M3 15h18M6 5v14M18 5v14" stroke="#1c2e22" strokeWidth="2" strokeLinecap="round" /></svg> },
+  { label: 'Між картами', action: 'by_card', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 9h18M3 15h18M6 5v14M18 5v14" stroke="#1c2e22" strokeWidth="2" strokeLinecap="round" /></svg> },
   { label: 'Магазин', action: 'market', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke="#1c2e22" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9" cy="21" r="1" fill="#1c2e22" /><circle cx="19" cy="21" r="1" fill="#1c2e22" /></svg> },
 ];
 
@@ -2568,7 +2589,16 @@ function MarketplaceScreen() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {invoices.map(inv => (
-                <div key={inv.invoice_number} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div key={inv.invoice_number} style={{
+                  background: 'linear-gradient(160deg, rgba(18,40,30,0.78) 0%, rgba(10,24,18,0.9) 100%)',
+                  border: `1px solid rgba(180,172,155,0.22)`,
+                  borderRadius: 16,
+                  padding: '14px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.08), 0 10px 22px rgba(0,0,0,0.2)',
+                }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <span style={{ fontSize: 13, fontWeight: 600, color: text.secondary, fontFamily: 'monospace' }}>{inv.invoice_number}</span>
@@ -3344,7 +3374,8 @@ export default function App() {
               minHeight: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
-              scrollPaddingBottom: '24px',
+              paddingBottom: 'max(10px, env(safe-area-inset-bottom, 0px))',
+              scrollPaddingBottom: 'max(16px, env(safe-area-inset-bottom, 0px))',
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}>

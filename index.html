@@ -113,13 +113,23 @@
     </style>
     <script>
       (function () {
+        function isStandaloneMode() {
+          try {
+            var iosStandalone = window.navigator && window.navigator.standalone === true;
+            var mediaStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+            return !!(iosStandalone || mediaStandalone);
+          } catch (_) {
+            return false;
+          }
+        }
         var root = document.documentElement;
         function setAppVh() {
           var ih = window.innerHeight || 0;
           var ch = document.documentElement.clientHeight || 0;
           var vv = (window.visualViewport && window.visualViewport.height) ? Math.round(window.visualViewport.height) : 0;
-          // iOS PWA: prefer visual viewport to avoid phantom extra space under bottom bar.
-          var h = vv || ih || ch;
+          // In standalone PWA mode prefer innerHeight to avoid bottom dead-zones on iPhone.
+          // In browser mode prefer visualViewport to account for dynamic browser chrome.
+          var h = isStandaloneMode() ? (ih || ch || vv) : (vv || ih || ch);
           if (h > 0) root.style.setProperty('--app-vh', h + 'px');
         }
         setAppVh();
@@ -134,7 +144,7 @@
     </script>
     <script>
       (function () {
-        var buildId = '2026-04-22-06';
+        var buildId = '2026-04-22-07';
         var buildKey = 'army_bank_build_id';
         try {
           var prev = localStorage.getItem(buildKey);
