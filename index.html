@@ -127,13 +127,12 @@
           var ih = window.innerHeight || 0;
           var ch = document.documentElement.clientHeight || 0;
           var vv = (window.visualViewport && window.visualViewport.height) ? Math.round(window.visualViewport.height) : 0;
-          var sh = (window.screen && window.screen.height) ? Math.round(window.screen.height) : 0;
           // iOS standalone may report conservative innerHeight.
-          // Use the largest stable value in standalone to avoid "browser-sized" layout.
+          // Use viewport values only. screen.height can over-report and create bottom dead zones.
           // In browser mode prefer visualViewport to track dynamic browser chrome.
           var h = isStandaloneMode()
-            ? Math.max(ih || 0, ch || 0, vv || 0, sh || 0)
-            : (vv || ih || ch || sh);
+            ? Math.max(ih || 0, ch || 0, vv || 0)
+            : (vv || ih || ch);
           if (h > 0) root.style.setProperty('--app-vh', h + 'px');
         }
         setAppVh();
@@ -148,7 +147,7 @@
     </script>
     <script>
       (function () {
-        var buildId = '2026-04-22-13';
+        var buildId = '2026-04-22-15';
         var buildKey = 'army_bank_build_id';
         try {
           var prev = localStorage.getItem(buildKey);

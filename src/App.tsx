@@ -3713,8 +3713,8 @@ export default function App() {
               minHeight: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
-              paddingBottom: 6,
-              scrollPaddingBottom: 12,
+              paddingBottom: 0,
+              scrollPaddingBottom: 0,
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
