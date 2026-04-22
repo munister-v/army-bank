@@ -2341,8 +2341,8 @@ function MarketplaceScreen() {
                     <div style={{ marginTop: 'auto', paddingTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                       <span style={{ ...T.body, fontWeight: 700, color: gold, ...T.num }}>₴{fmtInt(p.price)}</span>
                       <button onClick={e => { e.stopPropagation(); addToCart(p); }} disabled={p.stock !== undefined && p.stock <= 0} style={{
-                        width: 28, height: 28, borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 700,
-                        background: (p.stock !== undefined && p.stock <= 0) ? 'rgba(30,45,35,0.4)' : 'rgba(180,172,155,0.15)', border: `1px solid ${bg.border}`,
+                        width: 28, height: 28, borderRadius: 8, border: `1px solid ${bg.border}`, fontSize: 14, fontWeight: 700,
+                        background: (p.stock !== undefined && p.stock <= 0) ? 'rgba(30,45,35,0.4)' : 'rgba(180,172,155,0.15)',
                         color: text.secondary, cursor: (p.stock !== undefined && p.stock <= 0) ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>+</button>
                     </div>
