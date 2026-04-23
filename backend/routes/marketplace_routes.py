@@ -2862,6 +2862,273 @@ REAL_PRODUCTS = [
     {'slug':'arm-bundle-phone-watch','title':'ARM Bundle: Phone + Watch','description':'ARM Phone Lite 5G 256GB + ARM Watch Series 4 — ексклюзивний комплект','price':20499,'currency':'UAH','image_emoji':'📦','image_url':None,'badge':'ARM DEAL','stock':10},
 ]
 
+# Parsed snapshot from a public marketplace-style product feed.
+# Kept static so Render boot does not depend on a third-party API.
+REAL_PRODUCTS.extend([{'slug': 'feed-apple-airpods-max-silver',
+  'title': 'Apple AirPods Max Silver',
+  'description': 'Parsed marketplace item · Apple. The Apple AirPods Max in Silver are premium over-ear '
+                 'headphones with high-fidelity audio, adaptive EQ, and active noise cancellation. '
+                 'Experience immersive sound in style.',
+  'price': 22550,
+  'currency': 'UAH',
+  'image_emoji': '🎧',
+  'image_url': 'https://cdn.dummyjson.com/product-images/mobile-accessories/apple-airpods-max-silver/thumbnail.webp',
+  'badge': 'NEW',
+  'stock': 59},
+ {'slug': 'feed-apple-iphone-charger',
+  'title': 'Apple iPhone Charger',
+  'description': 'Parsed marketplace item · Apple. The Apple iPhone Charger is a high-quality charger '
+                 'designed for fast and efficient charging of your iPhone. Ensure your device stays powered '
+                 'up and ready to go.',
+  'price': 820,
+  'currency': 'UAH',
+  'image_emoji': '📱',
+  'image_url': 'https://cdn.dummyjson.com/product-images/mobile-accessories/apple-iphone-charger/thumbnail.webp',
+  'badge': 'NEW',
+  'stock': 31},
+ {'slug': 'feed-apple-magsafe-battery-pack',
+  'title': 'Apple MagSafe Battery Pack',
+  'description': 'Parsed marketplace item · Apple. The Apple MagSafe Battery Pack is a portable and '
+                 'convenient way to add extra battery life to your MagSafe-compatible iPhone. Attach it '
+                 'magnetically for a secure connection.',
+  'price': 4100,
+  'currency': 'UAH',
+  'image_emoji': '🛍️',
+  'image_url': 'https://cdn.dummyjson.com/product-images/mobile-accessories/apple-magsafe-battery-pack/thumbnail.webp',
+  'badge': 'LIMITED',
+  'stock': 1},
+ {'slug': 'feed-beats-flex-wireless-earphones',
+  'title': 'Beats Flex Wireless Earphones',
+  'description': 'Parsed marketplace item · Beats. The Beats Flex Wireless Earphones offer a comfortable and '
+                 'versatile audio experience. With magnetic earbuds and up to 12 hours of battery life, they '
+                 'are ideal for everyday use.',
+  'price': 2050,
+  'currency': 'UAH',
+  'image_emoji': '📱',
+  'image_url': 'https://cdn.dummyjson.com/product-images/mobile-accessories/beats-flex-wireless-earphones/thumbnail.webp',
+  'badge': 'HOT',
+  'stock': 50},
+ {'slug': 'feed-iphone-12-silicone-case-with-magsafe-plum',
+  'title': 'iPhone 12 Silicone Case with MagSafe Plum',
+  'description': 'Parsed marketplace item · Apple. The iPhone 12 Silicone Case with MagSafe in Plum is a '
+                 'stylish and protective case designed for the iPhone 12. It features MagSafe technology for '
+                 'easy attachment of accessories.',
+  'price': 1230,
+  'currency': 'UAH',
+  'image_emoji': '📱',
+  'image_url': 'https://cdn.dummyjson.com/product-images/mobile-accessories/iphone-12-silicone-case-with-magsafe-plum/thumbnail.webp',
+  'badge': 'NEW',
+  'stock': 69},
+ {'slug': 'feed-selfie-lamp-with-iphone',
+  'title': 'Selfie Lamp with iPhone',
+  'description': 'Parsed marketplace item · GadgetMaster. The Selfie Lamp with iPhone is a portable and '
+                 'adjustable LED light designed to enhance your selfies and video calls. Attach it to your '
+                 'iPhone for well-lit photos.',
+  'price': 615,
+  'currency': 'UAH',
+  'image_emoji': '📱',
+  'image_url': 'https://cdn.dummyjson.com/product-images/mobile-accessories/selfie-lamp-with-iphone/thumbnail.webp',
+  'badge': 'NEW',
+  'stock': 58},
+ {'slug': 'feed-apple-macbook-pro-14-inch-space-grey',
+  'title': 'Apple MacBook Pro 14 Inch Space Grey',
+  'description': 'Parsed marketplace item · Apple. The MacBook Pro 14 Inch in Space Grey is a powerful and '
+                 "sleek laptop, featuring Apple's M1 Pro chip for exceptional performance and a stunning "
+                 'Retina display.',
+  'price': 82000,
+  'currency': 'UAH',
+  'image_emoji': '💻',
+  'image_url': 'https://cdn.dummyjson.com/product-images/laptops/apple-macbook-pro-14-inch-space-grey/thumbnail.webp',
+  'badge': 'NEW',
+  'stock': 24},
+ {'slug': 'feed-asus-zenbook-pro-dual-screen-laptop',
+  'title': 'Asus Zenbook Pro Dual Screen Laptop',
+  'description': 'Parsed marketplace item · Asus. The Asus Zenbook Pro Dual Screen Laptop is a '
+                 'high-performance device with dual screens, providing productivity and versatility for '
+                 'creative professionals.',
+  'price': 73800,
+  'currency': 'UAH',
+  'image_emoji': '💻',
+  'image_url': 'https://cdn.dummyjson.com/product-images/laptops/asus-zenbook-pro-dual-screen-laptop/thumbnail.webp',
+  'badge': 'NEW',
+  'stock': 45},
+ {'slug': 'feed-huawei-matebook-x-pro',
+  'title': 'Huawei Matebook X Pro',
+  'description': 'Parsed marketplace item · Huawei. The Huawei Matebook X Pro is a slim and stylish laptop '
+                 'with a high-resolution touchscreen display, offering a premium experience for users on the '
+                 'go.',
+  'price': 57400,
+  'currency': 'UAH',
+  'image_emoji': '💻',
+  'image_url': 'https://cdn.dummyjson.com/product-images/laptops/huawei-matebook-x-pro/thumbnail.webp',
+  'badge': 'TOP',
+  'stock': 75},
+ {'slug': 'feed-lenovo-yoga-920',
+  'title': 'Lenovo Yoga 920',
+  'description': 'Parsed marketplace item · Lenovo. The Lenovo Yoga 920 is a 2-in-1 convertible laptop with '
+                 'a flexible hinge, allowing you to use it as a laptop or tablet, offering versatility and '
+                 'portability.',
+  'price': 45100,
+  'currency': 'UAH',
+  'image_emoji': '💻',
+  'image_url': 'https://cdn.dummyjson.com/product-images/laptops/lenovo-yoga-920/thumbnail.webp',
+  'badge': 'NEW',
+  'stock': 40},
+ {'slug': 'feed-new-dell-xps-13-9300-laptop',
+  'title': 'New DELL XPS 13 9300 Laptop',
+  'description': 'Parsed marketplace item · Dell. The New DELL XPS 13 9300 Laptop is a compact and powerful '
+                 'device, featuring a virtually borderless InfinityEdge display and high-end performance for '
+                 'various tasks.',
+  'price': 61500,
+  'currency': 'UAH',
+  'image_emoji': '💻',
+  'image_url': 'https://cdn.dummyjson.com/product-images/laptops/new-dell-xps-13-9300-laptop/thumbnail.webp',
+  'badge': 'NEW',
+  'stock': 74},
+ {'slug': 'feed-brown-leather-belt-watch',
+  'title': 'Brown Leather Belt Watch',
+  'description': 'Parsed marketplace item · Fashion Timepieces. The Brown Leather Belt Watch is a stylish '
+                 'timepiece with a classic design. Featuring a genuine leather strap and a sleek dial, it '
+                 'adds a touch of sophistication to your look.',
+  'price': 3690,
+  'currency': 'UAH',
+  'image_emoji': '⌚',
+  'image_url': 'https://cdn.dummyjson.com/product-images/mens-watches/brown-leather-belt-watch/thumbnail.webp',
+  'badge': 'NEW',
+  'stock': 32},
+ {'slug': 'feed-longines-master-collection',
+  'title': 'Longines Master Collection',
+  'description': 'Parsed marketplace item · Longines. The Longines Master Collection is an elegant and '
+                 "refined watch known for its precision and craftsmanship. With a timeless design, it's a "
+                 'symbol of luxury and sophistication.',
+  'price': 61500,
+  'currency': 'UAH',
+  'image_emoji': '⌚',
+  'image_url': 'https://cdn.dummyjson.com/product-images/mens-watches/longines-master-collection/thumbnail.webp',
+  'badge': 'NEW',
+  'stock': 100},
+ {'slug': 'feed-rolex-cellini-date-black-dial',
+  'title': 'Rolex Cellini Date Black Dial',
+  'description': 'Parsed marketplace item · Rolex. The Rolex Cellini Date with Black Dial is a classic and '
+                 'prestigious watch. With a black dial and date complication, it exudes sophistication and '
+                 "is a symbol of Rolex's heritage.",
+  'price': 369000,
+  'currency': 'UAH',
+  'image_emoji': '⌚',
+  'image_url': 'https://cdn.dummyjson.com/product-images/mens-watches/rolex-cellini-date-black-dial/thumbnail.webp',
+  'badge': 'TOP',
+  'stock': 40},
+ {'slug': 'feed-rolex-datejust',
+  'title': 'Rolex Datejust',
+  'description': 'Parsed marketplace item · Rolex. The Rolex Datejust is an iconic and versatile timepiece '
+                 "with a date window. Known for its timeless design and reliability, it's a symbol of "
+                 "Rolex's watchmaking excellence.",
+  'price': 451000,
+  'currency': 'UAH',
+  'image_emoji': '⌚',
+  'image_url': 'https://cdn.dummyjson.com/product-images/mens-watches/rolex-datejust/thumbnail.webp',
+  'badge': 'NEW',
+  'stock': 86},
+ {'slug': 'feed-rolex-submariner-watch',
+  'title': 'Rolex Submariner Watch',
+  'description': 'Parsed marketplace item · Rolex. The Rolex Submariner is a legendary dive watch with a '
+                 "rich history. Known for its durability and water resistance, it's a symbol of adventure "
+                 'and exploration.',
+  'price': 574000,
+  'currency': 'UAH',
+  'image_emoji': '⌚',
+  'image_url': 'https://cdn.dummyjson.com/product-images/mens-watches/rolex-submariner-watch/thumbnail.webp',
+  'badge': 'NEW',
+  'stock': 55},
+ {'slug': 'feed-apple-watch-series-4-gold',
+  'title': 'Apple Watch Series 4 Gold',
+  'description': 'Parsed marketplace item · Apple. The Apple Watch Series 4 in Gold is a stylish and '
+                 'advanced smartwatch with features like heart rate monitoring, fitness tracking, and a '
+                 'beautiful Retina display.',
+  'price': 14350,
+  'currency': 'UAH',
+  'image_emoji': '⌚',
+  'image_url': 'https://cdn.dummyjson.com/product-images/mobile-accessories/apple-watch-series-4-gold/thumbnail.webp',
+  'badge': 'NEW',
+  'stock': 33},
+ {'slug': 'feed-monopod',
+  'title': 'Monopod',
+  'description': 'Parsed marketplace item · TechGear. The Monopod is a versatile camera accessory for stable '
+                 'and adjustable shooting. Perfect for capturing selfies, group photos, and videos with '
+                 'ease.',
+  'price': 820,
+  'currency': 'UAH',
+  'image_emoji': '🛍️',
+  'image_url': 'https://cdn.dummyjson.com/product-images/mobile-accessories/monopod/thumbnail.webp',
+  'badge': 'HOT',
+  'stock': 48},
+ {'slug': 'feed-selfie-stick-monopod',
+  'title': 'Selfie Stick Monopod',
+  'description': 'Parsed marketplace item · SnapTech. The Selfie Stick Monopod is a extendable and foldable '
+                 'device for capturing the perfect selfie or group photo. Compatible with smartphones and '
+                 'cameras.',
+  'price': 533,
+  'currency': 'UAH',
+  'image_emoji': '🛍️',
+  'image_url': 'https://cdn.dummyjson.com/product-images/mobile-accessories/selfie-stick-monopod/thumbnail.webp',
+  'badge': 'LIMITED',
+  'stock': 11},
+ {'slug': 'feed-tv-studio-camera-pedestal',
+  'title': 'TV Studio Camera Pedestal',
+  'description': 'Parsed marketplace item · ProVision. The TV Studio Camera Pedestal is a professional-grade '
+                 'camera support system for smooth and precise camera movements in a studio setting. Ideal '
+                 'for broadcast and production.',
+  'price': 20500,
+  'currency': 'UAH',
+  'image_emoji': '📷',
+  'image_url': 'https://cdn.dummyjson.com/product-images/mobile-accessories/tv-studio-camera-pedestal/thumbnail.webp',
+  'badge': 'LIMITED',
+  'stock': 15},
+ {'slug': 'feed-iphone-13-pro',
+  'title': 'iPhone 13 Pro',
+  'description': 'Parsed marketplace item · Apple. The iPhone 13 Pro is a cutting-edge smartphone with a '
+                 'powerful camera system, high-performance chip, and stunning display. It offers advanced '
+                 'features for users who demand top-notch technology.',
+  'price': 45100,
+  'currency': 'UAH',
+  'image_emoji': '📱',
+  'image_url': 'https://cdn.dummyjson.com/product-images/smartphones/iphone-13-pro/thumbnail.webp',
+  'badge': 'NEW',
+  'stock': 56},
+ {'slug': 'feed-oppo-f19-pro-plus',
+  'title': 'Oppo F19 Pro Plus',
+  'description': 'Parsed marketplace item · Oppo. The Oppo F19 Pro Plus is a feature-rich smartphone with a '
+                 'focus on camera capabilities. It boasts advanced photography features and a powerful '
+                 'performance for a premium user experience.',
+  'price': 16400,
+  'currency': 'UAH',
+  'image_emoji': '📱',
+  'image_url': 'https://cdn.dummyjson.com/product-images/smartphones/oppo-f19-pro-plus/thumbnail.webp',
+  'badge': 'NEW',
+  'stock': 78},
+ {'slug': 'feed-realme-x',
+  'title': 'Realme X',
+  'description': 'Parsed marketplace item · Realme. The Realme X is a mid-range smartphone known for its '
+                 'sleek design and impressive display. It offers a good balance of performance and camera '
+                 'capabilities for users seeking a quality device.',
+  'price': 12300,
+  'currency': 'UAH',
+  'image_emoji': '📱',
+  'image_url': 'https://cdn.dummyjson.com/product-images/smartphones/realme-x/thumbnail.webp',
+  'badge': 'LIMITED',
+  'stock': 12},
+ {'slug': 'feed-calvin-klein-heel-shoes',
+  'title': 'Calvin Klein Heel Shoes',
+  'description': 'Parsed marketplace item · Calvin Klein. Calvin Klein Heel Shoes are elegant and '
+                 'sophisticated, designed for formal occasions. With a classic design and high-quality '
+                 'materials, they complement your stylish ensemble.',
+  'price': 3280,
+  'currency': 'UAH',
+  'image_emoji': '👟',
+  'image_url': 'https://cdn.dummyjson.com/product-images/womens-shoes/calvin-klein-heel-shoes/thumbnail.webp',
+  'badge': 'TOP',
+  'stock': 93}])
+
 
 @marketplace_bp.post('/admin/seed-products')
 @auth_required

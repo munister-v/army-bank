@@ -3615,7 +3615,7 @@ function MarketplaceScreen() {
   useEffect(() => {
     if (tab === 'catalog') {
       setLoading(true);
-      fetch('/api/marketplace/catalog', { headers: { Authorization: `Bearer ${token}` } })
+      fetch('/api/marketplace/catalog?per_page=96&sort=newest', { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json())
         .then(j => { if (j.ok) setProducts(Array.isArray(j.data?.items) ? j.data.items : (Array.isArray(j.data) ? j.data : [])); })
         .catch(() => {})
