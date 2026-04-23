@@ -3450,7 +3450,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
   const [shipPhone, setShipPhone] = useState(user?.phone || '');
   const [shipAddr, setShipAddr] = useState('');
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
-  const cartRowsMaxHeight = cart.length > 3 ? 'min(42dvh, 360px)' : 'none';
+  const cartRowsMaxHeight = cart.length > 3 ? 'min(42dvh, 360px)' : undefined;
 
   const fieldStyle: React.CSSProperties = {
     width: '100%', padding: '11px 14px', background: 'rgba(255,255,255,0.05)',
@@ -3473,11 +3473,12 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
         borderRadius: '28px 28px 0 0',
         padding: '18px 18px 0',
         boxShadow: '0 -20px 60px rgba(0,0,0,0.6)',
-        height: 'auto',
+        height: step === 'cart' ? 'auto' : 'min(86dvh, 720px)',
         maxHeight: 'min(86dvh, 720px)',
         overflow: 'hidden',
         border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
-        display: 'flex', flexDirection: 'column',
+        display: step === 'cart' ? 'block' : 'flex',
+        flexDirection: 'column',
         ...sheetSwipe.sheetStyle,
       }}
       >
@@ -3499,7 +3500,15 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
             <div style={{ textAlign: 'center', padding: '40px 0', color: text.muted }}>{t('cart_empty')}</div>
           ) : (
             <>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, overflowY: cart.length > 3 ? 'auto' : 'visible', maxHeight: cartRowsMaxHeight, paddingBottom: 14, WebkitOverflowScrolling: 'touch', flex: '0 1 auto' }}>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+                overflowY: cart.length > 3 ? 'auto' : 'visible',
+                maxHeight: cartRowsMaxHeight,
+                paddingBottom: 14,
+                WebkitOverflowScrolling: 'touch',
+              }}>
                 {cart.map(item => (
                   <div key={item.product.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${bg.border}`, borderRadius: 16 }}>
                     <div style={{ width: 46, height: 46, borderRadius: 13, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(221,216,204,0.06)' }}>
@@ -3519,10 +3528,9 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
                 ))}
               </div>
               <div style={{
-                flexShrink: 0,
                 margin: '0 -18px',
                 padding: '16px 18px calc(18px + env(safe-area-inset-bottom, 0px))',
-                background: 'linear-gradient(180deg, rgba(11,30,22,0.9) 0%, rgba(11,30,22,0.97) 36%, rgba(7,21,15,0.99) 100%)',
+                background: 'linear-gradient(180deg, rgba(11,30,22,0.98) 0%, rgba(7,21,15,0.99) 100%)',
                 borderTop: '1px solid rgba(221,216,204,0.08)',
                 boxShadow: '0 -20px 38px rgba(0,0,0,0.22)',
               }}>
