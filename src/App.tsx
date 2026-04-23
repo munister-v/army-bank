@@ -311,6 +311,9 @@ function cardTail(masked?: string): string {
 const CARD_INDEX_STORAGE_KEY = 'army_bank_selected_card_idx';
 const PROFILE_PHOTO_STORAGE_KEY = 'army_bank_profile_photo';
 const LANGUAGE_STORAGE_KEY = 'army_bank_language';
+const ACTIVE_TAB_STORAGE_KEY = 'army_bank_active_tab';
+const MARKET_TAB_STORAGE_KEY = 'army_bank_market_tab';
+const APP_CONTINUATION_STORAGE_KEY = 'army_bank_recently_active';
 
 type AppLang = 'uk' | 'en' | 'it' | 'es';
 
@@ -1194,7 +1197,46 @@ function setStoredLanguage(value: AppLang) {
   }
 }
 
+function markAppContinuation() {
+  try {
+    localStorage.setItem(APP_CONTINUATION_STORAGE_KEY, String(Date.now()));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function shouldShowInitialSplash(): boolean {
+  try {
+    const lastActive = Number(localStorage.getItem(APP_CONTINUATION_STORAGE_KEY) || 0);
+    if (Number.isFinite(lastActive) && Date.now() - lastActive < 15 * 60_000) return false;
+  } catch {
+    // ignore storage errors
+  }
+  return true;
+}
+
+function readStoredTab(): TabKey {
+  try {
+    const raw = localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
+    if (raw === 'overview' || raw === 'operations' || raw === 'cards' || raw === 'market' || raw === 'profile') return raw;
+  } catch {
+    // ignore storage errors
+  }
+  return 'overview';
+}
+
+function readStoredMarketTab(): 'catalog' | 'orders' | 'invoices' {
+  try {
+    const raw = localStorage.getItem(MARKET_TAB_STORAGE_KEY);
+    if (raw === 'catalog' || raw === 'orders' || raw === 'invoices') return raw;
+  } catch {
+    // ignore storage errors
+  }
+  return 'catalog';
+}
+
 function openPdfBlobInNewTab(blob: Blob, fallbackFileName: string, toast?: (msg: string) => void) {
+  markAppContinuation();
   const blobUrl = URL.createObjectURL(blob);
   const popup = window.open(blobUrl, '_blank', 'noopener,noreferrer');
   if (popup) {
@@ -3407,6 +3449,8 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
   const [shipName, setShipName] = useState(user?.full_name || '');
   const [shipPhone, setShipPhone] = useState(user?.phone || '');
   const [shipAddr, setShipAddr] = useState('');
+  const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+  const cartRowsMaxHeight = cart.length > 3 ? 'min(42dvh, 360px)' : 'none';
 
   const fieldStyle: React.CSSProperties = {
     width: '100%', padding: '11px 14px', background: 'rgba(255,255,255,0.05)',
@@ -3428,7 +3472,10 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
         backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
         borderRadius: '28px 28px 0 0',
         padding: '18px 18px 0',
-        boxShadow: '0 -20px 60px rgba(0,0,0,0.6)', height: 'min(86dvh, 720px)', overflow: 'hidden',
+        boxShadow: '0 -20px 60px rgba(0,0,0,0.6)',
+        height: 'auto',
+        maxHeight: 'min(86dvh, 720px)',
+        overflow: 'hidden',
         border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
         display: 'flex', flexDirection: 'column',
         ...sheetSwipe.sheetStyle,
@@ -3444,7 +3491,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
           <div style={{ ...T.h2, color: text.primary, flex: 1 }}>
             {step === 'cart' ? t('cart_title') : t('delivery_title')}
           </div>
-          {step === 'cart' && <div style={{ ...T.body, color: text.muted }}>{cart.reduce((s,i) => s+i.qty, 0)} {t('cart_items_count')}</div>}
+          {step === 'cart' && <div style={{ ...T.body, color: text.muted }}>{cartCount} {t('cart_items_count')}</div>}
         </div>
 
         {step === 'cart' && (
@@ -3452,7 +3499,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
             <div style={{ textAlign: 'center', padding: '40px 0', color: text.muted }}>{t('cart_empty')}</div>
           ) : (
             <>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', paddingBottom: 14, WebkitOverflowScrolling: 'touch', flex: 1 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, overflowY: cart.length > 3 ? 'auto' : 'visible', maxHeight: cartRowsMaxHeight, paddingBottom: 14, WebkitOverflowScrolling: 'touch', flex: '0 1 auto' }}>
                 {cart.map(item => (
                   <div key={item.product.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${bg.border}`, borderRadius: 16 }}>
                     <div style={{ width: 46, height: 46, borderRadius: 13, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(221,216,204,0.06)' }}>
@@ -3475,7 +3522,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
                 flexShrink: 0,
                 margin: '0 -18px',
                 padding: '16px 18px calc(18px + env(safe-area-inset-bottom, 0px))',
-                background: 'linear-gradient(180deg, rgba(11,30,22,0) 0%, rgba(11,30,22,0.94) 22%, rgba(7,21,15,0.99) 100%)',
+                background: 'linear-gradient(180deg, rgba(11,30,22,0.9) 0%, rgba(11,30,22,0.97) 36%, rgba(7,21,15,0.99) 100%)',
                 borderTop: '1px solid rgba(221,216,204,0.08)',
                 boxShadow: '0 -20px 38px rgba(0,0,0,0.22)',
               }}>
@@ -3494,7 +3541,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
         )}
 
         {step === 'shipping' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1, overflowY: 'auto', paddingBottom: 'calc(18px + env(safe-area-inset-bottom, 0px))' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: '0 1 auto', overflowY: 'auto', maxHeight: 'calc(min(86dvh, 720px) - 92px)', paddingBottom: 'calc(18px + env(safe-area-inset-bottom, 0px))' }}>
             <div>
               <label style={labelStyle}>{t('recipient_label')}</label>
               <input value={shipName} onChange={e => setShipName(e.target.value)} placeholder="Прізвище Ім'я По-батькові" style={fieldStyle} />
@@ -3535,7 +3582,7 @@ function MarketplaceScreen() {
   const { t } = usePreferences();
   const topPad = useTopPad();
   const { toast, refreshDashboard, user: mktUser, setTabBarHidden } = useApp();
-  const [tab, setTab] = useState<MarketTab>('catalog');
+  const [tab, setTabState] = useState<MarketTab>(() => readStoredMarketTab());
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<MarketOrder[]>([]);
   const [invoices, setInvoices] = useState<MarketInvoice[]>([]);
@@ -3556,6 +3603,16 @@ function MarketplaceScreen() {
   }, [showCart, preview, setTabBarHidden]);
 
   const token = localStorage.getItem('army_bank_token');
+
+  const setTab = React.useCallback((next: MarketTab) => {
+    setTabState(next);
+    markAppContinuation();
+    try {
+      localStorage.setItem(MARKET_TAB_STORAGE_KEY, next);
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
 
   function addToCart(product: Product) {
     setCart(prev => {
@@ -4465,8 +4522,8 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 // ─── App root ─────────────────────────────────────────────────
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getToken());
-  const [showSplash, setShowSplash] = useState(true);
-  const [tab, setTab] = useState<TabKey>('overview');
+  const [showSplash, setShowSplash] = useState(() => shouldShowInitialSplash());
+  const [tab, setTabState] = useState<TabKey>(() => readStoredTab());
   const [profilePhoto, setProfilePhotoState] = useState<string>(() => getProfilePhoto());
   const [lang, setLangState] = useState<AppLang>(() => getStoredLanguage());
   const touchStartXRef = useRef<number | null>(null);
@@ -4492,6 +4549,16 @@ export default function App() {
   const t = React.useCallback((key: TranslationKey) => translations[lang][key], [lang]);
   const tabs = React.useMemo(() => getTabs(t), [t]);
   const tabIndex = tabs.findIndex(t => t.k === tab);
+
+  const setTab = React.useCallback((next: TabKey) => {
+    setTabState(next);
+    markAppContinuation();
+    try {
+      localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, next);
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -4564,8 +4631,9 @@ export default function App() {
 
   useEffect(() => {
     const id = setTimeout(() => setShowSplash(false), 3600);
+    if (showSplash) markAppContinuation();
     return () => clearTimeout(id);
-  }, []);
+  }, [showSplash]);
 
   const fetchDashboard = React.useCallback(async () => {
     const token = localStorage.getItem('army_bank_token');
