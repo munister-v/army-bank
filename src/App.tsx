@@ -165,6 +165,23 @@ const AppCtx = createContext<AppCtxType>({
 });
 const useApp = () => useContext(AppCtx);
 
+interface PreferencesCtxType {
+  profilePhoto: string;
+  setProfilePhotoValue: (value: string) => void;
+  lang: AppLang;
+  setLang: (lang: AppLang) => void;
+  t: (key: TranslationKey) => string;
+}
+
+const PreferencesCtx = createContext<PreferencesCtxType>({
+  profilePhoto: '',
+  setProfilePhotoValue: () => {},
+  lang: 'uk',
+  setLang: () => {},
+  t: (key: TranslationKey) => translations.uk[key],
+});
+const usePreferences = () => useContext(PreferencesCtx);
+
 type ApiUser = {
   id: number;
   full_name: string;
@@ -291,6 +308,210 @@ function cardTail(masked?: string): string {
 
 const CARD_INDEX_STORAGE_KEY = 'army_bank_selected_card_idx';
 const PROFILE_PHOTO_STORAGE_KEY = 'army_bank_profile_photo';
+const LANGUAGE_STORAGE_KEY = 'army_bank_language';
+
+type AppLang = 'uk' | 'en' | 'it' | 'es';
+
+const translations = {
+  uk: {
+    user_fallback: 'Користувач',
+    greeting_morning: 'Доброго ранку',
+    greeting_day: 'Добрий день',
+    greeting_evening: 'Доброго вечора',
+    greeting_night: 'Доброї ночі',
+    tabs_overview: 'Огляд',
+    tabs_operations: 'Операції',
+    tabs_cards: 'Картки',
+    tabs_market: 'Магазин',
+    tabs_profile: 'Профіль',
+    quick_topup: 'Поповнити',
+    quick_by_card: 'На картку',
+    quick_by_account: 'За рахунком',
+    quick_market: 'Магазин',
+    balance_total: 'Загальний баланс',
+    cards_mine: 'Мої картки',
+    all: 'Усі',
+    quick_actions: 'Швидкі дії',
+    recent_activity: 'Остання активність',
+    history: 'Історія',
+    no_transactions_yet: 'Транзакцій ще немає',
+    topup_or_transfer: 'Поповніть рахунок або зробіть переказ',
+    profile_verified: 'Верифікований',
+    profile_name: "Ім'я",
+    profile_phone: 'Телефон',
+    profile_email: 'Email',
+    profile_account: 'Рахунок',
+    profile_security: 'Безпека',
+    profile_password: 'Пароль',
+    profile_change_photo: 'Змінити фото',
+    profile_remove_photo: 'Видалити',
+    profile_change_password: 'Змінити пароль',
+    profile_current_password: 'Поточний пароль',
+    profile_new_password: 'Новий пароль',
+    profile_save: 'Зберегти',
+    profile_logout: 'Вийти з акаунту',
+    settings_language: 'Мова',
+    settings_language_sub: 'Інтерфейс застосунку',
+    lang_uk: 'Українська',
+    lang_en: 'English',
+    lang_it: 'Italiano',
+    lang_es: 'Español',
+    personal_cabinet: 'Особистий кабінет',
+    face_id_unavailable: 'Недоступно на цьому пристрої',
+    push_notifications: 'Push-сповіщення',
+    twofa_sms: 'Підтвердження за SMS',
+    unavailable: 'Недоступно',
+  },
+  en: {
+    user_fallback: 'User',
+    greeting_morning: 'Good morning',
+    greeting_day: 'Good afternoon',
+    greeting_evening: 'Good evening',
+    greeting_night: 'Good night',
+    tabs_overview: 'Overview',
+    tabs_operations: 'Activity',
+    tabs_cards: 'Cards',
+    tabs_market: 'Store',
+    tabs_profile: 'Profile',
+    quick_topup: 'Top up',
+    quick_by_card: 'To card',
+    quick_by_account: 'By account',
+    quick_market: 'Store',
+    balance_total: 'Total balance',
+    cards_mine: 'My cards',
+    all: 'All',
+    quick_actions: 'Quick actions',
+    recent_activity: 'Recent activity',
+    history: 'History',
+    no_transactions_yet: 'No transactions yet',
+    topup_or_transfer: 'Top up your account or make a transfer',
+    profile_verified: 'Verified',
+    profile_name: 'Name',
+    profile_phone: 'Phone',
+    profile_email: 'Email',
+    profile_account: 'Account',
+    profile_security: 'Security',
+    profile_password: 'Password',
+    profile_change_photo: 'Change photo',
+    profile_remove_photo: 'Remove',
+    profile_change_password: 'Change password',
+    profile_current_password: 'Current password',
+    profile_new_password: 'New password',
+    profile_save: 'Save',
+    profile_logout: 'Sign out',
+    settings_language: 'Language',
+    settings_language_sub: 'App interface',
+    lang_uk: 'Ukrainian',
+    lang_en: 'English',
+    lang_it: 'Italian',
+    lang_es: 'Spanish',
+    personal_cabinet: 'Personal banking',
+    face_id_unavailable: 'Unavailable on this device',
+    push_notifications: 'Push notifications',
+    twofa_sms: 'SMS confirmation',
+    unavailable: 'Unavailable',
+  },
+  it: {
+    user_fallback: 'Utente',
+    greeting_morning: 'Buongiorno',
+    greeting_day: 'Buon pomeriggio',
+    greeting_evening: 'Buonasera',
+    greeting_night: 'Buonanotte',
+    tabs_overview: 'Panoramica',
+    tabs_operations: 'Operazioni',
+    tabs_cards: 'Carte',
+    tabs_market: 'Negozio',
+    tabs_profile: 'Profilo',
+    quick_topup: 'Ricarica',
+    quick_by_card: 'Alla carta',
+    quick_by_account: 'Per conto',
+    quick_market: 'Negozio',
+    balance_total: 'Saldo totale',
+    cards_mine: 'Le mie carte',
+    all: 'Tutte',
+    quick_actions: 'Azioni rapide',
+    recent_activity: 'Attività recente',
+    history: 'Cronologia',
+    no_transactions_yet: 'Nessuna transazione',
+    topup_or_transfer: 'Ricarica il conto o effettua un trasferimento',
+    profile_verified: 'Verificato',
+    profile_name: 'Nome',
+    profile_phone: 'Telefono',
+    profile_email: 'Email',
+    profile_account: 'Conto',
+    profile_security: 'Sicurezza',
+    profile_password: 'Password',
+    profile_change_photo: 'Cambia foto',
+    profile_remove_photo: 'Rimuovi',
+    profile_change_password: 'Cambia password',
+    profile_current_password: 'Password attuale',
+    profile_new_password: 'Nuova password',
+    profile_save: 'Salva',
+    profile_logout: 'Esci',
+    settings_language: 'Lingua',
+    settings_language_sub: 'Interfaccia dell’app',
+    lang_uk: 'Ucraino',
+    lang_en: 'Inglese',
+    lang_it: 'Italiano',
+    lang_es: 'Spagnolo',
+    personal_cabinet: 'Private banking',
+    face_id_unavailable: 'Non disponibile su questo dispositivo',
+    push_notifications: 'Notifiche push',
+    twofa_sms: 'Conferma via SMS',
+    unavailable: 'Non disponibile',
+  },
+  es: {
+    user_fallback: 'Usuario',
+    greeting_morning: 'Buenos días',
+    greeting_day: 'Buenas tardes',
+    greeting_evening: 'Buenas noches',
+    greeting_night: 'Buenas noches',
+    tabs_overview: 'Resumen',
+    tabs_operations: 'Operaciones',
+    tabs_cards: 'Tarjetas',
+    tabs_market: 'Tienda',
+    tabs_profile: 'Perfil',
+    quick_topup: 'Recargar',
+    quick_by_card: 'A tarjeta',
+    quick_by_account: 'Por cuenta',
+    quick_market: 'Tienda',
+    balance_total: 'Balance total',
+    cards_mine: 'Mis tarjetas',
+    all: 'Todas',
+    quick_actions: 'Acciones rápidas',
+    recent_activity: 'Actividad reciente',
+    history: 'Historial',
+    no_transactions_yet: 'Aún no hay transacciones',
+    topup_or_transfer: 'Recarga tu cuenta o realiza una transferencia',
+    profile_verified: 'Verificado',
+    profile_name: 'Nombre',
+    profile_phone: 'Teléfono',
+    profile_email: 'Email',
+    profile_account: 'Cuenta',
+    profile_security: 'Seguridad',
+    profile_password: 'Contraseña',
+    profile_change_photo: 'Cambiar foto',
+    profile_remove_photo: 'Eliminar',
+    profile_change_password: 'Cambiar contraseña',
+    profile_current_password: 'Contraseña actual',
+    profile_new_password: 'Nueva contraseña',
+    profile_save: 'Guardar',
+    profile_logout: 'Cerrar sesión',
+    settings_language: 'Idioma',
+    settings_language_sub: 'Interfaz de la app',
+    lang_uk: 'Ucraniano',
+    lang_en: 'Inglés',
+    lang_it: 'Italiano',
+    lang_es: 'Español',
+    personal_cabinet: 'Banca privada',
+    face_id_unavailable: 'No disponible en este dispositivo',
+    push_notifications: 'Notificaciones push',
+    twofa_sms: 'Confirmación por SMS',
+    unavailable: 'No disponible',
+  },
+} as const;
+
+type TranslationKey = keyof typeof translations.uk;
 
 function readSelectedCardIndex(): number {
   try {
@@ -388,6 +609,24 @@ function setProfilePhoto(value: string) {
   try {
     if (value) localStorage.setItem(PROFILE_PHOTO_STORAGE_KEY, value);
     else localStorage.removeItem(PROFILE_PHOTO_STORAGE_KEY);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function getStoredLanguage(): AppLang {
+  try {
+    const raw = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    if (raw === 'uk' || raw === 'en' || raw === 'it' || raw === 'es') return raw;
+  } catch {
+    // ignore storage errors
+  }
+  return 'uk';
+}
+
+function setStoredLanguage(value: AppLang) {
+  try {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, value);
   } catch {
     // ignore storage errors
   }
@@ -849,12 +1088,12 @@ function DesktopHeader({ title, subtitle, children }: { title: string; subtitle?
   );
 }
 
-function timeGreeting(): string {
+function timeGreeting(lang: AppLang): string {
   const h = new Date().getHours();
-  if (h >= 6 && h < 12) return 'Доброго ранку';
-  if (h >= 12 && h < 18) return 'Добрий день';
-  if (h >= 18 && h < 23) return 'Доброго вечора';
-  return 'Доброї ночі';
+  if (h >= 6 && h < 12) return translations[lang].greeting_morning;
+  if (h >= 12 && h < 18) return translations[lang].greeting_day;
+  if (h >= 18 && h < 23) return translations[lang].greeting_evening;
+  return translations[lang].greeting_night;
 }
 
 // ─── Overview screen ──────────────────────────────────────────
@@ -931,10 +1170,11 @@ function txActivityVisual(tx: ApiTransaction) {
 }
 
 function BalanceBlock({ visible, onToggle, balance, accountNumber }: { visible: boolean; onToggle: () => void; balance: number; accountNumber: string }) {
+  const { t } = usePreferences();
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span style={{ ...T.caption, color: text.muted }}>Загальний баланс</span>
+        <span style={{ ...T.caption, color: text.muted }}>{t('balance_total')}</span>
         <button onClick={onToggle} style={{ width: 22, height: 22, borderRadius: '50%', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {visible
             ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" stroke={text.muted} strokeWidth="1.6" /><circle cx="12" cy="12" r="3" stroke={text.muted} strokeWidth="1.6" /></svg>
@@ -961,6 +1201,7 @@ function BalanceBlock({ visible, onToggle, balance, accountNumber }: { visible: 
 
 function ActivityFeed({ title = true, transactions }: { title?: boolean; transactions: TxItem[] }) {
   const { goTo } = useApp();
+  const { t } = usePreferences();
   const rows = transactions.slice(0, 5).map(tx => {
     const cat = txToCat(tx);
     const s = CAT_STYLES[cat];
@@ -970,18 +1211,18 @@ function ActivityFeed({ title = true, transactions }: { title?: boolean; transac
     <div>
       {title && (
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-          <span style={{ ...T.h3, color: text.secondary }}>Остання активність</span>
+          <span style={{ ...T.h3, color: text.secondary }}>{t('recent_activity')}</span>
           <div style={{ flex: 1 }} />
           <button onClick={() => goTo('operations')} style={{ ...T.sm, color: gold, background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: 3, fontFamily: 'inherit', fontWeight: 600, cursor: 'pointer', letterSpacing: -0.1 }}>
-            Історія <Chevron size={12} color={gold} />
+            {t('history')} <Chevron size={12} color={gold} />
           </button>
         </div>
       )}
       <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden' }}>
         {rows.length === 0 ? (
           <div style={{ padding: '28px 16px', textAlign: 'center' }}>
-            <div style={{ fontSize: 13, color: text.muted, marginBottom: 4 }}>Транзакцій ще немає</div>
-            <div style={{ fontSize: 11, color: text.dim }}>Поповніть рахунок або зробіть переказ</div>
+            <div style={{ fontSize: 13, color: text.muted, marginBottom: 4 }}>{t('no_transactions_yet')}</div>
+            <div style={{ fontSize: 11, color: text.dim }}>{t('topup_or_transfer')}</div>
           </div>
         ) : rows.map((r, i) => (
           <Fragment key={i}>
@@ -1121,24 +1362,28 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
   );
 }
 
-const QUICK_ACTIONS: { label: string; icon: React.ReactNode; action: TabKey | TransferMode }[] = [
-  { label: 'Поповнити', action: 'topup', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="#1c2e22" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  { label: 'На картку', action: 'by_card', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="#1c2e22" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  { label: 'За рахунком', action: 'by_account', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 9h18M3 15h18M6 5v14M18 5v14" stroke="#1c2e22" strokeWidth="2" strokeLinecap="round" /></svg> },
-  { label: 'Магазин', action: 'market', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke="#1c2e22" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9" cy="21" r="1" fill="#1c2e22" /><circle cx="19" cy="21" r="1" fill="#1c2e22" /></svg> },
-];
+function getQuickActions(t: (key: TranslationKey) => string): { label: string; icon: React.ReactNode; action: TabKey | TransferMode }[] {
+  return [
+    { label: t('quick_topup'), action: 'topup', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="#1c2e22" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+    { label: t('quick_by_card'), action: 'by_card', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="#1c2e22" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+    { label: t('quick_by_account'), action: 'by_account', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 9h18M3 15h18M6 5v14M18 5v14" stroke="#1c2e22" strokeWidth="2" strokeLinecap="round" /></svg> },
+    { label: t('quick_market'), action: 'market', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke="#1c2e22" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9" cy="21" r="1" fill="#1c2e22" /><circle cx="19" cy="21" r="1" fill="#1c2e22" /></svg> },
+  ];
+}
 
 function OverviewScreen() {
   const layout = useLayout();
   const topPad = useTopPad();
   const { goTo, toast, user, account, transactions, cards: apiCards, openTransfer } = useApp();
+  const { profilePhoto, lang, t } = usePreferences();
   function handleQuickAction(action: TabKey | TransferMode) {
     if (action === 'topup' || action === 'by_card' || action === 'by_account') openTransfer(action);
     else goTo(action as TabKey);
   }
   const { analytics } = useBankData();
-  const displayName = user?.full_name ?? 'Користувач';
-  const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const displayName = user?.full_name ?? t('user_fallback');
+  const avatarInitials = initials(displayName);
+  const quickActions = getQuickActions(t);
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [cardIdx, setCardIdx] = useState(() => readSelectedCardIndex());
   const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
@@ -1231,11 +1476,11 @@ function OverviewScreen() {
   const cardSection = (
     <div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ ...T.h3, color: text.secondary }}>Мої картки</span>
+        <span style={{ ...T.h3, color: text.secondary }}>{t('cards_mine')}</span>
         <span style={{ ...T.sm, color: text.dim }}>• {cards.length}</span>
         <div style={{ flex: 1 }} />
         <button onClick={() => goTo('cards')} style={{ fontSize: 12, color: gold, background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: 3, fontFamily: 'inherit', fontWeight: 500, cursor: 'pointer' }}>
-          Усі <Chevron size={12} color={gold} />
+          {t('all')} <Chevron size={12} color={gold} />
         </button>
       </div>
       {!cards.length ? (
@@ -1293,9 +1538,9 @@ function OverviewScreen() {
 
   const quickActionsSection = (
     <div>
-      <div style={{ ...T.h3, color: text.secondary, marginBottom: 12 }}>Швидкі дії</div>
+      <div style={{ ...T.h3, color: text.secondary, marginBottom: 12 }}>{t('quick_actions')}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-        {QUICK_ACTIONS.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => handleQuickAction(a.action)} /></Fragment>)}
+        {quickActions.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => handleQuickAction(a.action)} /></Fragment>)}
       </div>
     </div>
   );
@@ -1314,7 +1559,7 @@ function OverviewScreen() {
     color: SPEND_COLORS[r.tx_type] || gold,
   })) : [];
 
-  const greeting = timeGreeting();
+  const greeting = timeGreeting(lang);
 
   if (layout === 'desktop') {
     return (
@@ -1376,7 +1621,9 @@ function OverviewScreen() {
     <div style={{ paddingBottom: 20 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: `${topPad} 18px 8px` }}>
-        <div style={{ width: 40, height: 40, borderRadius: '50%', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a2820', fontSize: 13, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.5), 0 2px 6px rgba(0,0,0,0.3)' }}>{initials}</div>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a2820', fontSize: 13, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.5), 0 2px 6px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+          {profilePhoto ? <img src={profilePhoto} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : avatarInitials}
+        </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.5, marginBottom: 1 }}>{greeting}</div>
           <div style={{ fontSize: 15, fontWeight: 600, color: text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName.split(' ')[0]}</div>
@@ -1394,7 +1641,7 @@ function OverviewScreen() {
       </div>
       <div style={{ padding: '0 22px 4px' }}>{cardSection}</div>
       <div style={{ display: 'flex', gap: 8, padding: '18px 22px 6px' }}>
-        {QUICK_ACTIONS.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => handleQuickAction(a.action)} /></Fragment>)}
+        {quickActions.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => handleQuickAction(a.action)} /></Fragment>)}
       </div>
       <div style={{ padding: '22px 22px 0' }}><ActivityFeed transactions={transactions} /></div>
     </div>
@@ -2127,12 +2374,12 @@ function ProfileScreen() {
   const layout = useLayout();
   const topPad = useTopPad();
   const { logout, user, account, toast } = useApp();
+  const { profilePhoto, setProfilePhotoValue, lang, setLang, t } = usePreferences();
   const [faceid, setFaceid] = useState(false);
   const [faceIdReady, setFaceIdReady] = useState(false); // platform auth available
   const [faceIdBusy, setFaceIdBusy] = useState(false);
   const [push, setPush] = useState(true);
   const [twofa, setTwofa] = useState(false);
-  const [profilePhoto, setProfilePhotoState] = useState<string>(() => getProfilePhoto());
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   // Check passkey status on mount
@@ -2195,8 +2442,8 @@ function ProfileScreen() {
   const [newPwd, setNewPwd] = useState('');
   const [pwdLoading, setPwdLoading] = useState(false);
 
-  const displayName = user?.full_name ?? 'Користувач';
-  const initials = displayName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+  const displayName = user?.full_name ?? t('user_fallback');
+  const userInitials = initials(displayName);
   const phone = user?.phone
     ? ('+' + user.phone.replace(/^\+/, '')).replace(/^\+(\d{3})(\d{2})(\d{3})(\d{2})(\d{2})$/, '+$1 $2 $3 $4 $5')
     : '—';
@@ -2241,7 +2488,7 @@ function ProfileScreen() {
         return;
       }
       setProfilePhoto(value);
-      setProfilePhotoState(value);
+      setProfilePhotoValue(value);
       toast('Фото профілю оновлено');
     };
     reader.onerror = () => toast('Не вдалося завантажити фото');
@@ -2251,9 +2498,16 @@ function ProfileScreen() {
 
   function removeProfilePhoto() {
     setProfilePhoto('');
-    setProfilePhotoState('');
+    setProfilePhotoValue('');
     toast('Фото видалено');
   }
+
+  const languageOptions: { value: AppLang; label: string }[] = [
+    { value: 'uk', label: t('lang_uk') },
+    { value: 'en', label: t('lang_en') },
+    { value: 'it', label: t('lang_it') },
+    { value: 'es', label: t('lang_es') },
+  ];
 
   const section = (children: React.ReactNode) => (
     <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 20, overflow: 'hidden', margin: '0 22px 14px' }}>
@@ -2285,7 +2539,7 @@ function ProfileScreen() {
           {profilePhoto ? (
             <img src={profilePhoto} alt="Фото профілю" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
-            initials
+            userInitials
           )}
         </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -2296,7 +2550,7 @@ function ProfileScreen() {
               background: 'rgba(255,255,255,0.05)', color: text.secondary, fontSize: 12, fontWeight: 600, cursor: 'pointer',
             }}
           >
-            Змінити фото
+            {t('profile_change_photo')}
           </button>
           {profilePhoto && (
             <button
@@ -2306,28 +2560,62 @@ function ProfileScreen() {
                 background: 'rgba(220,100,110,0.08)', color: '#f2b6be', fontSize: 12, fontWeight: 600, cursor: 'pointer',
               }}
             >
-              Видалити
+              {t('profile_remove_photo')}
             </button>
           )}
         </div>
         <div style={{ ...T.h2, color: text.primary, marginBottom: 4 }}>{displayName}</div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: 'rgba(127,184,150,0.12)', border: '1px solid rgba(127,184,150,0.25)', borderRadius: 100 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#7fb896' }} />
-          <span style={{ fontSize: 11.5, color: '#7fb896', fontWeight: 500 }}>Верифікований</span>
+          <span style={{ fontSize: 11.5, color: '#7fb896', fontWeight: 500 }}>{t('profile_verified')}</span>
         </div>
       </div>
 
       {/* Account info */}
       {section(<>
-        <ProfileRow label="Ім'я" value={displayName} />
-        <ProfileRow label="Телефон" value={phone} mono />
-        <ProfileRow label="Email" value={user?.email ?? '—'} copyable />
-        <ProfileRow label="Рахунок" value={account?.account_number ?? '—'} mono copyable last />
+        <ProfileRow label={t('profile_name')} value={displayName} />
+        <ProfileRow label={t('profile_phone')} value={phone} mono />
+        <ProfileRow label={t('profile_email')} value={user?.email ?? '—'} copyable />
+        <ProfileRow label={t('profile_account')} value={account?.account_number ?? '—'} mono copyable last />
       </>)}
+
+      <div style={{ padding: '4px 22px 8px' }}>
+        <div style={{ ...sectionLabel }}>{t('settings_language')}</div>
+      </div>
+      {section(
+        <div style={{ padding: '14px 18px' }}>
+          <div style={{ fontSize: 14, color: text.secondary, fontWeight: 500, marginBottom: 4 }}>{t('settings_language')}</div>
+          <div style={{ fontSize: 11.5, color: text.muted, marginBottom: 12 }}>{t('settings_language_sub')}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+            {languageOptions.map(option => {
+              const active = option.value === lang;
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => setLang(option.value)}
+                  style={{
+                    padding: '11px 12px',
+                    borderRadius: 12,
+                    border: active ? `1px solid rgba(180,172,155,0.34)` : '1px solid rgba(180,172,155,0.14)',
+                    background: active ? 'linear-gradient(135deg, rgba(180,172,155,0.16), rgba(100,95,80,0.08))' : 'rgba(255,255,255,0.04)',
+                    color: active ? text.primary : text.secondary,
+                    fontSize: 13,
+                    fontWeight: active ? 700 : 500,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Security */}
       <div style={{ padding: '4px 22px 8px' }}>
-        <div style={{ ...sectionLabel }}>Безпека</div>
+        <div style={{ ...sectionLabel }}>{t('profile_security')}</div>
       </div>
       {section(<>
         {faceIdReady ? (
@@ -2347,23 +2635,23 @@ function ProfileScreen() {
             }
           />
         ) : (
-          <ProfileToggle label="Face ID" sub="Недоступно на цьому пристрої" on={false} onChange={() => {}}
+          <ProfileToggle label="Face ID" sub={t('face_id_unavailable')} on={false} onChange={() => {}}
             icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(180,172,155,0.35)" strokeWidth="1.5" strokeLinecap="round"><path d="M2 9V5a2 2 0 012-2h3M2 15v4a2 2 0 002 2h3M22 9V5a2 2 0 00-2-2h-3M22 15v4a2 2 0 01-2 2h-3"/></svg>}
           />
         )}
         <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 18px' }} />
-        <ProfileToggle label="Push-сповіщення" on={push} onChange={setPush}
+        <ProfileToggle label={t('push_notifications')} on={push} onChange={setPush}
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>}
         />
         <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 18px' }} />
-        <ProfileToggle label="2FA" sub="Підтвердження за SMS" on={twofa} onChange={setTwofa}
+        <ProfileToggle label="2FA" sub={t('twofa_sms')} on={twofa} onChange={setTwofa}
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg>}
         />
       </>)}
 
       {/* Change password */}
       <div style={{ padding: '4px 22px 8px' }}>
-        <div style={{ ...sectionLabel }}>Пароль</div>
+        <div style={{ ...sectionLabel }}>{t('profile_password')}</div>
       </div>
       {section(<>
         <div
@@ -2374,7 +2662,7 @@ function ProfileScreen() {
             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(180,172,155,0.1)', border: `1px solid rgba(180,172,155,0.18)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg>
             </div>
-            <span style={{ fontSize: 14, color: text.secondary, fontWeight: 500 }}>Змінити пароль</span>
+            <span style={{ fontSize: 14, color: text.secondary, fontWeight: 500 }}>{t('profile_change_password')}</span>
           </div>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ transform: changingPwd ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>
             <path d="M6 4l4 4-4 4" stroke={text.muted} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -2385,17 +2673,17 @@ function ProfileScreen() {
             <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 18px' }} />
             <form onSubmit={changePassword} style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
               <input
-                type="password" placeholder="Поточний пароль" value={oldPwd} onChange={e => setOldPwd(e.target.value)} required
+                type="password" placeholder={t('profile_current_password')} value={oldPwd} onChange={e => setOldPwd(e.target.value)} required
                 style={{ padding: '11px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}
               />
               <input
-                type="password" placeholder="Новий пароль" value={newPwd} onChange={e => setNewPwd(e.target.value)} required
+                type="password" placeholder={t('profile_new_password')} value={newPwd} onChange={e => setNewPwd(e.target.value)} required
                 style={{ padding: '11px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}
               />
               <button type="submit" disabled={pwdLoading} style={{
                 padding: '11px', background: pwdLoading ? 'rgba(100,95,80,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
                 border: 'none', borderRadius: 10, color: text.primary, fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: pwdLoading ? 'default' : 'pointer',
-              }}>{pwdLoading ? '…' : 'Зберегти'}</button>
+              }}>{pwdLoading ? '…' : t('profile_save')}</button>
             </form>
           </>
         )}
@@ -2410,7 +2698,7 @@ function ProfileScreen() {
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M17 16l4-4-4-4M21 12H9M13 4a9 9 0 100 16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          Вийти з акаунту
+          {t('profile_logout')}
         </button>
       </div>
     </div>
@@ -2952,16 +3240,20 @@ function MarketplaceScreen() {
   );
 }
 
-const TABS: { k: TabKey; label: string; icon: (c: string) => React.ReactNode }[] = [
-  { k: 'overview', label: 'Огляд', icon: c => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /><rect x="13.5" y="3" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /><rect x="3" y="13.5" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /></svg> },
-  { k: 'operations', label: 'Операції', icon: c => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 12h3l3-8 4 16 3-8h5" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  { k: 'cards', label: 'Картки', icon: c => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="5" width="19" height="14" rx="2.5" stroke={c} strokeWidth="1.8" /><path d="M2.5 10h19" stroke={c} strokeWidth="1.8" /></svg> },
-  { k: 'market', label: 'Магазин', icon: c => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9" cy="21" r="1" fill={c} /><circle cx="19" cy="21" r="1" fill={c} /></svg> },
-  { k: 'profile', label: 'Профіль', icon: c => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke={c} strokeWidth="1.8" /><path d="M4 21a8 8 0 0116 0" stroke={c} strokeWidth="1.8" strokeLinecap="round" /></svg> },
-];
+function getTabs(t: (key: TranslationKey) => string): { k: TabKey; label: string; icon: (c: string) => React.ReactNode }[] {
+  return [
+    { k: 'overview', label: t('tabs_overview'), icon: c => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /><rect x="13.5" y="3" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /><rect x="3" y="13.5" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" stroke={c} strokeWidth="1.8" /></svg> },
+    { k: 'operations', label: t('tabs_operations'), icon: c => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 12h3l3-8 4 16 3-8h5" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+    { k: 'cards', label: t('tabs_cards'), icon: c => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="5" width="19" height="14" rx="2.5" stroke={c} strokeWidth="1.8" /><path d="M2.5 10h19" stroke={c} strokeWidth="1.8" /></svg> },
+    { k: 'market', label: t('tabs_market'), icon: c => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9" cy="21" r="1" fill={c} /><circle cx="19" cy="21" r="1" fill={c} /></svg> },
+    { k: 'profile', label: t('tabs_profile'), icon: c => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke={c} strokeWidth="1.8" /><path d="M4 21a8 8 0 0116 0" stroke={c} strokeWidth="1.8" strokeLinecap="round" /></svg> },
+  ];
+}
 
 function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) => void }) {
-  const activeIdx = TABS.findIndex(t => t.k === active);
+  const { t } = usePreferences();
+  const tabs = getTabs(t);
+  const activeIdx = tabs.findIndex(t => t.k === active);
   return (
     <div style={{
       position: 'fixed',
@@ -2994,7 +3286,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
           transition: 'left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
           boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.15)',
         }} />
-        {TABS.map(t => {
+        {tabs.map(t => {
           const isActive = t.k === active;
           const color = isActive ? goldLight : 'rgba(220,215,200,0.5)';
           return (
@@ -3018,8 +3310,10 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
 // ─── Desktop sidebar ──────────────────────────────────────────
 function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) => void }) {
   const { logout, user, account } = useApp();
-  const name = user?.full_name ?? 'Користувач';
-  const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+  const { profilePhoto, t } = usePreferences();
+  const tabs = getTabs(t);
+  const name = user?.full_name ?? t('user_fallback');
+  const userInitials = initials(name);
   return (
     <div style={{
       width: 252, flexShrink: 0,
@@ -3037,7 +3331,7 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
             <div style={{ ...T.h3, color: text.primary, lineHeight: 1.1 }}>
               ARM<span style={{ fontWeight: 300, opacity: 0.8 }}>Bank</span>
             </div>
-            <div style={{ fontSize: 10, color: text.dim, letterSpacing: 0.6, marginTop: 1 }}>Особистий кабінет</div>
+            <div style={{ fontSize: 10, color: text.dim, letterSpacing: 0.6, marginTop: 1 }}>{t('personal_cabinet')}</div>
           </div>
         </div>
       </div>
@@ -3051,12 +3345,15 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 13, fontWeight: 700, color: '#1a2820',
             boxShadow: `0 0 0 2px rgba(0,0,0,0.5), 0 0 0 3.5px ${gold}50`,
-          }}>{initials}</div>
+            overflow: 'hidden',
+          }}>
+            {profilePhoto ? <img src={profilePhoto} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : userInitials}
+          </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ ...T.body, fontWeight: 600, color: text.primary, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#6ec98a', boxShadow: '0 0 6px #6ec98a88' }} />
-              <span style={{ fontSize: 10.5, color: '#6ec98a', fontWeight: 500, letterSpacing: 0.2 }}>Верифікований</span>
+              <span style={{ fontSize: 10.5, color: '#6ec98a', fontWeight: 500, letterSpacing: 0.2 }}>{t('profile_verified')}</span>
             </div>
           </div>
         </div>
@@ -3064,7 +3361,7 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
 
       {/* Navigation */}
       <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
-        {TABS.map(t => {
+        {tabs.map(t => {
           const isActive = t.k === active;
           return (
             <button key={t.k} onClick={() => onChange(t.k)} style={{
@@ -3086,7 +3383,7 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
 
       {/* Balance summary */}
       <div style={{ margin: '0 10px 10px', padding: '14px 16px', borderRadius: 14, background: bg.card, border: `1px solid ${bg.border}` }}>
-        <div style={{ ...sectionLabel, padding: 0, marginBottom: 7 }}>Загальний баланс</div>
+        <div style={{ ...sectionLabel, padding: 0, marginBottom: 7 }}>{t('balance_total')}</div>
         <div style={{ ...T.num, fontSize: 21, fontWeight: 600, color: text.primary, letterSpacing: -0.7 }}>
           <span style={{ fontSize: 13, color: gold, fontWeight: 500 }}>₴ </span>
           {account ? fmtInt(account.balance) + fmtDec(account.balance) : '———'}
@@ -3108,7 +3405,7 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
           transition: 'border-color 0.15s, color 0.15s', letterSpacing: 0.1,
         }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M17 16l4-4-4-4M21 12H9M13 4a9 9 0 100 16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          Вийти з акаунту
+          {t('profile_logout')}
         </button>
       </div>
     </div>
@@ -3555,6 +3852,8 @@ export default function App() {
   const [authed, setAuthed] = useState(() => !!getToken());
   const [showSplash, setShowSplash] = useState(true);
   const [tab, setTab] = useState<TabKey>('overview');
+  const [profilePhoto, setProfilePhotoState] = useState<string>(() => getProfilePhoto());
+  const [lang, setLangState] = useState<AppLang>(() => getStoredLanguage());
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
   const touchAxisRef = useRef<'x' | 'y' | null>(null);
@@ -3575,7 +3874,22 @@ export default function App() {
   const width = useWindowWidth();
   const isDesktop = width >= 768;
   const Screen = SCREENS[tab];
-  const tabIndex = TABS.findIndex(t => t.k === tab);
+  const t = React.useCallback((key: TranslationKey) => translations[lang][key], [lang]);
+  const tabs = React.useMemo(() => getTabs(t), [t]);
+  const tabIndex = tabs.findIndex(t => t.k === tab);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
+  const setLang = React.useCallback((nextLang: AppLang) => {
+    setStoredLanguage(nextLang);
+    setLangState(nextLang);
+  }, []);
+
+  const setProfilePhotoValue = React.useCallback((value: string) => {
+    setProfilePhotoState(value);
+  }, []);
 
   function shouldIgnoreTabSwipe(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return true;
@@ -3624,10 +3938,10 @@ export default function App() {
     if (!tabSwipeEnabledRef.current) return;
     const threshold = 72;
     if (Math.abs(screenDragX) >= threshold) {
-      if (screenDragX < 0 && tabIndex < TABS.length - 1) {
-        setTab(TABS[tabIndex + 1].k);
+      if (screenDragX < 0 && tabIndex < tabs.length - 1) {
+        setTab(tabs[tabIndex + 1].k);
       } else if (screenDragX > 0 && tabIndex > 0) {
-        setTab(TABS[tabIndex - 1].k);
+        setTab(tabs[tabIndex - 1].k);
       }
     }
     resetTabSwipe();
@@ -3794,6 +4108,14 @@ export default function App() {
     issueCard,
   };
 
+  const preferencesCtx: PreferencesCtxType = {
+    profilePhoto,
+    setProfilePhotoValue,
+    lang,
+    setLang,
+    t,
+  };
+
   if (showSplash) {
     return <WowSplash />;
   }
@@ -3804,6 +4126,7 @@ export default function App() {
 
   if (isDesktop) {
     return (
+      <PreferencesCtx.Provider value={preferencesCtx}>
       <AppCtx.Provider value={appCtx}>
         <BankDataCtx.Provider value={bankCtx}>
           <LayoutCtx.Provider value="desktop">
@@ -3828,10 +4151,12 @@ export default function App() {
           </LayoutCtx.Provider>
         </BankDataCtx.Provider>
       </AppCtx.Provider>
+      </PreferencesCtx.Provider>
     );
   }
 
   return (
+    <PreferencesCtx.Provider value={preferencesCtx}>
     <AppCtx.Provider value={appCtx}>
       <BankDataCtx.Provider value={bankCtx}>
         <LayoutCtx.Provider value="mobile">
@@ -3878,5 +4203,6 @@ export default function App() {
         </LayoutCtx.Provider>
       </BankDataCtx.Provider>
     </AppCtx.Provider>
+    </PreferencesCtx.Provider>
   );
 }
