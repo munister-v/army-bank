@@ -441,7 +441,7 @@ class StatementService:
         wn = ParagraphStyle('wn', fontName=_f(), fontSize=8.2, textColor=colors.HexColor('#c9c3b4'),
                             leading=11, alignment=2)
         hdr = Table(
-            [[Paragraph('Army<font color="#b9ab8f">Bank</font>', wt),
+            [[Paragraph('ARM<font color="#b9ab8f">Bank</font>', wt),
               Paragraph(f'{receipt_kind}<br/>#{tx_num}<br/>{date_short}', wn)]],
             colWidths=[None, 28 * mm],
         )
@@ -468,7 +468,7 @@ class StatementService:
              [Paragraph(tx_type,
                         ParagraphStyle('at', fontName=_f(), fontSize=9, textColor=lbl_fg,
                                        alignment=1, leading=12))],
-             [Paragraph('Офіційний платіжний документ Army Bank', amount_caption)],
+             [Paragraph('Офіційний платіжний документ ARMBank', amount_caption)],
              [Paragraph('✓ ПІДТВЕРДЖЕНО СИСТЕМОЮ', amount_status)]],
             colWidths=['100%'],
         )
@@ -531,7 +531,7 @@ class StatementService:
         ft = Table(
             [[Paragraph(f'Сформовано: {date_short}',
                         ParagraphStyle('fl', fontName=_f(), fontSize=7, textColor=_MUTED)),
-              Paragraph(f'Army Bank · TX#{tx_num}',
+              Paragraph(f'ARMBank · TX#{tx_num}',
                         ParagraphStyle('fr', fontName=_f(), fontSize=7, textColor=_MUTED, alignment=2))]],
             colWidths=['50%', '50%'],
         )
@@ -617,7 +617,7 @@ class StatementService:
         story.append(HRFlowable(width='100%', thickness=0.6, color=_LIGHT, spaceAfter=2 * mm))
         now_str = datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M UTC')
         story.append(Paragraph(
-            f'Army Bank · {_REPORT_TYPE_LABELS.get(report_type, report_type)} · Сформовано: {now_str}',
+            f'ARMBank · {_REPORT_TYPE_LABELS.get(report_type, report_type)} · Сформовано: {now_str}',
             ParagraphStyle('footer', parent=styles['Normal'], fontName=_f(), fontSize=7.5, textColor=_MUTED, alignment=1),
         ))
 
@@ -654,7 +654,7 @@ class StatementService:
 
         # ── Row 0: navy banner spanning full width ────────────────────────────
         banner = Table(
-            [[Paragraph('Army<font color="#b9ab8f">Bank</font>', banner_brand),
+            [[Paragraph('ARM<font color="#b9ab8f">Bank</font>', banner_brand),
               Paragraph(report_label.upper(), banner_type),
               Paragraph(period_label, banner_period)]],
             colWidths=['35%', '35%', '30%'],
