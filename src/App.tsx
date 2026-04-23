@@ -18,11 +18,12 @@ export class ErrorBoundary extends Component<{ children: React.ReactNode }, { er
   static getDerivedStateFromError(err: Error): { error: string | null } { return { error: err.message }; }
   render() {
     if (this.state.error) {
+      const tt = translations[getStoredLanguage()];
       return (
         <div style={{ position: 'fixed', inset: 0, background: '#07150f', color: '#ddd8cc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, fontFamily: 'sans-serif' }}>
-          <div style={{ fontSize: 20 }}>⚠️ Щось пішло не так</div>
+          <div style={{ fontSize: 20 }}>{tt.error_boundary_title}</div>
           <div style={{ fontSize: 13, color: 'rgba(220,215,200,0.6)', maxWidth: 400, textAlign: 'center' }}>{this.state.error}</div>
-          <button onClick={() => window.location.reload()} style={{ marginTop: 8, padding: '10px 20px', borderRadius: 10, background: gold, color: text.primary, border: 'none', cursor: 'pointer', fontWeight: 600 }}>Оновити сторінку</button>
+          <button onClick={() => window.location.reload()} style={{ marginTop: 8, padding: '10px 20px', borderRadius: 10, background: gold, color: text.primary, border: 'none', cursor: 'pointer', fontWeight: 600 }}>{tt.error_boundary_refresh}</button>
         </div>
       );
     }
@@ -270,6 +271,13 @@ const useBankData = () => useContext(BankDataCtx);
 const API_BASE = (typeof window !== 'undefined' && (window as { ARMY_BANK_BASE?: string }).ARMY_BANK_BASE) || '';
 const uahFmt = new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+function localeForLang(lang: AppLang): string {
+  return lang === 'en' ? 'en-US'
+    : lang === 'it' ? 'it-IT'
+    : lang === 'es' ? 'es-ES'
+    : 'uk-UA';
+}
+
 function formatUah(value: number): string {
   return `₴ ${uahFmt.format(Number.isFinite(value) ? value : 0)}`;
 }
@@ -287,7 +295,7 @@ function analyticsChangeLabel(analytics?: ApiAnalytics | null): string {
   if (Math.abs(prevNet) < 0.01) return curNet === 0 ? tt.no_change : tt.new_cash_flow;
   const pct = ((curNet - prevNet) / Math.abs(prevNet)) * 100;
   const sign = pct > 0 ? '+' : '';
-  return `${sign}${pct.toFixed(1)}% до минулого місяця`;
+  return `${sign}${pct.toFixed(1)}% ${tt.analytics_prev_month_suffix}`;
 }
 
 function initials(fullName?: string | null): string {
@@ -429,6 +437,7 @@ const translations = {
     photo_updated: 'Фото профілю оновлено',
     photo_upload_error: 'Не вдалося завантажити фото',
     photo_removed: 'Фото видалено',
+    profile_photo_alt: 'Фото профілю',
     market_out_of_stock: 'Немає в наявності',
     add_to_cart: 'Додати до кошика',
     cart_title: 'Кошик',
@@ -506,6 +515,56 @@ const translations = {
     freeze_card: 'Заморозити',
     unfreeze_card: 'Розморозити',
     close_card: 'Закрити',
+    error_boundary_title: '⚠️ Щось пішло не так',
+    error_boundary_refresh: 'Оновити сторінку',
+    analytics_prev_month_suffix: 'до минулого місяця',
+    api_health_temporarily_unavailable: 'API тимчасово недоступне. Спробуйте через кілька секунд.',
+    api_health_status_unavailable: 'API статус недоступний.',
+    api_health_no_connection: 'Немає зʼєднання з API. Перевірте мережу або спробуйте пізніше.',
+    design_subtitle_gold: 'Базовий стиль ARM',
+    design_subtitle_forest: 'Глибокий зелений',
+    design_subtitle_slate: 'Світлий металік',
+    design_subtitle_dark: 'Темний мінімал',
+    design_subtitle_florence: 'Купол і старе місто',
+    design_subtitle_venice: 'Канали та площа',
+    design_subtitle_tuscany_hills: 'Тосканські поля',
+    design_subtitle_tuscany_villa: 'Теплий пейзаж',
+    today_label: 'Сьогодні',
+    yesterday_label: 'Вчора',
+    no_new_notifications: 'Нових сповіщень немає',
+    demo_pin_unavailable: 'Демо-режим: зміна PIN недоступна',
+    demo_api_unavailable: 'Демо-режим: API не підключено',
+    no_card_for_design_change: 'Немає картки для зміни дизайну',
+    card_design_update_failed: 'Не вдалося оновити дизайн',
+    card_design_updated: 'Дизайн картки оновлено',
+    card_issue_failed: 'Не вдалося випустити картку',
+    new_card_issued: 'Нову картку випущено',
+    card_short_label: 'Картка',
+    confirm_pin: 'Підтвердити PIN',
+    pin_mismatch: 'PIN-коди не збігаються',
+    choose_style_then_issue: 'Оберіть стиль, потім випустіть віртуальну картку',
+    selected_label: 'Обрано',
+    cancel_label: 'Скасувати',
+    period_week_short: 'Т',
+    period_month_short: 'М',
+    period_year_short: 'Р',
+    statement_pdf: 'Виписка PDF',
+    copy_success: 'Скопійовано',
+    copy_failed: 'Не вдалось скопіювати',
+    last_items_badge: 'ОСТАННІ',
+    shipping_name_placeholder: "Прізвище Ім'я По-батькові",
+    shipping_address_placeholder: 'м. Київ, вул. Хрещатик 1, кв. 5',
+    order_items_suffix: 'поз.',
+    due_prefix: 'до',
+    passwords_do_not_match: 'Паролі не збігаються',
+    forgot_password_contact_support: 'Зверніться до підтримки для відновлення пароля',
+    full_name_placeholder: 'Іван Петренко',
+    data_load_failed: 'Не вдалося завантажити дані.',
+    active_cards_metric: 'Активні картки',
+    cardholder_label: 'Власник',
+    valid_label: 'Дійсна',
+    transfer_placeholder_card: '4721 •••• •••• ••••',
+    transfer_placeholder_account: 'AB-100011',
   },
   en: {
     user_fallback: 'User',
@@ -618,6 +677,7 @@ const translations = {
     photo_updated: 'Profile photo updated',
     photo_upload_error: 'Could not upload photo',
     photo_removed: 'Photo removed',
+    profile_photo_alt: 'Profile photo',
     market_out_of_stock: 'Out of stock',
     add_to_cart: 'Add to cart',
     cart_title: 'Cart',
@@ -695,6 +755,56 @@ const translations = {
     freeze_card: 'Freeze',
     unfreeze_card: 'Unfreeze',
     close_card: 'Close',
+    error_boundary_title: '⚠️ Something went wrong',
+    error_boundary_refresh: 'Reload page',
+    analytics_prev_month_suffix: 'vs previous month',
+    api_health_temporarily_unavailable: 'API is temporarily unavailable. Please try again in a few seconds.',
+    api_health_status_unavailable: 'API status is unavailable.',
+    api_health_no_connection: 'No connection to API. Check your network or try again later.',
+    design_subtitle_gold: 'ARM base style',
+    design_subtitle_forest: 'Deep green tone',
+    design_subtitle_slate: 'Light metallic',
+    design_subtitle_dark: 'Dark minimal look',
+    design_subtitle_florence: 'Dome and old city',
+    design_subtitle_venice: 'Canals and square',
+    design_subtitle_tuscany_hills: 'Tuscan fields',
+    design_subtitle_tuscany_villa: 'Warm landscape',
+    today_label: 'Today',
+    yesterday_label: 'Yesterday',
+    no_new_notifications: 'No new notifications',
+    demo_pin_unavailable: 'Demo mode: PIN change unavailable',
+    demo_api_unavailable: 'Demo mode: API is not connected',
+    no_card_for_design_change: 'No card available for design change',
+    card_design_update_failed: 'Failed to update design',
+    card_design_updated: 'Card design updated',
+    card_issue_failed: 'Failed to issue card',
+    new_card_issued: 'New card issued',
+    card_short_label: 'Card',
+    confirm_pin: 'Confirm PIN',
+    pin_mismatch: 'PIN codes do not match',
+    choose_style_then_issue: 'Choose a style, then issue a virtual card',
+    selected_label: 'Selected',
+    cancel_label: 'Cancel',
+    period_week_short: 'W',
+    period_month_short: 'M',
+    period_year_short: 'Y',
+    statement_pdf: 'PDF statement',
+    copy_success: 'Copied',
+    copy_failed: 'Failed to copy',
+    last_items_badge: 'LAST',
+    shipping_name_placeholder: 'Full name',
+    shipping_address_placeholder: 'Kyiv, Khreshchatyk St 1, apt. 5',
+    order_items_suffix: 'items',
+    due_prefix: 'due',
+    passwords_do_not_match: 'Passwords do not match',
+    forgot_password_contact_support: 'Contact support to recover your password',
+    full_name_placeholder: 'John Doe',
+    data_load_failed: 'Failed to load data.',
+    active_cards_metric: 'Active cards',
+    cardholder_label: 'Cardholder',
+    valid_label: 'Valid',
+    transfer_placeholder_card: '4721 •••• •••• ••••',
+    transfer_placeholder_account: 'AB-100011',
   },
   it: {
     user_fallback: 'Utente',
@@ -807,6 +917,7 @@ const translations = {
     photo_updated: 'Foto profilo aggiornata',
     photo_upload_error: 'Impossibile caricare la foto',
     photo_removed: 'Foto rimossa',
+    profile_photo_alt: 'Foto profilo',
     market_out_of_stock: 'Non disponibile',
     add_to_cart: 'Aggiungi al carrello',
     cart_title: 'Carrello',
@@ -884,6 +995,56 @@ const translations = {
     freeze_card: 'Blocca',
     unfreeze_card: 'Sblocca',
     close_card: 'Chiudi',
+    error_boundary_title: '⚠️ Qualcosa è andato storto',
+    error_boundary_refresh: 'Ricarica pagina',
+    analytics_prev_month_suffix: 'rispetto al mese scorso',
+    api_health_temporarily_unavailable: 'API temporaneamente non disponibile. Riprova tra qualche secondo.',
+    api_health_status_unavailable: 'Stato API non disponibile.',
+    api_health_no_connection: "Nessuna connessione all'API. Controlla la rete o riprova più tardi.",
+    design_subtitle_gold: 'Stile base ARM',
+    design_subtitle_forest: 'Verde profondo',
+    design_subtitle_slate: 'Metallico chiaro',
+    design_subtitle_dark: 'Minimal scuro',
+    design_subtitle_florence: 'Cupola e città antica',
+    design_subtitle_venice: 'Canali e piazza',
+    design_subtitle_tuscany_hills: 'Campi toscani',
+    design_subtitle_tuscany_villa: 'Paesaggio caldo',
+    today_label: 'Oggi',
+    yesterday_label: 'Ieri',
+    no_new_notifications: 'Nessuna nuova notifica',
+    demo_pin_unavailable: 'Modalità demo: cambio PIN non disponibile',
+    demo_api_unavailable: 'Modalità demo: API non connessa',
+    no_card_for_design_change: 'Nessuna carta per cambiare design',
+    card_design_update_failed: 'Impossibile aggiornare il design',
+    card_design_updated: 'Design della carta aggiornato',
+    card_issue_failed: 'Impossibile emettere la carta',
+    new_card_issued: 'Nuova carta emessa',
+    card_short_label: 'Carta',
+    confirm_pin: 'Conferma PIN',
+    pin_mismatch: 'I PIN non coincidono',
+    choose_style_then_issue: 'Scegli uno stile, poi emetti una carta virtuale',
+    selected_label: 'Selezionato',
+    cancel_label: 'Annulla',
+    period_week_short: 'S',
+    period_month_short: 'M',
+    period_year_short: 'A',
+    statement_pdf: 'Estratto PDF',
+    copy_success: 'Copiato',
+    copy_failed: 'Impossibile copiare',
+    last_items_badge: 'ULTIMI',
+    shipping_name_placeholder: 'Nome e cognome',
+    shipping_address_placeholder: 'Kyiv, via Khreshchatyk 1, apt. 5',
+    order_items_suffix: 'art.',
+    due_prefix: 'entro',
+    passwords_do_not_match: 'Le password non coincidono',
+    forgot_password_contact_support: 'Contatta il supporto per recuperare la password',
+    full_name_placeholder: 'Mario Rossi',
+    data_load_failed: 'Impossibile caricare i dati.',
+    active_cards_metric: 'Carte attive',
+    cardholder_label: 'Intestatario',
+    valid_label: 'Valida',
+    transfer_placeholder_card: '4721 •••• •••• ••••',
+    transfer_placeholder_account: 'AB-100011',
   },
   es: {
     user_fallback: 'Usuario',
@@ -996,6 +1157,7 @@ const translations = {
     photo_updated: 'Foto de perfil actualizada',
     photo_upload_error: 'No se pudo subir la foto',
     photo_removed: 'Foto eliminada',
+    profile_photo_alt: 'Foto de perfil',
     market_out_of_stock: 'Sin stock',
     add_to_cart: 'Añadir al carrito',
     cart_title: 'Carrito',
@@ -1073,6 +1235,56 @@ const translations = {
     freeze_card: 'Congelar',
     unfreeze_card: 'Descongelar',
     close_card: 'Cerrar',
+    error_boundary_title: '⚠️ Algo salió mal',
+    error_boundary_refresh: 'Recargar página',
+    analytics_prev_month_suffix: 'vs. mes anterior',
+    api_health_temporarily_unavailable: 'La API está temporalmente no disponible. Inténtalo de nuevo en unos segundos.',
+    api_health_status_unavailable: 'Estado de API no disponible.',
+    api_health_no_connection: 'Sin conexión con la API. Revisa tu red o inténtalo más tarde.',
+    design_subtitle_gold: 'Estilo base ARM',
+    design_subtitle_forest: 'Verde profundo',
+    design_subtitle_slate: 'Metálico claro',
+    design_subtitle_dark: 'Minimalista oscuro',
+    design_subtitle_florence: 'Cúpula y ciudad antigua',
+    design_subtitle_venice: 'Canales y plaza',
+    design_subtitle_tuscany_hills: 'Campos toscanos',
+    design_subtitle_tuscany_villa: 'Paisaje cálido',
+    today_label: 'Hoy',
+    yesterday_label: 'Ayer',
+    no_new_notifications: 'No hay notificaciones nuevas',
+    demo_pin_unavailable: 'Modo demo: cambio de PIN no disponible',
+    demo_api_unavailable: 'Modo demo: API no conectada',
+    no_card_for_design_change: 'No hay tarjeta para cambiar el diseño',
+    card_design_update_failed: 'No se pudo actualizar el diseño',
+    card_design_updated: 'Diseño de tarjeta actualizado',
+    card_issue_failed: 'No se pudo emitir la tarjeta',
+    new_card_issued: 'Se emitió una nueva tarjeta',
+    card_short_label: 'Tarjeta',
+    confirm_pin: 'Confirmar PIN',
+    pin_mismatch: 'Los PIN no coinciden',
+    choose_style_then_issue: 'Elige un estilo y luego emite una tarjeta virtual',
+    selected_label: 'Seleccionado',
+    cancel_label: 'Cancelar',
+    period_week_short: 'S',
+    period_month_short: 'M',
+    period_year_short: 'A',
+    statement_pdf: 'Extracto PDF',
+    copy_success: 'Copiado',
+    copy_failed: 'No se pudo copiar',
+    last_items_badge: 'ÚLTIMOS',
+    shipping_name_placeholder: 'Nombre completo',
+    shipping_address_placeholder: 'Kyiv, calle Khreshchatyk 1, apto. 5',
+    order_items_suffix: 'art.',
+    due_prefix: 'hasta',
+    passwords_do_not_match: 'Las contraseñas no coinciden',
+    forgot_password_contact_support: 'Contacta al soporte para recuperar tu contraseña',
+    full_name_placeholder: 'Juan Pérez',
+    data_load_failed: 'No se pudieron cargar los datos.',
+    active_cards_metric: 'Tarjetas activas',
+    cardholder_label: 'Titular',
+    valid_label: 'Válida',
+    transfer_placeholder_card: '4721 •••• •••• ••••',
+    transfer_placeholder_account: 'AB-100011',
   },
 } as const;
 
@@ -1108,9 +1320,10 @@ function clearToken() {
 let apiHealthCache: { ok: boolean; ts: number } | null = null;
 
 async function ensureApiStatusHealthy(): Promise<void> {
+  const tt = translations[getStoredLanguage()];
   const now = Date.now();
   if (apiHealthCache && (now - apiHealthCache.ts) < 15000) {
-    if (!apiHealthCache.ok) throw new Error('API тимчасово недоступне. Спробуйте через кілька секунд.');
+    if (!apiHealthCache.ok) throw new Error(tt.api_health_temporarily_unavailable);
     return;
   }
 
@@ -1125,10 +1338,10 @@ async function ensureApiStatusHealthy(): Promise<void> {
     });
     const ok = res.ok;
     apiHealthCache = { ok, ts: now };
-    if (!ok) throw new Error('API статус недоступний.');
+    if (!ok) throw new Error(tt.api_health_status_unavailable);
   } catch {
     apiHealthCache = { ok: false, ts: now };
-    throw new Error('Немає зʼєднання з API. Перевірте мережу або спробуйте пізніше.');
+    throw new Error(tt.api_health_no_connection);
   } finally {
     window.clearTimeout(timer);
   }
@@ -1402,13 +1615,14 @@ function cardVariantFromDesign(design?: string | null): CardVariant {
 }
 
 function toUiCard(card: ApiCard, holderName: string): CardData {
+  const tt = translations[getStoredLanguage()];
   return {
     design: (card.design || 'gold').toLowerCase(),
     variant: cardVariantFromDesign(card.design),
     number: cardTail(card.masked_number),
     name: (holderName || 'ARMY BANK').toUpperCase().slice(0, 26),
     expiry: card.expiry_display || '--/--',
-    type: card.card_type === 'physical' ? 'Physical' : 'Virtual',
+    type: card.card_type === 'physical' ? tt.card_physical : tt.card_virtual,
     status: card.status || 'active',
   };
 }
@@ -1510,18 +1724,18 @@ type CardDesignOption = {
   design: string;
   variant: CardVariant;
   title: string;
-  subtitle: string;
+  subtitleKey: TranslationKey;
 };
 
 const CARD_DESIGN_OPTIONS: CardDesignOption[] = [
-  { design: 'gold', variant: 'gold', title: 'Classic Gold', subtitle: 'Базовий стиль ARM' },
-  { design: 'forest', variant: 'emerald', title: 'Forest', subtitle: 'Глибокий зелений' },
-  { design: 'slate', variant: 'platinum', title: 'Slate', subtitle: 'Світлий металік' },
-  { design: 'dark', variant: 'obsidian', title: 'Obsidian', subtitle: 'Темний мінімал' },
-  { design: 'florence', variant: 'florence', title: 'Firenze', subtitle: 'Купол і старе місто' },
-  { design: 'venice', variant: 'venice', title: 'Venezia', subtitle: 'Канали та площа' },
-  { design: 'tuscany_hills', variant: 'tuscany_hills', title: "Val d'Orcia", subtitle: 'Тосканські поля' },
-  { design: 'tuscany_villa', variant: 'tuscany_villa', title: 'Villa Toscana', subtitle: 'Теплий пейзаж' },
+  { design: 'gold', variant: 'gold', title: 'Classic Gold', subtitleKey: 'design_subtitle_gold' },
+  { design: 'forest', variant: 'emerald', title: 'Forest', subtitleKey: 'design_subtitle_forest' },
+  { design: 'slate', variant: 'platinum', title: 'Slate', subtitleKey: 'design_subtitle_slate' },
+  { design: 'dark', variant: 'obsidian', title: 'Obsidian', subtitleKey: 'design_subtitle_dark' },
+  { design: 'florence', variant: 'florence', title: 'Firenze', subtitleKey: 'design_subtitle_florence' },
+  { design: 'venice', variant: 'venice', title: 'Venezia', subtitleKey: 'design_subtitle_venice' },
+  { design: 'tuscany_hills', variant: 'tuscany_hills', title: "Val d'Orcia", subtitleKey: 'design_subtitle_tuscany_hills' },
+  { design: 'tuscany_villa', variant: 'tuscany_villa', title: 'Villa Toscana', subtitleKey: 'design_subtitle_tuscany_villa' },
 ];
 
 // ─── Data helpers ─────────────────────────────────────────────
@@ -1529,21 +1743,24 @@ function fmtInt(n: number) {
   return Math.floor(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
 }
 function fmtDec(n: number) { return ',' + (Math.abs(n) % 1).toFixed(2).slice(2); }
-function fmtDateLabel(iso: string): string {
+function fmtDateLabel(iso: string, lang: AppLang = getStoredLanguage()): string {
+  const tt = translations[lang];
+  const locale = localeForLang(lang);
   if (!iso) return '—';
   const d = new Date(iso.slice(0, 10) + 'T00:00:00');
   if (isNaN(d.getTime())) return iso.slice(0, 10) || '—';
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const yest = new Date(today); yest.setDate(today.getDate() - 1);
-  if (d >= today) return 'Сьогодні';
-  if (d >= yest) return 'Вчора';
-  return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
+  if (d >= today) return tt.today_label;
+  if (d >= yest) return tt.yesterday_label;
+  return d.toLocaleDateString(locale, { day: 'numeric', month: 'long' });
 }
-function fmtTime(iso: string): string {
+function fmtTime(iso: string, lang: AppLang = getStoredLanguage()): string {
+  const locale = localeForLang(lang);
   if (!iso) return '—';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso.slice(11, 16) || '—';
-  return d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }
 function txToCat(tx: TxItem): TxCat {
   if (tx.direction === 'in') return 'income';
@@ -1551,6 +1768,7 @@ function txToCat(tx: TxItem): TxCat {
   return (m[tx.tx_type] ?? 'transfer') as TxCat;
 }
 function apiCardToData(c: CardInfo, holderFallback = 'ARMY BANK'): CardData & { id: number; type: string; limit: string; used: string; statusRaw: string; cardTypeRaw: string } {
+  const tt = translations[getStoredLanguage()];
   const normalizedDesign = String(c.design || 'gold').toLowerCase();
   return {
     id: c.id,
@@ -1559,8 +1777,8 @@ function apiCardToData(c: CardInfo, holderFallback = 'ARMY BANK'): CardData & { 
     number: String(c.masked_number || '').slice(-4) || '0000',
     name: (holderFallback !== 'ARMY BANK' ? holderFallback : (c.holder_name || holderFallback)).toUpperCase().slice(0, 26),
     expiry: c.expiry_display || '--/--',
-    type: c.card_type === 'virtual' ? 'Віртуальна' : 'Фізична',
-    status: c.status === 'active' ? 'Активна' : c.status === 'blocked' ? 'Заморожена' : 'Закрита',
+    type: c.card_type === 'virtual' ? tt.card_virtual : tt.card_physical,
+    status: c.status === 'active' ? tt.card_active_status : c.status === 'blocked' ? tt.card_frozen_status : tt.card_closed,
     statusRaw: c.status,
     cardTypeRaw: c.card_type,
     limit: '—',
@@ -1570,6 +1788,7 @@ function apiCardToData(c: CardInfo, holderFallback = 'ARMY BANK'): CardData & { 
 
 function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardData & { style?: React.CSSProperties }) {
   const v = CARD_VARIANTS[variant] ?? CARD_VARIANTS.gold;
+  const tt = translations[getStoredLanguage()];
   const patId = `g-${variant}`;
   const hasPhoto = Boolean(v.image);
   const titleShadow = hasPhoto ? '0 1px 3px rgba(0,0,0,0.62)' : '0 1px 1px rgba(0,0,0,0.2)';
@@ -1623,7 +1842,7 @@ function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardDa
             fontSize: 9, fontWeight: 600, letterSpacing: 1.8, color: v.muted, textTransform: 'uppercase',
             padding: 0,
             background: 'transparent',
-          }}>{type || 'Virtual'}</span>
+          }}>{type || tt.card_virtual}</span>
         </div>
         <div style={{
           fontFamily: '"SF Mono", monospace', fontSize: 20, fontWeight: 600, letterSpacing: 2,
@@ -1643,12 +1862,12 @@ function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardDa
           background: 'transparent',
         }}>
           <div>
-            <div style={{ fontSize: 8, fontWeight: 500, letterSpacing: 1.2, color: v.muted, textTransform: 'uppercase', marginBottom: 3 }}>Cardholder</div>
+            <div style={{ fontSize: 8, fontWeight: 500, letterSpacing: 1.2, color: v.muted, textTransform: 'uppercase', marginBottom: 3 }}>{tt.cardholder_label}</div>
             <div style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: 0.4, textShadow: titleShadow }}>{name}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 8, fontWeight: 500, letterSpacing: 1.2, color: v.muted, textTransform: 'uppercase', marginBottom: 3 }}>Valid</div>
+              <div style={{ fontSize: 8, fontWeight: 500, letterSpacing: 1.2, color: v.muted, textTransform: 'uppercase', marginBottom: 3 }}>{tt.valid_label}</div>
               <div style={{ fontSize: 12.5, fontWeight: 600, fontFamily: '"SF Mono", monospace', textShadow: titleShadow }}>{expiry}</div>
             </div>
             <div style={{ position: 'relative', width: 34, height: 22 }}>
@@ -1805,11 +2024,11 @@ function BalanceBlock({ visible, onToggle, balance, accountNumber }: { visible: 
 
 function ActivityFeed({ title = true, transactions }: { title?: boolean; transactions: TxItem[] }) {
   const { goTo } = useApp();
-  const { t } = usePreferences();
+  const { t, lang } = usePreferences();
   const rows = transactions.slice(0, 5).map(tx => {
     const cat = txToCat(tx);
     const s = CAT_STYLES[cat];
-    return { iconBg: s.bg, iconEl: s.icon, title: tx.description, subtitle: fmtTime(tx.created_at), amount: `₴\u00a0${fmtInt(tx.amount)}${fmtDec(tx.amount)}`, positive: tx.direction === 'in' };
+    return { iconBg: s.bg, iconEl: s.icon, title: tx.description, subtitle: fmtTime(tx.created_at, lang), amount: `₴\u00a0${fmtInt(tx.amount)}${fmtDec(tx.amount)}`, positive: tx.direction === 'in' };
   });
   return (
     <div>
@@ -1934,7 +2153,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
           {mode !== 'topup' && (
             <div>
               <label style={{ ...T.caption, color: text.muted, display: 'block', marginBottom: 6 }}>{cfg.recipientLabel}</label>
-              <input style={inp} value={recipient} onChange={e => setRecipient(e.target.value)} placeholder={mode === 'by_card' ? '4721 •••• •••• ••••' : 'AB-100011'} />
+              <input style={inp} value={recipient} onChange={e => setRecipient(e.target.value)} placeholder={mode === 'by_card' ? t('transfer_placeholder_card') : t('transfer_placeholder_account')} />
             </div>
           )}
           <div>
@@ -2180,7 +2399,7 @@ function OverviewScreen() {
             <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
             <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#ddd8cc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
           ].map((icon, i) => (
-            <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast('Нових сповіщень немає')} style={{ width: 40, height: 40, borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 10 }}>{icon}</button>
+            <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast(t('no_new_notifications'))} style={{ width: 40, height: 40, borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 10 }}>{icon}</button>
           ))}
         </div>
 
@@ -2236,7 +2455,7 @@ function OverviewScreen() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 42, height: 42, borderRadius: '50%', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a2820', fontSize: 13, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.5), 0 2px 6px rgba(0,0,0,0.3)', overflow: 'hidden', flexShrink: 0 }}>
-              {profilePhoto ? <img src={profilePhoto} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : avatarInitials}
+              {profilePhoto ? <img src={profilePhoto} alt={t('profile_photo_alt')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : avatarInitials}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.5, marginBottom: 2 }}>{greeting}</div>
@@ -2246,12 +2465,12 @@ function OverviewScreen() {
               <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
               <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#ddd8cc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
             ].map((icon, i) => (
-              <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast('Нових сповіщень немає')} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>{icon}</button>
+              <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast(t('no_new_notifications'))} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>{icon}</button>
             ))}
           </div>
           <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid rgba(180,172,155,0.14)`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div style={{ padding: '10px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(180,172,155,0.12)' }}>
-              <div style={{ fontSize: 10, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.9 }}>Active cards</div>
+              <div style={{ fontSize: 10, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.9 }}>{t('active_cards_metric')}</div>
               <div style={{ marginTop: 3, fontSize: 18, fontWeight: 700, color: text.primary, fontFeatureSettings: '"tnum"' }}>{cards.length}</div>
             </div>
             <div style={{ padding: '10px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(180,172,155,0.12)' }}>
@@ -2356,8 +2575,8 @@ function CardsScreen() {
 
   async function changePin() {
     if (pinValue.length !== 4 || !/^\d{4}$/.test(pinValue)) { toast(t('new_pin_4_digits')); return; }
-    if (pinValue !== pinConfirm) { toast(t('confirm_password')); return; }
-    if (apiCards.length === 0) { toast('Демо-режим: зміна PIN недоступна'); return; }
+    if (pinValue !== pinConfirm) { toast(t('pin_mismatch')); return; }
+    if (apiCards.length === 0) { toast(t('demo_pin_unavailable')); return; }
     const c = apiCards[safeIdx];
     const token = localStorage.getItem('army_bank_token');
     setPinLoading(true);
@@ -2376,7 +2595,7 @@ function CardsScreen() {
   }
 
   async function toggleBlock() {
-    if (apiCards.length === 0) { toast('Демо-режим: API не підключено'); return; }
+    if (apiCards.length === 0) { toast(t('demo_api_unavailable')); return; }
     const c = apiCards[safeIdx];
     const token = localStorage.getItem('army_bank_token');
     try {
@@ -2389,7 +2608,7 @@ function CardsScreen() {
   }
 
   async function closeCard() {
-    if (apiCards.length === 0) { toast('Демо-режим: API не підключено'); return; }
+    if (apiCards.length === 0) { toast(t('demo_api_unavailable')); return; }
     const c = apiCards[safeIdx];
     const token = localStorage.getItem('army_bank_token');
     try {
@@ -2413,14 +2632,14 @@ function CardsScreen() {
     if (!selectedDesign) return;
     const token = localStorage.getItem('army_bank_token');
     if (!token) {
-      toast('Сесія завершилась. Увійдіть знову.');
+      toast(t('session_expired'));
       return;
     }
     setDesignLoading(true);
     try {
       if (designMode === 'current') {
         if (apiCards.length === 0) {
-          toast('Немає картки для зміни дизайну');
+          toast(t('no_card_for_design_change'));
           return;
         }
         const c = apiCards[safeIdx];
@@ -2431,9 +2650,9 @@ function CardsScreen() {
           body: JSON.stringify({ design: selectedDesign }),
         });
         const j = await r.json();
-        if (!r.ok || !j.ok) throw new Error(j.message || 'Не вдалося оновити дизайн');
+        if (!r.ok || !j.ok) throw new Error(j.message || t('card_design_update_failed'));
         setDesignOverrides(prev => ({ ...prev, [c.id]: selectedDesign }));
-        toast(`Дизайн картки •• ${card.number} оновлено`);
+        toast(`${t('card_design_updated')} •• ${card.number}`);
       } else {
         const r = await fetch('/api/cards', {
           method: 'POST',
@@ -2441,8 +2660,8 @@ function CardsScreen() {
           body: JSON.stringify({ card_type: 'virtual', design: selectedDesign }),
         });
         const j = await r.json();
-        if (!r.ok || !j.ok) throw new Error(j.message || 'Не вдалося випустити картку');
-        toast('Нову картку випущено');
+        if (!r.ok || !j.ok) throw new Error(j.message || t('card_issue_failed'));
+        toast(t('new_card_issued'));
       }
       await refresh().catch(() => {});
       await refreshDashboard();
@@ -2608,10 +2827,10 @@ function CardsScreen() {
         }}>
           <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 20px' }} />
           <div style={{ fontSize: 18, fontWeight: 700, color: text.primary, marginBottom: 4 }}>{t('change_pin')}</div>
-          <div style={{ fontSize: 12, color: text.muted, marginBottom: 20 }}>Картка •• {card.number}</div>
+          <div style={{ fontSize: 12, color: text.muted, marginBottom: 20 }}>{t('card_short_label')} •• {card.number}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
-              <label style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 5, display: 'block' }}>Новий PIN (4 цифри)</label>
+              <label style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 5, display: 'block' }}>{t('new_pin_4_digits')}</label>
               <input
                 type="password" inputMode="numeric" maxLength={4}
                 value={pinValue} onChange={e => setPinValue(e.target.value.replace(/\D/g, '').slice(0, 4))}
@@ -2620,14 +2839,14 @@ function CardsScreen() {
               />
             </div>
             <div>
-              <label style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 5, display: 'block' }}>Підтвердити PIN</label>
+              <label style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 5, display: 'block' }}>{t('confirm_pin')}</label>
               <input
                 type="password" inputMode="numeric" maxLength={4}
                 value={pinConfirm} onChange={e => setPinConfirm(e.target.value.replace(/\D/g, '').slice(0, 4))}
                 placeholder="••••"
                 style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid ${pinConfirm && pinValue !== pinConfirm ? 'rgba(220,80,80,0.5)' : 'rgba(180,172,155,0.18)'}`, borderRadius: 12, color: text.primary, fontSize: 20, outline: 'none', fontFamily: fontFamily, letterSpacing: 8, boxSizing: 'border-box' }}
               />
-              {pinConfirm && pinValue !== pinConfirm && <div style={{ fontSize: 11, color: '#e07070', marginTop: 4 }}>PIN-коди не збігаються</div>}
+              {pinConfirm && pinValue !== pinConfirm && <div style={{ fontSize: 11, color: '#e07070', marginTop: 4 }}>{t('pin_mismatch')}</div>}
             </div>
             {/* 4-dot indicator */}
             <div style={{ display: 'flex', justifyContent: 'center', gap: 14, margin: '4px 0' }}>
@@ -2641,7 +2860,7 @@ function CardsScreen() {
                 width: '100%', padding: '14px', borderRadius: 16, border: 'none', fontSize: 15, fontWeight: 700,
                 background: (pinLoading || pinValue.length !== 4 || pinValue !== pinConfirm) ? 'rgba(100,95,80,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
                 color: text.primary, cursor: (pinLoading || pinValue.length !== 4 || pinValue !== pinConfirm) ? 'default' : 'pointer', fontFamily: fontFamily,
-              }}>{pinLoading ? 'Збереження…' : 'Зберегти PIN'}</button>
+              }}>{pinLoading ? t('saving') : t('save_pin')}</button>
           </div>
         </div>
       </div>
@@ -2663,8 +2882,8 @@ function CardsScreen() {
           </div>
           <div style={{ fontSize: 12, color: text.muted, marginBottom: 16 }}>
             {designMode === 'current'
-              ? `Картка •• ${card?.number || '0000'}`
-              : 'Оберіть стиль, потім випустіть віртуальну картку'}
+              ? `${t('card_short_label')} •• ${card?.number || '0000'}`
+              : t('choose_style_then_issue')}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
@@ -2695,14 +2914,14 @@ function CardsScreen() {
                 />
                 <div>
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: text.primary }}>{opt.title}</div>
-                  <div style={{ fontSize: 11, color: text.muted }}>{opt.subtitle}</div>
+                  <div style={{ fontSize: 11, color: text.muted }}>{t(opt.subtitleKey)}</div>
                 </div>
               </button>
             ))}
           </div>
 
           <div style={{ marginTop: 14, fontSize: 12, color: text.muted }}>
-            Обрано: <span style={{ color: text.secondary, fontWeight: 700 }}>{activeDesignOption.title}</span>
+            {t('selected_label')}: <span style={{ color: text.secondary, fontWeight: 700 }}>{activeDesignOption.title}</span>
           </div>
 
           <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
@@ -2713,7 +2932,7 @@ function CardsScreen() {
                 flex: 1, padding: '13px 12px', borderRadius: 14, border: '1px solid rgba(180,172,155,0.22)',
                 background: 'rgba(255,255,255,0.03)', color: text.secondary, fontSize: 14, fontWeight: 600, cursor: designLoading ? 'default' : 'pointer',
               }}
-            >Скасувати</button>
+            >{t('cancel_label')}</button>
             <button
               onClick={applyCardDesign}
               disabled={designLoading}
@@ -2747,7 +2966,7 @@ const CAT_STYLES: Record<TxCat, { bg: string; color: string; icon: React.ReactNo
 
 function OperationsScreen() {
   const layout = useLayout();
-  const { t } = usePreferences();
+  const { t, lang } = usePreferences();
   const topPad = useTopPad();
   const { toast, transactions, account } = useApp();
   const [period, setPeriod] = useState(0);
@@ -2756,7 +2975,8 @@ function OperationsScreen() {
   const [dlExport, setDlExport] = useState(false);
   const token = localStorage.getItem('army_bank_token');
 
-  const periodLabels = ['Т', 'М', 'Р'];
+  const locale = localeForLang(lang);
+  const periodLabels = [t('period_week_short'), t('period_month_short'), t('period_year_short')];
   const periodDays = [7, 30, 365][period];
   const periodMs = periodDays * 24 * 60 * 60 * 1000;
   const now = Date.now();
@@ -2771,51 +2991,51 @@ function OperationsScreen() {
   const labels = Array.from({ length: 7 }, (_, i) => {
     const stamp = new Date(startTs + (i + 1) * bucketMs);
     return period === 2
-      ? stamp.toLocaleDateString('uk-UA', { month: 'short' })
-      : stamp.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+      ? stamp.toLocaleDateString(locale, { month: 'short' })
+      : stamp.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' });
   });
 
   async function downloadReceipt(txId: number) {
     setDlReceipt(txId);
     try {
       const r = await fetch(`/api/transactions/${txId}/receipt`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) { toast('Помилка завантаження чека'); return; }
+      if (!r.ok) { toast(t('receipt_download_error')); return; }
       const blob = await r.blob();
       openPdfBlobInNewTab(blob, `receipt-${txId}.pdf`, toast);
-    } catch { toast('Помилка завантаження'); } finally { setDlReceipt(null); }
+    } catch { toast(t('download_error')); } finally { setDlReceipt(null); }
   }
 
   async function downloadExport() {
     setDlExport(true);
     try {
       const r = await fetch('/api/transactions/export', { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) { toast('Помилка експорту'); return; }
+      if (!r.ok) { toast(t('export_error')); return; }
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = 'army_bank_transactions.csv'; a.click();
       URL.revokeObjectURL(url);
-    } catch { toast('Помилка завантаження'); } finally { setDlExport(false); }
+    } catch { toast(t('download_error')); } finally { setDlExport(false); }
   }
 
   async function downloadStatement() {
     try {
       const r = await fetch('/api/transactions/statement', { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) { toast('Помилка виписки'); return; }
+      if (!r.ok) { toast(t('statement_error')); return; }
       const blob = await r.blob();
       openPdfBlobInNewTab(blob, 'statement.pdf', toast);
-    } catch { toast('Помилка завантаження'); }
+    } catch { toast(t('download_error')); }
   }
 
   // Build tx groups from real API data (or fallback to static)
   const STATIC_GROUPS: { group: string; items: { txId?: number; title: string; subtitle: string; amount: string; positive?: boolean; cat: TxCat }[] }[] = [
-    { group: 'Сьогодні', items: [
-      { title: 'Надходження • ФОП', subtitle: '14:32', amount: '+84 200,00', positive: true, cat: 'income' },
-      { title: 'Сільпо', subtitle: '12:18 • Картка •• 0001', amount: '-1 247,50', cat: 'food' },
+    { group: t('today_label'), items: [
+      { title: 'Income • FOP', subtitle: '14:32', amount: '+84 200,00', positive: true, cat: 'income' },
+      { title: 'Silpo', subtitle: `12:18 • ${t('card_short_label')} •• 0001`, amount: '-1 247,50', cat: 'food' },
       { title: 'Uklon', subtitle: '09:42 • Apple Pay', amount: '-148,00', cat: 'transport' },
     ]},
-    { group: 'Вчора', items: [
-      { title: 'Комунальні послуги', subtitle: 'Київенерго', amount: '-3 180,00', cat: 'utility' },
-      { title: 'Rozetka', subtitle: 'Покупки онлайн', amount: '-6 420,00', cat: 'shopping' },
+    { group: t('yesterday_label'), items: [
+      { title: 'Utilities', subtitle: 'Kyivenergo', amount: '-3 180,00', cat: 'utility' },
+      { title: 'Rozetka', subtitle: 'Online shopping', amount: '-6 420,00', cat: 'shopping' },
     ]},
   ];
 
@@ -2828,11 +3048,11 @@ function OperationsScreen() {
     const map: Record<string, TxItem[]> = {};
     for (const tx of filtered) { const k = tx.created_at.slice(0, 10); if (!map[k]) map[k] = []; map[k].push(tx); }
     return Object.entries(map).sort(([a], [b]) => b.localeCompare(a)).map(([dateKey, items]) => ({
-      group: fmtDateLabel(dateKey),
+      group: fmtDateLabel(dateKey, lang),
       items: items.map(tx => ({
         txId: tx.id,
         title: tx.description,
-        subtitle: fmtTime(tx.created_at) + (tx.related_account ? ` • ${tx.related_account}` : ''),
+        subtitle: fmtTime(tx.created_at, lang) + (tx.related_account ? ` • ${tx.related_account}` : ''),
         amount: (tx.direction === 'in' ? '+' : '-') + fmtInt(tx.amount) + fmtDec(tx.amount),
         positive: tx.direction === 'in',
         cat: txToCat(tx),
@@ -2854,7 +3074,7 @@ function OperationsScreen() {
           <div style={{ ...T.h1, color: text.primary }}>{t('operations_title')}</div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={downloadExport} disabled={dlExport} title={t('download_csv')} style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold, fontSize: 16 }}>{dlExport ? '…' : '📊'}</button>
-            <button onClick={downloadStatement} title="Виписка PDF" style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold, fontSize: 16 }}>📄</button>
+            <button onClick={downloadStatement} title={t('statement_pdf')} style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold, fontSize: 16 }}>📄</button>
           </div>
         </div>
         {/* Search */}
@@ -2863,7 +3083,7 @@ function OperationsScreen() {
           <input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Пошук транзакцій…"
+            placeholder={t('search_transactions')}
             style={{ width: '100%', padding: '10px 14px 10px 36px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 12, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
           />
         </div>
@@ -2922,8 +3142,8 @@ function OperationsScreen() {
         <div key={gi} style={{ padding: '4px 22px 12px' }}>
           <div style={{ ...sectionLabel }}>{g.group}</div>
           <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden' }}>
-            {g.items.map((t, i) => {
-              const s = CAT_STYLES[t.cat];
+            {g.items.map((item, i) => {
+              const s = CAT_STYLES[item.cat];
               return (
                 <Fragment key={i}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
@@ -2933,13 +3153,13 @@ function OperationsScreen() {
                       border: `1px solid ${s.color}22`,
                     }}>{s.icon}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ ...T.body, fontWeight: 500, color: text.secondary, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</div>
-                      <div style={{ ...T.sm, color: text.muted }}>{t.subtitle}</div>
+                      <div style={{ ...T.body, fontWeight: 500, color: text.secondary, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</div>
+                      <div style={{ ...T.sm, color: text.muted }}>{item.subtitle}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ ...T.body, fontWeight: 600, color: t.positive ? '#7fb896' : text.secondary, ...T.num }}>{t.amount} ₴</div>
-                      {t.txId ? (
-                        <button onClick={() => downloadReceipt(t.txId!)} disabled={dlReceipt === t.txId} title="Завантажити чек" style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(180,172,155,0.08)', border: `1px solid rgba(180,172,155,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13 }}>{dlReceipt === t.txId ? '…' : '🧾'}</button>
+                      <div style={{ ...T.body, fontWeight: 600, color: item.positive ? '#7fb896' : text.secondary, ...T.num }}>{item.amount} ₴</div>
+                      {item.txId ? (
+                        <button onClick={() => downloadReceipt(item.txId!)} disabled={dlReceipt === item.txId} title={t('download_receipt')} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(180,172,155,0.08)', border: `1px solid rgba(180,172,155,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13 }}>{dlReceipt === item.txId ? '…' : '🧾'}</button>
                       ) : (
                         <Chevron size={12} color="rgba(220,215,200,0.3)" />
                       )}
@@ -2961,7 +3181,8 @@ function OperationsScreen() {
 function ProfileRow({ label, value, mono, copyable, last }: { label: string; value: string; mono?: boolean; copyable?: boolean; last?: boolean }) {
   const { toast } = useApp();
   const copy = () => {
-    navigator.clipboard.writeText(value).then(() => toast(`Скопійовано: ${value}`)).catch(() => toast('Не вдалось скопіювати'));
+    const tt = translations[getStoredLanguage()];
+    navigator.clipboard.writeText(value).then(() => toast(`${tt.copy_success}: ${value}`)).catch(() => toast(tt.copy_failed));
   };
   return (
     <>
@@ -3058,26 +3279,26 @@ function ProfileScreen() {
           method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: '{}',
         });
         const optJson = await optRes.json();
-        if (!optRes.ok || !optJson.ok) throw new Error(optJson.error || 'Помилка');
+        if (!optRes.ok || !optJson.ok) throw new Error(optJson.error || t('operation_error'));
         const attResp = await startRegistration({ optionsJSON: optJson.data });
         const verRes = await fetch('/api/auth/passkey/register', {
           method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify(attResp),
         });
         const verJson = await verRes.json();
-        if (!verRes.ok || !verJson.ok) throw new Error(verJson.error || 'Помилка реєстрації');
+        if (!verRes.ok || !verJson.ok) throw new Error(verJson.error || t('registration_error'));
         setFaceid(true);
-        toast('Face ID увімкнено ✓');
+        toast(t('face_id_on'));
       } else {
         // Remove passkey
         const res = await fetch('/api/auth/passkey/remove', { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
         const json = await res.json();
-        if (!res.ok || !json.ok) throw new Error(json.error || 'Помилка');
+        if (!res.ok || !json.ok) throw new Error(json.error || t('operation_error'));
         setFaceid(false);
-        toast('Face ID вимкнено');
+        toast(t('face_id_off'));
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Помилка';
+      const msg = err instanceof Error ? err.message : t('operation_error');
       if (!msg.toLowerCase().includes('cancel') && !msg.toLowerCase().includes('abort') && !msg.toLowerCase().includes('not allowed')) {
         toast(msg);
       }
@@ -3107,11 +3328,11 @@ function ProfileScreen() {
         body: JSON.stringify({ old_password: oldPwd, new_password: newPwd }),
       });
       const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.message || 'Помилка');
-      toast('Пароль змінено успішно');
+      if (!res.ok || !json.ok) throw new Error(json.message || t('operation_error'));
+      toast(t('password_changed'));
       setChangingPwd(false); setOldPwd(''); setNewPwd('');
     } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : 'Помилка зміни пароля');
+      toast(err instanceof Error ? err.message : t('operation_error'));
     } finally {
       setPwdLoading(false);
     }
@@ -3121,25 +3342,25 @@ function ProfileScreen() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      toast('Оберіть зображення');
+      toast(t('pick_image'));
       return;
     }
     if (file.size > 3 * 1024 * 1024) {
-      toast('Фото завелике (до 3MB)');
+      toast(t('photo_too_large'));
       return;
     }
     const reader = new FileReader();
     reader.onload = () => {
       const value = typeof reader.result === 'string' ? reader.result : '';
       if (!value) {
-        toast('Не вдалося прочитати фото');
+        toast(t('photo_read_error'));
         return;
       }
       setProfilePhoto(value);
       setProfilePhotoValue(value);
-      toast('Фото профілю оновлено');
+      toast(t('photo_updated'));
     };
-    reader.onerror = () => toast('Не вдалося завантажити фото');
+    reader.onerror = () => toast(t('photo_upload_error'));
     reader.readAsDataURL(file);
     e.target.value = '';
   }
@@ -3147,7 +3368,7 @@ function ProfileScreen() {
   function removeProfilePhoto() {
     setProfilePhoto('');
     setProfilePhotoValue('');
-    toast('Фото видалено');
+    toast(t('photo_removed'));
   }
 
   const languageOptions: { value: AppLang; label: string }[] = [
@@ -3185,7 +3406,7 @@ function ProfileScreen() {
           overflow: 'hidden',
         }}>
           {profilePhoto ? (
-            <img src={profilePhoto} alt="Фото профілю" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src={profilePhoto} alt={t('profile_photo_alt')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
             userInitials
           )}
@@ -3427,7 +3648,7 @@ function ProductDetailDrawer({ product, onClose, onAddToCart }: { product: Produ
         <div style={{ display: 'flex', gap: 4, marginBottom: 16, flexWrap: 'wrap' }}>
           {product.badge && <BadgePill badge={product.badge} />}
           {product.stock !== undefined && product.stock <= 5 && product.stock > 0 && (
-            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 6, background: 'rgba(220,100,60,0.15)', color: '#e07858', letterSpacing: 0.5 }}>ОСТАННІ {product.stock}</span>
+            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 6, background: 'rgba(220,100,60,0.15)', color: '#e07858', letterSpacing: 0.5 }}>{t('last_items_badge')} {product.stock}</span>
           )}
         </div>
         <div style={{
@@ -3590,7 +3811,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', paddingBottom: 'calc(18px + env(safe-area-inset-bottom, 0px))' }}>
             <div>
               <label style={labelStyle}>{t('recipient_label')}</label>
-              <input value={shipName} onChange={e => setShipName(e.target.value)} placeholder="Прізвище Ім'я По-батькові" style={fieldStyle} />
+              <input value={shipName} onChange={e => setShipName(e.target.value)} placeholder={t('shipping_name_placeholder')} style={fieldStyle} />
             </div>
             <div>
               <label style={labelStyle}>{t('delivery_phone')}</label>
@@ -3598,7 +3819,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
             </div>
             <div>
               <label style={labelStyle}>{t('delivery_address')}</label>
-              <input value={shipAddr} onChange={e => setShipAddr(e.target.value)} placeholder="м. Київ, вул. Хрещатик 1, кв. 5" style={fieldStyle} />
+              <input value={shipAddr} onChange={e => setShipAddr(e.target.value)} placeholder={t('shipping_address_placeholder')} style={fieldStyle} />
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '4px 4px 0' }}>
               <span style={{ fontSize: 13, color: text.muted }}>{t('pay_total')}:</span>
@@ -3626,7 +3847,7 @@ type MarketTab = 'catalog' | 'orders' | 'invoices';
 function MarketplaceScreen() {
   const PRODUCTS_PER_PAGE = 4;
   const layout = useLayout();
-  const { t } = usePreferences();
+  const { t, lang } = usePreferences();
   const topPad = useTopPad();
   const { toast, refreshDashboard, user: mktUser, setTabBarHidden } = useApp();
   const [tab, setTabState] = useState<MarketTab>(() => readStoredMarketTab());
@@ -3774,13 +3995,13 @@ function MarketplaceScreen() {
     if (!v) return '—';
     const d = new Date(v);
     if (Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString('uk-UA');
+    return d.toLocaleDateString(localeForLang(lang));
   }
   function formatUkDateTime(v?: string) {
     if (!v) return '—';
     const d = new Date(v);
     if (Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleString(localeForLang(lang), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
   const filteredProducts = search.trim()
@@ -3971,7 +4192,7 @@ function MarketplaceScreen() {
                       <span style={{ fontSize: 14, fontWeight: 700, color: text.secondary }}>{t('order_label')} #{o.id}</span>
                       <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', padding: '3px 8px', borderRadius: 100, background: tone.bg, border: `1px solid ${tone.border}`, color: tone.fg }}>{o.status}</span>
                     </div>
-                    <div style={{ fontSize: 12, color: text.muted }}>{o.items_count || 0} поз. · {formatUkDateTime(o.created_at)}</div>
+                    <div style={{ fontSize: 12, color: text.muted }}>{o.items_count || 0} {t('order_items_suffix')} · {formatUkDateTime(o.created_at)}</div>
                     {o.invoice_number && <div style={{ fontSize: 11, color: text.dim, marginTop: 1, fontFamily: 'monospace' }}>{t('invoice_label')}: {o.invoice_number}</div>}
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -4028,7 +4249,7 @@ function MarketplaceScreen() {
                     </div>
                     <div style={{ fontSize: 12, color: text.muted }}>
                       {formatUkDate(inv.created_at)}
-                      {inv.due_at ? ` · до ${formatUkDate(inv.due_at)}` : ''}
+                      {inv.due_at ? ` · ${t('due_prefix')} ${formatUkDate(inv.due_at)}` : ''}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -4168,7 +4389,7 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
             boxShadow: `0 0 0 2px rgba(0,0,0,0.5), 0 0 0 3.5px ${gold}50`,
             overflow: 'hidden',
           }}>
-            {profilePhoto ? <img src={profilePhoto} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : userInitials}
+            {profilePhoto ? <img src={profilePhoto} alt={t('profile_photo_alt')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : userInitials}
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ ...T.body, fontWeight: 600, color: text.primary, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
@@ -4431,7 +4652,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (mode === 'register' && password !== confirmPass) { setError('Паролі не збігаються'); return; }
+    if (mode === 'register' && password !== confirmPass) { setError(t('passwords_do_not_match')); return; }
     setLoading(true);
     try {
       const isReg = mode === 'register';
@@ -4491,7 +4712,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             ARM<span style={{ fontWeight: 300, color: text.muted }}>Bank</span>
           </div>
           <div style={{ ...T.caption, color: text.dim, marginTop: 8, letterSpacing: 2, textTransform: 'uppercase' }}>
-            Private Banking
+            {t('personal_cabinet')}
           </div>
         </div>
 
@@ -4560,7 +4781,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             {mode === 'register' && <>
               <div style={fieldStyle}>
                 <label style={labelStyle}>{t('full_name_label')}</label>
-                <input style={inputStyle} type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Іван Петренко" required />
+                <input style={inputStyle} type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder={t('full_name_placeholder')} required />
               </div>
               <div style={fieldStyle}>
                 <label style={labelStyle}>{t('profile_phone')}</label>
@@ -4583,7 +4804,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <label style={{ ...labelStyle, marginBottom: 0 }}>{t('password_label')}</label>
                 {mode === 'login' && (
-                  <button type="button" onClick={() => setError('Зверніться до підтримки для відновлення пароля')} style={{ fontSize: 11, color: 'rgba(220,215,200,0.78)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 0.2 }}>
+                  <button type="button" onClick={() => setError(t('forgot_password_contact_support'))} style={{ fontSize: 11, color: 'rgba(220,215,200,0.78)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 0.2 }}>
                     {t('forgot_password')}
                   </button>
                 )}
@@ -4661,7 +4882,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
         {/* Footer */}
         <div style={{ textAlign: 'center', marginTop: 24, ...T.caption, color: 'rgba(220,215,200,0.72)', letterSpacing: 0.6 }}>
-          ARM BANK · PRIVATE BANKING
+          ARMBank · {t('personal_cabinet')}
         </div>
       </div>
       </div>
@@ -4872,7 +5093,7 @@ export default function App() {
       setCards(Array.isArray(cardsData) ? cardsData : []);
       setAnalytics(analyticsData);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Не вдалося завантажити дані.';
+      const message = err instanceof Error ? err.message : t('data_load_failed');
       setDataError(message);
       if ((err as { status?: number }).status === 401) {
         logout();
