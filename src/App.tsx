@@ -1,4 +1,4 @@
-import React, { useState, Fragment, useEffect, createContext, useContext, Component, useRef } from 'react';
+import React, { useState, Fragment, useEffect, createContext, useContext, Component, useRef, useMemo } from 'react';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 import florenceCardImage from './assets/cards/florence.png';
 import tuscanyHillsCardImage from './assets/cards/tuscany-hills.png';
@@ -3624,6 +3624,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
 type MarketTab = 'catalog' | 'orders' | 'invoices';
 
 function MarketplaceScreen() {
+  const PRODUCTS_PER_PAGE = 4;
   const layout = useLayout();
   const { t } = usePreferences();
   const topPad = useTopPad();
@@ -3641,6 +3642,7 @@ function MarketplaceScreen() {
   const [showCart, setShowCart] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const [search, setSearch] = useState('');
+  const [catalogPage, setCatalogPage] = useState(1);
   useEffect(() => { localStorage.setItem('arm_cart', JSON.stringify(cart)); }, [cart]);
   useEffect(() => {
     const hidden = Boolean(showCart || preview);
@@ -3756,14 +3758,48 @@ function MarketplaceScreen() {
     { k: 'invoices', label: t('invoices_tab') },
   ];
 
-  const statusColors: Record<string, string> = {
-    paid: '#7fb896', active: '#7fb896', issued: gold, pending: gold,
-    overdue: '#e07070', cancelled: 'rgba(220,215,200,0.4)', expired: 'rgba(220,215,200,0.4)',
+  const statusTone: Record<string, { fg: string; bg: string; border: string }> = {
+    paid: { fg: '#86ca9f', bg: 'rgba(75,155,105,0.16)', border: 'rgba(134,202,159,0.35)' },
+    active: { fg: '#86ca9f', bg: 'rgba(75,155,105,0.16)', border: 'rgba(134,202,159,0.35)' },
+    issued: { fg: '#d8c9a6', bg: 'rgba(184,176,154,0.15)', border: 'rgba(216,201,166,0.3)' },
+    pending: { fg: '#d8c9a6', bg: 'rgba(184,176,154,0.15)', border: 'rgba(216,201,166,0.3)' },
+    overdue: { fg: '#f09b96', bg: 'rgba(190,85,80,0.14)', border: 'rgba(240,155,150,0.35)' },
+    cancelled: { fg: '#c4bdaf', bg: 'rgba(160,150,132,0.12)', border: 'rgba(196,189,175,0.25)' },
+    expired: { fg: '#c4bdaf', bg: 'rgba(160,150,132,0.12)', border: 'rgba(196,189,175,0.25)' },
   };
+  function toneOf(status: string) {
+    return statusTone[String(status || '').toLowerCase()] || { fg: gold, bg: 'rgba(184,176,154,0.14)', border: 'rgba(184,176,154,0.3)' };
+  }
+  function formatUkDate(v?: string) {
+    if (!v) return '—';
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('uk-UA');
+  }
+  function formatUkDateTime(v?: string) {
+    if (!v) return '—';
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
 
   const filteredProducts = search.trim()
     ? products.filter(p => p.title.toLowerCase().includes(search.toLowerCase()) || (p.description || '').toLowerCase().includes(search.toLowerCase()))
     : products;
+  const totalCatalogPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE));
+  const pagedProducts = filteredProducts.slice((catalogPage - 1) * PRODUCTS_PER_PAGE, catalogPage * PRODUCTS_PER_PAGE);
+  const catalogPages = useMemo(
+    () => Array.from({ length: totalCatalogPages }, (_, i) => i + 1),
+    [totalCatalogPages],
+  );
+
+  useEffect(() => {
+    setCatalogPage(1);
+  }, [search, tab]);
+
+  useEffect(() => {
+    if (catalogPage > totalCatalogPages) setCatalogPage(totalCatalogPages);
+  }, [catalogPage, totalCatalogPages]);
 
   return (
     <>
@@ -3839,32 +3875,69 @@ function MarketplaceScreen() {
               <div style={{ fontSize: 13, color: text.muted }}>{search ? t('try_another_query') : t('products_not_added')}</div>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 10, padding: '8px 22px' }}>
-              {filteredProducts.map(p => (
-                <div key={p.id} onClick={() => setPreview(p)} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'border-color 0.15s' }}>
-                  <div style={{ height: 108, background: `linear-gradient(135deg, rgba(180,172,155,0.08), rgba(100,95,80,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42, position: 'relative', overflow: 'hidden' }}>
-                    <ProductVisual product={p} />
-                    {p.badge && (
-                      <div style={{ position: 'absolute', top: 8, right: 8 }}><BadgePill badge={p.badge} /></div>
-                    )}
-                  </div>
-                  <div style={{ padding: '10px 12px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <div style={{ ...T.sm, fontWeight: 600, color: text.secondary, lineHeight: 1.3 }}>{p.title}</div>
-                    <div style={{ marginTop: 'auto', paddingTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                      <span style={{ ...T.body, fontWeight: 700, color: gold, ...T.num }}>₴{fmtInt(p.price)}</span>
-                      <button onClick={e => { e.stopPropagation(); addToCart(p); }} disabled={p.stock !== undefined && p.stock <= 0} style={{
-                        width: 28, height: 28, borderRadius: 8, border: `1px solid ${bg.border}`, fontSize: 14, fontWeight: 700,
-                        background: (p.stock !== undefined && p.stock <= 0) ? 'rgba(30,45,35,0.4)' : 'rgba(180,172,155,0.15)',
-                        color: text.secondary, cursor: (p.stock !== undefined && p.stock <= 0) ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>+</button>
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 10, padding: '8px 22px' }}>
+                {pagedProducts.map(p => (
+                  <div key={p.id} onClick={() => setPreview(p)} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'border-color 0.15s' }}>
+                    <div style={{ height: 108, background: `linear-gradient(135deg, rgba(180,172,155,0.08), rgba(100,95,80,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42, position: 'relative', overflow: 'hidden' }}>
+                      <ProductVisual product={p} />
+                      {p.badge && (
+                        <div style={{ position: 'absolute', top: 8, right: 8 }}><BadgePill badge={p.badge} /></div>
+                      )}
                     </div>
-                    {p.stock !== undefined && p.stock > 0 && p.stock <= 5 && (
-                      <div style={{ fontSize: 9, color: '#e0a070', fontWeight: 600 }}>{t('last_items')}: {p.stock}</div>
-                    )}
+                    <div style={{ padding: '10px 12px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div style={{ ...T.sm, fontWeight: 600, color: text.secondary, lineHeight: 1.3 }}>{p.title}</div>
+                      <div style={{ marginTop: 'auto', paddingTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                        <span style={{ ...T.body, fontWeight: 700, color: gold, ...T.num }}>₴{fmtInt(p.price)}</span>
+                        <button onClick={e => { e.stopPropagation(); addToCart(p); }} disabled={p.stock !== undefined && p.stock <= 0} style={{
+                          width: 28, height: 28, borderRadius: 8, border: `1px solid ${bg.border}`, fontSize: 14, fontWeight: 700,
+                          background: (p.stock !== undefined && p.stock <= 0) ? 'rgba(30,45,35,0.4)' : 'rgba(180,172,155,0.15)',
+                          color: text.secondary, cursor: (p.stock !== undefined && p.stock <= 0) ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>+</button>
+                      </div>
+                      {p.stock !== undefined && p.stock > 0 && p.stock <= 5 && (
+                        <div style={{ fontSize: 9, color: '#e0a070', fontWeight: 600 }}>{t('last_items')}: {p.stock}</div>
+                      )}
+                    </div>
                   </div>
+                ))}
+              </div>
+              {filteredProducts.length > PRODUCTS_PER_PAGE && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 22px 2px' }}>
+                  <button
+                    onClick={() => setCatalogPage(p => Math.max(1, p - 1))}
+                    disabled={catalogPage === 1}
+                    style={{
+                      width: 32, height: 32, borderRadius: 10, border: `1px solid ${bg.border}`,
+                      background: catalogPage === 1 ? 'rgba(255,255,255,0.03)' : 'rgba(180,172,155,0.12)',
+                      color: catalogPage === 1 ? text.dim : text.secondary, cursor: catalogPage === 1 ? 'default' : 'pointer',
+                      fontFamily: 'inherit', fontWeight: 700,
+                    }}
+                  >‹</button>
+                  {catalogPages.map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCatalogPage(page)}
+                      style={{
+                        minWidth: 32, height: 32, padding: '0 8px', borderRadius: 10, border: 'none',
+                        background: page === catalogPage ? `linear-gradient(135deg, ${goldDark}, ${gold})` : 'rgba(255,255,255,0.04)',
+                        color: page === catalogPage ? '#0c1a12' : text.secondary, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
+                      }}
+                    >{page}</button>
+                  ))}
+                  <button
+                    onClick={() => setCatalogPage(p => Math.min(totalCatalogPages, p + 1))}
+                    disabled={catalogPage === totalCatalogPages}
+                    style={{
+                      width: 32, height: 32, borderRadius: 10, border: `1px solid ${bg.border}`,
+                      background: catalogPage === totalCatalogPages ? 'rgba(255,255,255,0.03)' : 'rgba(180,172,155,0.12)',
+                      color: catalogPage === totalCatalogPages ? text.dim : text.secondary, cursor: catalogPage === totalCatalogPages ? 'default' : 'pointer',
+                      fontFamily: 'inherit', fontWeight: 700,
+                    }}
+                  >›</button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -3880,25 +3953,45 @@ function MarketplaceScreen() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {orders.map(o => (
-                <div key={o.id} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: text.secondary }}>{t('order_label')} #{o.id}</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 100, background: `${statusColors[o.status] || gold}22`, color: statusColors[o.status] || gold }}>{o.status}</span>
+              {orders.map(o => {
+                const tone = toneOf(o.status);
+                return (
+                <div key={o.id} style={{
+                  background: 'linear-gradient(160deg, rgba(18,40,30,0.72) 0%, rgba(9,22,16,0.9) 100%)',
+                  border: `1px solid rgba(180,172,155,0.24)`,
+                  borderRadius: 18,
+                  padding: '14px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.08), 0 12px 26px rgba(0,0,0,0.22)',
+                }}>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: text.secondary }}>{t('order_label')} #{o.id}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', padding: '3px 8px', borderRadius: 100, background: tone.bg, border: `1px solid ${tone.border}`, color: tone.fg }}>{o.status}</span>
                     </div>
-                    <div style={{ fontSize: 12, color: text.muted }}>{o.items_count || 0} поз. · {o.created_at ? new Date(o.created_at).toLocaleDateString('uk-UA') : ''}</div>
-                    {o.invoice_number && <div style={{ fontSize: 11, color: text.dim, marginTop: 2 }}>{t('invoice_label')}: {o.invoice_number}</div>}
+                    <div style={{ fontSize: 12, color: text.muted }}>{o.items_count || 0} поз. · {formatUkDateTime(o.created_at)}</div>
+                    {o.invoice_number && <div style={{ fontSize: 11, color: text.dim, marginTop: 1, fontFamily: 'monospace' }}>{t('invoice_label')}: {o.invoice_number}</div>}
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ ...T.bodyLg, fontWeight: 700, color: gold, ...T.num }}>₴{fmtInt(o.total_amount)}{fmtDec(o.total_amount)}</div>
                     <button onClick={() => downloadOrderReceipt(o.id)} disabled={dlPdf === `order-${o.id}`} style={{
-                      marginTop: 6, padding: '4px 10px', borderRadius: 8, border: `1px solid rgba(180,172,155,0.25)`,
-                      background: 'transparent', color: gold, fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
-                    }}>{dlPdf === `order-${o.id}` ? '…' : t('receipt_short')}</button>
+                      marginTop: 7,
+                      padding: '5px 11px',
+                      borderRadius: 10,
+                      border: `1px solid rgba(184,176,154,0.38)`,
+                      background: 'linear-gradient(135deg, rgba(184,176,154,0.25), rgba(122,114,101,0.2))',
+                      color: text.primary,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      letterSpacing: 0.2,
+                    }}>{dlPdf === `order-${o.id}` ? '…' : `🧾 ${t('receipt_short')}`}</button>
                   </div>
                 </div>
-              ))}
+              );})}
             </div>
           )}
         </div>
@@ -3915,7 +4008,9 @@ function MarketplaceScreen() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {invoices.map(inv => (
+              {invoices.map(inv => {
+                const tone = toneOf(inv.status);
+                return (
                 <div key={inv.invoice_number} style={{
                   background: 'linear-gradient(160deg, rgba(18,40,30,0.78) 0%, rgba(10,24,18,0.9) 100%)',
                   border: `1px solid rgba(180,172,155,0.22)`,
@@ -3927,26 +4022,35 @@ function MarketplaceScreen() {
                   boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.08), 0 10px 22px rgba(0,0,0,0.2)',
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: text.secondary, fontFamily: 'monospace' }}>{inv.invoice_number}</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 100, background: `${statusColors[inv.status] || gold}22`, color: statusColors[inv.status] || gold }}>{inv.status}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 5 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: text.secondary, fontFamily: 'monospace' }}>{inv.invoice_number}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', padding: '3px 8px', borderRadius: 100, background: tone.bg, border: `1px solid ${tone.border}`, color: tone.fg }}>{inv.status}</span>
                     </div>
                     <div style={{ fontSize: 12, color: text.muted }}>
-                      {inv.created_at ? new Date(inv.created_at).toLocaleDateString('uk-UA') : ''}
-                      {inv.due_at ? ` · до ${new Date(inv.due_at).toLocaleDateString('uk-UA')}` : ''}
+                      {formatUkDate(inv.created_at)}
+                      {inv.due_at ? ` · до ${formatUkDate(inv.due_at)}` : ''}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ ...T.bodyLg, fontWeight: 700, color: gold, ...T.num }}>₴{fmtInt(inv.amount)}{fmtDec(inv.amount)}</div>
                     {inv.status === 'issued' && inv.order_id && (
                       <button onClick={() => downloadOrderReceipt(inv.order_id!)} disabled={dlPdf === `order-${inv.order_id}`} style={{
-                        marginTop: 6, padding: '4px 10px', borderRadius: 8, border: `1px solid rgba(180,172,155,0.25)`,
-                        background: 'transparent', color: gold, fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
-                      }}>{dlPdf === `order-${inv.order_id}` ? '…' : t('receipt_short')}</button>
+                        marginTop: 7,
+                        padding: '5px 11px',
+                        borderRadius: 10,
+                        border: `1px solid rgba(184,176,154,0.38)`,
+                        background: 'linear-gradient(135deg, rgba(184,176,154,0.25), rgba(122,114,101,0.2))',
+                        color: text.primary,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        letterSpacing: 0.2,
+                      }}>{dlPdf === `order-${inv.order_id}` ? '…' : `🧾 ${t('receipt_short')}`}</button>
                     )}
                   </div>
                 </div>
-              ))}
+              );})}
             </div>
           )}
         </div>

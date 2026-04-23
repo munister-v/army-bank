@@ -430,17 +430,19 @@ class StatementService:
             date_short = '—'
 
         tx_type = _TX_TYPE_LABELS.get(tx.get('tx_type'), tx.get('tx_type') or 'Операція')
+        tx_type_key = str(tx.get('tx_type') or '').lower()
+        receipt_kind = 'Квитанція маркету' if 'marketplace' in tx_type_key else 'Банківський чек'
         tx_num = int(tx.get('id') or 0)
 
         story = []
 
         # ── Navy header band ─────────────────────────────────────────────────
         wt = ParagraphStyle('wt', fontName=_f(True), fontSize=14, textColor=_WHITE, leading=18)
-        wn = ParagraphStyle('wn', fontName=_f(), fontSize=8.5, textColor=colors.HexColor('#c9c3b4'),
+        wn = ParagraphStyle('wn', fontName=_f(), fontSize=8.2, textColor=colors.HexColor('#c9c3b4'),
                             leading=11, alignment=2)
         hdr = Table(
             [[Paragraph('Army<font color="#b9ab8f">Bank</font>', wt),
-              Paragraph(f'Квитанція\n#{tx_num}', wn)]],
+              Paragraph(f'{receipt_kind}<br/>#{tx_num}<br/>{date_short}', wn)]],
             colWidths=[None, 28 * mm],
         )
         hdr.setStyle(TableStyle([
@@ -457,13 +459,17 @@ class StatementService:
         amt_bg  = _LGGREEN if is_in else _LGRED
         amt_fg  = colors.HexColor('#2d6f54') if is_in else colors.HexColor('#a24f47')
         lbl_fg  = colors.HexColor('#376950') if is_in else colors.HexColor('#8c4b43')
+        amount_caption = ParagraphStyle('ac', fontName=_f(), fontSize=8.2, textColor=lbl_fg, alignment=1, leading=11)
+        amount_status = ParagraphStyle('as', fontName=_f(True), fontSize=7.6, textColor=colors.HexColor('#567f66'), alignment=1, leading=10)
         amt_t = Table(
             [[Paragraph(amount_str,
                         ParagraphStyle('aa', fontName=_f(True), fontSize=24, textColor=amt_fg,
                                        alignment=1, leading=28))],
              [Paragraph(tx_type,
                         ParagraphStyle('at', fontName=_f(), fontSize=9, textColor=lbl_fg,
-                                       alignment=1, leading=12))]],
+                                       alignment=1, leading=12))],
+             [Paragraph('Офіційний платіжний документ Army Bank', amount_caption)],
+             [Paragraph('✓ ПІДТВЕРДЖЕНО СИСТЕМОЮ', amount_status)]],
             colWidths=['100%'],
         )
         amt_t.setStyle(TableStyle([
@@ -471,6 +477,8 @@ class StatementService:
             ('TOPPADDING', (0, 0), (0, 0), 10),
             ('BOTTOMPADDING', (0, -1), (0, -1), 10),
             ('TOPPADDING', (0, 1), (0, 1), 1),
+            ('TOPPADDING', (0, 2), (0, 2), 2),
+            ('TOPPADDING', (0, 3), (0, 3), 0),
             ('LEFTPADDING', (0, 0), (-1, -1), 8),
             ('RIGHTPADDING', (0, 0), (-1, -1), 8),
         ]))
@@ -491,17 +499,17 @@ class StatementService:
             desc = desc[:47] + '…'
 
         rows = [
-            _row('Транзакція',   f'#{tx_num}'),
-            _row('Дата та час',  date_str),
+            _row('ID документа', f'#{tx_num}'),
+            _row('Дата та час', date_str),
             _row('Тип операції', tx_type),
-            _row('Власник',      user.get('full_name') or '—'),
-            _row('Рахунок',      account.get('account_number') or '—'),
+            _row('Отримувач', user.get('full_name') or '—'),
+            _row('Рахунок', account.get('account_number') or '—'),
             _row('Контрагент',   related),
             _row('Сума',         self._money(amount)),
             _row('Комісія',      self._money(commission)),
             _row('Разом',        self._money(total)),
             _row('Опис',         desc),
-            _row('Статус',       '✓  ПІДТВЕРДЖЕНО', ok_s),
+            _row('Верифікація',  '✓ ПІДТВЕРДЖЕНО', ok_s),
         ]
 
         det_t = Table(rows, colWidths=[30 * mm, None])
@@ -523,7 +531,7 @@ class StatementService:
         ft = Table(
             [[Paragraph(f'Сформовано: {date_short}',
                         ParagraphStyle('fl', fontName=_f(), fontSize=7, textColor=_MUTED)),
-              Paragraph('army-bank.com.ua',
+              Paragraph(f'Army Bank · TX#{tx_num}',
                         ParagraphStyle('fr', fontName=_f(), fontSize=7, textColor=_MUTED, alignment=2))]],
             colWidths=['50%', '50%'],
         )
