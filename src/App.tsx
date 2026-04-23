@@ -2224,31 +2224,69 @@ function OverviewScreen() {
   // ── Mobile layout ──
   return (
     <div style={{ paddingBottom: 20 }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: `${topPad} 18px 8px` }}>
-        <div style={{ width: 40, height: 40, borderRadius: '50%', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a2820', fontSize: 13, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.5), 0 2px 6px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
-          {profilePhoto ? <img src={profilePhoto} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : avatarInitials}
+      <div style={{ padding: `${topPad} 16px 6px` }}>
+        <div style={{
+          borderRadius: 26,
+          border: `1px solid ${bg.border}`,
+          background: 'linear-gradient(140deg, rgba(16,44,33,0.86) 0%, rgba(11,30,22,0.72) 52%, rgba(19,48,35,0.7) 100%)',
+          boxShadow: '0 22px 44px rgba(3,10,8,0.28), inset 0 1px 0 rgba(255,255,255,0.06)',
+          padding: '14px 14px 12px',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 42, height: 42, borderRadius: '50%', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a2820', fontSize: 13, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.5), 0 2px 6px rgba(0,0,0,0.3)', overflow: 'hidden', flexShrink: 0 }}>
+              {profilePhoto ? <img src={profilePhoto} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : avatarInitials}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.5, marginBottom: 2 }}>{greeting}</div>
+              <div style={{ fontSize: 19, fontWeight: 700, color: text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.1 }}>{displayName}</div>
+            </div>
+            {[
+              <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
+              <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#ddd8cc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+            ].map((icon, i) => (
+              <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast('Нових сповіщень немає')} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>{icon}</button>
+            ))}
+          </div>
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid rgba(180,172,155,0.14)`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ padding: '10px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(180,172,155,0.12)' }}>
+              <div style={{ fontSize: 10, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.9 }}>Active cards</div>
+              <div style={{ marginTop: 3, fontSize: 18, fontWeight: 700, color: text.primary, fontFeatureSettings: '"tnum"' }}>{cards.length}</div>
+            </div>
+            <div style={{ padding: '10px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(180,172,155,0.12)' }}>
+              <div style={{ fontSize: 10, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.9 }}>{t('recent_activity')}</div>
+              <div style={{ marginTop: 3, fontSize: 18, fontWeight: 700, color: text.primary, fontFeatureSettings: '"tnum"' }}>{transactions.length}</div>
+            </div>
+          </div>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.5, marginBottom: 1 }}>{greeting}</div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName.split(' ')[0]}</div>
-        </div>
-        {[
-          <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
-          <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#ddd8cc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
-        ].map((icon, i) => (
-          <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast('Нових сповіщень немає')} style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.12)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>{icon}</button>
-        ))}
       </div>
 
-      <div style={{ padding: '24px 22px 20px' }}>
-        <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} balance={account?.balance ?? 0} accountNumber={account?.account_number ?? '—'} />
+      <div style={{ padding: '10px 16px 10px' }}>
+        <div style={{ borderRadius: 22, border: `1px solid ${bg.border}`, background: 'linear-gradient(180deg, rgba(15,39,30,0.68) 0%, rgba(10,27,20,0.56) 100%)', padding: '16px 16px 14px', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+          <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} balance={account?.balance ?? 0} accountNumber={account?.account_number ?? '—'} />
+        </div>
       </div>
-      <div style={{ padding: '0 22px 4px' }}>{cardSection}</div>
-      <div style={{ display: 'flex', gap: 8, padding: '18px 22px 6px' }}>
-        {quickActions.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => handleQuickAction(a.action)} /></Fragment>)}
+
+      <div style={{ padding: '0 16px 2px' }}>
+        <div style={{ borderRadius: 22, border: `1px solid ${bg.border}`, background: 'linear-gradient(180deg, rgba(12,33,25,0.58) 0%, rgba(9,24,18,0.52) 100%)', padding: '14px 14px 12px' }}>
+          {cardSection}
+        </div>
       </div>
-      <div style={{ padding: '22px 22px 0' }}><ActivityFeed transactions={transactions} /></div>
+
+      <div style={{ padding: '14px 16px 0' }}>
+        <div style={{ borderRadius: 22, border: `1px solid ${bg.border}`, background: 'linear-gradient(180deg, rgba(12,32,24,0.6) 0%, rgba(8,22,17,0.5) 100%)', padding: '12px' }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {quickActions.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => handleQuickAction(a.action)} /></Fragment>)}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: '16px 16px 0' }}>
+        <div style={{ borderRadius: 22, border: `1px solid ${bg.border}`, background: 'linear-gradient(180deg, rgba(12,30,23,0.56) 0%, rgba(8,22,16,0.48) 100%)', padding: '14px 12px 12px' }}>
+          <ActivityFeed transactions={transactions} />
+        </div>
+      </div>
     </div>
   );
 }
