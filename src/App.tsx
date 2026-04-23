@@ -2785,7 +2785,11 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       bottom: 0,
       zIndex: 120,
       flexShrink: 0,
-      background: 'linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.62) 38%, rgba(7,21,15,0.98) 100%)',
+      // backgroundColor fills the safe-area zone (below the pill) with an
+      // opaque, exact-match solid — no bleed from the brownish radial gradient.
+      // backgroundImage provides the blur-fade upward for content overlap.
+      backgroundColor: appBgBase,
+      backgroundImage: 'linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.72) 45%, rgb(7,21,15) 100%)',
     }}>
       <div style={{
         padding: '0 14px clamp(2px, env(safe-area-inset-bottom, 0px), 8px)',
@@ -2941,7 +2945,11 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
 // ─── Root app ─────────────────────────────────────────────────
 const SCREENS = { overview: OverviewScreen, operations: OperationsScreen, cards: CardsScreen, market: MarketplaceScreen, profile: ProfileScreen };
 
-const appBg = 'radial-gradient(ellipse 80% 60% at 20% 0%, #1a3a2c 0%, transparent 60%), radial-gradient(ellipse 70% 50% at 90% 100%, #2a1a0e 0%, transparent 55%), linear-gradient(180deg, #0a1f18 0%, #07150f 100%)';
+// Solid base — must equal html/body background AND gradient bottom stop.
+// Appended to the shorthand → becomes CSS background-color, painting UNDER
+// all gradient layers so any edge-pixel gap is invisible on OLED.
+const appBgBase = '#07150f';
+const appBg = `radial-gradient(ellipse 80% 60% at 20% 0%, #1a3a2c 0%, transparent 60%), radial-gradient(ellipse 70% 50% at 90% 100%, #2a1a0e 0%, transparent 55%), linear-gradient(180deg, #0a1f18 0%, ${appBgBase} 100%) ${appBgBase}`;
 
 const appBase: React.CSSProperties = {
   position: 'fixed',
