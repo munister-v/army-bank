@@ -3624,7 +3624,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
 type MarketTab = 'catalog' | 'orders' | 'invoices';
 
 function MarketplaceScreen() {
-  const PRODUCTS_PER_PAGE = 6;
+  const PRODUCTS_PER_PAGE = 4;
   const layout = useLayout();
   const { t } = usePreferences();
   const topPad = useTopPad();
