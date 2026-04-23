@@ -3511,11 +3511,11 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
         borderRadius: '28px 28px 0 0',
         padding: '18px 18px 0',
         boxShadow: '0 -20px 60px rgba(0,0,0,0.6)',
-        height: step === 'cart' ? 'auto' : 'min(86dvh, 720px)',
+        height: 'auto',
         maxHeight: 'min(86dvh, 720px)',
         overflow: 'hidden',
         border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
-        display: step === 'cart' ? 'block' : 'flex',
+        display: 'flex',
         flexDirection: 'column',
         ...sheetSwipe.sheetStyle,
       }}
@@ -3587,7 +3587,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
         )}
 
         {step === 'shipping' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: '0 1 auto', overflowY: 'auto', maxHeight: 'calc(min(86dvh, 720px) - 92px)', paddingBottom: 'calc(18px + env(safe-area-inset-bottom, 0px))' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', paddingBottom: 'calc(18px + env(safe-area-inset-bottom, 0px))' }}>
             <div>
               <label style={labelStyle}>{t('recipient_label')}</label>
               <input value={shipName} onChange={e => setShipName(e.target.value)} placeholder="Прізвище Ім'я По-батькові" style={fieldStyle} />
