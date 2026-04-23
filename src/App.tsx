@@ -275,14 +275,16 @@ function formatUah(value: number): string {
 }
 
 function analyticsChangeLabel(analytics?: ApiAnalytics | null): string {
-  if (!analytics?.current_month || !analytics?.prev_month) return 'Без динаміки';
+  const lang = getStoredLanguage();
+  const tt = translations[lang];
+  if (!analytics?.current_month || !analytics?.prev_month) return tt.no_dynamics;
   const curIn = Number(analytics.current_month.total_in || 0);
   const curOut = Number(analytics.current_month.total_out || 0);
   const prevIn = Number(analytics.prev_month.total_in || 0);
   const prevOut = Number(analytics.prev_month.total_out || 0);
   const curNet = curIn - curOut;
   const prevNet = prevIn - prevOut;
-  if (Math.abs(prevNet) < 0.01) return curNet === 0 ? 'Без змін' : 'Новий рух коштів';
+  if (Math.abs(prevNet) < 0.01) return curNet === 0 ? tt.no_change : tt.new_cash_flow;
   const pct = ((curNet - prevNet) / Math.abs(prevNet)) * 100;
   const sign = pct > 0 ? '+' : '';
   return `${sign}${pct.toFixed(1)}% до минулого місяця`;
@@ -296,7 +298,7 @@ function initials(fullName?: string | null): string {
 
 function shortName(fullName?: string | null): string {
   const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return 'Користувач';
+  if (!parts.length) return translations[getStoredLanguage()].user_fallback;
   if (parts.length === 1) return parts[0];
   return `${parts[0]} ${parts[1].charAt(0)}.`;
 }
@@ -361,6 +363,146 @@ const translations = {
     push_notifications: 'Push-сповіщення',
     twofa_sms: 'Підтвердження за SMS',
     unavailable: 'Недоступно',
+    no_change: 'Без змін',
+    new_cash_flow: 'Новий рух коштів',
+    no_dynamics: 'Без динаміки',
+    receipt_opened: 'Чек відкрито',
+    request_error: 'Помилка запиту.',
+    transfer_topup_title: 'Поповнити рахунок',
+    transfer_by_card_title: 'Переказ на картку',
+    transfer_by_account_title: 'Переказ за рахунком',
+    transfer_card_number: 'Номер картки',
+    transfer_account_number: 'Номер рахунку',
+    transfer_optional_desc: 'Опис (опційно)',
+    transfer_comment: 'Коментар',
+    amount_label: 'Сума (₴)',
+    enter_amount: 'Вкажіть суму',
+    enter_recipient: 'Вкажіть отримувача',
+    session_expired: 'Сесія завершилась. Увійдіть повторно.',
+    operation_error: 'Помилка операції',
+    topup_success: 'Рахунок поповнено на',
+    transfer_success: 'Переказ виконано на',
+    cards_not_issued: 'Картки ще не випущено',
+    cards_issue_hint: 'Перейдіть у розділ «Картки», щоб випустити першу картку.',
+    open_cards: 'Відкрити картки',
+    spending_this_month: 'Витрати цього місяця',
+    insufficient_spend_data: 'Недостатньо даних для розподілу витрат.',
+    spend_transfer: 'Перекази',
+    spend_food: 'Їжа',
+    spend_transport: 'Транспорт',
+    spend_utility: 'Комунальні',
+    spend_shopping: 'Покупки',
+    spend_subscription: 'Підписки',
+    cards_title: 'Мої картки',
+    card_not_found: 'Картку не знайдено.',
+    pin_change_error: 'Помилка зміни PIN',
+    pin_saved: 'PIN картки змінено',
+    card_blocked: 'Картку заморожено',
+    card_unblocked: 'Картку розморожено',
+    card_closed: 'Картку закрито',
+    card_active_status: 'Активна',
+    card_frozen_status: 'Заморожена',
+    card_design_error: 'Помилка дизайну картки',
+    card_details: 'Деталі',
+    account_label: 'Рахунок',
+    new_pin_4_digits: 'Новий PIN (4 цифри)',
+    saving: 'Збереження…',
+    save_pin: 'Зберегти PIN',
+    operations_title: 'Операції',
+    download_csv: 'Завантажити CSV',
+    search_transactions: 'Пошук транзакцій...',
+    nothing_found_for: 'Нічого не знайдено за',
+    download_receipt: 'Завантажити чек',
+    receipt_download_error: 'Помилка завантаження чека',
+    download_error: 'Помилка завантаження',
+    export_error: 'Помилка експорту',
+    statement_error: 'Помилка виписки',
+    face_id_on: 'Face ID увімкнено ✓',
+    face_id_off: 'Face ID вимкнено',
+    password_changed: 'Пароль змінено успішно',
+    pick_image: 'Оберіть зображення',
+    photo_too_large: 'Фото завелике (до 3MB)',
+    photo_read_error: 'Не вдалося прочитати фото',
+    photo_updated: 'Фото профілю оновлено',
+    photo_upload_error: 'Не вдалося завантажити фото',
+    photo_removed: 'Фото видалено',
+    market_out_of_stock: 'Немає в наявності',
+    add_to_cart: 'Додати до кошика',
+    cart_title: 'Кошик',
+    delivery_title: 'Доставка',
+    cart_empty: 'Кошик порожній',
+    added_to_cart: 'додано до кошика',
+    checkout_success: 'Замовлення оформлено!',
+    checkout_error: 'Помилка оформлення',
+    orders_tab: 'Замовлення',
+    invoices_tab: 'Інвойси',
+    market_title: 'Магазин',
+    loading: 'Завантаження…',
+    market_empty: 'Магазин порожній',
+    try_another_query: 'Спробуй інший запит',
+    no_results: 'Нічого не знайдено',
+    products_not_added: 'Товари ще не додано.',
+    orders_empty: 'Замовлень ще немає',
+    invoices_empty: 'Інвойсів ще немає',
+    invoices_after_orders: 'Інвойси з\'являться після оформлення замовлень.',
+    invoice_label: 'Інвойс',
+    order_label: 'Замовлення',
+    login_tab: 'Вхід',
+    register_tab: 'Реєстрація',
+    wait_processing: 'Обробка…',
+    login_with_face_id: 'Увійти з Face ID',
+    full_name_label: 'Повне ім\'я',
+    email_label: 'Email',
+    phone_or_email: 'Телефон або Email',
+    phone_or_email_placeholder: 'Телефон або email',
+    password_label: 'Пароль',
+    forgot_password: 'Забули пароль?',
+    confirm_password: 'Підтвердити пароль',
+    repeat_password: 'Повторіть пароль',
+    sign_in: 'Увійти',
+    create_account: 'Створити акаунт',
+    issue_card: 'Випустити',
+    creating: 'Створення...',
+    invalid_credentials: 'Невірні дані',
+    registration_error: 'Помилка реєстрації',
+    verification_error: 'Помилка верифікації',
+    face_id_error: 'Помилка Face ID',
+    loading_data: 'Завантаження даних...',
+    change_pin: 'Змінити PIN',
+    choose_card_design: 'Оберіть дизайн картки',
+    issue_new_card: 'Випуск нової картки',
+    applying: 'Застосування…',
+    apply_design: 'Застосувати дизайн',
+    issue_card_full: 'Випустити картку',
+    face_id_transfer_sub: 'Вхід та підтвердження переказів',
+    in_stock: 'Є в наявності',
+    next_delivery: 'Далі → Доставка',
+    cart_items_count: 'товарів',
+    total_label: 'Разом',
+    recipient_label: 'Отримувач',
+    delivery_phone: 'Телефон',
+    delivery_address: 'Адреса доставки',
+    pay_total: 'До оплати',
+    place_order: 'Оформити замовлення',
+    checkout_processing: 'Оформлення…',
+    catalog_tab: 'Каталог',
+    product_search: 'Пошук товарів…',
+    catalog_first_order_hint: 'Оформіть перше замовлення в каталозі.',
+    receipt_short: 'Чек',
+    last_items: 'Останніх',
+    card_physical: 'Фізична',
+    card_virtual: 'Віртуальна',
+    card_valid_until: 'до',
+    card_design_label: 'Дизайн',
+    change_label: 'Змінити',
+    account_activity_month: 'Активність рахунку за місяць',
+    operations_short: 'оп.',
+    spent_label: 'витрат',
+    account_balance_label: 'Баланс рахунку',
+    design_action: 'Дизайн',
+    freeze_card: 'Заморозити',
+    unfreeze_card: 'Розморозити',
+    close_card: 'Закрити',
   },
   en: {
     user_fallback: 'User',
@@ -410,6 +552,146 @@ const translations = {
     push_notifications: 'Push notifications',
     twofa_sms: 'SMS confirmation',
     unavailable: 'Unavailable',
+    no_change: 'No change',
+    new_cash_flow: 'New cash flow',
+    no_dynamics: 'No dynamics',
+    receipt_opened: 'Receipt opened',
+    request_error: 'Request error.',
+    transfer_topup_title: 'Top up account',
+    transfer_by_card_title: 'Transfer to card',
+    transfer_by_account_title: 'Transfer by account',
+    transfer_card_number: 'Card number',
+    transfer_account_number: 'Account number',
+    transfer_optional_desc: 'Description (optional)',
+    transfer_comment: 'Comment',
+    amount_label: 'Amount (₴)',
+    enter_amount: 'Enter amount',
+    enter_recipient: 'Enter recipient',
+    session_expired: 'Session expired. Sign in again.',
+    operation_error: 'Operation error',
+    topup_success: 'Account topped up by',
+    transfer_success: 'Transfer completed for',
+    cards_not_issued: 'No cards issued yet',
+    cards_issue_hint: 'Go to the Cards section to issue your first card.',
+    open_cards: 'Open cards',
+    spending_this_month: 'Spending this month',
+    insufficient_spend_data: 'Not enough data to break down spending.',
+    spend_transfer: 'Transfers',
+    spend_food: 'Food',
+    spend_transport: 'Transport',
+    spend_utility: 'Utilities',
+    spend_shopping: 'Shopping',
+    spend_subscription: 'Subscriptions',
+    cards_title: 'My cards',
+    card_not_found: 'Card not found.',
+    pin_change_error: 'PIN change error',
+    pin_saved: 'Card PIN updated',
+    card_blocked: 'Card frozen',
+    card_unblocked: 'Card unfrozen',
+    card_closed: 'Card closed',
+    card_active_status: 'Active',
+    card_frozen_status: 'Frozen',
+    card_design_error: 'Card design error',
+    card_details: 'Details',
+    account_label: 'Account',
+    new_pin_4_digits: 'New PIN (4 digits)',
+    saving: 'Saving…',
+    save_pin: 'Save PIN',
+    operations_title: 'Operations',
+    download_csv: 'Download CSV',
+    search_transactions: 'Search transactions...',
+    nothing_found_for: 'Nothing found for',
+    download_receipt: 'Download receipt',
+    receipt_download_error: 'Receipt download error',
+    download_error: 'Download error',
+    export_error: 'Export error',
+    statement_error: 'Statement error',
+    face_id_on: 'Face ID enabled ✓',
+    face_id_off: 'Face ID disabled',
+    password_changed: 'Password changed successfully',
+    pick_image: 'Choose an image',
+    photo_too_large: 'Photo is too large (up to 3MB)',
+    photo_read_error: 'Could not read photo',
+    photo_updated: 'Profile photo updated',
+    photo_upload_error: 'Could not upload photo',
+    photo_removed: 'Photo removed',
+    market_out_of_stock: 'Out of stock',
+    add_to_cart: 'Add to cart',
+    cart_title: 'Cart',
+    delivery_title: 'Delivery',
+    cart_empty: 'Cart is empty',
+    added_to_cart: 'added to cart',
+    checkout_success: 'Order placed!',
+    checkout_error: 'Checkout error',
+    orders_tab: 'Orders',
+    invoices_tab: 'Invoices',
+    market_title: 'Store',
+    loading: 'Loading…',
+    market_empty: 'Store is empty',
+    try_another_query: 'Try another query',
+    no_results: 'Nothing found',
+    products_not_added: 'Products have not been added yet.',
+    orders_empty: 'No orders yet',
+    invoices_empty: 'No invoices yet',
+    invoices_after_orders: 'Invoices will appear after orders are placed.',
+    invoice_label: 'Invoice',
+    order_label: 'Order',
+    login_tab: 'Sign in',
+    register_tab: 'Register',
+    wait_processing: 'Processing…',
+    login_with_face_id: 'Sign in with Face ID',
+    full_name_label: 'Full name',
+    email_label: 'Email',
+    phone_or_email: 'Phone or Email',
+    phone_or_email_placeholder: 'Phone or email',
+    password_label: 'Password',
+    forgot_password: 'Forgot password?',
+    confirm_password: 'Confirm password',
+    repeat_password: 'Repeat password',
+    sign_in: 'Sign in',
+    create_account: 'Create account',
+    issue_card: 'Issue card',
+    creating: 'Creating...',
+    invalid_credentials: 'Invalid credentials',
+    registration_error: 'Registration error',
+    verification_error: 'Verification error',
+    face_id_error: 'Face ID error',
+    loading_data: 'Loading data...',
+    change_pin: 'Change PIN',
+    choose_card_design: 'Choose card design',
+    issue_new_card: 'Issue new card',
+    applying: 'Applying…',
+    apply_design: 'Apply design',
+    issue_card_full: 'Issue card',
+    face_id_transfer_sub: 'Sign-in and transfer confirmation',
+    in_stock: 'In stock',
+    next_delivery: 'Next → Delivery',
+    cart_items_count: 'items',
+    total_label: 'Total',
+    recipient_label: 'Recipient',
+    delivery_phone: 'Phone',
+    delivery_address: 'Delivery address',
+    pay_total: 'To pay',
+    place_order: 'Place order',
+    checkout_processing: 'Placing order…',
+    catalog_tab: 'Catalog',
+    product_search: 'Search products…',
+    catalog_first_order_hint: 'Place your first order in the catalog.',
+    receipt_short: 'Receipt',
+    last_items: 'Last',
+    card_physical: 'Physical',
+    card_virtual: 'Virtual',
+    card_valid_until: 'until',
+    card_design_label: 'Design',
+    change_label: 'Change',
+    account_activity_month: 'Monthly account activity',
+    operations_short: 'ops',
+    spent_label: 'spent',
+    account_balance_label: 'Account balance',
+    design_action: 'Design',
+    freeze_card: 'Freeze',
+    unfreeze_card: 'Unfreeze',
+    close_card: 'Close',
   },
   it: {
     user_fallback: 'Utente',
@@ -459,6 +741,146 @@ const translations = {
     push_notifications: 'Notifiche push',
     twofa_sms: 'Conferma via SMS',
     unavailable: 'Non disponibile',
+    no_change: 'Nessuna variazione',
+    new_cash_flow: 'Nuovo flusso di cassa',
+    no_dynamics: 'Nessuna dinamica',
+    receipt_opened: 'Ricevuta aperta',
+    request_error: 'Errore di richiesta.',
+    transfer_topup_title: 'Ricarica conto',
+    transfer_by_card_title: 'Trasferimento alla carta',
+    transfer_by_account_title: 'Trasferimento per conto',
+    transfer_card_number: 'Numero carta',
+    transfer_account_number: 'Numero conto',
+    transfer_optional_desc: 'Descrizione (opzionale)',
+    transfer_comment: 'Commento',
+    amount_label: 'Importo (₴)',
+    enter_amount: 'Inserisci importo',
+    enter_recipient: 'Inserisci destinatario',
+    session_expired: 'Sessione scaduta. Accedi di nuovo.',
+    operation_error: 'Errore operazione',
+    topup_success: 'Conto ricaricato di',
+    transfer_success: 'Trasferimento eseguito per',
+    cards_not_issued: 'Nessuna carta emessa',
+    cards_issue_hint: 'Vai alla sezione Carte per emettere la tua prima carta.',
+    open_cards: 'Apri carte',
+    spending_this_month: 'Spese di questo mese',
+    insufficient_spend_data: 'Dati insufficienti per suddividere le spese.',
+    spend_transfer: 'Trasferimenti',
+    spend_food: 'Cibo',
+    spend_transport: 'Trasporto',
+    spend_utility: 'Utenze',
+    spend_shopping: 'Shopping',
+    spend_subscription: 'Abbonamenti',
+    cards_title: 'Le mie carte',
+    card_not_found: 'Carta non trovata.',
+    pin_change_error: 'Errore cambio PIN',
+    pin_saved: 'PIN carta aggiornato',
+    card_blocked: 'Carta bloccata',
+    card_unblocked: 'Carta sbloccata',
+    card_closed: 'Carta chiusa',
+    card_active_status: 'Attiva',
+    card_frozen_status: 'Bloccata',
+    card_design_error: 'Errore design carta',
+    card_details: 'Dettagli',
+    account_label: 'Conto',
+    new_pin_4_digits: 'Nuovo PIN (4 cifre)',
+    saving: 'Salvataggio…',
+    save_pin: 'Salva PIN',
+    operations_title: 'Operazioni',
+    download_csv: 'Scarica CSV',
+    search_transactions: 'Cerca transazioni...',
+    nothing_found_for: 'Nessun risultato per',
+    download_receipt: 'Scarica ricevuta',
+    receipt_download_error: 'Errore scaricamento ricevuta',
+    download_error: 'Errore di download',
+    export_error: 'Errore esportazione',
+    statement_error: 'Errore estratto conto',
+    face_id_on: 'Face ID attivato ✓',
+    face_id_off: 'Face ID disattivato',
+    password_changed: 'Password cambiata con successo',
+    pick_image: 'Scegli un’immagine',
+    photo_too_large: 'Foto troppo grande (max 3MB)',
+    photo_read_error: 'Impossibile leggere la foto',
+    photo_updated: 'Foto profilo aggiornata',
+    photo_upload_error: 'Impossibile caricare la foto',
+    photo_removed: 'Foto rimossa',
+    market_out_of_stock: 'Non disponibile',
+    add_to_cart: 'Aggiungi al carrello',
+    cart_title: 'Carrello',
+    delivery_title: 'Consegna',
+    cart_empty: 'Carrello vuoto',
+    added_to_cart: 'aggiunto al carrello',
+    checkout_success: 'Ordine effettuato!',
+    checkout_error: 'Errore checkout',
+    orders_tab: 'Ordini',
+    invoices_tab: 'Fatture',
+    market_title: 'Negozio',
+    loading: 'Caricamento…',
+    market_empty: 'Negozio vuoto',
+    try_another_query: 'Prova un’altra ricerca',
+    no_results: 'Nessun risultato',
+    products_not_added: 'I prodotti non sono ancora stati aggiunti.',
+    orders_empty: 'Nessun ordine',
+    invoices_empty: 'Nessuna fattura',
+    invoices_after_orders: 'Le fatture appariranno dopo gli ordini.',
+    invoice_label: 'Fattura',
+    order_label: 'Ordine',
+    login_tab: 'Accesso',
+    register_tab: 'Registrazione',
+    wait_processing: 'Elaborazione…',
+    login_with_face_id: 'Accedi con Face ID',
+    full_name_label: 'Nome completo',
+    email_label: 'Email',
+    phone_or_email: 'Telefono o Email',
+    phone_or_email_placeholder: 'Telefono o email',
+    password_label: 'Password',
+    forgot_password: 'Password dimenticata?',
+    confirm_password: 'Conferma password',
+    repeat_password: 'Ripeti password',
+    sign_in: 'Accedi',
+    create_account: 'Crea account',
+    issue_card: 'Emetti carta',
+    creating: 'Creazione...',
+    invalid_credentials: 'Dati non validi',
+    registration_error: 'Errore registrazione',
+    verification_error: 'Errore verifica',
+    face_id_error: 'Errore Face ID',
+    loading_data: 'Caricamento dati...',
+    change_pin: 'Cambia PIN',
+    choose_card_design: 'Scegli il design della carta',
+    issue_new_card: 'Emissione nuova carta',
+    applying: 'Applicazione…',
+    apply_design: 'Applica design',
+    issue_card_full: 'Emetti carta',
+    face_id_transfer_sub: 'Accesso e conferma trasferimenti',
+    in_stock: 'Disponibili',
+    next_delivery: 'Avanti → Consegna',
+    cart_items_count: 'articoli',
+    total_label: 'Totale',
+    recipient_label: 'Destinatario',
+    delivery_phone: 'Telefono',
+    delivery_address: 'Indirizzo di consegna',
+    pay_total: 'Da pagare',
+    place_order: 'Conferma ordine',
+    checkout_processing: 'Ordine in corso…',
+    catalog_tab: 'Catalogo',
+    product_search: 'Cerca prodotti…',
+    catalog_first_order_hint: 'Effettua il primo ordine dal catalogo.',
+    receipt_short: 'Ricevuta',
+    last_items: 'Ultimi',
+    card_physical: 'Fisica',
+    card_virtual: 'Virtuale',
+    card_valid_until: 'fino al',
+    card_design_label: 'Design',
+    change_label: 'Cambia',
+    account_activity_month: 'Attività mensile del conto',
+    operations_short: 'op.',
+    spent_label: 'spesi',
+    account_balance_label: 'Saldo conto',
+    design_action: 'Design',
+    freeze_card: 'Blocca',
+    unfreeze_card: 'Sblocca',
+    close_card: 'Chiudi',
   },
   es: {
     user_fallback: 'Usuario',
@@ -508,6 +930,146 @@ const translations = {
     push_notifications: 'Notificaciones push',
     twofa_sms: 'Confirmación por SMS',
     unavailable: 'No disponible',
+    no_change: 'Sin cambios',
+    new_cash_flow: 'Nuevo flujo de caja',
+    no_dynamics: 'Sin dinámica',
+    receipt_opened: 'Recibo abierto',
+    request_error: 'Error de solicitud.',
+    transfer_topup_title: 'Recargar cuenta',
+    transfer_by_card_title: 'Transferencia a tarjeta',
+    transfer_by_account_title: 'Transferencia por cuenta',
+    transfer_card_number: 'Número de tarjeta',
+    transfer_account_number: 'Número de cuenta',
+    transfer_optional_desc: 'Descripción (opcional)',
+    transfer_comment: 'Comentario',
+    amount_label: 'Importe (₴)',
+    enter_amount: 'Introduce el importe',
+    enter_recipient: 'Introduce el destinatario',
+    session_expired: 'La sesión ha expirado. Inicia sesión de nuevo.',
+    operation_error: 'Error de operación',
+    topup_success: 'Cuenta recargada por',
+    transfer_success: 'Transferencia realizada por',
+    cards_not_issued: 'Aún no hay tarjetas',
+    cards_issue_hint: 'Ve a la sección Tarjetas para emitir tu primera tarjeta.',
+    open_cards: 'Abrir tarjetas',
+    spending_this_month: 'Gastos de este mes',
+    insufficient_spend_data: 'No hay datos suficientes para desglosar gastos.',
+    spend_transfer: 'Transferencias',
+    spend_food: 'Comida',
+    spend_transport: 'Transporte',
+    spend_utility: 'Servicios',
+    spend_shopping: 'Compras',
+    spend_subscription: 'Suscripciones',
+    cards_title: 'Mis tarjetas',
+    card_not_found: 'Tarjeta no encontrada.',
+    pin_change_error: 'Error al cambiar PIN',
+    pin_saved: 'PIN de la tarjeta actualizado',
+    card_blocked: 'Tarjeta bloqueada',
+    card_unblocked: 'Tarjeta desbloqueada',
+    card_closed: 'Tarjeta cerrada',
+    card_active_status: 'Activa',
+    card_frozen_status: 'Congelada',
+    card_design_error: 'Error de diseño de tarjeta',
+    card_details: 'Detalles',
+    account_label: 'Cuenta',
+    new_pin_4_digits: 'Nuevo PIN (4 dígitos)',
+    saving: 'Guardando…',
+    save_pin: 'Guardar PIN',
+    operations_title: 'Operaciones',
+    download_csv: 'Descargar CSV',
+    search_transactions: 'Buscar transacciones...',
+    nothing_found_for: 'No se encontró nada para',
+    download_receipt: 'Descargar recibo',
+    receipt_download_error: 'Error al descargar recibo',
+    download_error: 'Error de descarga',
+    export_error: 'Error de exportación',
+    statement_error: 'Error del extracto',
+    face_id_on: 'Face ID activado ✓',
+    face_id_off: 'Face ID desactivado',
+    password_changed: 'Contraseña cambiada correctamente',
+    pick_image: 'Elige una imagen',
+    photo_too_large: 'La foto es demasiado grande (hasta 3MB)',
+    photo_read_error: 'No se pudo leer la foto',
+    photo_updated: 'Foto de perfil actualizada',
+    photo_upload_error: 'No se pudo subir la foto',
+    photo_removed: 'Foto eliminada',
+    market_out_of_stock: 'Sin stock',
+    add_to_cart: 'Añadir al carrito',
+    cart_title: 'Carrito',
+    delivery_title: 'Entrega',
+    cart_empty: 'El carrito está vacío',
+    added_to_cart: 'añadido al carrito',
+    checkout_success: '¡Pedido realizado!',
+    checkout_error: 'Error en el pedido',
+    orders_tab: 'Pedidos',
+    invoices_tab: 'Facturas',
+    market_title: 'Tienda',
+    loading: 'Cargando…',
+    market_empty: 'La tienda está vacía',
+    try_another_query: 'Prueba otra búsqueda',
+    no_results: 'No se encontró nada',
+    products_not_added: 'Aún no se han añadido productos.',
+    orders_empty: 'Aún no hay pedidos',
+    invoices_empty: 'Aún no hay facturas',
+    invoices_after_orders: 'Las facturas aparecerán después de realizar pedidos.',
+    invoice_label: 'Factura',
+    order_label: 'Pedido',
+    login_tab: 'Acceso',
+    register_tab: 'Registro',
+    wait_processing: 'Procesando…',
+    login_with_face_id: 'Entrar con Face ID',
+    full_name_label: 'Nombre completo',
+    email_label: 'Email',
+    phone_or_email: 'Teléfono o Email',
+    phone_or_email_placeholder: 'Teléfono o email',
+    password_label: 'Contraseña',
+    forgot_password: '¿Olvidaste la contraseña?',
+    confirm_password: 'Confirmar contraseña',
+    repeat_password: 'Repite la contraseña',
+    sign_in: 'Entrar',
+    create_account: 'Crear cuenta',
+    issue_card: 'Emitir tarjeta',
+    creating: 'Creando...',
+    invalid_credentials: 'Datos incorrectos',
+    registration_error: 'Error de registro',
+    verification_error: 'Error de verificación',
+    face_id_error: 'Error de Face ID',
+    loading_data: 'Cargando datos...',
+    change_pin: 'Cambiar PIN',
+    choose_card_design: 'Elige el diseño de la tarjeta',
+    issue_new_card: 'Emitir nueva tarjeta',
+    applying: 'Aplicando…',
+    apply_design: 'Aplicar diseño',
+    issue_card_full: 'Emitir tarjeta',
+    face_id_transfer_sub: 'Inicio y confirmación de transferencias',
+    in_stock: 'Disponible',
+    next_delivery: 'Siguiente → Entrega',
+    cart_items_count: 'artículos',
+    total_label: 'Total',
+    recipient_label: 'Destinatario',
+    delivery_phone: 'Teléfono',
+    delivery_address: 'Dirección de entrega',
+    pay_total: 'A pagar',
+    place_order: 'Realizar pedido',
+    checkout_processing: 'Realizando pedido…',
+    catalog_tab: 'Catálogo',
+    product_search: 'Buscar productos…',
+    catalog_first_order_hint: 'Realiza tu primer pedido en el catálogo.',
+    receipt_short: 'Recibo',
+    last_items: 'Últimos',
+    card_physical: 'Física',
+    card_virtual: 'Virtual',
+    card_valid_until: 'hasta',
+    card_design_label: 'Diseño',
+    change_label: 'Cambiar',
+    account_activity_month: 'Actividad mensual de la cuenta',
+    operations_short: 'op.',
+    spent_label: 'gastado',
+    account_balance_label: 'Saldo de cuenta',
+    design_action: 'Diseño',
+    freeze_card: 'Congelar',
+    unfreeze_card: 'Descongelar',
+    close_card: 'Cerrar',
   },
 } as const;
 
@@ -589,7 +1151,7 @@ async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T>
   }
 
   if (!response.ok || payload.ok === false) {
-    const msg = String(payload.error || payload.message || 'Помилка запиту.');
+    const msg = String(payload.error || payload.message || translations[getStoredLanguage()].request_error);
     const err = new Error(msg) as Error & { status?: number };
     err.status = response.status;
     throw err;
@@ -650,7 +1212,7 @@ function openPdfBlobInNewTab(blob: Blob, fallbackFileName: string, toast?: (msg:
   a.click();
   a.remove();
   window.setTimeout(() => URL.revokeObjectURL(blobUrl), 5_000);
-  if (toast) toast('Чек відкрито');
+  if (toast) toast(translations[getStoredLanguage()].receipt_opened);
 }
 
 // ─── Toast notification ───────────────────────────────────────
@@ -1238,6 +1800,7 @@ function ActivityFeed({ title = true, transactions }: { title?: boolean; transac
 // ─── Transfer modal ───────────────────────────────────────────
 function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => void }) {
   const { toast, refreshDashboard } = useApp();
+  const { t } = usePreferences();
   const sheetSwipe = useSheetSwipeClose(onClose);
   const [amount, setAmount] = useState('');
   const [recipient, setRecipient] = useState('');
@@ -1246,9 +1809,9 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
   const [error, setError] = useState('');
 
   const cfg = {
-    topup:      { title: 'Поповнити рахунок', recipientLabel: '', placeholder: 'Опис (опційно)' },
-    by_card:    { title: 'Переказ на картку',  recipientLabel: 'Номер картки',   placeholder: 'Коментар' },
-    by_account: { title: 'Переказ за рахунком', recipientLabel: 'Номер рахунку',  placeholder: 'Коментар' },
+    topup:      { title: t('transfer_topup_title'), recipientLabel: '', placeholder: t('transfer_optional_desc') },
+    by_card:    { title: t('transfer_by_card_title'),  recipientLabel: t('transfer_card_number'),   placeholder: t('transfer_comment') },
+    by_account: { title: t('transfer_by_account_title'), recipientLabel: t('transfer_account_number'),  placeholder: t('transfer_comment') },
   }[mode];
 
   function parseAmount(value: string): number {
@@ -1263,11 +1826,11 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
     e.preventDefault();
     setError('');
     const amtNum = parseAmount(amount);
-    if (!amtNum || amtNum <= 0) { setError('Вкажіть суму'); return; }
-    if (mode !== 'topup' && !recipient.trim()) { setError('Вкажіть отримувача'); return; }
+    if (!amtNum || amtNum <= 0) { setError(t('enter_amount')); return; }
+    if (mode !== 'topup' && !recipient.trim()) { setError(t('enter_recipient')); return; }
     setLoading(true);
     const token = localStorage.getItem('army_bank_token');
-    if (!token) { setLoading(false); setError('Сесія завершилась. Увійдіть повторно.'); return; }
+    if (!token) { setLoading(false); setError(t('session_expired')); return; }
     const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
       await ensureApiStatusHealthy();
@@ -1276,10 +1839,10 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
         : '/api/transactions/transfer';
       const normalizedCard = recipient.replace(/\D/g, '').slice(0, 16);
       const body = mode === 'topup'
-        ? { amount: amtNum, description: description || 'Поповнення рахунку', idempotency_key: idempotencyKey }
+        ? { amount: amtNum, description: description || t('transfer_topup_title'), idempotency_key: idempotencyKey }
         : mode === 'by_card'
-        ? { card_number: normalizedCard, amount: amtNum, description: description || 'Переказ', idempotency_key: idempotencyKey }
-        : { recipient_account_number: recipient.trim(), amount: amtNum, description: description || 'Переказ', idempotency_key: idempotencyKey };
+        ? { card_number: normalizedCard, amount: amtNum, description: description || t('transfer_by_card_title'), idempotency_key: idempotencyKey }
+        : { recipient_account_number: recipient.trim(), amount: amtNum, description: description || t('transfer_by_account_title'), idempotency_key: idempotencyKey };
       const r = await fetch(url, {
         method: 'POST',
         headers: {
@@ -1294,13 +1857,13 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
       try { j = raw ? JSON.parse(raw) : {}; } catch { j = {}; }
       if (!r.ok || j.ok === false) {
         const backendMsg = String((j && (j.error || j.message)) || '').trim();
-        throw new Error(backendMsg || `Помилка операції (${r.status})`);
+        throw new Error(backendMsg || `${t('operation_error')} (${r.status})`);
       }
-      toast(mode === 'topup' ? `Рахунок поповнено на ₴\u00a0${amtNum.toFixed(2)}` : `Переказ ₴\u00a0${amtNum.toFixed(2)} виконано`);
+      toast(mode === 'topup' ? `${t('topup_success')} ₴\u00a0${amtNum.toFixed(2)}` : `${t('transfer_success')} ₴\u00a0${amtNum.toFixed(2)}`);
       refreshDashboard();
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Помилка');
+      setError(err instanceof Error ? err.message : t('operation_error'));
     } finally {
       setLoading(false);
     }
@@ -1333,7 +1896,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
             </div>
           )}
           <div>
-            <label style={{ ...T.caption, color: text.muted, display: 'block', marginBottom: 6 }}>Сума (₴)</label>
+            <label style={{ ...T.caption, color: text.muted, display: 'block', marginBottom: 6 }}>{t('amount_label')}</label>
             <input
               style={{ ...inp, fontSize: 26, fontWeight: 300, letterSpacing: -0.5 }}
               type="text"
@@ -1485,13 +2048,13 @@ function OverviewScreen() {
       </div>
       {!cards.length ? (
         <div style={{ maxWidth: 380, padding: '16px 18px', borderRadius: 16, border: `1px solid ${bg.border}`, background: bg.card }}>
-          <div style={{ fontSize: 14, color: text.secondary, marginBottom: 6 }}>Картки ще не випущено</div>
-          <div style={{ fontSize: 12, color: text.muted, marginBottom: 12 }}>Перейдіть у розділ «Картки», щоб випустити першу картку.</div>
+          <div style={{ fontSize: 14, color: text.secondary, marginBottom: 6 }}>{t('cards_not_issued')}</div>
+          <div style={{ fontSize: 12, color: text.muted, marginBottom: 12 }}>{t('cards_issue_hint')}</div>
           <button
             onClick={() => goTo('cards')}
             style={{ padding: '8px 12px', borderRadius: 10, border: `1px solid ${bg.border}`, background: 'rgba(255,255,255,0.03)', color: text.secondary, cursor: 'pointer' }}
           >
-            Відкрити картки
+            {t('open_cards')}
           </button>
         </div>
       ) : (
@@ -1551,7 +2114,7 @@ function OverviewScreen() {
   const monthOut = Number(analytics?.current_month?.total_out || 0);
   const flowNet = monthIn - monthOut;
   const flowNetSign = flowNet >= 0 ? '+' : '−';
-  const SPEND_LABELS: Record<string, string> = { transfer: 'Перекази', food: 'Їжа', transport: 'Транспорт', utility: 'Комунальні', shopping: 'Покупки', subscription: 'Підписки' };
+  const SPEND_LABELS: Record<string, string> = { transfer: t('spend_transfer'), food: t('spend_food'), transport: t('spend_transport'), utility: t('spend_utility'), shopping: t('spend_shopping'), subscription: t('spend_subscription') };
   const SPEND_COLORS: Record<string, string> = { transfer: '#ddd8cc', food: '#e8a864', transport: '#88a8e8', utility: gold, shopping: '#c97db4', subscription: '#78c8b4' };
   const spendRows = totalOut > 0 ? byType.map(r => ({
     label: SPEND_LABELS[r.tx_type] || r.tx_type,
@@ -1594,9 +2157,9 @@ function OverviewScreen() {
             <ActivityFeed transactions={transactions} />
             {/* Spending stats mini */}
             <div style={{ padding: 20, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22 }}>
-              <div style={{ ...T.h3, color: text.secondary, marginBottom: 14 }}>Витрати цього місяця</div>
+              <div style={{ ...T.h3, color: text.secondary, marginBottom: 14 }}>{t('spending_this_month')}</div>
               {!spendRows.length && (
-                <div style={{ fontSize: 12, color: text.muted }}>Недостатньо даних для розподілу витрат.</div>
+                <div style={{ fontSize: 12, color: text.muted }}>{t('insufficient_spend_data')}</div>
               )}
               {spendRows.map(({ label, pct, color }) => (
                 <div key={label} style={{ marginBottom: 10 }}>
@@ -1653,18 +2216,22 @@ function CardsScreen() {
   const layout = useLayout();
   const topPad = useTopPad();
   const { toast, cards: apiCards, refreshDashboard, transactions: allTx, account, user } = useApp();
+  const { t } = usePreferences();
   const { refresh } = useBankData();
   const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
+  const statusText = (status?: string) => status === 'active' ? t('card_active_status') : status === 'blocked' ? t('card_frozen_status') : t('card_closed');
   const FALLBACK_CARDS: (CardData & { id: number; type: string; limit: string; used: string; statusRaw: string; cardTypeRaw: string })[] = [
-    { id: 0, design: 'gold', variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29', type: 'Віртуальна', limit: '150 000', used: '48 230', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'virtual' },
-    { id: 0, design: 'florence', variant: 'florence', number: '1183', name: userNameUp, expiry: '02/29', type: 'Фізична', limit: '80 000', used: '12 400', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'physical' },
-    { id: 0, design: 'venice', variant: 'venice', number: '7147', name: userNameUp, expiry: '08/28', type: 'Фізична', limit: '500 000', used: '215 800', status: 'Активна', statusRaw: 'active', cardTypeRaw: 'physical' },
-    { id: 0, design: 'tuscany_villa', variant: 'tuscany_villa', number: '4402', name: userNameUp, expiry: '11/30', type: 'Віртуальна', limit: '50 000', used: '0', status: 'Заморожена', statusRaw: 'blocked', cardTypeRaw: 'virtual' },
+    { id: 0, design: 'gold', variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29', type: t('card_virtual'), limit: '150 000', used: '48 230', status: statusText('active'), statusRaw: 'active', cardTypeRaw: 'virtual' },
+    { id: 0, design: 'florence', variant: 'florence', number: '1183', name: userNameUp, expiry: '02/29', type: t('card_physical'), limit: '80 000', used: '12 400', status: statusText('active'), statusRaw: 'active', cardTypeRaw: 'physical' },
+    { id: 0, design: 'venice', variant: 'venice', number: '7147', name: userNameUp, expiry: '08/28', type: t('card_physical'), limit: '500 000', used: '215 800', status: statusText('active'), statusRaw: 'active', cardTypeRaw: 'physical' },
+    { id: 0, design: 'tuscany_villa', variant: 'tuscany_villa', number: '4402', name: userNameUp, expiry: '11/30', type: t('card_virtual'), limit: '50 000', used: '0', status: statusText('blocked'), statusRaw: 'blocked', cardTypeRaw: 'virtual' },
   ];
   const [designOverrides, setDesignOverrides] = useState<Record<number, string>>({});
   const cards = apiCards.length > 0
     ? apiCards.map(c => {
       const mapped = apiCardToData(c, userNameUp);
+      mapped.type = c.card_type === 'physical' ? t('card_physical') : t('card_virtual');
+      mapped.status = statusText(c.status);
       const forcedDesign = designOverrides[c.id];
       if (forcedDesign) {
         mapped.design = forcedDesign;
@@ -1690,7 +2257,7 @@ function CardsScreen() {
   const monthTransactions = allTx.filter(tx => new Date(tx.created_at) >= monthStart);
   const monthOut = monthTransactions.filter(tx => tx.direction === 'out').reduce((s, tx) => s + tx.amount, 0);
   const busyCardId: number | null = designLoading && designMode === 'current' ? (apiCards[safeIdx]?.id ?? null) : null;
-  const statusLabel = card?.status || 'Активна';
+  const statusLabel = card?.status || t('unavailable');
   const currentDesignOption = CARD_DESIGN_OPTIONS.find(opt => opt.design === String(card?.design || '').toLowerCase());
   const activeDesignOption = CARD_DESIGN_OPTIONS.find(opt => opt.design === selectedDesign) ?? CARD_DESIGN_OPTIONS[0];
 
@@ -1708,8 +2275,8 @@ function CardsScreen() {
   }, [safeIdx]);
 
   async function changePin() {
-    if (pinValue.length !== 4 || !/^\d{4}$/.test(pinValue)) { toast('PIN має бути 4 цифри'); return; }
-    if (pinValue !== pinConfirm) { toast('PIN-коди не збігаються'); return; }
+    if (pinValue.length !== 4 || !/^\d{4}$/.test(pinValue)) { toast(t('new_pin_4_digits')); return; }
+    if (pinValue !== pinConfirm) { toast(t('confirm_password')); return; }
     if (apiCards.length === 0) { toast('Демо-режим: зміна PIN недоступна'); return; }
     const c = apiCards[safeIdx];
     const token = localStorage.getItem('army_bank_token');
@@ -1721,10 +2288,10 @@ function CardsScreen() {
         body: JSON.stringify({ pin: pinValue }),
       });
       const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j.message || 'Помилка зміни PIN');
-      toast(`✓ PIN картки •• ${card.number} змінено`);
+      if (!r.ok || !j.ok) throw new Error(j.message || t('pin_change_error'));
+      toast(`✓ ${t('pin_saved')} •• ${card.number}`);
       setPinModal(false); setPinValue(''); setPinConfirm('');
-    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Помилка зміни PIN'); }
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : t('pin_change_error')); }
     finally { setPinLoading(false); }
   }
 
@@ -1735,10 +2302,10 @@ function CardsScreen() {
     try {
       const r = await fetch(`/api/cards/${c.id}/block`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } });
       const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j.message || 'Помилка');
-      toast(c.status === 'active' ? `Картку •• ${card.number} заморожено` : `Картку •• ${card.number} розморожено`);
+      if (!r.ok || !j.ok) throw new Error(j.message || t('operation_error'));
+      toast(c.status === 'active' ? `${t('card_blocked')} •• ${card.number}` : `${t('card_unblocked')} •• ${card.number}`);
       refreshDashboard();
-    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Помилка'); }
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : t('operation_error')); }
   }
 
   async function closeCard() {
@@ -1748,11 +2315,11 @@ function CardsScreen() {
     try {
       const r = await fetch(`/api/cards/${c.id}/close`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } });
       const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j.message || 'Помилка');
-      toast(`Картку •• ${card.number} закрито`);
+      if (!r.ok || !j.ok) throw new Error(j.message || t('operation_error'));
+      toast(`${t('card_closed')} •• ${card.number}`);
       refreshDashboard();
       setSelected(0);
-    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Помилка'); }
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : t('operation_error')); }
   }
 
   function openDesignModal(mode: 'current' | 'issue') {
@@ -1777,7 +2344,7 @@ function CardsScreen() {
           return;
         }
         const c = apiCards[safeIdx];
-        if (!c) throw new Error('Картку не знайдено.');
+        if (!c) throw new Error(t('card_not_found'));
         const r = await fetch(`/api/cards/${c.id}/design`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -1802,7 +2369,7 @@ function CardsScreen() {
       setDesignModal(false);
       if (designMode === 'issue') setSelected(0);
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : 'Помилка дизайну картки');
+      toast(e instanceof Error ? e.message : t('card_design_error'));
     } finally {
       setDesignLoading(false);
     }
@@ -1816,8 +2383,8 @@ function CardsScreen() {
     <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
       <div style={{ padding: `${topPad} 22px 16px`, display: 'flex', alignItems: 'center' }}>
         <div>
-          <div style={{ fontSize: 12, color: text.muted, fontWeight: 500, marginBottom: 4 }}>Гаманець</div>
-          <div style={{ ...T.h1, color: text.primary }}>Мої картки</div>
+          <div style={{ fontSize: 12, color: text.muted, fontWeight: 500, marginBottom: 4 }}>{t('cards_title')}</div>
+          <div style={{ ...T.h1, color: text.primary }}>{t('cards_title')}</div>
         </div>
         <div style={{ flex: 1 }} />
         <button onClick={() => openDesignModal('issue')} style={{
@@ -1828,7 +2395,7 @@ function CardsScreen() {
           opacity: designLoading && designMode === 'issue' ? 0.65 : 1,
         }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#1c2e22" strokeWidth="2.4" strokeLinecap="round" /></svg>
-          {designLoading && designMode === 'issue' ? 'Створення...' : 'Випустити'}
+          {designLoading && designMode === 'issue' ? t('creating') : t('issue_card')}
         </button>
       </div>
 
@@ -1850,7 +2417,7 @@ function CardsScreen() {
         ))}
         {!cards.length && (
           <div style={{ padding: '20px', borderRadius: 18, border: `1px solid ${bg.border}`, background: bg.card, color: text.muted, minWidth: 280 }}>
-            Карток ще немає. Натисніть «Випустити».
+            {t('cards_not_issued')}
           </div>
         )}
       </div>
@@ -1859,7 +2426,7 @@ function CardsScreen() {
       <div style={{ padding: '20px 22px 0' }}>
         <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22, padding: 20 }}>
           {!card ? (
-            <div style={{ color: text.muted }}>Немає активної картки для перегляду.</div>
+            <div style={{ color: text.muted }}>{t('card_not_found')}</div>
           ) : (
           <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
@@ -1870,11 +2437,11 @@ function CardsScreen() {
               fontSize: 10.5, fontWeight: 600, letterSpacing: 0.3,
             }}>{statusLabel}</div>
             <div style={{ flex: 1 }} />
-            <div style={{ fontSize: 11, color: text.muted }}>{card.cardTypeRaw === 'physical' ? 'Фізична' : 'Віртуальна'} • до {card.expiry}</div>
+            <div style={{ fontSize: 11, color: text.muted }}>{card.cardTypeRaw === 'physical' ? t('card_physical') : t('card_virtual')} • {t('card_valid_until')} {card.expiry}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 10 }}>
             <div style={{ fontSize: 12, color: text.muted }}>
-              Дизайн: <span style={{ color: text.secondary, fontWeight: 600 }}>{currentDesignOption?.title || 'Classic Gold'}</span>
+              {t('card_design_label')}: <span style={{ color: text.secondary, fontWeight: 600 }}>{currentDesignOption?.title || 'Classic Gold'}</span>
             </div>
             <button
               onClick={() => openDesignModal('current')}
@@ -1882,31 +2449,31 @@ function CardsScreen() {
                 padding: '7px 12px', borderRadius: 10, border: '1px solid rgba(180,172,155,0.24)',
                 background: 'rgba(255,255,255,0.04)', color: text.secondary, fontSize: 12, fontWeight: 600, cursor: 'pointer',
               }}
-            >Змінити</button>
+            >{t('change_label')}</button>
           </div>
 
           {/* Account activity */}
           <div style={{ marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'baseline' }}>
-              <span style={{ ...T.caption, color: text.muted }}>Активність рахунку за місяць</span>
-              <span style={{ fontSize: 12, color: 'rgba(220,215,200,0.6)', fontFeatureSettings: '"tnum"' }}>{monthTransactions.length} оп.</span>
+              <span style={{ ...T.caption, color: text.muted }}>{t('account_activity_month')}</span>
+              <span style={{ fontSize: 12, color: 'rgba(220,215,200,0.6)', fontFeatureSettings: '"tnum"' }}>{monthTransactions.length} {t('operations_short')}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
               <span style={{ fontSize: 22, fontWeight: 600, color: text.primary, fontFeatureSettings: '"tnum"' }}>{formatUah(monthOut)}</span>
-              <span style={{ fontSize: 13, color: text.dim, fontFeatureSettings: '"tnum"' }}>витрат</span>
+              <span style={{ fontSize: 13, color: text.dim, fontFeatureSettings: '"tnum"' }}>{t('spent_label')}</span>
             </div>
             <div style={{ fontSize: 12, color: text.muted }}>
-              Баланс рахунку: {formatUah(Number(account?.balance || 0))}
+              {t('account_balance_label')}: {formatUah(Number(account?.balance || 0))}
             </div>
           </div>
 
           {/* Actions */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
             {[
-              { label: 'Деталі', msg: `Картка •• ${card.number} · до ${card.expiry}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M3 10h18" stroke={gold} strokeWidth="1.6" /></svg> },
+              { label: t('card_details'), msg: `${t('cards_title')} •• ${card.number} · ${t('card_valid_until')} ${card.expiry}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M3 10h18" stroke={gold} strokeWidth="1.6" /></svg> },
               { label: 'PIN', action: () => setPinModal(true), icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg> },
-              { label: 'Дизайн', action: () => openDesignModal('current'), icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke={gold} strokeWidth="1.8" strokeLinecap="round" /><circle cx="8" cy="6" r="2" fill={gold} /><circle cx="16" cy="12" r="2" fill={gold} /><circle cx="11" cy="18" r="2" fill={gold} /></svg> },
-              { label: 'Рахунок', msg: `Рахунок: ${account?.account_number || '—'}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1116 0" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><path d="M12 12l4-4" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><circle cx="12" cy="12" r="1.5" fill={gold} /></svg> },
+              { label: t('design_action'), action: () => openDesignModal('current'), icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke={gold} strokeWidth="1.8" strokeLinecap="round" /><circle cx="8" cy="6" r="2" fill={gold} /><circle cx="16" cy="12" r="2" fill={gold} /><circle cx="11" cy="18" r="2" fill={gold} /></svg> },
+              { label: t('account_label'), msg: `${t('account_label')}: ${account?.account_number || '—'}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1116 0" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><path d="M12 12l4-4" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><circle cx="12" cy="12" r="1.5" fill={gold} /></svg> },
             ].map((a, i) => (
               <button key={i} onClick={() => 'action' in a ? a.action() : toast(a.msg as string)} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
@@ -1928,7 +2495,7 @@ function CardsScreen() {
               opacity: busyCardId === card.id || card.statusRaw === 'closed' ? 0.6 : 1,
             }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" /><path d="M8 11V8a4 4 0 018 0v3" stroke="currentColor" strokeWidth="1.8" /></svg>
-              {isFrozen ? 'Розморозити' : 'Заморозити'}
+              {isFrozen ? t('unfreeze_card') : t('freeze_card')}
             </button>
             <button onClick={closeCard} style={{
               flex: 1, padding: '12px', background: 'rgba(220,100,110,0.06)',
@@ -1938,7 +2505,7 @@ function CardsScreen() {
               opacity: busyCardId === card.id || card.statusRaw === 'closed' ? 0.6 : 1,
             }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
-              Закрити
+              {t('close_card')}
             </button>
           </div>
           </>
@@ -1960,7 +2527,7 @@ function CardsScreen() {
           border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
         }}>
           <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 20px' }} />
-          <div style={{ fontSize: 18, fontWeight: 700, color: text.primary, marginBottom: 4 }}>Змінити PIN</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: text.primary, marginBottom: 4 }}>{t('change_pin')}</div>
           <div style={{ fontSize: 12, color: text.muted, marginBottom: 20 }}>Картка •• {card.number}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
@@ -2012,7 +2579,7 @@ function CardsScreen() {
         }}>
           <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 18px' }} />
           <div style={{ fontSize: 18, fontWeight: 700, color: text.primary, marginBottom: 4 }}>
-            {designMode === 'current' ? 'Оберіть дизайн картки' : 'Випуск нової картки'}
+            {designMode === 'current' ? t('choose_card_design') : t('issue_new_card')}
           </div>
           <div style={{ fontSize: 12, color: text.muted, marginBottom: 16 }}>
             {designMode === 'current'
@@ -2043,7 +2610,7 @@ function CardsScreen() {
                   number={card?.number || '0001'}
                   name={card?.name || userNameUp}
                   expiry={card?.expiry || '03/29'}
-                  type={card?.type || 'Віртуальна'}
+                  type={card?.type || t('card_virtual')}
                   style={{ width: '100%' }}
                 />
                 <div>
@@ -2076,7 +2643,7 @@ function CardsScreen() {
                 color: '#1c2e22', fontSize: 14, fontWeight: 800, cursor: designLoading ? 'default' : 'pointer',
                 opacity: designLoading ? 0.7 : 1,
               }}
-            >{designLoading ? 'Застосування…' : (designMode === 'current' ? 'Застосувати дизайн' : 'Випустити картку')}</button>
+            >{designLoading ? t('applying') : (designMode === 'current' ? t('apply_design') : t('issue_card_full'))}</button>
           </div>
         </div>
       </div>
@@ -2100,6 +2667,7 @@ const CAT_STYLES: Record<TxCat, { bg: string; color: string; icon: React.ReactNo
 
 function OperationsScreen() {
   const layout = useLayout();
+  const { t } = usePreferences();
   const topPad = useTopPad();
   const { toast, transactions, account } = useApp();
   const [period, setPeriod] = useState(0);
@@ -2203,9 +2771,9 @@ function OperationsScreen() {
     <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
       <div style={{ padding: `${topPad} 22px 14px` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ ...T.h1, color: text.primary }}>Операції</div>
+          <div style={{ ...T.h1, color: text.primary }}>{t('operations_title')}</div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={downloadExport} disabled={dlExport} title="Завантажити CSV" style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold, fontSize: 16 }}>{dlExport ? '…' : '📊'}</button>
+            <button onClick={downloadExport} disabled={dlExport} title={t('download_csv')} style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold, fontSize: 16 }}>{dlExport ? '…' : '📊'}</button>
             <button onClick={downloadStatement} title="Виписка PDF" style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold, fontSize: 16 }}>📄</button>
           </div>
         </div>
@@ -2226,7 +2794,7 @@ function OperationsScreen() {
         <div style={{ padding: 20, ...glassCard() }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
-              <div style={{ ...sectionLabel, padding: 0, marginBottom: 4 }}>Загальні витрати</div>
+              <div style={{ ...sectionLabel, padding: 0, marginBottom: 4 }}>{t('spending_this_month')}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                 <span style={{ ...T.h1, ...T.num, color: text.primary }}>{spentLabel}</span>
               </div>
@@ -2267,7 +2835,7 @@ function OperationsScreen() {
       {/* Transactions */}
       {txGroups.length === 0 && (
         <div style={{ padding: '40px 22px', textAlign: 'center', color: text.muted, fontSize: 14 }}>
-          {searchQuery ? `Нічого не знайдено за «${searchQuery}»` : 'Транзакцій ще немає'}
+          {searchQuery ? `${t('nothing_found_for')} «${searchQuery}»` : t('no_transactions_yet')}
         </div>
       )}
       {txGroups.map((g, gi) => (
@@ -2621,7 +3189,7 @@ function ProfileScreen() {
         {faceIdReady ? (
           <ProfileToggle
             label="Face ID"
-            sub={faceIdBusy ? 'Обробка…' : 'Вхід та підтвердження переказів'}
+            sub={faceIdBusy ? t('wait_processing') : t('face_id_transfer_sub')}
             on={faceid}
             onChange={handleFaceIdToggle}
             icon={
@@ -2709,7 +3277,7 @@ function ProfileScreen() {
 // ─── Bottom tab bar ───────────────────────────────────────────
 
 // ─── Marketplace screen ───────────────────────────────────────
-interface Product { id: number; title: string; description?: string; price: number; currency?: string; image_emoji?: string; badge?: string; stock?: number; slug?: string; }
+interface Product { id: number; title: string; description?: string; price: number; currency?: string; image_emoji?: string; image_url?: string; badge?: string; stock?: number; slug?: string; }
 interface MarketOrder { id: number; total_amount: number; currency: string; status: string; invoice_number?: string; invoice_status?: string; created_at?: string; items_count?: number; }
 interface MarketInvoice { invoice_number: string; amount: number; currency: string; status: string; due_at?: string; paid_at?: string; created_at?: string; order_id?: number; }
 interface CartItem { product: Product; qty: number; }
@@ -2733,7 +3301,33 @@ function BadgePill({ badge }: { badge: string }) {
   );
 }
 
+function ProductVisual({ product, size = 'card' }: { product: Product; size?: 'card' | 'detail' | 'cart' }) {
+  const emoji = product.image_emoji || '🛍️';
+  if (product.image_url) {
+    return (
+      <img
+        src={product.image_url}
+        alt={product.title}
+        loading="lazy"
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          display: 'block',
+          transform: size === 'detail' ? 'scale(1.01)' : 'scale(1)',
+        }}
+      />
+    );
+  }
+  return (
+    <span style={{ fontSize: size === 'detail' ? 62 : size === 'cart' ? 24 : 42, lineHeight: 1 }}>
+      {emoji}
+    </span>
+  );
+}
+
 function ProductDetailDrawer({ product, onClose, onAddToCart }: { product: Product; onClose: () => void; onAddToCart: (p: Product) => void }) {
+  const { t } = usePreferences();
   const sheetSwipe = useSheetSwipeClose(onClose);
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }} onClick={onClose}>
@@ -2756,7 +3350,20 @@ function ProductDetailDrawer({ product, onClose, onAddToCart }: { product: Produ
             <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 6, background: 'rgba(220,100,60,0.15)', color: '#e07858', letterSpacing: 0.5 }}>ОСТАННІ {product.stock}</span>
           )}
         </div>
-        <div style={{ fontSize: 48, textAlign: 'center', marginBottom: 12 }}>{product.image_emoji || '🛍️'}</div>
+        <div style={{
+          height: 176,
+          borderRadius: 24,
+          overflow: 'hidden',
+          marginBottom: 18,
+          background: 'radial-gradient(circle at 35% 20%, rgba(221,216,204,0.16), transparent 38%), rgba(255,255,255,0.04)',
+          border: '1px solid rgba(221,216,204,0.12)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 18px 40px rgba(0,0,0,0.28)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <ProductVisual product={product} size="detail" />
+        </div>
         <div style={{ ...T.h2, color: text.primary, marginBottom: 8 }}>{product.title}</div>
         {product.description && (
           <div style={{ ...T.bodyLg, color: text.muted, lineHeight: 1.6, marginBottom: 20 }}>{product.description}</div>
@@ -2765,7 +3372,7 @@ function ProductDetailDrawer({ product, onClose, onAddToCart }: { product: Produ
           <div style={{ ...T.hero, fontWeight: 800, color: gold, ...T.num }}>₴{fmtInt(product.price)}{fmtDec(product.price)}</div>
           {product.stock !== undefined && (
             <div style={{ fontSize: 12, color: product.stock > 0 ? text.muted : '#e07070' }}>
-              {product.stock > 0 ? `Є в наявності: ${product.stock}` : 'Немає в наявності'}
+              {product.stock > 0 ? `${t('in_stock')}: ${product.stock}` : t('market_out_of_stock')}
             </div>
           )}
         </div>
@@ -2778,7 +3385,7 @@ function ProductDetailDrawer({ product, onClose, onAddToCart }: { product: Produ
             color: text.primary, cursor: (product.stock !== undefined && product.stock <= 0) ? 'default' : 'pointer', fontFamily: 'inherit',
           }}
         >
-          {(product.stock !== undefined && product.stock <= 0) ? 'Немає в наявності' : '🛒 Додати до кошика'}
+          {(product.stock !== undefined && product.stock <= 0) ? t('market_out_of_stock') : t('add_to_cart')}
         </button>
       </div>
     </div>
@@ -2793,6 +3400,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
   checkingOut: boolean;
   user: { full_name: string; phone: string } | null;
 }) {
+  const { t } = usePreferences();
   const sheetSwipe = useSheetSwipeClose(onClose);
   const total = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
   const [step, setStep] = useState<'cart' | 'shipping'>('cart');
@@ -2818,13 +3426,15 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
         position: 'relative',
         background: 'linear-gradient(180deg,rgba(17,40,32,0.98) 0%,rgba(11,30,22,0.98) 100%)',
         backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
-        borderRadius: '24px 24px 0 0', padding: '28px 24px calc(24px + env(safe-area-inset-bottom, 0px))',
-        boxShadow: '0 -20px 60px rgba(0,0,0,0.6)', maxHeight: '85vh', overflowY: 'auto',
+        borderRadius: '28px 28px 0 0',
+        padding: '18px 18px 0',
+        boxShadow: '0 -20px 60px rgba(0,0,0,0.6)', height: 'min(86dvh, 720px)', overflow: 'hidden',
         border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
+        display: 'flex', flexDirection: 'column',
         ...sheetSwipe.sheetStyle,
       }}
       >
-        <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 20px' }} />
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 16px', flexShrink: 0 }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
           {step === 'shipping' && (
             <button onClick={() => setStep('cart')} style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(180,172,155,0.1)', border: '1px solid rgba(180,172,155,0.18)', color: gold, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -2832,20 +3442,22 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
             </button>
           )}
           <div style={{ ...T.h2, color: text.primary, flex: 1 }}>
-            {step === 'cart' ? 'Кошик' : 'Доставка'}
+            {step === 'cart' ? t('cart_title') : t('delivery_title')}
           </div>
-          {step === 'cart' && <div style={{ ...T.body, color: text.muted }}>{cart.reduce((s,i) => s+i.qty, 0)} товарів</div>}
+          {step === 'cart' && <div style={{ ...T.body, color: text.muted }}>{cart.reduce((s,i) => s+i.qty, 0)} {t('cart_items_count')}</div>}
         </div>
 
         {step === 'cart' && (
           cart.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: text.muted }}>Кошик порожній</div>
+            <div style={{ textAlign: 'center', padding: '40px 0', color: text.muted }}>{t('cart_empty')}</div>
           ) : (
             <>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', paddingBottom: 14, WebkitOverflowScrolling: 'touch', flex: 1 }}>
                 {cart.map(item => (
-                  <div key={item.product.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${bg.border}`, borderRadius: 14 }}>
-                    <div style={{ fontSize: 28, flexShrink: 0 }}>{item.product.image_emoji || '🛍️'}</div>
+                  <div key={item.product.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${bg.border}`, borderRadius: 16 }}>
+                    <div style={{ width: 46, height: 46, borderRadius: 13, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(221,216,204,0.06)' }}>
+                      <ProductVisual product={item.product} size="cart" />
+                    </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: text.secondary, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product.title}</div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: gold }}>₴{fmtInt(item.product.price * item.qty)}{fmtDec(item.product.price * item.qty)}</div>
@@ -2859,43 +3471,44 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
                   </div>
                 ))}
               </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16, padding: '0 4px' }}>
-                <span style={{ fontSize: 14, color: text.muted }}>Разом:</span>
+              <div style={{
+                flexShrink: 0,
+                margin: '0 -18px',
+                padding: '16px 18px calc(18px + env(safe-area-inset-bottom, 0px))',
+                background: 'linear-gradient(180deg, rgba(11,30,22,0) 0%, rgba(11,30,22,0.94) 22%, rgba(7,21,15,0.99) 100%)',
+                borderTop: '1px solid rgba(221,216,204,0.08)',
+                boxShadow: '0 -20px 38px rgba(0,0,0,0.22)',
+              }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14, padding: '0 4px' }}>
+                <span style={{ fontSize: 14, color: text.muted }}>{t('total_label')}:</span>
                 <span style={{ ...T.h2, fontWeight: 800, color: gold, ...T.num }}>₴{fmtInt(total)}{fmtDec(total)}</span>
               </div>
-              <div style={{
-                position: 'sticky',
-                bottom: -1,
-                paddingTop: 10,
-                paddingBottom: 2,
-                background: 'linear-gradient(180deg, rgba(11,30,22,0) 0%, rgba(11,30,22,0.92) 45%, rgba(11,30,22,0.98) 100%)',
-              }}>
                 <button onClick={() => setStep('shipping')} style={{
                   width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontSize: 16, fontWeight: 700,
                   background: `linear-gradient(135deg, ${goldDark}, ${gold})`,
                   color: text.primary, cursor: 'pointer', fontFamily: fontFamily,
-                }}>Далі → Доставка</button>
+                }}>{t('next_delivery')}</button>
               </div>
             </>
           )
         )}
 
         {step === 'shipping' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1, overflowY: 'auto', paddingBottom: 'calc(18px + env(safe-area-inset-bottom, 0px))' }}>
             <div>
-              <label style={labelStyle}>Отримувач</label>
+              <label style={labelStyle}>{t('recipient_label')}</label>
               <input value={shipName} onChange={e => setShipName(e.target.value)} placeholder="Прізвище Ім'я По-батькові" style={fieldStyle} />
             </div>
             <div>
-              <label style={labelStyle}>Телефон</label>
+              <label style={labelStyle}>{t('delivery_phone')}</label>
               <input value={shipPhone} onChange={e => setShipPhone(e.target.value)} placeholder="+380XXXXXXXXX" style={fieldStyle} />
             </div>
             <div>
-              <label style={labelStyle}>Адреса доставки</label>
+              <label style={labelStyle}>{t('delivery_address')}</label>
               <input value={shipAddr} onChange={e => setShipAddr(e.target.value)} placeholder="м. Київ, вул. Хрещатик 1, кв. 5" style={fieldStyle} />
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '4px 4px 0' }}>
-              <span style={{ fontSize: 13, color: text.muted }}>До оплати:</span>
+              <span style={{ fontSize: 13, color: text.muted }}>{t('pay_total')}:</span>
               <span style={{ ...T.h2, fontWeight: 800, color: gold, ...T.num }}>₴{fmtInt(total)}{fmtDec(total)}</span>
             </div>
             <button
@@ -2907,7 +3520,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
                   ? 'rgba(100,95,80,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
                 color: text.primary, cursor: (checkingOut || shipName.trim().length < 2 || shipAddr.trim().length < 8) ? 'default' : 'pointer',
                 fontFamily: fontFamily,
-              }}>{checkingOut ? 'Оформлення…' : '✓ Оформити замовлення'}</button>
+              }}>{checkingOut ? t('checkout_processing') : `✓ ${t('place_order')}`}</button>
           </div>
         )}
       </div>
@@ -2919,6 +3532,7 @@ type MarketTab = 'catalog' | 'orders' | 'invoices';
 
 function MarketplaceScreen() {
   const layout = useLayout();
+  const { t } = usePreferences();
   const topPad = useTopPad();
   const { toast, refreshDashboard, user: mktUser, setTabBarHidden } = useApp();
   const [tab, setTab] = useState<MarketTab>('catalog');
@@ -2949,7 +3563,7 @@ function MarketplaceScreen() {
       if (existing) return prev.map(i => i.product.id === product.id ? { ...i, qty: i.qty + 1 } : i);
       return [...prev, { product, qty: 1 }];
     });
-    toast(`✓ ${product.title} — додано до кошика`);
+    toast(`✓ ${product.title} — ${t('added_to_cart')}`);
   }
 
   function changeQty(id: number, delta: number) {
@@ -2983,14 +3597,14 @@ function MarketplaceScreen() {
         }),
       });
       const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j.message || j.error || 'Помилка оформлення');
-      toast(`✓ Замовлення оформлено!`);
+      if (!r.ok || !j.ok) throw new Error(j.message || j.error || t('checkout_error'));
+      toast(`✓ ${t('checkout_success')}`);
       setCart([]);
       setShowCart(false);
       refreshDashboard();
       setTimeout(() => setTab('orders'), 800);
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : 'Помилка оформлення');
+      toast(e instanceof Error ? e.message : t('checkout_error'));
     } finally {
       setCheckingOut(false);
     }
@@ -3027,16 +3641,16 @@ function MarketplaceScreen() {
     setDlPdf(`order-${orderId}`);
     try {
       const r = await fetch(`/api/marketplace/order/${orderId}/receipt`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) { toast('Помилка завантаження чека'); return; }
+      if (!r.ok) { toast(t('receipt_download_error')); return; }
       const blob = await r.blob();
       openPdfBlobInNewTab(blob, `receipt-${orderId}.pdf`, toast);
-    } catch { toast('Помилка завантаження'); } finally { setDlPdf(null); }
+    } catch { toast(t('download_error')); } finally { setDlPdf(null); }
   }
 
   const MARKET_TABS: { k: MarketTab; label: string }[] = [
-    { k: 'catalog', label: 'Каталог' },
-    { k: 'orders', label: 'Замовлення' },
-    { k: 'invoices', label: 'Інвойси' },
+    { k: 'catalog', label: t('catalog_tab') },
+    { k: 'orders', label: t('orders_tab') },
+    { k: 'invoices', label: t('invoices_tab') },
   ];
 
   const statusColors: Record<string, string> = {
@@ -3075,7 +3689,7 @@ function MarketplaceScreen() {
           fontFamily: 'inherit',
         }}
       >
-        <span style={{ fontSize: 16 }}>🛒</span>
+          <span style={{ fontSize: 16 }}>⌁</span>
         <span style={{ fontSize: 12, fontWeight: 700 }}>{cartCount}</span>
       </button>
     )}
@@ -3083,9 +3697,9 @@ function MarketplaceScreen() {
     <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
       <div style={{ padding: `${topPad} 22px 12px` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ ...T.h1, color: text.primary }}>Магазин</div>
+          <div style={{ ...T.h1, color: text.primary }}>{t('market_title')}</div>
           <button onClick={() => setShowCart(true)} style={{ position: 'relative', width: 44, height: 44, borderRadius: 14, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20 }}>
-            🛒
+            ⌁
             {cartCount > 0 && (
               <span style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: '50%', background: gold, color: text.primary, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{cartCount > 9 ? '9+' : cartCount}</span>
             )}
@@ -3105,12 +3719,12 @@ function MarketplaceScreen() {
         {tab === 'catalog' && (
           <div style={{ position: 'relative' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.4 }}><circle cx="11" cy="11" r="7" stroke="#ddd8cc" strokeWidth="1.8" /><path d="M20 20l-3-3" stroke="#ddd8cc" strokeWidth="1.8" strokeLinecap="round" /></svg>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Пошук товарів…" style={{ width: '100%', padding: '10px 14px 10px 36px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 12, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('product_search')} style={{ width: '100%', padding: '10px 14px 10px 36px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 12, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>
         )}
       </div>
 
-      {loading && <div style={{ padding: 60, textAlign: 'center', color: text.muted, fontSize: 14 }}>Завантаження…</div>}
+      {loading && <div style={{ padding: 60, textAlign: 'center', color: text.muted, fontSize: 14 }}>{t('loading')}</div>}
 
       {/* ── CATALOG ── */}
       {!loading && tab === 'catalog' && (
@@ -3118,15 +3732,15 @@ function MarketplaceScreen() {
           {filteredProducts.length === 0 ? (
             <div style={{ padding: '60px 22px', textAlign: 'center' }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>🛍️</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: text.secondary, marginBottom: 6 }}>{search ? 'Нічого не знайдено' : 'Магазин порожній'}</div>
-              <div style={{ fontSize: 13, color: text.muted }}>{search ? `Спробуй інший запит` : 'Товари ще не додано.'}</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: text.secondary, marginBottom: 6 }}>{search ? t('no_results') : t('market_empty')}</div>
+              <div style={{ fontSize: 13, color: text.muted }}>{search ? t('try_another_query') : t('products_not_added')}</div>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 10, padding: '8px 22px' }}>
               {filteredProducts.map(p => (
                 <div key={p.id} onClick={() => setPreview(p)} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'border-color 0.15s' }}>
-                  <div style={{ height: 96, background: `linear-gradient(135deg, rgba(180,172,155,0.08), rgba(100,95,80,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42, position: 'relative' }}>
-                    {p.image_emoji || '🛍️'}
+                  <div style={{ height: 108, background: `linear-gradient(135deg, rgba(180,172,155,0.08), rgba(100,95,80,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42, position: 'relative', overflow: 'hidden' }}>
+                    <ProductVisual product={p} />
                     {p.badge && (
                       <div style={{ position: 'absolute', top: 8, right: 8 }}><BadgePill badge={p.badge} /></div>
                     )}
@@ -3142,7 +3756,7 @@ function MarketplaceScreen() {
                       }}>+</button>
                     </div>
                     {p.stock !== undefined && p.stock > 0 && p.stock <= 5 && (
-                      <div style={{ fontSize: 9, color: '#e0a070', fontWeight: 600 }}>Останніх: {p.stock}</div>
+                      <div style={{ fontSize: 9, color: '#e0a070', fontWeight: 600 }}>{t('last_items')}: {p.stock}</div>
                     )}
                   </div>
                 </div>
@@ -3158,8 +3772,8 @@ function MarketplaceScreen() {
           {orders.length === 0 ? (
             <div style={{ padding: '60px 0', textAlign: 'center' }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>📦</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: text.secondary, marginBottom: 6 }}>Замовлень ще немає</div>
-              <div style={{ fontSize: 13, color: text.muted }}>Оформіть перше замовлення в каталозі.</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: text.secondary, marginBottom: 6 }}>{t('orders_empty')}</div>
+              <div style={{ fontSize: 13, color: text.muted }}>{t('catalog_first_order_hint')}</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -3167,18 +3781,18 @@ function MarketplaceScreen() {
                 <div key={o.id} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: text.secondary }}>Замовлення #{o.id}</span>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: text.secondary }}>{t('order_label')} #{o.id}</span>
                       <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 100, background: `${statusColors[o.status] || gold}22`, color: statusColors[o.status] || gold }}>{o.status}</span>
                     </div>
                     <div style={{ fontSize: 12, color: text.muted }}>{o.items_count || 0} поз. · {o.created_at ? new Date(o.created_at).toLocaleDateString('uk-UA') : ''}</div>
-                    {o.invoice_number && <div style={{ fontSize: 11, color: text.dim, marginTop: 2 }}>Інвойс: {o.invoice_number}</div>}
+                    {o.invoice_number && <div style={{ fontSize: 11, color: text.dim, marginTop: 2 }}>{t('invoice_label')}: {o.invoice_number}</div>}
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ ...T.bodyLg, fontWeight: 700, color: gold, ...T.num }}>₴{fmtInt(o.total_amount)}{fmtDec(o.total_amount)}</div>
                     <button onClick={() => downloadOrderReceipt(o.id)} disabled={dlPdf === `order-${o.id}`} style={{
                       marginTop: 6, padding: '4px 10px', borderRadius: 8, border: `1px solid rgba(180,172,155,0.25)`,
                       background: 'transparent', color: gold, fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
-                    }}>{dlPdf === `order-${o.id}` ? '…' : '📄 Чек'}</button>
+                    }}>{dlPdf === `order-${o.id}` ? '…' : t('receipt_short')}</button>
                   </div>
                 </div>
               ))}
@@ -3193,8 +3807,8 @@ function MarketplaceScreen() {
           {invoices.length === 0 ? (
             <div style={{ padding: '60px 0', textAlign: 'center' }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>🧾</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: text.secondary, marginBottom: 6 }}>Інвойсів ще немає</div>
-              <div style={{ fontSize: 13, color: text.muted }}>Інвойси з'являться після оформлення замовлень.</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: text.secondary, marginBottom: 6 }}>{t('invoices_empty')}</div>
+              <div style={{ fontSize: 13, color: text.muted }}>{t('invoices_after_orders')}</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -3225,7 +3839,7 @@ function MarketplaceScreen() {
                       <button onClick={() => downloadOrderReceipt(inv.order_id!)} disabled={dlPdf === `order-${inv.order_id}`} style={{
                         marginTop: 6, padding: '4px 10px', borderRadius: 8, border: `1px solid rgba(180,172,155,0.25)`,
                         background: 'transparent', color: gold, fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
-                      }}>{dlPdf === `order-${inv.order_id}` ? '…' : '📄 Чек'}</button>
+                      }}>{dlPdf === `order-${inv.order_id}` ? '…' : t('receipt_short')}</button>
                     )}
                   </div>
                 </div>
@@ -3552,6 +4166,7 @@ function WowSplash() {
 
 // ─── Login screen ─────────────────────────────────────────────
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  const { t } = usePreferences();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [identity, setIdentity] = useState('');
   const [password, setPassword] = useState('');
@@ -3581,7 +4196,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
       // 1. Get challenge
       const optRes = await fetch('/api/auth/passkey/login-options', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       const optJson = await optRes.json();
-      if (!optRes.ok || !optJson.ok) throw new Error(optJson.error || 'Помилка');
+      if (!optRes.ok || !optJson.ok) throw new Error(optJson.error || t('registration_error'));
       // 2. Trigger Face ID
       const assertion = await startAuthentication({ optionsJSON: optJson.data });
       // 3. Verify
@@ -3591,11 +4206,11 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         body: JSON.stringify(assertion),
       });
       const verJson = await verRes.json();
-      if (!verRes.ok || !verJson.ok) throw new Error(verJson.error || 'Помилка верифікації');
+      if (!verRes.ok || !verJson.ok) throw new Error(verJson.error || t('verification_error'));
       localStorage.setItem('army_bank_token', verJson.data.token);
       onLogin();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Помилка Face ID';
+      const msg = err instanceof Error ? err.message : t('face_id_error');
       if (msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('abort') || msg.toLowerCase().includes('not allowed')) {
         setError('');
       } else {
@@ -3621,11 +4236,11 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           : { identity: identity.trim(), password }),
       });
       const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.error || json.message || (isReg ? 'Помилка реєстрації' : 'Невірні дані'));
+      if (!res.ok || !json.ok) throw new Error(json.error || json.message || (isReg ? t('registration_error') : t('invalid_credentials')));
       localStorage.setItem('army_bank_token', json.data.token);
       onLogin();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Помилка');
+      setError(err instanceof Error ? err.message : t('operation_error'));
     } finally {
       setLoading(false);
     }
@@ -3692,7 +4307,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
               color: mode === m ? text.primary : 'rgba(220,215,200,0.72)',
               fontSize: 13, fontWeight: mode === m ? 600 : 400, fontFamily,
               cursor: 'pointer', transition: 'all 0.18s', letterSpacing: 0.3,
-            }}>{m === 'login' ? 'Вхід' : 'Реєстрація'}</button>
+            }}>{m === 'login' ? t('login_tab') : t('register_tab')}</button>
           ))}
         </div>
 
@@ -3715,7 +4330,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             }}
           >
             {faceIdLoading ? (
-              <span style={{ opacity: 0.6 }}>Очікування…</span>
+              <span style={{ opacity: 0.6 }}>{t('wait_processing')}</span>
             ) : (
               <>
                 {/* Face ID icon */}
@@ -3726,7 +4341,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
                   <path d="M9 15c0 0 1 1.5 3 1.5s3-1.5 3-1.5"/>
                   <path d="M12 7v2"/>
                 </svg>
-                <span>Увійти з Face ID</span>
+                <span>{t('login_with_face_id')}</span>
               </>
             )}
           </button>
@@ -3737,32 +4352,32 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             {mode === 'register' && <>
               <div style={fieldStyle}>
-                <label style={labelStyle}>Повне ім'я</label>
+                <label style={labelStyle}>{t('full_name_label')}</label>
                 <input style={inputStyle} type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Іван Петренко" required />
               </div>
               <div style={fieldStyle}>
-                <label style={labelStyle}>Телефон</label>
+                <label style={labelStyle}>{t('profile_phone')}</label>
                 <input style={inputStyle} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+380XXXXXXXXX" required />
               </div>
               <div style={fieldStyle}>
-                <label style={labelStyle}>Email</label>
+                <label style={labelStyle}>{t('email_label')}</label>
                 <input style={inputStyle} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" required />
               </div>
             </>}
 
             {mode === 'login' && (
               <div style={fieldStyle}>
-                <label style={labelStyle}>Телефон або Email</label>
-                <input style={inputStyle} type="text" value={identity} onChange={e => setIdentity(e.target.value)} placeholder="Телефон або email" autoComplete="username" required />
+                <label style={labelStyle}>{t('phone_or_email')}</label>
+                <input style={inputStyle} type="text" value={identity} onChange={e => setIdentity(e.target.value)} placeholder={t('phone_or_email_placeholder')} autoComplete="username" required />
               </div>
             )}
 
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <label style={{ ...labelStyle, marginBottom: 0 }}>Пароль</label>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>{t('password_label')}</label>
                 {mode === 'login' && (
                   <button type="button" onClick={() => setError('Зверніться до підтримки для відновлення пароля')} style={{ fontSize: 11, color: 'rgba(220,215,200,0.78)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 0.2 }}>
-                    Забули пароль?
+                    {t('forgot_password')}
                   </button>
                 )}
               </div>
@@ -3792,7 +4407,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             {mode === 'register' && (
               <div style={{ marginBottom: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label style={{ ...labelStyle, marginBottom: 0 }}>Підтвердити пароль</label>
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>{t('confirm_password')}</label>
                 </div>
                 <div style={{ position: 'relative' }}>
                   <input
@@ -3800,7 +4415,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
                     type={showConfirm ? 'text' : 'password'}
                     value={confirmPass}
                     onChange={e => setConfirmPass(e.target.value)}
-                    placeholder="Повторіть пароль"
+                    placeholder={t('repeat_password')}
                     autoComplete="new-password"
                     required
                   />
@@ -3832,7 +4447,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
               fontFamily, letterSpacing: 0.4,
               boxShadow: loading ? 'none' : '0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 20px rgba(0,0,0,0.35)',
               transition: 'all 0.18s',
-            }}>{loading ? 'Обробка…' : mode === 'login' ? 'Увійти' : 'Створити акаунт'}</button>
+            }}>{loading ? t('wait_processing') : mode === 'login' ? t('sign_in') : t('create_account')}</button>
           </div>
         </form>
         </div>
@@ -4140,7 +4755,7 @@ export default function App() {
                   </div>
                 )}
                 {loadingData ? (
-                  <div style={{ minHeight: '100%', display: 'grid', placeItems: 'center', color: text.muted }}>Завантаження даних...</div>
+                  <div style={{ minHeight: '100%', display: 'grid', placeItems: 'center', color: text.muted }}>{t('loading_data')}</div>
                 ) : (
                   <Screen />
                 )}
@@ -4190,7 +4805,7 @@ export default function App() {
                 </div>
               )}
               {loadingData ? (
-                <div style={{ minHeight: '100%', display: 'grid', placeItems: 'center', color: text.muted }}>Завантаження даних...</div>
+                <div style={{ minHeight: '100%', display: 'grid', placeItems: 'center', color: text.muted }}>{t('loading_data')}</div>
               ) : (
                 <Screen />
               )}
