@@ -424,6 +424,83 @@ strong { font-weight: 600; }
 .ps-card-c1 { width: 14px; height: 14px; border-radius: 50%; background: #eb001b; }
 .ps-card-c2 { width: 14px; height: 14px; border-radius: 50%; background: #f79e1b; margin-left: -5px; opacity: 0.88; }
 
+/* Landing hero phone screen refresh (v46) */
+.ps-hdr-right { gap: 6px; }
+.ps-hdr-ic {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.ps-hdr-role { font-size: 7.5px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.62); }
+.ps-hdr-name { font-size: 10.5px; letter-spacing: 0.01em; }
+.ps-balance { font-size: 26px; }
+.ps-cards-head {
+  margin-bottom: 7px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 8.5px;
+  letter-spacing: 0.03em;
+  color: rgba(255,255,255,0.78);
+}
+.ps-card.ps-card-venice {
+  background:
+    linear-gradient(180deg, rgba(6,10,14,0.22) 0%, rgba(6,10,14,0.34) 100%),
+    radial-gradient(120% 80% at 72% 10%, rgba(216,170,112,0.34) 0%, rgba(216,170,112,0) 54%),
+    linear-gradient(145deg, #3d4f64 0%, #67809b 28%, #b8a07f 56%, #754f42 100%);
+  border: 1px solid rgba(255,255,255,0.18);
+}
+.ps-card-num {
+  font-size: 9.5px;
+  letter-spacing: 0.15em;
+  color: rgba(255,255,255,0.95);
+}
+.ps-card-lbl { color: rgba(255,255,255,0.68); }
+.ps-card-val { font-size: 7px; }
+.ps-dots {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin: 8px 0 10px;
+}
+.ps-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.34);
+}
+.ps-dots .on {
+  width: 11px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.86);
+}
+.ps-actions { gap: 6px; margin-bottom: 2px; }
+.ps-act-ic {
+  width: 31px;
+  height: 31px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.26);
+}
+.ps-act span { font-size: 6.8px; letter-spacing: 0.02em; }
+.ps-body { padding: 9px 13px 5px; }
+.ps-section-lbl { font-size: 7.5px; }
+.ps-tx { padding: 8px 0 7px; }
+.ps-tx-name { font-size: 9.5px; }
+.ps-tx-date { font-size: 7.5px; }
+.ps-tx-amt { font-size: 9px; }
+.ps-nav {
+  padding: 6px 0 9px;
+  gap: 1px;
+}
+.ps-nav-item span { font-size: 6.5px; }
+
 /* ─── TRUST BAR ─── */
 .trust-bar {
   border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
