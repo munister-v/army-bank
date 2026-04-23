@@ -8,6 +8,7 @@ import veniceCityImage from './assets/italy/venice-city.png';
 import florenceDuomoImage from './assets/italy/florence-duomo.png';
 import valdorciaHillsImage from './assets/italy/valdorcia-hills.png';
 import valdorciaChapelImage from './assets/italy/valdorcia-chapel.png';
+import sicilyEmblemImage from './assets/italy/sicily-emblem.png';
 
 export class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: string | null }> {
   constructor(props: { children: React.ReactNode }) {
@@ -81,6 +82,51 @@ const glassCard = (extra?: React.CSSProperties): React.CSSProperties => ({
   borderRadius: radius.xl,
   ...extra,
 });
+
+function BrandMark({
+  size,
+  radiusValue,
+  elevated = false,
+}: {
+  size: number;
+  radiusValue: number;
+  elevated?: boolean;
+}) {
+  return (
+    <div style={{
+      width: size,
+      height: size,
+      borderRadius: radiusValue,
+      position: 'relative',
+      overflow: 'hidden',
+      flexShrink: 0,
+      background: 'linear-gradient(155deg, rgba(20,42,30,0.98) 0%, rgba(9,20,14,0.98) 100%)',
+      border: '1px solid rgba(212,204,188,0.16)',
+      boxShadow: elevated
+        ? '0 12px 28px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.08)'
+        : '0 4px 14px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.06)',
+    }}>
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'radial-gradient(circle at 28% 24%, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 56%)',
+        pointerEvents: 'none',
+      }} />
+      <img
+        src={sicilyEmblemImage}
+        alt="ARM Bank Sicily emblem"
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          display: 'block',
+          transform: elevated ? 'scale(1.02)' : 'scale(1)',
+          filter: elevated ? 'saturate(0.96) contrast(1.03)' : 'saturate(0.94) contrast(1.02)',
+        }}
+      />
+    </div>
+  );
+}
 
 // ─── Shared section-label style ───────────────────────────────
 const sectionLabel: React.CSSProperties = {
@@ -244,6 +290,7 @@ function cardTail(masked?: string): string {
 }
 
 const CARD_INDEX_STORAGE_KEY = 'army_bank_selected_card_idx';
+const PROFILE_PHOTO_STORAGE_KEY = 'army_bank_profile_photo';
 
 function readSelectedCardIndex(): number {
   try {
@@ -327,6 +374,44 @@ async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T>
     throw err;
   }
   return ((payload.data ?? payload) as T);
+}
+
+function getProfilePhoto(): string {
+  try {
+    return localStorage.getItem(PROFILE_PHOTO_STORAGE_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function setProfilePhoto(value: string) {
+  try {
+    if (value) localStorage.setItem(PROFILE_PHOTO_STORAGE_KEY, value);
+    else localStorage.removeItem(PROFILE_PHOTO_STORAGE_KEY);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function openPdfBlobInNewTab(blob: Blob, fallbackFileName: string, toast?: (msg: string) => void) {
+  const blobUrl = URL.createObjectURL(blob);
+  const popup = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+  if (popup) {
+    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    return;
+  }
+
+  // Fallback for popup blockers.
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.download = fallbackFileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 5_000);
+  if (toast) toast('Чек відкрито');
 }
 
 // ─── Toast notification ───────────────────────────────────────
@@ -1801,9 +1886,7 @@ function OperationsScreen() {
       const r = await fetch(`/api/transactions/${txId}/receipt`, { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) { toast('Помилка завантаження чека'); return; }
       const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `receipt-${txId}.pdf`; a.click();
-      URL.revokeObjectURL(url);
+      openPdfBlobInNewTab(blob, `receipt-${txId}.pdf`, toast);
     } catch { toast('Помилка завантаження'); } finally { setDlReceipt(null); }
   }
 
@@ -1824,9 +1907,7 @@ function OperationsScreen() {
       const r = await fetch('/api/transactions/statement', { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) { toast('Помилка виписки'); return; }
       const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'statement.pdf'; a.click();
-      URL.revokeObjectURL(url);
+      openPdfBlobInNewTab(blob, 'statement.pdf', toast);
     } catch { toast('Помилка завантаження'); }
   }
 
@@ -2051,6 +2132,8 @@ function ProfileScreen() {
   const [faceIdBusy, setFaceIdBusy] = useState(false);
   const [push, setPush] = useState(true);
   const [twofa, setTwofa] = useState(false);
+  const [profilePhoto, setProfilePhotoState] = useState<string>(() => getProfilePhoto());
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   // Check passkey status on mount
   useEffect(() => {
@@ -2139,6 +2222,39 @@ function ProfileScreen() {
     }
   }
 
+  function onPickProfilePhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast('Оберіть зображення');
+      return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      toast('Фото завелике (до 3MB)');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = typeof reader.result === 'string' ? reader.result : '';
+      if (!value) {
+        toast('Не вдалося прочитати фото');
+        return;
+      }
+      setProfilePhoto(value);
+      setProfilePhotoState(value);
+      toast('Фото профілю оновлено');
+    };
+    reader.onerror = () => toast('Не вдалося завантажити фото');
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
+  function removeProfilePhoto() {
+    setProfilePhoto('');
+    setProfilePhotoState('');
+    toast('Фото видалено');
+  }
+
   const section = (children: React.ReactNode) => (
     <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 20, overflow: 'hidden', margin: '0 22px 14px' }}>
       {children}
@@ -2150,6 +2266,13 @@ function ProfileScreen() {
     <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
       {/* Avatar */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: `${topPad} 22px 28px` }}>
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          onChange={onPickProfilePhoto}
+          style={{ display: 'none' }}
+        />
         <div style={{
           width: 80, height: 80, borderRadius: '50%',
           background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`,
@@ -2157,7 +2280,36 @@ function ProfileScreen() {
           fontSize: 28, fontWeight: 700, color: '#1a2820', letterSpacing: 0.5,
           boxShadow: `0 0 0 3px rgba(0,0,0,0.6), 0 0 0 5px ${gold}55, inset 0 1px 0 rgba(230,225,210,0.5)`,
           marginBottom: 14,
-        }}>{initials}</div>
+          overflow: 'hidden',
+        }}>
+          {profilePhoto ? (
+            <img src={profilePhoto} alt="Фото профілю" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            initials
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <button
+            onClick={() => photoInputRef.current?.click()}
+            style={{
+              padding: '6px 12px', borderRadius: 10, border: '1px solid rgba(180,172,155,0.24)',
+              background: 'rgba(255,255,255,0.05)', color: text.secondary, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            Змінити фото
+          </button>
+          {profilePhoto && (
+            <button
+              onClick={removeProfilePhoto}
+              style={{
+                padding: '6px 12px', borderRadius: 10, border: '1px solid rgba(220,100,110,0.25)',
+                background: 'rgba(220,100,110,0.08)', color: '#f2b6be', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              Видалити
+            </button>
+          )}
+        </div>
         <div style={{ ...T.h2, color: text.primary, marginBottom: 4 }}>{displayName}</div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: 'rgba(127,184,150,0.12)', border: '1px solid rgba(127,184,150,0.25)', borderRadius: 100 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#7fb896' }} />
@@ -2423,11 +2575,19 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
                 <span style={{ fontSize: 14, color: text.muted }}>Разом:</span>
                 <span style={{ ...T.h2, fontWeight: 800, color: gold, ...T.num }}>₴{fmtInt(total)}{fmtDec(total)}</span>
               </div>
-              <button onClick={() => setStep('shipping')} style={{
-                width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontSize: 16, fontWeight: 700,
-                background: `linear-gradient(135deg, ${goldDark}, ${gold})`,
-                color: text.primary, cursor: 'pointer', fontFamily: fontFamily,
-              }}>Далі → Доставка</button>
+              <div style={{
+                position: 'sticky',
+                bottom: -1,
+                paddingTop: 10,
+                paddingBottom: 2,
+                background: 'linear-gradient(180deg, rgba(11,30,22,0) 0%, rgba(11,30,22,0.92) 45%, rgba(11,30,22,0.98) 100%)',
+              }}>
+                <button onClick={() => setStep('shipping')} style={{
+                  width: '100%', padding: '15px', borderRadius: 16, border: 'none', fontSize: 16, fontWeight: 700,
+                  background: `linear-gradient(135deg, ${goldDark}, ${gold})`,
+                  color: text.primary, cursor: 'pointer', fontFamily: fontFamily,
+                }}>Далі → Доставка</button>
+              </div>
             </>
           )
         )}
@@ -2581,9 +2741,7 @@ function MarketplaceScreen() {
       const r = await fetch(`/api/marketplace/order/${orderId}/receipt`, { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) { toast('Помилка завантаження чека'); return; }
       const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `receipt-${orderId}.pdf`; a.click();
-      URL.revokeObjectURL(url);
+      openPdfBlobInNewTab(blob, `receipt-${orderId}.pdf`, toast);
     } catch { toast('Помилка завантаження'); } finally { setDlPdf(null); }
   }
 
@@ -2606,6 +2764,33 @@ function MarketplaceScreen() {
     <>
     {preview && <ProductDetailDrawer product={preview} onClose={() => setPreview(null)} onAddToCart={addToCart} />}
     {showCart && <CartDrawer cart={cart} onClose={() => setShowCart(false)} onQtyChange={changeQty} onRemove={removeFromCart} onCheckout={checkoutCart} checkingOut={checkingOut} user={mktUser} />}
+    {!showCart && !preview && tab === 'catalog' && cartCount > 0 && (
+      <button
+        onClick={() => setShowCart(true)}
+        style={{
+          position: 'fixed',
+          right: 16,
+          bottom: 'calc(96px + env(safe-area-inset-bottom, 0px))',
+          zIndex: 160,
+          border: '1px solid rgba(180,172,155,0.3)',
+          borderRadius: 14,
+          background: 'linear-gradient(135deg, rgba(32,56,44,0.92), rgba(20,36,28,0.94))',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          color: text.primary,
+          padding: '10px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          boxShadow: '0 12px 24px rgba(0,0,0,0.35)',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+        <span style={{ fontSize: 16 }}>🛒</span>
+        <span style={{ fontSize: 12, fontWeight: 700 }}>{cartCount}</span>
+      </button>
+    )}
     <ContentWrap maxW={800}>
     <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
       <div style={{ padding: `${topPad} 22px 12px` }}>
@@ -2847,14 +3032,7 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
       {/* Logo */}
       <div style={{ padding: '30px 22px 22px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: `linear-gradient(145deg, ${goldDark} 0%, ${gold} 60%, ${goldLight} 100%)`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            boxShadow: `0 4px 14px rgba(180,172,155,0.35), inset 0 1px 0 rgba(255,230,160,0.5)`,
-          }}>
-            <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 2L3 20h3.5l1.8-4h7.4l1.8 4H21L12 2zm-2.6 11L12 7.3 14.6 13H9.4z" fill="#1c2e22" /></svg>
-          </div>
+          <BrandMark size={36} radiusValue={10} />
           <div>
             <div style={{ ...T.h3, color: text.primary, lineHeight: 1.1 }}>
               ARM<span style={{ fontWeight: 300, opacity: 0.8 }}>Bank</span>
@@ -3186,17 +3364,8 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
         {/* Logo block */}
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          {/* Icon */}
-          <div style={{
-            width: 72, height: 72, borderRadius: 22, margin: '0 auto 20px',
-            background: 'linear-gradient(160deg, #0f2a1e 0%, #0a1c14 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: `1px solid rgba(180,172,155,0.18)`,
-            boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 16px 40px rgba(0,0,0,0.5)',
-          }}>
-            <svg width="34" height="34" viewBox="0 0 32 32">
-              <path d="M16 4L6 28h4l2.2-5.5h7.6L22 28h4L16 4zm-2.8 14.5L16 9.5l2.8 9z" fill={gold} opacity="0.9" />
-            </svg>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+            <BrandMark size={72} radiusValue={22} elevated />
           </div>
           {/* Wordmark */}
           <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: -0.5, color: text.primary, fontFamily, lineHeight: 1 }}>
