@@ -145,10 +145,9 @@
           if (isStandaloneMode()) {
             // In iOS PWA visualViewport can be shorter than the real app canvas.
             // Recover missing bottom area when the mismatch is small (safe-area range).
-            h = Math.max(ih || 0, ch || 0, vv || 0);
-            var sh = (window.screen && window.screen.height) ? Math.round(window.screen.height) : 0;
-            var delta = sh - h;
-            if (sh > 0 && delta > 0 && delta <= 64) h = sh;
+            // In PWA standalone use innerHeight — screen.height overshoots
+            // and pushes position:fixed elements below the visible viewport.
+            h = vv || ih || ch;
           } else {
             // Browser mode: prefer visualViewport to track dynamic toolbars.
             h = vv || ih || ch;
@@ -171,7 +170,7 @@
     </script>
     <script>
       (function () {
-        var buildId = '2026-04-24-21';
+        var buildId = '2026-04-24-22';
         var buildKey = 'army_bank_build_id';
         try {
           var prev = localStorage.getItem(buildKey);
