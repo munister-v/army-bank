@@ -1,5 +1,5 @@
-/* Army Bank — Service Worker v105 */
-const SW_VERSION = '2026-04-24-12';
+/* Army Bank — Service Worker v106 */
+const SW_VERSION = '2026-04-24-13';
 const CACHE = `army-bank-v${SW_VERSION}`;
 
 /* Keep precache minimal to reduce stale-asset risk */

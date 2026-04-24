@@ -91,6 +91,10 @@
         min-height: var(--app-vh, 100dvh);
         /* Isolate stacking context for backdrop-filter on Android */
         isolation: isolate;
+        /* Anchor for position:absolute TabBar so bottom:0 tracks the REAL
+           screen bottom (--app-vh), not the iOS PWA layout viewport which
+           can be shorter than the screen by the bottom safe-area inset. */
+        position: relative;
       }
       /* Custom scrollbar (Chrome/Android WebView) */
       ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -166,7 +170,7 @@
     </script>
     <script>
       (function () {
-        var buildId = '2026-04-24-12';
+        var buildId = '2026-04-24-13';
         var buildKey = 'army_bank_build_id';
         try {
           var prev = localStorage.getItem(buildKey);
@@ -190,7 +194,7 @@
         } catch (_) {}
       })();
     </script>
-    <script type="module" crossorigin src="/bank/assets/index-DCvh1I5G.js"></script>
+    <script type="module" crossorigin src="/bank/assets/index-CN0NvkQh.js"></script>
     <link rel="stylesheet" crossorigin href="/bank/assets/index-ClzZVgHT.css">
   </head>
   <body>
