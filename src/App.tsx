@@ -4346,7 +4346,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       flexShrink: 0,
       backgroundColor: appBgBase,
       backgroundImage: 'linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.72) 45%, rgb(7,21,15) 100%)',
-      padding: '8px 14px calc(env(safe-area-inset-bottom, 0px) + 6px)',
+      padding: '6px 14px 4px',
       backdropFilter: 'blur(24px) saturate(180%)',
       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
       borderTop: '1px solid rgba(180,172,155,0.14)',
