@@ -4344,13 +4344,13 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       bottom: 0,
       zIndex: 120,
       flexShrink: 0,
-      backgroundColor: appBgBase,
-      backgroundImage: 'linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.72) 45%, rgb(7,21,15) 100%)',
+      backgroundColor: 'transparent',
+      backgroundImage: 'none',
       padding: '6px 14px 0',
       backdropFilter: 'blur(24px) saturate(180%)',
       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-      borderTop: '1px solid rgba(180,172,155,0.14)',
-      boxShadow: '0 -12px 28px rgba(0,0,0,0.22), inset 0 1px 0 rgba(230,225,210,0.05)',
+      borderTop: 'none',
+      boxShadow: 'none',
     }}>
       <div style={{
         position: 'relative', padding: 6,
