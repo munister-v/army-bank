@@ -2200,6 +2200,304 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
   );
 }
 
+// ── Currency rates widget (NBU open API) ─────────────────────────────────────
+interface NbuRate { code: string; rate: number; }
+function CurrencyRatesBar() {
+  const [rates, setRates] = useState<NbuRate[]>([]);
+  useEffect(() => {
+    fetch('https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?json')
+      .then(r => r.json())
+      .then((data: { cc: string; rate: number }[]) => {
+        const wanted = ['USD', 'EUR', 'GBP', 'PLN'];
+        setRates(data.filter(r => wanted.includes(r.cc)).map(r => ({ code: r.cc, rate: r.rate })));
+      })
+      .catch(() => setRates([
+        { code: 'USD', rate: 41.20 },
+        { code: 'EUR', rate: 44.85 },
+        { code: 'GBP', rate: 52.10 },
+        { code: 'PLN', rate: 10.35 },
+      ]));
+  }, []);
+  if (!rates.length) return null;
+  return (
+    <div style={{ padding: '20px 22px 0' }}>
+      <div style={{ ...sectionLabel, paddingLeft: 0, paddingRight: 0, marginBottom: 10 }}>Курси НБУ</div>
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
+        {rates.map(r => (
+          <div key={r.code} style={{
+            ...glassCard(), padding: '10px 14px', flexShrink: 0, minWidth: 72,
+            display: 'flex', flexDirection: 'column', gap: 4,
+          }}>
+            <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8, fontWeight: 600 }}>{r.code}</div>
+            <div style={{ fontSize: 15, color: text.primary, fontWeight: 700, fontFeatureSettings: '"tnum"' }}>
+              {r.rate.toFixed(2)}<span style={{ fontSize: 10, color: text.muted, fontWeight: 400 }}> ₴</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Savings goals mini widget ─────────────────────────────────────────────────
+interface SavingsGoal { id: number; title: string; target_amount: number; current_amount: number; deadline?: string; }
+function SavingsGoalsMini() {
+  const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const { toast } = useApp();
+  const token = localStorage.getItem('army_bank_token');
+  const [contributeId, setContributeId] = useState<number | null>(null);
+  const [contributeAmt, setContributeAmt] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newTarget, setNewTarget] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+
+  const load = () => {
+    if (!token) return;
+    fetch('/api/savings-goals', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(j => { if (j.ok) setGoals(j.data || []); })
+      .catch(() => {});
+  };
+  useEffect(load, []);
+
+  const contribute = async (goalId: number) => {
+    const amount = parseFloat(contributeAmt.replace(',', '.'));
+    if (!amount || amount <= 0) return;
+    try {
+      const r = await fetch(`/api/savings-goals/${goalId}/contribute`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || 'Помилка');
+      toast('Внесок зараховано ✓');
+      setContributeId(null); setContributeAmt(''); load();
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Помилка'); }
+  };
+
+  const createGoal = async () => {
+    const target = parseFloat(newTarget.replace(',', '.'));
+    if (!newTitle.trim() || !target) return;
+    setCreating(true);
+    try {
+      const r = await fetch('/api/savings-goals', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: newTitle.trim(), target_amount: target }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || 'Помилка');
+      toast('Ціль створено ✓');
+      setShowCreate(false); setNewTitle(''); setNewTarget(''); load();
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Помилка'); }
+    finally { setCreating(false); }
+  };
+
+  const deleteGoal = async (goalId: number) => {
+    try {
+      await fetch(`/api/savings-goals/${goalId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      load();
+    } catch { /* ignore */ }
+  };
+
+  return (
+    <div style={{ padding: '20px 22px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ ...sectionLabel, paddingLeft: 0, paddingRight: 0 }}>Цілі заощаджень</div>
+        <button onClick={() => setShowCreate(v => !v)} style={{
+          padding: '5px 12px', fontSize: 11, fontWeight: 600, color: gold,
+          background: 'rgba(180,172,155,0.08)', border: `1px solid rgba(180,172,155,0.18)`,
+          borderRadius: 20, cursor: 'pointer', fontFamily: 'inherit',
+        }}>+ Нова</button>
+      </div>
+
+      {showCreate && (
+        <div style={{ ...glassCard(), padding: '14px 16px', marginBottom: 10 }}>
+          <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Назва цілі"
+            style={{ width: '100%', padding: '9px 12px', marginBottom: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          <input value={newTarget} onChange={e => setNewTarget(e.target.value)} placeholder="Сума, ₴" type="number"
+            style={{ width: '100%', padding: '9px 12px', marginBottom: 10, background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          <button onClick={createGoal} disabled={creating} style={{
+            width: '100%', padding: '10px', fontSize: 13, fontWeight: 600,
+            background: `linear-gradient(135deg, ${gold}, ${goldDark})`, color: '#0c1a12',
+            border: 'none', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+          }}>{creating ? '…' : 'Створити'}</button>
+        </div>
+      )}
+
+      {goals.length === 0 && !showCreate && (
+        <div style={{ fontSize: 13, color: text.muted, textAlign: 'center', padding: '18px 0' }}>
+          Немає активних цілей
+        </div>
+      )}
+
+      {goals.map(goal => {
+        const pct = goal.target_amount > 0 ? Math.min(100, Math.round((goal.current_amount / goal.target_amount) * 100)) : 0;
+        const isContributing = contributeId === goal.id;
+        return (
+          <div key={goal.id} style={{ ...glassCard(), padding: '14px 16px', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ color: text.secondary, fontWeight: 600, fontSize: 14 }}>{goal.title}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: gold, fontSize: 12, fontWeight: 600 }}>{pct}%</span>
+                <button onClick={() => deleteGoal(goal.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(220,80,80,0.6)', fontSize: 16, padding: '0 0 0 4px', lineHeight: 1 }}>×</button>
+              </div>
+            </div>
+            <div style={{ height: 5, background: 'rgba(180,172,155,0.1)', borderRadius: 4, marginBottom: 6 }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: `linear-gradient(90deg, ${goldDark}, ${gold})`, borderRadius: 4, transition: 'width 0.6s ease' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: isContributing ? 10 : 0 }}>
+              <span style={{ color: text.muted, fontSize: 11 }}>₴{fmtInt(goal.current_amount)}</span>
+              <span style={{ color: text.muted, fontSize: 11 }}>з ₴{fmtInt(goal.target_amount)}</span>
+            </div>
+            {!isContributing ? (
+              <button onClick={() => { setContributeId(goal.id); setContributeAmt(''); }} style={{
+                marginTop: 8, width: '100%', padding: '7px', fontSize: 12, fontWeight: 600,
+                background: 'rgba(180,172,155,0.08)', border: `1px solid rgba(180,172,155,0.18)`,
+                borderRadius: 8, cursor: 'pointer', color: gold, fontFamily: 'inherit',
+              }}>Поповнити</button>
+            ) : (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={contributeAmt} onChange={e => setContributeAmt(e.target.value)} placeholder="Сума" type="number"
+                  style={{ flex: 1, padding: '8px 10px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 8, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+                <button onClick={() => contribute(goal.id)} style={{
+                  padding: '8px 14px', fontSize: 12, fontWeight: 600,
+                  background: `linear-gradient(135deg, ${gold}, ${goldDark})`, color: '#0c1a12',
+                  border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
+                }}>✓</button>
+                <button onClick={() => setContributeId(null)} style={{
+                  padding: '8px 10px', fontSize: 12,
+                  background: 'rgba(180,172,155,0.08)', border: `1px solid rgba(180,172,155,0.14)`,
+                  borderRadius: 8, cursor: 'pointer', color: text.muted, fontFamily: 'inherit',
+                }}>✕</button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Recurring payments section ────────────────────────────────────────────────
+interface RecurringTx { id: number; title: string; amount: number; tx_type: string; recipient_account?: string; frequency: string; next_run_date?: string; is_active: boolean; }
+const FREQ_LABELS: Record<string, string> = { daily: 'Щодня', weekly: 'Щотижня', biweekly: 'Раз на 2 тижні', monthly: 'Щомісяця', quarterly: 'Щокварталу' };
+function RecurringSection() {
+  const token = localStorage.getItem('army_bank_token');
+  const { toast } = useApp();
+  const [list, setList] = useState<RecurringTx[]>([]);
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ title: '', amount: '', recipient_account: '', frequency: 'monthly' });
+
+  const load = () => {
+    if (!token) return;
+    fetch('/api/recurring-transactions', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(j => { if (j.ok) setList(j.data || []); })
+      .catch(() => {});
+  };
+  useEffect(load, []);
+
+  const toggle = async (id: number, current: boolean) => {
+    try {
+      const r = await fetch(`/api/recurring-transactions/${id}/toggle`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ is_active: !current }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error);
+      load();
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Помилка'); }
+  };
+
+  const remove = async (id: number) => {
+    try {
+      await fetch(`/api/recurring-transactions/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      load();
+    } catch { /* ignore */ }
+  };
+
+  const create = async () => {
+    const amount = parseFloat(form.amount.replace(',', '.'));
+    if (!form.title.trim() || !amount) return;
+    setCreating(true);
+    try {
+      const r = await fetch('/api/recurring-transactions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: form.title.trim(), amount, tx_type: 'transfer', recipient_account: form.recipient_account.trim() || undefined, frequency: form.frequency }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || 'Помилка');
+      toast('Регулярний платіж створено ✓');
+      setShowCreate(false); setForm({ title: '', amount: '', recipient_account: '', frequency: 'monthly' }); load();
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Помилка'); }
+    finally { setCreating(false); }
+  };
+
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '9px 12px', marginBottom: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
+
+  return (
+    <div style={{ padding: '24px 22px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ ...sectionLabel, paddingLeft: 0, paddingRight: 0 }}>Регулярні платежі</div>
+        <button onClick={() => setShowCreate(v => !v)} style={{
+          padding: '5px 12px', fontSize: 11, fontWeight: 600, color: gold,
+          background: 'rgba(180,172,155,0.08)', border: `1px solid rgba(180,172,155,0.18)`,
+          borderRadius: 20, cursor: 'pointer', fontFamily: 'inherit',
+        }}>+ Новий</button>
+      </div>
+
+      {showCreate && (
+        <div style={{ ...glassCard(), padding: '16px', marginBottom: 12 }}>
+          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Назва платежу" style={inputStyle} />
+          <input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="Сума, ₴" type="number" style={inputStyle} />
+          <input value={form.recipient_account} onChange={e => setForm(f => ({ ...f, recipient_account: e.target.value }))} placeholder="Рахунок отримувача (необов'язково)" style={inputStyle} />
+          <select value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))} style={{ ...inputStyle, marginBottom: 12 }}>
+            {Object.entries(FREQ_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+          <button onClick={create} disabled={creating} style={{ width: '100%', padding: '10px', fontSize: 13, fontWeight: 600, background: `linear-gradient(135deg, ${gold}, ${goldDark})`, color: '#0c1a12', border: 'none', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit' }}>
+            {creating ? '…' : 'Створити'}
+          </button>
+        </div>
+      )}
+
+      {list.length === 0 && !showCreate && (
+        <div style={{ ...glassCard(), padding: '20px 16px', textAlign: 'center' }}>
+          <div style={{ fontSize: 13, color: text.muted }}>Немає регулярних платежів</div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {list.map(rec => (
+          <div key={rec.id} style={{ ...glassCard(), padding: '14px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: rec.is_active ? 'rgba(120,200,160,0.15)' : 'rgba(180,172,155,0.08)', border: `1px solid ${rec.is_active ? 'rgba(120,200,160,0.3)' : 'rgba(180,172,155,0.15)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🔄</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: text.secondary, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{rec.title}</div>
+                <div style={{ fontSize: 11, color: text.muted }}>
+                  {FREQ_LABELS[rec.frequency] || rec.frequency}
+                  {rec.next_run_date && ` · наступний ${rec.next_run_date}`}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: text.secondary, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(rec.amount)}</div>
+                <div style={{ fontSize: 10, color: rec.is_active ? '#7fb896' : 'rgba(220,100,100,0.7)', marginTop: 2 }}>{rec.is_active ? 'Активний' : 'Призупинено'}</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <button onClick={() => toggle(rec.id, rec.is_active)} style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, background: rec.is_active ? 'rgba(180,172,155,0.08)' : 'rgba(120,200,160,0.12)', border: `1px solid ${rec.is_active ? 'rgba(180,172,155,0.18)' : 'rgba(120,200,160,0.3)'}`, borderRadius: 8, cursor: 'pointer', color: rec.is_active ? text.muted : '#7fb896', fontFamily: 'inherit' }}>
+                {rec.is_active ? 'Призупинити' : 'Активувати'}
+              </button>
+              <button onClick={() => remove(rec.id)} style={{ padding: '7px 12px', fontSize: 12, background: 'rgba(220,80,80,0.08)', border: `1px solid rgba(220,80,80,0.2)`, borderRadius: 8, cursor: 'pointer', color: 'rgba(220,80,80,0.8)', fontFamily: 'inherit' }}>Видалити</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function getQuickActions(t: (key: TranslationKey) => string): { label: string; icon: React.ReactNode; action: TabKey | TransferMode }[] {
   return [
     { label: t('quick_topup'), action: 'topup', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="#1c2e22" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
@@ -2504,6 +2802,12 @@ function OverviewScreen() {
           <ActivityFeed transactions={transactions} />
         </div>
       </div>
+
+      <CurrencyRatesBar />
+
+      <SavingsGoalsMini />
+
+      <div style={{ height: 24 }} />
     </div>
   );
 }
@@ -3276,6 +3580,9 @@ function OperationsScreen() {
           </div>
         </div>
       ))}
+
+      <RecurringSection />
+      <div style={{ height: 20 }} />
     </div>
     </ContentWrap>
   );
