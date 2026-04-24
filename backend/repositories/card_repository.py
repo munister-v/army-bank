@@ -21,8 +21,11 @@ class CardRepository(BaseRepository):
 
     def list_cards(self, account_id: int) -> list[dict]:
         with self.connection() as conn:
+            # Join account to get account balance for primary card display
             rows = conn.execute(
-                'SELECT * FROM cards WHERE account_id = %s ORDER BY issued_at DESC',
+                '''SELECT c.*, a.balance AS account_balance
+                   FROM cards c JOIN accounts a ON a.id = c.account_id
+                   WHERE c.account_id = %s ORDER BY c.issued_at DESC''',
                 (account_id,),
             ).fetchall()
             return [dict(r) for r in rows]
@@ -58,6 +61,34 @@ class CardRepository(BaseRepository):
                 'UPDATE cards SET design = %s WHERE id = %s AND account_id = %s',
                 (design, card_id, account_id),
             )
+
+    def set_primary(self, account_id: int, card_id: int) -> None:
+        """Знімає is_primary з усіх карток рахунку, встановлює на card_id."""
+        with self.connection() as conn:
+            conn.execute(
+                'UPDATE cards SET is_primary = %s WHERE account_id = %s',
+                (False, account_id),
+            )
+            conn.execute(
+                'UPDATE cards SET is_primary = %s WHERE id = %s AND account_id = %s',
+                (True, card_id, account_id),
+            )
+
+    def update_card_balance(self, card_id: int, account_id: int, delta: float) -> None:
+        """Змінює balance картки на delta (може бути від'ємним)."""
+        with self.connection() as conn:
+            conn.execute(
+                'UPDATE cards SET balance = balance + %s WHERE id = %s AND account_id = %s',
+                (delta, card_id, account_id),
+            )
+
+    def get_primary_card(self, account_id: int):
+        with self.connection() as conn:
+            row = conn.execute(
+                'SELECT * FROM cards WHERE account_id = %s AND is_primary = %s LIMIT 1',
+                (account_id, True),
+            ).fetchone()
+            return dict(row) if row else None
 
     def count_active(self, account_id: int) -> int:
         with self.connection() as conn:

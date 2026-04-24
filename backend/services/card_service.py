@@ -59,8 +59,13 @@ class CardService:
         for c in cards:
             c['masked_number'] = self._mask(c['card_number'])
             c['expiry_display'] = self._expiry_display(c['expires_at'])
-            c.pop('cvv', None)          # never expose CVV in list
-            c.pop('card_number', None)  # never expose full number in list
+            # Primary card shows account balance; secondary cards show own balance
+            is_primary = bool(c.get('is_primary'))
+            c['is_primary'] = is_primary
+            c['display_balance'] = float(c.get('account_balance') or 0) if is_primary else float(c.get('balance') or 0)
+            c.pop('account_balance', None)
+            c.pop('cvv', None)
+            c.pop('card_number', None)
         return cards
 
     def reveal_card(self, user_id: int, card_id: int) -> dict:
@@ -208,6 +213,65 @@ class CardService:
         updated = self.cards.get_card(card_id, account['id'])
         updated['masked_number'] = self._mask(updated['card_number'])
         updated['expiry_display'] = self._expiry_display(updated['expires_at'])
+        updated.pop('cvv', None)
+        updated.pop('card_number', None)
+        return updated
+
+    def set_primary_card(self, user_id: int, card_id: int) -> list[dict]:
+        """Змінює головну картку рахунку."""
+        account = self._get_account(user_id)
+        card = self.cards.get_card(card_id, account['id'])
+        if not card:
+            raise ValueError('Картку не знайдено.')
+        if card['status'] == 'closed':
+            raise ValueError('Закрита картка не може бути головною.')
+        self.cards.set_primary(account['id'], card_id)
+        self.features.add_audit_log(user_id, 'card_set_primary',
+            f'Картку {self._mask(card["card_number"])} встановлено головною.')
+        return self.list_cards(user_id)
+
+    def topup_card(self, user_id: int, card_id: int, amount: float) -> dict:
+        """Переводить кошти з рахунку на картку (тільки для не-головних карток)."""
+        if amount <= 0:
+            raise ValueError('Сума повинна бути більше 0.')
+        account = self._get_account(user_id)
+        card = self.cards.get_card(card_id, account['id'])
+        if not card:
+            raise ValueError('Картку не знайдено.')
+        if card['status'] != 'active':
+            raise ValueError('Можна поповнити тільки активну картку.')
+        if bool(card.get('is_primary')):
+            raise ValueError('Головна картка вже використовує баланс рахунку.')
+        if float(account['balance']) < amount:
+            raise ValueError('Недостатньо коштів на рахунку.')
+
+        from ..database import get_connection
+        with get_connection() as conn:
+            # Debit account
+            conn.execute(
+                'UPDATE accounts SET balance = balance - %s WHERE id = %s AND balance >= %s',
+                (amount, account['id'], amount),
+            )
+            # Credit card
+            conn.execute(
+                'UPDATE cards SET balance = balance + %s WHERE id = %s',
+                (amount, card_id),
+            )
+
+        self.features.add_audit_log(user_id, 'card_topup',
+            f'Поповнено картку {self._mask(card["card_number"])} на {amount:.2f} UAH.')
+        try:
+            self.features.create_notification(user_id, 'card_topup',
+                'Картку поповнено',
+                f'Картку •••• {card["card_number"][-4:]} поповнено на {amount:.2f} ₴.', '💳')
+        except Exception:
+            pass
+
+        updated = self.cards.get_card(card_id, account['id'])
+        updated['masked_number'] = self._mask(updated['card_number'])
+        updated['expiry_display'] = self._expiry_display(updated['expires_at'])
+        updated['is_primary'] = False
+        updated['display_balance'] = float(updated.get('balance') or 0)
         updated.pop('cvv', None)
         updated.pop('card_number', None)
         return updated

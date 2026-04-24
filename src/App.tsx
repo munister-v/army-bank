@@ -144,7 +144,7 @@ type TransferMode = 'topup' | 'by_card' | 'by_account';
 interface UserInfo { full_name: string; phone: string; email: string; bank_account_number?: string; }
 interface AccountInfo { id: number; account_number: string; balance: number; currency: string; }
 interface TxItem { id: number; tx_type: string; direction: 'in' | 'out'; amount: number; description: string; created_at: string; related_account?: string; }
-interface CardInfo { id: number; masked_number: string; expiry_display: string; card_type: string; design: string; status: string; holder_name: string; }
+interface CardInfo { id: number; masked_number: string; expiry_display: string; card_type: string; design: string; status: string; holder_name: string; display_balance: number; is_primary: boolean; }
 interface AppCtxType {
   logout: () => void; goTo: (tab: TabKey) => void; toast: (msg: string) => void;
   user: UserInfo | null; account: AccountInfo | null;
@@ -1767,7 +1767,7 @@ function txToCat(tx: TxItem): TxCat {
   const m: Record<string, TxCat> = { food: 'food', transport: 'transport', utility: 'utility', shopping: 'shopping', subscription: 'subscription', transfer: 'transfer' };
   return (m[tx.tx_type] ?? 'transfer') as TxCat;
 }
-function apiCardToData(c: CardInfo, holderFallback = 'ARMY BANK'): CardData & { id: number; type: string; limit: string; used: string; statusRaw: string; cardTypeRaw: string } {
+function apiCardToData(c: CardInfo, holderFallback = 'ARMY BANK'): CardData & { id: number; type: string; limit: string; used: string; statusRaw: string; cardTypeRaw: string; balance: number; isPrimary: boolean } {
   const tt = translations[getStoredLanguage()];
   const normalizedDesign = String(c.design || 'gold').toLowerCase();
   return {
@@ -1783,10 +1783,12 @@ function apiCardToData(c: CardInfo, holderFallback = 'ARMY BANK'): CardData & { 
     cardTypeRaw: c.card_type,
     limit: '—',
     used: '—',
+    balance: c.display_balance ?? 0,
+    isPrimary: c.is_primary ?? false,
   };
 }
 
-function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardData & { style?: React.CSSProperties }) {
+function PremiumCard({ variant, number, name, expiry, type, style = {}, balance, isPrimary }: CardData & { style?: React.CSSProperties; balance?: number; isPrimary?: boolean }) {
   const v = CARD_VARIANTS[variant] ?? CARD_VARIANTS.gold;
   const tt = translations[getStoredLanguage()];
   const patId = `g-${variant}`;
@@ -1838,11 +1840,23 @@ function PremiumCard({ variant, number, name, expiry, type, style = {} }: CardDa
               ARM<span style={{ fontWeight: 300 }}>Bank</span>
             </span>
           </div>
-          <span style={{
-            fontSize: 9, fontWeight: 600, letterSpacing: 1.8, color: v.muted, textTransform: 'uppercase',
-            padding: 0,
-            background: 'transparent',
-          }}>{type || tt.card_virtual}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+            {balance !== undefined && (
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 7, fontWeight: 500, letterSpacing: 1.2, color: v.muted, textTransform: 'uppercase', marginBottom: 1 }}>
+                  {isPrimary ? 'БАЛАНС РАХУНКУ' : 'БАЛАНС КАРТКИ'}
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: v.text, textShadow: titleShadow, letterSpacing: 0.3 }}>
+                  ₴ {balance.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+            )}
+            <span style={{
+              fontSize: 9, fontWeight: 600, letterSpacing: 1.8, color: v.muted, textTransform: 'uppercase',
+              padding: 0,
+              background: 'transparent',
+            }}>{type || tt.card_virtual}</span>
+          </div>
         </div>
         <div style={{
           fontFamily: '"SF Mono", monospace', fontSize: 20, fontWeight: 600, letterSpacing: 2,
@@ -2211,7 +2225,7 @@ function OverviewScreen() {
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [cardIdx, setCardIdx] = useState(() => readSelectedCardIndex());
   const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
-  const cards: CardData[] = apiCards.length > 0 ? apiCards.map(c => apiCardToData(c, userNameUp)) : [
+  const cards = apiCards.length > 0 ? apiCards.map(c => apiCardToData(c, userNameUp)) : [
     { variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29' },
     { variant: 'emerald', number: '1183', name: userNameUp, expiry: '02/29' },
     { variant: 'platinum', number: '7147', name: userNameUp, expiry: '08/28' },
@@ -2543,6 +2557,9 @@ function CardsScreen() {
   const statusLabel = card?.status || t('unavailable');
   const currentDesignOption = CARD_DESIGN_OPTIONS.find(opt => opt.design === String(card?.design || '').toLowerCase());
   const activeDesignOption = CARD_DESIGN_OPTIONS.find(opt => opt.design === selectedDesign) ?? CARD_DESIGN_OPTIONS[0];
+  const [topupModal, setTopupModal] = useState(false);
+  const [topupAmount, setTopupAmount] = useState('');
+  const [topupLoading, setTopupLoading] = useState(false);
 
   useEffect(() => {
     if (card?.design) setSelectedDesign(card.design);
@@ -2603,6 +2620,43 @@ function CardsScreen() {
       refreshDashboard();
       setSelected(0);
     } catch (e: unknown) { toast(e instanceof Error ? e.message : t('operation_error')); }
+  }
+
+  async function setPrimaryCard() {
+    if (apiCards.length === 0) { toast(t('demo_api_unavailable')); return; }
+    const c = apiCards[safeIdx];
+    if (c.is_primary) { toast('Ця картка вже є головною'); return; }
+    const token = localStorage.getItem('army_bank_token');
+    try {
+      const r = await fetch(`/api/cards/${c.id}/set_primary`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.message || t('operation_error'));
+      toast('Головну картку змінено ✓');
+      refreshDashboard();
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : t('operation_error')); }
+  }
+
+  async function topupCard() {
+    const amount = parseFloat(topupAmount.replace(',', '.'));
+    if (!amount || amount <= 0) { toast('Введіть суму'); return; }
+    if (apiCards.length === 0) { toast(t('demo_api_unavailable')); return; }
+    const c = apiCards[safeIdx];
+    const token = localStorage.getItem('army_bank_token');
+    setTopupLoading(true);
+    try {
+      const r = await fetch(`/api/cards/${c.id}/topup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.message || t('operation_error'));
+      toast(`Картку •• ${card.number} поповнено на ₴${amount.toLocaleString('uk-UA', { minimumFractionDigits: 2 })} ✓`);
+      setTopupModal(false);
+      setTopupAmount('');
+      refreshDashboard();
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : t('operation_error')); }
+    finally { setTopupLoading(false); }
   }
 
   function openDesignModal(mode: 'current' | 'issue') {
@@ -2735,6 +2789,39 @@ function CardsScreen() {
             >{t('change_label')}</button>
           </div>
 
+          {/* Card balance block */}
+          <div style={{ marginBottom: 18, padding: '14px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: 14, border: '1px solid rgba(180,172,155,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 10, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>
+                  {card?.isPrimary ? 'Баланс рахунку (головна картка)' : 'Баланс картки'}
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: text.primary, fontFeatureSettings: '"tnum"' }}>
+                  {formatUah(card?.balance ?? 0)}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {!card?.isPrimary && card?.statusRaw === 'active' && (
+                  <button onClick={() => setTopupModal(true)} style={{
+                    padding: '8px 14px', borderRadius: 10, border: '1px solid rgba(180,172,155,0.22)',
+                    background: 'rgba(180,172,155,0.08)', color: goldLight, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  }}>Поповнити</button>
+                )}
+                {!card?.isPrimary && card?.statusRaw !== 'closed' && (
+                  <button onClick={setPrimaryCard} style={{
+                    padding: '8px 14px', borderRadius: 10, border: '1px solid rgba(180,172,155,0.22)',
+                    background: 'rgba(255,255,255,0.03)', color: text.muted, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+                  }}>Зробити головною</button>
+                )}
+              </div>
+            </div>
+            {card?.isPrimary && (
+              <div style={{ fontSize: 11, color: text.dim, marginTop: 6 }}>
+                Всі перекази на/з рахунку прив'язані до цієї картки
+              </div>
+            )}
+          </div>
+
           {/* Account activity */}
           <div style={{ marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'baseline' }}>
@@ -2744,9 +2831,6 @@ function CardsScreen() {
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
               <span style={{ fontSize: 22, fontWeight: 600, color: text.primary, fontFeatureSettings: '"tnum"' }}>{formatUah(monthOut)}</span>
               <span style={{ fontSize: 13, color: text.dim, fontFeatureSettings: '"tnum"' }}>{t('spent_label')}</span>
-            </div>
-            <div style={{ fontSize: 12, color: text.muted }}>
-              {t('account_balance_label')}: {formatUah(Number(account?.balance || 0))}
             </div>
           </div>
 
@@ -2928,6 +3012,42 @@ function CardsScreen() {
               }}
             >{designLoading ? t('applying') : (designMode === 'current' ? t('apply_design') : t('issue_card_full'))}</button>
           </div>
+        </div>
+      </div>
+    )}
+    {/* Top-up card modal */}
+    {topupModal && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setTopupModal(false)}>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+        <div onClick={e => e.stopPropagation()} style={{
+          position: 'relative', width: '100%', maxWidth: 480,
+          background: 'linear-gradient(180deg,rgba(17,40,32,0.98) 0%,rgba(11,30,22,0.98) 100%)',
+          backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+          borderRadius: '24px 24px 0 0', padding: '28px 24px calc(32px + env(safe-area-inset-bottom,0px))',
+          border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
+        }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 20px' }} />
+          <div style={{ fontSize: 18, fontWeight: 700, color: text.primary, marginBottom: 4 }}>Поповнити картку</div>
+          <div style={{ fontSize: 12, color: text.muted, marginBottom: 20 }}>
+            {card?.name} •• {card?.number} · Поточний баланс: {formatUah(card?.balance ?? 0)}
+          </div>
+          <div style={{ fontSize: 11, color: text.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.8 }}>Сума поповнення</div>
+          <input
+            type="number" inputMode="decimal"
+            value={topupAmount} onChange={e => setTopupAmount(e.target.value)}
+            placeholder="0.00"
+            style={{ width: '100%', padding: '13px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.18)`, borderRadius: 12, color: text.primary, fontSize: 20, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 6 }}
+          />
+          <div style={{ fontSize: 11, color: text.dim, marginBottom: 20 }}>
+            Баланс рахунку: {formatUah(Number(account?.balance || 0))}
+          </div>
+          <button
+            onClick={topupCard} disabled={topupLoading || !topupAmount}
+            style={{
+              width: '100%', padding: '14px', borderRadius: 16, border: 'none', fontSize: 15, fontWeight: 700,
+              background: (!topupAmount || topupLoading) ? 'rgba(100,95,80,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+              color: text.primary, cursor: (!topupAmount || topupLoading) ? 'default' : 'pointer', fontFamily: 'inherit',
+            }}>{topupLoading ? 'Обробка...' : 'Поповнити'}</button>
         </div>
       </div>
     )}

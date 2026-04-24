@@ -69,3 +69,27 @@ def update_card_design(card_id: int):
         return jsonify({'ok': True, 'data': service.update_design(g.current_user['id'], card_id, design)})
     except Exception as exc:
         return api_error(str(exc))
+
+
+@card_bp.patch('/cards/<int:card_id>/set_primary')
+@auth_required
+def set_primary_card(card_id: int):
+    """Встановити картку як головну (її баланс = баланс рахунку)."""
+    try:
+        return jsonify({'ok': True, 'data': service.set_primary_card(g.current_user['id'], card_id)})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@card_bp.post('/cards/<int:card_id>/topup')
+@auth_required
+def topup_card(card_id: int):
+    """Поповнити картку з балансу рахунку."""
+    try:
+        data = request.get_json(force=True) or {}
+        amount = float(data.get('amount') or 0)
+        return jsonify({'ok': True, 'data': service.topup_card(g.current_user['id'], card_id, amount)})
+    except (ValueError, TypeError) as exc:
+        return api_error(str(exc))
+    except Exception as exc:
+        return api_error(str(exc))

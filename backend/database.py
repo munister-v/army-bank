@@ -898,6 +898,16 @@ def init_db() -> None:
                 sign_count    INTEGER NOT NULL DEFAULT 0,
                 created_at    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
             )''', optional=True, label='passkeys')
+            _pg_exec('ALTER TABLE cards ADD COLUMN IF NOT EXISTS balance NUMERIC(14,2) NOT NULL DEFAULT 0;',
+                     optional=True, label='cards.balance')
+            _pg_exec('ALTER TABLE cards ADD COLUMN IF NOT EXISTS is_primary BOOLEAN NOT NULL DEFAULT FALSE;',
+                     optional=True, label='cards.is_primary')
+            # Mark oldest card per account as primary
+            _pg_exec('''
+                UPDATE cards SET is_primary = TRUE
+                WHERE id IN (SELECT MIN(id) FROM cards GROUP BY account_id)
+                  AND is_primary = FALSE;
+            ''', optional=True, label='cards.set_primary')
     else:
         schema_sql = Path(SCHEMA_PATH).read_text(encoding='utf-8')
         with get_connection_sqlite() as conn:
@@ -1059,6 +1069,24 @@ def init_db() -> None:
                     sign_count    INTEGER NOT NULL DEFAULT 0,
                     created_at    TEXT DEFAULT CURRENT_TIMESTAMP
                 )''')
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE cards ADD COLUMN balance REAL NOT NULL DEFAULT 0;')
+            except Exception:
+                pass
+            try:
+                conn.execute('ALTER TABLE cards ADD COLUMN is_primary INTEGER NOT NULL DEFAULT 0;')
+            except Exception:
+                pass
+            # Mark oldest card per account as primary (idempotent)
+            try:
+                conn.execute('''
+                    UPDATE cards SET is_primary = 1
+                    WHERE id IN (
+                        SELECT MIN(id) FROM cards GROUP BY account_id
+                    ) AND is_primary = 0;
+                ''')
             except Exception:
                 pass
 
