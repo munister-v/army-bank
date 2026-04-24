@@ -927,7 +927,7 @@ def init_db() -> None:
                 CREATE INDEX IF NOT EXISTS idx_journal_order   ON journal_entries(payment_order_id);
                 CREATE INDEX IF NOT EXISTS idx_journal_settled ON journal_entries(settled);
             ''', optional=True, label='journal_entries')
-            # Fraud velocity cache (per-account 5-min buckets)
+            # Fraud velocity cache
             _pg_exec('''
                 CREATE TABLE IF NOT EXISTS fraud_velocity_cache (
                     account_id  INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -937,6 +937,76 @@ def init_db() -> None:
                     PRIMARY KEY (account_id, bucket)
                 );
             ''', optional=True, label='fraud_velocity_cache')
+            # ── Authorization holds (pre-auth) ────────────────────────────────
+            _pg_exec('''
+                CREATE TABLE IF NOT EXISTS account_holds (
+                    id              SERIAL PRIMARY KEY,
+                    account_id      INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                    payment_order_id INTEGER REFERENCES payment_orders(id) ON DELETE SET NULL,
+                    amount          NUMERIC(14,2) NOT NULL CHECK (amount > 0),
+                    currency        VARCHAR(3) NOT NULL DEFAULT 'UAH',
+                    reason          VARCHAR(100) NOT NULL DEFAULT 'authorization',
+                    status          VARCHAR(20) NOT NULL DEFAULT 'active'
+                                    CHECK (status IN ('active','released','expired','captured')),
+                    expires_at      TIMESTAMPTZ NOT NULL,
+                    released_at     TIMESTAMPTZ,
+                    capture_tx_id   INTEGER REFERENCES transactions(id) ON DELETE SET NULL,
+                    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                CREATE INDEX IF NOT EXISTS idx_holds_account  ON account_holds(account_id);
+                CREATE INDEX IF NOT EXISTS idx_holds_status   ON account_holds(status);
+                CREATE INDEX IF NOT EXISTS idx_holds_expires  ON account_holds(expires_at);
+            ''', optional=True, label='account_holds')
+            # ── Settlement batches ────────────────────────────────────────────
+            _pg_exec('''
+                CREATE TABLE IF NOT EXISTS settlement_batches (
+                    id              SERIAL PRIMARY KEY,
+                    batch_ref       VARCHAR(40) NOT NULL UNIQUE,
+                    batch_type      VARCHAR(30) NOT NULL DEFAULT 'eod',
+                    status          VARCHAR(20) NOT NULL DEFAULT 'open'
+                                    CHECK (status IN ('open','processing','settled','failed')),
+                    total_items     INTEGER NOT NULL DEFAULT 0,
+                    settled_items   INTEGER NOT NULL DEFAULT 0,
+                    total_amount    NUMERIC(14,2) NOT NULL DEFAULT 0,
+                    net_amount      NUMERIC(14,2) NOT NULL DEFAULT 0,
+                    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    settled_at      TIMESTAMPTZ,
+                    notes           TEXT
+                );
+                CREATE TABLE IF NOT EXISTS settlement_items (
+                    id              SERIAL PRIMARY KEY,
+                    batch_id        INTEGER NOT NULL REFERENCES settlement_batches(id) ON DELETE CASCADE,
+                    payment_order_id INTEGER REFERENCES payment_orders(id),
+                    sender_account_id   INTEGER REFERENCES accounts(id),
+                    recipient_account_id INTEGER REFERENCES accounts(id),
+                    amount          NUMERIC(14,2) NOT NULL,
+                    net_amount      NUMERIC(14,2),
+                    item_type       VARCHAR(20) NOT NULL DEFAULT 'transfer',
+                    status          VARCHAR(20) NOT NULL DEFAULT 'pending'
+                                    CHECK (status IN ('pending','netted','settled','failed')),
+                    settled_at      TIMESTAMPTZ,
+                    netting_group   VARCHAR(40)
+                );
+                CREATE INDEX IF NOT EXISTS idx_settlement_items_batch  ON settlement_items(batch_id);
+                CREATE INDEX IF NOT EXISTS idx_settlement_items_status ON settlement_items(status);
+            ''', optional=True, label='settlement_batches')
+            # ── Reversals ─────────────────────────────────────────────────────
+            _pg_exec('''
+                CREATE TABLE IF NOT EXISTS transaction_reversals (
+                    id                  SERIAL PRIMARY KEY,
+                    original_order_id   INTEGER NOT NULL REFERENCES payment_orders(id),
+                    reversal_order_id   INTEGER REFERENCES payment_orders(id),
+                    reversal_tx_out_id  INTEGER REFERENCES transactions(id),
+                    reversal_tx_in_id   INTEGER REFERENCES transactions(id),
+                    amount              NUMERIC(14,2) NOT NULL,
+                    reason              VARCHAR(200) NOT NULL DEFAULT '',
+                    initiated_by        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    status              VARCHAR(20) NOT NULL DEFAULT 'pending'
+                                        CHECK (status IN ('pending','completed','failed')),
+                    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    completed_at        TIMESTAMPTZ
+                );
+            ''', optional=True, label='transaction_reversals')
     else:
         schema_sql = Path(SCHEMA_PATH).read_text(encoding='utf-8')
         with get_connection_sqlite() as conn:
@@ -1140,6 +1210,67 @@ def init_db() -> None:
                     hit_count   INTEGER NOT NULL DEFAULT 1,
                     last_seen   TEXT NOT NULL DEFAULT (datetime('now')),
                     PRIMARY KEY (account_id, bucket)
+                );''')
+            except Exception:
+                pass
+            try:
+                conn.execute('''CREATE TABLE IF NOT EXISTS account_holds (
+                    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                    account_id       INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                    payment_order_id INTEGER REFERENCES payment_orders(id) ON DELETE SET NULL,
+                    amount           REAL NOT NULL CHECK (amount > 0),
+                    currency         TEXT NOT NULL DEFAULT 'UAH',
+                    reason           TEXT NOT NULL DEFAULT 'authorization',
+                    status           TEXT NOT NULL DEFAULT 'active',
+                    expires_at       TEXT NOT NULL,
+                    released_at      TEXT,
+                    capture_tx_id    INTEGER,
+                    created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+                );''')
+            except Exception:
+                pass
+            try:
+                conn.execute('''CREATE TABLE IF NOT EXISTS settlement_batches (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    batch_ref    TEXT NOT NULL UNIQUE,
+                    batch_type   TEXT NOT NULL DEFAULT 'eod',
+                    status       TEXT NOT NULL DEFAULT 'open',
+                    total_items  INTEGER NOT NULL DEFAULT 0,
+                    settled_items INTEGER NOT NULL DEFAULT 0,
+                    total_amount REAL NOT NULL DEFAULT 0,
+                    net_amount   REAL NOT NULL DEFAULT 0,
+                    created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+                    settled_at   TEXT,
+                    notes        TEXT
+                );''')
+                conn.execute('''CREATE TABLE IF NOT EXISTS settlement_items (
+                    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                    batch_id             INTEGER NOT NULL REFERENCES settlement_batches(id),
+                    payment_order_id     INTEGER,
+                    sender_account_id    INTEGER,
+                    recipient_account_id INTEGER,
+                    amount               REAL NOT NULL,
+                    net_amount           REAL,
+                    item_type            TEXT NOT NULL DEFAULT 'transfer',
+                    status               TEXT NOT NULL DEFAULT 'pending',
+                    settled_at           TEXT,
+                    netting_group        TEXT
+                );''')
+            except Exception:
+                pass
+            try:
+                conn.execute('''CREATE TABLE IF NOT EXISTS transaction_reversals (
+                    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                    original_order_id   INTEGER NOT NULL,
+                    reversal_order_id   INTEGER,
+                    reversal_tx_out_id  INTEGER,
+                    reversal_tx_in_id   INTEGER,
+                    amount              REAL NOT NULL,
+                    reason              TEXT NOT NULL DEFAULT '',
+                    initiated_by        INTEGER,
+                    status              TEXT NOT NULL DEFAULT 'pending',
+                    created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+                    completed_at        TEXT
                 );''')
             except Exception:
                 pass

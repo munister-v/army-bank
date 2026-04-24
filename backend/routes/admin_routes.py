@@ -1117,3 +1117,163 @@ def ledger_statement(account_id: int):
         return jsonify({'ok': True, 'data': entries})
     except Exception as exc:
         return api_error(str(exc))
+
+
+# ─── COBOL Processing: EOD, Settlement, Reversal, Holds ──────────────────────
+from ..services.eod_processor    import EODProcessor    as _EODProcessor
+from ..services.settlement_service import SettlementService as _SettlementSvc
+from ..services.reversal_engine  import ReversalEngine  as _ReversalEngine
+from ..services.hold_service     import HoldService     as _HoldService
+
+_eod_proc   = _EODProcessor()
+_settlement = _SettlementSvc()
+_reversal   = _ReversalEngine()
+_holds      = _HoldService()
+
+
+# ── EOD ───────────────────────────────────────────────────────────────────────
+
+@admin_bp.post('/processing/eod')
+@auth_required
+@role_required('admin', 'platform_admin')
+def trigger_eod():
+    """Запустити EOD batch processor вручну."""
+    try:
+        body     = request.get_json(silent=True) or {}
+        date_str = body.get('date')          # YYYY-MM-DD, optional
+        result   = _eod_proc.run(date_str=date_str,
+                                 initiated_by=int(g.current_user['id']))
+        return jsonify({'ok': True, 'data': result})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+# ── Settlement batches ────────────────────────────────────────────────────────
+
+@admin_bp.get('/processing/batches')
+@auth_required
+@role_required('admin', 'platform_admin')
+def list_batches():
+    """Список settlement batches."""
+    try:
+        limit   = request.args.get('limit', default=20, type=int)
+        batches = _settlement.list_batches(limit=min(limit, 100))
+        return jsonify({'ok': True, 'data': batches})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@admin_bp.get('/processing/batches/<int:batch_id>')
+@auth_required
+@role_required('admin', 'platform_admin')
+def get_batch(batch_id: int):
+    """Деталі settlement batch + items."""
+    try:
+        batch = _settlement.get_batch(batch_id)
+        if not batch:
+            return api_error('Batch not found', 404)
+        items = _settlement.batch_items(batch_id)
+        return jsonify({'ok': True, 'data': {**batch, 'items': items}})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@admin_bp.post('/processing/settlement/adhoc')
+@auth_required
+@role_required('admin', 'platform_admin')
+def adhoc_settlement():
+    """Позачерговий (ad-hoc) settlement batch."""
+    try:
+        body     = request.get_json(silent=True) or {}
+        date_str = body.get('date')
+        batch_id = _settlement.open_batch(batch_type='adhoc', notes=f'adhoc by admin#{g.current_user["id"]}')
+        collect  = _settlement.collect_into_batch(batch_id, date_str=date_str)
+        netting  = _settlement.net_batch(batch_id)
+        settle   = _settlement.settle_batch(batch_id)
+        _settlement.close_batch(batch_id, settled_count=settle['settled'])
+        return jsonify({'ok': True, 'data': {
+            'batch_id': batch_id,
+            'collect':  collect,
+            'netting':  netting,
+            'settle':   settle,
+        }})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+# ── Reversal ──────────────────────────────────────────────────────────────────
+
+@admin_bp.post('/processing/reversal/<int:order_id>')
+@auth_required
+@role_required('admin', 'platform_admin')
+def reverse_payment(order_id: int):
+    """Сторнувати платіж (повне сторнування, вікно 48 год)."""
+    try:
+        body   = request.get_json(silent=True) or {}
+        reason = body.get('reason', 'admin_request')
+        result = _reversal.reverse(
+            original_order_id=order_id,
+            initiated_by_user_id=int(g.current_user['id']),
+            reason=reason,
+        )
+        return jsonify({'ok': True, 'data': result})
+    except ValueError as exc:
+        return api_error(str(exc), 422)
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+# ── Holds ─────────────────────────────────────────────────────────────────────
+
+@admin_bp.get('/accounts/<int:account_id>/holds')
+@auth_required
+@role_required('admin', 'platform_admin')
+def list_account_holds(account_id: int):
+    """Список holds на рахунку."""
+    try:
+        include_inactive = request.args.get('all', 'false').lower() == 'true'
+        holds   = _holds.list_holds(account_id, include_inactive=include_inactive)
+        summary = _holds.hold_summary(account_id)
+        avail   = _holds.available_balance(account_id)
+        return jsonify({'ok': True, 'data': {
+            'holds':             holds,
+            'summary':           summary,
+            'available_balance': avail,
+        }})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@admin_bp.post('/accounts/<int:account_id>/holds')
+@auth_required
+@role_required('admin', 'platform_admin')
+def place_account_hold(account_id: int):
+    """Встановити hold вручну (fraud_review, large_transfer, etc.)."""
+    try:
+        body   = request.get_json(silent=True) or {}
+        amount = float(body.get('amount', 0))
+        reason = body.get('reason', 'authorization')
+        ttl    = body.get('ttl_hours')
+        if amount <= 0:
+            return api_error('amount must be > 0', 422)
+        hold_id = _holds.place_hold(account_id, amount, reason=reason,
+                                    ttl_hours=int(ttl) if ttl else None)
+        return jsonify({'ok': True, 'data': {'hold_id': hold_id}})
+    except ValueError as exc:
+        return api_error(str(exc), 422)
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@admin_bp.delete('/accounts/<int:account_id>/holds/<int:hold_id>')
+@auth_required
+@role_required('admin', 'platform_admin')
+def release_account_hold(account_id: int, hold_id: int):
+    """Зняти hold вручну."""
+    try:
+        ok = _holds.release_hold(hold_id, account_id=account_id)
+        if not ok:
+            return api_error('Hold not found or already inactive', 404)
+        return jsonify({'ok': True})
+    except Exception as exc:
+        return api_error(str(exc))
