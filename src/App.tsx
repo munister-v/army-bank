@@ -4336,12 +4336,13 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const { t } = usePreferences();
   const tabs = getTabs(t);
   const activeIdx = tabs.findIndex(t => t.k === active);
+  const mobileBottomInset = 'max(10px, env(safe-area-inset-bottom, 0px))';
   return (
     <div style={{
       position: 'absolute',
-      left: 0, right: 0, bottom: 0,
+      left: 0, right: 0, bottom: mobileBottomInset,
       zIndex: 120,
-      padding: '0 10px env(safe-area-inset-bottom, 0px)',
+      padding: '0 10px',
       pointerEvents: 'none',
     }}>
       {/* Pill — content area only, tight padding */}
@@ -5267,8 +5268,8 @@ export default function App() {
               width: '100%',
               maxWidth: '100vw',
               touchAction: 'pan-y',
-              paddingBottom: 'calc(88px + env(safe-area-inset-bottom, 0px))',
-              scrollPaddingBottom: 'calc(88px + env(safe-area-inset-bottom, 0px))',
+              paddingBottom: 'calc(96px + max(10px, env(safe-area-inset-bottom, 0px)))',
+              scrollPaddingBottom: 'calc(96px + max(10px, env(safe-area-inset-bottom, 0px)))',
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}

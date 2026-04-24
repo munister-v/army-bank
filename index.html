@@ -159,6 +159,7 @@
         requestAnimationFrame(setAppVh);
         setTimeout(setAppVh, 120);
         setTimeout(setAppVh, 600);
+        setTimeout(setAppVh, 1200);
         window.addEventListener('resize', setAppVh, { passive: true });
         if (window.visualViewport && window.visualViewport.addEventListener) {
           window.visualViewport.addEventListener('resize', setAppVh, { passive: true });
@@ -170,7 +171,7 @@
     </script>
     <script>
       (function () {
-        var buildId = '2026-04-24-18';
+        var buildId = '2026-04-24-19';
         var buildKey = 'army_bank_build_id';
         try {
           var prev = localStorage.getItem(buildKey);
