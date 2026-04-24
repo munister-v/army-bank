@@ -908,6 +908,35 @@ def init_db() -> None:
                 WHERE id IN (SELECT MIN(id) FROM cards GROUP BY account_id)
                   AND is_primary = FALSE;
             ''', optional=True, label='cards.set_primary')
+            # Double-entry ledger
+            _pg_exec('''
+                CREATE TABLE IF NOT EXISTS journal_entries (
+                    id              SERIAL PRIMARY KEY,
+                    payment_order_id INTEGER REFERENCES payment_orders(id) ON DELETE SET NULL,
+                    tx_id           INTEGER REFERENCES transactions(id) ON DELETE SET NULL,
+                    account_id      INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                    entry_type      VARCHAR(6) NOT NULL CHECK (entry_type IN ('debit','credit')),
+                    amount          NUMERIC(14,2) NOT NULL CHECK (amount > 0),
+                    currency        VARCHAR(3) NOT NULL DEFAULT 'UAH',
+                    description     TEXT NOT NULL DEFAULT '',
+                    balance_after   NUMERIC(14,2),
+                    settled         BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                CREATE INDEX IF NOT EXISTS idx_journal_account ON journal_entries(account_id);
+                CREATE INDEX IF NOT EXISTS idx_journal_order   ON journal_entries(payment_order_id);
+                CREATE INDEX IF NOT EXISTS idx_journal_settled ON journal_entries(settled);
+            ''', optional=True, label='journal_entries')
+            # Fraud velocity cache (per-account 5-min buckets)
+            _pg_exec('''
+                CREATE TABLE IF NOT EXISTS fraud_velocity_cache (
+                    account_id  INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                    bucket      VARCHAR(20) NOT NULL,
+                    hit_count   INTEGER NOT NULL DEFAULT 1,
+                    last_seen   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    PRIMARY KEY (account_id, bucket)
+                );
+            ''', optional=True, label='fraud_velocity_cache')
     else:
         schema_sql = Path(SCHEMA_PATH).read_text(encoding='utf-8')
         with get_connection_sqlite() as conn:
@@ -1079,14 +1108,39 @@ def init_db() -> None:
                 conn.execute('ALTER TABLE cards ADD COLUMN is_primary INTEGER NOT NULL DEFAULT 0;')
             except Exception:
                 pass
-            # Mark oldest card per account as primary (idempotent)
             try:
                 conn.execute('''
                     UPDATE cards SET is_primary = 1
-                    WHERE id IN (
-                        SELECT MIN(id) FROM cards GROUP BY account_id
-                    ) AND is_primary = 0;
+                    WHERE id IN (SELECT MIN(id) FROM cards GROUP BY account_id)
+                      AND is_primary = 0;
                 ''')
+            except Exception:
+                pass
+            try:
+                conn.execute('''CREATE TABLE IF NOT EXISTS journal_entries (
+                    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                    payment_order_id INTEGER REFERENCES payment_orders(id) ON DELETE SET NULL,
+                    tx_id            INTEGER REFERENCES transactions(id) ON DELETE SET NULL,
+                    account_id       INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                    entry_type       TEXT NOT NULL CHECK (entry_type IN ('debit','credit')),
+                    amount           REAL NOT NULL CHECK (amount > 0),
+                    currency         TEXT NOT NULL DEFAULT 'UAH',
+                    description      TEXT NOT NULL DEFAULT '',
+                    balance_after    REAL,
+                    settled          INTEGER NOT NULL DEFAULT 0,
+                    created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+                );''')
+                conn.execute('CREATE INDEX IF NOT EXISTS idx_journal_account ON journal_entries(account_id);')
+            except Exception:
+                pass
+            try:
+                conn.execute('''CREATE TABLE IF NOT EXISTS fraud_velocity_cache (
+                    account_id  INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                    bucket      TEXT NOT NULL,
+                    hit_count   INTEGER NOT NULL DEFAULT 1,
+                    last_seen   TEXT NOT NULL DEFAULT (datetime('now')),
+                    PRIMARY KEY (account_id, bucket)
+                );''')
             except Exception:
                 pass
 

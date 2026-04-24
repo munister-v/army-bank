@@ -10,6 +10,7 @@ from ..repositories.payment_repository import PaymentRepository
 from ..repositories.feature_repository import FeatureRepository
 from ..services.fraud_engine import FraudEngine, RISK_CRITICAL
 from ..services.integrity_service import IntegrityService
+from ..services.ledger_service import LedgerService
 
 
 class PaymentCore:
@@ -21,6 +22,7 @@ class PaymentCore:
         self._features    = FeatureRepository()
         self._fraud       = FraudEngine()
         self._integrity   = IntegrityService()
+        self._ledger      = LedgerService()
 
     # ─────────────────────────────────────────────────────────────────────────
     # Public API
@@ -205,6 +207,34 @@ class PaymentCore:
                  sender['account_number'], order_id)
             )
             tx_in_id = insert_last_id(cur_in)
+
+        # Fetch updated balances for ledger
+        sender_bal_after = None
+        recipient_bal_after = None
+        try:
+            with get_connection() as conn:
+                s_row = conn.execute('SELECT balance FROM accounts WHERE id=%s', (sender['id'],)).fetchone()
+                r_row = conn.execute('SELECT balance FROM accounts WHERE id=%s', (recipient['id'],)).fetchone()
+                sender_bal_after    = float(s_row['balance']) if s_row else None
+                recipient_bal_after = float(r_row['balance']) if r_row else None
+        except Exception:
+            pass
+
+        # Double-entry journal (best-effort — never blocks transfer)
+        try:
+            self._ledger.record_transfer(
+                sender_account_id=sender['id'],
+                recipient_account_id=recipient['id'],
+                amount=amount,
+                description=description,
+                payment_order_id=order_id,
+                tx_out_id=tx_out_id,
+                tx_in_id=tx_in_id,
+                sender_balance_after=sender_bal_after,
+                recipient_balance_after=recipient_bal_after,
+            )
+        except Exception:
+            pass
 
         # Record integrity hashes (non-atomic, best-effort)
         try:

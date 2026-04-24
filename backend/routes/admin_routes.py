@@ -1087,3 +1087,33 @@ def list_audit_logs():
         return jsonify({'ok': True, 'data': logs})
     except Exception as exc:
         return api_error(str(exc))
+
+
+# ─── Ledger reconciliation (COBOL-style EOD) ─────────────────────────────────
+from ..services.ledger_service import LedgerService as _LedgerService
+_ledger_svc = _LedgerService()
+
+@admin_bp.get('/ledger/reconcile')
+@auth_required
+@role_required('admin', 'platform_admin')
+def ledger_reconcile():
+    """EOD double-entry reconciliation — дебет повинен = кредит."""
+    try:
+        date_str = request.args.get('date')   # YYYY-MM-DD, default=today
+        result = _ledger_svc.reconcile(date_str)
+        return jsonify({'ok': True, 'data': result})
+    except Exception as exc:
+        return api_error(str(exc))
+
+
+@admin_bp.get('/ledger/statement/<int:account_id>')
+@auth_required
+@role_required('admin', 'platform_admin')
+def ledger_statement(account_id: int):
+    """Журнал проводок рахунку."""
+    try:
+        days = request.args.get('days', default=30, type=int)
+        entries = _ledger_svc.get_account_statement(account_id, days=min(days, 365))
+        return jsonify({'ok': True, 'data': entries})
+    except Exception as exc:
+        return api_error(str(exc))

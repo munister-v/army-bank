@@ -967,6 +967,187 @@ class RecipientRiskPropagationRule:
                        dampening=self.DAMPENING)
 
 
+# ══ Нові правила (COBOL-era inspired) ═══════════════════════════════════════
+
+class ThresholdMaskingRule:
+    """Суми «щойно під» класичними порогами звітності (50k, 100k, 200k, 500k UAH).
+
+    У реальному банківстві порогові суми тригерять SAR/CTR.
+    Сума 49 800–49 999 = явна маскировка порогу 50 000.
+    """
+
+    THRESHOLDS = [50_000, 100_000, 200_000, 500_000, 1_000_000]
+    WINDOW_PCT  = 0.005   # 0.5% нижче порогу
+
+    def evaluate(self, amount: float, result: RiskResult) -> None:
+        for threshold in self.THRESHOLDS:
+            lower = threshold * (1.0 - self.WINDOW_PCT)
+            if lower <= amount < threshold:
+                proximity = (amount - lower) / (threshold - lower)   # 0..1, 1 = ближче до порогу
+                score = int(42 * FM.sigmoid(proximity, 0.3, 6.0))
+                result.add(score, 'threshold_masking',
+                           amount=amount, threshold=threshold,
+                           proximity_pct=round((1 - proximity) * 100, 2))
+                return   # одного правила достатньо
+
+
+class CardTopupAbuseRule:
+    """Швидкі поповнення картки з рахунку — ознака каскадного виводу коштів.
+
+    Патерн: рахунок → картка 1, → картка 2, → картка N за короткий час.
+    Перевіряємо кількість topup-транзакцій типу CARD_TOPUP в journal.
+    """
+
+    WINDOW_MINUTES = 30
+    MAX_TOPUPS     = 3
+
+    def evaluate(self, account_id: int, result: RiskResult) -> None:
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM journal_entries"
+                " WHERE account_id=%s AND entry_type='debit'"
+                "   AND description LIKE 'CARD_TOPUP%'"
+                "   AND created_at >= %s",
+                (account_id, _cutoff(minutes=self.WINDOW_MINUTES))
+            ).fetchone()
+        if not row:
+            return
+        cnt = int(row['cnt'])
+        if cnt >= self.MAX_TOPUPS:
+            result.add(int(35 * FM.sigmoid(cnt, self.MAX_TOPUPS, 3.0)),
+                       'card_topup_abuse',
+                       topup_count=cnt, window_min=self.WINDOW_MINUTES)
+
+
+class RapidSuccessionRule:
+    """Більше 5 переказів за 10 хвилин — автоматизовані або скомпрометовані операції."""
+
+    WINDOW_MINUTES = 10
+    THRESHOLD      = 5
+
+    def evaluate(self, account_id: int, result: RiskResult) -> None:
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM transactions"
+                " WHERE account_id=%s AND direction='out'"
+                "   AND created_at >= %s",
+                (account_id, _cutoff(minutes=self.WINDOW_MINUTES))
+            ).fetchone()
+        if not row:
+            return
+        cnt = int(row['cnt'])
+        if cnt > self.THRESHOLD:
+            result.add(int(45 * FM.sigmoid(cnt, self.THRESHOLD, 4.0)),
+                       'rapid_succession',
+                       tx_count=cnt, window_min=self.WINDOW_MINUTES)
+
+
+class NewRecipientLargeAmountRule:
+    """Перший переказ на рахунок + велика сума = підвищений ризик.
+
+    Якщо sender ніколи раніше не відправляв на цей рахунок,
+    а сума > 75-го перцентиля його власних переказів — підозра.
+    """
+
+    MIN_HISTORY = 5
+    PERCENTILE  = 0.75
+
+    def evaluate(self, account_id: int, recipient_account: str,
+                 amount: float, result: RiskResult) -> None:
+        with get_connection() as conn:
+            hist = conn.execute(
+                "SELECT amount FROM transactions"
+                " WHERE account_id=%s AND direction='out'"
+                "   AND related_account=%s ORDER BY created_at DESC LIMIT 1",
+                (account_id, recipient_account)
+            ).fetchone()
+            if hist:
+                return  # вже відправляли цьому отримувачу — не новий
+
+            # Розраховуємо перцентиль по всіх переказах відправника
+            amounts_row = conn.execute(
+                "SELECT amount FROM transactions"
+                " WHERE account_id=%s AND direction='out'"
+                " ORDER BY amount",
+                (account_id,)
+            ).fetchall()
+
+        amounts = [float(r['amount']) for r in amounts_row]
+        if len(amounts) < self.MIN_HISTORY:
+            return
+
+        idx = int(len(amounts) * self.PERCENTILE)
+        p75 = amounts[min(idx, len(amounts) - 1)]
+
+        if amount > p75:
+            ratio = amount / p75 if p75 > 0 else 2.0
+            result.add(int(30 * FM.sigmoid(ratio, 1.5, 3.0)),
+                       'new_recipient_large_amount',
+                       amount=amount, p75=round(p75, 2),
+                       ratio=round(ratio, 2),
+                       recipient=recipient_account)
+
+
+class NightBatchActivityRule:
+    """Пакетна нічна активність (02:00–05:00 UTC) — нетипова для фізосіб.
+
+    Поєднання: нічний час + ≥3 перекази за 30 хв → скомпрометований акаунт або скрипт.
+    """
+
+    NIGHT_START  = 2
+    NIGHT_END    = 5
+    WINDOW_MIN   = 30
+    MIN_TX       = 3
+
+    def evaluate(self, account_id: int, result: RiskResult) -> None:
+        hour = _hour_now_utc()
+        if not (self.NIGHT_START <= hour < self.NIGHT_END):
+            return
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM transactions"
+                " WHERE account_id=%s AND direction='out'"
+                "   AND created_at >= %s",
+                (account_id, _cutoff(minutes=self.WINDOW_MIN))
+            ).fetchone()
+        if not row:
+            return
+        cnt = int(row['cnt'])
+        if cnt >= self.MIN_TX:
+            result.add(int(28 * FM.sigmoid(cnt, self.MIN_TX, 3.0)),
+                       'night_batch_activity',
+                       hour_utc=hour, tx_count=cnt, window_min=self.WINDOW_MIN)
+
+
+class JournalInconsistencyRule:
+    """Перевірка консистентності: чи є у journal_entries записи для цього account
+    що не мають пари (orphan debit/credit без відповідного payment_order).
+
+    Orphan entries = ознака обходу нормального flow або технічного збою.
+    Оцінюємо тільки якщо є ≥2 orphans за останні 24 год.
+    """
+
+    LOOKBACK_HOURS = 24
+    MIN_ORPHANS    = 2
+
+    def evaluate(self, account_id: int, result: RiskResult) -> None:
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM journal_entries"
+                " WHERE account_id=%s"
+                "   AND payment_order_id IS NULL"
+                "   AND created_at >= %s",
+                (account_id, _cutoff(hours=self.LOOKBACK_HOURS))
+            ).fetchone()
+        if not row:
+            return
+        cnt = int(row['cnt'])
+        if cnt >= self.MIN_ORPHANS:
+            result.add(int(22 * FM.sigmoid(cnt, self.MIN_ORPHANS, 2.0)),
+                       'journal_orphan_entries',
+                       orphan_count=cnt, window_hours=self.LOOKBACK_HOURS)
+
+
 # ══ Утиліти ══════════════════════════════════════════════════════════════════
 
 def _cv(values: list[float]) -> float:
@@ -1003,32 +1184,38 @@ class FraudEngine:
 
     def __init__(self):
         # Layer 1: без DB
-        self._structuring   = StructuringRule()
-        self._round         = StructuredRoundAmountRule()
-        self._description   = DescriptionAnomalyRule()
-        self._depletion     = BalanceDepletionRule()
+        self._structuring      = StructuringRule()
+        self._round            = StructuredRoundAmountRule()
+        self._description      = DescriptionAnomalyRule()
+        self._depletion        = BalanceDepletionRule()
+        self._threshold_mask   = ThresholdMaskingRule()      # NEW
 
         # Layer 2: 1–2 DB-запити (відправник)
-        self._velocity      = VelocityRule()
-        self._account_age   = AccountAgeRule()
-        self._high_amt      = HighAmountRule()
-        self._iqr           = AdaptiveQuartileRule()
-        self._inactivity    = InactivityBurstRule()
-        self._time          = TimeAnomalyRule()
-        self._pass_through  = PassThroughRule()
-        self._history       = HistoricalFraudRule()
+        self._velocity         = VelocityRule()
+        self._account_age      = AccountAgeRule()
+        self._high_amt         = HighAmountRule()
+        self._iqr              = AdaptiveQuartileRule()
+        self._inactivity       = InactivityBurstRule()
+        self._time             = TimeAnomalyRule()
+        self._pass_through     = PassThroughRule()
+        self._history          = HistoricalFraudRule()
+        self._rapid_succession = RapidSuccessionRule()       # NEW
+        self._night_batch      = NightBatchActivityRule()    # NEW
+        self._card_topup_abuse = CardTopupAbuseRule()        # NEW
+        self._journal_check    = JournalInconsistencyRule()  # NEW
 
         # Layer 3: тяжкі запити (пара + граф + ентропія)
-        self._freq_esc      = FrequencyEscalationRule()
-        self._duplicate     = DuplicateTransferRule()
-        self._split         = SplitTransactionRule()
-        self._progression   = AmountProgressionRule()
-        self._new_recv      = NewRecipientRule()
-        self._concentration = CounterpartyConcentrationRule()
-        self._graph         = TransferGraphRule()
-        self._entropy       = BehavioralEntropyRule()
-        self._mule          = MoneyMuleRule()
-        self._propagation   = RecipientRiskPropagationRule()
+        self._freq_esc         = FrequencyEscalationRule()
+        self._duplicate        = DuplicateTransferRule()
+        self._split            = SplitTransactionRule()
+        self._progression      = AmountProgressionRule()
+        self._new_recv         = NewRecipientRule()
+        self._new_recv_large   = NewRecipientLargeAmountRule()  # NEW
+        self._concentration    = CounterpartyConcentrationRule()
+        self._graph            = TransferGraphRule()
+        self._entropy          = BehavioralEntropyRule()
+        self._mule             = MoneyMuleRule()
+        self._propagation      = RecipientRiskPropagationRule()
 
     # ── Safe wrapper ─────────────────────────────────────────────────────────
 
@@ -1056,33 +1243,34 @@ class FraudEngine:
         r = self._run  # alias
 
         # ── Layer 1: без DB ───────────────────────────────────────────────────
-        r(self._structuring.evaluate,  amount, result)
-        r(self._round.evaluate,        amount, result)
-        r(self._description.evaluate,  description, result)
-        r(self._depletion.evaluate,    account_id, amount, balance, result)
+        r(self._structuring.evaluate,    amount, result)
+        r(self._round.evaluate,          amount, result)
+        r(self._description.evaluate,    description, result)
+        r(self._depletion.evaluate,      account_id, amount, balance, result)
+        r(self._threshold_mask.evaluate, amount, result)        # NEW
 
         if result.is_critical:
             result.finalize()
             return result
 
-        # SQLite (тести/локальна розробка) не підтримує значну частину
-        # Postgres-специфічних SQL у важких правилах.
-        # Щоб не ламати ключові операції, у non-PG режимі залишаємо базовий
-        # in-memory/layer1 антифрод.
         if not USE_PG:
             result.details.setdefault('fraud_mode', 'lite_sqlite')
             result.finalize()
             return result
 
         # ── Layer 2: відправник ───────────────────────────────────────────────
-        r(self._velocity.evaluate,     account_id, result)
-        r(self._account_age.evaluate,  account_id, result)
-        r(self._high_amt.evaluate,     account_id, amount, result)
-        r(self._iqr.evaluate,          account_id, amount, result)
-        r(self._inactivity.evaluate,   account_id, amount, result)
-        r(self._time.evaluate,         account_id, result)
-        r(self._pass_through.evaluate, account_id, amount, result)
-        r(self._history.evaluate,      account_id, result)
+        r(self._velocity.evaluate,         account_id, result)
+        r(self._account_age.evaluate,      account_id, result)
+        r(self._high_amt.evaluate,         account_id, amount, result)
+        r(self._iqr.evaluate,              account_id, amount, result)
+        r(self._inactivity.evaluate,       account_id, amount, result)
+        r(self._time.evaluate,             account_id, result)
+        r(self._pass_through.evaluate,     account_id, amount, result)
+        r(self._history.evaluate,          account_id, result)
+        r(self._rapid_succession.evaluate, account_id, result)   # NEW
+        r(self._night_batch.evaluate,      account_id, result)   # NEW
+        r(self._card_topup_abuse.evaluate, account_id, result)   # NEW
+        r(self._journal_check.evaluate,    account_id, result)   # NEW
 
         if result.is_critical:
             result.finalize()
@@ -1093,13 +1281,14 @@ class FraudEngine:
         r(self._entropy.evaluate,  account_id, result)
 
         if recipient_account:
-            r(self._duplicate.evaluate,    account_id, recipient_account, amount, result)
-            r(self._split.evaluate,        account_id, recipient_account, amount, result)
-            r(self._progression.evaluate,  account_id, recipient_account, amount, result)
-            r(self._new_recv.evaluate,     account_id, recipient_account,
-                                           recipient_account_id or 0, result)
-            r(self._concentration.evaluate, account_id, recipient_account, result)
-            r(self._graph.evaluate,         account_id, recipient_account, result)
+            r(self._duplicate.evaluate,       account_id, recipient_account, amount, result)
+            r(self._split.evaluate,           account_id, recipient_account, amount, result)
+            r(self._progression.evaluate,     account_id, recipient_account, amount, result)
+            r(self._new_recv.evaluate,        account_id, recipient_account,
+                                              recipient_account_id or 0, result)
+            r(self._new_recv_large.evaluate,  account_id, recipient_account, amount, result)  # NEW
+            r(self._concentration.evaluate,   account_id, recipient_account, result)
+            r(self._graph.evaluate,           account_id, recipient_account, result)
 
         if recipient_account_id:
             r(self._mule.evaluate,        recipient_account_id, result)
