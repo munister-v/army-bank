@@ -4336,23 +4336,21 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const { t } = usePreferences();
   const tabs = getTabs(t);
   const activeIdx = tabs.findIndex(t => t.k === active);
-  const mobileBottomInset = 'max(10px, env(safe-area-inset-bottom, 0px))';
   return (
     <div style={{
-      position: 'absolute',
-      left: 0, right: 0, bottom: mobileBottomInset,
+      position: 'fixed',
+      left: 0, right: 0, bottom: 0,
       zIndex: 120,
-      padding: '0 10px',
+      padding: '0 max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px))',
       pointerEvents: 'none',
     }}>
       {/* Pill — content area only, tight padding */}
       <div style={{
         position: 'relative',
-        padding: '10px 6px 8px',
+        padding: '10px 6px calc(8px + env(safe-area-inset-bottom, 0px))',
         background: 'rgba(12,26,20,0.72)',
         border: `1px solid rgba(180,172,155,0.22)`,
-        borderBottom: 'none',
-        borderRadius: 28, display: 'flex',
+        borderRadius: '28px 28px 0 0', display: 'flex',
         boxShadow: '0 -8px 32px rgba(0,0,0,0.28), inset 0 1px 0 rgba(230,225,210,0.08)',
         backdropFilter: 'blur(22px) saturate(160%)',
         WebkitBackdropFilter: 'blur(22px) saturate(160%)',
@@ -5258,7 +5256,7 @@ export default function App() {
     <AppCtx.Provider value={appCtx}>
       <BankDataCtx.Provider value={bankCtx}>
         <LayoutCtx.Provider value="mobile">
-          <div style={{ ...appBase, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'absolute' }}>
+          <div style={{ ...appBase, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'fixed' }}>
             <LuxuryAmbientFx />
             <div style={{
               flex: 1,
@@ -5268,8 +5266,8 @@ export default function App() {
               width: '100%',
               maxWidth: '100vw',
               touchAction: 'pan-y',
-              paddingBottom: 'calc(96px + max(10px, env(safe-area-inset-bottom, 0px)))',
-              scrollPaddingBottom: 'calc(96px + max(10px, env(safe-area-inset-bottom, 0px)))',
+              paddingBottom: 'calc(86px + env(safe-area-inset-bottom, 0px))',
+              scrollPaddingBottom: 'calc(86px + env(safe-area-inset-bottom, 0px))',
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
