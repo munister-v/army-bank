@@ -4708,7 +4708,7 @@ function PremiumStatusStrip() {
 
 function WowSplash() {
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, overflow: 'hidden', background: '#07150f' }}>
+    <div style={{ position: 'fixed', inset: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', zIndex: 9999, overflow: 'hidden', background: '#07150f' }}>
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 86% 56% at 50% 14%, rgba(34,74,52,0.64) 0%, rgba(10,26,18,0.92) 65%, rgba(6,16,11,1) 100%)' }} />
       <div style={{
         position: 'absolute',
@@ -4854,15 +4854,15 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
   return (
     <div style={{ ...appBase, overflowY: 'auto' }}>
-      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', background: '#07150f' }} />
+      <div style={{ position: 'fixed', inset: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none', background: '#07150f' }} />
       <div style={{
-        position: 'fixed', inset: 0, pointerEvents: 'none',
+        position: 'fixed', inset: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none',
         backgroundImage: `url(${AUTH_STATIC_BG})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center top',
         opacity: 0.82,
       }} />
-      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none',
+      <div style={{ position: 'fixed', inset: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none',
         background: 'radial-gradient(ellipse 72% 50% at 50% 0%, rgba(20,46,32,0.48) 0%, rgba(6,14,10,0.74) 58%, rgba(5,11,8,0.9) 100%)',
       }} />
       <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 20px', position: 'relative' }}>
