@@ -2865,6 +2865,33 @@ function CardsScreen() {
   const [topupAmount, setTopupAmount] = useState('');
   const [topupLoading, setTopupLoading] = useState(false);
 
+  // Card flip / reveal
+  const [flipped, setFlipped] = useState(false);
+  const [revealed, setRevealed] = useState<{ card_number: string; cvv: string } | null>(null);
+  const [revealing, setRevealing] = useState(false);
+
+  // Reset flip when card changes
+  useEffect(() => { setFlipped(false); setRevealed(null); }, [safeIdx]);
+
+  async function revealCard() {
+    if (apiCards.length === 0) { toast(t('demo_api_unavailable')); setFlipped(true); return; }
+    const c = apiCards[safeIdx];
+    const token = localStorage.getItem('army_bank_token');
+    setRevealing(true);
+    try {
+      const r = await fetch(`/api/cards/${c.id}/reveal`, { headers: { Authorization: `Bearer ${token}` } });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || 'Помилка');
+      setRevealed(j.data);
+      setFlipped(true);
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Помилка'); }
+    finally { setRevealing(false); }
+  }
+
+  function flipCard() {
+    if (!flipped) { revealCard(); } else { setFlipped(false); }
+  }
+
   useEffect(() => {
     if (card?.design) setSelectedDesign(card.design);
     else if (!card) setSelectedDesign('florence');
@@ -3045,17 +3072,99 @@ function CardsScreen() {
         display: 'flex', gap: 12, padding: '0 22px 8px',
         overflowX: 'auto', scrollSnapType: 'x mandatory', scrollbarWidth: 'none',
       }}>
-        {cards.map((c, i) => (
-          <div key={i} style={{ flexShrink: 0, width: 260, scrollSnapAlign: 'center' }}>
-            <button onClick={() => setSelected(i)} style={{
-              width: '100%', padding: 0, background: 'transparent', border: 'none', cursor: 'pointer',
-              textAlign: 'left', opacity: i === safeIdx ? 1 : 0.55, transition: 'opacity 0.3s',
-              filter: i === safeIdx ? 'none' : 'saturate(0.7)',
-            }}>
-              <PremiumCard {...c} style={{ width: '100%' }} />
-            </button>
-          </div>
-        ))}
+        {cards.map((c, i) => {
+          const isSelected = i === safeIdx;
+          const v = CARD_VARIANTS[c.variant] ?? CARD_VARIANTS.gold;
+          return (
+            <div key={i} style={{ flexShrink: 0, width: 260, scrollSnapAlign: 'center' }}>
+              {isSelected ? (
+                // ── Flippable selected card ──
+                <div style={{ perspective: 1000, width: '100%', aspectRatio: '1.586 / 1', cursor: 'pointer' }}
+                  onClick={flipCard}>
+                  <div style={{
+                    width: '100%', height: '100%', position: 'relative',
+                    transformStyle: 'preserve-3d',
+                    transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                    transition: 'transform 0.55s cubic-bezier(0.4, 0, 0.2, 1)',
+                  }}>
+                    {/* Front */}
+                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
+                      <PremiumCard {...c} style={{ width: '100%' }}
+                        balance={c.balance} isPrimary={c.isPrimary} />
+                      {/* Reveal hint */}
+                      {!flipped && (
+                        <div style={{
+                          position: 'absolute', bottom: 10, right: 12,
+                          fontSize: 9, letterSpacing: 0.8, color: 'rgba(255,255,255,0.5)',
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          pointerEvents: 'none',
+                        }}>
+                          {revealing ? '…' : '👁 натисни'}
+                        </div>
+                      )}
+                    </div>
+                    {/* Back */}
+                    <div style={{
+                      position: 'absolute', inset: 0,
+                      backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
+                      transform: 'rotateY(180deg)',
+                      borderRadius: 22, overflow: 'hidden',
+                      background: v.bg,
+                      boxShadow: '0 20px 40px -12px rgba(0,0,0,0.55), 0 6px 16px -8px rgba(0,0,0,0.4)',
+                      color: v.text,
+                    }}>
+                      {v.image && <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${v.image})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.45)', transform: 'scale(1.03)' }} />}
+                      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.52)' }} />
+                      {/* Magnetic stripe */}
+                      <div style={{ position: 'absolute', top: 28, left: 0, right: 0, height: 38, background: '#111' }} />
+                      {/* Signature + CVV strip */}
+                      <div style={{ position: 'absolute', top: 82, left: 18, right: 18 }}>
+                        <div style={{ background: 'repeating-linear-gradient(90deg, #e0e0e0 0px, #e0e0e0 4px, #fff 4px, #fff 8px)', height: 32, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 10 }}>
+                          <div style={{ background: '#fff', padding: '2px 8px', borderRadius: 3, fontFamily: '"SF Mono", monospace', fontSize: 14, fontWeight: 700, color: '#000', letterSpacing: 2 }}>
+                            {revealed?.cvv || '•••'}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 3, letterSpacing: 0.6 }}>CVV2 / CVC2</div>
+                      </div>
+                      {/* Full card number */}
+                      <div style={{ position: 'absolute', bottom: 38, left: 18, right: 18 }}>
+                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', letterSpacing: 1, marginBottom: 4 }}>НОМЕР КАРТКИ</div>
+                        <div style={{ fontFamily: '"SF Mono", monospace', fontSize: 15, fontWeight: 600, letterSpacing: 2.5, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+                          {revealed ? (
+                            revealed.card_number.replace(/(.{4})/g, '$1 ').trim()
+                          ) : (
+                            `•••• •••• •••• ${c.number}`
+                          )}
+                        </div>
+                      </div>
+                      {/* Expiry */}
+                      <div style={{ position: 'absolute', bottom: 16, left: 18, display: 'flex', gap: 18, alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.45)', letterSpacing: 1 }}>ДІЙСНА ДО</div>
+                          <div style={{ fontFamily: '"SF Mono", monospace', fontSize: 12, fontWeight: 600, color: '#fff' }}>{c.expiry}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.45)', letterSpacing: 1 }}>ВЛАСНИК</div>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: '#fff', letterSpacing: 0.5 }}>{c.name}</div>
+                        </div>
+                      </div>
+                      {/* Close hint */}
+                      <div style={{ position: 'absolute', top: 10, right: 12, fontSize: 9, color: 'rgba(255,255,255,0.45)', letterSpacing: 0.8 }}>натисни щоб закрити</div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => { setSelected(i); setFlipped(false); }} style={{
+                  width: '100%', padding: 0, background: 'transparent', border: 'none', cursor: 'pointer',
+                  textAlign: 'left', opacity: 0.55, transition: 'opacity 0.3s',
+                  filter: 'saturate(0.7)',
+                }}>
+                  <PremiumCard {...c} style={{ width: '100%' }} />
+                </button>
+              )}
+            </div>
+          );
+        })}
         {!cards.length && (
           <div style={{ padding: '20px', borderRadius: 18, border: `1px solid ${bg.border}`, background: bg.card, color: text.muted, minWidth: 280 }}>
             {t('cards_not_issued')}
@@ -3071,7 +3180,9 @@ function CardsScreen() {
           ) : (
           <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-            <div style={{ fontFamily: '"SF Mono", monospace', fontSize: 16, fontWeight: 600, color: text.primary, letterSpacing: 1 }}>•• {card.number}</div>
+            <div style={{ fontFamily: '"SF Mono", monospace', fontSize: 16, fontWeight: 600, color: text.primary, letterSpacing: 1 }}>
+              {revealed ? revealed.card_number.replace(/(.{4})/g, '$1 ').trim() : `•••• •••• •••• ${card.number}`}
+            </div>
             <div style={{
               padding: '3px 8px', borderRadius: 100, background: card.statusRaw === 'active' ? 'rgba(127,184,150,0.15)' : 'rgba(220,215,200,0.1)',
               color: card.statusRaw === 'active' ? '#7fb896' : 'rgba(220,215,200,0.7)',
