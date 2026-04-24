@@ -4778,12 +4778,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       // fills the home-indicator zone with the same background
       paddingBottom: 'env(safe-area-inset-bottom, 0px)',
     }}>
-      {/* Upward scrim — content fades into the bar */}
-      <div style={{
-        position: 'absolute', left: 0, right: 0, bottom: '100%', height: 44,
-        background: 'linear-gradient(to bottom, transparent, #07150f)',
-        pointerEvents: 'none',
-      }} />
+      {/* no upward scrim — in-flow TabBar has clean edge, scrim caused visible gap */}
       {/* Tab row */}
       <div style={{
         position: 'relative',
@@ -5707,11 +5702,10 @@ export default function App() {
               width: '100%',
               maxWidth: '100vw',
               touchAction: 'pan-y',
-              // 60px = tab row height; no extra safe-area padding needed because
-              // the in-flow TabBar already pushes content up by its own height
-              // (which includes paddingBottom: env(safe-area-inset-bottom)).
-              paddingBottom: '60px',
-              scrollPaddingBottom: '60px',
+              // In-flow TabBar sits below the scroll container in the flex column,
+              // so no paddingBottom needed — content ends cleanly at tab bar top.
+              paddingBottom: 0,
+              scrollPaddingBottom: 0,
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
