@@ -2468,16 +2468,6 @@ function OverviewScreen() {
               <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast(t('no_new_notifications'))} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>{icon}</button>
             ))}
           </div>
-          <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid rgba(180,172,155,0.14)`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div style={{ padding: '10px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(180,172,155,0.12)' }}>
-              <div style={{ fontSize: 10, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.9 }}>{t('active_cards_metric')}</div>
-              <div style={{ marginTop: 3, fontSize: 18, fontWeight: 700, color: text.primary, fontFeatureSettings: '"tnum"' }}>{cards.length}</div>
-            </div>
-            <div style={{ padding: '10px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(180,172,155,0.12)' }}>
-              <div style={{ fontSize: 10, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.9 }}>{t('recent_activity')}</div>
-              <div style={{ marginTop: 3, fontSize: 18, fontWeight: 700, color: text.primary, fontFeatureSettings: '"tnum"' }}>{transactions.length}</div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -3604,12 +3594,21 @@ function BadgePill({ badge }: { badge: string }) {
 
 function ProductVisual({ product, size = 'card' }: { product: Product; size?: 'card' | 'detail' | 'cart' }) {
   const emoji = product.image_emoji || '🛍️';
-  if (product.image_url) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUrl = String(product.image_url || '').trim();
+  const preferFallback = /^arm-/i.test(product.slug || '');
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [imageUrl, product.id]);
+
+  if (imageUrl && !imageFailed && !preferFallback) {
     return (
       <img
-        src={product.image_url}
+        src={imageUrl}
         alt={product.title}
         loading="lazy"
+        onError={() => setImageFailed(true)}
         style={{
           width: '100%',
           height: '100%',
@@ -3621,7 +3620,18 @@ function ProductVisual({ product, size = 'card' }: { product: Product; size?: 'c
     );
   }
   return (
-    <span style={{ fontSize: size === 'detail' ? 62 : size === 'cart' ? 24 : 42, lineHeight: 1 }}>
+    <span style={{
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: size === 'detail' ? 62 : size === 'cart' ? 24 : 42,
+      lineHeight: 1,
+      background: size === 'cart'
+        ? 'rgba(221,216,204,0.06)'
+        : 'radial-gradient(circle at 32% 24%, rgba(221,216,204,0.18), transparent 38%), linear-gradient(145deg, rgba(20,50,38,0.82), rgba(7,20,14,0.92))',
+    }}>
       {emoji}
     </span>
   );
@@ -3864,6 +3874,7 @@ function MarketplaceScreen() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [search, setSearch] = useState('');
   const [catalogPage, setCatalogPage] = useState(1);
+  const catalogListRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => { localStorage.setItem('arm_cart', JSON.stringify(cart)); }, [cart]);
   useEffect(() => {
     const hidden = Boolean(showCart || preview);
@@ -4009,10 +4020,30 @@ function MarketplaceScreen() {
     : products;
   const totalCatalogPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE));
   const pagedProducts = filteredProducts.slice((catalogPage - 1) * PRODUCTS_PER_PAGE, catalogPage * PRODUCTS_PER_PAGE);
-  const catalogPages = useMemo(
-    () => Array.from({ length: totalCatalogPages }, (_, i) => i + 1),
-    [totalCatalogPages],
-  );
+  const catalogPages = useMemo<(number | 'gap-left' | 'gap-right')[]>(() => {
+    if (totalCatalogPages <= 7) return Array.from({ length: totalCatalogPages }, (_, i) => i + 1);
+
+    const set = new Set<number>([1, totalCatalogPages, catalogPage - 1, catalogPage, catalogPage + 1]);
+    if (catalogPage <= 3) [2, 3, 4].forEach(p => set.add(p));
+    if (catalogPage >= totalCatalogPages - 2) [totalCatalogPages - 3, totalCatalogPages - 2, totalCatalogPages - 1].forEach(p => set.add(p));
+
+    const sorted = Array.from(set).filter(p => p >= 1 && p <= totalCatalogPages).sort((a, b) => a - b);
+    const result: (number | 'gap-left' | 'gap-right')[] = [];
+    sorted.forEach((page, idx) => {
+      const prev = sorted[idx - 1];
+      if (prev && page - prev > 1) result.push(prev === 1 ? 'gap-left' : 'gap-right');
+      result.push(page);
+    });
+    return result;
+  }, [catalogPage, totalCatalogPages]);
+
+  function goToCatalogPage(nextPage: number) {
+    const next = Math.max(1, Math.min(totalCatalogPages, nextPage));
+    setCatalogPage(next);
+    window.setTimeout(() => {
+      catalogListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+  }
 
   useEffect(() => {
     setCatalogPage(1);
@@ -4054,7 +4085,7 @@ function MarketplaceScreen() {
       </button>
     )}
     <ContentWrap maxW={800}>
-    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
+    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 'calc(132px + env(safe-area-inset-bottom, 0px))' }}>
       <div style={{ padding: `${topPad} 22px 12px` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ ...T.h1, color: text.primary }}>{t('market_title')}</div>
@@ -4097,7 +4128,7 @@ function MarketplaceScreen() {
             </div>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 10, padding: '8px 22px' }}>
+              <div ref={catalogListRef} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 10, padding: '8px 22px' }}>
                 {pagedProducts.map(p => (
                   <div key={p.id} onClick={() => setPreview(p)} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'border-color 0.15s' }}>
                     <div style={{ height: 108, background: `linear-gradient(135deg, rgba(180,172,155,0.08), rgba(100,95,80,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42, position: 'relative', overflow: 'hidden' }}>
@@ -4124,9 +4155,9 @@ function MarketplaceScreen() {
                 ))}
               </div>
               {filteredProducts.length > PRODUCTS_PER_PAGE && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 22px 2px' }}>
+                <div data-no-tab-swipe="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '12px 22px 18px', position: 'relative', zIndex: 2, flexWrap: 'wrap' }}>
                   <button
-                    onClick={() => setCatalogPage(p => Math.max(1, p - 1))}
+                    onClick={() => goToCatalogPage(catalogPage - 1)}
                     disabled={catalogPage === 1}
                     style={{
                       width: 32, height: 32, borderRadius: 10, border: `1px solid ${bg.border}`,
@@ -4136,18 +4167,22 @@ function MarketplaceScreen() {
                     }}
                   >‹</button>
                   {catalogPages.map(page => (
+                    typeof page === 'number' ? (
                     <button
                       key={page}
-                      onClick={() => setCatalogPage(page)}
+                      onClick={() => goToCatalogPage(page)}
                       style={{
                         minWidth: 32, height: 32, padding: '0 8px', borderRadius: 10, border: 'none',
                         background: page === catalogPage ? `linear-gradient(135deg, ${goldDark}, ${gold})` : 'rgba(255,255,255,0.04)',
                         color: page === catalogPage ? '#0c1a12' : text.secondary, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
                       }}
                     >{page}</button>
+                    ) : (
+                      <span key={page} style={{ minWidth: 18, color: text.dim, textAlign: 'center', fontWeight: 700 }}>…</span>
+                    )
                   ))}
                   <button
-                    onClick={() => setCatalogPage(p => Math.min(totalCatalogPages, p + 1))}
+                    onClick={() => goToCatalogPage(catalogPage + 1)}
                     disabled={catalogPage === totalCatalogPages}
                     style={{
                       width: 32, height: 32, borderRadius: 10, border: `1px solid ${bg.border}`,
