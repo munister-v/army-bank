@@ -4457,16 +4457,18 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const tabs = getTabs(t);
   const activeIdx = tabs.findIndex(t => t.k === active);
   return (
+    // flex-shrink:0 — TabBar is an in-flow flex item at the bottom of the
+    // column layout. This is the only reliable way to respect
+    // env(safe-area-inset-bottom) in iOS PWA without position:fixed tricks.
     <div style={{
-      position: 'fixed',
-      left: 0, right: 0, bottom: 0,
+      flexShrink: 0,
+      position: 'relative',
       zIndex: 120,
       backdropFilter: 'blur(28px) saturate(180%)',
       WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-      // #07150f = exact app background — 100% opaque so safe-area zone
-      // has zero colour bleed in iOS PWA standalone mode
       background: '#07150f',
       borderTop: '0.5px solid rgba(180,172,155,0.1)',
+      // fills the home-indicator zone with the same background
       paddingBottom: 'env(safe-area-inset-bottom, 0px)',
     }}>
       {/* Upward scrim — content fades into the bar */}
@@ -4475,7 +4477,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
         background: 'linear-gradient(to bottom, transparent, #07150f)',
         pointerEvents: 'none',
       }} />
-      {/* Tab row — flat bottom so it merges with wrapper bg below */}
+      {/* Tab row */}
       <div style={{
         position: 'relative',
         display: 'flex',
@@ -5381,7 +5383,14 @@ export default function App() {
     <AppCtx.Provider value={appCtx}>
       <BankDataCtx.Provider value={bankCtx}>
         <LayoutCtx.Provider value="mobile">
-          <div style={{ ...appBase, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'fixed' }}>
+          {/*
+            Mobile root: position:fixed full-screen flex column.
+            TabBar is the last flex child (in-flow), so the OS correctly
+            reserves env(safe-area-inset-bottom) below it.
+            overflow:hidden is intentionally removed — it was clipping the
+            TabBar upward scrim that bleeds above 100% of the tab bar.
+          */}
+          <div style={{ ...appBase, display: 'flex', flexDirection: 'column', position: 'fixed' }}>
             <LuxuryAmbientFx />
             <div style={{
               flex: 1,
@@ -5391,8 +5400,11 @@ export default function App() {
               width: '100%',
               maxWidth: '100vw',
               touchAction: 'pan-y',
-              paddingBottom: 'calc(78px + env(safe-area-inset-bottom, 0px))',
-              scrollPaddingBottom: 'calc(78px + env(safe-area-inset-bottom, 0px))',
+              // 60px = tab row height; no extra safe-area padding needed because
+              // the in-flow TabBar already pushes content up by its own height
+              // (which includes paddingBottom: env(safe-area-inset-bottom)).
+              paddingBottom: '60px',
+              scrollPaddingBottom: '60px',
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
