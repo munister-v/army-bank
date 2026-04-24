@@ -4338,7 +4338,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const activeIdx = tabs.findIndex(t => t.k === active);
   return (
     <div style={{
-      position: 'absolute',
+      position: 'fixed',
       left: 0,
       right: 0,
       bottom: 0,
@@ -4346,7 +4346,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       flexShrink: 0,
       backgroundColor: 'transparent',
       backgroundImage: 'none',
-      padding: '6px 14px calc(env(safe-area-inset-bottom, 0px) * 0.5)',
+      padding: '6px 14px 0',
       backdropFilter: 'none',
       WebkitBackdropFilter: 'none',
       borderTop: 'none',
@@ -4354,13 +4354,16 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       pointerEvents: 'none',
     }}>
       <div style={{
-        position: 'relative', padding: 6,
-        background: 'rgba(12,26,20,0.55)',
+        position: 'relative',
+        /* padding: 6px all sides for icon area, then safe-area at bottom to fill home-indicator zone */
+        padding: `6px 6px calc(6px + env(safe-area-inset-bottom, 0px))`,
+        background: 'rgba(12,26,20,0.72)',
         border: `1px solid rgba(180,172,155,0.22)`,
+        borderBottom: 'none',
         borderRadius: '28px 28px 0 0', display: 'flex',
-        boxShadow: '0 10px 22px rgba(0,0,0,0.3), inset 0 1px 0 rgba(230,225,210,0.08)',
-        backdropFilter: 'blur(18px) saturate(150%)',
-        WebkitBackdropFilter: 'blur(18px) saturate(150%)',
+        boxShadow: '0 -8px 32px rgba(0,0,0,0.28), inset 0 1px 0 rgba(230,225,210,0.08)',
+        backdropFilter: 'blur(22px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(22px) saturate(160%)',
         pointerEvents: 'auto',
       }}>
         {/* Sliding indicator */}
@@ -5273,8 +5276,8 @@ export default function App() {
               width: '100%',
               maxWidth: '100vw',
               touchAction: 'pan-y',
-              paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
-              scrollPaddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
+              paddingBottom: 'calc(88px + env(safe-area-inset-bottom, 0px))',
+              scrollPaddingBottom: 'calc(88px + env(safe-area-inset-bottom, 0px))',
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
