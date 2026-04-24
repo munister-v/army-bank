@@ -4346,7 +4346,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       flexShrink: 0,
       backgroundColor: 'transparent',
       backgroundImage: 'none',
-      padding: '6px 14px 0',
+      padding: '0 10px 0',
       backdropFilter: 'none',
       WebkitBackdropFilter: 'none',
       borderTop: 'none',
@@ -4355,8 +4355,8 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
     }}>
       <div style={{
         position: 'relative',
-        /* padding: 6px all sides for icon area, then safe-area at bottom to fill home-indicator zone */
-        padding: `6px 6px calc(6px + env(safe-area-inset-bottom, 0px))`,
+        /* 10px on top + env(sab) at bottom fills home-indicator zone seamlessly */
+        padding: `10px 6px env(safe-area-inset-bottom, 0px)`,
         background: 'rgba(12,26,20,0.72)',
         border: `1px solid rgba(180,172,155,0.22)`,
         borderBottom: 'none',
@@ -4380,7 +4380,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
           const color = isActive ? goldLight : 'rgba(220,215,200,0.5)';
           return (
             <button key={t.k} onClick={() => onChange(t.k)} style={{
-              flex: 1, padding: '10px 4px', background: 'transparent', border: 'none', cursor: 'pointer',
+              flex: 1, padding: '8px 4px 4px', background: 'transparent', border: 'none', cursor: 'pointer',
               position: 'relative', zIndex: 1,
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
               color, fontSize: 10, fontWeight: isActive ? 700 : 500,
