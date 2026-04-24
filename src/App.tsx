@@ -4339,11 +4339,14 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   return (
     <div style={{
       position: 'fixed',
-      left: 0, right: 0,
-      bottom: 'max(10px, env(safe-area-inset-bottom, 10px))',
+      left: 0, right: 0, bottom: 0,
       zIndex: 120,
-      padding: '0 14px',
-      pointerEvents: 'none',
+      // Solid cover so raw page bg never shows in safe-area zone
+      backgroundColor: appBgBase,
+      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      paddingTop: 10,
+      paddingLeft: 14,
+      paddingRight: 14,
     }}>
       <div style={{
         position: 'relative',
@@ -4355,7 +4358,6 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
         borderRadius: 28,
         display: 'flex',
         boxShadow: '0 12px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(230,225,210,0.06)',
-        pointerEvents: 'auto',
       }}>
         <div style={{
           position: 'absolute', top: 6, bottom: 6,
@@ -4382,6 +4384,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
           );
         })}
       </div>
+      {/* Fills safe-area zone with exact bg color — no green strip */}
     </div>
   );
 }
