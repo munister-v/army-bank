@@ -3944,3 +3944,154 @@ button:not(.nav-burger):not(.faq-trigger):not(.live-control-btn) {
   background: linear-gradient(165deg, rgba(20, 37, 28, 0.88), rgba(11, 23, 17, 0.82)) !important;
   border-color: rgba(196, 189, 172, 0.18) !important;
 }
+
+/* 22. Deep sections tone correction v50 */
+.feature-section,
+.feat-dark,
+.feat-gray,
+.section-architecture,
+.section-api,
+.section-db,
+.section-stack,
+.section-dev,
+.section-faq,
+.section-deep,
+.section-deep.alt {
+  background:
+    radial-gradient(ellipse 92% 66% at 18% -4%, rgba(48, 88, 64, 0.14) 0%, rgba(18, 48, 35, 0.06) 42%, transparent 72%),
+    radial-gradient(ellipse 74% 48% at 102% 104%, rgba(118, 74, 28, 0.08) 0%, rgba(82, 49, 23, 0.03) 44%, transparent 72%),
+    #07150f !important;
+  border-top-color: rgba(196, 189, 172, 0.14) !important;
+}
+
+.section-deep .deep-card,
+.section-deep .deep-note,
+.section-deep .flow-step,
+.section-deep .al-box,
+.section-deep .platform-card,
+.section-deep .api-group,
+.section-deep .db-table,
+.section-deep .stack-col,
+.section-deep .dev-code,
+.section-deep .faq-item,
+.section-architecture .al-box,
+.section-api .api-group,
+.section-db .db-table,
+.section-stack .stack-col,
+.section-dev .dev-code,
+.section-faq .faq-item,
+.feature-section .feat-card,
+.feature-section .feat-card-light,
+.feature-section .platform-card {
+  background: linear-gradient(180deg, rgba(20, 36, 28, 0.9), rgba(10, 22, 16, 0.94)) !important;
+  border-color: rgba(196, 189, 172, 0.16) !important;
+  box-shadow: 0 16px 34px rgba(3, 10, 8, 0.22) !important;
+}
+
+.section-deep h2,
+.section-architecture h2,
+.section-api h2,
+.section-db h2,
+.section-stack h2,
+.section-dev h2,
+.section-faq h2,
+.feature-text h2,
+.feat-center-header h2,
+.deep-card h3,
+.platform-card h3,
+.flow-body h4 {
+  color: #f7f3eb !important;
+}
+
+.section-deep .feat-label,
+.section-deep .deep-lead,
+.section-deep .deep-card p,
+.section-deep .deep-card li,
+.section-deep .deep-note,
+.section-deep .flow-body p,
+.section-deep .deep-list-check li,
+.section-architecture .al-sub,
+.section-api .api-table td,
+.section-db .dbt-col span:last-child,
+.section-stack .stack-item span,
+.section-dev .dev-note,
+.section-dev .dc-pre,
+.section-faq .faq-body p,
+.feature-section .feat-desc,
+.feature-section .platform-card p {
+  color: rgba(232, 226, 214, 0.82) !important;
+}
+
+.section-deep .flow-num,
+.section-architecture .al-label,
+.section-stack .stack-item code,
+.section-db .dbt-col code,
+.section-api .api-table td code,
+.feature-section .fm-num {
+  color: #f4efe5 !important;
+}
+
+/* 23. Mobile hero simplification v53 */
+@media (max-width: 900px) {
+  .nav-inner {
+    justify-content: space-between !important;
+    gap: 12px !important;
+  }
+
+  .nav-burger {
+    margin-left: auto !important;
+  }
+
+  .hero-grid {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+    text-align: left !important;
+  }
+
+  .hero-visual,
+  .phone-frame,
+  .hero-orbit,
+  .hero-orbit-a,
+  .hero-orbit-b {
+    display: none !important;
+  }
+
+  .hero-content {
+    max-width: 100% !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  .hero-content::before,
+  .hero-content::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  .hero-tag,
+  .hero-desc,
+  .hero-meta {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .hero-actions {
+    justify-content: flex-start !important;
+  }
+
+  .hero-meta,
+  .hero-matrix,
+  .trust-bar {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-actions .btn-dark,
+  .hero-actions .btn-ghost {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
