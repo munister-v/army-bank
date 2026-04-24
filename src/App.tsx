@@ -4341,55 +4341,54 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       position: 'fixed',
       left: 0, right: 0, bottom: 0,
       zIndex: 120,
-      padding: '0 max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px))',
-      pointerEvents: 'none',
+      background: 'rgba(10,24,17,0.82)',
+      backdropFilter: 'blur(28px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+      borderTop: '0.5px solid rgba(180,172,155,0.1)',
+      display: 'flex',
+      flexDirection: 'column',
     }}>
+      {/* Upward fade scrim so content blends into the glass */}
+      <div style={{
+        position: 'absolute', left: 0, right: 0,
+        bottom: '100%', height: 48,
+        background: 'linear-gradient(to bottom, transparent, rgba(10,24,17,0.82))',
+        pointerEvents: 'none',
+      }} />
       <div style={{
         position: 'relative',
-        background: 'rgba(12,26,20,0.72)',
-        border: `1px solid rgba(180,172,155,0.22)`,
-        borderRadius: '28px 28px 0 0', display: 'flex',
-        boxShadow: '0 -8px 32px rgba(0,0,0,0.28), inset 0 1px 0 rgba(230,225,210,0.08)',
-        backdropFilter: 'blur(22px) saturate(160%)',
-        WebkitBackdropFilter: 'blur(22px) saturate(160%)',
-        flexDirection: 'column',
-        pointerEvents: 'auto',
+        display: 'flex',
+        padding: '8px 6px 6px',
       }}>
         <div style={{
-          position: 'relative',
-          display: 'flex',
-          padding: '10px 6px 8px',
-        }}>
-          <div style={{
-            position: 'absolute', top: 6, bottom: 4,
-            left: `calc(${activeIdx * 20}% + 6px)`, width: 'calc(20% - 12px)',
-            background: 'linear-gradient(135deg, rgba(180,172,155,0.22) 0%, rgba(100,95,80,0.12) 100%)',
-            border: `1px solid rgba(180,172,155,0.35)`, borderRadius: 22,
-            transition: 'left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
-            boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.15)',
-          }} />
-          {tabs.map(t => {
-            const isActive = t.k === active;
-            const color = isActive ? goldLight : 'rgba(220,215,200,0.5)';
-            return (
-              <button key={t.k} onClick={() => onChange(t.k)} style={{
-                flex: 1, padding: '8px 4px 4px', background: 'transparent', border: 'none', cursor: 'pointer',
-                position: 'relative', zIndex: 1,
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                color, fontSize: 10, fontWeight: isActive ? 700 : 500,
-                letterSpacing: 0.3, fontFamily: 'inherit', transition: 'color 0.2s',
-              }}>
-                {t.icon(color)}
-                <span>{t.label}</span>
-              </button>
-            );
-          })}
-        </div>
-        <div style={{
-          height: 'env(safe-area-inset-bottom, 0px)',
-          flexShrink: 0,
+          position: 'absolute', top: 4, bottom: 2,
+          left: `calc(${activeIdx * 20}% + 6px)`, width: 'calc(20% - 12px)',
+          background: 'linear-gradient(135deg, rgba(180,172,155,0.2) 0%, rgba(100,95,80,0.1) 100%)',
+          border: `1px solid rgba(180,172,155,0.28)`, borderRadius: 20,
+          transition: 'left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.12)',
         }} />
+        {tabs.map(t => {
+          const isActive = t.k === active;
+          const color = isActive ? goldLight : 'rgba(220,215,200,0.5)';
+          return (
+            <button key={t.k} onClick={() => onChange(t.k)} style={{
+              flex: 1, padding: '8px 4px 4px', background: 'transparent', border: 'none', cursor: 'pointer',
+              position: 'relative', zIndex: 1,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+              color, fontSize: 10, fontWeight: isActive ? 700 : 500,
+              letterSpacing: 0.3, fontFamily: 'inherit', transition: 'color 0.2s',
+            }}>
+              {t.icon(color)}
+              <span>{t.label}</span>
+            </button>
+          );
+        })}
       </div>
+      <div style={{
+        height: 'env(safe-area-inset-bottom, 0px)',
+        flexShrink: 0,
+      }} />
     </div>
   );
 }
