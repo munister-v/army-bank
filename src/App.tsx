@@ -4463,15 +4463,16 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       zIndex: 120,
       backdropFilter: 'blur(28px) saturate(180%)',
       WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-      background: 'rgba(10,22,16,0.92)',
+      // #07150f = exact app background — 100% opaque so safe-area zone
+      // has zero colour bleed in iOS PWA standalone mode
+      background: '#07150f',
       borderTop: '0.5px solid rgba(180,172,155,0.1)',
-      // Safe-area padding fills the home-indicator zone seamlessly
       paddingBottom: 'env(safe-area-inset-bottom, 0px)',
     }}>
       {/* Upward scrim — content fades into the bar */}
       <div style={{
         position: 'absolute', left: 0, right: 0, bottom: '100%', height: 44,
-        background: 'linear-gradient(to bottom, transparent, rgba(10,22,16,0.92))',
+        background: 'linear-gradient(to bottom, transparent, #07150f)',
         pointerEvents: 'none',
       }} />
       {/* Tab row — flat bottom so it merges with wrapper bg below */}
