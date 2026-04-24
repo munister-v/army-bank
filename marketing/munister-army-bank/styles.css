@@ -3821,3 +3821,126 @@ button:not(.nav-burger):not(.faq-trigger):not(.live-control-btn) {
   color: rgba(200,194,180,0.72) !important;
   border-color: rgba(180,172,155,0.10) !important;
 }
+
+/* 21. Contrast refresh v49 */
+:root {
+  --text-2: rgba(230, 225, 214, 0.84);
+  --text-3: rgba(214, 208, 194, 0.68);
+  --border: rgba(196, 189, 172, 0.18);
+  --border-2: rgba(196, 189, 172, 0.12);
+  --sand-bg: rgba(184, 176, 154, 0.12);
+}
+
+.logo,
+.nav-links a,
+.nav-mobile a,
+.footer-links a {
+  color: rgba(235, 230, 219, 0.82) !important;
+}
+
+.nav-links a:hover,
+.nav-mobile a:hover,
+.footer-links a:hover,
+.logo strong {
+  color: #f5f1e8 !important;
+}
+
+.hero-tag {
+  color: rgba(236, 231, 220, 0.78) !important;
+  border-color: rgba(196, 189, 172, 0.22) !important;
+  background: rgba(16, 32, 24, 0.84) !important;
+  box-shadow: 0 10px 24px rgba(4, 14, 10, 0.26) !important;
+}
+
+.hero-desc,
+.hero-meta,
+.feat-desc,
+.feature-text li,
+.deep-lead,
+.deep-card p,
+.deep-card li,
+.flow-body p,
+.dev-block p,
+.faq-body p,
+.platform-card p,
+.pn-text,
+.sync-hint,
+.api-table td,
+.dc-pre,
+.fc-code {
+  color: rgba(233, 228, 217, 0.84) !important;
+}
+
+.hero-matrix .hm-item,
+.feat-card,
+.feat-card-light,
+.platform-card,
+.al-box,
+.api-group,
+.db-table,
+.deep-card,
+.push-notif,
+.trust-item {
+  background: linear-gradient(180deg, rgba(18, 34, 26, 0.92), rgba(11, 24, 18, 0.94)) !important;
+  border-color: rgba(196, 189, 172, 0.18) !important;
+  box-shadow: 0 12px 30px rgba(3, 12, 9, 0.18) !important;
+}
+
+.hero-matrix .hm-k,
+.fm-label,
+.al-sub,
+.ac-label,
+.ag-header code,
+.dbt-col span:last-child,
+.stack-item span,
+.cred-key,
+.dev-note,
+.footer-sub,
+.footer-bottom,
+.pn-time,
+.af-detail,
+.faq-icon::before,
+.faq-icon::after {
+  color: rgba(214, 208, 194, 0.72) !important;
+}
+
+.hm-item strong,
+.fm-num,
+.section-architecture h2,
+.section-api h2,
+.section-db h2,
+.section-stack h2,
+.section-faq h2,
+.section-deep h2,
+.feature-text h2,
+.feat-center-header h2,
+.dev-block h2,
+.deep-card h3,
+.faq-trigger {
+  color: #fbf8f2 !important;
+}
+
+.hero-actions .btn-ghost,
+.btn-ghost {
+  background: linear-gradient(180deg, rgba(18, 36, 28, 0.94), rgba(12, 24, 18, 0.96)) !important;
+  color: #f3efe7 !important;
+  border: 1px solid rgba(196, 189, 172, 0.28) !important;
+  box-shadow: 0 10px 24px rgba(3, 12, 9, 0.22) !important;
+}
+
+.hero-actions .btn-ghost:hover,
+.btn-ghost:hover {
+  background: linear-gradient(180deg, rgba(27, 48, 38, 0.96), rgba(15, 30, 23, 0.98)) !important;
+  border-color: rgba(214, 208, 194, 0.4) !important;
+  color: #ffffff !important;
+}
+
+.nav-cta,
+.btn-dark {
+  box-shadow: 0 12px 28px rgba(38, 62, 48, 0.32) !important;
+}
+
+.hero-content {
+  background: linear-gradient(165deg, rgba(20, 37, 28, 0.88), rgba(11, 23, 17, 0.82)) !important;
+  border-color: rgba(196, 189, 172, 0.18) !important;
+}
