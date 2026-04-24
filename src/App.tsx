@@ -4461,38 +4461,40 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       position: 'fixed',
       left: 0, right: 0, bottom: 0,
       zIndex: 120,
-      // Solid cover so raw page bg never shows in safe-area zone
-      backgroundColor: appBgBase,
+      backdropFilter: 'blur(28px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+      background: 'rgba(10,22,16,0.92)',
+      borderTop: '0.5px solid rgba(180,172,155,0.1)',
+      // Safe-area padding fills the home-indicator zone seamlessly
       paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-      paddingTop: 10,
-      paddingLeft: 14,
-      paddingRight: 14,
     }}>
+      {/* Upward scrim — content fades into the bar */}
+      <div style={{
+        position: 'absolute', left: 0, right: 0, bottom: '100%', height: 44,
+        background: 'linear-gradient(to bottom, transparent, rgba(10,22,16,0.92))',
+        pointerEvents: 'none',
+      }} />
+      {/* Tab row — flat bottom so it merges with wrapper bg below */}
       <div style={{
         position: 'relative',
-        padding: 6,
-        background: 'rgba(12,26,20,0.78)',
-        backdropFilter: 'blur(28px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-        border: `1px solid rgba(180,172,155,0.18)`,
-        borderRadius: 28,
         display: 'flex',
-        boxShadow: '0 12px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(230,225,210,0.06)',
+        padding: '8px 8px 0',
       }}>
         <div style={{
-          position: 'absolute', top: 6, bottom: 6,
-          left: `calc(${activeIdx * 20}% + 6px)`, width: 'calc(20% - 12px)',
-          background: 'linear-gradient(135deg, rgba(180,172,155,0.22) 0%, rgba(100,95,80,0.12) 100%)',
-          border: `1px solid rgba(180,172,155,0.35)`, borderRadius: 22,
+          position: 'absolute', top: 4, bottom: 0,
+          left: `calc(${activeIdx * 20}% + 8px)`, width: 'calc(20% - 16px)',
+          background: 'linear-gradient(135deg, rgba(180,172,155,0.18) 0%, rgba(100,95,80,0.1) 100%)',
+          border: `1px solid rgba(180,172,155,0.28)`,
+          borderBottom: 'none',
+          borderRadius: '18px 18px 0 0',
           transition: 'left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.15)',
         }} />
         {tabs.map(t => {
           const isActive = t.k === active;
-          const color = isActive ? goldLight : 'rgba(220,215,200,0.5)';
+          const color = isActive ? goldLight : 'rgba(220,215,200,0.45)';
           return (
             <button key={t.k} onClick={() => onChange(t.k)} style={{
-              flex: 1, padding: '10px 4px', background: 'transparent', border: 'none', cursor: 'pointer',
+              flex: 1, padding: '10px 4px 8px', background: 'transparent', border: 'none', cursor: 'pointer',
               position: 'relative', zIndex: 1,
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
               color, fontSize: 10, fontWeight: isActive ? 700 : 500,
@@ -4504,7 +4506,6 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
           );
         })}
       </div>
-      {/* Fills safe-area zone with exact bg color — no green strip */}
     </div>
   );
 }
