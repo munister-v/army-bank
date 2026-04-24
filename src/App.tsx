@@ -4049,6 +4049,15 @@ function MarketplaceScreen() {
     if (catalogPage > totalCatalogPages) setCatalogPage(totalCatalogPages);
   }, [catalogPage, totalCatalogPages]);
 
+  const isMobileMarket = layout !== 'desktop';
+  const marketGridGap = isMobileMarket ? 8 : 10;
+  const marketCardHeight = isMobileMarket ? 202 : 230;
+  const marketImageHeight = isMobileMarket ? 84 : 108;
+  const marketCardPad = isMobileMarket ? '9px 10px 10px' : '10px 12px 12px';
+  const marketTitleClamp: React.CSSProperties = isMobileMarket
+    ? { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', minHeight: 34 }
+    : {};
+
   return (
     <>
     {preview && <ProductDetailDrawer product={preview} onClose={() => setPreview(null)} onAddToCart={addToCart} />}
@@ -4124,17 +4133,17 @@ function MarketplaceScreen() {
             </div>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 10, padding: '8px 22px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: marketGridGap, padding: isMobileMarket ? '6px 22px' : '8px 22px' }}>
                 {pagedProducts.map(p => (
-                  <div key={p.id} onClick={() => setPreview(p)} style={{ background: 'rgba(255,255,255,0.036)', border: '1px solid rgba(180,172,155,0.07)', borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'background 0.15s', minHeight: 230 }}>
-                    <div style={{ height: 108, background: `linear-gradient(135deg, rgba(180,172,155,0.08), rgba(100,95,80,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42, position: 'relative', overflow: 'hidden' }}>
+                  <div key={p.id} onClick={() => setPreview(p)} style={{ background: 'rgba(255,255,255,0.036)', border: '1px solid rgba(180,172,155,0.07)', borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'background 0.15s', height: marketCardHeight }}>
+                    <div style={{ height: marketImageHeight, flexShrink: 0, background: `linear-gradient(135deg, rgba(180,172,155,0.08), rgba(100,95,80,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42, position: 'relative', overflow: 'hidden' }}>
                       <ProductVisual product={p} />
                       {p.badge && (
                         <div style={{ position: 'absolute', top: 8, right: 8 }}><BadgePill badge={p.badge} /></div>
                       )}
                     </div>
-                    <div style={{ padding: '10px 12px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      <div style={{ ...T.sm, fontWeight: 600, color: text.secondary, lineHeight: 1.3 }}>{p.title}</div>
+                    <div style={{ padding: marketCardPad, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div style={{ ...T.sm, fontSize: isMobileMarket ? 13 : T.sm.fontSize, fontWeight: 600, color: text.secondary, lineHeight: 1.25, ...marketTitleClamp }}>{p.title}</div>
                       <div style={{ marginTop: 'auto', paddingTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                         <span style={{ ...T.body, fontWeight: 700, color: gold, ...T.num }}>₴{fmtInt(p.price)}</span>
                         <button onClick={e => { e.stopPropagation(); addToCart(p); }} disabled={p.stock !== undefined && p.stock <= 0} style={{
