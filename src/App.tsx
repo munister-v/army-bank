@@ -4339,24 +4339,15 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   return (
     <div style={{
       position: 'fixed',
-      left: 0,
-      right: 0,
-      bottom: 0,
+      left: 0, right: 0, bottom: 0,
       zIndex: 120,
-      flexShrink: 0,
-      backgroundColor: 'transparent',
-      backgroundImage: 'none',
       padding: '0 10px 0',
-      backdropFilter: 'none',
-      WebkitBackdropFilter: 'none',
-      borderTop: 'none',
-      boxShadow: 'none',
       pointerEvents: 'none',
     }}>
+      {/* Pill — content area only, tight padding */}
       <div style={{
         position: 'relative',
-        /* 10px on top + env(sab) at bottom fills home-indicator zone seamlessly */
-        padding: `10px 6px env(safe-area-inset-bottom, 0px)`,
+        padding: '10px 6px 8px',
         background: 'rgba(12,26,20,0.72)',
         border: `1px solid rgba(180,172,155,0.22)`,
         borderBottom: 'none',
@@ -4392,6 +4383,14 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
           );
         })}
       </div>
+      {/* SAB fill — same bg extends through home-indicator zone, zero content inside */}
+      <div style={{
+        height: 'env(safe-area-inset-bottom, 0px)',
+        background: 'rgba(12,26,20,0.72)',
+        margin: '0 -10px',
+        backdropFilter: 'blur(22px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(22px) saturate(160%)',
+      }} />
     </div>
   );
 }
