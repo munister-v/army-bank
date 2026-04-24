@@ -561,8 +561,8 @@ const translations = {
     full_name_placeholder: 'Іван Петренко',
     data_load_failed: 'Не вдалося завантажити дані.',
     active_cards_metric: 'Активні картки',
-    cardholder_label: 'Власник',
-    valid_label: 'Дійсна',
+    cardholder_label: 'Cardholder',
+    valid_label: 'Valid',
     transfer_placeholder_card: '4721 •••• •••• ••••',
     transfer_placeholder_account: 'AB-100011',
   },
@@ -1041,8 +1041,8 @@ const translations = {
     full_name_placeholder: 'Mario Rossi',
     data_load_failed: 'Impossibile caricare i dati.',
     active_cards_metric: 'Carte attive',
-    cardholder_label: 'Intestatario',
-    valid_label: 'Valida',
+    cardholder_label: 'Cardholder',
+    valid_label: 'Valid',
     transfer_placeholder_card: '4721 •••• •••• ••••',
     transfer_placeholder_account: 'AB-100011',
   },
@@ -1281,8 +1281,8 @@ const translations = {
     full_name_placeholder: 'Juan Pérez',
     data_load_failed: 'No se pudieron cargar los datos.',
     active_cards_metric: 'Tarjetas activas',
-    cardholder_label: 'Titular',
-    valid_label: 'Válida',
+    cardholder_label: 'Cardholder',
+    valid_label: 'Valid',
     transfer_placeholder_card: '4721 •••• •••• ••••',
     transfer_placeholder_account: 'AB-100011',
   },
@@ -2206,6 +2206,7 @@ function OverviewScreen() {
   }
   const { analytics } = useBankData();
   const displayName = user?.full_name ?? t('user_fallback');
+  const firstName = displayName.split(/\s+/)[0];
   const avatarInitials = initials(displayName);
   const quickActions = getQuickActions(t);
   const [balanceVisible, setBalanceVisible] = useState(true);
@@ -2453,7 +2454,7 @@ function OverviewScreen() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.5, marginBottom: 2 }}>{greeting}</div>
-              <div style={{ fontSize: 19, fontWeight: 700, color: text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.1 }}>{displayName}</div>
+              <div style={{ fontSize: 19, fontWeight: 700, color: text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.1 }}>{firstName}</div>
             </div>
             {[
               <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
@@ -4339,10 +4340,11 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   return (
     <div style={{
       position: 'fixed',
-      left: 0, right: 0,
-      bottom: 'max(10px, env(safe-area-inset-bottom, 10px))',
+      left: 0, right: 0, bottom: 0,
       zIndex: 120,
-      padding: '0 14px',
+      paddingLeft: 14, paddingRight: 14,
+      paddingBottom: 'max(10px, env(safe-area-inset-bottom, 10px))',
+      background: appBgBase,
       pointerEvents: 'none',
     }}>
       <div style={{
