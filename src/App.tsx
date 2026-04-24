@@ -4339,41 +4339,38 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   return (
     <div style={{
       position: 'fixed',
-      left: 0, right: 0, bottom: 0,
+      left: 0, right: 0,
+      bottom: 'max(10px, env(safe-area-inset-bottom, 10px))',
       zIndex: 120,
-      background: 'rgba(10,24,17,0.82)',
-      backdropFilter: 'blur(28px) saturate(180%)',
-      WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-      borderTop: '0.5px solid rgba(180,172,155,0.1)',
-      display: 'flex',
-      flexDirection: 'column',
+      padding: '0 14px',
+      pointerEvents: 'none',
     }}>
-      {/* Upward fade scrim so content blends into the glass */}
-      <div style={{
-        position: 'absolute', left: 0, right: 0,
-        bottom: '100%', height: 48,
-        background: 'linear-gradient(to bottom, transparent, rgba(10,24,17,0.82))',
-        pointerEvents: 'none',
-      }} />
       <div style={{
         position: 'relative',
+        padding: 6,
+        background: 'rgba(12,26,20,0.78)',
+        backdropFilter: 'blur(28px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+        border: `1px solid rgba(180,172,155,0.18)`,
+        borderRadius: 28,
         display: 'flex',
-        padding: '8px 6px 6px',
+        boxShadow: '0 12px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(230,225,210,0.06)',
+        pointerEvents: 'auto',
       }}>
         <div style={{
-          position: 'absolute', top: 4, bottom: 2,
+          position: 'absolute', top: 6, bottom: 6,
           left: `calc(${activeIdx * 20}% + 6px)`, width: 'calc(20% - 12px)',
-          background: 'linear-gradient(135deg, rgba(180,172,155,0.2) 0%, rgba(100,95,80,0.1) 100%)',
-          border: `1px solid rgba(180,172,155,0.28)`, borderRadius: 20,
+          background: 'linear-gradient(135deg, rgba(180,172,155,0.22) 0%, rgba(100,95,80,0.12) 100%)',
+          border: `1px solid rgba(180,172,155,0.35)`, borderRadius: 22,
           transition: 'left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.12)',
+          boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.15)',
         }} />
         {tabs.map(t => {
           const isActive = t.k === active;
           const color = isActive ? goldLight : 'rgba(220,215,200,0.5)';
           return (
             <button key={t.k} onClick={() => onChange(t.k)} style={{
-              flex: 1, padding: '8px 4px 4px', background: 'transparent', border: 'none', cursor: 'pointer',
+              flex: 1, padding: '10px 4px', background: 'transparent', border: 'none', cursor: 'pointer',
               position: 'relative', zIndex: 1,
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
               color, fontSize: 10, fontWeight: isActive ? 700 : 500,
@@ -4385,10 +4382,6 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
           );
         })}
       </div>
-      <div style={{
-        height: 'env(safe-area-inset-bottom, 0px)',
-        flexShrink: 0,
-      }} />
     </div>
   );
 }
