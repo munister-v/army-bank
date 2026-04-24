@@ -4346,7 +4346,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       flexShrink: 0,
       backgroundColor: appBgBase,
       backgroundImage: 'linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.72) 45%, rgb(7,21,15) 100%)',
-      padding: '6px 14px 4px',
+      padding: '6px 14px 0',
       backdropFilter: 'blur(24px) saturate(180%)',
       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
       borderTop: '1px solid rgba(180,172,155,0.14)',
@@ -4356,7 +4356,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
         position: 'relative', padding: 6,
         background: 'rgba(12,26,20,0.55)',
         border: `1px solid rgba(180,172,155,0.22)`,
-        borderRadius: 28, display: 'flex',
+        borderRadius: '28px 28px 0 0', display: 'flex',
         boxShadow: '0 10px 22px rgba(0,0,0,0.3), inset 0 1px 0 rgba(230,225,210,0.08)',
       }}>
         {/* Sliding indicator */}
