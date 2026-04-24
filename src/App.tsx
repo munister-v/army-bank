@@ -4775,10 +4775,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       WebkitBackdropFilter: 'blur(28px) saturate(180%)',
       background: '#07150f',
       borderTop: '0.5px solid rgba(180,172,155,0.1)',
-      // fills the home-indicator zone with the same background
-      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
     }}>
-      {/* no upward scrim — in-flow TabBar has clean edge, scrim caused visible gap */}
       {/* Tab row */}
       <div style={{
         position: 'relative',
@@ -4811,6 +4808,8 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
           );
         })}
       </div>
+      {/* Safe-area fill — separate block so the CSS env() computes reliably */}
+      <div className="tab-safe-area" />
     </div>
   );
 }
