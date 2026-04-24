@@ -4338,10 +4338,10 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const activeIdx = tabs.findIndex(t => t.k === active);
   return (
     <div style={{
-      position: 'fixed',
+      position: 'absolute',
       left: 0, right: 0, bottom: 0,
       zIndex: 120,
-      padding: '0 10px 0',
+      padding: '0 10px env(safe-area-inset-bottom, 0px)',
       pointerEvents: 'none',
     }}>
       {/* Pill — content area only, tight padding */}
@@ -4351,7 +4351,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
         background: 'rgba(12,26,20,0.72)',
         border: `1px solid rgba(180,172,155,0.22)`,
         borderBottom: 'none',
-        borderRadius: '28px 28px 0 0', display: 'flex',
+        borderRadius: 28, display: 'flex',
         boxShadow: '0 -8px 32px rgba(0,0,0,0.28), inset 0 1px 0 rgba(230,225,210,0.08)',
         backdropFilter: 'blur(22px) saturate(160%)',
         WebkitBackdropFilter: 'blur(22px) saturate(160%)',
@@ -5257,7 +5257,7 @@ export default function App() {
     <AppCtx.Provider value={appCtx}>
       <BankDataCtx.Provider value={bankCtx}>
         <LayoutCtx.Provider value="mobile">
-          <div style={{ ...appBase, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ ...appBase, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'absolute' }}>
             <LuxuryAmbientFx />
             <div style={{
               flex: 1,
