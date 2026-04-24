@@ -4511,6 +4511,7 @@ const appBg = `radial-gradient(ellipse 92% 66% at 18% -4%, rgba(48,88,64,0.78) 0
 const appBase: React.CSSProperties = {
   position: 'fixed',
   inset: 0,
+  bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px))',
   background: appBg,
   color: text.secondary,
   fontFamily,
@@ -5263,7 +5264,7 @@ export default function App() {
     <AppCtx.Provider value={appCtx}>
       <BankDataCtx.Provider value={bankCtx}>
         <LayoutCtx.Provider value="mobile">
-          <div style={{ ...appBase, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ ...appBase, overflow: 'hidden', display: 'flex', flexDirection: 'column', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
             <LuxuryAmbientFx />
             <div style={{
               flex: 1,
@@ -5273,8 +5274,8 @@ export default function App() {
               width: '100%',
               maxWidth: '100vw',
               touchAction: 'pan-y',
-              paddingBottom: '88px',
-              scrollPaddingBottom: '88px',
+              paddingBottom: '72px',
+              scrollPaddingBottom: '72px',
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
