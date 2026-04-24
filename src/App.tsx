@@ -39,7 +39,7 @@ const goldLight   = '#d4ccbc';   // light champagne
 const bg = {
   card:   'rgba(255,255,255,0.042)',
   card2:  'rgba(255,255,255,0.026)',
-  border: 'rgba(180,172,155,0.13)',
+  border: 'rgba(180,172,155,0.08)',
   hover:  'rgba(255,255,255,0.06)',
 };
 const text = {
@@ -2443,15 +2443,9 @@ function OverviewScreen() {
   // ── Mobile layout ──
   return (
     <div style={{ paddingBottom: 20 }}>
-      <div style={{ padding: `${topPad} 16px 6px` }}>
+      <div style={{ padding: `${topPad} 22px 8px` }}>
         <div style={{
-          borderRadius: 26,
-          border: `1px solid ${bg.border}`,
-          background: 'linear-gradient(140deg, rgba(16,44,33,0.86) 0%, rgba(11,30,22,0.72) 52%, rgba(19,48,35,0.7) 100%)',
-          boxShadow: '0 22px 44px rgba(3,10,8,0.28), inset 0 1px 0 rgba(255,255,255,0.06)',
-          padding: '14px 14px 12px',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)',
+          padding: 0,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 42, height: 42, borderRadius: '50%', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a2820', fontSize: 13, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.5), 0 2px 6px rgba(0,0,0,0.3)', overflow: 'hidden', flexShrink: 0 }}>
@@ -2465,34 +2459,34 @@ function OverviewScreen() {
               <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
               <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#ddd8cc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
             ].map((icon, i) => (
-              <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast(t('no_new_notifications'))} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>{icon}</button>
+              <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast(t('no_new_notifications'))} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.035)', border: 'none', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>{icon}</button>
             ))}
           </div>
         </div>
       </div>
 
-      <div style={{ padding: '10px 16px 10px' }}>
-        <div style={{ borderRadius: 22, border: `1px solid ${bg.border}`, background: 'linear-gradient(180deg, rgba(15,39,30,0.68) 0%, rgba(10,27,20,0.56) 100%)', padding: '16px 16px 14px', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+      <div style={{ padding: '24px 22px 18px' }}>
+        <div style={{ padding: 0 }}>
           <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} balance={account?.balance ?? 0} accountNumber={account?.account_number ?? '—'} />
         </div>
       </div>
 
-      <div style={{ padding: '0 16px 2px' }}>
-        <div style={{ borderRadius: 22, border: `1px solid ${bg.border}`, background: 'linear-gradient(180deg, rgba(12,33,25,0.58) 0%, rgba(9,24,18,0.52) 100%)', padding: '14px 14px 12px' }}>
+      <div style={{ padding: '0 22px 4px' }}>
+        <div style={{ padding: 0 }}>
           {cardSection}
         </div>
       </div>
 
-      <div style={{ padding: '14px 16px 0' }}>
-        <div style={{ borderRadius: 22, border: `1px solid ${bg.border}`, background: 'linear-gradient(180deg, rgba(12,32,24,0.6) 0%, rgba(8,22,17,0.5) 100%)', padding: '12px' }}>
+      <div style={{ padding: '22px 22px 0' }}>
+        <div style={{ padding: 0 }}>
           <div style={{ display: 'flex', gap: 8 }}>
             {quickActions.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => handleQuickAction(a.action)} /></Fragment>)}
           </div>
         </div>
       </div>
 
-      <div style={{ padding: '16px 16px 0' }}>
-        <div style={{ borderRadius: 22, border: `1px solid ${bg.border}`, background: 'linear-gradient(180deg, rgba(12,30,23,0.56) 0%, rgba(8,22,16,0.48) 100%)', padding: '14px 12px 12px' }}>
+      <div style={{ padding: '24px 22px 0' }}>
+        <div style={{ padding: 0 }}>
           <ActivityFeed transactions={transactions} />
         </div>
       </div>
@@ -3612,8 +3606,10 @@ function ProductVisual({ product, size = 'card' }: { product: Product; size?: 'c
         style={{
           width: '100%',
           height: '100%',
-          objectFit: 'cover',
+          objectFit: 'contain',
           display: 'block',
+          padding: size === 'cart' ? 0 : 8,
+          boxSizing: 'border-box',
           transform: size === 'detail' ? 'scale(1.01)' : 'scale(1)',
         }}
       />
@@ -3874,7 +3870,7 @@ function MarketplaceScreen() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [search, setSearch] = useState('');
   const [catalogPage, setCatalogPage] = useState(1);
-  const catalogListRef = useRef<HTMLDivElement | null>(null);
+  const marketTopRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => { localStorage.setItem('arm_cart', JSON.stringify(cart)); }, [cart]);
   useEffect(() => {
     const hidden = Boolean(showCart || preview);
@@ -4041,7 +4037,7 @@ function MarketplaceScreen() {
     const next = Math.max(1, Math.min(totalCatalogPages, nextPage));
     setCatalogPage(next);
     window.setTimeout(() => {
-      catalogListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      marketTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 0);
   }
 
@@ -4085,8 +4081,8 @@ function MarketplaceScreen() {
       </button>
     )}
     <ContentWrap maxW={800}>
-    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 'calc(132px + env(safe-area-inset-bottom, 0px))' }}>
-      <div style={{ padding: `${topPad} 22px 12px` }}>
+    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 18, overflowX: 'hidden' }}>
+      <div ref={marketTopRef} style={{ padding: `${topPad} 22px 12px` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ ...T.h1, color: text.primary }}>{t('market_title')}</div>
           <button onClick={() => setShowCart(true)} style={{ position: 'relative', width: 44, height: 44, borderRadius: 14, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20 }}>
@@ -4128,9 +4124,9 @@ function MarketplaceScreen() {
             </div>
           ) : (
             <>
-              <div ref={catalogListRef} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 10, padding: '8px 22px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 10, padding: '8px 22px' }}>
                 {pagedProducts.map(p => (
-                  <div key={p.id} onClick={() => setPreview(p)} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'border-color 0.15s' }}>
+                  <div key={p.id} onClick={() => setPreview(p)} style={{ background: 'rgba(255,255,255,0.036)', border: '1px solid rgba(180,172,155,0.07)', borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'background 0.15s', minHeight: 230 }}>
                     <div style={{ height: 108, background: `linear-gradient(135deg, rgba(180,172,155,0.08), rgba(100,95,80,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42, position: 'relative', overflow: 'hidden' }}>
                       <ProductVisual product={p} />
                       {p.badge && (
@@ -4155,7 +4151,7 @@ function MarketplaceScreen() {
                 ))}
               </div>
               {filteredProducts.length > PRODUCTS_PER_PAGE && (
-                <div data-no-tab-swipe="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '12px 22px 18px', position: 'relative', zIndex: 2, flexWrap: 'wrap' }}>
+                <div data-no-tab-swipe="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '12px 22px 8px', position: 'relative', zIndex: 2, flexWrap: 'wrap' }}>
                   <button
                     onClick={() => goToCatalogPage(catalogPage - 1)}
                     disabled={catalogPage === 1}
@@ -4491,12 +4487,13 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
 
 // ─── Root app ─────────────────────────────────────────────────
 const SCREENS = { overview: OverviewScreen, operations: OperationsScreen, cards: CardsScreen, market: MarketplaceScreen, profile: ProfileScreen };
+const ENABLE_MOBILE_TAB_SWIPE = false;
 
 // Solid base — must equal html/body background AND gradient bottom stop.
 // Appended to the shorthand → becomes CSS background-color, painting UNDER
 // all gradient layers so any edge-pixel gap is invisible on OLED.
 const appBgBase = '#07150f';
-const appBg = `radial-gradient(ellipse 80% 60% at 20% 0%, #1a3a2c 0%, transparent 60%), radial-gradient(ellipse 70% 50% at 90% 100%, #2a1a0e 0%, transparent 55%), linear-gradient(180deg, #0a1f18 0%, ${appBgBase} 100%) ${appBgBase}`;
+const appBg = `radial-gradient(ellipse 92% 66% at 18% -4%, rgba(48,88,64,0.78) 0%, rgba(18,48,35,0.38) 42%, transparent 72%), radial-gradient(ellipse 74% 48% at 102% 104%, rgba(118,74,28,0.34) 0%, rgba(82,49,23,0.16) 44%, transparent 72%), linear-gradient(180deg, #0b241a 0%, #081b13 50%, ${appBgBase} 100%) ${appBgBase}`;
 
 const appBase: React.CSSProperties = {
   position: 'fixed',
@@ -4504,6 +4501,9 @@ const appBase: React.CSSProperties = {
   background: appBg,
   color: text.secondary,
   fontFamily,
+  width: '100vw',
+  maxWidth: '100vw',
+  overflowX: 'hidden',
   WebkitFontSmoothing: 'antialiased',
   MozOsxFontSmoothing: 'grayscale',
   textRendering: 'optimizeLegibility',
@@ -4518,29 +4518,29 @@ function LuxuryAmbientFx() {
     <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
       <div style={{
         position: 'absolute',
-        width: 480,
-        height: 480,
-        top: -190,
-        right: -150,
+        width: 560,
+        height: 560,
+        top: -230,
+        right: -190,
         borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(150,220,185,0.16) 0%, rgba(150,220,185,0) 70%)',
-        filter: 'blur(14px)',
+        background: 'radial-gradient(circle, rgba(168,226,190,0.13) 0%, rgba(95,170,126,0.07) 38%, rgba(150,220,185,0) 72%)',
+        filter: 'blur(20px)',
       }} />
       <div style={{
         position: 'absolute',
-        width: 420,
-        height: 420,
-        bottom: -210,
-        left: -120,
+        width: 520,
+        height: 520,
+        bottom: -260,
+        left: -170,
         borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(214,174,121,0.18) 0%, rgba(214,174,121,0) 72%)',
-        filter: 'blur(16px)',
+        background: 'radial-gradient(circle, rgba(214,174,121,0.14) 0%, rgba(152,98,42,0.06) 42%, rgba(214,174,121,0) 74%)',
+        filter: 'blur(22px)',
       }} />
       <div style={{
         position: 'absolute',
         inset: 0,
-        backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 1px, transparent 1px, transparent 3px)',
-        opacity: 0.09,
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.018) 0%, rgba(255,255,255,0) 32%, rgba(0,0,0,0.13) 100%)',
+        opacity: 0.72,
         mixBlendMode: 'soft-light',
       }} />
     </div>
@@ -4996,6 +4996,7 @@ export default function App() {
   }
 
   function handleMobileTouchStart(e: React.TouchEvent<HTMLDivElement>) {
+    if (!ENABLE_MOBILE_TAB_SWIPE) return;
     if (tabBarHidden || transferModal) return;
     if (shouldIgnoreTabSwipe(e.target)) return;
     const t = e.touches[0];
@@ -5256,6 +5257,9 @@ export default function App() {
               minHeight: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
+              width: '100%',
+              maxWidth: '100vw',
+              touchAction: 'pan-y',
               paddingBottom: 'calc(88px + env(safe-area-inset-bottom, 0px))',
               scrollPaddingBottom: 'calc(88px + env(safe-area-inset-bottom, 0px))',
               overscrollBehavior: 'contain',
@@ -5268,7 +5272,10 @@ export default function App() {
             >
               <div
                 style={{
-                  transform: `translate3d(${screenDragX}px,0,0)`,
+                  width: '100%',
+                  maxWidth: '100vw',
+                  overflowX: 'hidden',
+                  transform: ENABLE_MOBILE_TAB_SWIPE ? `translate3d(${screenDragX}px,0,0)` : 'none',
                   transition: screenDragging ? 'none' : 'transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1)',
                   willChange: 'transform',
                 }}
