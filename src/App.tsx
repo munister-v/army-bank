@@ -20,7 +20,7 @@ export class ErrorBoundary extends Component<{ children: React.ReactNode }, { er
     if (this.state.error) {
       const tt = translations[getStoredLanguage()];
       return (
-        <div style={{ position: 'fixed', inset: 0, background: '#07150f', color: '#ddd8cc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, fontFamily: 'sans-serif' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#07150f', color: '#ddd8cc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, fontFamily: 'sans-serif' }}>
           <div style={{ fontSize: 20 }}>{tt.error_boundary_title}</div>
           <div style={{ fontSize: 13, color: 'rgba(220,215,200,0.6)', maxWidth: 400, textAlign: 'center' }}>{this.state.error}</div>
           <button onClick={() => window.location.reload()} style={{ marginTop: 8, padding: '10px 20px', borderRadius: 10, background: gold, color: text.primary, border: 'none', cursor: 'pointer', fontWeight: 600 }}>{tt.error_boundary_refresh}</button>
@@ -2151,7 +2151,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }} onClick={e => e.target === e.currentTarget && onClose()}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }} onClick={e => e.target === e.currentTarget && onClose()}>
       <div
         {...sheetSwipe.sheetProps}
         style={{ width: '100%', maxWidth: 480, background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)', border: '1px solid rgba(180,172,155,0.2)', borderRadius: '24px 24px 0 0', padding: '28px 24px 40px', boxShadow: '0 -20px 60px rgba(0,0,0,0.5)', ...sheetSwipe.sheetStyle }}
@@ -3299,7 +3299,7 @@ function CardsScreen() {
 
     {/* PIN Change Modal */}
     {pinModal && (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setPinModal(false)}>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setPinModal(false)}>
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
         <div onClick={e => e.stopPropagation()} style={{
           position: 'relative', width: '100%', maxWidth: 480,
@@ -3349,7 +3349,7 @@ function CardsScreen() {
       </div>
     )}
     {designModal && (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 320, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => !designLoading && setDesignModal(false)}>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 320, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => !designLoading && setDesignModal(false)}>
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.62)', backdropFilter: 'blur(4px)' }} />
         <div onClick={e => e.stopPropagation()} style={{
           position: 'relative', width: '100%', maxWidth: 620,
@@ -3432,7 +3432,7 @@ function CardsScreen() {
     )}
     {/* Top-up card modal */}
     {topupModal && (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setTopupModal(false)}>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setTopupModal(false)}>
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
         <div onClick={e => e.stopPropagation()} style={{
           position: 'relative', width: '100%', maxWidth: 480,
@@ -4175,7 +4175,7 @@ function ProductDetailDrawer({ product, onClose, onAddToCart }: { product: Produ
   const { t } = usePreferences();
   const sheetSwipe = useSheetSwipeClose(onClose);
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }} onClick={onClose}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }} onClick={onClose}>
       <div style={{ background: `rgba(0,0,0,${0.5 - sheetSwipe.progress * 0.32})`, position: 'absolute', inset: 0, transition: sheetSwipe.dragging ? 'none' : 'background 200ms ease' }} />
       <div
         {...sheetSwipe.sheetProps}
@@ -4264,7 +4264,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
   const labelStyle: React.CSSProperties = { fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 5, display: 'block' };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }} onClick={onClose}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }} onClick={onClose}>
       <div style={{ background: `rgba(0,0,0,${0.5 - sheetSwipe.progress * 0.32})`, position: 'absolute', inset: 0, transition: sheetSwipe.dragging ? 'none' : 'background 200ms ease' }} />
       <div
         {...sheetSwipe.sheetProps}
@@ -5042,7 +5042,7 @@ const appBg = `radial-gradient(ellipse 92% 66% at 18% -4%, rgba(48,88,64,0.78) 0
 
 const appBase: React.CSSProperties = {
   position: 'absolute',
-  inset: 0,
+  top: 0, right: 0, bottom: 0, left: 0,
   background: appBg,
   color: text.secondary,
   fontFamily,
@@ -5060,7 +5060,7 @@ const SPLASH_STATIC_BG = valdorciaHillsImage;
 
 function LuxuryAmbientFx() {
   return (
-    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none', overflow: 'hidden' }}>
       <div style={{
         position: 'absolute',
         width: 560,
@@ -5122,7 +5122,7 @@ function PremiumStatusStrip() {
 
 function WowSplash() {
   return (
-    <div style={{ position: 'fixed', inset: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', zIndex: 9999, overflow: 'hidden', background: '#07150f' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', zIndex: 9999, overflow: 'hidden', background: '#07150f' }}>
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 86% 56% at 50% 14%, rgba(34,74,52,0.64) 0%, rgba(10,26,18,0.92) 65%, rgba(6,16,11,1) 100%)' }} />
       <div style={{
         position: 'absolute',
@@ -5268,15 +5268,15 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
   return (
     <div style={{ ...appBase, overflowY: 'auto' }}>
-      <div style={{ position: 'fixed', inset: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none', background: '#07150f' }} />
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none', background: '#07150f' }} />
       <div style={{
-        position: 'fixed', inset: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none',
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none',
         backgroundImage: `url(${AUTH_STATIC_BG})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center top',
         opacity: 0.82,
       }} />
-      <div style={{ position: 'fixed', inset: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none',
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none',
         background: 'radial-gradient(ellipse 72% 50% at 50% 0%, rgba(20,46,32,0.48) 0%, rgba(6,14,10,0.74) 58%, rgba(5,11,8,0.9) 100%)',
       }} />
       <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 20px', position: 'relative' }}>
@@ -5802,7 +5802,13 @@ export default function App() {
             overflow:hidden is intentionally removed — it was clipping the
             TabBar upward scrim that bleeds above 100% of the tab bar.
           */}
-          <div style={{ ...appBase, display: 'flex', flexDirection: 'column', position: 'fixed' }}>
+          <div style={{
+              // Explicit coordinates — no 'inset' shorthand (not supported iOS < 14.5)
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              display: 'flex', flexDirection: 'column',
+              background: appBg, color: text.secondary, fontFamily,
+              WebkitFontSmoothing: 'antialiased',
+            }}>
             <LuxuryAmbientFx />
             <div style={{
               flex: 1,
@@ -5810,12 +5816,8 @@ export default function App() {
               overflowY: 'auto',
               overflowX: 'hidden',
               width: '100%',
-              maxWidth: '100vw',
               touchAction: 'pan-y',
-              // In-flow TabBar sits below the scroll container in the flex column,
-              // so no paddingBottom needed — content ends cleanly at tab bar top.
               paddingBottom: 0,
-              scrollPaddingBottom: 0,
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
