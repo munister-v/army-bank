@@ -4383,14 +4383,6 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
           );
         })}
       </div>
-      {/* SAB fill — same bg extends through home-indicator zone, zero content inside */}
-      <div style={{
-        height: 'env(safe-area-inset-bottom, 0px)',
-        background: 'rgba(12,26,20,0.72)',
-        margin: '0 -10px',
-        backdropFilter: 'blur(22px) saturate(160%)',
-        WebkitBackdropFilter: 'blur(22px) saturate(160%)',
-      }} />
     </div>
   );
 }
