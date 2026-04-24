@@ -4341,12 +4341,12 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       position: 'fixed',
       left: 0,
       right: 0,
-      bottom: 0,
+      bottom: 'calc(-1 * max(34px, env(safe-area-inset-bottom, 0px)))',
       zIndex: 120,
       flexShrink: 0,
       backgroundColor: 'transparent',
       backgroundImage: 'none',
-      padding: '6px 14px 0',
+      padding: '6px 14px calc(34px + env(safe-area-inset-bottom, 0px))',
       backdropFilter: 'blur(24px) saturate(180%)',
       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
       borderTop: 'none',
@@ -4356,7 +4356,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
         position: 'relative', padding: 6,
         background: 'rgba(12,26,20,0.55)',
         border: `1px solid rgba(180,172,155,0.22)`,
-        borderRadius: '28px 28px 0 0', display: 'flex',
+        borderRadius: 28, display: 'flex',
         boxShadow: '0 10px 22px rgba(0,0,0,0.3), inset 0 1px 0 rgba(230,225,210,0.08)',
       }}>
         {/* Sliding indicator */}
