@@ -4059,7 +4059,7 @@ function MarketplaceScreen() {
         style={{
           position: 'fixed',
           right: 16,
-          bottom: 'calc(96px + env(safe-area-inset-bottom, 0px))',
+          bottom: 'calc(112px + env(safe-area-inset-bottom, 0px))',
           zIndex: 160,
           border: '1px solid rgba(180,172,155,0.3)',
           borderRadius: 14,
@@ -4081,7 +4081,7 @@ function MarketplaceScreen() {
       </button>
     )}
     <ContentWrap maxW={800}>
-    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 18, overflowX: 'hidden' }}>
+    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 'calc(104px + env(safe-area-inset-bottom, 0px))', overflowX: 'hidden' }}>
       <div ref={marketTopRef} style={{ padding: `${topPad} 22px 12px` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ ...T.h1, color: text.primary }}>{t('market_title')}</div>
@@ -4151,7 +4151,7 @@ function MarketplaceScreen() {
                 ))}
               </div>
               {filteredProducts.length > PRODUCTS_PER_PAGE && (
-                <div data-no-tab-swipe="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '12px 22px 8px', position: 'relative', zIndex: 2, flexWrap: 'wrap' }}>
+                <div data-no-tab-swipe="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '12px 22px 16px', position: 'relative', zIndex: 2, flexWrap: 'wrap' }}>
                   <button
                     onClick={() => goToCatalogPage(catalogPage - 1)}
                     disabled={catalogPage === 1}
