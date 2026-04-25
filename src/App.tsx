@@ -215,7 +215,26 @@ type ApiTransaction = {
   description: string;
   related_account?: string | null;
   created_at: string;
+  note?: string | null;
 };
+
+type ApiNotification = {
+  id: number;
+  title: string;
+  body: string;
+  icon: string;
+  type: string;
+  is_read: boolean;
+  created_at: string;
+};
+
+type BalancePoint = { day: string; balance: number };
+
+type Achievement = { id: string; title: string; desc: string; icon: string; done: boolean };
+
+type SpendingInsight = { icon: string; text: string };
+
+type TopRecipient = { related_account: string; total_sent: number; tx_count: number };
 
 type ApiAnalyticsByType = {
   tx_type: string;
@@ -569,6 +588,16 @@ const translations = {
     filter_income: 'Надходження',
     filter_outcome: 'Витрати',
     notifications_center: 'Сповіщення',
+    balance_history_title: 'Динаміка балансу',
+    achievements_title: 'Досягнення',
+    achievements_progress: 'виконано',
+    insights_title: 'Аналітика',
+    tx_note_label: 'Нотатка',
+    tx_note_placeholder: 'Додати нотатку...',
+    tx_note_saved: 'Нотатку збережено',
+    top_recipients_title: 'Часті отримувачі',
+    mark_all_read: 'Прочитати всі',
+    sent_label: 'переказів',
   },
   en: {
     user_fallback: 'User',
@@ -813,6 +842,16 @@ const translations = {
     filter_income: 'Income',
     filter_outcome: 'Expenses',
     notifications_center: 'Notifications',
+    balance_history_title: 'Balance History',
+    achievements_title: 'Achievements',
+    achievements_progress: 'completed',
+    insights_title: 'Insights',
+    tx_note_label: 'Note',
+    tx_note_placeholder: 'Add a note...',
+    tx_note_saved: 'Note saved',
+    top_recipients_title: 'Frequent Recipients',
+    mark_all_read: 'Mark all read',
+    sent_label: 'transfers',
   },
   it: {
     user_fallback: 'Utente',
@@ -1057,6 +1096,16 @@ const translations = {
     filter_income: 'Entrate',
     filter_outcome: 'Uscite',
     notifications_center: 'Notifiche',
+    balance_history_title: 'Storico Saldo',
+    achievements_title: 'Traguardi',
+    achievements_progress: 'completati',
+    insights_title: 'Analisi',
+    tx_note_label: 'Nota',
+    tx_note_placeholder: 'Aggiungi una nota...',
+    tx_note_saved: 'Nota salvata',
+    top_recipients_title: 'Destinatari frequenti',
+    mark_all_read: 'Segna tutto come letto',
+    sent_label: 'trasferimenti',
   },
   es: {
     user_fallback: 'Usuario',
@@ -1301,6 +1350,16 @@ const translations = {
     filter_income: 'Ingresos',
     filter_outcome: 'Gastos',
     notifications_center: 'Notificaciones',
+    balance_history_title: 'Historial de Saldo',
+    achievements_title: 'Logros',
+    achievements_progress: 'completados',
+    insights_title: 'Análisis',
+    tx_note_label: 'Nota',
+    tx_note_placeholder: 'Agregar nota...',
+    tx_note_saved: 'Nota guardada',
+    top_recipients_title: 'Destinatarios frecuentes',
+    mark_all_read: 'Marcar todo como leído',
+    sent_label: 'transferencias',
   },
 } as const;
 
@@ -1935,6 +1994,137 @@ function timeGreeting(lang: AppLang): string {
   return translations[lang].greeting_night;
 }
 
+// ─── Balance History Chart ────────────────────────────────────
+function BalanceHistoryChart() {
+  const { t, lang } = usePreferences();
+  const [points, setPoints] = useState<BalancePoint[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('army_bank_token');
+    if (!token) { setLoading(false); return; }
+    fetch('/api/analytics/balance-history?days=14', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if (j?.ok && Array.isArray(j.data)) setPoints(j.data); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading || points.length < 2) return null;
+
+  const min = Math.min(...points.map(p => p.balance));
+  const max = Math.max(...points.map(p => p.balance));
+  const range = max - min || 1;
+  const W = 280, H = 60;
+  const toY = (v: number) => H - ((v - min) / range) * (H - 8) - 4;
+  const toX = (i: number) => (i / (points.length - 1)) * W;
+  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${toX(i).toFixed(1)} ${toY(p.balance).toFixed(1)}`).join(' ');
+  const areaD = `${pathD} L ${W} ${H} L 0 ${H} Z`;
+  const locale = localeForLang(lang);
+  const startDay = new Date(points[0].day).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+  const endDay = new Date(points[points.length - 1].day).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+  const lastBalance = points[points.length - 1].balance;
+  const firstBalance = points[0].balance;
+  const diff = lastBalance - firstBalance;
+  const isUp = diff >= 0;
+
+  return (
+    <div style={{ padding: '0 22px 20px' }}>
+      <div style={{ padding: '16px 18px', ...glassCard() }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+          <span style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8 }}>{t('balance_history_title')}</span>
+          <span style={{ fontSize: 12, color: isUp ? '#7fb896' : '#e07070', fontWeight: 600, fontFeatureSettings: '"tnum"' }}>
+            {isUp ? '+' : ''}{fmtInt(diff)}{fmtDec(diff)} ₴
+          </span>
+        </div>
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', height: 52, overflow: 'visible' }}>
+          <defs>
+            <linearGradient id="balGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={isUp ? '#7fb896' : '#e07070'} stopOpacity="0.25" />
+              <stop offset="100%" stopColor={isUp ? '#7fb896' : '#e07070'} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={areaD} fill="url(#balGrad)" />
+          <path d={pathD} fill="none" stroke={isUp ? '#7fb896' : '#e07070'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+          <span style={{ fontSize: 10, color: text.dim }}>{startDay}</span>
+          <span style={{ fontSize: 10, color: text.dim }}>{endDay}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Spending Insights Strip ──────────────────────────────────
+function InsightsStrip() {
+  const { t } = usePreferences();
+  const [insights, setInsights] = useState<SpendingInsight[]>([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('army_bank_token');
+    if (!token) return;
+    fetch('/api/analytics/insights', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if (j?.ok && j.data?.insights) setInsights(j.data.insights); })
+      .catch(() => {});
+  }, []);
+
+  if (!insights.length) return null;
+
+  return (
+    <div style={{ padding: '0 22px 20px' }}>
+      <div style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>{t('insights_title')}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {insights.map((ins, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(180,172,155,0.1)', borderRadius: 14 }}>
+            <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1.4 }}>{ins.icon}</span>
+            <span style={{ fontSize: 12, color: text.secondary, lineHeight: 1.5 }}>{ins.text}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Top Recipients Mini ──────────────────────────────────────
+function TopRecipientsMini({ onTransfer }: { onTransfer: (account: string) => void }) {
+  const { t } = usePreferences();
+  const [recipients, setRecipients] = useState<TopRecipient[]>([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('army_bank_token');
+    if (!token) return;
+    fetch('/api/analytics/top-recipients', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if (j?.ok && Array.isArray(j.data)) setRecipients(j.data); })
+      .catch(() => {});
+  }, []);
+
+  if (!recipients.length) return null;
+
+  return (
+    <div style={{ padding: '0 22px 20px' }}>
+      <div style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>{t('top_recipients_title')}</div>
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 2 }}>
+        {recipients.map((r, i) => (
+          <button key={i} onClick={() => onTransfer(r.related_account)} style={{
+            flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+            padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(180,172,155,0.12)',
+            borderRadius: 16, cursor: 'pointer', minWidth: 80,
+          }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: `linear-gradient(135deg, ${gold}30, ${goldDark}30)`, border: `1px solid ${gold}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: gold, fontFamily: 'monospace' }}>
+              {r.related_account.slice(-2)}
+            </div>
+            <span style={{ fontSize: 10, color: text.muted, fontFamily: 'monospace', letterSpacing: 0.5 }}>••{r.related_account.slice(-4)}</span>
+            <span style={{ fontSize: 10, color: text.dim }}>{r.tx_count} {t('sent_label')}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Overview screen ──────────────────────────────────────────
 function QuickAction({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
   return (
@@ -2231,6 +2421,34 @@ function OverviewScreen() {
   const [ovRevealed, setOvRevealed] = useState<{ card_number: string; cvv: string } | null>(null);
   const [ovRevealing, setOvRevealing] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [apiNotifications, setApiNotifications] = useState<ApiNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const token = localStorage.getItem('army_bank_token');
+    if (!token) return;
+    fetch('/api/notifications/unread-count', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if (j?.ok) setUnreadCount(j.data?.count ?? 0); })
+      .catch(() => {});
+  }, []);
+
+  async function openNotificationsPanel() {
+    const token = localStorage.getItem('army_bank_token');
+    setShowNotifications(true);
+    try {
+      const [notifRes] = await Promise.all([
+        fetch('/api/notifications', { headers: { Authorization: `Bearer ${token ?? ''}` } }),
+        token ? fetch('/api/notifications/read-all', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
+      ]);
+      if (notifRes.ok) {
+        const j = await notifRes.json();
+        if (j?.ok && Array.isArray(j.data)) setApiNotifications(j.data);
+      }
+      setUnreadCount(0);
+    } catch { /* ignore */ }
+  }
+
   const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
   const cards: CardData[] = apiCards.length > 0 ? apiCards.map(c => apiCardToData(c, userNameUp)) : [
     { variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29' },
@@ -2420,7 +2638,10 @@ function OverviewScreen() {
             <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
             <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#ddd8cc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
           ].map((icon, i) => (
-            <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : setShowNotifications(true)} style={{ width: 40, height: 40, borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 10 }}>{icon}</button>
+            <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : openNotificationsPanel()} style={{ width: 40, height: 40, borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 10, position: 'relative' }}>
+              {icon}
+              {i === 1 && unreadCount > 0 && <span style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: '50%', background: '#e07070', border: '1.5px solid rgba(7,21,15,0.9)' }} />}
+            </button>
           ))}
         </div>
 
@@ -2481,7 +2702,10 @@ function OverviewScreen() {
               <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
               <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#ddd8cc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
             ].map((icon, i) => (
-              <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : setShowNotifications(true)} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.035)', border: 'none', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>{icon}</button>
+              <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : openNotificationsPanel()} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.035)', border: 'none', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, position: 'relative' }}>
+                {icon}
+                {i === 1 && unreadCount > 0 && <span style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: '50%', background: '#e07070', border: '1.5px solid rgba(7,21,15,0.9)' }} />}
+              </button>
             ))}
           </div>
         </div>
@@ -2507,7 +2731,11 @@ function OverviewScreen() {
         </div>
       </div>
 
-      <div style={{ padding: '24px 22px 0' }}>
+      <div style={{ height: 20 }} />
+      <BalanceHistoryChart />
+      <TopRecipientsMini onTransfer={acc => { openTransfer('by_account'); }} />
+
+      <div style={{ padding: '0 22px 0' }}>
         <div style={{ padding: 0 }}>
           <ActivityFeed transactions={transactions} />
         </div>
@@ -2526,35 +2754,41 @@ function OverviewScreen() {
         }}>
           <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 20px' }} />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: text.primary }}>{t('notifications_center')}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: text.primary }}>{t('notifications_center')}</div>
+              {apiNotifications.filter(n => !n.is_read).length > 0 && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', background: '#e07070', borderRadius: 100, padding: '1px 6px', letterSpacing: 0.3 }}>
+                  {apiNotifications.filter(n => !n.is_read).length}
+                </span>
+              )}
+            </div>
             <button onClick={() => setShowNotifications(false)} style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(180,172,155,0.1)', border: 'none', cursor: 'pointer', color: text.muted, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
           </div>
-          {transactions.length === 0 ? (
+          {apiNotifications.length === 0 ? (
             <div style={{ padding: '28px 0', textAlign: 'center', color: text.muted, fontSize: 14 }}>
               <div style={{ fontSize: 28, marginBottom: 12 }}>🔔</div>
               {t('no_new_notifications')}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden' }}>
-              {transactions.slice(0, 6).map((tx, i) => {
-                const s = CAT_STYLES[txToCat(tx)];
-                const isIn = tx.direction === 'in';
-                return (
-                  <Fragment key={tx.id}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.icon}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: text.secondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.description}</div>
-                        <div style={{ fontSize: 11, color: text.muted }}>{fmtTime(tx.created_at, lang)}</div>
-                      </div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: isIn ? '#7fb896' : text.secondary, fontFeatureSettings: '"tnum"', flexShrink: 0 }}>
-                        {isIn ? '+' : '-'}{fmtInt(tx.amount)}{fmtDec(tx.amount)} ₴
-                      </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden', maxHeight: '60vh', overflowY: 'auto' }}>
+              {apiNotifications.map((notif, i) => (
+                <Fragment key={notif.id}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 16px', opacity: notif.is_read ? 0.65 : 1 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: notif.is_read ? 'rgba(180,172,155,0.08)' : 'rgba(127,184,150,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 17 }}>
+                      {notif.icon || '🔔'}
                     </div>
-                    {i < Math.min(transactions.length, 6) - 1 && <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 16px 0 64px' }} />}
-                  </Fragment>
-                );
-              })}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                        <div style={{ fontSize: 13, fontWeight: notif.is_read ? 400 : 600, color: text.secondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{notif.title}</div>
+                        {!notif.is_read && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#7fb896', flexShrink: 0, display: 'inline-block' }} />}
+                      </div>
+                      {notif.body ? <div style={{ fontSize: 11, color: text.muted, lineHeight: 1.4 }}>{notif.body}</div> : null}
+                      <div style={{ fontSize: 10, color: text.dim, marginTop: 3 }}>{fmtTime(notif.created_at, lang)}</div>
+                    </div>
+                  </div>
+                  {i < apiNotifications.length - 1 && <div style={{ height: 1, background: 'rgba(180,172,155,0.07)', margin: '0 16px 0 64px' }} />}
+                </Fragment>
+              ))}
             </div>
           )}
         </div>
@@ -3028,7 +3262,29 @@ function OperationsScreen() {
   const [txFilter, setTxFilter] = useState<'all' | 'in' | 'out'>('all');
   const [dlReceipt, setDlReceipt] = useState<number | null>(null);
   const [dlExport, setDlExport] = useState(false);
+  const [selectedTxId, setSelectedTxId] = useState<number | null>(null);
+  const [txNote, setTxNote] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
   const token = localStorage.getItem('army_bank_token');
+
+  const selectedTxData = selectedTxId ? transactions.find(tx => tx.id === selectedTxId) ?? null : null;
+
+  async function saveNote() {
+    if (!selectedTxId || !token) return;
+    setSavingNote(true);
+    try {
+      const r = await fetch(`/api/transactions/${selectedTxId}/note`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ note: txNote }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.message || t('operation_error'));
+      toast(t('tx_note_saved'));
+      setSelectedTxId(null);
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : t('operation_error')); }
+    finally { setSavingNote(false); }
+  }
 
   const locale = localeForLang(lang);
   const periodLabels = [t('period_week_short'), t('period_month_short'), t('period_year_short')];
@@ -3122,6 +3378,7 @@ function OperationsScreen() {
   const spentLabel = account && transactions.length > 0 ? `₴\u00a0${fmtInt(totalSpent)}${fmtDec(totalSpent)}` : '₴\u00a042\u00a0380';
 
   return (
+    <>
     <ContentWrap maxW={720}>
     <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
       <div style={{ padding: `${topPad} 22px 14px` }}>
@@ -3249,6 +3506,8 @@ function OperationsScreen() {
         );
       })()}
 
+      {txFilter === 'all' && <InsightsStrip />}
+
       {/* Transactions */}
       {txGroups.length === 0 && (
         <div style={{ padding: '40px 22px', textAlign: 'center', color: text.muted, fontSize: 14 }}>
@@ -3263,7 +3522,9 @@ function OperationsScreen() {
               const s = CAT_STYLES[item.cat];
               return (
                 <Fragment key={i}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+                  <div
+                    onClick={() => { if (item.txId) { setSelectedTxId(item.txId); const tx = transactions.find(tx => tx.id === item.txId); setTxNote(tx?.note ?? ''); } }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: item.txId ? 'pointer' : 'default' }}>
                     <div style={{
                       width: 36, height: 36, borderRadius: 10, background: s.bg,
                       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -3276,7 +3537,7 @@ function OperationsScreen() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ ...T.body, fontWeight: 600, color: item.positive ? '#7fb896' : text.secondary, ...T.num }}>{item.amount} ₴</div>
                       {item.txId ? (
-                        <button onClick={() => downloadReceipt(item.txId!)} disabled={dlReceipt === item.txId} title={t('download_receipt')} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(180,172,155,0.08)', border: `1px solid rgba(180,172,155,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13 }}>{dlReceipt === item.txId ? '…' : '🧾'}</button>
+                        <button onClick={e => { e.stopPropagation(); downloadReceipt(item.txId!); }} disabled={dlReceipt === item.txId} title={t('download_receipt')} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(180,172,155,0.08)', border: `1px solid rgba(180,172,155,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13 }}>{dlReceipt === item.txId ? '…' : '🧾'}</button>
                       ) : (
                         <Chevron size={12} color="rgba(220,215,200,0.3)" />
                       )}
@@ -3291,6 +3552,49 @@ function OperationsScreen() {
       ))}
     </div>
     </ContentWrap>
+
+    {/* Transaction detail sheet */}
+    {selectedTxId && selectedTxData && (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setSelectedTxId(null)}>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }} />
+        <div onClick={e => e.stopPropagation()} style={{
+          position: 'relative', width: '100%', maxWidth: 520,
+          background: 'linear-gradient(180deg,rgba(17,40,32,0.98) 0%,rgba(11,30,22,0.98) 100%)',
+          backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+          borderRadius: '24px 24px 0 0', padding: '28px 24px calc(32px + env(safe-area-inset-bottom,0px))',
+          border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
+        }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 20px' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
+            {(() => { const s = CAT_STYLES[txToCat(selectedTxData)]; return <div style={{ width: 44, height: 44, borderRadius: 14, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.icon}</div>; })()}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedTxData.description}</div>
+              <div style={{ fontSize: 12, color: text.muted, marginTop: 3 }}>{fmtTime(selectedTxData.created_at, lang)}</div>
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: selectedTxData.direction === 'in' ? '#7fb896' : text.primary, fontFeatureSettings: '"tnum"', flexShrink: 0 }}>
+              {selectedTxData.direction === 'in' ? '+' : '-'}{fmtInt(selectedTxData.amount)}{fmtDec(selectedTxData.amount)} ₴
+            </div>
+          </div>
+          <label style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, display: 'block', marginBottom: 8 }}>{t('tx_note_label')}</label>
+          <textarea
+            value={txNote}
+            onChange={e => setTxNote(e.target.value)}
+            placeholder={t('tx_note_placeholder')}
+            rows={3}
+            style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(180,172,155,0.18)', borderRadius: 14, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit', resize: 'none', boxSizing: 'border-box' }}
+          />
+          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+            <button onClick={() => setSelectedTxId(null)} style={{ flex: 1, padding: '12px', background: 'rgba(180,172,155,0.07)', border: '1px solid rgba(180,172,155,0.15)', borderRadius: 14, color: text.muted, fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>
+              {t('cancel_label')}
+            </button>
+            <button onClick={saveNote} disabled={savingNote} style={{ flex: 2, padding: '12px', background: `linear-gradient(135deg, ${gold}, ${goldDark})`, border: 'none', borderRadius: 14, color: '#0c1a12', fontSize: 14, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', opacity: savingNote ? 0.7 : 1 }}>
+              {savingNote ? '…' : t('profile_save')}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -3427,6 +3731,16 @@ function ProfileScreen() {
   const [oldPwd, setOldPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
   const [pwdLoading, setPwdLoading] = useState(false);
+  const [achievements, setAchievements] = useState<{ achievements: Achievement[]; done: number; total: number } | null>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('army_bank_token');
+    if (!token) return;
+    fetch('/api/achievements', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if (j?.ok && j.data) setAchievements(j.data); })
+      .catch(() => {});
+  }, []);
 
   const displayName = user?.full_name ?? t('user_fallback');
   const userInitials = initials(displayName);
@@ -3674,6 +3988,32 @@ function ProfileScreen() {
           </>
         )}
       </>)}
+
+      {/* Achievements */}
+      {achievements && (
+        <div style={{ margin: '0 22px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ ...T.h3, color: text.secondary }}>{t('achievements_title')}</span>
+            <span style={{ fontSize: 12, color: text.muted }}>{achievements.done}/{achievements.total} {t('achievements_progress')}</span>
+          </div>
+          <div style={{ height: 3, background: 'rgba(180,172,155,0.1)', borderRadius: 3, marginBottom: 14, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${(achievements.done / achievements.total) * 100}%`, background: `linear-gradient(90deg, ${gold}, ${goldDark})`, borderRadius: 3, transition: 'width 0.6s ease' }} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+            {achievements.achievements.map(a => (
+              <div key={a.id} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '10px 6px',
+                background: a.done ? 'rgba(127,184,150,0.07)' : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${a.done ? 'rgba(127,184,150,0.2)' : 'rgba(180,172,155,0.08)'}`,
+                borderRadius: 14, opacity: a.done ? 1 : 0.45, transition: 'opacity 0.3s',
+              }}>
+                <span style={{ fontSize: 22, filter: a.done ? 'none' : 'grayscale(1)' }}>{a.icon}</span>
+                <span style={{ fontSize: 9, color: a.done ? text.secondary : text.muted, textAlign: 'center', lineHeight: 1.3, fontWeight: a.done ? 600 : 400 }}>{a.title}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Sign out */}
       <div style={{ padding: '8px 22px' }}>
