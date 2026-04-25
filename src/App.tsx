@@ -6547,13 +6547,12 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
     // so the seam is invisible regardless of whether bottom:0 reaches the
     // physical screen edge.
     <div style={{
-      position: 'fixed',
-      left: 0, right: 0, bottom: 0,
+      flexShrink: 0,
       zIndex: 120,
       backgroundColor: appBgBase,
-      backgroundImage: 'linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.82) 48%, rgb(7,21,15) 100%)',
-      padding: '10px 14px',
-      paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+      borderTop: '0.5px solid rgba(180,172,155,0.1)',
+      padding: '10px 14px 0',
+      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       backdropFilter: 'blur(24px) saturate(180%)',
       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
       pointerEvents: 'none',
@@ -7477,8 +7476,10 @@ export default function App() {
             TabBar upward scrim that bleeds above 100% of the tab bar.
           */}
           <div style={{
-              // Explicit coordinates — no 'inset' shorthand (not supported iOS < 14.5)
-              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              // height:100% inherits from #root which gets -webkit-fill-available via html.
+              // This is more reliable than position:fixed on iOS PWA — fixed elements
+              // can land above the physical screen edge in some iOS versions.
+              height: '100%',
               display: 'flex', flexDirection: 'column',
               background: appBg, color: text.secondary, fontFamily,
               WebkitFontSmoothing: 'antialiased',
@@ -7491,7 +7492,7 @@ export default function App() {
               overflowX: 'hidden',
               width: '100%',
               touchAction: 'pan-y',
-              paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
+              paddingBottom: 16,
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
