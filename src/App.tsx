@@ -2073,6 +2073,232 @@ function ActivityFeed({ title = true, transactions }: { title?: boolean; transac
 }
 
 // ─── Transfer modal ───────────────────────────────────────────
+// ── EMV 3-D Secure Challenge Modal ───────────────────────────────────────────
+interface TdsChallenge {
+  challenge_id: string;
+  demo_otp: string;
+  masked_phone: string;
+  expires_in: number;
+}
+function ThreeDSModal({
+  challenge,
+  amount,
+  recipient,
+  onVerified,
+  onCancel,
+}: {
+  challenge: TdsChallenge;
+  amount: number;
+  recipient: string;
+  onVerified: (sessionToken: string) => void;
+  onCancel: () => void;
+}) {
+  const { t } = usePreferences();
+  const [otp, setOtp] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [timeLeft, setTimeLeft] = useState(challenge.expires_in);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  React.useEffect(() => {
+    if (timeLeft <= 0) return;
+    const id = setTimeout(() => setTimeLeft(t => t - 1), 1000);
+    return () => clearTimeout(id);
+  }, [timeLeft]);
+
+  async function verify() {
+    if (otp.length !== 6) { setError('Введіть 6-значний код'); return; }
+    setLoading(true); setError('');
+    const token = localStorage.getItem('army_bank_token');
+    try {
+      const r = await fetch('/api/3ds/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ challenge_id: challenge.challenge_id, otp_code: otp }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || 'Помилка верифікації');
+      onVerified(j.data.session_token);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Помилка');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const expired = timeLeft <= 0;
+  const mm = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+  const ss = String(timeLeft % 60).padStart(2, '0');
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(12px)',
+    }}>
+      <div style={{
+        width: '92%', maxWidth: 400,
+        background: 'linear-gradient(160deg,#0d2a1e 0%,#071510 100%)',
+        border: '1px solid rgba(180,172,155,0.18)',
+        borderRadius: 24, overflow: 'hidden',
+        boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
+      }}>
+        {/* Header — Visa Secure style */}
+        <div style={{
+          background: 'linear-gradient(90deg,#1a3c6e 0%,#1a4a7a 100%)',
+          padding: '14px 20px',
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          {/* Visa Secure logo mark */}
+          <div style={{
+            width: 36, height: 36, borderRadius: 8,
+            background: 'linear-gradient(135deg,#1a52cc,#0e3d9a)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <svg width="20" height="14" viewBox="0 0 28 18" fill="none">
+              <path d="M11.5 0.5L9 17.5H13.5L16 0.5H11.5Z" fill="white"/>
+              <path d="M24 0.5C23 0.5 21.5 1 20.5 3L13.5 17.5H18L18.9 15H24.5L25 17.5H29L24 0.5ZM20 11.5L22 6L23.2 11.5H20Z" fill="white"/>
+              <path d="M7.5 0.5L3 12.5L2.5 10C1.5 7 -0.5 3.5 -2.5 1.5L1.5 17.5H6L12 0.5H7.5Z" fill="white"/>
+              <path d="M-0.5 0.5H-7L-7.2 1C-2 2.5 2 6 3 10L1.5 2C1 0.5 0 0.5 -0.5 0.5Z" fill="#F9A000"/>
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>VISA SECURE</div>
+            <div style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>Підтвердження платежу</div>
+          </div>
+          <div style={{ flex: 1 }} />
+          <div style={{
+            width: 32, height: 32, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="11" width="18" height="11" rx="2" stroke="rgba(255,255,255,0.8)" strokeWidth="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4" stroke="rgba(255,255,255,0.8)" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: '24px 20px 28px' }}>
+          {/* Payment summary */}
+          <div style={{
+            background: 'rgba(255,255,255,0.04)', borderRadius: 14,
+            border: '1px solid rgba(180,172,155,0.12)',
+            padding: '14px 16px', marginBottom: 20,
+          }}>
+            <div style={{ fontSize: 11, color: 'rgba(220,215,200,0.5)', letterSpacing: 1, marginBottom: 4 }}>СУМА ПЕРЕКАЗУ</div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: '#f4ebd0', letterSpacing: -0.5 }}>
+              ₴{amount.toLocaleString('uk-UA', { minimumFractionDigits: 2 })}
+            </div>
+            {recipient && (
+              <div style={{ fontSize: 12, color: 'rgba(220,215,200,0.5)', marginTop: 4 }}>
+                → {recipient}
+              </div>
+            )}
+          </div>
+
+          <div style={{ fontSize: 13, color: 'rgba(220,215,200,0.7)', marginBottom: 6, lineHeight: 1.4 }}>
+            Для підтвердження введіть одноразовий код, надісланий на номер{' '}
+            <span style={{ color: '#f4ebd0', fontWeight: 600 }}>{challenge.masked_phone}</span>
+          </div>
+
+          {/* Demo OTP hint */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: 'rgba(201,169,100,0.1)', border: '1px solid rgba(201,169,100,0.2)',
+            borderRadius: 10, padding: '8px 12px', marginBottom: 16,
+          }}>
+            <span style={{ fontSize: 14 }}>🧪</span>
+            <div>
+              <div style={{ fontSize: 10, color: 'rgba(201,169,100,0.7)', letterSpacing: 0.8 }}>ДЕМО-РЕЖИМ</div>
+              <div style={{ fontSize: 13, color: '#c9a964', fontWeight: 600, fontFamily: '"SF Mono", monospace', letterSpacing: 3 }}>
+                {challenge.demo_otp}
+              </div>
+            </div>
+          </div>
+
+          {/* OTP input */}
+          <div style={{ marginBottom: 12 }}>
+            <input
+              ref={inputRef}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              value={otp}
+              onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onKeyDown={e => e.key === 'Enter' && !expired && verify()}
+              disabled={loading || expired}
+              style={{
+                width: '100%', padding: '16px', textAlign: 'center',
+                fontSize: 28, fontWeight: 700, letterSpacing: 10,
+                fontFamily: '"SF Mono", monospace',
+                background: 'rgba(255,255,255,0.06)',
+                border: `1px solid ${error ? 'rgba(220,80,80,0.5)' : 'rgba(180,172,155,0.2)'}`,
+                borderRadius: 14, color: '#f4ebd0', outline: 'none',
+                boxSizing: 'border-box',
+              }}
+              placeholder="••••••"
+            />
+          </div>
+
+          {/* Timer */}
+          <div style={{ textAlign: 'center', marginBottom: 16, fontSize: 12, color: expired ? '#f08080' : 'rgba(220,215,200,0.45)' }}>
+            {expired ? '⚠ Код прострочено' : `Код дійсний: ${mm}:${ss}`}
+          </div>
+
+          {error && (
+            <div style={{ padding: '10px 14px', background: 'rgba(200,60,60,0.12)', borderRadius: 10, color: '#f08080', fontSize: 13, marginBottom: 12 }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={onCancel}
+              style={{
+                flex: 1, padding: '13px', borderRadius: 12,
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(180,172,155,0.15)',
+                color: 'rgba(220,215,200,0.7)', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              Скасувати
+            </button>
+            <button
+              onClick={verify}
+              disabled={loading || expired || otp.length !== 6}
+              style={{
+                flex: 2, padding: '13px', borderRadius: 12,
+                background: loading || expired || otp.length !== 6
+                  ? 'rgba(40,55,45,0.4)'
+                  : 'linear-gradient(135deg,#1a52cc,#1a3c6e)',
+                border: 'none',
+                color: loading || expired || otp.length !== 6 ? 'rgba(220,215,200,0.4)' : '#fff',
+                fontSize: 14, fontWeight: 600, cursor: loading || expired ? 'default' : 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {loading ? '…' : 'Підтвердити'}
+            </button>
+          </div>
+
+          {/* Powered by */}
+          <div style={{ textAlign: 'center', marginTop: 16, fontSize: 10, color: 'rgba(180,172,155,0.3)', letterSpacing: 0.5 }}>
+            Захищено EMV® 3-D Secure · ARM Bank
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => void }) {
   const { toast, refreshDashboard } = useApp();
   const { t } = usePreferences();
@@ -2082,6 +2308,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [tdsChallenge, setTdsChallenge] = useState<TdsChallenge | null>(null);
 
   const cfg = {
     topup:      { title: t('transfer_topup_title'), recipientLabel: '', placeholder: t('transfer_optional_desc') },
@@ -2103,6 +2330,36 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
     const amtNum = parseAmount(amount);
     if (!amtNum || amtNum <= 0) { setError(t('enter_amount')); return; }
     if (mode !== 'topup' && !recipient.trim()) { setError(t('enter_recipient')); return; }
+
+    // For non-topup: require 3DS challenge first
+    if (mode !== 'topup') {
+      setLoading(true);
+      const token = localStorage.getItem('army_bank_token');
+      if (!token) { setLoading(false); setError(t('session_expired')); return; }
+      try {
+        await ensureApiStatusHealthy();
+        const r = await fetch('/api/3ds/challenge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ amount: amtNum, recipient: recipient.trim() }),
+        });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error || 'Помилка 3DS');
+        setTdsChallenge(j.data);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : t('operation_error'));
+      } finally {
+        setLoading(false);
+      }
+      return; // Wait for 3DS modal
+    }
+
+    // Topup — no 3DS needed
+    await _executeTransfer(null, amtNum);
+  }
+
+  async function _executeTransfer(tdsSession: string | null, amtOverride?: number) {
+    const amtNum = amtOverride ?? parseAmount(amount);
     setLoading(true);
     const token = localStorage.getItem('army_bank_token');
     if (!token) { setLoading(false); setError(t('session_expired')); return; }
@@ -2113,11 +2370,12 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
         : mode === 'by_card' ? '/api/transactions/transfer-by-card'
         : '/api/transactions/transfer';
       const normalizedCard = recipient.replace(/\D/g, '').slice(0, 16);
-      const body = mode === 'topup'
+      const body: Record<string, unknown> = mode === 'topup'
         ? { amount: amtNum, description: description || t('transfer_topup_title'), idempotency_key: idempotencyKey }
         : mode === 'by_card'
         ? { card_number: normalizedCard, amount: amtNum, description: description || t('transfer_by_card_title'), idempotency_key: idempotencyKey }
         : { recipient_account_number: recipient.trim(), amount: amtNum, description: description || t('transfer_by_account_title'), idempotency_key: idempotencyKey };
+      if (tdsSession) body['tds_session'] = tdsSession;
       const r = await fetch(url, {
         method: 'POST',
         headers: {
@@ -2139,6 +2397,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
       onClose();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('operation_error'));
+      setTdsChallenge(null);
     } finally {
       setLoading(false);
     }
@@ -2150,7 +2409,22 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
     borderRadius: 12, color: '#f4ebd0', fontSize: 15, outline: 'none', fontFamily: 'inherit',
   };
 
+  const amtNum = parseAmount(amount);
+
   return (
+    <>
+    {tdsChallenge && (
+      <ThreeDSModal
+        challenge={tdsChallenge}
+        amount={amtNum}
+        recipient={recipient}
+        onVerified={async (sessionToken) => {
+          setTdsChallenge(null);
+          await _executeTransfer(sessionToken, amtNum);
+        }}
+        onCancel={() => setTdsChallenge(null)}
+      />
+    )}
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }} onClick={e => e.target === e.currentTarget && onClose()}>
       <div
         {...sheetSwipe.sheetProps}
@@ -2197,6 +2471,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
         </form>
       </div>
     </div>
+    </>
   );
 }
 
@@ -2526,12 +2801,14 @@ function OverviewScreen() {
   const [ovRevealed, setOvRevealed] = useState<{ card_number: string; cvv: string } | null>(null);
   const [ovRevealing, setOvRevealing] = useState(false);
   const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
-  const cards = apiCards.length > 0 ? apiCards.map(c => apiCardToData(c, userNameUp)) : [
-    { variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29' },
-    { variant: 'emerald', number: '1183', name: userNameUp, expiry: '02/29' },
-    { variant: 'platinum', number: '7147', name: userNameUp, expiry: '08/28' },
-    { variant: 'obsidian', number: '4402', name: userNameUp, expiry: '11/30' },
-  ];
+  const cards = apiCards.length > 0
+    ? apiCards.filter(c => c.status !== 'closed').map(c => apiCardToData(c, userNameUp))
+    : [
+      { variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29' },
+      { variant: 'emerald', number: '1183', name: userNameUp, expiry: '02/29' },
+      { variant: 'platinum', number: '7147', name: userNameUp, expiry: '08/28' },
+      { variant: 'obsidian', number: '4402', name: userNameUp, expiry: '11/30' },
+    ];
   const safeCardIdx = Math.min(cardIdx, Math.max(0, cards.length - 1));
   const swipeStartXRef = useRef<number | null>(null);
   const swipeStartYRef = useRef<number | null>(null);
@@ -2910,7 +3187,7 @@ function CardsScreen() {
   ];
   const [designOverrides, setDesignOverrides] = useState<Record<number, string>>({});
   const cards = apiCards.length > 0
-    ? apiCards.map(c => {
+    ? apiCards.filter(c => c.status !== 'closed').map(c => {
       const mapped = apiCardToData(c, userNameUp);
       mapped.type = c.card_type === 'physical' ? t('card_physical') : t('card_virtual');
       mapped.status = statusText(c.status);

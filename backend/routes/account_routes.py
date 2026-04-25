@@ -12,6 +12,7 @@ from ..services.account_service import AccountService
 from ..services.card_service import CardService
 from ..services.feature_service import FeatureService
 from ..services.idempotency_service import IdempotencyService
+from ..services.three_ds_service import ThreeDSService
 from .helpers import (
     api_error,
     auth_required,
@@ -25,6 +26,7 @@ service = AccountService()
 card_service = CardService()
 feature_service = FeatureService()
 idempotency_service = IdempotencyService()
+three_ds_service = ThreeDSService()
 
 def _to_json_safe(value):
     """Convert DB/native values (Decimal/datetime) to JSON-safe primitives."""
@@ -162,6 +164,18 @@ def transfer():
         amount = float(data.get('amount') or 0)
         recipient = (data.get('recipient_account_number') or '').strip()
         description = (data.get('description') or 'Швидкий переказ').strip()
+        tds_session = (data.get('tds_session') or '').strip()
+
+        # ── 3DS session validation ──────────────────────────────────────────
+        if not tds_session:
+            return jsonify({'ok': False, 'requires_3ds': True,
+                            'error': 'Потрібне підтвердження 3DS.'}), 403
+        try:
+            three_ds_service.consume_session(int(g.current_user['id']), tds_session)
+        except ValueError as e3ds:
+            return jsonify({'ok': False, 'requires_3ds': True,
+                            'error': str(e3ds)}), 403
+
         return jsonify({'ok': True, 'data': service.transfer(
             g.current_user['id'], recipient, amount, description,
             idempotency_key=idempotency_key,
@@ -188,6 +202,18 @@ def transfer_by_card():
         amount = float(data.get('amount') or 0)
         card_number = (data.get('card_number') or '').strip()
         description = (data.get('description') or 'Переказ по картці').strip()
+        tds_session = (data.get('tds_session') or '').strip()
+
+        # ── 3DS session validation ──────────────────────────────────────────
+        if not tds_session:
+            return jsonify({'ok': False, 'requires_3ds': True,
+                            'error': 'Потрібне підтвердження 3DS.'}), 403
+        try:
+            three_ds_service.consume_session(int(g.current_user['id']), tds_session)
+        except ValueError as e3ds:
+            return jsonify({'ok': False, 'requires_3ds': True,
+                            'error': str(e3ds)}), 403
+
         # Resolve account number from card, then use standard transfer
         card = card_service.get_account_by_card(card_number)
         recipient_account = card['account_number']
