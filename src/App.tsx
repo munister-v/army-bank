@@ -1,4 +1,4 @@
-import React, { useState, Fragment, useEffect, createContext, useContext, Component, useRef, useMemo } from 'react';
+import React, { useState, Fragment, useEffect, createContext, useContext, Component, useRef, useMemo, useId } from 'react';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 import florenceCardImage from './assets/cards/florence.png';
 import tuscanyHillsCardImage from './assets/cards/tuscany-hills.png';
@@ -598,6 +598,9 @@ const translations = {
     top_recipients_title: 'Часті отримувачі',
     mark_all_read: 'Прочитати всі',
     sent_label: 'переказів',
+    sort_newest: 'Нові',
+    sort_oldest: 'Старі',
+    sort_amount: 'Сума',
   },
   en: {
     user_fallback: 'User',
@@ -852,6 +855,9 @@ const translations = {
     top_recipients_title: 'Frequent Recipients',
     mark_all_read: 'Mark all read',
     sent_label: 'transfers',
+    sort_newest: 'Newest',
+    sort_oldest: 'Oldest',
+    sort_amount: 'Amount',
   },
   it: {
     user_fallback: 'Utente',
@@ -1106,6 +1112,9 @@ const translations = {
     top_recipients_title: 'Destinatari frequenti',
     mark_all_read: 'Segna tutto come letto',
     sent_label: 'trasferimenti',
+    sort_newest: 'Nuovi',
+    sort_oldest: 'Vecchi',
+    sort_amount: 'Importo',
   },
   es: {
     user_fallback: 'Usuario',
@@ -1360,6 +1369,9 @@ const translations = {
     top_recipients_title: 'Destinatarios frecuentes',
     mark_all_read: 'Marcar todo como leído',
     sent_label: 'transferencias',
+    sort_newest: 'Nuevos',
+    sort_oldest: 'Antiguos',
+    sort_amount: 'Monto',
   },
 } as const;
 
@@ -1999,15 +2011,19 @@ function BalanceHistoryChart() {
   const { t, lang } = usePreferences();
   const [points, setPoints] = useState<BalancePoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const uid = useId().replace(/:/g, '');
+  const gradId = `balGrad_${uid}`;
 
   useEffect(() => {
     const token = localStorage.getItem('army_bank_token');
     if (!token) { setLoading(false); return; }
-    fetch('/api/analytics/balance-history?days=14', { headers: { Authorization: `Bearer ${token}` } })
+    const ctrl = new AbortController();
+    fetch('/api/analytics/balance-history?days=14', { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal })
       .then(r => r.ok ? r.json() : null)
       .then(j => { if (j?.ok && Array.isArray(j.data)) setPoints(j.data); })
       .catch(() => {})
       .finally(() => setLoading(false));
+    return () => ctrl.abort();
   }, []);
 
   if (loading || points.length < 2) return null;
@@ -2039,12 +2055,12 @@ function BalanceHistoryChart() {
         </div>
         <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', height: 52, overflow: 'visible' }}>
           <defs>
-            <linearGradient id="balGrad" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={isUp ? '#7fb896' : '#e07070'} stopOpacity="0.25" />
               <stop offset="100%" stopColor={isUp ? '#7fb896' : '#e07070'} stopOpacity="0" />
             </linearGradient>
           </defs>
-          <path d={areaD} fill="url(#balGrad)" />
+          <path d={areaD} fill={`url(#${gradId})`} />
           <path d={pathD} fill="none" stroke={isUp ? '#7fb896' : '#e07070'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
@@ -2064,10 +2080,12 @@ function InsightsStrip() {
   useEffect(() => {
     const token = localStorage.getItem('army_bank_token');
     if (!token) return;
-    fetch('/api/analytics/insights', { headers: { Authorization: `Bearer ${token}` } })
+    const ctrl = new AbortController();
+    fetch('/api/analytics/insights', { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal })
       .then(r => r.ok ? r.json() : null)
       .then(j => { if (j?.ok && j.data?.insights) setInsights(j.data.insights); })
       .catch(() => {});
+    return () => ctrl.abort();
   }, []);
 
   if (!insights.length) return null;
@@ -2095,10 +2113,12 @@ function TopRecipientsMini({ onTransfer }: { onTransfer: (account: string) => vo
   useEffect(() => {
     const token = localStorage.getItem('army_bank_token');
     if (!token) return;
-    fetch('/api/analytics/top-recipients', { headers: { Authorization: `Bearer ${token}` } })
+    const ctrl = new AbortController();
+    fetch('/api/analytics/top-recipients', { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal })
       .then(r => r.ok ? r.json() : null)
       .then(j => { if (j?.ok && Array.isArray(j.data)) setRecipients(j.data); })
       .catch(() => {});
+    return () => ctrl.abort();
   }, []);
 
   if (!recipients.length) return null;
@@ -3260,6 +3280,7 @@ function OperationsScreen() {
   const [period, setPeriod] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [txFilter, setTxFilter] = useState<'all' | 'in' | 'out'>('all');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc' | 'amount'>('desc');
   const [dlReceipt, setDlReceipt] = useState<number | null>(null);
   const [dlExport, setDlExport] = useState(false);
   const [selectedTxId, setSelectedTxId] = useState<number | null>(null);
@@ -3267,7 +3288,10 @@ function OperationsScreen() {
   const [savingNote, setSavingNote] = useState(false);
   const token = localStorage.getItem('army_bank_token');
 
-  const selectedTxData = selectedTxId ? transactions.find(tx => tx.id === selectedTxId) ?? null : null;
+  const selectedTxData = useMemo(
+    () => selectedTxId ? transactions.find(tx => tx.id === selectedTxId) ?? null : null,
+    [selectedTxId, transactions],
+  );
 
   async function saveNote() {
     if (!selectedTxId || !token) return;
@@ -3350,26 +3374,38 @@ function OperationsScreen() {
     ]},
   ];
 
-  const filtered = (searchQuery.trim()
-    ? transactions.filter(tx => tx.description.toLowerCase().includes(searchQuery.toLowerCase()))
-    : transactions
-  ).filter(tx => txFilter === 'all' || tx.direction === txFilter);
+  const filtered = useMemo(() => (
+    (searchQuery.trim()
+      ? transactions.filter(tx => tx.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      : transactions
+    ).filter(tx => txFilter === 'all' || tx.direction === txFilter)
+  ), [searchQuery, transactions, txFilter]);
 
-  const apiGroups = (() => {
-    const map: Record<string, TxItem[]> = {};
+  const apiGroups = useMemo(() => {
+    const map: Record<string, ApiTransaction[]> = {};
     for (const tx of filtered) { const k = tx.created_at.slice(0, 10); if (!map[k]) map[k] = []; map[k].push(tx); }
-    return Object.entries(map).sort(([a], [b]) => b.localeCompare(a)).map(([dateKey, items]) => ({
-      group: fmtDateLabel(dateKey, lang),
-      items: items.map(tx => ({
-        txId: tx.id,
-        title: tx.description,
-        subtitle: fmtTime(tx.created_at, lang) + (tx.related_account ? ` • ${tx.related_account}` : ''),
-        amount: (tx.direction === 'in' ? '+' : '-') + fmtInt(tx.amount) + fmtDec(tx.amount),
-        positive: tx.direction === 'in',
-        cat: txToCat(tx),
-      })),
-    }));
-  })();
+    const dateSort = sortOrder === 'asc'
+      ? ([a]: [string, unknown], [b]: [string, unknown]) => a.localeCompare(b)
+      : ([a]: [string, unknown], [b]: [string, unknown]) => b.localeCompare(a);
+    return Object.entries(map).sort(dateSort).map(([dateKey, items]) => {
+      const sortedItems = sortOrder === 'amount'
+        ? [...items].sort((a, b) => b.amount - a.amount)
+        : sortOrder === 'asc'
+        ? [...items].sort((a, b) => a.created_at.localeCompare(b.created_at))
+        : [...items].sort((a, b) => b.created_at.localeCompare(a.created_at));
+      return {
+        group: fmtDateLabel(dateKey, lang),
+        items: sortedItems.map(tx => ({
+          txId: tx.id,
+          title: tx.description,
+          subtitle: fmtTime(tx.created_at, lang) + (tx.related_account ? ` • ${tx.related_account}` : ''),
+          amount: (tx.direction === 'in' ? '+' : '-') + fmtInt(tx.amount) + fmtDec(tx.amount),
+          positive: tx.direction === 'in',
+          cat: txToCat(tx),
+        })),
+      };
+    });
+  }, [filtered, sortOrder, lang]);
 
   const txGroups = apiGroups.length > 0 ? apiGroups : (searchQuery ? [] : STATIC_GROUPS);
 
@@ -3412,6 +3448,26 @@ function OperationsScreen() {
               {f === 'all' ? t('filter_all') : f === 'in' ? t('filter_income') : t('filter_outcome')}
             </button>
           ))}
+        </div>
+        {/* Sort order */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+          <span style={{ fontSize: 10, color: text.dim, textTransform: 'uppercase', letterSpacing: 0.7, flexShrink: 0 }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ verticalAlign: 'middle', marginRight: 3 }}><path d="M4 6h16M4 12h10M4 18h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+          </span>
+          <div style={{ display: 'flex', gap: 3, padding: '2px', background: 'rgba(26,40,32,0.5)', borderRadius: 100 }}>
+            {(['desc', 'asc', 'amount'] as const).map(s => (
+              <button key={s} onClick={() => setSortOrder(s)} style={{
+                padding: '4px 10px', fontSize: 10, fontWeight: 500,
+                background: s === sortOrder ? `linear-gradient(135deg, rgba(180,172,155,0.25), rgba(100,95,80,0.2))` : 'transparent',
+                color: s === sortOrder ? gold : 'rgba(220,215,200,0.5)',
+                border: s === sortOrder ? `1px solid rgba(180,172,155,0.2)` : '1px solid transparent',
+                borderRadius: 100, cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'background 0.15s, color 0.15s',
+              }}>
+                {s === 'desc' ? `↓ ${t('sort_newest')}` : s === 'asc' ? `↑ ${t('sort_oldest')}` : `# ${t('sort_amount')}`}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
