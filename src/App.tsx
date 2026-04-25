@@ -2757,32 +2757,148 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
 
 // ── Currency rates widget (NBU open API) ─────────────────────────────────────
 interface NbuRate { code: string; rate: number; }
-function CurrencyRatesBar() {
+// ─── FX Exchange Modal ────────────────────────────────────────────────────────
+interface FxRate { code: string; rate: number; }
+const CURRENCY_FLAGS: Record<string, string> = { USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧', PLN: '🇵🇱' };
+function FxExchangeModal({ rates, onClose }: { rates: FxRate[]; onClose: () => void }) {
+  const { toast } = useApp();
+  const [dir, setDir] = useState<'buy' | 'sell'>('buy');
+  const [currency, setCurrency] = useState(rates[0]?.code ?? 'USD');
+  const [amount, setAmount] = useState('');
+  const [loading, setLoading] = useState(false);
+  const SPREAD = 0.015;
+  const rate = rates.find(r => r.code === currency)?.rate ?? 0;
+  const buyRate = rate * (1 + SPREAD);
+  const sellRate = rate * (1 - SPREAD);
+  const amtNum = parseFloat(amount.replace(',', '.')) || 0;
+  const fxAmt = dir === 'buy' ? amtNum / buyRate : amtNum * sellRate;
+  const commission = dir === 'buy' ? amtNum * SPREAD : amtNum * rate * SPREAD;
+
+  async function handleExchange() {
+    if (!amtNum || amtNum <= 0) { toast('Введіть суму'); return; }
+    setLoading(true);
+    await new Promise(r => setTimeout(r, 900));
+    toast(`✅ ${dir === 'buy' ? `Куплено ${fxAmt.toFixed(4)} ${currency} за ₴${amtNum.toFixed(2)}` : `Продано ${amtNum.toFixed(4)} ${currency} → ₴${fxAmt.toFixed(2)}`}`);
+    setLoading(false); onClose();
+  }
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, display: 'flex', alignItems: 'flex-end' }}>
+      <div onClick={onClose} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)' }} />
+      <div style={{ position: 'relative', width: '100%', maxWidth: 500, margin: '0 auto', background: 'linear-gradient(180deg, #0f2419 0%, #071510 100%)', borderRadius: '28px 28px 0 0', padding: '24px 24px max(env(safe-area-inset-bottom,20px),24px)', boxShadow: '0 -20px 60px rgba(0,0,0,0.5)' }}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.2)', margin: '0 auto 20px' }} />
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: text.primary }}>Обмін валюти</div>
+          <div style={{ flex: 1 }} />
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: 'none', cursor: 'pointer', color: text.muted, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+        </div>
+        <div style={{ display: 'flex', background: 'rgba(26,40,32,0.6)', borderRadius: 14, padding: 4, marginBottom: 20 }}>
+          {([['buy', '🛒 Купити'] as const, ['sell', '💵 Продати'] as const]).map(([d, label]) => (
+            <button key={d} onClick={() => setDir(d)} style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', cursor: 'pointer', fontFamily: 'inherit', background: dir === d ? `linear-gradient(135deg, ${goldDark}, ${gold})` : 'transparent', color: dir === d ? '#1a2820' : text.muted, fontWeight: dir === d ? 700 : 500, fontSize: 13 }}>{label}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+          {rates.map(r => (
+            <button key={r.code} onClick={() => setCurrency(r.code)} style={{ flex: 1, padding: '10px 6px', borderRadius: 12, border: `1.5px solid ${currency === r.code ? gold : 'rgba(180,172,155,0.15)'}`, background: currency === r.code ? 'rgba(201,169,100,0.1)' : 'rgba(255,255,255,0.03)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+              <span style={{ fontSize: 18 }}>{CURRENCY_FLAGS[r.code] ?? '🌐'}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: currency === r.code ? gold : text.secondary }}>{r.code}</span>
+              <span style={{ fontSize: 10, color: text.muted }}>{(dir === 'buy' ? r.rate * (1 + SPREAD) : r.rate * (1 - SPREAD)).toFixed(2)}</span>
+            </button>
+          ))}
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 12, color: text.muted, display: 'block', marginBottom: 6 }}>{dir === 'buy' ? `Сума в гривнях (UAH)` : `Сума в ${currency}`}</label>
+          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" inputMode="decimal" style={{ width: '100%', padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.2)`, color: text.primary, fontSize: 22, fontWeight: 600, outline: 'none', textAlign: 'right' }} />
+        </div>
+        {amtNum > 0 && (
+          <div style={{ background: 'rgba(180,172,155,0.05)', border: '1px solid rgba(180,172,155,0.12)', borderRadius: 14, padding: '14px 16px', marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, color: text.muted }}>Ви отримаєте</span>
+              <span style={{ fontSize: 16, fontWeight: 700, color: '#7fb896' }}>{dir === 'buy' ? `${fxAmt.toFixed(4)} ${currency}` : `₴${fxAmt.toFixed(2)}`}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, color: text.muted }}>Курс</span>
+              <span style={{ fontSize: 13, color: text.secondary }}>{dir === 'buy' ? `1 ${currency} = ₴${buyRate.toFixed(4)}` : `1 ${currency} = ₴${sellRate.toFixed(4)}`}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, color: text.muted }}>Комісія банку (1.5%)</span>
+              <span style={{ fontSize: 12, color: text.muted }}>₴{commission.toFixed(2)}</span>
+            </div>
+          </div>
+        )}
+        <button onClick={handleExchange} disabled={loading || !amtNum} style={{ width: '100%', padding: '16px', borderRadius: 16, border: 'none', cursor: loading || !amtNum ? 'default' : 'pointer', background: loading || !amtNum ? 'rgba(40,55,45,0.4)' : `linear-gradient(135deg, ${goldDark}, ${gold})`, color: loading || !amtNum ? text.dim : '#1a2820', fontSize: 16, fontWeight: 700, fontFamily: 'inherit' }}>
+          {loading ? '⏳ Виконується…' : `${dir === 'buy' ? 'Купити' : 'Продати'} ${currency}`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Monthly Financial Summary ────────────────────────────────────────────────
+function MonthlyFinanceSummary({ transactions }: { transactions: TxItem[] }) {
+  const { lang } = usePreferences();
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+  const thisMonthTx = transactions.filter(tx => new Date(tx.created_at) >= monthStart);
+  const prevMonthTx = transactions.filter(tx => { const d = new Date(tx.created_at); return d >= prevMonthStart && d <= prevMonthEnd; });
+  const income = thisMonthTx.filter(tx => tx.direction === 'in').reduce((s, tx) => s + tx.amount, 0);
+  const expenses = thisMonthTx.filter(tx => tx.direction === 'out').reduce((s, tx) => s + tx.amount, 0);
+  const prevExpenses = prevMonthTx.filter(tx => tx.direction === 'out').reduce((s, tx) => s + tx.amount, 0);
+  const net = income - expenses;
+  const savingsRate = income > 0 ? Math.round((net / income) * 100) : 0;
+  const expensesDelta = prevExpenses > 0 ? ((expenses - prevExpenses) / prevExpenses * 100) : 0;
+  const monthName = now.toLocaleDateString(lang === 'uk' ? 'uk-UA' : lang === 'en' ? 'en-US' : lang === 'it' ? 'it-IT' : 'es-ES', { month: 'long' });
+  const items = [
+    { label: 'Дохід', value: `₴${fmtInt(income)}`, color: '#7fb896', icon: '📈' },
+    { label: 'Витрати', value: `₴${fmtInt(expenses)}`, color: income > 0 && expenses > income ? '#e07070' : text.secondary, icon: '📉', sub: prevExpenses > 0 ? `${expensesDelta >= 0 ? '+' : ''}${expensesDelta.toFixed(0)}% vs минулий міс.` : undefined },
+    { label: 'Баланс', value: `${net >= 0 ? '+' : '−'}₴${fmtInt(Math.abs(net))}`, color: net >= 0 ? '#7fb896' : '#e07070', icon: '💰' },
+    { label: 'Заощадження', value: `${savingsRate}%`, color: savingsRate >= 20 ? '#7fb896' : savingsRate >= 10 ? gold : text.secondary, icon: '🏦' },
+  ];
+  if (!income && !expenses) return null;
+  return (
+    <div style={{ padding: '20px 22px 0' }}>
+      <div style={{ ...sectionLabel, paddingLeft: 0, paddingRight: 0, marginBottom: 12 }}>Фінансовий звіт · {monthName}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        {items.map(({ label, value, color, icon, sub }) => (
+          <div key={label} style={{ ...glassCard(), padding: '14px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <span style={{ fontSize: 16 }}>{icon}</span>
+              <span style={{ fontSize: 11, color: text.muted }}>{label}</span>
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 700, color, fontFeatureSettings: '"tnum"' }}>{value}</div>
+            {sub && <div style={{ fontSize: 10, color: text.dim, marginTop: 3 }}>{sub}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CurrencyRatesBar({ onRatesLoaded, onExchange }: { onRatesLoaded?: (r: FxRate[]) => void; onExchange?: () => void } = {}) {
   const [rates, setRates] = useState<NbuRate[]>([]);
+  const FALLBACK: FxRate[] = [{ code: 'USD', rate: 41.20 }, { code: 'EUR', rate: 44.85 }, { code: 'GBP', rate: 52.10 }, { code: 'PLN', rate: 10.35 }];
   useEffect(() => {
     fetch('https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?json')
       .then(r => r.json())
       .then((data: { cc: string; rate: number }[]) => {
         const wanted = ['USD', 'EUR', 'GBP', 'PLN'];
-        setRates(data.filter(r => wanted.includes(r.cc)).map(r => ({ code: r.cc, rate: r.rate })));
+        const filtered = data.filter(r => wanted.includes(r.cc)).map(r => ({ code: r.cc, rate: r.rate }));
+        setRates(filtered); onRatesLoaded?.(filtered);
       })
-      .catch(() => setRates([
-        { code: 'USD', rate: 41.20 },
-        { code: 'EUR', rate: 44.85 },
-        { code: 'GBP', rate: 52.10 },
-        { code: 'PLN', rate: 10.35 },
-      ]));
+      .catch(() => { setRates(FALLBACK); onRatesLoaded?.(FALLBACK); });
   }, []);
   if (!rates.length) return null;
   return (
     <div style={{ padding: '20px 22px 0' }}>
-      <div style={{ ...sectionLabel, paddingLeft: 0, paddingRight: 0, marginBottom: 10 }}>Курси НБУ</div>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ ...sectionLabel, paddingLeft: 0, paddingRight: 0, flex: 1 }}>Курси НБУ</div>
+        {onExchange && <button onClick={onExchange} style={{ fontSize: 12, color: gold, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>💱 Обміняти</button>}
+      </div>
       <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
         {rates.map(r => (
-          <div key={r.code} style={{
-            ...glassCard(), padding: '10px 14px', flexShrink: 0, minWidth: 72,
-            display: 'flex', flexDirection: 'column', gap: 4,
-          }}>
+          <div key={r.code} onClick={onExchange} style={{ ...glassCard(), padding: '10px 14px', flexShrink: 0, minWidth: 72, display: 'flex', flexDirection: 'column', gap: 4, cursor: onExchange ? 'pointer' : 'default' }}>
             <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8, fontWeight: 600 }}>{r.code}</div>
             <div style={{ fontSize: 15, color: text.primary, fontWeight: 700, fontFeatureSettings: '"tnum"' }}>
               {r.rate.toFixed(2)}<span style={{ fontSize: 10, color: text.muted, fontWeight: 400 }}> ₴</span>
@@ -3077,6 +3193,8 @@ function OverviewScreen() {
   const avatarInitials = initials(displayName);
   const quickActions = getQuickActions(t);
   const [balanceVisible, setBalanceVisible] = useState(true);
+  const [showFx, setShowFx] = useState(false);
+  const [fxRates, setFxRates] = useState<FxRate[]>([]);
   const [cardIdx, setCardIdx] = useState(() => readSelectedCardIndex());
   const [ovFlipped, setOvFlipped] = useState(false);
   const [ovRevealed, setOvRevealed] = useState<{ card_number: string; cvv: string } | null>(null);
@@ -3483,11 +3601,14 @@ function OverviewScreen() {
         </div>
       </div>
 
-      <CurrencyRatesBar />
+      <CurrencyRatesBar onRatesLoaded={setFxRates} onExchange={() => setShowFx(true)} />
+
+      <MonthlyFinanceSummary transactions={transactions} />
 
       <SavingsGoalsMini />
 
       <div style={{ height: 24 }} />
+      {showFx && fxRates.length > 0 && <FxExchangeModal rates={fxRates} onClose={() => setShowFx(false)} />}
     </div>
     {showNotifications && (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setShowNotifications(false)}>
@@ -4470,6 +4591,160 @@ function DepositsSection() {
   );
 }
 
+// ─── Credits Section ──────────────────────────────────────────────────────────
+interface Credit { id: number; user_id: number; account_id: number; principal: number; interest_rate: number; term_months: number; monthly_payment: number; total_paid: number; balance_remaining: number; next_payment_date: string; status: string; description: string; created_at: string; days_to_payment: number | null; progress: number; }
+const CREDIT_RATES: Record<number, number> = { 3: 18, 6: 20, 12: 22, 24: 24, 36: 26 };
+const CREDIT_TERMS = [3, 6, 12, 24, 36];
+
+function CreditsSection() {
+  const { toast } = useApp();
+  const { t } = usePreferences();
+  const [credits, setCredits] = useState<Credit[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [term, setTerm] = useState(12);
+  const [desc, setDesc] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [repaying, setRepaying] = useState<number | null>(null);
+  const token = localStorage.getItem('army_bank_token');
+
+  async function load() {
+    try {
+      const r = await fetch('/api/credits', { headers: { Authorization: `Bearer ${token}` } });
+      const j = await r.json();
+      if (j.ok) setCredits(j.data);
+    } catch { /* ignore */ } finally { setLoading(false); }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    const amtNum = parseFloat(amount.replace(',', '.'));
+    if (!amtNum || amtNum < 1000) { toast('Мінімальна сума — ₴1 000'); return; }
+    if (amtNum > 500000) { toast('Максимальна сума — ₴500 000'); return; }
+    setCreating(true);
+    try {
+      const r = await fetch('/api/credits', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: amtNum, term_months: term, description: desc }) });
+      const j = await r.json();
+      if (j.ok) { setShowCreate(false); setAmount(''); setDesc(''); toast('✅ Кредит оформлено!'); load(); }
+      else toast(j.error || 'Помилка');
+    } catch { toast('Помилка'); } finally { setCreating(false); }
+  }
+
+  async function handleRepay(creditId: number, full = false) {
+    setRepaying(creditId);
+    try {
+      const credit = credits.find(c => c.id === creditId);
+      const body = full ? { amount: credit?.balance_remaining } : {};
+      const r = await fetch(`/api/credits/${creditId}/repay`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json();
+      if (j.ok) { toast(j.data.status === 'closed' ? '✅ Кредит погашено!' : '✅ Платіж зараховано!'); load(); }
+      else toast(j.error || 'Помилка');
+    } catch { toast('Помилка'); } finally { setRepaying(null); }
+  }
+
+  const amtNum = parseFloat(amount.replace(',', '.')) || 0;
+  const r = (CREDIT_RATES[term] ?? 22) / 100 / 12;
+  const monthlyPayment = amtNum > 0 && r > 0 ? amtNum * r * (1 + r) ** term / ((1 + r) ** term - 1) : 0;
+  const totalCost = monthlyPayment * term;
+
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #c94a20 0%, #a03010 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>💳</div>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: text.primary }}>Кредити</div>
+            <div style={{ fontSize: 12, color: text.muted }}>{credits.filter(c => c.status === 'active').length > 0 ? `${credits.filter(c => c.status === 'active').length} активних` : 'Споживче кредитування'}</div>
+          </div>
+        </div>
+        <button onClick={() => setShowCreate(v => !v)} style={{ padding: '8px 16px', borderRadius: 12, border: 'none', cursor: 'pointer', background: showCreate ? 'rgba(40,55,45,0.5)' : 'linear-gradient(135deg, #c94a20, #a03010)', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>{showCreate ? '✕' : 'Взяти кредит'}</button>
+      </div>
+
+      {showCreate && (
+        <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 20, padding: 20, marginBottom: 16 }}>
+          <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 12, color: text.muted, display: 'block', marginBottom: 6 }}>Сума кредиту</label>
+              <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="1 000 – 500 000 ₴" inputMode="decimal" style={{ width: '100%', padding: '12px 14px', borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, color: text.primary, fontSize: 16, outline: 'none' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: text.muted, display: 'block', marginBottom: 8 }}>Строк</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {CREDIT_TERMS.map(mo => (
+                  <button key={mo} type="button" onClick={() => setTerm(mo)} style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: `1.5px solid ${term === mo ? '#c94a20' : bg.border}`, background: term === mo ? 'rgba(201,74,32,0.15)' : bg.card, color: term === mo ? '#e8784a' : text.muted, fontSize: 12, fontWeight: term === mo ? 700 : 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {mo}м<div style={{ fontSize: 10, marginTop: 2 }}>{CREDIT_RATES[mo]}%</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {amtNum > 0 && (
+              <div style={{ background: 'rgba(201,74,32,0.08)', border: '1px solid rgba(201,74,32,0.18)', borderRadius: 12, padding: 14, display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1, textAlign: 'center' }}>
+                  <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8, marginBottom: 4 }}>МІСЯЧНИЙ ПЛАТІЖ</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#e8784a' }}>₴{monthlyPayment.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                </div>
+                <div style={{ flex: 1, textAlign: 'center' }}>
+                  <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8, marginBottom: 4 }}>ЗАГАЛЬНА ВАРТІСТЬ</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: text.secondary }}>₴{totalCost.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                </div>
+              </div>
+            )}
+            <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Призначення (необов'язково)" style={{ width: '100%', padding: '12px 14px', borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, color: text.primary, fontSize: 14, outline: 'none' }} />
+            <button type="submit" disabled={creating} style={{ padding: '14px', borderRadius: 14, border: 'none', background: creating ? 'rgba(40,55,45,0.4)' : 'linear-gradient(135deg, #c94a20, #a03010)', color: creating ? text.dim : '#fff', fontSize: 14, fontWeight: 700, cursor: creating ? 'default' : 'pointer', fontFamily: 'inherit' }}>{creating ? '…' : 'Взяти кредит'}</button>
+          </form>
+        </div>
+      )}
+
+      {loading ? <div style={{ padding: '20px', color: text.muted, fontSize: 13, textAlign: 'center' }}>…</div>
+       : credits.length === 0 ? <div style={{ padding: '20px 0', color: text.muted, fontSize: 13 }}>У вас немає активних кредитів</div>
+       : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {credits.map(cr => {
+            const isActive = cr.status === 'active';
+            const statusColor = isActive ? '#4a9' : '#888';
+            const nextDate = cr.next_payment_date ? new Date(cr.next_payment_date).toLocaleDateString('uk-UA') : '—';
+            const overdue = isActive && (cr.days_to_payment ?? 0) < 0;
+            return (
+              <div key={cr.id} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 20, overflow: 'hidden' }}>
+                <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${bg.border}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: text.primary }}>Кредит {cr.term_months} міс. · {cr.interest_rate}% річних</div>
+                      {cr.description ? <div style={{ fontSize: 11, color: text.muted, marginTop: 2 }}>{cr.description}</div> : null}
+                    </div>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.8, padding: '3px 8px', borderRadius: 20, background: `${statusColor}22`, color: statusColor, border: `1px solid ${statusColor}44` }}>{isActive ? 'Активний' : 'Погашено'}</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 4, height: 4, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', borderRadius: 4, background: isActive ? 'linear-gradient(90deg, #c94a20, #e8784a)' : '#666', width: `${cr.progress}%`, transition: 'width 0.6s' }} />
+                  </div>
+                  <div style={{ fontSize: 10, color: text.muted, marginTop: 4 }}>{cr.progress.toFixed(0)}% погашено</div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: bg.border }}>
+                  {[{ label: 'Залишок', value: `₴${Number(cr.balance_remaining).toLocaleString('uk-UA', { minimumFractionDigits: 2 })}` }, { label: 'Платіж/міс.', value: `₴${Number(cr.monthly_payment).toLocaleString('uk-UA', { minimumFractionDigits: 2 })}` }, { label: 'Наступний', value: isActive ? nextDate : '—' }].map(({ label, value }) => (
+                    <div key={label} style={{ background: bg.card, padding: '10px 12px' }}>
+                      <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.6 }}>{label}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: text.primary, marginTop: 2 }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+                {overdue && <div style={{ padding: '8px 16px', background: 'rgba(220,60,40,0.12)', borderTop: `1px solid rgba(220,60,40,0.25)` }}><div style={{ fontSize: 12, color: '#e05a40', fontWeight: 600 }}>⚠️ Прострочено на {Math.abs(cr.days_to_payment ?? 0)} днів</div></div>}
+                {isActive && (
+                  <div style={{ padding: '12px 16px', display: 'flex', gap: 8, borderTop: `1px solid ${bg.border}` }}>
+                    <button disabled={repaying === cr.id} onClick={() => handleRepay(cr.id)} style={{ flex: 1, padding: '10px', borderRadius: 12, border: 'none', cursor: 'pointer', background: repaying === cr.id ? 'rgba(40,55,45,0.4)' : 'linear-gradient(135deg, #c94a20, #a03010)', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>{repaying === cr.id ? '…' : 'Сплатити платіж'}</button>
+                    <button disabled={repaying === cr.id} onClick={() => handleRepay(cr.id, true)} style={{ padding: '10px 14px', borderRadius: 12, border: `1px solid rgba(201,74,32,0.4)`, background: 'transparent', color: '#e8784a', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Погасити</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OperationsScreen() {
   const layout = useLayout();
   const { t, lang } = usePreferences();
@@ -4762,6 +5037,12 @@ function OperationsScreen() {
 
       {txFilter === 'all' && <InsightsStrip />}
 
+      {/* Credits & Deposits — right after spending chart */}
+      <div style={{ padding: '0 22px 4px' }}>
+        <CreditsSection />
+        <DepositsSection />
+      </div>
+
       {/* Transactions */}
       {txGroups.length === 0 && (
         <div style={{ padding: '40px 22px', textAlign: 'center', color: text.muted, fontSize: 14 }}>
@@ -4805,7 +5086,6 @@ function OperationsScreen() {
         </div>
       ))}
 
-      <DepositsSection />
       <RecurringSection />
       <div style={{ height: 20 }} />
     </div>
