@@ -4342,21 +4342,24 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       position: 'fixed',
       left: 0, right: 0, bottom: 0,
       zIndex: 120,
-      paddingLeft: 14, paddingRight: 14,
-      paddingBottom: 'max(10px, env(safe-area-inset-bottom, 10px))',
-      background: appBgBase,
+      // Glass extends through the pill AND into the home-indicator zone,
+      // so the safe-area zone is a seamless visual continuation of the nav bar.
+      background: 'rgba(10,22,16,0.92)',
+      backdropFilter: 'blur(28px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+      borderTop: '0.5px solid rgba(180,172,155,0.13)',
+      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       pointerEvents: 'none',
     }}>
       <div style={{
         position: 'relative',
+        margin: '8px 14px 6px',
         padding: 6,
-        background: 'rgba(12,26,20,0.78)',
-        backdropFilter: 'blur(28px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+        background: 'rgba(180,172,155,0.07)',
         border: `1px solid rgba(180,172,155,0.18)`,
         borderRadius: 28,
         display: 'flex',
-        boxShadow: '0 12px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(230,225,210,0.06)',
+        boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.06)',
         pointerEvents: 'auto',
       }}>
         <div style={{
