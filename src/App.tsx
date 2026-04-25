@@ -5736,17 +5736,17 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const tabs = getTabs(t);
   const activeIdx = tabs.findIndex(t => t.k === active);
   return (
-    // flex-shrink:0 — TabBar is an in-flow flex item at the bottom of the
-    // column layout. This is the only reliable way to respect
-    // env(safe-area-inset-bottom) in iOS PWA without position:fixed tricks.
+    // position:fixed + paddingBottom covers the iOS safe-area zone so the
+    // glass background extends under the home indicator with no dead zone.
     <div style={{
-      flexShrink: 0,
-      position: 'relative',
+      position: 'fixed',
+      left: 0, right: 0, bottom: 0,
       zIndex: 120,
       backdropFilter: 'blur(28px) saturate(180%)',
       WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-      background: '#07150f',
+      background: 'rgba(7,21,15,0.88)',
       borderTop: '0.5px solid rgba(180,172,155,0.1)',
+      paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4px)',
     }}>
       {/* Tab row */}
       <div style={{
@@ -5759,8 +5759,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
           left: `calc(${activeIdx * 20}% + 8px)`, width: 'calc(20% - 16px)',
           background: 'linear-gradient(135deg, rgba(180,172,155,0.18) 0%, rgba(100,95,80,0.1) 100%)',
           border: `1px solid rgba(180,172,155,0.28)`,
-          borderBottom: 'none',
-          borderRadius: '18px 18px 0 0',
+          borderRadius: 18,
           transition: 'left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
         }} />
         {tabs.map(t => {
@@ -5780,8 +5779,6 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
           );
         })}
       </div>
-      {/* Safe-area fill — separate block so the CSS env() computes reliably */}
-      <div className="tab-safe-area" />
     </div>
   );
 }
@@ -6678,7 +6675,7 @@ export default function App() {
               overflowX: 'hidden',
               width: '100%',
               touchAction: 'pan-y',
-              paddingBottom: 0,
+              paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
