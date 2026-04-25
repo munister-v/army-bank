@@ -365,6 +365,45 @@ const translations = {
     profile_logout: 'Вийти з акаунту',
     settings_language: 'Мова',
     settings_language_sub: 'Інтерфейс застосунку',
+    settings_notifications: 'Сповіщення',
+    settings_notif_tx: 'Транзакції',
+    settings_notif_security: 'Безпека',
+    settings_notif_promo: 'Акції та пропозиції',
+    settings_limits: 'Бюджетні ліміти',
+    settings_limits_sub: 'Місячний ліміт витрат за категорією',
+    settings_limit_add: 'Додати ліміт',
+    settings_limit_spent: 'витрачено',
+    settings_limit_of: 'з',
+    settings_pin: 'PIN-код',
+    settings_pin_sub: 'Для підтвердження операцій',
+    settings_pin_set: 'Встановити PIN',
+    settings_pin_change: 'Змінити PIN',
+    settings_pin_clear: 'Видалити PIN',
+    settings_pin_active: 'PIN встановлено',
+    settings_app_info: 'Про застосунок',
+    settings_version: 'Версія',
+    settings_api_status: 'Статус API',
+    settings_support: 'Підтримка',
+    dep_title: 'Депозити',
+    dep_open: 'Відкрити депозит',
+    dep_amount: 'Сума депозиту',
+    dep_term: 'Строк',
+    dep_rate: 'Ставка',
+    dep_monthly: 'міс.',
+    dep_interest: 'Нарахування',
+    dep_maturity: 'Дата закінчення',
+    dep_days_left: 'днів залишилось',
+    dep_auto_renew: 'Авто-пролонгація',
+    dep_close: 'Закрити депозит',
+    dep_close_early: 'Дострокове закриття (без відсотків)',
+    dep_status_active: 'Активний',
+    dep_status_matured: 'Завершено',
+    dep_status_closed: 'Закрито',
+    dep_status_early: 'Закрито достроково',
+    dep_no_items: 'У вас немає активних депозитів',
+    dep_min_amount: 'Мінімальна сума — ₴500',
+    dep_accrued: 'Нараховано',
+    dep_total_payout: 'До виплати',
     lang_uk: 'Українська',
     lang_en: 'English',
     lang_it: 'Italiano',
@@ -605,6 +644,11 @@ const translations = {
     profile_logout: 'Sign out',
     settings_language: 'Language',
     settings_language_sub: 'App interface',
+    settings_notifications: 'Notifications', settings_notif_tx: 'Transactions', settings_notif_security: 'Security', settings_notif_promo: 'Offers & Promotions',
+    settings_limits: 'Budget Limits', settings_limits_sub: 'Monthly spending limit by category', settings_limit_add: 'Add limit', settings_limit_spent: 'spent', settings_limit_of: 'of',
+    settings_pin: 'PIN code', settings_pin_sub: 'To confirm operations', settings_pin_set: 'Set PIN', settings_pin_change: 'Change PIN', settings_pin_clear: 'Remove PIN', settings_pin_active: 'PIN is set',
+    settings_app_info: 'About', settings_version: 'Version', settings_api_status: 'API Status', settings_support: 'Support',
+    dep_title: 'Deposits', dep_open: 'Open deposit', dep_amount: 'Deposit amount', dep_term: 'Term', dep_rate: 'Rate', dep_monthly: 'mo.', dep_interest: 'Interest', dep_maturity: 'Maturity date', dep_days_left: 'days left', dep_auto_renew: 'Auto-renew', dep_close: 'Close deposit', dep_close_early: 'Early withdrawal (no interest)', dep_status_active: 'Active', dep_status_matured: 'Matured', dep_status_closed: 'Closed', dep_status_early: 'Early closed', dep_no_items: 'No active deposits', dep_min_amount: 'Minimum — ₴500', dep_accrued: 'Accrued', dep_total_payout: 'Total payout',
     lang_uk: 'Ukrainian',
     lang_en: 'English',
     lang_it: 'Italian',
@@ -844,7 +888,12 @@ const translations = {
     profile_save: 'Salva',
     profile_logout: 'Esci',
     settings_language: 'Lingua',
-    settings_language_sub: 'Interfaccia dell’app',
+    settings_language_sub: "Interfaccia dell'app",
+    settings_notifications: "Notifiche', settings_notif_tx: 'Transazioni', settings_notif_security: 'Sicurezza', settings_notif_promo: 'Offerte",
+    settings_limits: "Limiti di spesa', settings_limits_sub: 'Limite mensile per categoria', settings_limit_add: 'Aggiungi', settings_limit_spent: 'speso', settings_limit_of: 'di",
+    settings_pin: "Codice PIN', settings_pin_sub: 'Per confermare le operazioni', settings_pin_set: 'Imposta PIN', settings_pin_change: 'Cambia PIN', settings_pin_clear: 'Rimuovi PIN', settings_pin_active: 'PIN attivo",
+    settings_app_info: "Info', settings_version: 'Versione', settings_api_status: 'Stato API', settings_support: 'Supporto",
+    dep_title: "Depositi', dep_open: 'Apri deposito', dep_amount: 'Importo', dep_term: 'Durata', dep_rate: 'Tasso', dep_monthly: 'mesi', dep_interest: 'Interessi', dep_maturity: 'Scadenza', dep_days_left: 'giorni rimasti', dep_auto_renew: 'Rinnovo automatico', dep_close: 'Chiudi deposito', dep_close_early: 'Chiusura anticipata (senza interessi)', dep_status_active: 'Attivo', dep_status_matured: 'Scaduto', dep_status_closed: 'Chiuso', dep_status_early: 'Chiuso anticipatamente', dep_no_items: 'Nessun deposito attivo', dep_min_amount: 'Minimo — ₴500', dep_accrued: 'Maturato', dep_total_payout: 'Totale rimborso",
     lang_uk: 'Ucraino',
     lang_en: 'Inglese',
     lang_it: 'Italiano',
@@ -911,7 +960,7 @@ const translations = {
     face_id_on: 'Face ID attivato ✓',
     face_id_off: 'Face ID disattivato',
     password_changed: 'Password cambiata con successo',
-    pick_image: 'Scegli un’immagine',
+    pick_image: "Scegli un'immagine",
     photo_too_large: 'Foto troppo grande (max 3MB)',
     photo_read_error: 'Impossibile leggere la foto',
     photo_updated: 'Foto profilo aggiornata',
@@ -931,7 +980,7 @@ const translations = {
     market_title: 'Negozio',
     loading: 'Caricamento…',
     market_empty: 'Negozio vuoto',
-    try_another_query: 'Prova un’altra ricerca',
+    try_another_query: "Prova un'altra ricerca",
     no_results: 'Nessun risultato',
     products_not_added: 'I prodotti non sono ancora stati aggiunti.',
     orders_empty: 'Nessun ordine',
@@ -1085,6 +1134,11 @@ const translations = {
     profile_logout: 'Cerrar sesión',
     settings_language: 'Idioma',
     settings_language_sub: 'Interfaz de la app',
+    settings_notifications: 'Notificaciones', settings_notif_tx: 'Transacciones', settings_notif_security: 'Seguridad', settings_notif_promo: 'Ofertas',
+    settings_limits: 'Límites de gasto', settings_limits_sub: 'Límite mensual por categoría', settings_limit_add: 'Agregar', settings_limit_spent: 'gastado', settings_limit_of: 'de',
+    settings_pin: 'Código PIN', settings_pin_sub: 'Para confirmar operaciones', settings_pin_set: 'Establecer PIN', settings_pin_change: 'Cambiar PIN', settings_pin_clear: 'Eliminar PIN', settings_pin_active: 'PIN activo',
+    settings_app_info: 'Acerca de', settings_version: 'Versión', settings_api_status: 'Estado API', settings_support: 'Soporte',
+    dep_title: 'Depósitos', dep_open: 'Abrir depósito', dep_amount: 'Monto', dep_term: 'Plazo', dep_rate: 'Tasa', dep_monthly: 'mes.', dep_interest: 'Intereses', dep_maturity: 'Vencimiento', dep_days_left: 'días restantes', dep_auto_renew: 'Renovación automática', dep_close: 'Cerrar depósito', dep_close_early: 'Cierre anticipado (sin intereses)', dep_status_active: 'Activo', dep_status_matured: 'Vencido', dep_status_closed: 'Cerrado', dep_status_early: 'Cerrado anticipadamente', dep_no_items: 'Sin depósitos activos', dep_min_amount: 'Mínimo — ₴500', dep_accrued: 'Acumulado', dep_total_payout: 'Pago total',
     lang_uk: 'Ucraniano',
     lang_en: 'Inglés',
     lang_it: 'Italiano',
@@ -3821,6 +3875,279 @@ const CAT_STYLES: Record<TxCat, { bg: string; color: string; icon: React.ReactNo
   subscription: { bg: 'rgba(120,200,180,0.12)', color: '#78c8b4', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 0115-6.7L21 8M21 3v5h-5M21 12a9 9 0 01-15 6.7L3 16M3 21v-5h5" stroke="#78c8b4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
 };
 
+// ── Deposits Section ─────────────────────────────────────────────────────────
+interface Deposit {
+  id: number; amount: number; interest_rate: number; term_months: number;
+  maturity_date: string; interest_earned: number; interest_accrued: number;
+  auto_renew: boolean; status: string; days_left: number; progress: number;
+  description: string; created_at: string;
+}
+const DEPOSIT_RATES: Record<number, number> = { 1: 8, 3: 10, 6: 12, 12: 14 };
+const DEPOSIT_TERMS = [1, 3, 6, 12];
+
+function DepositsSection() {
+  const { toast } = useApp();
+  const { t } = usePreferences();
+  const [deposits, setDeposits] = useState<Deposit[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [termMonths, setTermMonths] = useState(6);
+  const [autoRenew, setAutoRenew] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [closing, setClosing] = useState<number | null>(null);
+  const token = () => localStorage.getItem('army_bank_token');
+
+  async function load() {
+    setLoading(true);
+    try {
+      const r = await fetch('/api/deposits', { headers: { Authorization: `Bearer ${token()}` } });
+      const j = await r.json();
+      if (j.ok) setDeposits(j.data);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function createDeposit(e: React.FormEvent) {
+    e.preventDefault();
+    const amt = parseFloat(String(amount).replace(',', '.'));
+    if (!amt || amt < 500) { toast(t('dep_min_amount')); return; }
+    setCreating(true);
+    try {
+      const r = await fetch('/api/deposits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ amount: amt, term_months: termMonths, auto_renew: autoRenew }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || t('operation_error'));
+      toast(`✓ Депозит ₴${amt.toLocaleString('uk-UA')} відкрито`);
+      setShowCreate(false); setAmount('');
+      load();
+    } catch (e) { toast(e instanceof Error ? e.message : t('operation_error')); }
+    finally { setCreating(false); }
+  }
+
+  async function closeDeposit(dep: Deposit, early: boolean) {
+    setClosing(dep.id);
+    try {
+      const r = await fetch(`/api/deposits/${dep.id}/close`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ early }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || t('operation_error'));
+      const payout = j.data.payout;
+      toast(`✓ Депозит закрито. Виплачено ₴${Number(payout).toLocaleString('uk-UA')}`);
+      load();
+    } catch (e) { toast(e instanceof Error ? e.message : t('operation_error')); }
+    finally { setClosing(null); }
+  }
+
+  const depStatusLabel = (s: string) => ({
+    active: t('dep_status_active'), matured: t('dep_status_matured'),
+    closed: t('dep_status_closed'), withdrawn_early: t('dep_status_early'),
+  }[s] ?? s);
+
+  const depStatusColor = (s: string) => ({
+    active: '#7fb896', matured: gold, closed: 'rgba(220,215,200,0.4)',
+    withdrawn_early: '#f08080',
+  }[s] ?? 'rgba(220,215,200,0.4)');
+
+  const projectedInterest = () => {
+    const amt = parseFloat(String(amount).replace(',', '.')) || 0;
+    const rate = DEPOSIT_RATES[termMonths] || 0;
+    const days = termMonths * 30;
+    return (amt * rate / 100 * days / 365).toFixed(2);
+  };
+
+  return (
+    <div style={{ margin: '0 0 24px' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}>
+        <span style={{ ...T.h3, color: text.secondary }}>{t('dep_title')}</span>
+        <div style={{ flex: 1 }} />
+        <button
+          onClick={() => setShowCreate(v => !v)}
+          style={{ fontSize: 12, color: gold, background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit', fontWeight: 600, cursor: 'pointer' }}
+        >
+          {showCreate ? '✕ Скасувати' : `+ ${t('dep_open')}`}
+        </button>
+      </div>
+
+      {/* Create form */}
+      {showCreate && (
+        <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 20, padding: '20px', marginBottom: 14 }}>
+          <form onSubmit={createDeposit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.8, marginBottom: 8 }}>{t('dep_amount').toUpperCase()}</div>
+              <input
+                type="text" inputMode="decimal"
+                value={amount} onChange={e => setAmount(e.target.value)}
+                placeholder="0,00"
+                style={{ width: '100%', padding: '13px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.16)`, borderRadius: 12, color: text.primary, fontSize: 22, fontWeight: 300, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+              />
+              <div style={{ fontSize: 11, color: text.muted, marginTop: 4 }}>{t('dep_min_amount')}</div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.8, marginBottom: 8 }}>{t('dep_term').toUpperCase()}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                {DEPOSIT_TERMS.map(m => (
+                  <button
+                    key={m} type="button"
+                    onClick={() => setTermMonths(m)}
+                    style={{
+                      padding: '10px 4px', borderRadius: 12, fontFamily: 'inherit', cursor: 'pointer',
+                      border: termMonths === m ? `1px solid ${gold}55` : `1px solid rgba(180,172,155,0.14)`,
+                      background: termMonths === m ? `rgba(201,169,100,0.12)` : 'rgba(255,255,255,0.04)',
+                      color: termMonths === m ? gold : text.secondary,
+                      fontSize: 12, fontWeight: termMonths === m ? 700 : 500,
+                    }}
+                  >
+                    {m} {t('dep_monthly')}<br />
+                    <span style={{ fontSize: 10, opacity: 0.7 }}>{DEPOSIT_RATES[m]}% р.</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Projected return */}
+            <div style={{ background: 'rgba(201,169,100,0.07)', border: `1px solid rgba(201,169,100,0.15)`, borderRadius: 12, padding: '12px 14px', display: 'flex', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8 }}>{t('dep_accrued')}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: gold }}>+₴{projectedInterest()}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8, textAlign: 'right' }}>{t('dep_rate')}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: text.secondary, textAlign: 'right' }}>{DEPOSIT_RATES[termMonths]}% р.а.</div>
+              </div>
+            </div>
+
+            {/* Auto-renew toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 13, color: text.secondary, fontWeight: 500 }}>{t('dep_auto_renew')}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAutoRenew(v => !v)}
+                style={{
+                  width: 44, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer',
+                  background: autoRenew ? gold : 'rgba(180,172,155,0.2)',
+                  position: 'relative', transition: 'background 0.2s',
+                }}
+              >
+                <div style={{
+                  position: 'absolute', top: 3, left: autoRenew ? 21 : 3,
+                  width: 20, height: 20, borderRadius: '50%', background: '#fff',
+                  transition: 'left 0.2s',
+                }} />
+              </button>
+            </div>
+
+            <button type="submit" disabled={creating} style={{
+              padding: '14px', borderRadius: 14, border: 'none',
+              background: creating ? 'rgba(40,55,45,0.4)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+              color: creating ? text.dim : '#1a2820', fontSize: 14, fontWeight: 700,
+              cursor: creating ? 'default' : 'pointer', fontFamily: 'inherit',
+            }}>
+              {creating ? '…' : t('dep_open')}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Deposits list */}
+      {loading ? (
+        <div style={{ padding: '20px', color: text.muted, fontSize: 13, textAlign: 'center' }}>…</div>
+      ) : deposits.length === 0 ? (
+        <div style={{ padding: '20px 0', color: text.muted, fontSize: 13 }}>{t('dep_no_items')}</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {deposits.map(dep => {
+            const isActive = dep.status === 'active';
+            const statusColor = depStatusColor(dep.status);
+            const matDate = dep.maturity_date ? new Date(dep.maturity_date).toLocaleDateString('uk-UA') : '—';
+            const total = Number(dep.amount) + Number(dep.interest_earned);
+            return (
+              <div key={dep.id} style={{
+                background: bg.card, border: `1px solid ${bg.border}`,
+                borderRadius: 20, overflow: 'hidden',
+              }}>
+                <div style={{ padding: '16px 18px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 10, background: `rgba(201,169,100,0.12)`, border: `1px solid rgba(201,169,100,0.2)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>🏦</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: text.primary }}>{dep.description || `${t('dep_title')} ${dep.term_months}${t('dep_monthly')}`}</div>
+                      <div style={{ fontSize: 11, color: text.muted }}>{dep.interest_rate}% р.а. · {matDate}</div>
+                    </div>
+                    <div style={{ padding: '3px 8px', borderRadius: 100, background: `${statusColor}1a`, border: `1px solid ${statusColor}44`, fontSize: 10, fontWeight: 600, color: statusColor, flexShrink: 0 }}>
+                      {depStatusLabel(dep.status)}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8 }}>ТІЛО</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: text.primary }}>₴{Number(dep.amount).toLocaleString('uk-UA')}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8 }}>{t('dep_accrued')}</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: isActive ? gold : text.secondary }}>+₴{Number(dep.interest_accrued).toLocaleString('uk-UA', { minimumFractionDigits: 2 })}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8 }}>{t('dep_total_payout')}</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: text.secondary }}>₴{total.toLocaleString('uk-UA', { minimumFractionDigits: 2 })}</div>
+                    </div>
+                  </div>
+
+                  {isActive && (
+                    <>
+                      <div style={{ height: 4, background: 'rgba(180,172,155,0.1)', borderRadius: 2, overflow: 'hidden', marginBottom: 6 }}>
+                        <div style={{ height: '100%', width: `${Math.round(dep.progress * 100)}%`, background: `linear-gradient(90deg, ${goldDark}, ${gold})`, borderRadius: 2 }} />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: text.muted, marginBottom: 10 }}>
+                        <span>{Math.round(dep.progress * 100)}%</span>
+                        <span>{dep.days_left} {t('dep_days_left')}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => closeDeposit(dep, false)}
+                          disabled={closing === dep.id || dep.days_left > 0}
+                          style={{
+                            flex: 1, padding: '8px', borderRadius: 10, fontFamily: 'inherit', cursor: dep.days_left > 0 || closing === dep.id ? 'default' : 'pointer',
+                            background: dep.days_left > 0 ? 'rgba(180,172,155,0.06)' : 'rgba(127,184,150,0.12)',
+                            border: `1px solid ${dep.days_left > 0 ? 'rgba(180,172,155,0.1)' : 'rgba(127,184,150,0.3)'}`,
+                            color: dep.days_left > 0 ? text.muted : '#7fb896', fontSize: 12, fontWeight: 600,
+                            opacity: closing === dep.id ? 0.5 : 1,
+                          }}
+                        >{closing === dep.id ? '…' : t('dep_close')}</button>
+                        <button
+                          onClick={() => closeDeposit(dep, true)}
+                          disabled={closing === dep.id}
+                          style={{
+                            flex: 1, padding: '8px', borderRadius: 10, fontFamily: 'inherit', cursor: closing === dep.id ? 'default' : 'pointer',
+                            background: 'rgba(220,100,100,0.06)', border: '1px solid rgba(220,100,100,0.18)',
+                            color: '#f08080', fontSize: 11, fontWeight: 500,
+                            opacity: closing === dep.id ? 0.5 : 1,
+                          }}
+                        >{t('dep_close_early')}</button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OperationsScreen() {
   const layout = useLayout();
   const { t, lang } = usePreferences();
@@ -4030,6 +4357,7 @@ function OperationsScreen() {
         </div>
       ))}
 
+      <DepositsSection />
       <RecurringSection />
       <div style={{ height: 20 }} />
     </div>
@@ -4105,10 +4433,23 @@ function ProfileScreen() {
   const { logout, user, account, toast } = useApp();
   const { profilePhoto, setProfilePhotoValue, lang, setLang, t } = usePreferences();
   const [faceid, setFaceid] = useState(false);
-  const [faceIdReady, setFaceIdReady] = useState(false); // platform auth available
+  const [faceIdReady, setFaceIdReady] = useState(false);
   const [faceIdBusy, setFaceIdBusy] = useState(false);
   const [push, setPush] = useState(true);
   const [twofa, setTwofa] = useState(false);
+  const [notifTx, setNotifTx] = useState(true);
+  const [notifSec, setNotifSec] = useState(true);
+  const [notifPromo, setNotifPromo] = useState(false);
+  // Budget limits
+  const [limits, setLimits] = useState<{ tx_type: string; monthly_limit: number; spent: number }[]>([]);
+  const [newLimitType, setNewLimitType] = useState('transfer');
+  const [newLimitAmt, setNewLimitAmt] = useState('');
+  const [limitsLoading, setLimitsLoading] = useState(false);
+  // PIN
+  const [pinStatus, setPinStatus] = useState(false);
+  const [showPinForm, setShowPinForm] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinLoading, setPinLoading] = useState(false);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   // Check passkey status on mount
@@ -4166,6 +4507,73 @@ function ProfileScreen() {
       setFaceIdBusy(false);
     }
   }
+  // Load budget limits + PIN status
+  useEffect(() => {
+    const tk = localStorage.getItem('army_bank_token');
+    // Limits
+    fetch('/api/budget-limits', { headers: { Authorization: `Bearer ${tk}` } })
+      .then(r => r.json()).then(j => { if (j.ok) setLimits(j.data); }).catch(() => {});
+    // PIN
+    fetch('/api/auth/pin/status', { headers: { Authorization: `Bearer ${tk}` } })
+      .then(r => r.json()).then(j => { if (j.ok) setPinStatus(j.data?.has_pin ?? false); }).catch(() => {});
+  }, []);
+
+  async function addLimit(e: React.FormEvent) {
+    e.preventDefault();
+    const amt = parseFloat(newLimitAmt.replace(',', '.'));
+    if (!amt) return;
+    setLimitsLoading(true);
+    try {
+      const tk = localStorage.getItem('army_bank_token');
+      const r = await fetch('/api/budget-limits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
+        body: JSON.stringify({ tx_type: newLimitType, monthly_limit: amt }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error);
+      const r2 = await fetch('/api/budget-limits', { headers: { Authorization: `Bearer ${tk}` } });
+      const j2 = await r2.json();
+      if (j2.ok) setLimits(j2.data);
+      setNewLimitAmt('');
+      toast('✓ Ліміт встановлено');
+    } catch (e) { toast(e instanceof Error ? e.message : t('operation_error')); }
+    finally { setLimitsLoading(false); }
+  }
+
+  async function deleteLimit(tx_type: string) {
+    const tk = localStorage.getItem('army_bank_token');
+    await fetch(`/api/budget-limits/${tx_type}`, { method: 'DELETE', headers: { Authorization: `Bearer ${tk}` } });
+    setLimits(prev => prev.filter(l => l.tx_type !== tx_type));
+    toast('✓ Ліміт видалено');
+  }
+
+  async function setPin(e: React.FormEvent) {
+    e.preventDefault();
+    if (pinInput.length < 4) { toast('Мінімум 4 цифри'); return; }
+    setPinLoading(true);
+    try {
+      const tk = localStorage.getItem('army_bank_token');
+      const r = await fetch('/api/auth/pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
+        body: JSON.stringify({ pin: pinInput }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || t('operation_error'));
+      setPinStatus(true); setShowPinForm(false); setPinInput('');
+      toast('✓ PIN встановлено');
+    } catch (e) { toast(e instanceof Error ? e.message : t('operation_error')); }
+    finally { setPinLoading(false); }
+  }
+
+  async function clearPin() {
+    const tk = localStorage.getItem('army_bank_token');
+    const r = await fetch('/api/auth/pin', { method: 'DELETE', headers: { Authorization: `Bearer ${tk}` } });
+    const j = await r.json();
+    if (j.ok) { setPinStatus(false); toast('✓ PIN видалено'); }
+  }
+
   const [changingPwd, setChangingPwd] = useState(false);
   const [oldPwd, setOldPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
@@ -4416,6 +4824,120 @@ function ProfileScreen() {
             </form>
           </>
         )}
+      </>)}
+
+      {/* Notifications */}
+      <div style={{ padding: '4px 22px 8px' }}>
+        <div style={{ ...sectionLabel }}>{t('settings_notifications')}</div>
+      </div>
+      {section(<>
+        <ProfileToggle label={t('settings_notif_tx')} on={notifTx} onChange={setNotifTx}
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6V11c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" fill={gold} fillOpacity={0.7}/></svg>}
+        />
+        <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 18px' }} />
+        <ProfileToggle label={t('settings_notif_security')} on={notifSec} onChange={setNotifSec}
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6"/><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6"/></svg>}
+        />
+        <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 18px' }} />
+        <ProfileToggle label={t('settings_notif_promo')} on={notifPromo} onChange={setNotifPromo}
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 12V6H4v6M4 6l8 7 8-7" stroke="rgba(180,172,155,0.5)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+        />
+      </>)}
+
+      {/* Budget Limits */}
+      <div style={{ padding: '4px 22px 8px' }}>
+        <div style={{ ...sectionLabel }}>{t('settings_limits')}</div>
+      </div>
+      {section(
+        <div style={{ padding: '14px 18px' }}>
+          <div style={{ fontSize: 12, color: text.muted, marginBottom: 12 }}>{t('settings_limits_sub')}</div>
+          {limits.map(lim => {
+            const pct = lim.monthly_limit > 0 ? Math.min(100, Math.round(lim.spent / lim.monthly_limit * 100)) : 0;
+            const over = pct >= 100;
+            return (
+              <div key={lim.tx_type} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                  <div style={{ fontSize: 13, color: text.secondary, fontWeight: 500, textTransform: 'capitalize' }}>{lim.tx_type}</div>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, color: over ? '#f08080' : text.muted }}>
+                      ₴{Number(lim.spent).toLocaleString('uk-UA')} {t('settings_limit_of')} ₴{Number(lim.monthly_limit).toLocaleString('uk-UA')}
+                    </span>
+                    <button onClick={() => deleteLimit(lim.tx_type)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f08080', fontSize: 12, padding: 0 }}>✕</button>
+                  </div>
+                </div>
+                <div style={{ height: 4, background: 'rgba(180,172,155,0.1)', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: over ? '#f08080' : `linear-gradient(90deg, ${goldDark}, ${gold})`, borderRadius: 2 }} />
+                </div>
+              </div>
+            );
+          })}
+          <form onSubmit={addLimit} style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <select value={newLimitType} onChange={e => setNewLimitType(e.target.value)}
+              style={{ flex: 1, padding: '9px 10px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.16)`, borderRadius: 10, color: text.secondary, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}>
+              {['transfer','food','transport','utility','shopping','subscription'].map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+            <input value={newLimitAmt} onChange={e => setNewLimitAmt(e.target.value)}
+              placeholder="5000" type="text" inputMode="decimal"
+              style={{ width: 80, padding: '9px 10px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.16)`, borderRadius: 10, color: text.secondary, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
+            />
+            <button type="submit" disabled={limitsLoading}
+              style={{ padding: '9px 12px', borderRadius: 10, border: 'none', background: `linear-gradient(135deg, ${goldDark}, ${gold})`, color: '#1a2820', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {t('settings_limit_add')}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* PIN */}
+      <div style={{ padding: '4px 22px 8px' }}>
+        <div style={{ ...sectionLabel }}>{t('settings_pin')}</div>
+      </div>
+      {section(<>
+        <div style={{ padding: '14px 18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: pinStatus ? 12 : 0 }}>
+            <div>
+              <div style={{ fontSize: 14, color: text.secondary, fontWeight: 500 }}>{t('settings_pin')}</div>
+              <div style={{ fontSize: 11.5, color: text.muted }}>{pinStatus ? t('settings_pin_active') : t('settings_pin_sub')}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {pinStatus && (
+                <button onClick={clearPin} style={{ padding: '6px 10px', borderRadius: 8, background: 'rgba(220,100,100,0.08)', border: '1px solid rgba(220,100,100,0.2)', color: '#f08080', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>{t('settings_pin_clear')}</button>
+              )}
+              <button onClick={() => setShowPinForm(v => !v)} style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(201,169,100,0.1)', border: `1px solid rgba(201,169,100,0.25)`, color: gold, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                {pinStatus ? t('settings_pin_change') : t('settings_pin_set')}
+              </button>
+            </div>
+          </div>
+          {showPinForm && (
+            <form onSubmit={setPin} style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <input
+                type="password" inputMode="numeric" pattern="[0-9]*" maxLength={8}
+                value={pinInput} onChange={e => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                placeholder="••••"
+                style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.16)`, borderRadius: 10, color: text.primary, fontSize: 20, letterSpacing: 8, outline: 'none', fontFamily: 'inherit' }}
+              />
+              <button type="submit" disabled={pinLoading || pinInput.length < 4} style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: pinInput.length >= 4 ? `linear-gradient(135deg, ${goldDark}, ${gold})` : 'rgba(100,95,80,0.3)', color: '#1a2820', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>
+                {pinLoading ? '…' : '✓'}
+              </button>
+            </form>
+          )}
+        </div>
+      </>)}
+
+      {/* App info */}
+      <div style={{ padding: '4px 22px 8px' }}>
+        <div style={{ ...sectionLabel }}>{t('settings_app_info')}</div>
+      </div>
+      {section(<>
+        <ProfileRow label={t('settings_version')} value="2026.04 · build 06" />
+        <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 18px' }} />
+        <div style={{ padding: '13px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+          onClick={() => window.open('/api-status', '_blank')} className="clickable">
+          <span style={{ fontSize: 14, color: text.secondary, fontWeight: 500 }}>{t('settings_api_status')}</span>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke={text.muted} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </div>
+        <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 18px' }} />
+        <ProfileRow label={t('settings_support')} value="support@armybank.ua" copyable last />
       </>)}
 
       {/* Sign out */}

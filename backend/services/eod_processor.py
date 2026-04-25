@@ -77,6 +77,9 @@ class EODProcessor:
         # STEP 06: Clean fraud velocity cache (старіший 24 год)
         _step('FRAUD_VELOCITY_CLEANUP', self._cleanup_velocity_cache)
 
+        # STEP 06b: Mature deposits
+        _step('MATURE_DEPOSITS', self._mature_deposits)
+
         # STEP 07: Archive EOD log
         _step('ARCHIVE_LOG', self._archive_eod_log,
               date_str, overall_ok, steps, initiated_by)
@@ -159,6 +162,14 @@ class EODProcessor:
             return {'checked': checked, 'failed': failed, 'ok': failed == 0}
         except Exception as exc:
             return {'checked': 0, 'failed': 0, 'ok': True, 'note': str(exc)}
+
+    def _mature_deposits(self) -> dict:
+        """EOD: закриває депозити що досягли строку."""
+        try:
+            from ..services.deposit_service import DepositService
+            return DepositService().admin_mature_deposits()
+        except Exception as exc:
+            return {'matured': 0, 'error': str(exc)}
 
     def _cleanup_velocity_cache(self) -> dict:
         """Видаляє fraud velocity записи старіші 24 год."""
