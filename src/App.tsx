@@ -5736,15 +5736,18 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const tabs = getTabs(t);
   const activeIdx = tabs.findIndex(t => t.k === active);
   return (
-    // position:fixed + paddingBottom covers the iOS safe-area zone so the
-    // glass background extends under the home indicator with no dead zone.
+    // position:fixed + gradient ending at #07150f (exact match of html/body
+    // background). iOS safe-area zone below shows the same #07150f from body,
+    // so the seam is invisible regardless of whether bottom:0 reaches the
+    // physical screen edge.
     <div style={{
       position: 'fixed',
       left: 0, right: 0, bottom: 0,
       zIndex: 120,
-      backdropFilter: 'blur(28px) saturate(180%)',
-      WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-      background: 'rgba(7,21,15,0.88)',
+      backdropFilter: 'blur(24px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+      backgroundColor: '#07150f',
+      backgroundImage: 'linear-gradient(to bottom, rgba(7,21,15,0) 0%, rgba(7,21,15,0.75) 38%, #07150f 68%)',
       borderTop: '0.5px solid rgba(180,172,155,0.1)',
       paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4px)',
     }}>
