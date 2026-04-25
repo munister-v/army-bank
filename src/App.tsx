@@ -565,6 +565,10 @@ const translations = {
     valid_label: 'Valid',
     transfer_placeholder_card: '4721 •••• •••• ••••',
     transfer_placeholder_account: 'AB-100011',
+    filter_all: 'Всі',
+    filter_income: 'Надходження',
+    filter_outcome: 'Витрати',
+    notifications_center: 'Сповіщення',
   },
   en: {
     user_fallback: 'User',
@@ -805,6 +809,10 @@ const translations = {
     valid_label: 'Valid',
     transfer_placeholder_card: '4721 •••• •••• ••••',
     transfer_placeholder_account: 'AB-100011',
+    filter_all: 'All',
+    filter_income: 'Income',
+    filter_outcome: 'Expenses',
+    notifications_center: 'Notifications',
   },
   it: {
     user_fallback: 'Utente',
@@ -1045,6 +1053,10 @@ const translations = {
     valid_label: 'Valid',
     transfer_placeholder_card: '4721 •••• •••• ••••',
     transfer_placeholder_account: 'AB-100011',
+    filter_all: 'Tutti',
+    filter_income: 'Entrate',
+    filter_outcome: 'Uscite',
+    notifications_center: 'Notifiche',
   },
   es: {
     user_fallback: 'Usuario',
@@ -1285,6 +1297,10 @@ const translations = {
     valid_label: 'Valid',
     transfer_placeholder_card: '4721 •••• •••• ••••',
     transfer_placeholder_account: 'AB-100011',
+    filter_all: 'Todos',
+    filter_income: 'Ingresos',
+    filter_outcome: 'Gastos',
+    notifications_center: 'Notificaciones',
   },
 } as const;
 
@@ -2211,6 +2227,10 @@ function OverviewScreen() {
   const quickActions = getQuickActions(t);
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [cardIdx, setCardIdx] = useState(() => readSelectedCardIndex());
+  const [ovFlipped, setOvFlipped] = useState(false);
+  const [ovRevealed, setOvRevealed] = useState<{ card_number: string; cvv: string } | null>(null);
+  const [ovRevealing, setOvRevealing] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
   const cards: CardData[] = apiCards.length > 0 ? apiCards.map(c => apiCardToData(c, userNameUp)) : [
     { variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29' },
@@ -2400,7 +2420,7 @@ function OverviewScreen() {
             <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
             <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#ddd8cc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
           ].map((icon, i) => (
-            <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast(t('no_new_notifications'))} style={{ width: 40, height: 40, borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 10 }}>{icon}</button>
+            <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : setShowNotifications(true)} style={{ width: 40, height: 40, borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 10 }}>{icon}</button>
           ))}
         </div>
 
@@ -2443,6 +2463,7 @@ function OverviewScreen() {
 
   // ── Mobile layout ──
   return (
+    <>
     <div style={{ paddingBottom: 20 }}>
       <div style={{ padding: `${topPad} 22px 8px` }}>
         <div style={{
@@ -2460,7 +2481,7 @@ function OverviewScreen() {
               <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
               <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#ddd8cc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
             ].map((icon, i) => (
-              <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast(t('no_new_notifications'))} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.035)', border: 'none', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>{icon}</button>
+              <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : setShowNotifications(true)} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.035)', border: 'none', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>{icon}</button>
             ))}
           </div>
         </div>
@@ -2492,6 +2513,54 @@ function OverviewScreen() {
         </div>
       </div>
     </div>
+    {showNotifications && (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setShowNotifications(false)}>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }} />
+        <div onClick={e => e.stopPropagation()} style={{
+          position: 'relative', width: '100%', maxWidth: 520,
+          background: 'linear-gradient(180deg,rgba(17,40,32,0.98) 0%,rgba(11,30,22,0.98) 100%)',
+          backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+          borderRadius: '24px 24px 0 0',
+          padding: '28px 24px calc(32px + env(safe-area-inset-bottom,0px))',
+          border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
+        }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 20px' }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: text.primary }}>{t('notifications_center')}</div>
+            <button onClick={() => setShowNotifications(false)} style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(180,172,155,0.1)', border: 'none', cursor: 'pointer', color: text.muted, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          </div>
+          {transactions.length === 0 ? (
+            <div style={{ padding: '28px 0', textAlign: 'center', color: text.muted, fontSize: 14 }}>
+              <div style={{ fontSize: 28, marginBottom: 12 }}>🔔</div>
+              {t('no_new_notifications')}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden' }}>
+              {transactions.slice(0, 6).map((tx, i) => {
+                const s = CAT_STYLES[txToCat(tx)];
+                const isIn = tx.direction === 'in';
+                return (
+                  <Fragment key={tx.id}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.icon}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: text.secondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.description}</div>
+                        <div style={{ fontSize: 11, color: text.muted }}>{fmtTime(tx.created_at, lang)}</div>
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: isIn ? '#7fb896' : text.secondary, fontFeatureSettings: '"tnum"', flexShrink: 0 }}>
+                        {isIn ? '+' : '-'}{fmtInt(tx.amount)}{fmtDec(tx.amount)} ₴
+                      </div>
+                    </div>
+                    {i < Math.min(transactions.length, 6) - 1 && <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 16px 0 64px' }} />}
+                  </Fragment>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -2956,6 +3025,7 @@ function OperationsScreen() {
   const { toast, transactions, account } = useApp();
   const [period, setPeriod] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [txFilter, setTxFilter] = useState<'all' | 'in' | 'out'>('all');
   const [dlReceipt, setDlReceipt] = useState<number | null>(null);
   const [dlExport, setDlExport] = useState(false);
   const token = localStorage.getItem('army_bank_token');
@@ -3027,7 +3097,7 @@ function OperationsScreen() {
   const filtered = (searchQuery.trim()
     ? transactions.filter(tx => tx.description.toLowerCase().includes(searchQuery.toLowerCase()))
     : transactions
-  );
+  ).filter(tx => txFilter === 'all' || tx.direction === txFilter);
 
   const apiGroups = (() => {
     const map: Record<string, TxItem[]> = {};
@@ -3071,6 +3141,20 @@ function OperationsScreen() {
             placeholder={t('search_transactions')}
             style={{ width: '100%', padding: '10px 14px 10px 36px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 12, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
           />
+        </div>
+        {/* Type filter */}
+        <div style={{ display: 'flex', gap: 4, padding: '3px', background: 'rgba(26,40,32,0.5)', borderRadius: 100, marginTop: 10 }}>
+          {(['all', 'in', 'out'] as const).map(f => (
+            <button key={f} onClick={() => setTxFilter(f)} style={{
+              flex: 1, padding: '5px 8px', fontSize: 11, fontWeight: 500,
+              background: f === txFilter ? `linear-gradient(135deg, ${gold}, ${goldDark})` : 'transparent',
+              color: f === txFilter ? '#0c1a12' : 'rgba(220,215,200,0.6)',
+              border: 'none', borderRadius: 100, cursor: 'pointer', fontFamily: 'inherit',
+              transition: 'background 0.2s, color 0.2s',
+            }}>
+              {f === 'all' ? t('filter_all') : f === 'in' ? t('filter_income') : t('filter_outcome')}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -3116,6 +3200,54 @@ function OperationsScreen() {
           </div>
         </div>
       </div>
+
+      {/* Category breakdown (only in "all" or "outcome" mode with real data) */}
+      {(() => {
+        const outTx = filtered.filter(tx => tx.direction === 'out');
+        if (outTx.length === 0) return null;
+        const catTotals: Record<string, number> = {};
+        for (const tx of outTx) {
+          const cat = txToCat(tx);
+          catTotals[cat] = (catTotals[cat] || 0) + tx.amount;
+        }
+        const total = outTx.reduce((s, tx) => s + tx.amount, 0);
+        const rows = Object.entries(catTotals)
+          .sort(([, a], [, b]) => b - a)
+          .map(([cat, amt]) => ({
+            cat: cat as TxCat,
+            pct: Math.round(amt / total * 100),
+            amt,
+          }));
+        if (!rows.length) return null;
+        const SPEND_LABELS: Record<string, string> = { transfer: t('spend_transfer'), food: t('spend_food'), transport: t('spend_transport'), utility: t('spend_utility'), shopping: t('spend_shopping'), subscription: t('spend_subscription'), income: t('filter_income') };
+        return (
+          <div style={{ padding: '0 22px 18px' }}>
+            <div style={{ padding: 20, ...glassCard() }}>
+              <div style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 }}>{t('filter_outcome')}</div>
+              {rows.map(({ cat, pct, amt }) => {
+                const s = CAT_STYLES[cat];
+                return (
+                  <div key={cat} style={{ marginBottom: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <div style={{ width: 20, height: 20, borderRadius: 6, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.icon}</div>
+                        <span style={{ fontSize: 12, color: text.secondary }}>{SPEND_LABELS[cat] || cat}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{ fontSize: 12, color: text.secondary, fontFeatureSettings: '"tnum"' }}>{fmtInt(amt)}{fmtDec(amt)} ₴</span>
+                        <span style={{ fontSize: 10, color: text.muted }}>{pct}%</span>
+                      </div>
+                    </div>
+                    <div style={{ height: 4, background: 'rgba(180,172,155,0.1)', borderRadius: 4 }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: s.color, borderRadius: 4, opacity: 0.75, transition: 'width 0.4s ease' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Transactions */}
       {txGroups.length === 0 && (
@@ -4336,52 +4468,52 @@ function getTabs(t: (key: TranslationKey) => string): { k: TabKey; label: string
 function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) => void }) {
   const { t } = usePreferences();
   const tabs = getTabs(t);
-  const activeIdx = tabs.findIndex(t => t.k === active);
+  const activeIdx = tabs.findIndex(tab => tab.k === active);
   return (
     <div style={{
       position: 'fixed',
       left: 0, right: 0, bottom: 0,
       zIndex: 120,
       backgroundColor: appBgBase,
-      backgroundImage: 'linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.72) 45%, rgb(7,21,15) 100%)',
-      padding: '8px 14px calc(env(safe-area-inset-bottom, 0px) + 6px)',
+      backgroundImage: 'linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.82) 48%, rgb(7,21,15) 100%)',
+      padding: '10px 14px',
+      paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
       backdropFilter: 'blur(24px) saturate(180%)',
       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-      borderTop: '1px solid rgba(180,172,155,0.14)',
-      boxShadow: '0 -12px 28px rgba(0,0,0,0.22), inset 0 1px 0 rgba(230,225,210,0.05)',
       pointerEvents: 'none',
     }}>
       <div style={{
         position: 'relative',
-        padding: 6,
-        background: 'rgba(12,26,20,0.55)',
-        border: `1px solid rgba(180,172,155,0.22)`,
+        padding: '5px',
+        background: 'rgba(12,26,20,0.6)',
+        border: '1px solid rgba(180,172,155,0.2)',
         borderRadius: 28,
         display: 'flex',
-        boxShadow: '0 10px 22px rgba(0,0,0,0.3), inset 0 1px 0 rgba(230,225,210,0.08)',
+        boxShadow: '0 8px 22px rgba(0,0,0,0.3), inset 0 1px 0 rgba(230,225,210,0.08)',
         pointerEvents: 'auto',
       }}>
         <div style={{
-          position: 'absolute', top: 6, bottom: 6,
-          left: `calc(${activeIdx * 20}% + 6px)`, width: 'calc(20% - 12px)',
+          position: 'absolute', top: 5, bottom: 5,
+          left: `calc(${activeIdx * 20}% + 5px)`, width: 'calc(20% - 10px)',
           background: 'linear-gradient(135deg, rgba(180,172,155,0.22) 0%, rgba(100,95,80,0.12) 100%)',
-          border: `1px solid rgba(180,172,155,0.35)`, borderRadius: 22,
+          border: '1px solid rgba(180,172,155,0.32)', borderRadius: 22,
           transition: 'left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.15)',
+          boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.12)',
+          pointerEvents: 'none',
         }} />
-        {tabs.map(t => {
-          const isActive = t.k === active;
-          const color = isActive ? goldLight : 'rgba(220,215,200,0.5)';
+        {tabs.map(tab => {
+          const isActive = tab.k === active;
+          const color = isActive ? goldLight : 'rgba(220,215,200,0.48)';
           return (
-            <button key={t.k} onClick={() => onChange(t.k)} style={{
-              flex: 1, padding: '10px 4px', background: 'transparent', border: 'none', cursor: 'pointer',
+            <button key={tab.k} onClick={() => onChange(tab.k)} style={{
+              flex: 1, padding: '9px 4px 7px', background: 'transparent', border: 'none', cursor: 'pointer',
               position: 'relative', zIndex: 1,
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
               color, fontSize: 10, fontWeight: isActive ? 700 : 500,
               letterSpacing: 0.3, fontFamily: 'inherit', transition: 'color 0.2s',
             }}>
-              {t.icon(color)}
-              <span>{t.label}</span>
+              {tab.icon(color)}
+              <span>{tab.label}</span>
             </button>
           );
         })}
