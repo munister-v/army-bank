@@ -1,4 +1,4 @@
-import React, { useState, Fragment, useEffect, createContext, useContext, Component, useRef, useMemo } from 'react';
+import React, { useState, Fragment, useEffect, createContext, useContext, Component, useRef, useMemo, useId } from 'react';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 import florenceCardImage from './assets/cards/florence.png';
 import tuscanyHillsCardImage from './assets/cards/tuscany-hills.png';
@@ -215,7 +215,26 @@ type ApiTransaction = {
   description: string;
   related_account?: string | null;
   created_at: string;
+  note?: string | null;
 };
+
+type ApiNotification = {
+  id: number;
+  title: string;
+  body: string;
+  icon: string;
+  type: string;
+  is_read: boolean;
+  created_at: string;
+};
+
+type BalancePoint = { day: string; balance: number };
+
+type Achievement = { id: string; title: string; desc: string; icon: string; done: boolean };
+
+type SpendingInsight = { icon: string; text: string };
+
+type TopRecipient = { related_account: string; total_sent: number; tx_count: number };
 
 type ApiAnalyticsByType = {
   tx_type: string;
@@ -604,6 +623,23 @@ const translations = {
     valid_label: 'Valid',
     transfer_placeholder_card: '4721 •••• •••• ••••',
     transfer_placeholder_account: 'AB-100011',
+    filter_all: 'Всі',
+    filter_income: 'Надходження',
+    filter_outcome: 'Витрати',
+    notifications_center: 'Сповіщення',
+    balance_history_title: 'Динаміка балансу',
+    achievements_title: 'Досягнення',
+    achievements_progress: 'виконано',
+    insights_title: 'Аналітика',
+    tx_note_label: 'Нотатка',
+    tx_note_placeholder: 'Додати нотатку...',
+    tx_note_saved: 'Нотатку збережено',
+    top_recipients_title: 'Часті отримувачі',
+    mark_all_read: 'Прочитати всі',
+    sent_label: 'переказів',
+    sort_newest: 'Нові',
+    sort_oldest: 'Старі',
+    sort_amount: 'Сума',
   },
   en: {
     user_fallback: 'User',
@@ -849,6 +885,23 @@ const translations = {
     valid_label: 'Valid',
     transfer_placeholder_card: '4721 •••• •••• ••••',
     transfer_placeholder_account: 'AB-100011',
+    filter_all: 'All',
+    filter_income: 'Income',
+    filter_outcome: 'Expenses',
+    notifications_center: 'Notifications',
+    balance_history_title: 'Balance History',
+    achievements_title: 'Achievements',
+    achievements_progress: 'completed',
+    insights_title: 'Insights',
+    tx_note_label: 'Note',
+    tx_note_placeholder: 'Add a note...',
+    tx_note_saved: 'Note saved',
+    top_recipients_title: 'Frequent Recipients',
+    mark_all_read: 'Mark all read',
+    sent_label: 'transfers',
+    sort_newest: 'Newest',
+    sort_oldest: 'Oldest',
+    sort_amount: 'Amount',
   },
   it: {
     user_fallback: 'Utente',
@@ -1094,6 +1147,23 @@ const translations = {
     valid_label: 'Valid',
     transfer_placeholder_card: '4721 •••• •••• ••••',
     transfer_placeholder_account: 'AB-100011',
+    filter_all: 'Tutti',
+    filter_income: 'Entrate',
+    filter_outcome: 'Uscite',
+    notifications_center: 'Notifiche',
+    balance_history_title: 'Storico Saldo',
+    achievements_title: 'Traguardi',
+    achievements_progress: 'completati',
+    insights_title: 'Analisi',
+    tx_note_label: 'Nota',
+    tx_note_placeholder: 'Aggiungi una nota...',
+    tx_note_saved: 'Nota salvata',
+    top_recipients_title: 'Destinatari frequenti',
+    mark_all_read: 'Segna tutto come letto',
+    sent_label: 'trasferimenti',
+    sort_newest: 'Nuovi',
+    sort_oldest: 'Vecchi',
+    sort_amount: 'Importo',
   },
   es: {
     user_fallback: 'Usuario',
@@ -1339,6 +1409,23 @@ const translations = {
     valid_label: 'Valid',
     transfer_placeholder_card: '4721 •••• •••• ••••',
     transfer_placeholder_account: 'AB-100011',
+    filter_all: 'Todos',
+    filter_income: 'Ingresos',
+    filter_outcome: 'Gastos',
+    notifications_center: 'Notificaciones',
+    balance_history_title: 'Historial de Saldo',
+    achievements_title: 'Logros',
+    achievements_progress: 'completados',
+    insights_title: 'Análisis',
+    tx_note_label: 'Nota',
+    tx_note_placeholder: 'Agregar nota...',
+    tx_note_saved: 'Nota guardada',
+    top_recipients_title: 'Destinatarios frecuentes',
+    mark_all_read: 'Marcar todo como leído',
+    sent_label: 'transferencias',
+    sort_newest: 'Nuevos',
+    sort_oldest: 'Antiguos',
+    sort_amount: 'Monto',
   },
 } as const;
 
@@ -1985,6 +2072,145 @@ function timeGreeting(lang: AppLang): string {
   if (h >= 12 && h < 18) return translations[lang].greeting_day;
   if (h >= 18 && h < 23) return translations[lang].greeting_evening;
   return translations[lang].greeting_night;
+}
+
+// ─── Balance History Chart ────────────────────────────────────
+function BalanceHistoryChart() {
+  const { t, lang } = usePreferences();
+  const [points, setPoints] = useState<BalancePoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const uid = useId().replace(/:/g, '');
+  const gradId = `balGrad_${uid}`;
+
+  useEffect(() => {
+    const token = localStorage.getItem('army_bank_token');
+    if (!token) { setLoading(false); return; }
+    const ctrl = new AbortController();
+    fetch('/api/analytics/balance-history?days=14', { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if (j?.ok && Array.isArray(j.data)) setPoints(j.data); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+    return () => ctrl.abort();
+  }, []);
+
+  if (loading || points.length < 2) return null;
+
+  const min = Math.min(...points.map(p => p.balance));
+  const max = Math.max(...points.map(p => p.balance));
+  const range = max - min || 1;
+  const W = 280, H = 60;
+  const toY = (v: number) => H - ((v - min) / range) * (H - 8) - 4;
+  const toX = (i: number) => (i / (points.length - 1)) * W;
+  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${toX(i).toFixed(1)} ${toY(p.balance).toFixed(1)}`).join(' ');
+  const areaD = `${pathD} L ${W} ${H} L 0 ${H} Z`;
+  const locale = localeForLang(lang);
+  const startDay = new Date(points[0].day).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+  const endDay = new Date(points[points.length - 1].day).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+  const lastBalance = points[points.length - 1].balance;
+  const firstBalance = points[0].balance;
+  const diff = lastBalance - firstBalance;
+  const isUp = diff >= 0;
+
+  return (
+    <div style={{ padding: '0 22px 20px' }}>
+      <div style={{ padding: '16px 18px', ...glassCard() }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+          <span style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8 }}>{t('balance_history_title')}</span>
+          <span style={{ fontSize: 12, color: isUp ? '#7fb896' : '#e07070', fontWeight: 600, fontFeatureSettings: '"tnum"' }}>
+            {isUp ? '+' : ''}{fmtInt(diff)}{fmtDec(diff)} ₴
+          </span>
+        </div>
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', height: 52, overflow: 'visible' }}>
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={isUp ? '#7fb896' : '#e07070'} stopOpacity="0.25" />
+              <stop offset="100%" stopColor={isUp ? '#7fb896' : '#e07070'} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={areaD} fill={`url(#${gradId})`} />
+          <path d={pathD} fill="none" stroke={isUp ? '#7fb896' : '#e07070'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+          <span style={{ fontSize: 10, color: text.dim }}>{startDay}</span>
+          <span style={{ fontSize: 10, color: text.dim }}>{endDay}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Spending Insights Strip ──────────────────────────────────
+function InsightsStrip() {
+  const { t } = usePreferences();
+  const [insights, setInsights] = useState<SpendingInsight[]>([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('army_bank_token');
+    if (!token) return;
+    const ctrl = new AbortController();
+    fetch('/api/analytics/insights', { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if (j?.ok && j.data?.insights) setInsights(j.data.insights); })
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, []);
+
+  if (!insights.length) return null;
+
+  return (
+    <div style={{ padding: '0 22px 20px' }}>
+      <div style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>{t('insights_title')}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {insights.map((ins, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(180,172,155,0.1)', borderRadius: 14 }}>
+            <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1.4 }}>{ins.icon}</span>
+            <span style={{ fontSize: 12, color: text.secondary, lineHeight: 1.5 }}>{ins.text}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Top Recipients Mini ──────────────────────────────────────
+function TopRecipientsMini({ onTransfer }: { onTransfer: (account: string) => void }) {
+  const { t } = usePreferences();
+  const [recipients, setRecipients] = useState<TopRecipient[]>([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('army_bank_token');
+    if (!token) return;
+    const ctrl = new AbortController();
+    fetch('/api/analytics/top-recipients', { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if (j?.ok && Array.isArray(j.data)) setRecipients(j.data); })
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, []);
+
+  if (!recipients.length) return null;
+
+  return (
+    <div style={{ padding: '0 22px 20px' }}>
+      <div style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>{t('top_recipients_title')}</div>
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 2 }}>
+        {recipients.map((r, i) => (
+          <button key={i} onClick={() => onTransfer(r.related_account)} style={{
+            flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+            padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(180,172,155,0.12)',
+            borderRadius: 16, cursor: 'pointer', minWidth: 80,
+          }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: `linear-gradient(135deg, ${gold}30, ${goldDark}30)`, border: `1px solid ${gold}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: gold, fontFamily: 'monospace' }}>
+              {r.related_account.slice(-2)}
+            </div>
+            <span style={{ fontSize: 10, color: text.muted, fontFamily: 'monospace', letterSpacing: 0.5 }}>••{r.related_account.slice(-4)}</span>
+            <span style={{ fontSize: 10, color: text.dim }}>{r.tx_count} {t('sent_label')}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // ─── Overview screen ──────────────────────────────────────────
@@ -2855,6 +3081,36 @@ function OverviewScreen() {
   const [ovFlipped, setOvFlipped] = useState(false);
   const [ovRevealed, setOvRevealed] = useState<{ card_number: string; cvv: string } | null>(null);
   const [ovRevealing, setOvRevealing] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [apiNotifications, setApiNotifications] = useState<ApiNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const token = localStorage.getItem('army_bank_token');
+    if (!token) return;
+    fetch('/api/notifications/unread-count', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if (j?.ok) setUnreadCount(j.data?.count ?? 0); })
+      .catch(() => {});
+  }, []);
+
+  async function openNotificationsPanel() {
+    const token = localStorage.getItem('army_bank_token');
+    setShowNotifications(true);
+    try {
+      const [notifRes] = await Promise.all([
+        fetch('/api/notifications', { headers: { Authorization: `Bearer ${token ?? ''}` } }),
+        token ? fetch('/api/notifications/read-all', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
+      ]);
+      if (notifRes.ok) {
+        const j = await notifRes.json();
+        if (j?.ok && Array.isArray(j.data)) setApiNotifications(j.data);
+      }
+      setUnreadCount(0);
+    } catch { /* ignore */ }
+  }
+
+
   const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
   const cards = apiCards.length > 0
     ? apiCards.filter(c => c.status !== 'closed').map(c => apiCardToData(c, userNameUp))
@@ -3124,7 +3380,10 @@ function OverviewScreen() {
             <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
             <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#ddd8cc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
           ].map((icon, i) => (
-            <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast(t('no_new_notifications'))} style={{ width: 40, height: 40, borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 10 }}>{icon}</button>
+            <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : openNotificationsPanel()} style={{ width: 40, height: 40, borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 10, position: 'relative' }}>
+              {icon}
+              {i === 1 && unreadCount > 0 && <span style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: '50%', background: '#e07070', border: '1.5px solid rgba(7,21,15,0.9)' }} />}
+            </button>
           ))}
         </div>
 
@@ -3167,6 +3426,7 @@ function OverviewScreen() {
 
   // ── Mobile layout ──
   return (
+    <>
     <div style={{ paddingBottom: 20 }}>
       <div style={{ padding: `${topPad} 22px 8px` }}>
         <div style={{
@@ -3184,7 +3444,10 @@ function OverviewScreen() {
               <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
               <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#ddd8cc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
             ].map((icon, i) => (
-              <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : toast(t('no_new_notifications'))} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.035)', border: 'none', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>{icon}</button>
+              <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : openNotificationsPanel()} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.035)', border: 'none', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, position: 'relative' }}>
+                {icon}
+                {i === 1 && unreadCount > 0 && <span style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: '50%', background: '#e07070', border: '1.5px solid rgba(7,21,15,0.9)' }} />}
+              </button>
             ))}
           </div>
         </div>
@@ -3210,7 +3473,11 @@ function OverviewScreen() {
         </div>
       </div>
 
-      <div style={{ padding: '24px 22px 0' }}>
+      <div style={{ height: 20 }} />
+      <BalanceHistoryChart />
+      <TopRecipientsMini onTransfer={acc => { openTransfer('by_account'); }} />
+
+      <div style={{ padding: '0 22px 0' }}>
         <div style={{ padding: 0 }}>
           <ActivityFeed transactions={transactions} />
         </div>
@@ -3222,6 +3489,60 @@ function OverviewScreen() {
 
       <div style={{ height: 24 }} />
     </div>
+    {showNotifications && (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setShowNotifications(false)}>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }} />
+        <div onClick={e => e.stopPropagation()} style={{
+          position: 'relative', width: '100%', maxWidth: 520,
+          background: 'linear-gradient(180deg,rgba(17,40,32,0.98) 0%,rgba(11,30,22,0.98) 100%)',
+          backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+          borderRadius: '24px 24px 0 0',
+          padding: '28px 24px calc(32px + env(safe-area-inset-bottom,0px))',
+          border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
+        }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 20px' }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: text.primary }}>{t('notifications_center')}</div>
+              {apiNotifications.filter(n => !n.is_read).length > 0 && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', background: '#e07070', borderRadius: 100, padding: '1px 6px', letterSpacing: 0.3 }}>
+                  {apiNotifications.filter(n => !n.is_read).length}
+                </span>
+              )}
+            </div>
+            <button onClick={() => setShowNotifications(false)} style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(180,172,155,0.1)', border: 'none', cursor: 'pointer', color: text.muted, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          </div>
+          {apiNotifications.length === 0 ? (
+            <div style={{ padding: '28px 0', textAlign: 'center', color: text.muted, fontSize: 14 }}>
+              <div style={{ fontSize: 28, marginBottom: 12 }}>🔔</div>
+              {t('no_new_notifications')}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden', maxHeight: '60vh', overflowY: 'auto' }}>
+              {apiNotifications.map((notif, i) => (
+                <Fragment key={notif.id}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 16px', opacity: notif.is_read ? 0.65 : 1 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: notif.is_read ? 'rgba(180,172,155,0.08)' : 'rgba(127,184,150,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 17 }}>
+                      {notif.icon || '🔔'}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                        <div style={{ fontSize: 13, fontWeight: notif.is_read ? 400 : 600, color: text.secondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{notif.title}</div>
+                        {!notif.is_read && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#7fb896', flexShrink: 0, display: 'inline-block' }} />}
+                      </div>
+                      {notif.body ? <div style={{ fontSize: 11, color: text.muted, lineHeight: 1.4 }}>{notif.body}</div> : null}
+                      <div style={{ fontSize: 10, color: text.dim, marginTop: 3 }}>{fmtTime(notif.created_at, lang)}</div>
+                    </div>
+                  </div>
+                  {i < apiNotifications.length - 1 && <div style={{ height: 1, background: 'rgba(180,172,155,0.07)', margin: '0 16px 0 64px' }} />}
+                </Fragment>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -4156,9 +4477,36 @@ function OperationsScreen() {
   const { toast, transactions, account } = useApp();
   const [period, setPeriod] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [txFilter, setTxFilter] = useState<'all' | 'in' | 'out'>('all');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc' | 'amount'>('desc');
   const [dlReceipt, setDlReceipt] = useState<number | null>(null);
   const [dlExport, setDlExport] = useState(false);
+  const [selectedTxId, setSelectedTxId] = useState<number | null>(null);
+  const [txNote, setTxNote] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
   const token = localStorage.getItem('army_bank_token');
+
+  const selectedTxData = useMemo(
+    () => selectedTxId ? transactions.find(tx => tx.id === selectedTxId) ?? null : null,
+    [selectedTxId, transactions],
+  );
+
+  async function saveNote() {
+    if (!selectedTxId || !token) return;
+    setSavingNote(true);
+    try {
+      const r = await fetch(`/api/transactions/${selectedTxId}/note`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ note: txNote }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.message || t('operation_error'));
+      toast(t('tx_note_saved'));
+      setSelectedTxId(null);
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : t('operation_error')); }
+    finally { setSavingNote(false); }
+  }
 
   const locale = localeForLang(lang);
   const periodLabels = [t('period_week_short'), t('period_month_short'), t('period_year_short')];
@@ -4224,26 +4572,38 @@ function OperationsScreen() {
     ]},
   ];
 
-  const filtered = (searchQuery.trim()
-    ? transactions.filter(tx => tx.description.toLowerCase().includes(searchQuery.toLowerCase()))
-    : transactions
-  );
+  const filtered = useMemo(() => (
+    (searchQuery.trim()
+      ? transactions.filter(tx => tx.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      : transactions
+    ).filter(tx => txFilter === 'all' || tx.direction === txFilter)
+  ), [searchQuery, transactions, txFilter]);
 
-  const apiGroups = (() => {
-    const map: Record<string, TxItem[]> = {};
+  const apiGroups = useMemo(() => {
+    const map: Record<string, ApiTransaction[]> = {};
     for (const tx of filtered) { const k = tx.created_at.slice(0, 10); if (!map[k]) map[k] = []; map[k].push(tx); }
-    return Object.entries(map).sort(([a], [b]) => b.localeCompare(a)).map(([dateKey, items]) => ({
-      group: fmtDateLabel(dateKey, lang),
-      items: items.map(tx => ({
-        txId: tx.id,
-        title: tx.description,
-        subtitle: fmtTime(tx.created_at, lang) + (tx.related_account ? ` • ${tx.related_account}` : ''),
-        amount: (tx.direction === 'in' ? '+' : '-') + fmtInt(tx.amount) + fmtDec(tx.amount),
-        positive: tx.direction === 'in',
-        cat: txToCat(tx),
-      })),
-    }));
-  })();
+    const dateSort = sortOrder === 'asc'
+      ? ([a]: [string, unknown], [b]: [string, unknown]) => a.localeCompare(b)
+      : ([a]: [string, unknown], [b]: [string, unknown]) => b.localeCompare(a);
+    return Object.entries(map).sort(dateSort).map(([dateKey, items]) => {
+      const sortedItems = sortOrder === 'amount'
+        ? [...items].sort((a, b) => b.amount - a.amount)
+        : sortOrder === 'asc'
+        ? [...items].sort((a, b) => a.created_at.localeCompare(b.created_at))
+        : [...items].sort((a, b) => b.created_at.localeCompare(a.created_at));
+      return {
+        group: fmtDateLabel(dateKey, lang),
+        items: sortedItems.map(tx => ({
+          txId: tx.id,
+          title: tx.description,
+          subtitle: fmtTime(tx.created_at, lang) + (tx.related_account ? ` • ${tx.related_account}` : ''),
+          amount: (tx.direction === 'in' ? '+' : '-') + fmtInt(tx.amount) + fmtDec(tx.amount),
+          positive: tx.direction === 'in',
+          cat: txToCat(tx),
+        })),
+      };
+    });
+  }, [filtered, sortOrder, lang]);
 
   const txGroups = apiGroups.length > 0 ? apiGroups : (searchQuery ? [] : STATIC_GROUPS);
 
@@ -4252,6 +4612,7 @@ function OperationsScreen() {
   const spentLabel = account && transactions.length > 0 ? `₴\u00a0${fmtInt(totalSpent)}${fmtDec(totalSpent)}` : '₴\u00a042\u00a0380';
 
   return (
+    <>
     <ContentWrap maxW={720}>
     <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
       <div style={{ padding: `${topPad} 22px 14px` }}>
@@ -4271,6 +4632,40 @@ function OperationsScreen() {
             placeholder={t('search_transactions')}
             style={{ width: '100%', padding: '10px 14px 10px 36px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 12, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
           />
+        </div>
+        {/* Type filter */}
+        <div style={{ display: 'flex', gap: 4, padding: '3px', background: 'rgba(26,40,32,0.5)', borderRadius: 100, marginTop: 10 }}>
+          {(['all', 'in', 'out'] as const).map(f => (
+            <button key={f} onClick={() => setTxFilter(f)} style={{
+              flex: 1, padding: '5px 8px', fontSize: 11, fontWeight: 500,
+              background: f === txFilter ? `linear-gradient(135deg, ${gold}, ${goldDark})` : 'transparent',
+              color: f === txFilter ? '#0c1a12' : 'rgba(220,215,200,0.6)',
+              border: 'none', borderRadius: 100, cursor: 'pointer', fontFamily: 'inherit',
+              transition: 'background 0.2s, color 0.2s',
+            }}>
+              {f === 'all' ? t('filter_all') : f === 'in' ? t('filter_income') : t('filter_outcome')}
+            </button>
+          ))}
+        </div>
+        {/* Sort order */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+          <span style={{ fontSize: 10, color: text.dim, textTransform: 'uppercase', letterSpacing: 0.7, flexShrink: 0 }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ verticalAlign: 'middle', marginRight: 3 }}><path d="M4 6h16M4 12h10M4 18h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+          </span>
+          <div style={{ display: 'flex', gap: 3, padding: '2px', background: 'rgba(26,40,32,0.5)', borderRadius: 100 }}>
+            {(['desc', 'asc', 'amount'] as const).map(s => (
+              <button key={s} onClick={() => setSortOrder(s)} style={{
+                padding: '4px 10px', fontSize: 10, fontWeight: 500,
+                background: s === sortOrder ? `linear-gradient(135deg, rgba(180,172,155,0.25), rgba(100,95,80,0.2))` : 'transparent',
+                color: s === sortOrder ? gold : 'rgba(220,215,200,0.5)',
+                border: s === sortOrder ? `1px solid rgba(180,172,155,0.2)` : '1px solid transparent',
+                borderRadius: 100, cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'background 0.15s, color 0.15s',
+              }}>
+                {s === 'desc' ? `↓ ${t('sort_newest')}` : s === 'asc' ? `↑ ${t('sort_oldest')}` : `# ${t('sort_amount')}`}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -4317,6 +4712,56 @@ function OperationsScreen() {
         </div>
       </div>
 
+      {/* Category breakdown (only in "all" or "outcome" mode with real data) */}
+      {(() => {
+        const outTx = filtered.filter(tx => tx.direction === 'out');
+        if (outTx.length === 0) return null;
+        const catTotals: Record<string, number> = {};
+        for (const tx of outTx) {
+          const cat = txToCat(tx);
+          catTotals[cat] = (catTotals[cat] || 0) + tx.amount;
+        }
+        const total = outTx.reduce((s, tx) => s + tx.amount, 0);
+        const rows = Object.entries(catTotals)
+          .sort(([, a], [, b]) => b - a)
+          .map(([cat, amt]) => ({
+            cat: cat as TxCat,
+            pct: Math.round(amt / total * 100),
+            amt,
+          }));
+        if (!rows.length) return null;
+        const SPEND_LABELS: Record<string, string> = { transfer: t('spend_transfer'), food: t('spend_food'), transport: t('spend_transport'), utility: t('spend_utility'), shopping: t('spend_shopping'), subscription: t('spend_subscription'), income: t('filter_income') };
+        return (
+          <div style={{ padding: '0 22px 18px' }}>
+            <div style={{ padding: 20, ...glassCard() }}>
+              <div style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 }}>{t('filter_outcome')}</div>
+              {rows.map(({ cat, pct, amt }) => {
+                const s = CAT_STYLES[cat];
+                return (
+                  <div key={cat} style={{ marginBottom: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <div style={{ width: 20, height: 20, borderRadius: 6, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.icon}</div>
+                        <span style={{ fontSize: 12, color: text.secondary }}>{SPEND_LABELS[cat] || cat}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{ fontSize: 12, color: text.secondary, fontFeatureSettings: '"tnum"' }}>{fmtInt(amt)}{fmtDec(amt)} ₴</span>
+                        <span style={{ fontSize: 10, color: text.muted }}>{pct}%</span>
+                      </div>
+                    </div>
+                    <div style={{ height: 4, background: 'rgba(180,172,155,0.1)', borderRadius: 4 }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: s.color, borderRadius: 4, opacity: 0.75, transition: 'width 0.4s ease' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      {txFilter === 'all' && <InsightsStrip />}
+
       {/* Transactions */}
       {txGroups.length === 0 && (
         <div style={{ padding: '40px 22px', textAlign: 'center', color: text.muted, fontSize: 14 }}>
@@ -4331,7 +4776,9 @@ function OperationsScreen() {
               const s = CAT_STYLES[item.cat];
               return (
                 <Fragment key={i}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+                  <div
+                    onClick={() => { if (item.txId) { setSelectedTxId(item.txId); const tx = transactions.find(tx => tx.id === item.txId); setTxNote(tx?.note ?? ''); } }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: item.txId ? 'pointer' : 'default' }}>
                     <div style={{
                       width: 36, height: 36, borderRadius: 10, background: s.bg,
                       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -4344,7 +4791,7 @@ function OperationsScreen() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ ...T.body, fontWeight: 600, color: item.positive ? '#7fb896' : text.secondary, ...T.num }}>{item.amount} ₴</div>
                       {item.txId ? (
-                        <button onClick={() => downloadReceipt(item.txId!)} disabled={dlReceipt === item.txId} title={t('download_receipt')} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(180,172,155,0.08)', border: `1px solid rgba(180,172,155,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13 }}>{dlReceipt === item.txId ? '…' : '🧾'}</button>
+                        <button onClick={e => { e.stopPropagation(); downloadReceipt(item.txId!); }} disabled={dlReceipt === item.txId} title={t('download_receipt')} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(180,172,155,0.08)', border: `1px solid rgba(180,172,155,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13 }}>{dlReceipt === item.txId ? '…' : '🧾'}</button>
                       ) : (
                         <Chevron size={12} color="rgba(220,215,200,0.3)" />
                       )}
@@ -4363,6 +4810,49 @@ function OperationsScreen() {
       <div style={{ height: 20 }} />
     </div>
     </ContentWrap>
+
+    {/* Transaction detail sheet */}
+    {selectedTxId && selectedTxData && (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setSelectedTxId(null)}>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }} />
+        <div onClick={e => e.stopPropagation()} style={{
+          position: 'relative', width: '100%', maxWidth: 520,
+          background: 'linear-gradient(180deg,rgba(17,40,32,0.98) 0%,rgba(11,30,22,0.98) 100%)',
+          backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+          borderRadius: '24px 24px 0 0', padding: '28px 24px calc(32px + env(safe-area-inset-bottom,0px))',
+          border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
+        }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '0 auto 20px' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
+            {(() => { const s = CAT_STYLES[txToCat(selectedTxData)]; return <div style={{ width: 44, height: 44, borderRadius: 14, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.icon}</div>; })()}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedTxData.description}</div>
+              <div style={{ fontSize: 12, color: text.muted, marginTop: 3 }}>{fmtTime(selectedTxData.created_at, lang)}</div>
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: selectedTxData.direction === 'in' ? '#7fb896' : text.primary, fontFeatureSettings: '"tnum"', flexShrink: 0 }}>
+              {selectedTxData.direction === 'in' ? '+' : '-'}{fmtInt(selectedTxData.amount)}{fmtDec(selectedTxData.amount)} ₴
+            </div>
+          </div>
+          <label style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, display: 'block', marginBottom: 8 }}>{t('tx_note_label')}</label>
+          <textarea
+            value={txNote}
+            onChange={e => setTxNote(e.target.value)}
+            placeholder={t('tx_note_placeholder')}
+            rows={3}
+            style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(180,172,155,0.18)', borderRadius: 14, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit', resize: 'none', boxSizing: 'border-box' }}
+          />
+          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+            <button onClick={() => setSelectedTxId(null)} style={{ flex: 1, padding: '12px', background: 'rgba(180,172,155,0.07)', border: '1px solid rgba(180,172,155,0.15)', borderRadius: 14, color: text.muted, fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>
+              {t('cancel_label')}
+            </button>
+            <button onClick={saveNote} disabled={savingNote} style={{ flex: 2, padding: '12px', background: `linear-gradient(135deg, ${gold}, ${goldDark})`, border: 'none', borderRadius: 14, color: '#0c1a12', fontSize: 14, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', opacity: savingNote ? 0.7 : 1 }}>
+              {savingNote ? '…' : t('profile_save')}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -4579,6 +5069,16 @@ function ProfileScreen() {
   const [oldPwd, setOldPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
   const [pwdLoading, setPwdLoading] = useState(false);
+  const [achievements, setAchievements] = useState<{ achievements: Achievement[]; done: number; total: number } | null>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('army_bank_token');
+    if (!token) return;
+    fetch('/api/achievements', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if (j?.ok && j.data) setAchievements(j.data); })
+      .catch(() => {});
+  }, []);
 
   const displayName = user?.full_name ?? t('user_fallback');
   const userInitials = initials(displayName);
@@ -4940,6 +5440,32 @@ function ProfileScreen() {
         <div style={{ height: 1, background: 'rgba(180,172,155,0.08)', margin: '0 18px' }} />
         <ProfileRow label={t('settings_support')} value="support@armybank.ua" copyable last />
       </>)}
+
+      {/* Achievements */}
+      {achievements && (
+        <div style={{ margin: '0 22px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ ...T.h3, color: text.secondary }}>{t('achievements_title')}</span>
+            <span style={{ fontSize: 12, color: text.muted }}>{achievements.done}/{achievements.total} {t('achievements_progress')}</span>
+          </div>
+          <div style={{ height: 3, background: 'rgba(180,172,155,0.1)', borderRadius: 3, marginBottom: 14, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${(achievements.done / achievements.total) * 100}%`, background: `linear-gradient(90deg, ${gold}, ${goldDark})`, borderRadius: 3, transition: 'width 0.6s ease' }} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+            {achievements.achievements.map(a => (
+              <div key={a.id} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '10px 6px',
+                background: a.done ? 'rgba(127,184,150,0.07)' : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${a.done ? 'rgba(127,184,150,0.2)' : 'rgba(180,172,155,0.08)'}`,
+                borderRadius: 14, opacity: a.done ? 1 : 0.45, transition: 'opacity 0.3s',
+              }}>
+                <span style={{ fontSize: 22, filter: a.done ? 'none' : 'grayscale(1)' }}>{a.icon}</span>
+                <span style={{ fontSize: 9, color: a.done ? text.secondary : text.muted, textAlign: 'center', lineHeight: 1.3, fontWeight: a.done ? 600 : 400 }}>{a.title}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Sign out */}
       <div style={{ padding: '8px 22px' }}>
@@ -5734,7 +6260,7 @@ function getTabs(t: (key: TranslationKey) => string): { k: TabKey; label: string
 function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) => void }) {
   const { t } = usePreferences();
   const tabs = getTabs(t);
-  const activeIdx = tabs.findIndex(t => t.k === active);
+  const activeIdx = tabs.findIndex(tab => tab.k === active);
   return (
     // position:fixed + gradient ending at #07150f (exact match of html/body
     // background). iOS safe-area zone below shows the same #07150f from body,
@@ -5744,40 +6270,47 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       position: 'fixed',
       left: 0, right: 0, bottom: 0,
       zIndex: 120,
+      backgroundColor: appBgBase,
+      backgroundImage: 'linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.82) 48%, rgb(7,21,15) 100%)',
+      padding: '10px 14px',
+      paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
       backdropFilter: 'blur(24px) saturate(180%)',
       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-      backgroundColor: '#07150f',
-      backgroundImage: 'linear-gradient(to bottom, rgba(7,21,15,0) 0%, rgba(7,21,15,0.75) 38%, #07150f 68%)',
-      borderTop: '0.5px solid rgba(180,172,155,0.1)',
-      paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4px)',
+      pointerEvents: 'none',
     }}>
       {/* Tab row */}
       <div style={{
         position: 'relative',
+        padding: '5px',
+        background: 'rgba(12,26,20,0.6)',
+        border: '1px solid rgba(180,172,155,0.2)',
+        borderRadius: 28,
         display: 'flex',
-        padding: '8px 8px 0',
+        boxShadow: '0 8px 22px rgba(0,0,0,0.3), inset 0 1px 0 rgba(230,225,210,0.08)',
+        pointerEvents: 'auto',
       }}>
         <div style={{
-          position: 'absolute', top: 4, bottom: 0,
-          left: `calc(${activeIdx * 20}% + 8px)`, width: 'calc(20% - 16px)',
-          background: 'linear-gradient(135deg, rgba(180,172,155,0.18) 0%, rgba(100,95,80,0.1) 100%)',
-          border: `1px solid rgba(180,172,155,0.28)`,
-          borderRadius: 18,
+          position: 'absolute', top: 5, bottom: 5,
+          left: `calc(${activeIdx * 20}% + 5px)`, width: 'calc(20% - 10px)',
+          background: 'linear-gradient(135deg, rgba(180,172,155,0.22) 0%, rgba(100,95,80,0.12) 100%)',
+          border: '1px solid rgba(180,172,155,0.32)', borderRadius: 22,
           transition: 'left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.12)',
+          pointerEvents: 'none',
         }} />
-        {tabs.map(t => {
-          const isActive = t.k === active;
-          const color = isActive ? goldLight : 'rgba(220,215,200,0.45)';
+        {tabs.map(tab => {
+          const isActive = tab.k === active;
+          const color = isActive ? goldLight : 'rgba(220,215,200,0.48)';
           return (
-            <button key={t.k} onClick={() => onChange(t.k)} style={{
-              flex: 1, padding: '10px 4px 8px', background: 'transparent', border: 'none', cursor: 'pointer',
+            <button key={tab.k} onClick={() => onChange(tab.k)} style={{
+              flex: 1, padding: '9px 4px 7px', background: 'transparent', border: 'none', cursor: 'pointer',
               position: 'relative', zIndex: 1,
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
               color, fontSize: 10, fontWeight: isActive ? 700 : 500,
               letterSpacing: 0.3, fontFamily: 'inherit', transition: 'color 0.2s',
             }}>
-              {t.icon(color)}
-              <span>{t.label}</span>
+              {tab.icon(color)}
+              <span>{tab.label}</span>
             </button>
           );
         })}

@@ -49,6 +49,7 @@ from .routes.marketplace_routes import marketplace_bp
 from .routes.passkey_routes import passkey_bp
 from .routes.three_ds_routes import three_ds_bp
 from .routes.deposit_routes import deposit_bp
+from .routes.agent_routes import agent_bp
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / 'frontend'
@@ -268,6 +269,7 @@ def create_app() -> Flask:
     app.register_blueprint(passkey_bp, url_prefix=prefix + '/api/auth/passkey')
     app.register_blueprint(three_ds_bp, url_prefix=prefix + '/api/3ds')
     app.register_blueprint(deposit_bp, url_prefix=prefix)
+    app.register_blueprint(agent_bp,   url_prefix=prefix + '/api/admin/agent')
 
     @app.get(prefix + '/api' if prefix else '/api')
     @app.get(prefix + '/api/' if prefix else '/api/')
