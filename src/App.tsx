@@ -2522,6 +2522,9 @@ function OverviewScreen() {
   const quickActions = getQuickActions(t);
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [cardIdx, setCardIdx] = useState(() => readSelectedCardIndex());
+  const [ovFlipped, setOvFlipped] = useState(false);
+  const [ovRevealed, setOvRevealed] = useState<{ card_number: string; cvv: string } | null>(null);
+  const [ovRevealing, setOvRevealing] = useState(false);
   const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
   const cards = apiCards.length > 0 ? apiCards.map(c => apiCardToData(c, userNameUp)) : [
     { variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29' },
@@ -2544,6 +2547,8 @@ function OverviewScreen() {
 
   useEffect(() => {
     persistSelectedCardIndex(safeCardIdx);
+    setOvFlipped(false);
+    setOvRevealed(null);
   }, [safeCardIdx]);
 
   useEffect(() => {
@@ -2609,6 +2614,25 @@ function OverviewScreen() {
     resetCardSwipe();
   }
 
+  async function ovRevealCard() {
+    if (apiCards.length === 0) { toast(t('demo_api_unavailable')); setOvFlipped(true); return; }
+    const c = apiCards[safeCardIdx];
+    const token = localStorage.getItem('army_bank_token');
+    setOvRevealing(true);
+    try {
+      const r = await fetch(`/api/cards/${c.id}/reveal`, { headers: { Authorization: `Bearer ${token}` } });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || 'Помилка');
+      setOvRevealed(j.data);
+      setOvFlipped(true);
+    } catch (e) { toast(e instanceof Error ? e.message : 'Помилка'); }
+    finally { setOvRevealing(false); }
+  }
+
+  function ovFlipCard() {
+    if (!ovFlipped) { ovRevealCard(); } else { setOvFlipped(false); }
+  }
+
   const cardSection = (
     <div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
@@ -2655,11 +2679,68 @@ function OverviewScreen() {
                 willChange: 'transform',
               }}
             >
-              {cards.map((c, i) => (
-                <div key={`${c.number}-${i}`} style={{ flex: '0 0 100%' }}>
-                  <PremiumCard {...c} />
-                </div>
-              ))}
+              {cards.map((c, i) => {
+                const v = CARD_VARIANTS[c.variant as CardVariant] ?? CARD_VARIANTS.gold;
+                const isSelected = i === safeCardIdx;
+                return (
+                  <div key={`${c.number}-${i}`} style={{ flex: '0 0 100%' }}>
+                    {isSelected ? (
+                      <div style={{ perspective: 1000, width: '100%', aspectRatio: '1.586 / 1', cursor: 'pointer' }}
+                        onClick={ovFlipCard}>
+                        <div style={{
+                          width: '100%', height: '100%', position: 'relative',
+                          transformStyle: 'preserve-3d',
+                          transform: ovFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                          transition: 'transform 0.55s cubic-bezier(0.4, 0, 0.2, 1)',
+                        }}>
+                          {/* Front */}
+                          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
+                            <PremiumCard {...c} style={{ width: '100%' }} />
+                            {!ovFlipped && <div style={{ position: 'absolute', bottom: 10, right: 12, fontSize: 9, color: 'rgba(255,255,255,0.5)', pointerEvents: 'none' }}>{ovRevealing ? '…' : '👁 перевернути'}</div>}
+                          </div>
+                          {/* Back */}
+                          <div style={{
+                            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                            backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
+                            transform: 'rotateY(180deg)', borderRadius: 22, overflow: 'hidden',
+                            background: v.bg, boxShadow: '0 20px 40px -12px rgba(0,0,0,0.55)',
+                          }}>
+                            {v.image && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: `url(${v.image})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3)', transform: 'scale(1.04)' }} />}
+                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)' }} />
+                            <div style={{ position: 'absolute', top: '22%', left: 0, right: 0, height: '16%', background: 'linear-gradient(180deg,#1c1c1c,#000)' }} />
+                            <div style={{ position: 'absolute', top: '42%', left: '5%', right: '5%' }}>
+                              <div style={{ display: 'flex', height: 30, borderRadius: 4, overflow: 'hidden' }}>
+                                <div style={{ flex: 1, background: 'repeating-linear-gradient(90deg,#ccc 0,#ccc 3px,#fff 3px,#fff 7px)' }} />
+                                <button onClick={e => { e.stopPropagation(); if (ovRevealed) navigator.clipboard.writeText(ovRevealed.cvv).then(() => toast('CVV скопійовано ✓')).catch(() => {}); }} style={{ background: '#fff', border: 'none', padding: '0 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                                  <span style={{ fontFamily: '"SF Mono", monospace', fontSize: 14, fontWeight: 800, color: '#000', letterSpacing: 3 }}>{ovRevealed?.cvv || '•••'}</span>
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="#888" strokeWidth="2"/><path d="M5 15V5a2 2 0 012-2h10" stroke="#888" strokeWidth="2"/></svg>
+                                </button>
+                              </div>
+                              <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 4, letterSpacing: 0.8 }}>CVV2 / CVC2 · натисни щоб скопіювати</div>
+                            </div>
+                            <div style={{ position: 'absolute', top: '62%', left: '5%', right: '5%' }}>
+                              <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', letterSpacing: 1, marginBottom: 5 }}>НОМЕР КАРТКИ</div>
+                              <button onClick={e => { e.stopPropagation(); if (ovRevealed) navigator.clipboard.writeText(ovRevealed.card_number.replace(/\s/g, '')).then(() => toast('Номер скопійовано ✓')).catch(() => {}); }} style={{ width: '100%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                <span style={{ fontFamily: '"SF Mono", monospace', fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: 2 }}>
+                                  {ovRevealed ? ovRevealed.card_number.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim() : `•••• •••• •••• ${c.number}`}
+                                </span>
+                                {ovRevealed && <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="rgba(255,255,255,0.6)" strokeWidth="2"/><path d="M5 15V5a2 2 0 012-2h10" stroke="rgba(255,255,255,0.6)" strokeWidth="2"/></svg>}
+                              </button>
+                            </div>
+                            <div style={{ position: 'absolute', bottom: '5%', left: '5%', right: '5%', display: 'flex', gap: 16 }}>
+                              <div><div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>ДІЙСНА ДО</div><div style={{ fontFamily: '"SF Mono", monospace', fontSize: 11, fontWeight: 700, color: '#fff' }}>{c.expiry}</div></div>
+                              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>ВЛАСНИК</div><div style={{ fontSize: 10, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div></div>
+                            </div>
+                            <div style={{ position: 'absolute', top: 10, right: 14, fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>↩ закрити</div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <PremiumCard {...c} style={{ width: '100%' }} />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 14 }}>
@@ -3088,68 +3169,48 @@ function CardsScreen() {
                     transition: 'transform 0.55s cubic-bezier(0.4, 0, 0.2, 1)',
                   }}>
                     {/* Front */}
-                    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
-                      <PremiumCard {...c} style={{ width: '100%' }}
-                        balance={c.balance} isPrimary={c.isPrimary} />
-                      {/* Reveal hint */}
-                      {!flipped && (
-                        <div style={{
-                          position: 'absolute', bottom: 10, right: 12,
-                          fontSize: 9, letterSpacing: 0.8, color: 'rgba(255,255,255,0.5)',
-                          display: 'flex', alignItems: 'center', gap: 4,
-                          pointerEvents: 'none',
-                        }}>
-                          {revealing ? '…' : '👁 натисни'}
-                        </div>
-                      )}
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
+                      <PremiumCard {...c} style={{ width: '100%' }} balance={c.balance} isPrimary={c.isPrimary} />
+                      {!flipped && <div style={{ position: 'absolute', bottom: 10, right: 12, fontSize: 9, color: 'rgba(255,255,255,0.5)', pointerEvents: 'none' }}>{revealing ? '…' : '👁 перевернути'}</div>}
                     </div>
                     {/* Back */}
                     <div style={{
-                      position: 'absolute', inset: 0,
+                      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                       backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
-                      transform: 'rotateY(180deg)',
-                      borderRadius: 22, overflow: 'hidden',
-                      background: v.bg,
-                      boxShadow: '0 20px 40px -12px rgba(0,0,0,0.55), 0 6px 16px -8px rgba(0,0,0,0.4)',
-                      color: v.text,
+                      transform: 'rotateY(180deg)', borderRadius: 22, overflow: 'hidden',
+                      background: v.bg, boxShadow: '0 20px 40px -12px rgba(0,0,0,0.55)',
                     }}>
-                      {v.image && <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${v.image})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.45)', transform: 'scale(1.03)' }} />}
-                      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.52)' }} />
-                      {/* Magnetic stripe */}
-                      <div style={{ position: 'absolute', top: 28, left: 0, right: 0, height: 38, background: '#111' }} />
-                      {/* Signature + CVV strip */}
-                      <div style={{ position: 'absolute', top: 82, left: 18, right: 18 }}>
-                        <div style={{ background: 'repeating-linear-gradient(90deg, #e0e0e0 0px, #e0e0e0 4px, #fff 4px, #fff 8px)', height: 32, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 10 }}>
-                          <div style={{ background: '#fff', padding: '2px 8px', borderRadius: 3, fontFamily: '"SF Mono", monospace', fontSize: 14, fontWeight: 700, color: '#000', letterSpacing: 2 }}>
-                            {revealed?.cvv || '•••'}
-                          </div>
+                      {v.image && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: `url(${v.image})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3)', transform: 'scale(1.04)' }} />}
+                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)' }} />
+                      {/* Magnetic stripe — 22% from top */}
+                      <div style={{ position: 'absolute', top: '22%', left: 0, right: 0, height: '16%', background: 'linear-gradient(180deg,#1c1c1c,#000)' }} />
+                      {/* Signature + CVV row — 42% from top */}
+                      <div style={{ position: 'absolute', top: '42%', left: '5%', right: '5%' }}>
+                        <div style={{ display: 'flex', height: 30, borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ flex: 1, background: 'repeating-linear-gradient(90deg,#ccc 0,#ccc 3px,#fff 3px,#fff 7px)' }} />
+                          <button onClick={e => { e.stopPropagation(); if (revealed) navigator.clipboard.writeText(revealed.cvv).then(() => toast('CVV скопійовано ✓')).catch(() => {}); }} style={{ background: '#fff', border: 'none', padding: '0 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                            <span style={{ fontFamily: '"SF Mono", monospace', fontSize: 14, fontWeight: 800, color: '#000', letterSpacing: 3 }}>{revealed?.cvv || '•••'}</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="#888" strokeWidth="2"/><path d="M5 15V5a2 2 0 012-2h10" stroke="#888" strokeWidth="2"/></svg>
+                          </button>
                         </div>
-                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 3, letterSpacing: 0.6 }}>CVV2 / CVC2</div>
+                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 4, letterSpacing: 0.8 }}>CVV2 / CVC2 · натисни щоб скопіювати</div>
                       </div>
-                      {/* Full card number */}
-                      <div style={{ position: 'absolute', bottom: 38, left: 18, right: 18 }}>
-                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', letterSpacing: 1, marginBottom: 4 }}>НОМЕР КАРТКИ</div>
-                        <div style={{ fontFamily: '"SF Mono", monospace', fontSize: 15, fontWeight: 600, letterSpacing: 2.5, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
-                          {revealed ? (
-                            revealed.card_number.replace(/(.{4})/g, '$1 ').trim()
-                          ) : (
-                            `•••• •••• •••• ${c.number}`
-                          )}
-                        </div>
+                      {/* Card number — 62% from top */}
+                      <div style={{ position: 'absolute', top: '62%', left: '5%', right: '5%' }}>
+                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', letterSpacing: 1, marginBottom: 5 }}>НОМЕР КАРТКИ</div>
+                        <button onClick={e => { e.stopPropagation(); if (revealed) navigator.clipboard.writeText(revealed.card_number.replace(/\s/g, '')).then(() => toast('Номер скопійовано ✓')).catch(() => {}); }} style={{ width: '100%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                          <span style={{ fontFamily: '"SF Mono", monospace', fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: 2 }}>
+                            {revealed ? revealed.card_number.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim() : `•••• •••• •••• ${c.number}`}
+                          </span>
+                          {revealed && <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="rgba(255,255,255,0.6)" strokeWidth="2"/><path d="M5 15V5a2 2 0 012-2h10" stroke="rgba(255,255,255,0.6)" strokeWidth="2"/></svg>}
+                        </button>
                       </div>
-                      {/* Expiry */}
-                      <div style={{ position: 'absolute', bottom: 16, left: 18, display: 'flex', gap: 18, alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.45)', letterSpacing: 1 }}>ДІЙСНА ДО</div>
-                          <div style={{ fontFamily: '"SF Mono", monospace', fontSize: 12, fontWeight: 600, color: '#fff' }}>{c.expiry}</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.45)', letterSpacing: 1 }}>ВЛАСНИК</div>
-                          <div style={{ fontSize: 10, fontWeight: 600, color: '#fff', letterSpacing: 0.5 }}>{c.name}</div>
-                        </div>
+                      {/* Expiry + holder — bottom 5% */}
+                      <div style={{ position: 'absolute', bottom: '5%', left: '5%', right: '5%', display: 'flex', gap: 16 }}>
+                        <div><div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>ДІЙСНА ДО</div><div style={{ fontFamily: '"SF Mono", monospace', fontSize: 11, fontWeight: 700, color: '#fff' }}>{c.expiry}</div></div>
+                        <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>ВЛАСНИК</div><div style={{ fontSize: 10, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div></div>
                       </div>
-                      {/* Close hint */}
-                      <div style={{ position: 'absolute', top: 10, right: 12, fontSize: 9, color: 'rgba(255,255,255,0.45)', letterSpacing: 0.8 }}>натисни щоб закрити</div>
+                      <div style={{ position: 'absolute', top: 10, right: 14, fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>↩ закрити</div>
                     </div>
                   </div>
                 </div>
@@ -3181,7 +3242,7 @@ function CardsScreen() {
           <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
             <div style={{ fontFamily: '"SF Mono", monospace', fontSize: 16, fontWeight: 600, color: text.primary, letterSpacing: 1 }}>
-              {revealed ? revealed.card_number.replace(/(.{4})/g, '$1 ').trim() : `•••• •••• •••• ${card.number}`}
+              {revealed ? revealed.card_number.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim() : `•••• •••• •••• ${card.number}`}
             </div>
             <div style={{
               padding: '3px 8px', borderRadius: 100, background: card.statusRaw === 'active' ? 'rgba(127,184,150,0.15)' : 'rgba(220,215,200,0.1)',
