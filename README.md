@@ -11,7 +11,7 @@
 
 ## Що це
 
-ARM Bank — приватний банківський застосунок із преміальним liquid glass інтерфейсом. Написаний як єдиний React SPA поверх Flask REST API. Розгорнутий на Render.com, підтримує iOS PWA зі збереженням Safe Area та Dynamic Island.
+ARM Bank — приватний банківський застосунок. Написаний як єдиний React SPA поверх Flask REST API. Розгорнутий на Render.com, підтримує iOS PWA зі збереженням Safe Area та Dynamic Island.
 
 ---
 
