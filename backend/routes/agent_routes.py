@@ -241,11 +241,11 @@ def _run_role_report():
                         ELSE datetime('now', '-30 days') END
                )
                GROUP BY u.role""" if False else
-            f"""SELECT u.role, COUNT(DISTINCT u.id) as cnt
+            """SELECT u.role, COUNT(DISTINCT u.id) as cnt
                FROM users u
                JOIN accounts a ON a.user_id = u.id
                JOIN transactions t ON t.account_id = a.id
-               WHERE t.created_at >= {'NOW() - INTERVAL \'30 days\'' if USE_PG else "datetime('now', '-30 days')"}
+               WHERE t.created_at >= """ + ("NOW() - INTERVAL '30 days'" if USE_PG else "datetime('now', '-30 days')") + """
                GROUP BY u.role"""
         ).fetchall()
 
