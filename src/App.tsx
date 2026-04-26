@@ -2808,7 +2808,7 @@ function FxExchangeModal({ rates, onClose }: { rates: FxRate[]; onClose: () => v
         </div>
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 12, color: text.muted, display: 'block', marginBottom: 6 }}>{dir === 'buy' ? `Сума в гривнях (UAH)` : `Сума в ${currency}`}</label>
-          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" inputMode="decimal" style={{ width: '100%', padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.2)`, color: text.primary, fontSize: 22, fontWeight: 600, outline: 'none', textAlign: 'right' }} />
+          <input type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" style={{ width: '100%', padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.2)`, color: text.primary, fontSize: 22, fontWeight: 600, outline: 'none', textAlign: 'right' }} />
         </div>
         {amtNum > 0 && (
           <div style={{ background: 'rgba(180,172,155,0.05)', border: '1px solid rgba(180,172,155,0.12)', borderRadius: 14, padding: '14px 16px', marginBottom: 20 }}>
@@ -2986,7 +2986,7 @@ function SavingsGoalsMini() {
         <div style={{ ...glassCard(), padding: '14px 16px', marginBottom: 10 }}>
           <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Назва цілі"
             style={{ width: '100%', padding: '9px 12px', marginBottom: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
-          <input value={newTarget} onChange={e => setNewTarget(e.target.value)} placeholder="Сума, ₴" type="number"
+          <input value={newTarget} onChange={e => setNewTarget(e.target.value)} placeholder="Сума, ₴" type="text" inputMode="decimal"
             style={{ width: '100%', padding: '9px 12px', marginBottom: 10, background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           <button onClick={createGoal} disabled={creating} style={{
             width: '100%', padding: '10px', fontSize: 13, fontWeight: 600,
@@ -3029,7 +3029,7 @@ function SavingsGoalsMini() {
               }}>Поповнити</button>
             ) : (
               <div style={{ display: 'flex', gap: 8 }}>
-                <input value={contributeAmt} onChange={e => setContributeAmt(e.target.value)} placeholder="Сума" type="number"
+                <input value={contributeAmt} onChange={e => setContributeAmt(e.target.value)} placeholder="Сума" type="text" inputMode="decimal"
                   style={{ flex: 1, padding: '8px 10px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 8, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
                 <button onClick={() => contribute(goal.id)} style={{
                   padding: '8px 14px', fontSize: 12, fontWeight: 600,
@@ -3122,7 +3122,7 @@ function RecurringSection() {
       {showCreate && (
         <div style={{ ...glassCard(), padding: '16px', marginBottom: 12 }}>
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Назва платежу" style={inputStyle} />
-          <input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="Сума, ₴" type="number" style={inputStyle} />
+          <input value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="Сума, ₴" type="text" inputMode="decimal" style={inputStyle} />
           <input value={form.recipient_account} onChange={e => setForm(f => ({ ...f, recipient_account: e.target.value }))} placeholder="Рахунок отримувача (необов'язково)" style={inputStyle} />
           <select value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))} style={{ ...inputStyle, marginBottom: 12 }}>
             {Object.entries(FREQ_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -4283,7 +4283,7 @@ function CardsScreen() {
           </div>
           <div style={{ fontSize: 11, color: text.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.8 }}>Сума поповнення</div>
           <input
-            type="number" inputMode="decimal"
+            type="text" inputMode="decimal"
             value={topupAmount} onChange={e => setTopupAmount(e.target.value)}
             placeholder="0.00"
             style={{ width: '100%', padding: '13px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.18)`, borderRadius: 12, color: text.primary, fontSize: 20, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 6 }}
@@ -4667,7 +4667,7 @@ function CreditsSection() {
           <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label style={{ fontSize: 12, color: text.muted, display: 'block', marginBottom: 6 }}>Сума кредиту</label>
-              <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="1 000 – 500 000 ₴" inputMode="decimal" style={{ width: '100%', padding: '12px 14px', borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, color: text.primary, fontSize: 16, outline: 'none' }} />
+              <input type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="1 000 – 500 000 ₴" style={{ width: '100%', padding: '12px 14px', borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, color: text.primary, fontSize: 16, outline: 'none' }} />
             </div>
             <div>
               <label style={{ fontSize: 12, color: text.muted, display: 'block', marginBottom: 8 }}>Строк</label>
