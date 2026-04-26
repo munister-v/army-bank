@@ -6941,15 +6941,15 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
   return (
     <div style={{ ...appBase, overflowY: 'auto' }}>
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none', background: '#07150f' }} />
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none', background: '#07150f' }} />
       <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none',
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none',
         backgroundImage: `url(${AUTH_STATIC_BG})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center top',
         opacity: 0.82,
       }} />
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none',
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none',
         background: 'radial-gradient(ellipse 72% 50% at 50% 0%, rgba(20,46,32,0.48) 0%, rgba(6,14,10,0.74) 58%, rgba(5,11,8,0.9) 100%)',
       }} />
       <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 20px', position: 'relative' }}>
@@ -7280,9 +7280,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!authed) { setUser(null); setAccount(null); setTransactions([]); setCards([]); return; }
-    fetchDashboard();
-  }, [authed, fetchDashboard]);
+    if (!authed) { setUser(null); setAccount(null); setTransactions([]); setCards([]); }
+  }, [authed]);
 
   const showToast = (msg: string) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -7429,7 +7428,11 @@ export default function App() {
   }
 
   if (!authed) {
-    return <LoginScreen onLogin={() => setAuthed(true)} />;
+    return <LoginScreen onLogin={() => {
+      markAppContinuation();  // prevent splash replay on next open
+      setLoadingData(true);   // show spinner immediately, skip empty-screen flash
+      setAuthed(true);
+    }} />;
   }
 
   if (isDesktop) {
