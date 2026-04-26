@@ -177,17 +177,7 @@ border      = rgba(200,170,100,0.11)
 Type scale:
   hero 36/700  h1 28/700  h2 22/600  h3 17/600
   body 14/400  sm 13/400  caption 11/600/uppercase
-```
-
----
-
-## Суміжні проєкти
-
-| | |
-|---|---|
-| [army-admin](https://github.com/munister-v/army-admin) | Адмін-панель (той самий бекенд) |
-| [messenger](https://army-bank.onrender.com/messenger) | Захищений месенджер + казино |
-
+`
 ---
 
 ## Ліцензія
