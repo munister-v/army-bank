@@ -2936,9 +2936,10 @@ function SavingsGoalsMini() {
     const amount = parseFloat(contributeAmt.replace(',', '.'));
     if (!amount || amount <= 0) return;
     try {
+      const idempotencyKey = `goal-contribute-${goalId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const r = await fetch(`/api/savings-goals/${goalId}/contribute`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount }),
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ amount, idempotency_key: idempotencyKey }),
       });
       const j = await r.json();
       if (!j.ok) throw new Error(j.error || 'Помилка');
@@ -2952,9 +2953,10 @@ function SavingsGoalsMini() {
     if (!newTitle.trim() || !target) return;
     setCreating(true);
     try {
+      const idempotencyKey = `goal-create-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const r = await fetch('/api/savings-goals', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: newTitle.trim(), target_amount: target }),
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ title: newTitle.trim(), target_amount: target, idempotency_key: idempotencyKey }),
       });
       const j = await r.json();
       if (!j.ok) throw new Error(j.error || 'Помилка');
@@ -3094,9 +3096,10 @@ function RecurringSection() {
     if (!form.title.trim() || !amount) return;
     setCreating(true);
     try {
+      const idempotencyKey = `recurring-create-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const r = await fetch('/api/recurring-transactions', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: form.title.trim(), amount, tx_type: 'transfer', recipient_account: form.recipient_account.trim() || undefined, frequency: form.frequency }),
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ title: form.title.trim(), amount, tx_type: 'transfer', recipient_account: form.recipient_account.trim() || undefined, frequency: form.frequency, idempotency_key: idempotencyKey }),
       });
       const j = await r.json();
       if (!j.ok) throw new Error(j.error || 'Помилка');
@@ -4074,10 +4077,11 @@ function CardsScreen() {
     const token = localStorage.getItem('army_bank_token');
     setTopupLoading(true);
     try {
+      const idempotencyKey = `topup-${c.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const r = await fetch(`/api/cards/${c.id}/topup`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ amount, idempotency_key: idempotencyKey }),
       });
       const j = await r.json();
       if (!r.ok || !j.ok) throw new Error(j.message || t('operation_error'));
@@ -4122,10 +4126,11 @@ function CardsScreen() {
         setDesignOverrides(prev => ({ ...prev, [c.id]: selectedDesign }));
         toast(`${t('card_design_updated')} •• ${card.number}`);
       } else {
+        const idempotencyKey = `card-issue-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const r = await fetch('/api/cards', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ card_type: 'virtual', design: selectedDesign }),
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'Idempotency-Key': idempotencyKey },
+          body: JSON.stringify({ card_type: 'virtual', design: selectedDesign, idempotency_key: idempotencyKey }),
         });
         const j = await r.json();
         if (!r.ok || !j.ok) throw new Error(j.message || t('card_issue_failed'));
@@ -4603,10 +4608,11 @@ function DepositsSection() {
     if (!amt || amt < 500) { toast(t('dep_min_amount')); return; }
     setCreating(true);
     try {
+      const idempotencyKey = `dep-create-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const r = await fetch('/api/deposits', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-        body: JSON.stringify({ amount: amt, term_months: termMonths, auto_renew: autoRenew }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}`, 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ amount: amt, term_months: termMonths, auto_renew: autoRenew, idempotency_key: idempotencyKey }),
       });
       const j = await r.json();
       if (!j.ok) throw new Error(j.error || t('operation_error'));
@@ -4620,10 +4626,11 @@ function DepositsSection() {
   async function closeDeposit(dep: Deposit, early: boolean) {
     setClosing(dep.id);
     try {
+      const idempotencyKey = `dep-close-${dep.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const r = await fetch(`/api/deposits/${dep.id}/close`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-        body: JSON.stringify({ early }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}`, 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ early, idempotency_key: idempotencyKey }),
       });
       const j = await r.json();
       if (!j.ok) throw new Error(j.error || t('operation_error'));
@@ -4869,7 +4876,8 @@ function CreditsSection() {
     if (amtNum > 500000) { toast('Максимальна сума — ₴500 000'); return; }
     setCreating(true);
     try {
-      const r = await fetch('/api/credits', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: amtNum, term_months: term, description: desc }) });
+      const idempotencyKey = `credit-create-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const r = await fetch('/api/credits', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey }, body: JSON.stringify({ amount: amtNum, term_months: term, description: desc, idempotency_key: idempotencyKey }) });
       const j = await r.json();
       if (j.ok) { setShowCreate(false); setAmount(''); setDesc(''); toast('✅ Кредит оформлено!'); load(); }
       else toast(j.error || j.message || 'Помилка сервера');
@@ -4880,8 +4888,9 @@ function CreditsSection() {
     setRepaying(creditId);
     try {
       const credit = credits.find(c => c.id === creditId);
-      const body = full ? { amount: credit?.balance_remaining } : {};
-      const r = await fetch(`/api/credits/${creditId}/repay`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const idempotencyKey = `credit-repay-${creditId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const body = full ? { amount: credit?.balance_remaining, idempotency_key: idempotencyKey } : { idempotency_key: idempotencyKey };
+      const r = await fetch(`/api/credits/${creditId}/repay`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(body) });
       const j = await r.json();
       if (j.ok) { toast(j.data.status === 'closed' ? '✅ Кредит погашено!' : '✅ Платіж зараховано!'); load(); }
       else toast(j.error || 'Помилка');
@@ -5541,10 +5550,11 @@ function ProfileScreen() {
     setLimitsLoading(true);
     try {
       const tk = localStorage.getItem('army_bank_token');
+      const idempotencyKey = `budget-limit-${newLimitType}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const r = await fetch('/api/budget-limits', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
-        body: JSON.stringify({ tx_type: newLimitType, monthly_limit: amt }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}`, 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ tx_type: newLimitType, monthly_limit: amt, idempotency_key: idempotencyKey }),
       });
       const j = await r.json();
       if (!j.ok) throw new Error(j.error);
@@ -6997,7 +7007,7 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
           <BrandMark size={36} radiusValue={10} />
           <div>
             <div style={{ ...T.h3, color: text.primary, lineHeight: 1.1 }}>
-              АРМ<span style={{ fontWeight: 300, opacity: 0.8 }}>Банк</span>
+              ARM<span style={{ fontWeight: 300, opacity: 0.8 }}>Bank</span>
             </div>
             <div style={{ fontSize: 10, color: text.dim, letterSpacing: 0.6, marginTop: 1 }}>{t('personal_cabinet')}</div>
           </div>
