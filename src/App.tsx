@@ -3178,6 +3178,249 @@ function getQuickActions(t: (key: TranslationKey) => string): { label: string; i
   ];
 }
 
+// ─── Financial Health Score ────────────────────────────────────────────────
+function FinancialHealthScore({ transactions, account }: { transactions: TxItem[]; account: AccountInfo | null }) {
+  if (!account) return null;
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthTx = transactions.filter(tx => new Date(tx.created_at) >= monthStart);
+  const income = monthTx.filter(tx => tx.direction === 'in').reduce((s, tx) => s + tx.amount, 0);
+  const expenses = monthTx.filter(tx => tx.direction === 'out').reduce((s, tx) => s + tx.amount, 0);
+  const balance = account.balance;
+
+  // Score components (0-100 each)
+  const savingsRate = income > 0 ? Math.max(0, Math.min(100, ((income - expenses) / income) * 100)) : 50;
+  const balanceScore = Math.min(100, (balance / 50000) * 100);
+  const activityScore = Math.min(100, monthTx.length * 5);
+  const score = Math.round(savingsRate * 0.5 + balanceScore * 0.3 + activityScore * 0.2);
+
+  const level = score >= 80 ? { label: 'Відмінно', color: '#7fb896', emoji: '🏆' }
+    : score >= 60 ? { label: 'Добре', color: '#c9a964', emoji: '✅' }
+    : score >= 40 ? { label: 'Задовільно', color: '#e8a84a', emoji: '📊' }
+    : { label: 'Потребує уваги', color: '#e05a40', emoji: '⚠️' };
+
+  const tips = [
+    income > 0 && expenses / income > 0.8 && '💡 Витрати перевищують 80% доходу — розгляньте бюджет',
+    balance < 1000 && '💡 Підтримуйте резервний фонд від ₴5 000',
+    monthTx.length < 3 && '💡 Мало активності — використовуйте картку для кешбеку',
+  ].filter(Boolean) as string[];
+
+  return (
+    <div style={{ margin: '0 22px 20px', background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 20, padding: '18px 20px', overflow: 'hidden', position: 'relative' }}>
+      <div style={{ position: 'absolute', top: 0, right: 0, width: 120, height: 120, borderRadius: '50%', background: `radial-gradient(circle, ${level.color}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.8, marginBottom: 4 }}>ФІНАНСОВИЙ РЕЙТИНГ</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: level.color }}>{level.emoji} {level.label}</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 36, fontWeight: 800, color: level.color, lineHeight: 1 }}>{score}</div>
+          <div style={{ fontSize: 10, color: text.muted }}>зі 100</div>
+        </div>
+      </div>
+      {/* Score bar */}
+      <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 4, height: 6, marginBottom: tips.length ? 14 : 0, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${score}%`, borderRadius: 4, background: `linear-gradient(90deg, ${level.color}88, ${level.color})`, transition: 'width 1s ease' }} />
+      </div>
+      {/* Components */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: tips.length ? 14 : 0 }}>
+        {[
+          { label: 'Заощадження', val: Math.round(savingsRate) },
+          { label: 'Баланс', val: Math.round(balanceScore) },
+          { label: 'Активність', val: Math.round(activityScore) },
+        ].map(({ label, val }) => (
+          <div key={label} style={{ textAlign: 'center', background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '8px 4px' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: text.primary }}>{val}</div>
+            <div style={{ fontSize: 9, color: text.muted, marginTop: 2 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+      {/* Tips */}
+      {tips.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {tips.map((tip, i) => (
+            <div key={i} style={{ fontSize: 11, color: text.muted, background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '7px 10px' }}>{tip}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Budget Planner (localStorage) ────────────────────────────────────────
+const BUDGET_KEY = 'army_bank_budget_v1';
+const BUDGET_CATEGORIES = [
+  { key: 'food', label: 'Їжа', icon: '🛒' },
+  { key: 'transport', label: 'Транспорт', icon: '🚗' },
+  { key: 'entertainment', label: 'Розваги', icon: '🎭' },
+  { key: 'health', label: 'Здоров\'я', icon: '💊' },
+  { key: 'shopping', label: 'Шопінг', icon: '🛍️' },
+  { key: 'utilities', label: 'Комунальні', icon: '🏠' },
+  { key: 'other', label: 'Інше', icon: '📦' },
+];
+
+function txToCategory(tx: TxItem): string {
+  const desc = (tx.description || '').toLowerCase();
+  if (desc.includes('їж') || desc.includes('продукт') || desc.includes('food') || desc.includes('supermarket') || desc.includes('кафе') || desc.includes('ресторан')) return 'food';
+  if (desc.includes('таксі') || desc.includes('uber') || desc.includes('bolt') || desc.includes('metro') || desc.includes('автобус')) return 'transport';
+  if (desc.includes('кіно') || desc.includes('netflix') || desc.includes('гра') || desc.includes('gaming')) return 'entertainment';
+  if (desc.includes('аптек') || desc.includes('лікар') || desc.includes('клінік') || desc.includes('health')) return 'health';
+  if (desc.includes('шопінг') || desc.includes('магаз') || desc.includes('amazon') || desc.includes('rozetka')) return 'shopping';
+  if (desc.includes('комунал') || desc.includes('електрик') || desc.includes('газ') || desc.includes('вода')) return 'utilities';
+  return 'other';
+}
+
+function BudgetPlanner({ transactions }: { transactions: TxItem[] }) {
+  const [budgets, setBudgets] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(localStorage.getItem(BUDGET_KEY) || '{}'); } catch { return {}; }
+  });
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editVal, setEditVal] = useState('');
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const outTx = transactions.filter(tx => tx.direction === 'out' && new Date(tx.created_at) >= monthStart);
+
+  const spent: Record<string, number> = {};
+  for (const tx of outTx) {
+    const cat = txToCategory(tx);
+    spent[cat] = (spent[cat] || 0) + tx.amount;
+  }
+
+  function saveBudget(key: string, val: number) {
+    const next = { ...budgets, [key]: val };
+    setBudgets(next);
+    try { localStorage.setItem(BUDGET_KEY, JSON.stringify(next)); } catch {}
+    setEditing(null);
+  }
+
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const dayOfMonth = now.getDate();
+  const monthProgress = dayOfMonth / daysInMonth;
+
+  return (
+    <div style={{ margin: '0 22px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: text.secondary }}>📋 Бюджет на місяць</div>
+        <div style={{ fontSize: 11, color: text.muted }}>{dayOfMonth}/{daysInMonth} дн.</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {BUDGET_CATEGORIES.map(cat => {
+          const limit = budgets[cat.key] || 0;
+          const spentAmt = spent[cat.key] || 0;
+          const pct = limit > 0 ? Math.min(100, (spentAmt / limit) * 100) : 0;
+          const pace = limit > 0 ? (spentAmt / limit) / monthProgress : 0; // >1 = over pace
+          const barColor = pct >= 100 ? '#e05a40' : pct >= 80 ? '#e8a84a' : '#7fb896';
+          const isEditing = editing === cat.key;
+
+          return (
+            <div key={cat.key} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 16, padding: '12px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: limit > 0 ? 10 : 0 }}>
+                <span style={{ fontSize: 20 }}>{cat.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: text.primary }}>{cat.label}</span>
+                    {limit > 0 && (
+                      <span style={{ fontSize: 12, color: pct >= 100 ? '#e05a40' : text.secondary, fontWeight: 600 }}>
+                        ₴{spentAmt.toLocaleString('uk-UA', { maximumFractionDigits: 0 })} / ₴{limit.toLocaleString('uk-UA', { maximumFractionDigits: 0 })}
+                      </span>
+                    )}
+                    {limit === 0 && <span style={{ fontSize: 11, color: text.dim }}>₴{spentAmt.toLocaleString('uk-UA', { maximumFractionDigits: 0 })} цього місяця</span>}
+                  </div>
+                </div>
+                <button onClick={() => { setEditing(isEditing ? null : cat.key); setEditVal(limit > 0 ? String(limit) : ''); }}
+                  style={{ background: 'none', border: 'none', color: gold, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 6px' }}>
+                  {isEditing ? '✕' : limit > 0 ? '✏️' : '+ Ліміт'}
+                </button>
+              </div>
+              {isEditing && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <input type="text" inputMode="decimal" value={editVal} onChange={e => setEditVal(e.target.value)}
+                    placeholder="Ліміт ₴"
+                    style={{ flex: 1, padding: '8px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.05)', border: `1px solid ${bg.border}`, color: text.primary, fontSize: 14, outline: 'none' }} />
+                  <button onClick={() => { const v = parseFloat(editVal.replace(',', '.')); if (v > 0) saveBudget(cat.key, v); }}
+                    style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #7fb896, #4a8a68)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    ОК
+                  </button>
+                </div>
+              )}
+              {limit > 0 && (
+                <>
+                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 4, height: 5, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, borderRadius: 4, background: `linear-gradient(90deg, ${barColor}88, ${barColor})`, transition: 'width 0.6s' }} />
+                  </div>
+                  {pace > 1.2 && <div style={{ fontSize: 10, color: '#e8a84a', marginTop: 4 }}>⚡ Темп витрат вищий за плановий</div>}
+                  {pct >= 100 && <div style={{ fontSize: 10, color: '#e05a40', marginTop: 4 }}>🚫 Ліміт вичерпано</div>}
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Referral Widget ───────────────────────────────────────────────────────
+function ReferralWidget({ user }: { user: UserInfo | null }) {
+  const [copied, setCopied] = useState(false);
+  if (!user) return null;
+
+  // Generate a stable referral code from the user's phone
+  const code = 'ARM' + (user.phone || '').replace(/\D/g, '').slice(-6);
+  const link = `https://army-bank.onrender.com/?ref=${code}`;
+
+  function copyLink() {
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      // fallback for older iOS
+      const el = document.createElement('textarea');
+      el.value = link;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  function shareLink() {
+    if (navigator.share) {
+      navigator.share({ title: 'ARM Bank', text: 'Приєднуйся до ARM Bank — банкінг для захисників України 🇺🇦', url: link });
+    } else {
+      copyLink();
+    }
+  }
+
+  return (
+    <div style={{ margin: '0 22px 20px', background: `linear-gradient(135deg, rgba(201,169,100,0.1) 0%, rgba(100,140,110,0.08) 100%)`, border: `1px solid rgba(201,169,100,0.25)`, borderRadius: 20, padding: '18px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+        <div style={{ width: 42, height: 42, borderRadius: 13, background: 'linear-gradient(135deg, rgba(201,169,100,0.2), rgba(201,169,100,0.08))', border: `1px solid rgba(201,169,100,0.3)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🎖️</div>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: text.secondary }}>Запросити друга</div>
+          <div style={{ fontSize: 12, color: text.muted }}>Поділіться ARM Bank з колегами</div>
+        </div>
+      </div>
+      <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8, marginBottom: 2 }}>ВАШ КОД</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: gold, letterSpacing: 2 }}>{code}</div>
+        </div>
+        <button onClick={copyLink} style={{ padding: '7px 14px', borderRadius: 10, border: `1px solid rgba(201,169,100,0.3)`, background: copied ? 'rgba(127,184,150,0.15)' : 'rgba(201,169,100,0.1)', color: copied ? '#7fb896' : gold, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}>
+          {copied ? '✓ Скопійовано' : 'Копіювати'}
+        </button>
+      </div>
+      <button onClick={shareLink} style={{ width: '100%', padding: '12px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, rgba(201,169,100,0.25), rgba(201,169,100,0.12))', color: gold, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 8a3 3 0 100-6 3 3 0 000 6zM6 15a3 3 0 100-6 3 3 0 000 6zM18 22a3 3 0 100-6 3 3 0 000 6zM8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+        Поділитися посиланням
+      </button>
+    </div>
+  );
+}
+
 function OverviewScreen() {
   const layout = useLayout();
   const topPad = useTopPad();
@@ -3604,6 +3847,7 @@ function OverviewScreen() {
       <CurrencyRatesBar onRatesLoaded={setFxRates} onExchange={() => setShowFx(true)} />
 
       <MonthlyFinanceSummary transactions={transactions} />
+      <FinancialHealthScore transactions={transactions} account={account} />
 
       <SavingsGoalsMini />
 
@@ -5036,6 +5280,7 @@ function OperationsScreen() {
       })()}
 
       {txFilter === 'all' && <InsightsStrip />}
+      {txFilter === 'all' && <BudgetPlanner transactions={transactions} />}
 
       {/* Credits & Deposits — right after spending chart */}
       <div style={{ padding: '0 22px 4px' }}>
@@ -5746,6 +5991,9 @@ function ProfileScreen() {
           </div>
         </div>
       )}
+
+      {/* Referral */}
+      <ReferralWidget user={user} />
 
       {/* Sign out */}
       <div style={{ padding: '8px 22px' }}>
