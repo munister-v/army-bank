@@ -6555,7 +6555,6 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       backdropFilter: 'blur(24px) saturate(180%)',
       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-      pointerEvents: 'none',
     }}>
       {/* Tab row */}
       <div style={{
@@ -6566,7 +6565,6 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
         borderRadius: 28,
         display: 'flex',
         boxShadow: '0 8px 22px rgba(0,0,0,0.3), inset 0 1px 0 rgba(230,225,210,0.08)',
-        pointerEvents: 'auto',
       }}>
         <div style={{
           position: 'absolute', top: 5, bottom: 5,
