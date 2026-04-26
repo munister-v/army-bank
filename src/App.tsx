@@ -6793,7 +6793,7 @@ function PremiumStatusStrip() {
 
 function WowSplash() {
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', zIndex: 9999, overflow: 'hidden', background: '#07150f' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', zIndex: 9999, overflow: 'hidden', background: '#07150f' }}>
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 86% 56% at 50% 14%, rgba(34,74,52,0.64) 0%, rgba(10,26,18,0.92) 65%, rgba(6,16,11,1) 100%)' }} />
       <div style={{
         position: 'absolute',
