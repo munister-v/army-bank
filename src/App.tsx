@@ -6304,8 +6304,8 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
 type MarketTab = 'catalog' | 'orders' | 'invoices';
 
 function MarketplaceScreen() {
-  const PRODUCTS_PER_PAGE = 4;
   const layout = useLayout();
+  const PRODUCTS_PER_PAGE = layout === 'desktop' ? 12 : 4;
   const { t, lang } = usePreferences();
   const topPad = useTopPad();
   const { toast, refreshDashboard, user: mktUser, setTabBarHidden } = useApp();
@@ -6503,19 +6503,18 @@ function MarketplaceScreen() {
   }, [catalogPage, totalCatalogPages]);
 
   const isMobileMarket = layout !== 'desktop';
-  const marketGridGap = isMobileMarket ? 8 : 10;
-  const marketCardHeight = isMobileMarket ? 202 : 230;
-  const marketImageHeight = isMobileMarket ? 84 : 108;
-  const marketCardPad = isMobileMarket ? '9px 10px 10px' : '10px 12px 12px';
-  const marketTitleClamp: React.CSSProperties = isMobileMarket
-    ? { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', minHeight: 34 }
-    : {};
+  const marketGridGap = isMobileMarket ? 8 : 14;
+  const marketCardHeight = isMobileMarket ? 202 : 290;
+  const marketImageHeight = isMobileMarket ? 84 : 148;
+  const marketCardPad = isMobileMarket ? '9px 10px 10px' : '14px 16px 16px';
+  const marketTitleClamp: React.CSSProperties = { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', minHeight: isMobileMarket ? 34 : 44 };
 
   return (
     <>
     {preview && <ProductDetailDrawer product={preview} onClose={() => setPreview(null)} onAddToCart={addToCart} />}
-    {showCart && <CartDrawer cart={cart} onClose={() => setShowCart(false)} onQtyChange={changeQty} onRemove={removeFromCart} onCheckout={checkoutCart} checkingOut={checkingOut} user={mktUser} />}
-    {!showCart && !preview && tab === 'catalog' && cartCount > 0 && (
+    {isMobileMarket && showCart && <CartDrawer cart={cart} onClose={() => setShowCart(false)} onQtyChange={changeQty} onRemove={removeFromCart} onCheckout={checkoutCart} checkingOut={checkingOut} user={mktUser} />}
+    {!isMobileMarket && <DesktopCartPanel cart={cart} onQtyChange={changeQty} onRemove={removeFromCart} onCheckout={checkoutCart} checkingOut={checkingOut} user={mktUser} />}
+    {isMobileMarket && !showCart && !preview && tab === 'catalog' && cartCount > 0 && (
       <button
         onClick={() => setShowCart(true)}
         style={{
@@ -6542,17 +6541,19 @@ function MarketplaceScreen() {
         <span style={{ fontSize: 12, fontWeight: 700 }}>{cartCount}</span>
       </button>
     )}
-    <ContentWrap maxW={800}>
-    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 'calc(104px + env(safe-area-inset-bottom, 0px))', overflowX: 'hidden' }}>
-      <div ref={marketTopRef} style={{ padding: `${topPad} 22px 12px` }}>
+    <ContentWrap maxW={isMobileMarket ? 800 : 1400}>
+    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 'calc(104px + env(safe-area-inset-bottom, 0px))', paddingRight: isMobileMarket ? undefined : 356, overflowX: 'hidden' }}>
+      <div ref={marketTopRef} style={{ padding: isMobileMarket ? `${topPad} 22px 12px` : '40px 32px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ ...T.h1, color: text.primary }}>{t('market_title')}</div>
-          <button onClick={() => setShowCart(true)} style={{ position: 'relative', width: 44, height: 44, borderRadius: 14, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20 }}>
-            ⌁
-            {cartCount > 0 && (
-              <span style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: '50%', background: gold, color: text.primary, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{cartCount > 9 ? '9+' : cartCount}</span>
-            )}
-          </button>
+          {isMobileMarket && (
+            <button onClick={() => setShowCart(true)} style={{ position: 'relative', width: 44, height: 44, borderRadius: 14, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20 }}>
+              ⌁
+              {cartCount > 0 && (
+                <span style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: '50%', background: gold, color: text.primary, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{cartCount > 9 ? '9+' : cartCount}</span>
+              )}
+            </button>
+          )}
         </div>
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 6, padding: 4, background: 'rgba(26,40,32,0.5)', borderRadius: 14, width: 'fit-content', marginBottom: tab === 'catalog' ? 12 : 0 }}>
@@ -6586,7 +6587,7 @@ function MarketplaceScreen() {
             </div>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: marketGridGap, padding: isMobileMarket ? '6px 22px' : '8px 22px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobileMarket ? 155 : 210}px, 1fr))`, gap: marketGridGap, padding: isMobileMarket ? '6px 22px' : '8px 32px' }}>
                 {pagedProducts.map(p => (
                   <div key={p.id} onClick={() => setPreview(p)} style={{ background: 'rgba(255,255,255,0.036)', border: '1px solid rgba(180,172,155,0.07)', borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'background 0.15s', height: marketCardHeight }}>
                     <div style={{ height: marketImageHeight, flexShrink: 0, background: `linear-gradient(135deg, rgba(180,172,155,0.08), rgba(100,95,80,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42, position: 'relative', overflow: 'hidden' }}>
@@ -6844,6 +6845,136 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   );
 }
 
+// ─── Desktop cart panel ───────────────────────────────────────
+function DesktopCartPanel({ cart, onQtyChange, onRemove, onCheckout, checkingOut, user }: {
+  cart: CartItem[];
+  onQtyChange: (id: number, delta: number) => void;
+  onRemove: (id: number) => void;
+  onCheckout: (shipping: { name: string; phone: string; address: string }) => void;
+  checkingOut: boolean;
+  user: { full_name: string; phone: string } | null;
+}) {
+  const { t } = usePreferences();
+  const total = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
+  const [step, setStep] = useState<'cart' | 'shipping'>('cart');
+  const [shipName, setShipName] = useState(user?.full_name || '');
+  const [shipPhone, setShipPhone] = useState(user?.phone || '');
+  const [shipAddr, setShipAddr] = useState('');
+  const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+  useEffect(() => { if (cart.length === 0) setStep('cart'); }, [cart.length]);
+
+  const fieldSt: React.CSSProperties = {
+    width: '100%', padding: '9px 12px',
+    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(180,172,155,0.18)',
+    borderRadius: 10, color: text.primary, fontSize: 13, outline: 'none',
+    fontFamily, boxSizing: 'border-box',
+  };
+  const lblSt: React.CSSProperties = { fontSize: 10.5, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4, display: 'block' };
+
+  return (
+    <div style={{
+      position: 'fixed', right: 0, top: 0, bottom: 0, width: 320,
+      display: 'flex', flexDirection: 'column',
+      background: 'linear-gradient(180deg, rgba(10,26,18,0.97) 0%, rgba(7,19,13,0.98) 100%)',
+      backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)',
+      borderLeft: '1px solid rgba(180,172,155,0.1)',
+      zIndex: 90,
+    }}>
+      {/* Header */}
+      <div style={{ padding: '32px 20px 16px', borderBottom: '1px solid rgba(180,172,155,0.07)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+            <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke={gold} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="9" cy="21" r="1" fill={gold} /><circle cx="19" cy="21" r="1" fill={gold} />
+          </svg>
+          <div style={{ ...T.h3, color: text.primary, flex: 1 }}>{t('cart_title')}</div>
+          {cartCount > 0 && (
+            <span style={{ fontSize: 11, fontWeight: 700, background: gold, color: '#0c1a12', borderRadius: 20, padding: '2px 9px', letterSpacing: 0.2 }}>
+              {cartCount} {t('cart_items_count')}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', WebkitOverflowScrolling: 'touch' }}>
+        {cart.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, color: text.muted }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" opacity={0.3}>
+              <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h12" stroke={gold} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="9" cy="21" r="1" fill={gold} /><circle cx="19" cy="21" r="1" fill={gold} />
+            </svg>
+            <span style={{ fontSize: 13 }}>{t('cart_empty')}</span>
+          </div>
+        ) : step === 'cart' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {cart.map(item => (
+              <div key={item.product.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${bg.border}`, borderRadius: 14 }}>
+                <div style={{ width: 42, height: 42, borderRadius: 11, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(221,216,204,0.06)' }}>
+                  <ProductVisual product={item.product} size="cart" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: text.secondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product.title}</div>
+                  <div style={{ fontSize: 12, color: gold, fontWeight: 700, marginTop: 2 }}>₴{fmtInt(item.product.price * item.qty)}{fmtDec(item.product.price * item.qty)}</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                  <button onClick={() => onQtyChange(item.product.id, -1)} style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(180,172,155,0.1)', border: `1px solid ${bg.border}`, color: text.secondary, cursor: 'pointer', fontFamily, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                  <span style={{ minWidth: 20, textAlign: 'center', fontSize: 13, fontWeight: 600, color: text.primary }}>{item.qty}</span>
+                  <button onClick={() => onQtyChange(item.product.id, 1)} style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(180,172,155,0.1)', border: `1px solid ${bg.border}`, color: text.secondary, cursor: 'pointer', fontFamily, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                  <button onClick={() => onRemove(item.product.id)} style={{ width: 26, height: 26, borderRadius: 7, background: 'transparent', border: 'none', color: 'rgba(220,100,110,0.55)', cursor: 'pointer', fontFamily, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <button onClick={() => setStep('cart')} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: gold, cursor: 'pointer', fontFamily, fontSize: 12, padding: 0, marginBottom: 4 }}>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8l4 4" stroke={gold} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              Назад
+            </button>
+            <div style={{ ...T.h3, color: text.primary, marginBottom: 4 }}>{t('delivery_title')}</div>
+            <div>
+              <label style={lblSt}>{t('recipient_label')}</label>
+              <input value={shipName} onChange={e => setShipName(e.target.value)} placeholder={t('shipping_name_placeholder')} style={fieldSt} />
+            </div>
+            <div>
+              <label style={lblSt}>{t('delivery_phone')}</label>
+              <input value={shipPhone} onChange={e => setShipPhone(e.target.value)} placeholder="+380XXXXXXXXX" style={fieldSt} />
+            </div>
+            <div>
+              <label style={lblSt}>{t('delivery_address')}</label>
+              <input value={shipAddr} onChange={e => setShipAddr(e.target.value)} placeholder={t('shipping_address_placeholder')} style={fieldSt} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      {cart.length > 0 && (
+        <div style={{ padding: '14px 20px 24px', borderTop: '1px solid rgba(180,172,155,0.07)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+            <span style={{ fontSize: 12, color: text.muted }}>{step === 'cart' ? t('total_label') : t('pay_total')}:</span>
+            <span style={{ ...T.num, fontSize: 20, fontWeight: 700, color: text.primary }}>₴{fmtInt(total)}{fmtDec(total)}</span>
+          </div>
+          <button
+            onClick={() => step === 'cart' ? setStep('shipping') : onCheckout({ name: shipName, phone: shipPhone, address: shipAddr })}
+            disabled={checkingOut || (step === 'shipping' && (shipName.trim().length < 2 || shipAddr.trim().length < 4))}
+            style={{
+              width: '100%', padding: '13px 16px', borderRadius: 14,
+              background: (checkingOut || (step === 'shipping' && (shipName.trim().length < 2 || shipAddr.trim().length < 4)))
+                ? 'rgba(100,95,80,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
+              border: 'none', color: '#0c1a12', fontSize: 13.5, fontWeight: 700,
+              cursor: checkingOut ? 'wait' : 'pointer', fontFamily, letterSpacing: 0.2,
+            }}
+          >
+            {checkingOut ? t('checkout_processing') : step === 'cart' ? `${t('next_delivery')} →` : `✓ ${t('place_order')}`}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Desktop sidebar ──────────────────────────────────────────
 function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) => void }) {
   const { logout, user, account } = useApp();
@@ -6866,7 +6997,7 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
           <BrandMark size={36} radiusValue={10} />
           <div>
             <div style={{ ...T.h3, color: text.primary, lineHeight: 1.1 }}>
-              ARM<span style={{ fontWeight: 300, opacity: 0.8 }}>Bank</span>
+              АРМ<span style={{ fontWeight: 300, opacity: 0.8 }}>Банк</span>
             </div>
             <div style={{ fontSize: 10, color: text.dim, letterSpacing: 0.6, marginTop: 1 }}>{t('personal_cabinet')}</div>
           </div>
