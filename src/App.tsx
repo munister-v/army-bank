@@ -4628,8 +4628,8 @@ function CreditsSection() {
       const r = await fetch('/api/credits', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: amtNum, term_months: term, description: desc }) });
       const j = await r.json();
       if (j.ok) { setShowCreate(false); setAmount(''); setDesc(''); toast('✅ Кредит оформлено!'); load(); }
-      else toast(j.error || 'Помилка');
-    } catch { toast('Помилка'); } finally { setCreating(false); }
+      else toast(j.error || j.message || 'Помилка сервера');
+    } catch (err) { toast(err instanceof Error ? err.message : 'Помилка мережі'); } finally { setCreating(false); }
   }
 
   async function handleRepay(creditId: number, full = false) {
@@ -7477,10 +7477,10 @@ export default function App() {
             TabBar upward scrim that bleeds above 100% of the tab bar.
           */}
           <div style={{
-              // height:100% inherits from #root which gets -webkit-fill-available via html.
-              // This is more reliable than position:fixed on iOS PWA — fixed elements
-              // can land above the physical screen edge in some iOS versions.
-              height: '100%',
+              // position:fixed inset:0 always covers the full physical screen on iOS PWA.
+              // height:100% via -webkit-fill-available can be ~34px short (safe-area-
+              // inset-bottom not included), leaving a visible gap below the tab bar.
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
               display: 'flex', flexDirection: 'column',
               background: appBg, color: text.secondary, fontFamily,
               WebkitFontSmoothing: 'antialiased',

@@ -42,27 +42,43 @@ class CreditService:
     # ── Schema ────────────────────────────────────────────────────────────────
 
     def _ensure_schema(self):
-        ddl = """
-        CREATE TABLE IF NOT EXISTS credits (
-            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id            INTEGER NOT NULL,
-            account_id         INTEGER NOT NULL,
-            principal          REAL    NOT NULL,
-            interest_rate      REAL    NOT NULL,
-            term_months        INTEGER NOT NULL,
-            monthly_payment    REAL    NOT NULL,
-            total_paid         REAL    NOT NULL DEFAULT 0,
-            balance_remaining  REAL    NOT NULL,
-            next_payment_date  TEXT    NOT NULL,
-            status             TEXT    NOT NULL DEFAULT 'active',
-            description        TEXT    NOT NULL DEFAULT '',
-            created_at         TEXT    NOT NULL
-        )
-        """
-        for ph in ('%s', '?'):
+        for sql in [
+            # PostgreSQL
+            """CREATE TABLE IF NOT EXISTS credits (
+                id                SERIAL PRIMARY KEY,
+                user_id           INTEGER NOT NULL,
+                account_id        INTEGER NOT NULL,
+                principal         NUMERIC(14,2) NOT NULL,
+                interest_rate     NUMERIC(5,2)  NOT NULL,
+                term_months       INTEGER NOT NULL,
+                monthly_payment   NUMERIC(14,2) NOT NULL,
+                total_paid        NUMERIC(14,2) NOT NULL DEFAULT 0,
+                balance_remaining NUMERIC(14,2) NOT NULL,
+                next_payment_date DATE NOT NULL,
+                status            VARCHAR(30)   NOT NULL DEFAULT 'active',
+                description       TEXT          NOT NULL DEFAULT '',
+                created_at        TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+            )""",
+            # SQLite
+            """CREATE TABLE IF NOT EXISTS credits (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id           INTEGER NOT NULL,
+                account_id        INTEGER NOT NULL,
+                principal         REAL    NOT NULL,
+                interest_rate     REAL    NOT NULL,
+                term_months       INTEGER NOT NULL,
+                monthly_payment   REAL    NOT NULL,
+                total_paid        REAL    NOT NULL DEFAULT 0,
+                balance_remaining REAL    NOT NULL,
+                next_payment_date TEXT    NOT NULL,
+                status            TEXT    NOT NULL DEFAULT 'active',
+                description       TEXT    NOT NULL DEFAULT '',
+                created_at        TEXT    NOT NULL DEFAULT (datetime('now'))
+            )""",
+        ]:
             try:
                 with get_connection() as conn:
-                    conn.execute(ddl)
+                    conn.execute(sql)
                 return
             except Exception:
                 continue
