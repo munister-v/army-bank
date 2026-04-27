@@ -5524,19 +5524,17 @@ button.btn-ghost[type="submit"] {
 }
 
 /* ── iOS/Android: Safe Area (home indicator / gesture nav bar) ──────
-   The pill nav already sits above the home indicator via
-   bottom: max(8px, env(safe-area-inset-bottom)).
-   Do NOT add padding-bottom inside the nav — that double-counts safe-area
-   and creates a dead zone on iPhone 15 in PWA mode.
-   app-content needs: nav height + nav bottom offset + breathing room. */
+   Nav sits at bottom: 0 (flush with screen edge), extends its height into
+   the safe-area zone, and pads its own content up above the home indicator.
+   app-content needs: nav height + safe-area + breathing room. */
 @media (max-width: 959px) {
   .bottom-nav {
-    padding-bottom: 0 !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
   }
   .app-content,
   .page-content,
   main {
-    padding-bottom: calc(64px + max(8px, env(safe-area-inset-bottom, 0px)) + 16px) !important;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 16px) !important;
   }
 }
 
@@ -7475,15 +7473,16 @@ body.app-scroll-locked .app-content {
 
   .bottom-nav {
     position: fixed !important;
-    left: max(10px, env(safe-area-inset-left, 0px)) !important;
-    right: max(10px, env(safe-area-inset-right, 0px)) !important;
-    bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
-    width: auto !important;
-    max-width: 460px !important;
-    margin: 0 auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
     height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
     min-height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
     transform: translateY(0) !important;
+    border-radius: 0 !important;
   }
 
   /* Keep nav compositing cheap on mobile to avoid long-frame jank. */
@@ -9722,12 +9721,13 @@ html.install-banner-visible #appScreen .app-content {
   #appScreen #sidebar.bottom-nav {
     position: fixed !important;
     z-index: 120 !important;
-    left: max(8px, env(safe-area-inset-left, 0px)) !important;
-    right: max(8px, env(safe-area-inset-right, 0px)) !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 8px + var(--browser-ui-bottom, 0px)) !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: var(--browser-ui-bottom, 0px) !important;
     min-height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
     height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
-    padding: 6px 7px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 6px 7px env(safe-area-inset-bottom, 0px) !important;
+    border-radius: 0 !important;
   }
 
 }
@@ -9736,7 +9736,7 @@ html.install-banner-visible #appScreen .app-content {
 @media (max-width: 959px) {
   :root {
     --ab-mobile-nav-height: 72px;
-    --ab-mobile-nav-gap: 8px;
+    --ab-mobile-nav-gap: 0px;
   }
 
   html.app-browser-mode #authScreen.auth-screen {
@@ -9772,18 +9772,17 @@ html.install-banner-visible #appScreen .app-content {
   }
 
   #appScreen #sidebar.bottom-nav {
-    bottom: calc(
-      env(safe-area-inset-bottom, 0px) +
-      var(--ab-mobile-nav-gap) +
-      var(--browser-ui-bottom, 0px)
-    ) !important;
+    bottom: var(--browser-ui-bottom, 0px) !important;
+    left: 0 !important;
+    right: 0 !important;
     min-height: calc(var(--ab-mobile-nav-height) + env(safe-area-inset-bottom, 0px)) !important;
     height: calc(var(--ab-mobile-nav-height) + env(safe-area-inset-bottom, 0px)) !important;
+    border-radius: 0 !important;
   }
 
   /* iOS Safari (browser mode): keep bank tabbar above browser toolbar */
   html.os-ios.browser-safari.app-browser-mode #appScreen #sidebar.bottom-nav {
-    bottom: calc(var(--browser-ui-bottom, 0px) + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: var(--browser-ui-bottom, 0px) !important;
   }
 
   html.os-ios.browser-safari.app-browser-mode #appScreen .app-content {
@@ -10145,27 +10144,28 @@ html.install-banner-visible #appScreen .app-content {
 @media (max-width: 767px) {
   .bottom-nav {
     position: fixed !important;
-    left: 10px !important;
-    right: 10px !important;
-    bottom: max(10px, env(safe-area-inset-bottom, 10px)) !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
     top: auto !important;
-    width: auto !important;
-    max-width: 460px !important;
-    margin: 0 auto !important;
-    height: 62px !important;
-    min-height: 62px !important;
-    max-height: 62px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    height: calc(62px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(62px + env(safe-area-inset-bottom, 0px)) !important;
+    max-height: calc(62px + env(safe-area-inset-bottom, 0px)) !important;
     display: flex !important;
     flex-direction: row !important;
-    align-items: center !important;
+    align-items: flex-start !important;
     justify-content: space-around !important;
-    padding: 0 6px !important;
-    border-radius: 32px !important;
+    padding: 0 6px env(safe-area-inset-bottom, 0px) !important;
+    border-radius: 20px 20px 0 0 !important;
     background: rgba(243, 246, 240, 0.96) !important;
     backdrop-filter: saturate(180%) blur(20px) !important;
     -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
     border: 1px solid rgba(0,0,0,.08) !important;
-    box-shadow: 0 8px 24px rgba(18,28,20,.14) !important;
+    border-bottom: none !important;
+    box-shadow: 0 -4px 24px rgba(18,28,20,.10) !important;
     z-index: 500 !important;
     gap: 0 !important;
     overflow: hidden !important;
@@ -10241,7 +10241,7 @@ html.install-banner-visible #appScreen .app-content {
   /* Content padding so bottom nav doesn't overlap last items */
   .app-content,
   #appScreen .app-content {
-    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px) + 16px) !important;
   }
 }
 
@@ -10257,11 +10257,11 @@ html.install-banner-visible #appScreen .app-content {
   /* Контент: в standalone нет browser-toolbar, только safe-area + nav */
   html.app-standalone #appScreen .app-content {
     padding-bottom: calc(
-      62px + 8px +
+      62px + 16px +
       env(safe-area-inset-bottom, 0px)
     ) !important;
     scroll-padding-bottom: calc(
-      62px + 8px +
+      62px + 16px +
       env(safe-area-inset-bottom, 0px)
     ) !important;
   }
