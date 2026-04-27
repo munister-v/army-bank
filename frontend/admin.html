@@ -59,6 +59,71 @@
     .stmt-log-table td,.stmt-log-table th{font-size:12px}
     .bulk-progress{height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;margin-top:8px;display:none}
     .bulk-progress-bar{height:100%;background:#c9a964;width:0%;transition:width .3s}
+    /* ── Sidebar groups ──────────────────────────── */
+    .menu-group-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.22);padding:14px 8px 3px;margin-top:2px;user-select:none}
+    .menu-btn .mico{display:inline-flex;vertical-align:middle;margin-right:7px;opacity:.55;flex-shrink:0;transition:opacity .15s}
+    .menu-btn:hover .mico,.menu-btn.active .mico{opacity:1}
+    /* ── Top bar ─────────────────────────────────── */
+    .top-bar{display:flex;align-items:center;gap:10px;padding:12px 28px 4px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:4px}
+    .top-bar-search{flex:1;min-width:180px;max-width:380px;font-size:12px;padding:6px 10px 6px 30px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:inherit;background-image:url("data:image/svg+xml,%3Csvg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.35)' stroke-width='2' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:9px 50%}
+    .top-bar-search::placeholder{color:rgba(255,255,255,.3)}
+    .syshealth{display:flex;gap:14px;align-items:center}
+    .syshealth-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+    .syshealth-dot.ok{background:#4ade80;box-shadow:0 0 6px rgba(74,222,128,.7)}
+    .syshealth-dot.warn{background:#fbbf24;box-shadow:0 0 6px rgba(251,191,36,.7)}
+    .syshealth-dot.err{background:#f87171;box-shadow:0 0 6px rgba(248,113,113,.7)}
+    .syshealth-item{display:flex;align-items:center;gap:5px;font-size:11px;opacity:.6}
+    /* ── Funnel ──────────────────────────────────── */
+    .funnel-wrap{display:flex;flex-direction:column;gap:10px;padding:4px 0}
+    .funnel-step{display:flex;align-items:center;gap:12px}
+    .funnel-bar-wrap{flex:1;height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden}
+    .funnel-bar{height:100%;border-radius:4px;transition:width .6s cubic-bezier(.25,.46,.45,.94)}
+    .funnel-label{font-size:12px;min-width:140px;opacity:.75}
+    .funnel-val{font-size:13px;font-weight:700;min-width:60px;text-align:right}
+    /* ── Cohort table ────────────────────────────── */
+    .cohort-table{width:100%;border-collapse:collapse;font-size:11px}
+    .cohort-table th,.cohort-table td{padding:5px 8px;text-align:center;border:1px solid rgba(255,255,255,.06)}
+    .cohort-table th{opacity:.5;font-weight:600;background:rgba(255,255,255,.03)}
+    .cohort-cell{border-radius:4px;padding:3px 7px;display:inline-block;font-size:11px}
+    /* ── Credits ─────────────────────────────────── */
+    .credit-status-pending{color:#fbbf24;font-weight:700}
+    .credit-status-active{color:#34d399;font-weight:700}
+    .credit-status-overdue{color:#f87171;font-weight:700}
+    .credit-status-closed{color:#9b9bc0;font-weight:700}
+    .credit-status-rejected{color:#6b7280;font-weight:700}
+    .credit-risk-low{color:#34d399}
+    .credit-risk-medium{color:#fbbf24}
+    .credit-risk-high{color:#f87171}
+    /* ── Notifications ───────────────────────────── */
+    .notif-preview{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:14px 16px;font-size:13px}
+    .notif-preview-title{font-weight:700;margin-bottom:4px}
+    .notif-preview-body{opacity:.65;font-size:12px;line-height:1.5}
+    .notif-target-grid{display:flex;gap:7px;flex-wrap:wrap}
+    .notif-target-btn{padding:5px 11px;border:1px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(255,255,255,.04);color:inherit;font-size:12px;cursor:pointer;transition:all .15s}
+    .notif-target-btn.active{border-color:#c9a964;background:rgba(201,169,100,.1);color:#c9a964}
+    .ctr-badge{font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(74,222,128,.1);color:#4ade80;font-weight:700}
+    /* ── Games / Crash ───────────────────────────── */
+    .game-stat-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:16px;text-align:center}
+    .game-stat-val{font-size:22px;font-weight:700;margin-top:4px;font-family:var(--ff-mono,monospace)}
+    .game-stat-lbl{font-size:10px;opacity:.5;text-transform:uppercase;letter-spacing:.05em}
+    .suspicion-badge{display:inline-block;background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.2);border-radius:5px;padding:2px 7px;font-size:10px;font-weight:700}
+    /* ── Bulk actions ────────────────────────────── */
+    .bulk-action-bar{display:none;align-items:center;gap:8px;background:rgba(201,169,100,.07);border:1px solid rgba(201,169,100,.18);border-radius:8px;padding:8px 14px;margin-bottom:12px;font-size:12px}
+    .bulk-action-bar.visible{display:flex}
+    /* ── Geo / revenue rows ──────────────────────── */
+    .geo-row{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:12px}
+    .geo-bar{flex:1;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+    .geo-fill{height:100%;background:rgba(201,169,100,.55);border-radius:3px}
+    .rev-row{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.05)}
+    .rev-row:last-child{border-bottom:none}
+    .rev-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    /* ── Period tabs (analytics / games) ─────────── */
+    .period-tabs{display:flex;gap:6px}
+    .period-btn{padding:5px 12px;border:1px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(255,255,255,.04);color:inherit;font-size:12px;cursor:pointer;transition:all .15s}
+    .period-btn.active{border-color:#c9a964;background:rgba(201,169,100,.1);color:#c9a964}
+    /* ── Mkt subtab reuse ────────────────────────── */
+    .mkt-subtab{padding:8px 16px;border:none;border-bottom:2px solid transparent;background:none;color:inherit;font-size:13px;font-weight:500;cursor:pointer;opacity:.6;transition:all .15s}
+    .mkt-subtab.active{opacity:1;border-bottom-color:#c9a964;color:#c9a964}
   </style>
 </head>
 <body class="admin-ab-landing">
@@ -78,16 +143,74 @@
         </div>
       </div>
       <nav class="menu">
-        <a class="menu-btn nav-link" href="/dashboard">На головну</a>
-        <button type="button" class="menu-btn" data-tab="overview">Огляд</button>
-        <button type="button" class="menu-btn active" data-tab="users">Користувачі</button>
-        <button type="button" class="menu-btn" data-tab="registry">Реєстр транзакцій</button>
-        <button type="button" class="menu-btn" data-tab="security">Безпека</button>
-        <button type="button" class="menu-btn" data-tab="audit">Аудит</button>
-        <button type="button" class="menu-btn" data-tab="docs">Документообіг</button>
-        <button type="button" class="menu-btn" data-tab="kyc">KYC · Верифікація</button>
-        <button type="button" class="menu-btn" data-tab="marketplace">🛍️ Маркетплейс</button>
-        <a class="menu-btn nav-link" href="/api-status" target="_blank" rel="noopener">API Status Check</a>
+        <a class="menu-btn nav-link" href="/dashboard">
+          <svg class="mico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          На головну
+        </a>
+
+        <div class="menu-group-label">ДАШБОРД</div>
+        <button type="button" class="menu-btn" data-tab="overview">
+          <svg class="mico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Огляд
+        </button>
+
+        <div class="menu-group-label">КОРИСТУВАЧІ</div>
+        <button type="button" class="menu-btn active" data-tab="users">
+          <svg class="mico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Користувачі
+        </button>
+        <button type="button" class="menu-btn" data-tab="kyc">
+          <svg class="mico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+          KYC · Верифікація <span class="tab-badge" id="kycPendingBadge" style="display:none">0</span>
+        </button>
+
+        <div class="menu-group-label">ФІНАНСИ</div>
+        <button type="button" class="menu-btn" data-tab="registry">
+          <svg class="mico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          Реєстр транзакцій
+        </button>
+        <button type="button" class="menu-btn" data-tab="credits">
+          <svg class="mico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          Кредити та депозити
+        </button>
+        <button type="button" class="menu-btn" data-tab="audit">
+          <svg class="mico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Аудит та виписки
+        </button>
+
+        <div class="menu-group-label">АНАЛІТИКА</div>
+        <button type="button" class="menu-btn" data-tab="analytics">
+          <svg class="mico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Аналітика
+        </button>
+        <button type="button" class="menu-btn" data-tab="marketplace">
+          <svg class="mico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          Маркетплейс
+        </button>
+        <button type="button" class="menu-btn" data-tab="games">
+          <svg class="mico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Crash · Ігри
+        </button>
+
+        <div class="menu-group-label">БЕЗПЕКА</div>
+        <button type="button" class="menu-btn" data-tab="security">
+          <svg class="mico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Безпека
+        </button>
+        <button type="button" class="menu-btn" data-tab="docs">
+          <svg class="mico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          Документообіг
+        </button>
+
+        <div class="menu-group-label">СЕРВІСИ</div>
+        <button type="button" class="menu-btn" data-tab="notifications">
+          <svg class="mico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          Push-сповіщення
+        </button>
+        <a class="menu-btn nav-link" href="/api-status" target="_blank" rel="noopener">
+          <svg class="mico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          API Status
+        </a>
       </nav>
       <div class="sidebar-footer">
         <button id="logoutBtn" class="secondary-btn">Вийти</button>
@@ -95,6 +218,22 @@
     </aside>
 
     <main class="content">
+
+      <!-- ── TOP BAR ──────────────────────────────────────────────────── -->
+      <div class="top-bar">
+        <input type="search" class="top-bar-search" id="globalSearch" placeholder="Пошук: ім'я, ID, номер рахунку…" oninput="handleGlobalSearch(this.value)">
+        <div class="syshealth">
+          <div class="syshealth-item"><div class="syshealth-dot ok" id="healthApiDot"></div><span>API</span></div>
+          <div class="syshealth-item"><div class="syshealth-dot ok" id="healthDbDot"></div><span>DB</span></div>
+          <div class="syshealth-item"><div class="syshealth-dot ok" id="healthWsDot"></div><span>WS</span></div>
+        </div>
+        <button class="ghost-btn" style="font-size:12px;white-space:nowrap" onclick="switchTab('notifications')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin-right:5px;vertical-align:middle"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Розсилка
+        </button>
+        <button class="ghost-btn" style="font-size:12px;white-space:nowrap" onclick="switchTab('analytics')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin-right:5px;vertical-align:middle"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Аналітика
+        </button>
+      </div>
 
       <!-- ── OVERVIEW ───────────────────────────────────────────────── -->
       <section id="overviewTab" class="admin-tab hidden">
@@ -153,10 +292,22 @@
             <option value="platform_admin">Платформа</option>
           </select>
           <button class="ghost-btn" onclick="loadUsers()">↻</button>
+        <button class="ghost-btn" onclick="exportUsersCsv()" style="margin-left:auto;font-size:12px">↓ CSV</button>
+        </div>
+        <div class="bulk-action-bar" id="usersBulkBar">
+          <span id="usersBulkCount" style="font-weight:600">0 вибрано</span>
+          <button class="ghost-btn" style="font-size:11px" onclick="bulkSendNotification()">📢 Сповіщення</button>
+          <button class="ghost-btn" style="font-size:11px" onclick="bulkGenerateStatements()">📄 Виписки</button>
+          <button class="ghost-btn" style="font-size:11px;color:#f87171" onclick="bulkBlockUsers()">🚫 Заблокувати</button>
+          <button class="ghost-btn" style="font-size:11px;margin-left:auto" onclick="clearUsersSelection()">✕ Скасувати</button>
         </div>
         <div class="card" style="padding:0">
           <table class="table" aria-label="Таблиця користувачів">
-            <thead><tr><th>ID</th><th>Користувач</th><th>Контакти</th><th>Роль</th><th>Дії</th></tr></thead>
+            <thead><tr>
+              <th style="width:32px"><input type="checkbox" id="usersSelectAll" onchange="toggleSelectAllUsers(this)" title="Вибрати всіх"></th>
+              <th>ID</th><th>Користувач</th><th>Контакти</th><th>Роль</th>
+              <th>Баланс</th><th>KYC</th><th>Остання активність</th><th>Дії</th>
+            </tr></thead>
             <tbody id="usersTableBody"></tbody>
           </table>
         </div>
@@ -688,6 +839,390 @@
                 <button class="ghost-btn" style="font-size:12px" onclick="flagKycAml()">🚩 Позначити як AML-підозру</button>
                 <button class="ghost-btn" style="font-size:12px" onclick="escalateKyc()">⬆ Ескалювати на platform_admin</button>
                 <button class="ghost-btn" style="font-size:12px" onclick="generateKycReport()">📄 Генерувати KYC-звіт PDF</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════ ANALYTICS TAB ═══════════════════════════ -->
+      <section id="analyticsTab" class="admin-tab hidden">
+        <h1>Аналітика платформи</h1>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+          <div class="period-tabs">
+            <button class="period-btn active" data-period="7" onclick="setAnalyticsPeriod(this)">7д</button>
+            <button class="period-btn" data-period="30" onclick="setAnalyticsPeriod(this)">30д</button>
+            <button class="period-btn" data-period="90" onclick="setAnalyticsPeriod(this)">90д</button>
+          </div>
+          <select id="analyticsMetric" style="font-size:12px;padding:5px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:inherit" onchange="loadAnalytics()">
+            <option value="transactions">Транзакції</option>
+            <option value="volume">Об'єм (₴)</option>
+            <option value="users">Нові користувачі</option>
+          </select>
+          <button class="ghost-btn" onclick="loadAnalytics()" style="font-size:12px">↻ Оновити</button>
+        </div>
+        <!-- KPI cards -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin-bottom:20px">
+          <div class="ov-card"><div class="ov-lbl">DAU (середнє)</div><div class="ov-val" id="aKpiDau">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">MAU</div><div class="ov-val" id="aKpiMau">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">DAU/MAU</div><div class="ov-val" id="aKpiStickiness">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Середній чек</div><div class="ov-val" id="aKpiAvgTx">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Утримання 7д</div><div class="ov-val" id="aKpiRetention">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Чистий притік</div><div class="ov-val" id="aKpiNetFlow">—</div></div>
+        </div>
+        <!-- Main chart -->
+        <div class="chart-wrap" style="margin-bottom:20px">
+          <h3>Динаміка активності</h3>
+          <div id="analyticsChartWrap" style="overflow-x:auto"></div>
+        </div>
+        <!-- Funnel + Revenue breakdown -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+          <div class="chart-wrap">
+            <h3>Воронка конверсії</h3>
+            <div class="funnel-wrap">
+              <div class="funnel-step">
+                <div class="funnel-label">Зареєстровані</div>
+                <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:100%;background:#c9a964"></div></div>
+                <div class="funnel-val" id="funnelReg">—</div>
+              </div>
+              <div class="funnel-step">
+                <div class="funnel-label">KYC пройдено</div>
+                <div class="funnel-bar-wrap"><div class="funnel-bar" id="funnelKycBar" style="background:#34d399"></div></div>
+                <div class="funnel-val" id="funnelKyc">—</div>
+              </div>
+              <div class="funnel-step">
+                <div class="funnel-label">Перша транзакція</div>
+                <div class="funnel-bar-wrap"><div class="funnel-bar" id="funnelTxBar" style="background:#60a5fa"></div></div>
+                <div class="funnel-val" id="funnelTx">—</div>
+              </div>
+              <div class="funnel-step">
+                <div class="funnel-label">Активні (30д)</div>
+                <div class="funnel-bar-wrap"><div class="funnel-bar" id="funnelActiveBar" style="background:#a78bfa"></div></div>
+                <div class="funnel-val" id="funnelActive">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <h3>Розбивка за типами транзакцій</h3>
+            <div style="margin-top:4px">
+              <div class="rev-row"><div class="rev-dot" style="background:#c9a964"></div><div style="flex:1">Перекази</div><div id="revTransfers">—</div></div>
+              <div class="rev-row"><div class="rev-dot" style="background:#34d399"></div><div style="flex:1">Поповнення</div><div id="revTopups">—</div></div>
+              <div class="rev-row"><div class="rev-dot" style="background:#60a5fa"></div><div style="flex:1">Виплати</div><div id="revPayouts">—</div></div>
+              <div class="rev-row"><div class="rev-dot" style="background:#f87171"></div><div style="flex:1">Донати</div><div id="revDonations">—</div></div>
+              <div class="rev-row"><div class="rev-dot" style="background:#a78bfa"></div><div style="flex:1">Накопичення</div><div id="revSavings">—</div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Cohort retention -->
+        <div class="chart-wrap" style="margin-bottom:20px">
+          <h3>Когортне утримання (тижні)</h3>
+          <div style="overflow-x:auto">
+            <table class="cohort-table">
+              <thead><tr><th>Когорта</th><th>Розмір</th><th>W0</th><th>W1</th><th>W2</th><th>W3</th><th>W4</th><th>W5</th><th>W6</th></tr></thead>
+              <tbody id="cohortBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <!-- Geo + Top users -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="chart-wrap">
+            <h3>Географія (топ регіони)</h3>
+            <div id="analyticsGeo"></div>
+          </div>
+          <div class="chart-wrap">
+            <h3>Топ-10 за обсягом</h3>
+            <div id="analyticsTopUsers"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════ CREDITS TAB ════════════════════════════ -->
+      <section id="creditsTab" class="admin-tab hidden">
+        <h1>Кредити та депозити</h1>
+        <div style="display:flex;gap:0;border-bottom:2px solid rgba(255,255,255,.1);margin-bottom:20px">
+          <button class="mkt-subtab active" data-subtab="loans" onclick="switchCreditsSubtab('loans')">Кредити</button>
+          <button class="mkt-subtab" data-subtab="deposits" onclick="switchCreditsSubtab('deposits')">Депозити</button>
+          <button class="mkt-subtab" data-subtab="fx" onclick="switchCreditsSubtab('fx')">Валютний обмін</button>
+        </div>
+        <!-- Stats -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;margin-bottom:20px">
+          <div class="ov-card"><div class="ov-lbl">Заявок (очікують)</div><div class="ov-val" style="color:#fbbf24" id="cStatPending">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Активних кредитів</div><div class="ov-val" style="color:#34d399" id="cStatActive">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Прострочених</div><div class="ov-val" style="color:#f87171" id="cStatOverdue">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Видано всього</div><div class="ov-val" id="cStatTotal">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Сер. ставка</div><div class="ov-val" id="cStatRate">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Портфель (₴)</div><div class="ov-val" id="cStatPortfolio">—</div></div>
+        </div>
+        <!-- Loans sub-tab -->
+        <div id="creditsLoans">
+          <div class="filter-row" style="margin-bottom:12px">
+            <select id="creditStatusFilter" onchange="loadCredits()">
+              <option value="">Всі статуси</option>
+              <option value="pending">Очікує</option>
+              <option value="active">Активний</option>
+              <option value="overdue">Прострочений</option>
+              <option value="closed">Закритий</option>
+              <option value="rejected">Відхилений</option>
+            </select>
+            <select id="creditRiskFilter" onchange="loadCredits()">
+              <option value="">Будь-який ризик</option>
+              <option value="low">LOW</option>
+              <option value="medium">MEDIUM</option>
+              <option value="high">HIGH</option>
+            </select>
+            <button class="ghost-btn" onclick="loadCredits()" style="font-size:12px">↻</button>
+            <button class="ghost-btn" onclick="exportCreditsCsv()" style="font-size:12px">↓ CSV</button>
+          </div>
+          <div class="card" style="padding:0;overflow-x:auto">
+            <table class="table">
+              <thead><tr><th>ID</th><th>Позичальник</th><th>Сума</th><th>Ставка</th><th>Термін</th><th>Ризик</th><th>Статус</th><th>Видано</th><th>Наступний платіж</th><th>Дія</th></tr></thead>
+              <tbody id="creditsTableBody"><tr><td colspan="10" class="muted" style="text-align:center;padding:24px">Завантаження…</td></tr></tbody>
+            </table>
+          </div>
+          <!-- Detail panel -->
+          <div id="creditDetailPanel" style="display:none;margin-top:20px">
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <h3 style="margin:0;font-size:15px;font-weight:700">Заявка #<span id="creditDetailId"></span></h3>
+                <button class="ghost-btn" onclick="closeCreditDetail()" style="font-size:12px">✕ Закрити</button>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+                <div>
+                  <div style="font-size:11px;opacity:.5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Параметри кредиту</div>
+                  <div id="creditDetailInfo"></div>
+                </div>
+                <div>
+                  <div style="font-size:11px;opacity:.5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Скоринговий аналіз</div>
+                  <div id="creditDetailScoring"></div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <div style="font-size:11px;opacity:.5;text-transform:uppercase;letter-spacing:.05em">Рішення</div>
+                  <input type="number" id="creditApproveAmt" placeholder="Затверджена сума ₴" style="font-size:12px;padding:6px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit">
+                  <input type="number" id="creditApproveRate" placeholder="Ставка %" step="0.1" style="font-size:12px;padding:6px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit">
+                  <textarea id="creditDecisionNote" rows="2" placeholder="Коментар…" style="font-size:12px;padding:6px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit;resize:vertical;font-family:inherit"></textarea>
+                  <button class="small-btn" style="background:#34d399;color:#000;border:none;font-weight:700" onclick="approveCredit()">✓ Схвалити</button>
+                  <button class="secondary-btn" style="border-color:rgba(248,113,113,.35);color:#f87171" onclick="rejectCredit()">✕ Відхилити</button>
+                  <button class="ghost-btn" style="font-size:12px" onclick="restructureCredit()">↔ Реструктуризація</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Deposits sub-tab -->
+        <div id="creditsDeposits" style="display:none">
+          <div class="filter-row" style="margin-bottom:12px">
+            <select id="depositStatusFilter" onchange="loadDeposits()">
+              <option value="">Всі статуси</option>
+              <option value="active">Активний</option>
+              <option value="matured">Достиг</option>
+              <option value="closed">Закритий</option>
+            </select>
+            <button class="ghost-btn" onclick="loadDeposits()" style="font-size:12px">↻</button>
+          </div>
+          <div class="card" style="padding:0;overflow-x:auto">
+            <table class="table">
+              <thead><tr><th>ID</th><th>Власник</th><th>Сума</th><th>Ставка</th><th>Термін</th><th>Нараховано %</th><th>Статус</th><th>Закриття</th></tr></thead>
+              <tbody id="depositsTableBody"><tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Завантаження…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <!-- FX sub-tab -->
+        <div id="creditsFx" style="display:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div class="chart-wrap">
+              <h3>Поточні курси</h3>
+              <div id="fxRatesTable"></div>
+              <button class="ghost-btn" style="margin-top:12px;font-size:12px" onclick="loadFxRates()">↻ Оновити курси</button>
+            </div>
+            <div class="chart-wrap">
+              <h3>Операції обміну (сьогодні)</h3>
+              <div id="fxOpsToday"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════ NOTIFICATIONS TAB ══════════════════════════ -->
+      <section id="notificationsTab" class="admin-tab hidden">
+        <h1>Push-сповіщення</h1>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+          <!-- Composer -->
+          <div class="card">
+            <h2 style="font-size:15px;font-weight:700;margin:0 0 16px;display:flex;align-items:center;gap:8px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              Нове сповіщення
+            </h2>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div>
+                <label style="font-size:11px;opacity:.5;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Заголовок</label>
+                <input type="text" id="notifTitle" placeholder="Заголовок…" maxlength="100" style="width:100%;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit;box-sizing:border-box" oninput="updateNotifPreview()">
+              </div>
+              <div>
+                <label style="font-size:11px;opacity:.5;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Текст</label>
+                <textarea id="notifBody" rows="3" placeholder="Текст повідомлення…" maxlength="300" style="width:100%;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit;resize:vertical;font-family:inherit;box-sizing:border-box" oninput="updateNotifPreview()"></textarea>
+              </div>
+              <div>
+                <label style="font-size:11px;opacity:.5;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Посилання (URL)</label>
+                <input type="url" id="notifUrl" placeholder="https://…" style="width:100%;font-size:13px;padding:7px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:11px;opacity:.5;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Аудиторія</label>
+                <div class="notif-target-grid">
+                  <button class="notif-target-btn active" data-target="all" onclick="selectNotifTarget(this)">Усі</button>
+                  <button class="notif-target-btn" data-target="soldier" onclick="selectNotifTarget(this)">Клієнти</button>
+                  <button class="notif-target-btn" data-target="operator" onclick="selectNotifTarget(this)">Оператори</button>
+                  <button class="notif-target-btn" data-target="kyc_verified" onclick="selectNotifTarget(this)">KYC ✓</button>
+                  <button class="notif-target-btn" data-target="active_30d" onclick="selectNotifTarget(this)">Активні 30д</button>
+                </div>
+                <input type="text" id="notifTargetUserId" placeholder="або User ID…" style="margin-top:7px;width:100%;font-size:12px;padding:5px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:inherit;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:11px;opacity:.5;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Тип</label>
+                <div style="display:flex;gap:10px;flex-wrap:wrap">
+                  <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="radio" name="notifIcon" value="info" checked style="accent-color:#c9a964"> ℹ️ Інфо</label>
+                  <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="radio" name="notifIcon" value="promo" style="accent-color:#c9a964"> 🎁 Акція</label>
+                  <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="radio" name="notifIcon" value="alert" style="accent-color:#c9a964"> ⚠️ Сповіщення</label>
+                  <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="radio" name="notifIcon" value="tx" style="accent-color:#c9a964"> 💳 Транзакція</label>
+                </div>
+              </div>
+              <div>
+                <label style="font-size:11px;opacity:.5;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Відкладена відправка</label>
+                <input type="datetime-local" id="notifSchedule" style="font-size:12px;padding:6px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:inherit">
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="small-btn" style="flex:1" onclick="sendPushNotification()">▶ Надіслати</button>
+                <button class="ghost-btn" onclick="saveNotifTemplate()" style="font-size:12px;white-space:nowrap">📋 Шаблон</button>
+              </div>
+              <div id="notifSendResult" style="font-size:12px;opacity:.7"></div>
+            </div>
+          </div>
+          <!-- Preview + templates -->
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div class="card">
+              <h3 style="font-size:11px;font-weight:700;opacity:.5;text-transform:uppercase;letter-spacing:.05em;margin:0 0 12px">Превʼю</h3>
+              <div class="notif-preview">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:10px;opacity:.5;text-transform:uppercase;letter-spacing:.08em">
+                  <div style="width:18px;height:18px;background:rgba(201,169,100,.15);border-radius:4px;border:1px solid rgba(201,169,100,.2);display:flex;align-items:center;justify-content:center;font-size:11px">A</div>
+                  ArmyBank · Зараз
+                </div>
+                <div class="notif-preview-title" id="notifPreviewTitle">Заголовок сповіщення</div>
+                <div class="notif-preview-body" id="notifPreviewBody">Текст повідомлення з'явиться тут</div>
+              </div>
+            </div>
+            <div class="card">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                <h3 style="font-size:11px;font-weight:700;opacity:.5;text-transform:uppercase;letter-spacing:.05em;margin:0">Шаблони</h3>
+                <button class="ghost-btn" onclick="loadNotifTemplates()" style="font-size:11px">↻</button>
+              </div>
+              <div id="notifTemplates" style="display:flex;flex-direction:column;gap:6px"><div class="muted" style="font-size:12px">Завантаження…</div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Sent history -->
+        <div style="margin-top:24px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <h2 style="font-size:15px;font-weight:700;margin:0">Історія розсилок</h2>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="date" id="notifHistFrom" style="font-size:12px;padding:4px 8px;border-radius:5px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:inherit">
+              <button class="ghost-btn" onclick="loadNotificationsHistory()" style="font-size:12px">↻</button>
+            </div>
+          </div>
+          <div class="card" style="padding:0;overflow-x:auto">
+            <table class="table">
+              <thead><tr><th>Час</th><th>Заголовок</th><th>Аудиторія</th><th>Тип</th><th style="text-align:center">Надіслано</th><th style="text-align:center">Відкрито</th><th style="text-align:center">CTR</th><th>Ким</th></tr></thead>
+              <tbody id="notifHistoryBody"><tr><td colspan="8" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════ GAMES TAB ══════════════════════════════ -->
+      <section id="gamesTab" class="admin-tab hidden">
+        <h1>Crash · Управління іграми</h1>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+          <div class="period-tabs">
+            <button class="period-btn active" data-period="today" onclick="setGamesPeriod(this)">Сьогодні</button>
+            <button class="period-btn" data-period="7d" onclick="setGamesPeriod(this)">7 днів</button>
+            <button class="period-btn" data-period="30d" onclick="setGamesPeriod(this)">30 днів</button>
+          </div>
+          <button class="ghost-btn" onclick="loadGamesStats()" style="font-size:12px;margin-left:auto">↻ Оновити</button>
+        </div>
+        <!-- KPI cards -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-bottom:20px">
+          <div class="game-stat-card"><div class="game-stat-lbl">Раундів</div><div class="game-stat-val" id="gStatRounds">—</div></div>
+          <div class="game-stat-card"><div class="game-stat-lbl">Ставок</div><div class="game-stat-val" id="gStatBets">—</div></div>
+          <div class="game-stat-card"><div class="game-stat-lbl">Ставки (₴)</div><div class="game-stat-val" id="gStatWagered">—</div></div>
+          <div class="game-stat-card"><div class="game-stat-lbl">Виплачено (₴)</div><div class="game-stat-val" id="gStatPaid">—</div></div>
+          <div class="game-stat-card"><div class="game-stat-lbl">House Edge</div><div class="game-stat-val" id="gStatEdge">—</div></div>
+          <div class="game-stat-card"><div class="game-stat-lbl">RTP %</div><div class="game-stat-val" id="gStatRtp">—</div></div>
+          <div class="game-stat-card"><div class="game-stat-lbl" style="color:#f87171">Підозрілих</div><div class="game-stat-val" style="color:#f87171" id="gStatSuspect">—</div></div>
+        </div>
+        <!-- Distribution chart -->
+        <div class="chart-wrap" style="margin-bottom:20px">
+          <h3>Crash point distribution (останні раунди)</h3>
+          <div id="crashDistChart" style="display:flex;align-items:flex-end;gap:2px;height:80px;overflow-x:auto;padding-top:6px"></div>
+          <div style="display:flex;gap:14px;margin-top:8px;font-size:11px;opacity:.6">
+            <span style="color:#f87171">■ 1.00–1.50</span>
+            <span style="color:#c9a964">■ 1.51–3.00</span>
+            <span style="color:#34d399">■ 3.01–10.00</span>
+            <span style="color:#60a5fa">■ 10.00+</span>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px">
+          <!-- Recent rounds -->
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <h2 style="font-size:14px;font-weight:700;margin:0">Останні раунди</h2>
+              <div style="display:flex;gap:6px;align-items:center">
+                <select id="crashRoundFilter" style="font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:inherit" onchange="loadGameRounds()">
+                  <option value="">Всі</option>
+                  <option value="bust">Bust (&lt;1.5×)</option>
+                  <option value="low">Низький (1.5–3×)</option>
+                  <option value="high">Високий (10×+)</option>
+                </select>
+                <button class="ghost-btn" onclick="loadGameRounds()" style="font-size:11px">↻</button>
+              </div>
+            </div>
+            <div class="card" style="padding:0;overflow-x:auto">
+              <table class="table" style="font-size:12px">
+                <thead><tr><th>Раунд</th><th>Crash ×</th><th>Ставок</th><th>Ставки (₴)</th><th>Виплачено</th><th>P&L</th><th>Час</th></tr></thead>
+                <tbody id="gameRoundsBody"><tr><td colspan="7" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr></tbody>
+              </table>
+            </div>
+            <div class="pager">
+              <button id="roundsPrev" disabled onclick="gameRoundsPage(-1)">← Назад</button>
+              <span id="roundsPageInfo">—</span>
+              <button id="roundsNext" disabled onclick="gameRoundsPage(1)">Далі →</button>
+            </div>
+          </div>
+          <!-- Suspects + Settings -->
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div>
+              <h2 style="font-size:14px;font-weight:700;margin:0 0 10px">Підозрілі гравці</h2>
+              <div style="display:flex;flex-direction:column;gap:8px" id="suspectPlayersList">
+                <div class="muted" style="font-size:12px">Завантаження…</div>
+              </div>
+            </div>
+            <div>
+              <h2 style="font-size:14px;font-weight:700;margin:0 0 10px">Налаштування гри</h2>
+              <div class="card" style="display:flex;flex-direction:column;gap:10px">
+                <div>
+                  <label style="font-size:11px;opacity:.5;display:block;margin-bottom:4px">Мін. crash point (floor)</label>
+                  <input type="number" id="gameRngFloor" value="1.00" min="1" max="2" step="0.01" style="width:100%;font-size:12px;padding:5px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:inherit">
+                </div>
+                <div>
+                  <label style="font-size:11px;opacity:.5;display:block;margin-bottom:4px">Макс. ставка на раунд (₴)</label>
+                  <input type="number" id="gameMaxBet" value="10000" style="width:100%;font-size:12px;padding:5px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:inherit">
+                </div>
+                <div>
+                  <label style="font-size:11px;opacity:.5;display:block;margin-bottom:4px">House edge %</label>
+                  <input type="number" id="gameHouseEdge" value="5" min="1" max="20" step="0.1" style="width:100%;font-size:12px;padding:5px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:inherit">
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <input type="checkbox" id="gameMaintenance" style="accent-color:#f87171;cursor:pointer">
+                  <label for="gameMaintenance" style="font-size:12px;cursor:pointer">Режим обслуговування</label>
+                </div>
+                <button class="secondary-btn" onclick="saveGameSettings()">Зберегти</button>
               </div>
             </div>
           </div>

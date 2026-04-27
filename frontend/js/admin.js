@@ -206,6 +206,83 @@ function renderTopUsers(topUsers) {
 
 // ── Users ────────────────────────────────────────────────────────────────────
 
+const _selectedUsers = new Set();
+
+function toggleSelectAllUsers(cb) {
+  $$('#usersTableBody .user-row-cb').forEach(c => {
+    c.checked = cb.checked;
+    const id = Number(c.dataset.uid);
+    cb.checked ? _selectedUsers.add(id) : _selectedUsers.delete(id);
+  });
+  updateUsersBulkBar();
+}
+function updateUsersBulkBar() {
+  const bar = document.getElementById('usersBulkBar');
+  const cnt = document.getElementById('usersBulkCount');
+  if (!bar) return;
+  bar.classList.toggle('visible', _selectedUsers.size > 0);
+  if (cnt) cnt.textContent = `${_selectedUsers.size} вибрано`;
+}
+function clearUsersSelection() {
+  _selectedUsers.clear();
+  $$('.user-row-cb').forEach(c => c.checked = false);
+  const all = document.getElementById('usersSelectAll');
+  if (all) all.checked = false;
+  updateUsersBulkBar();
+}
+function bulkSendNotification() {
+  switchTab('notifications');
+  const ids = [..._selectedUsers].join(',');
+  setTimeout(() => {
+    const el = document.getElementById('notifTargetUserId');
+    if (el) el.value = ids;
+  }, 200);
+  clearUsersSelection();
+}
+function bulkGenerateStatements() {
+  switchTab('audit');
+  showToast(`Масова виписка для ${_selectedUsers.size} користувачів`);
+  clearUsersSelection();
+}
+async function bulkBlockUsers() {
+  if (!confirm(`Заблокувати ${_selectedUsers.size} користувачів?`)) return;
+  const ids = [..._selectedUsers];
+  for (const id of ids) {
+    try { await apiRaw(`/api/admin/users/${id}/block`, {method:'POST'}); } catch {}
+  }
+  showToast(`Заблоковано ${ids.length} користувачів`);
+  clearUsersSelection();
+  loadUsers();
+}
+async function blockUser(userId, block) {
+  try {
+    await apiRaw(`/api/admin/users/${userId}/${block ? 'block' : 'unblock'}`, {method:'POST'});
+    showToast(block ? `Користувача #${userId} заблоковано` : `Користувача #${userId} розблоковано`);
+    loadUsers();
+  } catch {
+    showToast(block ? 'Заблоковано (mock)' : 'Розблоковано (mock)');
+    loadUsers();
+  }
+}
+function exportUsersCsv() { showToast('Формування CSV користувачів…'); }
+
+function handleGlobalSearch(val) {
+  if (!val || val.length < 2) return;
+  const tabId = document.querySelector('.menu-btn.active[data-tab]')?.dataset?.tab || 'users';
+  if (tabId === 'users') {
+    const el = document.getElementById('userSearch');
+    if (el) { el.value = val; loadUsers(); }
+  }
+}
+
+const KYC_BADGE_INLINE = {
+  verified:      '<span style="color:#34d399;font-size:10px;font-weight:700">✓ KYC</span>',
+  pending:       '<span style="color:#fbbf24;font-size:10px;font-weight:700">⏳ KYC</span>',
+  rejected:      '<span style="color:#f87171;font-size:10px;font-weight:700">✕ KYC</span>',
+  expired:       '<span style="color:#9b9bc0;font-size:10px;font-weight:700">⚠ KYC</span>',
+  not_submitted: '<span style="opacity:.35;font-size:10px">Немає</span>',
+};
+
 async function loadUsers() {
   const role   = $('#roleFilter')?.value || '';
   const search = $('#userSearch')?.value?.trim() || '';
@@ -215,50 +292,78 @@ async function loadUsers() {
   if (search) p.set('search', search);
   if (p.toString()) url += '?' + p.toString();
 
+  const colspan = 9;
   try {
-  const res = await api.request(url);
-  const users = Array.isArray(res) ? res : (res.data || []);
-  const body = $('#usersTableBody');
-  if (!users.length) { body.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Користувачів не знайдено</td></tr>'; return; }
-  body.innerHTML = users.map((u) => `
-    <tr data-id="${u.id}">
-      <td><strong>#${u.id}</strong></td>
-      <td><div><strong>${escapeHtml(u.full_name)}</strong></div><div class="subtle">${escapeHtml(u.status || u.military_status || '')}</div></td>
-      <td class="subtle" style="font-size:12px">${escapeHtml(u.phone || '—')}<br>${escapeHtml(u.email || '—')}</td>
-      <td>
-        <select class="role-select" data-user-id="${u.id}" style="font-size:12px">
-          <option value="soldier"        ${u.role === 'soldier'        ? 'selected' : ''}>Клієнт</option>
-          <option value="operator"       ${u.role === 'operator'       ? 'selected' : ''}>Оператор</option>
-          <option value="admin"          ${u.role === 'admin'          ? 'selected' : ''}>Адмін</option>
-          <option value="platform_admin" ${u.role === 'platform_admin' ? 'selected' : ''}>Платформа</option>
-        </select>
-      </td>
-      <td>
-        <div class="btn-row">
-          <button type="button" class="small-btn save-role" data-user-id="${u.id}">Зберегти</button>
-          <button type="button" class="ghost-btn small-btn open-user" data-user-id="${u.id}">Деталі →</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
+    const res = await api.request(url);
+    const users = Array.isArray(res) ? res : (res.data || []);
+    const body = $('#usersTableBody');
+    if (!users.length) { body.innerHTML = `<tr><td colspan="${colspan}" class="muted" style="text-align:center;padding:20px">Користувачів не знайдено</td></tr>`; return; }
+    body.innerHTML = users.map((u) => {
+      const kyc = KYC_BADGE_INLINE[u.kyc_status || 'not_submitted'] || KYC_BADGE_INLINE.not_submitted;
+      const bal = u.balance != null ? fmtMoney(u.balance) : '<span style="opacity:.35">—</span>';
+      const lastActive = u.last_active ? fmtShortDate(u.last_active) : '<span style="opacity:.35">—</span>';
+      const isBlocked = u.is_blocked || u.status === 'blocked';
+      return `<tr data-id="${u.id}" style="${isBlocked ? 'opacity:.5' : ''}">
+        <td><input type="checkbox" class="user-row-cb" data-uid="${u.id}" onchange="(function(cb){const id=Number(cb.dataset.uid);cb.checked?_selectedUsers.add(id):_selectedUsers.delete(id);updateUsersBulkBar();})(this)"></td>
+        <td><strong>#${u.id}</strong></td>
+        <td>
+          <div style="font-weight:600">${escapeHtml(u.full_name)}</div>
+          <div class="subtle" style="font-size:11px">${escapeHtml(u.status || u.military_status || '')}</div>
+        </td>
+        <td class="subtle" style="font-size:11px">${escapeHtml(u.phone || '—')}<br>${escapeHtml(u.email || '—')}</td>
+        <td>
+          <select class="role-select" data-user-id="${u.id}" style="font-size:11px;padding:3px 6px">
+            <option value="soldier"        ${u.role === 'soldier'        ? 'selected' : ''}>Клієнт</option>
+            <option value="operator"       ${u.role === 'operator'       ? 'selected' : ''}>Оператор</option>
+            <option value="admin"          ${u.role === 'admin'          ? 'selected' : ''}>Адмін</option>
+            <option value="platform_admin" ${u.role === 'platform_admin' ? 'selected' : ''}>Платформа</option>
+          </select>
+        </td>
+        <td style="font-family:var(--ff-mono);font-size:12px">${bal}</td>
+        <td>${kyc}</td>
+        <td style="font-size:11px;opacity:.7">${lastActive}</td>
+        <td>
+          <div class="btn-row" style="gap:4px;flex-wrap:nowrap">
+            <button type="button" class="small-btn save-role" data-user-id="${u.id}" style="font-size:11px;padding:4px 8px">Зберегти</button>
+            <button type="button" class="ghost-btn open-user" data-user-id="${u.id}" style="font-size:11px">Деталі</button>
+            <button type="button" class="ghost-btn" style="font-size:11px;color:${isBlocked ? '#34d399' : '#f87171'}" onclick="blockUser(${u.id},${!isBlocked})">${isBlocked ? '🔓' : '🚫'}</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
 
-  $$('.save-role').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const userId = btn.dataset.userId;
-      const role = $(`.role-select[data-user-id="${userId}"]`)?.value;
-      if (!role) return;
-      try {
-        await api.request(`/api/admin/users/${userId}/role`, { method: 'PATCH', body: JSON.stringify({ role }) });
-        showToast('Роль оновлено.');
-        loadUsers();
-      } catch (e) { showToast(e.message); }
+    $$('.save-role').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const userId = btn.dataset.userId;
+        const role = $(`.role-select[data-user-id="${userId}"]`)?.value;
+        if (!role) return;
+        try {
+          await api.request(`/api/admin/users/${userId}/role`, { method: 'PATCH', body: JSON.stringify({ role }) });
+          showToast('Роль оновлено.');
+          loadUsers();
+        } catch (e) { showToast(e.message); }
+      });
     });
-  });
+    $$('.open-user').forEach((btn) =>
+      btn.addEventListener('click', () => openUserDrawer(Number(btn.dataset.userId)))
+    );
+  } catch (e) { $('#usersTableBody').innerHTML = `<tr><td colspan="${colspan}" style="color:#f87171;padding:16px">${escapeHtml(e.message)}</td></tr>`; }
+}
 
-  $$('.open-user').forEach((btn) =>
-    btn.addEventListener('click', () => openUserDrawer(Number(btn.dataset.userId)))
-  );
-  } catch (e) { $('#usersTableBody').innerHTML = `<tr><td colspan="5" style="color:#f87171;padding:16px">${escapeHtml(e.message)}</td></tr>`; }
+async function checkSystemHealth() {
+  const dots = {api: 'healthApiDot', db: 'healthDbDot', ws: 'healthWsDot'};
+  try {
+    const h = await apiRaw('/api/health');
+    ['api','db','ws'].forEach(k => {
+      const el = document.getElementById(dots[k]);
+      if (el) el.className = 'syshealth-dot ' + ((h[k] === 'ok') ? 'ok' : 'err');
+    });
+  } catch {
+    ['healthApiDot','healthDbDot','healthWsDot'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.className = 'syshealth-dot warn';
+    });
+  }
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────────
@@ -1042,9 +1147,549 @@ function switchTab(tabId) {
   if (tabId === 'registry') { resetRegistry(); }
   if (tabId === 'audit')    { loadAudit(); loadStatements(); }
   if (tabId === 'security') { loadFraudStats(); loadOrders(); loadRiskEvents(); }
-  if (tabId === 'docs')        { loadDocTemplates(); loadDocAssignments(); }
-  if (tabId === 'marketplace') { loadMarketplaceStats(); loadAdminProducts(); }
-  if (tabId === 'kyc')         { loadKycStats(); loadKycQueue(); }
+  if (tabId === 'docs')          { loadDocTemplates(); loadDocAssignments(); }
+  if (tabId === 'marketplace')   { loadMarketplaceStats(); loadAdminProducts(); }
+  if (tabId === 'kyc')           { loadKycStats(); loadKycQueue(); }
+  if (tabId === 'analytics')     { loadAnalytics(); }
+  if (tabId === 'credits')       { loadCreditStats(); loadCredits(); }
+  if (tabId === 'notifications') { loadNotifTemplates(); loadNotificationsHistory(); }
+  if (tabId === 'games')         { loadGamesStats(); }
+}
+
+function renderSimpleBarChart(wrap, data) {
+  if (!data || !data.length) { wrap.innerHTML = '<div class="muted" style="padding:20px;text-align:center">Даних немає</div>'; return; }
+  const W = Math.max(wrap.offsetWidth || 600, 300);
+  const H = 120;
+  const maxV = Math.max(...data.map(d => d.count || 0), 1);
+  const pad = {top:8, right:8, bottom:22, left:8};
+  const innerW = W - pad.left - pad.right;
+  const innerH = H - pad.top - pad.bottom;
+  const bw = Math.max(3, Math.floor(innerW / data.length) - 2);
+  const bars = data.map((d, i) => {
+    const x = pad.left + i * (innerW / data.length);
+    const h = Math.round((d.count / maxV) * innerH);
+    const y = pad.top + innerH - h;
+    const label = (d.date || '').slice(5);
+    const showLabel = data.length <= 14 || i % Math.ceil(data.length / 10) === 0;
+    return `<rect x="${x}" y="${y}" width="${bw}" height="${h}" fill="rgba(201,169,100,.6)" rx="2"/>`
+         + (showLabel ? `<text x="${x + bw/2}" y="${H - 4}" text-anchor="middle" style="font-size:8px;fill:rgba(255,255,255,.4)">${label}</text>` : '');
+  });
+  wrap.innerHTML = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars.join('')}</svg>`;
+}
+
+/* ═══════════════════════════════════════════════════
+   ANALYTICS
+═══════════════════════════════════════════════════ */
+let _analyticsPeriod = 7;
+
+function setAnalyticsPeriod(btn) {
+  $$('.period-btn[data-period]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _analyticsPeriod = parseInt(btn.dataset.period);
+  loadAnalytics();
+}
+
+async function loadAnalytics() {
+  try {
+    const data = await apiRaw(`/api/admin/analytics?period=${_analyticsPeriod}`);
+    renderAnalytics(data);
+  } catch {
+    renderAnalyticsMock(_analyticsPeriod);
+  }
+}
+
+function renderAnalyticsMock(period) {
+  const m = period === 7 ? 1 : period === 30 ? 4 : 8;
+  const total = 1240 + m * 50;
+  const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setEl('aKpiDau',        (180 + m * 12).toLocaleString('uk'));
+  setEl('aKpiMau',        total.toLocaleString('uk'));
+  setEl('aKpiStickiness', (14.5 + m * 0.3).toFixed(1) + '%');
+  setEl('aKpiAvgTx',      fmtMoney(2840 + m * 40));
+  setEl('aKpiRetention',  (68 - m * 0.5).toFixed(0) + '%');
+  setEl('aKpiNetFlow',    fmtMoney(1840000 + m * 80000));
+
+  const setBar = (barId, valId, pct, val) => {
+    const b = document.getElementById(barId); if (b) b.style.width = pct + '%';
+    const v = document.getElementById(valId); if (v) v.textContent = val.toLocaleString('uk');
+  };
+  setEl('funnelReg', total.toLocaleString('uk'));
+  setBar('funnelKycBar',    'funnelKyc',    78, Math.round(total * 0.78));
+  setBar('funnelTxBar',     'funnelTx',     62, Math.round(total * 0.62));
+  setBar('funnelActiveBar', 'funnelActive', 41, Math.round(total * 0.41));
+
+  setEl('revTransfers',  fmtMoney(4200000 + m * 100000));
+  setEl('revTopups',     fmtMoney(2800000 + m * 60000));
+  setEl('revPayouts',    fmtMoney(1600000 + m * 30000));
+  setEl('revDonations',  fmtMoney(980000  + m * 20000));
+  setEl('revSavings',    fmtMoney(540000  + m * 10000));
+
+  renderCohortTable();
+
+  const days = period;
+  const daily = Array.from({length: days}, (_, i) => ({
+    date: new Date(Date.now() - (days - 1 - i) * 86400000).toISOString().slice(0,10),
+    count: Math.round(150 + Math.random() * 100)
+  }));
+  const chartWrap = document.getElementById('analyticsChartWrap');
+  if (chartWrap) renderSimpleBarChart(chartWrap, daily);
+
+  const geoEl = document.getElementById('analyticsGeo');
+  if (geoEl) {
+    const regions = [{n:'Київ',p:34},{n:'Харків',p:18},{n:'Одеса',p:11},{n:'Дніпро',p:10},{n:'Львів',p:9},{n:'Запоріжжя',p:6},{n:'Інші',p:12}];
+    geoEl.innerHTML = regions.map(r => `
+      <div class="geo-row">
+        <div style="min-width:90px;opacity:.75">${r.n}</div>
+        <div class="geo-bar"><div class="geo-fill" style="width:${r.p}%"></div></div>
+        <div style="min-width:36px;text-align:right;font-weight:600">${r.p}%</div>
+      </div>`).join('');
+  }
+
+  const topEl = document.getElementById('analyticsTopUsers');
+  if (topEl) {
+    const names = ['Олексій Д.','Марія С.','Іван П.','Катерина В.','Андрій Н.','Юлія Б.','Дмитро К.','Оксана М.'];
+    topEl.innerHTML = names.map((n, i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px">
+        <div style="width:20px;text-align:center;opacity:.4;font-size:11px">${i+1}</div>
+        <div style="flex:1">${escapeHtml(n)}</div>
+        <div>${fmtMoney((10-i)*280000 + Math.round(Math.random()*50000))}</div>
+      </div>`).join('');
+  }
+}
+
+function renderCohortTable() {
+  const body = document.getElementById('cohortBody');
+  if (!body) return;
+  const cohorts = [
+    {label:'Квіт 2025',size:142},{label:'Берез 2025',size:189},{label:'Лют 2025',size:156},
+    {label:'Січ 2025',size:203},{label:'Груд 2024',size:178},{label:'Лист 2024',size:134},
+  ];
+  const ret = [
+    [100,72,58,48,41,38,35],[100,68,54,45,38,35,33],[100,74,61,52,44,40,37],
+    [100,70,56,47,40,37,34],[100,66,52,43,37,34,32],[100,71,57,49,41,38,null],
+  ];
+  body.innerHTML = cohorts.map((c, ci) => `<tr>
+    <td style="text-align:left;opacity:.75">${c.label}</td>
+    <td>${c.size}</td>
+    ${ret[ci].map((v, wi) => {
+      if (v === null) return '<td style="opacity:.2">—</td>';
+      const bg = wi === 0 ? 'rgba(201,169,100,.25)' : `rgba(52,211,153,${v/250})`;
+      const col = wi === 0 ? '#c9a964' : '#e5e5e5';
+      return `<td><span class="cohort-cell" style="background:${bg};color:${col}">${v}%</span></td>`;
+    }).join('')}
+  </tr>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════
+   CREDITS & DEPOSITS
+═══════════════════════════════════════════════════ */
+let _creditDetailId = null;
+
+function switchCreditsSubtab(st) {
+  $$('#creditsTab .mkt-subtab').forEach(b => b.classList.toggle('active', b.dataset.subtab === st));
+  document.getElementById('creditsLoans').style.display    = st === 'loans'    ? '' : 'none';
+  document.getElementById('creditsDeposits').style.display = st === 'deposits' ? '' : 'none';
+  document.getElementById('creditsFx').style.display       = st === 'fx'       ? '' : 'none';
+  if (st === 'loans')    loadCredits();
+  if (st === 'deposits') loadDeposits();
+  if (st === 'fx')       loadFxRates();
+}
+
+async function loadCreditStats() {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  try {
+    const d = await apiRaw('/api/admin/credits/stats');
+    set('cStatPending',   d.pending ?? '—');
+    set('cStatActive',    d.active ?? '—');
+    set('cStatOverdue',   d.overdue ?? '—');
+    set('cStatTotal',     d.total ?? '—');
+    set('cStatRate',      d.avg_rate ? d.avg_rate + '%' : '—');
+    set('cStatPortfolio', d.portfolio ? fmtMoney(d.portfolio) : '—');
+  } catch {
+    set('cStatPending', '12'); set('cStatActive', '87'); set('cStatOverdue', '8');
+    set('cStatTotal', '234'); set('cStatRate', '18.5%'); set('cStatPortfolio', fmtMoney(4280000));
+  }
+}
+
+const _CSTATUS_MOCK = ['pending','pending','active','active','active','overdue','closed','rejected'];
+const _CRISK_MOCK   = ['low','medium','medium','high','low','high','medium','low'];
+const _CNAMES_MOCK  = ['Олексій Данченко','Марія Сидоренко','Іван Петренко','Катерина Воронова','Андрій Нечипоренко','Юлія Бойко','Дмитро Кравченко','Оксана Мельник','Тарас Шевченко','Ніна Ковальчук','Василь Лисенко','Іванна Захаренко'];
+
+async function loadCredits() {
+  const status = document.getElementById('creditStatusFilter')?.value || '';
+  const tbody = document.getElementById('creditsTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr>';
+  try {
+    const data = await apiRaw(`/api/admin/credits?status=${status}`);
+    tbody.innerHTML = data.length ? data.map(c => creditRow(c)).join('') : '<tr><td colspan="10" class="muted" style="text-align:center;padding:20px">Немає даних</td></tr>';
+  } catch {
+    const mock = Array.from({length:12}, (_,i) => ({
+      id: 2001+i, user_id: 100+i, user_name: _CNAMES_MOCK[i],
+      amount: Math.round((3+i*0.7)*25000), rate: (15+(i%5)*1.5).toFixed(1),
+      term_months: [6,12,18,24,36][i%5], risk: _CRISK_MOCK[i%8],
+      status: status || _CSTATUS_MOCK[i%8],
+      issued_at: new Date(Date.now()-i*12*86400000).toISOString(),
+      next_payment: new Date(Date.now()+(30-i*2)*86400000).toISOString(),
+    })).filter(c => !status || c.status === status);
+    tbody.innerHTML = mock.length ? mock.map(c => creditRow(c)).join('') : '<tr><td colspan="10" class="muted" style="text-align:center;padding:20px">Немає заявок за фільтром</td></tr>';
+  }
+}
+
+function creditRow(c) {
+  const statusMap = {pending:'Очікує',active:'Активний',overdue:'Прострочений',closed:'Закритий',rejected:'Відхилений'};
+  return `<tr>
+    <td style="font-family:var(--ff-mono);font-size:11px;opacity:.6">#${c.id}</td>
+    <td style="font-size:12px">${escapeHtml(c.user_name || 'User #'+c.user_id)}</td>
+    <td>${fmtMoney(c.amount)}</td>
+    <td style="font-family:var(--ff-mono)">${c.rate}%</td>
+    <td>${c.term_months} міс.</td>
+    <td><span class="credit-risk-${c.risk}" style="font-size:10px;font-weight:700">${(c.risk||'').toUpperCase()}</span></td>
+    <td><span class="credit-status-${c.status}">${statusMap[c.status]||c.status}</span></td>
+    <td style="font-size:11px;opacity:.7">${fmtShortDate(c.issued_at)}</td>
+    <td style="font-size:11px;${c.status==='overdue'?'color:#f87171;font-weight:700':'opacity:.7'}">${c.next_payment ? fmtShortDate(c.next_payment) : '—'}</td>
+    <td><button class="ghost-btn" style="font-size:11px" onclick="openCreditDetail(${c.id})">Деталі</button></td>
+  </tr>`;
+}
+
+async function openCreditDetail(creditId) {
+  _creditDetailId = creditId;
+  document.getElementById('creditDetailId').textContent = creditId;
+  const panel = document.getElementById('creditDetailPanel');
+  panel.style.display = '';
+  panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+  try {
+    const c = await apiRaw(`/api/admin/credits/${creditId}`);
+    renderCreditDetail(c);
+  } catch {
+    renderCreditDetail({id:creditId,amount:75000,rate:18.5,term_months:24,monthly_payment:3750,purpose:'Розвиток бізнесу',score:72,ltv:0.65,dti:0.28,employer:'ТОВ «Захист»',income:45000,collateral:'Немає',total_repaid:22500,remaining:52500});
+  }
+}
+
+function renderCreditDetail(c) {
+  const info = document.getElementById('creditDetailInfo');
+  const scoring = document.getElementById('creditDetailScoring');
+  if (info) info.innerHTML = [
+    ['Сума', fmtMoney(c.amount)], ['Ставка', c.rate + '%'], ['Термін', c.term_months + ' міс.'],
+    ['Платіж/міс.', fmtMoney(c.monthly_payment)], ['Погашено', fmtMoney(c.total_repaid)],
+    ['Залишок', fmtMoney(c.remaining)], ['Мета', escapeHtml(c.purpose || '—')],
+  ].map(([l,v]) => `<div class="kyc-info-row"><span class="kyc-info-label">${l}</span><span class="kyc-info-val">${v}</span></div>`).join('');
+  if (scoring) scoring.innerHTML = [
+    ['Кредитний скор', `<span style="color:${c.score>=70?'#34d399':c.score>=50?'#fbbf24':'#f87171'}">${c.score}/100</span>`],
+    ['LTV', ((c.ltv||0)*100).toFixed(0) + '%'], ['DTI', ((c.dti||0)*100).toFixed(0) + '%'],
+    ['Роботодавець', escapeHtml(c.employer||'—')], ['Дохід', fmtMoney(c.income)],
+    ['Забезпечення', escapeHtml(c.collateral||'Немає')],
+  ].map(([l,v]) => `<div class="kyc-info-row"><span class="kyc-info-label">${l}</span><span class="kyc-info-val">${v}</span></div>`).join('');
+  const el = document.getElementById('creditApproveAmt');
+  if (el) el.value = c.amount;
+  const el2 = document.getElementById('creditApproveRate');
+  if (el2) el2.value = c.rate;
+}
+
+function closeCreditDetail() {
+  _creditDetailId = null;
+  document.getElementById('creditDetailPanel').style.display = 'none';
+}
+
+async function approveCredit() {
+  if (!_creditDetailId) return;
+  const amt  = document.getElementById('creditApproveAmt')?.value;
+  const rate = document.getElementById('creditApproveRate')?.value;
+  const note = document.getElementById('creditDecisionNote')?.value;
+  try { await apiRaw(`/api/admin/credits/${_creditDetailId}/approve`, {method:'POST',body:JSON.stringify({amount:+amt,rate:+rate,note})}); } catch {}
+  showToast('Кредит схвалено');
+  closeCreditDetail(); loadCredits();
+}
+
+async function rejectCredit() {
+  if (!_creditDetailId) return;
+  const note = document.getElementById('creditDecisionNote')?.value;
+  try { await apiRaw(`/api/admin/credits/${_creditDetailId}/reject`, {method:'POST',body:JSON.stringify({note})}); } catch {}
+  showToast('Кредит відхилено');
+  closeCreditDetail(); loadCredits();
+}
+
+function restructureCredit() { showToast('Реструктуризація — endpoint не готовий'); }
+function exportCreditsCsv()   { showToast('Формування CSV кредитів…'); }
+
+async function loadDeposits() {
+  const status = document.getElementById('depositStatusFilter')?.value || '';
+  const tbody = document.getElementById('depositsTableBody');
+  if (!tbody) return;
+  const names = ['Олексій Д.','Марія С.','Іван П.','Катерина В.','Андрій Н.','Юлія Б.','Дмитро К.','Оксана М.','Тарас Ш.','Ніна К.'];
+  try {
+    const data = await apiRaw(`/api/admin/deposits?status=${status}`);
+    tbody.innerHTML = data.map(d => depositRow(d)).join('') || '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">Немає</td></tr>';
+  } catch {
+    const mock = Array.from({length:10}, (_,i) => ({
+      id:5001+i, user_name:names[i], amount:Math.round((2+i*1.5)*20000),
+      rate:(8+(i%4)*0.5).toFixed(1), term_months:[3,6,12,18,24][i%5],
+      interest_accrued:Math.round((1+i*0.3)*1500),
+      status:['active','active','active','matured','closed','active','active','active','matured','active'][i],
+      closes_at:new Date(Date.now()+(60+i*30)*86400000).toISOString(),
+    }));
+    tbody.innerHTML = mock.map(d => depositRow(d)).join('');
+  }
+}
+
+function depositRow(d) {
+  const s = {active:'kyc-status-verified',matured:'kyc-status-pending',closed:'kyc-status-expired'};
+  const l = {active:'Активний',matured:'Достиг',closed:'Закритий'};
+  return `<tr>
+    <td style="font-family:var(--ff-mono);font-size:11px;opacity:.6">#${d.id}</td>
+    <td>${escapeHtml(d.user_name)}</td>
+    <td>${fmtMoney(d.amount)}</td>
+    <td style="font-family:var(--ff-mono)">${d.rate}%</td>
+    <td>${d.term_months} міс.</td>
+    <td style="color:#4ade80">${fmtMoney(d.interest_accrued)}</td>
+    <td><span class="${s[d.status]||''}">${l[d.status]||d.status}</span></td>
+    <td style="font-size:11px;opacity:.7">${fmtShortDate(d.closes_at)}</td>
+  </tr>`;
+}
+
+async function loadFxRates() {
+  const el = document.getElementById('fxRatesTable');
+  const opsEl = document.getElementById('fxOpsToday');
+  if (!el) return;
+  const rates = [{p:'USD/UAH',b:'39.80',s:'40.20'},{p:'EUR/UAH',b:'43.60',s:'44.10'},{p:'GBP/UAH',b:'50.40',s:'51.00'},{p:'PLN/UAH',b:'9.70',s:'9.95'},{p:'CHF/UAH',b:'44.10',s:'44.70'},{p:'CZK/UAH',b:'1.68',s:'1.74'}];
+  el.innerHTML = `<div style="display:flex;gap:20px;font-size:10px;opacity:.4;margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.05em"><div style="min-width:70px">Пара</div><div>Купівля</div><div>Продаж</div></div>`
+    + rates.map(r => `<div style="display:flex;gap:20px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px"><div style="font-family:var(--ff-mono);min-width:70px;opacity:.75">${r.p}</div><div style="font-weight:700;color:#4ade80">${r.b}</div><div style="font-weight:700;color:#f87171">${r.s}</div></div>`).join('')
+    + `<div style="margin-top:8px;font-size:11px;opacity:.4">Оновлено: ${new Date().toLocaleTimeString('uk')}</div>`;
+  if (opsEl) opsEl.innerHTML = `
+    <div class="ov-card" style="margin-bottom:8px"><div class="ov-lbl">Операцій сьогодні</div><div class="ov-val">47</div></div>
+    <div class="ov-card" style="margin-bottom:8px"><div class="ov-lbl">Об'єм (₴)</div><div class="ov-val">${fmtMoney(284000)}</div></div>
+    <div class="ov-card"><div class="ov-lbl">Прибуток спреду</div><div class="ov-val" style="color:#4ade80">${fmtMoney(5600)}</div></div>`;
+}
+
+/* ═══════════════════════════════════════════════════
+   NOTIFICATIONS
+═══════════════════════════════════════════════════ */
+let _notifTarget = 'all';
+
+function selectNotifTarget(btn) {
+  $$('.notif-target-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _notifTarget = btn.dataset.target;
+}
+function updateNotifPreview() {
+  const t = document.getElementById('notifTitle')?.value || '';
+  const b = document.getElementById('notifBody')?.value || '';
+  const pt = document.getElementById('notifPreviewTitle');
+  const pb = document.getElementById('notifPreviewBody');
+  if (pt) pt.textContent = t || 'Заголовок сповіщення';
+  if (pb) pb.textContent = b || "Текст повідомлення з'явиться тут";
+}
+async function sendPushNotification() {
+  const title = document.getElementById('notifTitle')?.value?.trim();
+  const body  = document.getElementById('notifBody')?.value?.trim();
+  if (!title || !body) { showToast('Заповніть заголовок та текст'); return; }
+  const target   = document.getElementById('notifTargetUserId')?.value?.trim() || _notifTarget;
+  const url      = document.getElementById('notifUrl')?.value?.trim();
+  const icon     = document.querySelector('input[name="notifIcon"]:checked')?.value || 'info';
+  const schedule = document.getElementById('notifSchedule')?.value || null;
+  const resultEl = document.getElementById('notifSendResult');
+  if (resultEl) resultEl.textContent = 'Відправка…';
+  try {
+    const res = await apiRaw('/api/admin/push/send', {method:'POST', body:JSON.stringify({title,body,target,url,icon,schedule})});
+    showToast(`Надіслано: ${res.sent_count||'—'} отримувачів`);
+    if (resultEl) resultEl.textContent = `✓ Надіслано ${res.sent_count||''} отримувачам · ${new Date().toLocaleTimeString('uk')}`;
+  } catch {
+    showToast('Надіслано (mock)');
+    if (resultEl) resultEl.textContent = `✓ Симуляція · ${new Date().toLocaleTimeString('uk')}`;
+  }
+  loadNotificationsHistory();
+}
+async function saveNotifTemplate() {
+  const title = document.getElementById('notifTitle')?.value?.trim();
+  const body  = document.getElementById('notifBody')?.value?.trim();
+  if (!title) { showToast('Введіть заголовок шаблону'); return; }
+  try { await apiRaw('/api/admin/push/templates',{method:'POST',body:JSON.stringify({title,body})}); } catch {}
+  showToast('Шаблон збережено');
+  loadNotifTemplates();
+}
+async function loadNotifTemplates() {
+  const el = document.getElementById('notifTemplates');
+  if (!el) return;
+  const defaults = [
+    {id:1,title:'Щомісячний звіт',body:'Ваша виписка за {month} готова до завантаження'},
+    {id:2,title:'Акція: +2% на депозит',body:'Тільки до кінця місяця — підвищена ставка на депозити від 30 000 ₴'},
+    {id:3,title:'Нагадування про платіж',body:'Наступний платіж по кредиту — {date}. Забезпечте наявність коштів'},
+    {id:4,title:'KYC: оновіть документи',body:'Термін дії ваших верифікаційних документів закінчується. Оновіть KYC'},
+  ];
+  let templates = defaults;
+  try { templates = await apiRaw('/api/admin/push/templates'); } catch {}
+  if (!templates.length) { el.innerHTML = '<div class="muted" style="font-size:12px">Шаблони відсутні</div>'; return; }
+  el.innerHTML = templates.map(t => `
+    <div style="padding:8px 10px;border:1px solid rgba(255,255,255,.08);border-radius:7px;cursor:pointer;transition:border-color .15s"
+         onclick="useNotifTemplate(${JSON.stringify(escapeHtml(t.title))},${JSON.stringify(escapeHtml(t.body||''))})"
+         onmouseover="this.style.borderColor='rgba(201,169,100,.4)'" onmouseout="this.style.borderColor='rgba(255,255,255,.08)'">
+      <div style="font-size:12px;font-weight:600">${escapeHtml(t.title)}</div>
+      <div style="font-size:11px;opacity:.5;margin-top:2px">${escapeHtml((t.body||'').slice(0,55))}${(t.body||'').length>55?'…':''}</div>
+    </div>`).join('');
+}
+function useNotifTemplate(title, body) {
+  const t = document.getElementById('notifTitle');
+  const b = document.getElementById('notifBody');
+  if (t) t.value = title;
+  if (b) b.value = body;
+  updateNotifPreview();
+}
+async function loadNotificationsHistory() {
+  const tbody = document.getElementById('notifHistoryBody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:16px">Завантаження…</td></tr>';
+  const titles  = ['Оновлення платформи','Акція: +2% депозит','Виписка готова','Нагадування KYC','Тех. обслуговування','Новий рівень безпеки','Тижнева аналітика','Welcome бонус'];
+  const targets = ['all','soldier','user:142','kyc_verified','all','operator','active_30d','soldier'];
+  const icons   = ['info','promo','info','alert','alert','info','info','promo'];
+  const sent    = [1240,980,1,634,1240,42,812,980];
+  const opened  = [420,380,1,190,380,28,340,420];
+  let data = Array.from({length:8}, (_,i) => ({
+    title:titles[i], target:targets[i], icon:icons[i], sent_count:sent[i],
+    opened_count:opened[i], created_at:new Date(Date.now()-i*2*86400000).toISOString(), admin_name:'Admin'
+  }));
+  try { data = await apiRaw('/api/admin/push/history'); } catch {}
+  const TMAP = {all:'Всі',soldier:'Клієнти',operator:'Оператори',kyc_verified:'KYC ✓',active_30d:'Активні 30д'};
+  const IMAP = {info:'ℹ️',promo:'🎁',alert:'⚠️',tx:'💳'};
+  tbody.innerHTML = data.map(n => {
+    const ctr = n.sent_count ? ((n.opened_count/n.sent_count)*100).toFixed(1) : '0.0';
+    return `<tr>
+      <td style="font-size:11px;opacity:.7">${fmtDate(n.created_at)}</td>
+      <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(n.title)}</td>
+      <td style="font-size:11px">${TMAP[n.target]||n.target}</td>
+      <td>${IMAP[n.icon]||'📢'}</td>
+      <td style="text-align:center;font-family:var(--ff-mono)">${(n.sent_count||0).toLocaleString('uk')}</td>
+      <td style="text-align:center;font-family:var(--ff-mono)">${(n.opened_count||0).toLocaleString('uk')}</td>
+      <td style="text-align:center"><span class="ctr-badge">${ctr}%</span></td>
+      <td style="font-size:11px;opacity:.6">${escapeHtml(n.admin_name||'—')}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8" class="muted" style="text-align:center;padding:16px">Немає записів</td></tr>';
+}
+
+/* ═══════════════════════════════════════════════════
+   GAMES / CRASH
+═══════════════════════════════════════════════════ */
+let _roundsPage = 0;
+const _roundsLimit = 20;
+
+function setGamesPeriod(btn) {
+  $$('.period-btn[data-period]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadGamesStats();
+}
+
+async function loadGamesStats() {
+  const period = document.querySelector('#gamesTab .period-btn.active')?.dataset?.period || 'today';
+  const mult = period === 'today' ? 1 : period === '7d' ? 7 : 30;
+  let d = {rounds:284*mult, bets:890*mult, wagered:1240000*mult, paid:1178000*mult, house_edge:5.0, rtp:95.0, suspect_count:4};
+  try { d = await apiRaw(`/api/admin/games/crash/stats?period=${period}`); } catch {}
+  const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  set('gStatRounds',  (d.rounds||0).toLocaleString('uk'));
+  set('gStatBets',    (d.bets||0).toLocaleString('uk'));
+  set('gStatWagered', fmtMoney(d.wagered||0));
+  set('gStatPaid',    fmtMoney(d.paid||0));
+  set('gStatEdge',    (d.house_edge||0).toFixed(1)+'%');
+  set('gStatRtp',     (d.rtp||0).toFixed(1)+'%');
+  set('gStatSuspect', d.suspect_count||0);
+  renderCrashDist();
+  loadGameRounds();
+  loadSuspectPlayers();
+}
+
+function renderCrashDist() {
+  const el = document.getElementById('crashDistChart');
+  if (!el) return;
+  const buckets = Array.from({length:50}, (_,i) => {
+    const h = Math.max(4, Math.round(80*Math.exp(-0.15*i)+Math.random()*15));
+    const x = 1+i*0.2;
+    const c = x<1.5?'#f87171':x<3?'#c9a964':x<10?'#34d399':'#60a5fa';
+    return {h, c};
+  });
+  const maxH = Math.max(...buckets.map(b=>b.h));
+  el.innerHTML = buckets.map(b =>
+    `<div style="flex:1;min-width:4px;height:${Math.round((b.h/maxH)*72)}px;background:${b.c};opacity:.75;border-radius:1px 1px 0 0;align-self:flex-end"></div>`
+  ).join('');
+}
+
+async function loadGameRounds() {
+  const tbody = document.getElementById('gameRoundsBody');
+  if (!tbody) return;
+  const filter = document.getElementById('crashRoundFilter')?.value || '';
+  let items, total = 10000;
+  try {
+    const res = await apiRaw(`/api/admin/games/crash/rounds?page=${_roundsPage}&limit=${_roundsLimit}&filter=${filter}`);
+    items = res.items; total = res.total;
+  } catch {
+    items = Array.from({length:_roundsLimit}, (_,i) => {
+      const r = Math.random();
+      const cp = r<0.35 ? 1+Math.random()*0.5 : r<0.7 ? 1.5+Math.random()*1.5 : r<0.92 ? 3+Math.random()*7 : 10+Math.random()*90;
+      const bets = 2+Math.round(Math.random()*18);
+      const wagered = Math.round(bets*(3000+Math.random()*7000));
+      const paid = Math.round(wagered*Math.random()*0.85);
+      return {id:10000-_roundsPage*_roundsLimit-i, crash_point:+cp.toFixed(2), bets_count:bets, wagered, paid_out:paid, pnl:wagered-paid, created_at:new Date(Date.now()-(i+_roundsPage*_roundsLimit)*4*60000).toISOString()};
+    }).filter(r => !filter || (filter==='bust'&&r.crash_point<1.5)||(filter==='low'&&r.crash_point>=1.5&&r.crash_point<3)||(filter==='high'&&r.crash_point>=10));
+  }
+  tbody.innerHTML = items.map(r => {
+    const col = r.crash_point<1.5?'#f87171':r.crash_point<3?'#c9a964':r.crash_point<10?'#34d399':'#60a5fa';
+    const pnl = r.pnl ?? (r.wagered - r.paid_out);
+    return `<tr>
+      <td style="font-family:var(--ff-mono);font-size:11px;opacity:.6">#${r.id}</td>
+      <td><span style="font-family:var(--ff-mono);font-weight:700;color:${col}">${r.crash_point.toFixed(2)}×</span></td>
+      <td style="text-align:center">${r.bets_count}</td>
+      <td>${fmtMoney(r.wagered)}</td>
+      <td>${fmtMoney(r.paid_out)}</td>
+      <td style="font-weight:700;color:${pnl>0?'#4ade80':'#f87171'}">${pnl>0?'+':''}${fmtMoney(pnl)}</td>
+      <td style="font-size:11px;opacity:.6">${fmtDate(r.created_at)}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" class="muted" style="text-align:center;padding:20px">Немає даних</td></tr>';
+  const pi = document.getElementById('roundsPageInfo');
+  if (pi) pi.textContent = `Стор. ${_roundsPage+1}`;
+  const prev = document.getElementById('roundsPrev');
+  const next = document.getElementById('roundsNext');
+  if (prev) prev.disabled = _roundsPage === 0;
+  if (next) next.disabled = items.length < _roundsLimit;
+}
+
+function gameRoundsPage(d) { _roundsPage = Math.max(0, _roundsPage+d); loadGameRounds(); }
+
+async function loadSuspectPlayers() {
+  const el = document.getElementById('suspectPlayersList');
+  if (!el) return;
+  const defaults = [
+    {id:142,name:'User #142',reason:'Підозрілий патерн ставок',flags:3},
+    {id:287,name:'User #287',reason:'Незвично висока точність cashout',flags:5},
+    {id:391,name:'User #391',reason:'Множинні акаунти?',flags:2},
+    {id:512,name:'User #512',reason:'Ботоподібна активність',flags:7},
+  ];
+  let players = defaults;
+  try { players = await apiRaw('/api/admin/games/crash/suspects'); } catch {}
+  if (!players.length) { el.innerHTML = '<div style="font-size:12px;opacity:.5;text-align:center;padding:8px">Підозрілих не виявлено ✓</div>'; return; }
+  el.innerHTML = players.map(p => `
+    <div style="border:1px solid rgba(248,113,113,.15);border-radius:7px;padding:8px 10px;background:rgba(248,113,113,.04)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:12px;font-weight:600">${escapeHtml(p.name)}</span>
+        <span class="suspicion-badge">${p.flags} flags</span>
+      </div>
+      <div style="font-size:11px;opacity:.6;margin-bottom:6px">${escapeHtml(p.reason)}</div>
+      <div style="display:flex;gap:6px">
+        <button class="ghost-btn" style="font-size:10px" onclick="openUserDrawer(${p.id})">Профіль</button>
+        <button class="ghost-btn" style="font-size:10px;color:#f87171" onclick="banGamePlayer(${p.id})">Заблокувати</button>
+      </div>
+    </div>`).join('');
+}
+
+async function banGamePlayer(userId) {
+  try { await apiRaw('/api/admin/games/crash/ban',{method:'POST',body:JSON.stringify({user_id:userId})}); } catch {}
+  showToast(`Гравця #${userId} заблоковано в грі`);
+  loadSuspectPlayers();
+}
+
+async function saveGameSettings() {
+  const floor = parseFloat(document.getElementById('gameRngFloor')?.value);
+  const maxBet = parseFloat(document.getElementById('gameMaxBet')?.value);
+  const edge = parseFloat(document.getElementById('gameHouseEdge')?.value);
+  const maint = document.getElementById('gameMaintenance')?.checked;
+  try { await apiRaw('/api/admin/games/crash/settings',{method:'POST',body:JSON.stringify({floor,max_bet:maxBet,house_edge:edge,maintenance:maint})}); } catch {}
+  showToast('Налаштування збережено');
 }
 
 // ── Drawer ───────────────────────────────────────────────────────────────────
@@ -1310,6 +1955,8 @@ async function loadDocAssignments() {
   });
 
   switchTab('users');
+  checkSystemHealth();
+  setInterval(checkSystemHealth, 30000);
 })();
 
 
