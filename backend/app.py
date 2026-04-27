@@ -119,9 +119,11 @@ def create_app() -> Flask:
         'https://munister.com.ua',
         'https://www.munister.com.ua',
         'https://bank.munister.com.ua',
+        'https://munister-v.github.io',
         'http://localhost:9099',
         'http://localhost:5173',
         'http://127.0.0.1:5500',
+        'http://127.0.0.1:5050',
     }
 
     def _append_vary(resp, value: str):
@@ -155,11 +157,12 @@ def create_app() -> Flask:
     @app.after_request
     def add_headers(resp):
         resp.headers['X-Content-Type-Options'] = 'nosniff'
-        resp.headers.setdefault('X-Frame-Options', 'DENY')
+        # Allow embedding in iframes from trusted origins (ArmyOS desktop)
+        resp.headers['X-Frame-Options'] = 'ALLOWALL'
         resp.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
         # Permissions-Policy set below, after norm_path is known (messenger needs microphone)
-        resp.headers.setdefault('Cross-Origin-Opener-Policy', 'same-origin')
-        resp.headers.setdefault('Cross-Origin-Resource-Policy', 'same-origin')
+        resp.headers.setdefault('Cross-Origin-Opener-Policy', 'unsafe-none')
+        resp.headers['Cross-Origin-Resource-Policy'] = 'cross-origin'
         req_id = str(getattr(g, 'request_id', '') or '').strip()
         if req_id:
             resp.headers['X-Request-Id'] = req_id
