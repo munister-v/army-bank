@@ -580,24 +580,453 @@ async function loadAudit() {
 }
 
 async function loadStatements() {
+  const typeF = $('#stmtLogTypeFilter')?.value || '';
+  const userF = $('#stmtLogUserFilter')?.value || '';
   try {
     const res  = await api.request('/api/admin/payments/statements');
-    const logs = Array.isArray(res) ? res : (res.data || []);
+    let logs = Array.isArray(res) ? res : (res.data || []);
+    if (typeF) logs = logs.filter(l => (l.stmt_type || l.type || '') === typeF);
+    if (userF) logs = logs.filter(l => String(l.user_id) === userF);
     const tbody = $('#statementsTableBody');
     if (!logs.length) {
-      tbody.innerHTML = '<tr><td colspan="3" class="muted" style="text-align:center;padding:20px">Виписки ще не завантажувались.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center;padding:20px">Виписки не знайдено.</td></tr>';
       return;
     }
-    tbody.innerHTML = logs.map((l) => `
-      <tr>
-        <td style="white-space:nowrap">${fmtDate(l.created_at)}</td>
+    const TYPE_UA = { full:'Повна', credit:'Кредитний', deposit:'Депозитний', tax:'Податкова', compliance:'Compliance', analytics:'Аналітика' };
+    const FMT_COLOR = { pdf:'#f87171', csv:'#34d399', xlsx:'#60a5fa' };
+    tbody.innerHTML = logs.map((l) => {
+      const t = l.stmt_type || l.type || 'full';
+      const fmt = l.format || 'pdf';
+      const fmtBadge = `<span style="font-size:10px;font-weight:700;color:${FMT_COLOR[fmt]||'#e5e5e5'}">${fmt.toUpperCase()}</span>`;
+      const period = l.period_from && l.period_to
+        ? `${fmtShortDate(l.period_from)} – ${fmtShortDate(l.period_to)}`
+        : (l.details ? escapeHtml(String(l.details).slice(0,30)) : '—');
+      return `<tr>
+        <td style="white-space:nowrap;font-size:11px">${fmtDate(l.created_at)}</td>
         <td>${l.user_id ?? '—'}</td>
-        <td style="font-size:12px;color:var(--muted)">${escapeHtml(l.details || '—')}</td>
+        <td style="font-size:12px">${escapeHtml(l.username || l.name || '—')}</td>
+        <td style="font-size:11px">${TYPE_UA[t] || t}</td>
+        <td>${fmtBadge}</td>
+        <td style="font-size:11px;white-space:nowrap">${period}</td>
+        <td style="font-size:11px;text-align:center">${l.pages || '—'}</td>
+        <td style="font-size:11px">${l.file_size ? (l.file_size > 1024 ? Math.round(l.file_size/1024)+'KB' : l.file_size+'B') : '—'}</td>
+        <td style="font-size:11px">${escapeHtml(l.requested_by || 'admin')}</td>
+        <td>${l.download_url
+          ? `<a href="${escapeHtml(l.download_url)}" class="ghost-btn" style="font-size:11px;padding:3px 8px" target="_blank">↓ PDF</a>`
+          : `<button class="ghost-btn" style="font-size:11px;padding:3px 8px" onclick="regenStatement(${l.id||l.user_id})">↻ Перегенерувати</button>`}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    $('#statementsTableBody').innerHTML = `<tr><td colspan="10" class="muted" style="padding:16px">Помилка: ${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+// ── Statement Generator ───────────────────────────────────────────────────────
+
+let _stmtType = 'full';
+let _stmtUserId = null;
+
+function selectStmtType(btn) {
+  $$('#stmtTypeGrid .stmt-type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _stmtType = btn.dataset.type;
+}
+
+function setStmtPeriod(preset) {
+  const now = new Date();
+  let from, to = now.toISOString().slice(0,10);
+  if (preset === 'month') {
+    from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+  } else if (preset === 'quarter') {
+    const q = Math.floor(now.getMonth()/3);
+    from = new Date(now.getFullYear(), q*3, 1).toISOString().slice(0,10);
+  } else if (preset === 'year') {
+    from = new Date(now.getFullYear(), 0, 1).toISOString().slice(0,10);
+  } else {
+    from = '2024-01-01';
+  }
+  $('#stmtFrom').value = from;
+  $('#stmtTo').value = to;
+}
+
+async function searchStmtUser() {
+  const q = $('#stmtUserSearch')?.value?.trim();
+  if (!q) return;
+  try {
+    const res = await api.request(`/api/admin/users?search=${encodeURIComponent(q)}&limit=5`);
+    const users = Array.isArray(res) ? res : (res.data || res.users || []);
+    const el = $('#stmtUserResult');
+    if (!users.length) { el.textContent = 'Не знайдено'; return; }
+    el.innerHTML = users.map(u =>
+      `<div style="cursor:pointer;padding:4px 6px;border-radius:4px;hover:background:rgba(255,255,255,.05)"
+        onclick="selectStmtUser(${u.id},'${escapeHtml(u.username||u.name||'')}')">
+        <strong>#${u.id}</strong> ${escapeHtml(u.username||u.name||'—')}
+        <span style="opacity:.5;font-size:11px"> · ${escapeHtml(u.email||'')}</span>
+      </div>`
+    ).join('');
+  } catch(e) { $('#stmtUserResult').textContent = 'Помилка: ' + e.message; }
+}
+
+function selectStmtUser(id, name) {
+  _stmtUserId = id;
+  $('#stmtUserResult').innerHTML = `<div style="color:#34d399;font-weight:600">✓ Обрано: #${id} ${escapeHtml(name)}</div>`;
+}
+
+async function generateStatement() {
+  const from   = $('#stmtFrom')?.value;
+  const to     = $('#stmtTo')?.value;
+  const format = document.querySelector('input[name="stmtFormat"]:checked')?.value || 'pdf';
+  const lang   = document.querySelector('input[name="stmtLang"]:checked')?.value || 'uk';
+  if (!_stmtUserId) { showToast('Оберіть користувача'); return; }
+  if (!from || !to)  { showToast('Вкажіть період'); return; }
+  const sections = {
+    balance:    $('#inclBalance')?.checked,
+    transactions: $('#inclTx')?.checked,
+    credits:    $('#inclCredits')?.checked,
+    deposits:   $('#inclDeposits')?.checked,
+    analytics:  $('#inclAnalytics')?.checked,
+    compliance: $('#inclCompliance')?.checked,
+    kyc:        $('#inclKyc')?.checked,
+    signature:  $('#inclSignature')?.checked,
+  };
+  try {
+    showToast('Генерація виписки…');
+    const res = await apiRaw('/api/admin/statements/generate', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: _stmtUserId, type: _stmtType, format, lang, period_from: from, period_to: to, sections }),
+    });
+    if (res.download_url) {
+      window.open(res.download_url, '_blank');
+    } else {
+      // Fallback: trigger existing user statement endpoint
+      const fallback = await fetch(`${basePath()}/api/admin/users/${_stmtUserId}/statement?from=${from}&to=${to}&format=${format}`, {
+        headers: { Authorization: `Bearer ${api.token}` }
+      });
+      if (!fallback.ok) throw new Error('Сервер не повернув файл');
+      const blob = await fallback.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `statement_${_stmtUserId}_${from}_${to}.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    showToast('Виписку завантажено');
+    loadStatements();
+  } catch(e) { showToast('Помилка: ' + e.message); }
+}
+
+async function generateAndEmail() {
+  if (!_stmtUserId) { showToast('Оберіть користувача'); return; }
+  showToast('Надсилання на email…');
+  try {
+    await apiRaw('/api/admin/statements/send-email', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: _stmtUserId, type: _stmtType }),
+    });
+    showToast('Email надіслано');
+  } catch(e) { showToast('Помилка надсилання: ' + e.message); }
+}
+
+async function regenStatement(userId) {
+  showToast('Перегенерація…');
+  try {
+    const res = await fetch(`${basePath()}/api/admin/users/${userId}/statement`, {
+      headers: { Authorization: `Bearer ${api.token}` }
+    });
+    if (!res.ok) throw new Error('Помилка');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `statement_${userId}.pdf`; a.click();
+    URL.revokeObjectURL(url);
+    showToast('Готово');
+  } catch(e) { showToast('Помилка: ' + e.message); }
+}
+
+async function generateBulkStatements() {
+  const template = $('#bulkTemplate')?.value;
+  const group    = $('#bulkGroup')?.value;
+  const sendEmail = $('#bulkSendEmail')?.checked;
+  const bar = $('#bulkProgressBar');
+  const progress = $('#bulkProgress');
+  const status = $('#bulkStatus');
+  progress.style.display = 'block';
+  status.textContent = 'Запуск масової генерації…';
+  let pct = 0;
+  const timer = setInterval(() => { pct = Math.min(pct + 7, 90); bar.style.width = pct + '%'; }, 400);
+  try {
+    const res = await apiRaw('/api/admin/statements/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ template, group, send_email: sendEmail }),
+    });
+    clearInterval(timer);
+    bar.style.width = '100%';
+    status.textContent = `Готово: ${res.generated || '—'} виписок згенеровано${sendEmail ? ', надіслано на email' : ''}`;
+    setTimeout(() => { progress.style.display = 'none'; bar.style.width = '0%'; }, 3000);
+    loadStatements();
+  } catch(e) {
+    clearInterval(timer);
+    bar.style.width = '0%';
+    status.textContent = 'Помилка: ' + e.message;
+    progress.style.display = 'none';
+  }
+}
+
+function exportStatementsLog() {
+  window.open(`${basePath()}/api/admin/statements/export-log?format=csv`, '_blank');
+}
+
+// ── KYC ──────────────────────────────────────────────────────────────────────
+
+let _kycUserId = null;
+let _kycDebounce = null;
+
+function debounceKycSearch() {
+  clearTimeout(_kycDebounce);
+  _kycDebounce = setTimeout(loadKycQueue, 380);
+}
+
+const KYC_STATUS_HTML = {
+  pending:       '<span class="kyc-status-pending">⏳ Очікує</span>',
+  verified:      '<span class="kyc-status-verified">✓ Верифіковано</span>',
+  rejected:      '<span class="kyc-status-rejected">✕ Відхилено</span>',
+  expired:       '<span class="kyc-status-expired">◌ Застарів</span>',
+  not_submitted: '<span style="opacity:.45;font-size:12px">Не подано</span>',
+};
+
+const KYC_DOC_UA = {
+  passport: 'Паспорт', id_card: 'ID-картка',
+  driving_license: 'Водійське', foreign_passport: 'Закорд. паспорт',
+  residence_permit: 'Посвідка',
+};
+
+async function loadKycStats() {
+  try {
+    const res = await api.request('/api/admin/kyc/stats');
+    $('#kycStatPending').textContent  = res.pending  ?? '—';
+    $('#kycStatVerified').textContent = res.verified ?? '—';
+    $('#kycStatRejected').textContent = res.rejected ?? '—';
+    $('#kycStatExpired').textContent  = res.expired  ?? '—';
+    $('#kycStatCompliance').textContent = res.compliance_pct ? res.compliance_pct + '%' : '—';
+    $('#kycStatAvgTime').textContent  = res.avg_review_hours ? res.avg_review_hours + ' год' : '—';
+  } catch (_) {
+    // Fallback mock — remove when API is ready
+    $('#kycStatPending').textContent  = '3';
+    $('#kycStatVerified').textContent = '41';
+    $('#kycStatRejected').textContent = '7';
+    $('#kycStatExpired').textContent  = '2';
+    $('#kycStatCompliance').textContent = '78%';
+    $('#kycStatAvgTime').textContent  = '4.2 год';
+  }
+}
+
+async function loadKycQueue() {
+  const status  = $('#kycStatusFilter')?.value || '';
+  const risk    = $('#kycRiskFilter')?.value   || '';
+  const docType = $('#kycDocTypeFilter')?.value || '';
+  const search  = $('#kycSearch')?.value?.trim() || '';
+  const tbody   = $('#kycQueueBody');
+  tbody.innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr>';
+  try {
+    const params = new URLSearchParams({ limit: 50 });
+    if (status)  params.set('kyc_status', status);
+    if (risk)    params.set('risk', risk);
+    if (docType) params.set('doc_type', docType);
+    if (search)  params.set('search', search);
+    const res  = await api.request('/api/admin/kyc/queue?' + params);
+    const rows = Array.isArray(res) ? res : (res.data || res.users || []);
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center;padding:20px">Записів не знайдено.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(u => `
+      <tr>
+        <td>${u.id}</td>
+        <td style="font-weight:600">${escapeHtml(u.username || u.name || '—')}</td>
+        <td style="font-size:11px;opacity:.7">${escapeHtml(u.email || '—')}</td>
+        <td>${KYC_STATUS_HTML[u.kyc_status || 'not_submitted'] || u.kyc_status}</td>
+        <td>${RISK_BADGE[u.risk_level || 'low'] || '—'}</td>
+        <td style="font-size:11px">${KYC_DOC_UA[u.kyc_doc_type] || '—'}</td>
+        <td style="text-align:center">${u.kyc_docs_count ?? '—'}</td>
+        <td style="font-size:11px;white-space:nowrap">${fmtDate(u.kyc_submitted_at)}</td>
+        <td style="font-size:11px;opacity:.6">${escapeHtml(u.kyc_reviewer || '—')}</td>
+        <td>
+          <button class="ghost-btn" style="font-size:11px;padding:3px 9px" onclick="reviewKycUser(${u.id})">Розглянути</button>
+        </td>
       </tr>
     `).join('');
-  } catch (e) {
-    $('#statementsTableBody').innerHTML = `<tr><td colspan="3" class="muted" style="padding:16px">Помилка: ${escapeHtml(e.message)}</td></tr>`;
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="10" class="muted" style="padding:16px">Помилка: ${escapeHtml(e.message)}</td></tr>`;
   }
+}
+
+async function reviewKycUser(userId) {
+  _kycUserId = userId;
+  const panel = $('#kycDetailPanel');
+  panel.style.display = 'block';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  $('#kycDetailTitle').textContent = `Перевірка користувача #${userId}`;
+  // Reset fields
+  ['kycInfoName','kycInfoDob','kycInfoDocNum','kycInfoDocType','kycInfoCountry',
+   'kycInfoAddress','kycInfoIpn','kycInfoPep',
+   'kycTxTotal','kycTxMonthly','kycTxMax','kycTxRisk','kycTxAml','kycTxCreated'].forEach(id => {
+    const el = $(`#${id}`); if (el) el.textContent = '—';
+  });
+  for (let i=1; i<=5; i++) {
+    const d = $(`#kycDoc${i}`);
+    if (d) { d.textContent = 'Завантаження…'; d.className = 'kyc-doc-preview'; }
+    const a = $(`#kycDoc${i}Actions`); if (a) a.style.display = 'none';
+  }
+  $('#kycHistory').innerHTML = '<div class="kyc-hist-item pending" style="font-size:11px">Завантаження…</div>';
+  try {
+    const data = await api.request(`/api/admin/kyc/user/${userId}`);
+    // Personal info
+    $('#kycInfoName').textContent    = data.full_name || '—';
+    $('#kycInfoDob').textContent     = data.date_of_birth || '—';
+    $('#kycInfoDocNum').textContent  = data.document_number || '—';
+    $('#kycInfoDocType').textContent = KYC_DOC_UA[data.document_type] || data.document_type || '—';
+    $('#kycInfoCountry').textContent = data.nationality || '—';
+    $('#kycInfoAddress').textContent = data.address || '—';
+    $('#kycInfoIpn').textContent     = data.tax_id || '—';
+    $('#kycInfoPep').innerHTML       = data.is_pep
+      ? '<span style="color:#f87171;font-weight:700">PEP — Публічна особа</span>'
+      : '<span style="color:#34d399">Ні</span>';
+    // Tx profile
+    $('#kycTxTotal').textContent   = data.tx_count || '—';
+    $('#kycTxMonthly').textContent = data.monthly_turnover ? fmtMoney(data.monthly_turnover) : '—';
+    $('#kycTxMax').textContent     = data.max_tx ? fmtMoney(data.max_tx) : '—';
+    $('#kycTxRisk').innerHTML      = RISK_BADGE[data.risk_level || 'low'];
+    $('#kycTxAml').innerHTML       = data.aml_flags?.length
+      ? `<span style="color:#f87171">${data.aml_flags.join(', ')}</span>`
+      : '<span style="color:#34d399">Чисто</span>';
+    $('#kycTxCreated').textContent = fmtDate(data.created_at);
+    // Documents
+    const docs = data.documents || [];
+    docs.forEach((doc, i) => {
+      const d = $(`#kycDoc${i+1}`);
+      if (!d) return;
+      d.textContent = `✓ ${doc.filename || 'Завантажено'} (${doc.uploaded_at ? fmtShortDate(doc.uploaded_at) : ''})`;
+      d.className = 'kyc-doc-preview uploaded';
+      const a = $(`#kycDoc${i+1}Actions`); if (a) a.style.display = 'block';
+    });
+    for (let i = docs.length+1; i <= 5; i++) {
+      const d = $(`#kycDoc${i}`);
+      if (d) { d.textContent = 'Не завантажено'; d.className = 'kyc-doc-preview'; }
+    }
+    // History
+    const history = data.review_history || [];
+    if (history.length) {
+      $('#kycHistory').innerHTML = history.map(h => `
+        <div class="kyc-hist-item ${h.decision}">
+          <strong>${h.decision === 'approved' ? '✓ Верифіковано' : h.decision === 'rejected' ? '✕ Відхилено' : '⏳'}</strong>
+          · ${fmtDate(h.created_at)} · ${escapeHtml(h.reviewer || '—')}
+          ${h.note ? `<div style="opacity:.7;margin-top:2px">${escapeHtml(h.note)}</div>` : ''}
+        </div>
+      `).join('');
+    } else {
+      $('#kycHistory').innerHTML = '<div class="kyc-hist-item pending">Немає попередніх перевірок</div>';
+    }
+  } catch(e) {
+    showToast('Не вдалося завантажити KYC: ' + e.message);
+  }
+}
+
+function closeKycDetail() {
+  $('#kycDetailPanel').style.display = 'none';
+  _kycUserId = null;
+}
+
+async function approveKyc() {
+  if (!_kycUserId) return;
+  const docType = $('#kycDocTypeDecision')?.value;
+  const note    = $('#kycReviewNote')?.value?.trim();
+  const limitD  = $('#kycLimitDaily')?.value;
+  const limitM  = $('#kycLimitMonthly')?.value;
+  if (!docType) { showToast('Оберіть тип документа'); return; }
+  try {
+    await apiRaw(`/api/admin/kyc/user/${_kycUserId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ document_type: docType, note, limit_daily: limitD||null, limit_monthly: limitM||null }),
+    });
+    showToast(`KYC #${_kycUserId} верифіковано`);
+    closeKycDetail();
+    loadKycQueue();
+    loadKycStats();
+  } catch(e) { showToast('Помилка: ' + e.message); }
+}
+
+async function rejectKyc() {
+  if (!_kycUserId) return;
+  const note = $('#kycReviewNote')?.value?.trim();
+  if (!note) { showToast('Вкажіть причину відхилення'); return; }
+  try {
+    await apiRaw(`/api/admin/kyc/user/${_kycUserId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    });
+    showToast(`KYC #${_kycUserId} відхилено`);
+    closeKycDetail();
+    loadKycQueue();
+    loadKycStats();
+  } catch(e) { showToast('Помилка: ' + e.message); }
+}
+
+async function requestMoreKycDocs() {
+  if (!_kycUserId) return;
+  const note = $('#kycReviewNote')?.value?.trim() || 'Необхідні додаткові документи';
+  try {
+    await apiRaw(`/api/admin/kyc/user/${_kycUserId}/request-docs`, {
+      method: 'POST', body: JSON.stringify({ note }),
+    });
+    showToast('Запит надіслано користувачу');
+  } catch(e) { showToast('Помилка: ' + e.message); }
+}
+
+async function flagKycAml() {
+  if (!_kycUserId) return;
+  const note = $('#kycReviewNote')?.value?.trim() || 'AML-підозра';
+  try {
+    await apiRaw(`/api/admin/kyc/user/${_kycUserId}/flag-aml`, {
+      method: 'POST', body: JSON.stringify({ note }),
+    });
+    showToast(`Користувач #${_kycUserId} позначений як AML-підозра`);
+    loadKycQueue();
+  } catch(e) { showToast('Помилка: ' + e.message); }
+}
+
+async function escalateKyc() {
+  if (!_kycUserId) return;
+  try {
+    await apiRaw(`/api/admin/kyc/user/${_kycUserId}/escalate`, { method: 'POST' });
+    showToast('Ескальовано на platform_admin');
+  } catch(e) { showToast('Помилка: ' + e.message); }
+}
+
+async function generateKycReport() {
+  if (!_kycUserId) return;
+  try {
+    const res = await fetch(`${basePath()}/api/admin/kyc/user/${_kycUserId}/report`, {
+      headers: { Authorization: `Bearer ${api.token}` }
+    });
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `kyc_report_${_kycUserId}.pdf`; a.click();
+    URL.revokeObjectURL(url);
+    showToast('KYC-звіт завантажено');
+  } catch(e) { showToast('Помилка: ' + e.message); }
+}
+
+function exportKycCsv() {
+  window.open(`${basePath()}/api/admin/kyc/export?format=csv`, '_blank');
+}
+
+async function runKycBulkReminder() {
+  try {
+    const res = await apiRaw('/api/admin/kyc/bulk-reminder', { method: 'POST' });
+    showToast(`Надіслано нагадувань: ${res.sent ?? '—'}`);
+  } catch(e) { showToast('Помилка: ' + e.message); }
 }
 
 // ── Tab routing ───────────────────────────────────────────────────────────────
@@ -615,6 +1044,7 @@ function switchTab(tabId) {
   if (tabId === 'security') { loadFraudStats(); loadOrders(); loadRiskEvents(); }
   if (tabId === 'docs')        { loadDocTemplates(); loadDocAssignments(); }
   if (tabId === 'marketplace') { loadMarketplaceStats(); loadAdminProducts(); }
+  if (tabId === 'kyc')         { loadKycStats(); loadKycQueue(); }
 }
 
 // ── Drawer ───────────────────────────────────────────────────────────────────

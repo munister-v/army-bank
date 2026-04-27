@@ -29,6 +29,36 @@
     .adjust-row select{font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit}
     .tab-badge{display:inline-block;background:rgba(248,113,113,.8);color:#000;border-radius:100px;padding:0 6px;font-size:10px;font-weight:700;margin-left:5px;vertical-align:middle}
     @media(max-width:680px){.filter-row{flex-direction:column;align-items:stretch}}
+    /* KYC */
+    .kyc-status-pending{color:#fbbf24;font-weight:700}
+    .kyc-status-verified{color:#34d399;font-weight:700}
+    .kyc-status-rejected{color:#f87171;font-weight:700}
+    .kyc-status-expired{color:#9b9bc0;font-weight:700}
+    .kyc-doc-slot{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:8px;padding:10px 12px}
+    .kyc-doc-label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;opacity:.5;margin-bottom:4px}
+    .kyc-doc-preview{font-size:12px;opacity:.6;font-style:italic}
+    .kyc-doc-preview.uploaded{color:#34d399;font-style:normal;font-weight:600}
+    .kyc-info-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px}
+    .kyc-info-row:last-child{border-bottom:none}
+    .kyc-info-label{opacity:.55}
+    .kyc-info-val{font-weight:600;text-align:right}
+    .kyc-hist-item{font-size:11px;padding:5px 8px;border-radius:5px;border-left:2px solid rgba(255,255,255,.15)}
+    .kyc-hist-item.approved{border-color:#34d399;background:rgba(52,211,153,.06)}
+    .kyc-hist-item.rejected{border-color:#f87171;background:rgba(248,113,113,.06)}
+    .kyc-hist-item.pending{border-color:#fbbf24;background:rgba(251,191,36,.06)}
+    /* Statement Generator */
+    .stmt-gen-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+    @media(max-width:760px){.stmt-gen-grid{grid-template-columns:1fr}}
+    .stmt-type-btn{padding:10px 14px;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:rgba(255,255,255,.04);color:inherit;font-size:12px;cursor:pointer;text-align:left;transition:all .15s}
+    .stmt-type-btn:hover,.stmt-type-btn.active{border-color:var(--accent-color,#c9a964);background:rgba(201,169,100,.08);color:#c9a964}
+    .stmt-type-btn .stmt-type-name{font-weight:700;display:block;margin-bottom:2px}
+    .stmt-type-btn .stmt-type-desc{font-size:10px;opacity:.55}
+    .stmt-check-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+    .stmt-check{display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer}
+    .stmt-check input{accent-color:#c9a964}
+    .stmt-log-table td,.stmt-log-table th{font-size:12px}
+    .bulk-progress{height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;margin-top:8px;display:none}
+    .bulk-progress-bar{height:100%;background:#c9a964;width:0%;transition:width .3s}
   </style>
 </head>
 <body class="admin-ab-landing">
@@ -55,6 +85,7 @@
         <button type="button" class="menu-btn" data-tab="security">Безпека</button>
         <button type="button" class="menu-btn" data-tab="audit">Аудит</button>
         <button type="button" class="menu-btn" data-tab="docs">Документообіг</button>
+        <button type="button" class="menu-btn" data-tab="kyc">KYC · Верифікація</button>
         <button type="button" class="menu-btn" data-tab="marketplace">🛍️ Маркетплейс</button>
         <a class="menu-btn nav-link" href="/api-status" target="_blank" rel="noopener">API Status Check</a>
       </nav>
@@ -229,24 +260,175 @@
 
       <!-- ── AUDIT ──────────────────────────────────────────────────── -->
       <section id="auditTab" class="admin-tab hidden">
-        <h1>Аудит-логи</h1>
+        <h1>Аудит-логи та Виписки</h1>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <h2 style="font-size:15px;font-weight:700;margin:0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="vertical-align:-3px;margin-right:5px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            Виписки PDF
+        <!-- ═══ STATEMENT GENERATOR ═══ -->
+        <div class="card" style="margin-bottom:24px">
+          <h2 style="font-size:15px;font-weight:700;margin:0 0 18px;display:flex;align-items:center;gap:8px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Генератор виписок
           </h2>
-          <button class="ghost-btn" onclick="loadStatements()" style="font-size:12px">↻ Оновити</button>
+
+          <!-- Type selector -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px" id="stmtTypeGrid">
+            <button class="stmt-type-btn active" data-type="full" onclick="selectStmtType(this)">
+              <span class="stmt-type-name">Повна виписка</span>
+              <span class="stmt-type-desc">Всі транзакції за період, баланс, зведення</span>
+            </button>
+            <button class="stmt-type-btn" data-type="credit" onclick="selectStmtType(this)">
+              <span class="stmt-type-name">Кредитний звіт</span>
+              <span class="stmt-type-desc">Кредити, погашення, графіки платежів</span>
+            </button>
+            <button class="stmt-type-btn" data-type="deposit" onclick="selectStmtType(this)">
+              <span class="stmt-type-name">Депозитний звіт</span>
+              <span class="stmt-type-desc">Вклади, нарахування відсотків, прогноз</span>
+            </button>
+            <button class="stmt-type-btn" data-type="tax" onclick="selectStmtType(this)">
+              <span class="stmt-type-name">Податкова виписка</span>
+              <span class="stmt-type-desc">Доходи, витрати, нарахування для ДПС</span>
+            </button>
+            <button class="stmt-type-btn" data-type="compliance" onclick="selectStmtType(this)">
+              <span class="stmt-type-name">Compliance-звіт</span>
+              <span class="stmt-type-desc">AML-індикатори, підозрілі операції, KYC-статус</span>
+            </button>
+            <button class="stmt-type-btn" data-type="analytics" onclick="selectStmtType(this)">
+              <span class="stmt-type-name">Аналітичне зведення</span>
+              <span class="stmt-type-desc">Категорії витрат, heatmap, динаміка балансу</span>
+            </button>
+          </div>
+
+          <div class="stmt-gen-grid">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div>
+                <label style="font-size:11px;opacity:.55;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Користувач</label>
+                <div style="display:flex;gap:6px">
+                  <input type="text" id="stmtUserSearch" placeholder="ID / ім'я / email…" style="flex:1;font-size:12px;padding:6px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit">
+                  <button class="ghost-btn" onclick="searchStmtUser()" style="font-size:12px;white-space:nowrap">Знайти</button>
+                </div>
+                <div id="stmtUserResult" style="margin-top:6px;font-size:12px;opacity:.7"></div>
+              </div>
+              <div>
+                <label style="font-size:11px;opacity:.55;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Швидкий вибір</label>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <button class="ghost-btn" style="font-size:11px" onclick="setStmtPeriod('month')">Цей місяць</button>
+                  <button class="ghost-btn" style="font-size:11px" onclick="setStmtPeriod('quarter')">Квартал</button>
+                  <button class="ghost-btn" style="font-size:11px" onclick="setStmtPeriod('year')">Рік</button>
+                  <button class="ghost-btn" style="font-size:11px" onclick="setStmtPeriod('all')">Весь час</button>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div>
+                  <label style="font-size:11px;opacity:.55;display:block;margin-bottom:4px">Від</label>
+                  <input type="date" id="stmtFrom" style="width:100%;font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit">
+                </div>
+                <div>
+                  <label style="font-size:11px;opacity:.55;display:block;margin-bottom:4px">До</label>
+                  <input type="date" id="stmtTo" style="width:100%;font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit">
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div>
+                <label style="font-size:11px;opacity:.55;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Формат</label>
+                <div style="display:flex;gap:6px">
+                  <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="stmtFormat" value="pdf" checked style="accent-color:#c9a964"> PDF</label>
+                  <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="stmtFormat" value="csv" style="accent-color:#c9a964"> CSV</label>
+                  <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="stmtFormat" value="xlsx" style="accent-color:#c9a964"> XLSX</label>
+                </div>
+              </div>
+              <div>
+                <label style="font-size:11px;opacity:.55;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Включити до звіту</label>
+                <div class="stmt-check-row">
+                  <label class="stmt-check"><input type="checkbox" id="inclBalance" checked> Баланс та рахунки</label>
+                  <label class="stmt-check"><input type="checkbox" id="inclTx" checked> Транзакції</label>
+                  <label class="stmt-check"><input type="checkbox" id="inclCredits" checked> Кредити</label>
+                  <label class="stmt-check"><input type="checkbox" id="inclDeposits" checked> Депозити</label>
+                  <label class="stmt-check"><input type="checkbox" id="inclAnalytics"> Аналітика витрат</label>
+                  <label class="stmt-check"><input type="checkbox" id="inclCompliance"> Compliance-нотатки</label>
+                  <label class="stmt-check"><input type="checkbox" id="inclKyc"> KYC-статус</label>
+                  <label class="stmt-check"><input type="checkbox" id="inclSignature" checked> ECDSA-підпис</label>
+                </div>
+              </div>
+              <div>
+                <label style="font-size:11px;opacity:.55;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Мова документа</label>
+                <div style="display:flex;gap:6px">
+                  <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="stmtLang" value="uk" checked style="accent-color:#c9a964"> Українська</label>
+                  <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="stmtLang" value="en" style="accent-color:#c9a964"> English</label>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:4px">
+                <button class="small-btn" style="flex:1" onclick="generateStatement()">
+                  ↓ Згенерувати та завантажити
+                </button>
+                <button class="ghost-btn" onclick="generateAndEmail()" style="font-size:12px;white-space:nowrap">✉ На email</button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="card" style="padding:0;margin-bottom:24px">
-          <table class="table" aria-label="Завантажені виписки">
-            <thead><tr><th>Час</th><th>Користувач ID</th><th>Деталі</th></tr></thead>
-            <tbody id="statementsTableBody"><tr><td colspan="3" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr></tbody>
+
+        <!-- ═══ BULK GENERATION ═══ -->
+        <div class="card" style="margin-bottom:24px">
+          <h2 style="font-size:15px;font-weight:700;margin:0 0 14px">Масова генерація виписок</h2>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div>
+              <label style="font-size:11px;opacity:.55;display:block;margin-bottom:4px">Шаблон</label>
+              <select id="bulkTemplate" style="font-size:12px;padding:6px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit">
+                <option value="monthly_full">Місячна повна</option>
+                <option value="quarterly_tax">Квартальна податкова</option>
+                <option value="annual_compliance">Річна compliance</option>
+                <option value="annual_full">Річна повна</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;opacity:.55;display:block;margin-bottom:4px">Група</label>
+              <select id="bulkGroup" style="font-size:12px;padding:6px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit">
+                <option value="all">Всі користувачі</option>
+                <option value="active">Активні (30д)</option>
+                <option value="kyc_verified">KYC верифіковані</option>
+                <option value="credits_active">Активні кредити</option>
+              </select>
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding-bottom:2px">
+              <input type="checkbox" id="bulkSendEmail" style="accent-color:#c9a964"> Надіслати на email
+            </label>
+            <button class="secondary-btn" onclick="generateBulkStatements()" style="white-space:nowrap">⚡ Запустити</button>
+          </div>
+          <div class="bulk-progress" id="bulkProgress"><div class="bulk-progress-bar" id="bulkProgressBar"></div></div>
+          <div id="bulkStatus" style="font-size:12px;opacity:.6;margin-top:6px"></div>
+        </div>
+
+        <!-- ═══ GENERATED STATEMENTS LOG ═══ -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <h2 style="font-size:15px;font-weight:700;margin:0">Журнал виписок</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="stmtLogTypeFilter" style="font-size:12px;padding:4px 8px;border-radius:5px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit">
+              <option value="">Всі типи</option>
+              <option value="full">Повна</option>
+              <option value="credit">Кредитний</option>
+              <option value="deposit">Депозитний</option>
+              <option value="tax">Податкова</option>
+              <option value="compliance">Compliance</option>
+              <option value="analytics">Аналітика</option>
+            </select>
+            <input type="number" id="stmtLogUserFilter" placeholder="User ID" style="width:80px;font-size:12px;padding:4px 8px;border-radius:5px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit">
+            <button class="ghost-btn" onclick="loadStatements()" style="font-size:12px">↻</button>
+            <button class="ghost-btn" onclick="exportStatementsLog()" style="font-size:12px">↓ CSV</button>
+          </div>
+        </div>
+        <div class="card" style="padding:0;margin-bottom:24px;overflow-x:auto">
+          <table class="table stmt-log-table" aria-label="Журнал виписок">
+            <thead><tr>
+              <th>Час</th><th>User ID</th><th>Ім'я</th><th>Тип</th><th>Формат</th>
+              <th>Період</th><th>Ст-к</th><th>Розмір</th><th>Запитав</th><th>Дія</th>
+            </tr></thead>
+            <tbody id="statementsTableBody"><tr><td colspan="10" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr></tbody>
           </table>
         </div>
 
+        <!-- ═══ AUDIT LOGS ═══ -->
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <h2 style="font-size:15px;font-weight:700;margin:0">Загальні логи</h2>
+          <h2 style="font-size:15px;font-weight:700;margin:0">Загальні аудит-логи</h2>
           <div class="filter-row" style="margin:0">
             <select id="auditActionFilter" style="font-size:12px">
               <option value="">Усі дії</option>
@@ -256,6 +438,9 @@
               <option value="admin_role_change">admin_role_change</option>
               <option value="admin_balance_adjust">admin_balance_adjust</option>
               <option value="payout_received">payout_received</option>
+              <option value="statement_pdf">statement_pdf</option>
+              <option value="kyc_approved">kyc_approved</option>
+              <option value="kyc_rejected">kyc_rejected</option>
             </select>
             <input type="number" id="auditUserIdFilter" placeholder="User ID" style="width:90px;font-size:12px">
             <button class="ghost-btn" onclick="loadAudit()" style="font-size:12px">↻ Оновити</button>
@@ -318,6 +503,193 @@
               <thead><tr><th>ID</th><th>Шаблон</th><th>Отримувач</th><th>Нотатка</th><th>Дата</th></tr></thead>
               <tbody id="docAssignmentsBody"><tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Завантаження…</td></tr></tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════════ KYC TAB ═══════════════════════════════ -->
+      <section id="kycTab" class="admin-tab hidden">
+        <h1>KYC · Верифікація користувачів</h1>
+
+        <!-- Stats -->
+        <div class="overview-grid" style="margin-bottom:20px">
+          <div class="ov-card"><div class="ov-lbl">На перевірці</div><div class="ov-val" id="kycStatPending" style="color:#fbbf24">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Верифіковано</div><div class="ov-val" id="kycStatVerified" style="color:#34d399">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Відхилено</div><div class="ov-val" id="kycStatRejected" style="color:#f87171">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Застарілих</div><div class="ov-val" id="kycStatExpired" style="color:#9b9bc0">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Compliance %</div><div class="ov-val" id="kycStatCompliance">—</div></div>
+          <div class="ov-card"><div class="ov-lbl">Сер. час перевірки</div><div class="ov-val" id="kycStatAvgTime">—</div></div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-row" style="margin-bottom:14px">
+          <select id="kycStatusFilter" onchange="loadKycQueue()">
+            <option value="">Усі статуси</option>
+            <option value="pending">Очікує перевірки</option>
+            <option value="verified">Верифіковано</option>
+            <option value="rejected">Відхилено</option>
+            <option value="expired">Застарів</option>
+            <option value="not_submitted">Не подано</option>
+          </select>
+          <select id="kycRiskFilter" onchange="loadKycQueue()">
+            <option value="">Усі ризики</option>
+            <option value="low">LOW</option>
+            <option value="medium">MEDIUM</option>
+            <option value="high">HIGH</option>
+            <option value="critical">CRITICAL</option>
+          </select>
+          <select id="kycDocTypeFilter" onchange="loadKycQueue()">
+            <option value="">Будь-який документ</option>
+            <option value="passport">Паспорт</option>
+            <option value="id_card">ID-картка</option>
+            <option value="driving_license">Водійське</option>
+            <option value="foreign_passport">Закордонний паспорт</option>
+          </select>
+          <input type="search" id="kycSearch" placeholder="ID / ім'я / email…" oninput="debounceKycSearch()">
+          <button class="ghost-btn" onclick="loadKycQueue()" style="font-size:12px">↻ Оновити</button>
+          <button class="ghost-btn" onclick="exportKycCsv()" style="font-size:12px">↓ CSV</button>
+          <button class="small-btn" onclick="runKycBulkReminder()" style="font-size:12px">✉ Нагадування незверифікованим</button>
+        </div>
+
+        <!-- KYC Queue Table -->
+        <div class="card" style="padding:0;margin-bottom:24px;overflow-x:auto">
+          <table class="table" aria-label="KYC черга">
+            <thead><tr>
+              <th>ID</th>
+              <th>Користувач</th>
+              <th>Email</th>
+              <th>Статус KYC</th>
+              <th>Ризик</th>
+              <th>Тип документа</th>
+              <th>Документів</th>
+              <th>Подано</th>
+              <th>Рецензент</th>
+              <th>Дія</th>
+            </tr></thead>
+            <tbody id="kycQueueBody">
+              <tr><td colspan="10" class="muted" style="text-align:center;padding:24px">Завантаження…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- KYC Detail Panel -->
+        <div id="kycDetailPanel" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <h2 style="font-size:15px;font-weight:700;margin:0" id="kycDetailTitle">Перевірка користувача</h2>
+            <button class="ghost-btn" onclick="closeKycDetail()" style="font-size:12px">✕ Закрити</button>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px">
+
+            <!-- Documents -->
+            <div class="card" style="box-shadow:none">
+              <h3 style="font-size:11px;font-weight:700;opacity:.5;text-transform:uppercase;letter-spacing:.06em;margin:0 0 14px">Завантажені документи</h3>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div class="kyc-doc-slot">
+                  <div class="kyc-doc-label">Паспорт / ID-карта — лицьова сторона</div>
+                  <div class="kyc-doc-preview" id="kycDoc1">Не завантажено</div>
+                  <div id="kycDoc1Actions" style="margin-top:6px;display:none">
+                    <button class="ghost-btn" style="font-size:10px" onclick="viewKycDoc(1)">👁 Переглянути</button>
+                    <button class="ghost-btn" style="font-size:10px;margin-left:4px" onclick="downloadKycDoc(1)">↓ Завантажити</button>
+                  </div>
+                </div>
+                <div class="kyc-doc-slot">
+                  <div class="kyc-doc-label">Паспорт / ID-карта — зворотна сторона</div>
+                  <div class="kyc-doc-preview" id="kycDoc2">Не завантажено</div>
+                  <div id="kycDoc2Actions" style="margin-top:6px;display:none">
+                    <button class="ghost-btn" style="font-size:10px" onclick="viewKycDoc(2)">👁 Переглянути</button>
+                  </div>
+                </div>
+                <div class="kyc-doc-slot">
+                  <div class="kyc-doc-label">Selfie з документом</div>
+                  <div class="kyc-doc-preview" id="kycDoc3">Не завантажено</div>
+                  <div id="kycDoc3Actions" style="margin-top:6px;display:none">
+                    <button class="ghost-btn" style="font-size:10px" onclick="viewKycDoc(3)">👁 Переглянути</button>
+                  </div>
+                </div>
+                <div class="kyc-doc-slot">
+                  <div class="kyc-doc-label">Підтвердження адреси (рахунок / довідка)</div>
+                  <div class="kyc-doc-preview" id="kycDoc4">Не завантажено</div>
+                </div>
+                <div class="kyc-doc-slot">
+                  <div class="kyc-doc-label">Додатковий документ</div>
+                  <div class="kyc-doc-preview" id="kycDoc5">Не вимагається</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Personal Info + Tx Profile -->
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div class="card" style="box-shadow:none">
+                <h3 style="font-size:11px;font-weight:700;opacity:.5;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px">Особисті дані</h3>
+                <div id="kycPersonalInfo">
+                  <div class="kyc-info-row"><span class="kyc-info-label">ПІБ</span><span class="kyc-info-val" id="kycInfoName">—</span></div>
+                  <div class="kyc-info-row"><span class="kyc-info-label">Дата народження</span><span class="kyc-info-val" id="kycInfoDob">—</span></div>
+                  <div class="kyc-info-row"><span class="kyc-info-label">Номер документа</span><span class="kyc-info-val" id="kycInfoDocNum">—</span></div>
+                  <div class="kyc-info-row"><span class="kyc-info-label">Тип документа</span><span class="kyc-info-val" id="kycInfoDocType">—</span></div>
+                  <div class="kyc-info-row"><span class="kyc-info-label">Громадянство</span><span class="kyc-info-val" id="kycInfoCountry">—</span></div>
+                  <div class="kyc-info-row"><span class="kyc-info-label">Адреса</span><span class="kyc-info-val" id="kycInfoAddress">—</span></div>
+                  <div class="kyc-info-row"><span class="kyc-info-label">IPN / ІПН</span><span class="kyc-info-val" id="kycInfoIpn">—</span></div>
+                  <div class="kyc-info-row"><span class="kyc-info-label">PEP-статус</span><span class="kyc-info-val" id="kycInfoPep">—</span></div>
+                </div>
+              </div>
+              <div class="card" style="box-shadow:none">
+                <h3 style="font-size:11px;font-weight:700;opacity:.5;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px">Транзакційний профіль</h3>
+                <div>
+                  <div class="kyc-info-row"><span class="kyc-info-label">Транзакцій всього</span><span class="kyc-info-val" id="kycTxTotal">—</span></div>
+                  <div class="kyc-info-row"><span class="kyc-info-label">Оборот (місяць)</span><span class="kyc-info-val" id="kycTxMonthly">—</span></div>
+                  <div class="kyc-info-row"><span class="kyc-info-label">Макс. транзакція</span><span class="kyc-info-val" id="kycTxMax">—</span></div>
+                  <div class="kyc-info-row"><span class="kyc-info-label">Рівень ризику</span><span class="kyc-info-val" id="kycTxRisk">—</span></div>
+                  <div class="kyc-info-row"><span class="kyc-info-label">AML-індикатори</span><span class="kyc-info-val" id="kycTxAml">—</span></div>
+                  <div class="kyc-info-row"><span class="kyc-info-label">Акаунт створено</span><span class="kyc-info-val" id="kycTxCreated">—</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Review Actions -->
+            <div class="card" style="box-shadow:none;display:flex;flex-direction:column;gap:14px">
+              <h3 style="font-size:11px;font-weight:700;opacity:.5;text-transform:uppercase;letter-spacing:.06em;margin:0">Рішення рецензента</h3>
+
+              <!-- History -->
+              <div>
+                <div style="font-size:11px;opacity:.5;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Історія перевірок</div>
+                <div id="kycHistory" style="display:flex;flex-direction:column;gap:5px;max-height:140px;overflow-y:auto">
+                  <div class="kyc-hist-item pending">Очікує першої перевірки</div>
+                </div>
+              </div>
+
+              <!-- Form -->
+              <div>
+                <label style="font-size:11px;opacity:.5;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Тип верифікованого документа</label>
+                <select id="kycDocTypeDecision" style="width:100%;font-size:12px;padding:6px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit;margin-bottom:8px">
+                  <option value="">Оберіть тип…</option>
+                  <option value="passport">Паспорт (внутрішній)</option>
+                  <option value="id_card">ID-картка</option>
+                  <option value="driving_license">Водійське посвідчення</option>
+                  <option value="foreign_passport">Закордонний паспорт</option>
+                  <option value="residence_permit">Посвідка на проживання</option>
+                </select>
+
+                <label style="font-size:11px;opacity:.5;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Встановити ліміти</label>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+                  <input type="number" id="kycLimitDaily" placeholder="Денний ліміт ₴" style="font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit">
+                  <input type="number" id="kycLimitMonthly" placeholder="Місячний ліміт ₴" style="font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit">
+                </div>
+
+                <label style="font-size:11px;opacity:.5;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Коментар до рішення</label>
+                <textarea id="kycReviewNote" rows="3" placeholder="Коментар (буде збережено в аудит-лозі)…" style="width:100%;font-size:12px;padding:7px 9px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit;resize:vertical;font-family:inherit;box-sizing:border-box;margin-bottom:8px"></textarea>
+              </div>
+
+              <!-- Action buttons -->
+              <div style="display:flex;flex-direction:column;gap:7px">
+                <button class="small-btn" style="background:#34d399;color:#000;border:none;font-weight:700" onclick="approveKyc()">✓ Верифікувати</button>
+                <button class="secondary-btn" style="border-color:rgba(248,113,113,.35);color:#f87171" onclick="rejectKyc()">✕ Відхилити</button>
+                <button class="ghost-btn" style="font-size:12px" onclick="requestMoreKycDocs()">📎 Запросити додаткові документи</button>
+                <button class="ghost-btn" style="font-size:12px" onclick="flagKycAml()">🚩 Позначити як AML-підозру</button>
+                <button class="ghost-btn" style="font-size:12px" onclick="escalateKyc()">⬆ Ескалювати на platform_admin</button>
+                <button class="ghost-btn" style="font-size:12px" onclick="generateKycReport()">📄 Генерувати KYC-звіт PDF</button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
