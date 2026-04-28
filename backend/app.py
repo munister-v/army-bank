@@ -157,8 +157,7 @@ def create_app() -> Flask:
     @app.after_request
     def add_headers(resp):
         resp.headers['X-Content-Type-Options'] = 'nosniff'
-        # Allow embedding in iframes from trusted origins (ArmyOS desktop)
-        resp.headers['X-Frame-Options'] = 'ALLOWALL'
+        # X-Frame-Options intentionally omitted — ARM OS iframe embedding allowed
         resp.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
         # Permissions-Policy set below, after norm_path is known (messenger needs microphone)
         resp.headers.setdefault('Cross-Origin-Opener-Policy', 'unsafe-none')
