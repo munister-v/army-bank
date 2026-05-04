@@ -1798,6 +1798,7 @@ const ALLOWED_SCREENS = [
   'dashboard', 'transactions', 'cards', 'profile',
   'donations', 'savings', 'analytics',
   'contacts', 'calendar', 'recurring', 'debts', 'tax',
+  'credit', 'deposit',
 ];
 const _screenScrollMemory = Object.create(null);
 
@@ -1868,6 +1869,8 @@ function switchScreen(screenId) {
   if (id === 'calendar')   { if (typeof loadCalendar   === 'function') loadCalendar(); }
   if (id === 'recurring')  { if (typeof loadRecurring  === 'function') loadRecurring(); }
   if (id === 'debts')      { if (typeof loadDebts      === 'function') loadDebts(); }
+  if (id === 'credit')     { if (typeof loadCredits    === 'function') loadCredits(); }
+  if (id === 'deposit')    { if (typeof loadDeposits   === 'function') loadDeposits(); }
   if (id !== 'dashboard') setDashboardActionFormsOpen(false);
 }
 
@@ -6355,3 +6358,241 @@ function bindCardActions() {
     }
   });
 })();
+
+// ── CREDIT SCREEN ────────────────────────────────────────────────────────────
+(function initCreditScreen() {
+  const CREDIT_RATES = { 3: 18, 6: 20, 12: 22, 24: 24, 36: 26 };
+
+  function fmtMoney(n) {
+    return '₴ ' + Number(n || 0).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function calcMonthlyPayment(principal, rateAnnual, months) {
+    const r = rateAnnual / 100 / 12;
+    if (r === 0) return principal / months;
+    const factor = Math.pow(1 + r, months);
+    return principal * r * factor / (factor - 1);
+  }
+
+  function updateCreditCalc() {
+    const amountEl = $('#creditAmount');
+    const termEl   = $('#creditTerm');
+    const resultEl = $('#creditCalcResult');
+    if (!amountEl || !termEl || !resultEl) return;
+    const amount = parseFloat(amountEl.value) || 0;
+    const term   = parseInt(termEl.value) || 0;
+    const rate   = CREDIT_RATES[term] || 0;
+    if (amount < 1000 || !rate) { resultEl.textContent = ''; return; }
+    const monthly = calcMonthlyPayment(amount, rate, term);
+    const total   = monthly * term;
+    resultEl.innerHTML =
+      `<span>Щомісячний платіж: <strong>${fmtMoney(monthly)}</strong></span>` +
+      `<span>Ставка: <strong>${rate}% річних</strong></span>` +
+      `<span>Загалом: <strong>${fmtMoney(total)}</strong></span>`;
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    $('#creditAmount')?.addEventListener('input', updateCreditCalc);
+    $('#creditTerm')?.addEventListener('change', updateCreditCalc);
+
+    $('#creditForm')?.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn = this.querySelector('button[type="submit"]');
+      const amount     = parseFloat($('#creditAmount')?.value || '0');
+      const term       = parseInt($('#creditTerm')?.value || '0');
+      const desc       = $('#creditDesc')?.value?.trim() || '';
+      if (!amount || !term) return showToast('Заповніть усі поля');
+      try {
+        setButtonLoading(btn, true);
+        await api.request('/api/credits', {
+          method: 'POST',
+          body: JSON.stringify({ amount, term_months: term, description: desc }),
+        });
+        this.reset();
+        updateCreditCalc();
+        await loadCredits();
+        refreshAllData();
+        showToast(`Кредит на ${fmtMoney(amount)} оформлено — кошти зараховано на рахунок`, 'success');
+      } catch (err) {
+        showToast(err.message);
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    });
+  });
+
+  window.loadCredits = async function() {
+    const list = $('#creditsList');
+    if (!list) return;
+    list.innerHTML = '<div class="list-loading">Завантаження…</div>';
+    try {
+      const data = await api.request('/api/credits');
+      if (!data.length) {
+        list.innerHTML = '<div class="empty-state">Активних кредитів немає</div>';
+        return;
+      }
+      list.innerHTML = data.map(function(c) {
+        const isPaid = c.status === 'closed';
+        return `
+          <div class="item item-with-actions">
+            <div class="item-main">
+              <div class="item-header">
+                <strong>${fmtMoney(c.principal)}</strong>
+                <span class="badge ${isPaid ? 'badge-green' : 'badge-blue'}">${isPaid ? 'Погашено' : 'Активний'}</span>
+              </div>
+              <div class="muted">${c.term_months} міс · ${c.interest_rate}% · щомісяць ${fmtMoney(c.monthly_payment)}</div>
+              <div class="credit-progress-wrap">
+                <div class="credit-progress-bar" style="width:${c.progress || 0}%"></div>
+              </div>
+              <div class="muted" style="font-size:11px">Залишок: ${fmtMoney(c.balance_remaining)} · ${c.days_to_payment != null ? `${c.days_to_payment} дн до платежу` : ''}</div>
+            </div>
+            ${!isPaid ? `
+            <div class="item-btns">
+              <button class="btn-accent" style="font-size:12px;padding:6px 12px" data-repay-credit="${c.id}" data-repay-amount="${c.monthly_payment}">Сплатити</button>
+            </div>` : ''}
+          </div>`;
+      }).join('');
+
+      list.querySelectorAll('[data-repay-credit]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          const creditId = Number(btn.dataset.repayCredit);
+          const amount   = Number(btn.dataset.repayAmount);
+          confirmAction(
+            'Сплатити платіж?',
+            `З рахунку буде списано ${fmtMoney(amount)}`,
+            async function() {
+              try {
+                await api.request(`/api/credits/${creditId}/repay`, { method: 'POST' });
+                await loadCredits();
+                refreshAllData();
+                showToast('Платіж прийнято', 'success');
+              } catch (err) { showToast(err.message); }
+            }
+          );
+        });
+      });
+    } catch (err) {
+      list.innerHTML = `<div class="empty-state">${escapeHtml(err.message)}</div>`;
+    }
+  };
+}());
+
+// ── DEPOSIT SCREEN ───────────────────────────────────────────────────────────
+(function initDepositScreen() {
+  const DEPOSIT_RATES = { 1: 8, 3: 10, 6: 12, 12: 14 };
+
+  function fmtMoney(n) {
+    return '₴ ' + Number(n || 0).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' }); }
+    catch (_) { return iso; }
+  }
+
+  function updateDepositCalc() {
+    const amountEl = $('#depositAmount');
+    const termEl   = $('#depositTerm');
+    const resultEl = $('#depositCalcResult');
+    if (!amountEl || !termEl || !resultEl) return;
+    const amount = parseFloat(amountEl.value) || 0;
+    const term   = parseInt(termEl.value) || 0;
+    const rate   = DEPOSIT_RATES[term] || 0;
+    if (amount < 500 || !rate) { resultEl.textContent = ''; return; }
+    const today    = new Date();
+    const maturity = new Date(today.getFullYear(), today.getMonth() + term, today.getDate());
+    const days     = Math.round((maturity - today) / 86400000);
+    const interest = amount * rate / 100 * days / 365;
+    resultEl.innerHTML =
+      `<span>Ставка: <strong>${rate}% річних</strong></span>` +
+      `<span>Дохід: <strong>${fmtMoney(interest)}</strong></span>` +
+      `<span>Отримаєте: <strong>${fmtMoney(amount + interest)}</strong></span>`;
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    $('#depositAmount')?.addEventListener('input', updateDepositCalc);
+    $('#depositTerm')?.addEventListener('change', updateDepositCalc);
+
+    $('#depositForm')?.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn       = this.querySelector('button[type="submit"]');
+      const amount    = parseFloat($('#depositAmount')?.value || '0');
+      const term      = parseInt($('#depositTerm')?.value || '0');
+      const autoRenew = $('#depositAutoRenew')?.checked || false;
+      if (!amount || !term) return showToast('Заповніть усі поля');
+      try {
+        setButtonLoading(btn, true);
+        await api.request('/api/deposits', {
+          method: 'POST',
+          body: JSON.stringify({ amount, term_months: term, auto_renew: autoRenew }),
+        });
+        this.reset();
+        updateDepositCalc();
+        await loadDeposits();
+        refreshAllData();
+        showToast(`Депозит ${fmtMoney(amount)} відкрито`, 'success');
+      } catch (err) {
+        showToast(err.message);
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    });
+  });
+
+  window.loadDeposits = async function() {
+    const list = $('#depositsList');
+    if (!list) return;
+    list.innerHTML = '<div class="list-loading">Завантаження…</div>';
+    try {
+      const data = await api.request('/api/deposits');
+      if (!data.length) {
+        list.innerHTML = '<div class="empty-state">Активних депозитів немає</div>';
+        return;
+      }
+      list.innerHTML = data.map(function(d) {
+        const isClosed = d.status === 'closed';
+        return `
+          <div class="item item-with-actions">
+            <div class="item-main">
+              <div class="item-header">
+                <strong>${fmtMoney(d.amount)}</strong>
+                <span class="badge ${isClosed ? 'badge-muted' : 'badge-green'}">${isClosed ? 'Закрито' : 'Активний'}</span>
+              </div>
+              <div class="muted">${d.term_months} міс · ${d.interest_rate}% · дохід ${fmtMoney(d.interest_earned)}</div>
+              <div class="muted" style="font-size:11px">Закінчується: ${fmtDate(d.maturity_date)}${d.auto_renew ? ' · авто-пролонгація' : ''}</div>
+            </div>
+            ${!isClosed ? `
+            <div class="item-btns">
+              <button class="btn-icon-danger" data-close-deposit="${d.id}" title="Закрити депозит">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>` : ''}
+          </div>`;
+      }).join('');
+
+      list.querySelectorAll('[data-close-deposit]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          const depositId = Number(btn.dataset.closeDeposit);
+          confirmAction(
+            'Закрити депозит?',
+            'При достроковому закритті відсотки нараховуються за фактичний строк.',
+            async function() {
+              try {
+                await api.request(`/api/deposits/${depositId}/close`, {
+                  method: 'POST',
+                  body: JSON.stringify({ early: true }),
+                });
+                await loadDeposits();
+                refreshAllData();
+                showToast('Депозит закрито, кошти повернено на рахунок', 'success');
+              } catch (err) { showToast(err.message); }
+            }
+          );
+        });
+      });
+    } catch (err) {
+      list.innerHTML = `<div class="empty-state">${escapeHtml(err.message)}</div>`;
+    }
+  };
+}());

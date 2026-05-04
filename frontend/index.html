@@ -1035,6 +1035,14 @@
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               Накопичення
             </button>
+            <button type="button" class="profile-link-btn nav-link" data-screen="credit">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Кредит
+            </button>
+            <button type="button" class="profile-link-btn nav-link" data-screen="deposit">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+              Депозит
+            </button>
             <button type="button" class="profile-link-btn nav-link" data-screen="donations">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
               Благодійність
@@ -1414,6 +1422,84 @@
             </a>
           </div>
           <p class="tax-disclaimer">⚠️ Інформація має довідковий характер. Остання редакція: 25 березня 2026. Ставки, ліміти та строки можуть змінюватися, тому перевіряйте офіційні роз'яснення ДПС/Мінфіну або звертайтеся до ліцензованого податкового консультанта.</p>
+        </div>
+      </section>
+
+      <!-- CREDIT -->
+      <section id="credit" class="screen">
+        <h2 class="section-title">Кредит</h2>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-icon-wrap green">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </div>
+            <h3>Оформити кредит</h3>
+          </div>
+          <form id="creditForm">
+            <label class="lbl">Сума, ₴
+              <input id="creditAmount" type="number" inputmode="decimal" min="1000" max="500000" step="100" placeholder="від ₴ 1 000 до ₴ 500 000" required>
+            </label>
+            <label class="lbl">Строк
+              <select id="creditTerm" required>
+                <option value="">— Оберіть строк —</option>
+                <option value="3">3 місяці — 18% річних</option>
+                <option value="6">6 місяців — 20% річних</option>
+                <option value="12">12 місяців — 22% річних</option>
+                <option value="24">24 місяці — 24% річних</option>
+                <option value="36">36 місяців — 26% річних</option>
+              </select>
+            </label>
+            <label class="lbl">Призначення (необов'язково)
+              <input id="creditDesc" type="text" placeholder="Опис кредиту">
+            </label>
+            <div id="creditCalcResult" class="calc-result"></div>
+            <button type="submit" class="btn-accent">Отримати кредит</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Мої кредити</h3></div>
+          <div id="creditsList" class="list"><div class="empty-state">Активних кредитів немає</div></div>
+        </div>
+      </section>
+
+      <!-- DEPOSIT -->
+      <section id="deposit" class="screen">
+        <h2 class="section-title">Депозит</h2>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-icon-wrap yellow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 8v4l3 3"/></svg>
+            </div>
+            <h3>Відкрити депозит</h3>
+          </div>
+          <form id="depositForm">
+            <label class="lbl">Сума, ₴
+              <input id="depositAmount" type="number" inputmode="decimal" min="500" step="100" placeholder="від ₴ 500" required>
+            </label>
+            <label class="lbl">Строк
+              <select id="depositTerm" required>
+                <option value="">— Оберіть строк —</option>
+                <option value="1">1 місяць — 8% річних</option>
+                <option value="3">3 місяці — 10% річних</option>
+                <option value="6">6 місяців — 12% річних</option>
+                <option value="12">12 місяців — 14% річних</option>
+              </select>
+            </label>
+            <label class="lbl" style="flex-direction:row;align-items:center;gap:10px">
+              <input id="depositAutoRenew" type="checkbox" style="width:auto;margin:0">
+              Авто-пролонгація
+            </label>
+            <div id="depositCalcResult" class="calc-result"></div>
+            <button type="submit" class="btn-accent">Відкрити депозит</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Мої депозити</h3></div>
+          <div id="depositsList" class="list"><div class="empty-state">Активних депозитів немає</div></div>
         </div>
       </section>
 
