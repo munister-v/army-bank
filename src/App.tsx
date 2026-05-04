@@ -1714,6 +1714,98 @@ function Chevron({ size = 16, color = 'currentColor' }: { size?: number; color?:
   );
 }
 
+function TrendUpIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 16l5-5 3 3 6-7" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14 7h5v5" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function TrendDownIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 8l5 5 3-3 6 7" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14 17h5v-5" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function WalletIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 8.5A2.5 2.5 0 016.5 6H18a2 2 0 012 2v8a2 2 0 01-2 2H6.5A2.5 2.5 0 014 15.5v-7z" stroke={color} strokeWidth="1.8" />
+      <path d="M4 9h14.5A1.5 1.5 0 0120 10.5v3A1.5 1.5 0 0118.5 15H4" stroke={color} strokeWidth="1.8" />
+      <circle cx="16.5" cy="12" r="1" fill={color} />
+    </svg>
+  );
+}
+
+function BankIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 9l8-4 8 4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6 10v7M10 10v7M14 10v7M18 10v7" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M3 19h18" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ReceiptIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M7 3h10v18l-2-1.6L13 21l-2-1.6L9 21l-2-1.6L5 21V5a2 2 0 012-2z" stroke={color} strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M9 8h6M9 12h6M9 16h4" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function TrophyIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M8 4h8v3a4 4 0 01-8 0V4z" stroke={color} strokeWidth="1.8" />
+      <path d="M8 6H5a2 2 0 000 4h2M16 6h3a2 2 0 010 4h-2" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M12 11v4M9 20h6M10 15h4v5h-4z" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CheckBadgeIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="8" stroke={color} strokeWidth="1.8" />
+      <path d="M8.5 12l2.3 2.3 4.7-4.8" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ChartIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 19V9M12 19V5M19 19v-7" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M4 19h16" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function AlertIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 4l8 14H4l8-14z" stroke={color} strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M12 9v4M12 16h.01" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function TipIcon({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M9 18h6M10 21h4M8.5 14.5C7.6 13.7 7 12.5 7 11a5 5 0 1110 0c0 1.5-.6 2.7-1.5 3.5-.7.6-1 1.2-1.2 1.8h-2.6c-.2-.6-.5-1.2-1.2-1.8z" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // ─── Premium card ─────────────────────────────────────────────
 type CardVariant =
   | 'gold'
@@ -2851,10 +2943,10 @@ function MonthlyFinanceSummary({ transactions }: { transactions: TxItem[] }) {
   const expensesDelta = prevExpenses > 0 ? ((expenses - prevExpenses) / prevExpenses * 100) : 0;
   const monthName = now.toLocaleDateString(lang === 'uk' ? 'uk-UA' : lang === 'en' ? 'en-US' : lang === 'it' ? 'it-IT' : 'es-ES', { month: 'long' });
   const items = [
-    { label: 'Дохід', value: `₴${fmtInt(income)}`, color: '#7fb896', icon: '📈' },
-    { label: 'Витрати', value: `₴${fmtInt(expenses)}`, color: income > 0 && expenses > income ? '#e07070' : text.secondary, icon: '📉', sub: prevExpenses > 0 ? `${expensesDelta >= 0 ? '+' : ''}${expensesDelta.toFixed(0)}% vs минулий міс.` : undefined },
-    { label: 'Баланс', value: `${net >= 0 ? '+' : '−'}₴${fmtInt(Math.abs(net))}`, color: net >= 0 ? '#7fb896' : '#e07070', icon: '💰' },
-    { label: 'Заощадження', value: `${savingsRate}%`, color: savingsRate >= 20 ? '#7fb896' : savingsRate >= 10 ? gold : text.secondary, icon: '🏦' },
+    { label: 'Дохід', value: `₴${fmtInt(income)}`, color: '#7fb896', icon: <TrendUpIcon color="#7fb896" /> },
+    { label: 'Витрати', value: `₴${fmtInt(expenses)}`, color: income > 0 && expenses > income ? '#e07070' : text.secondary, icon: <TrendDownIcon color={income > 0 && expenses > income ? '#e07070' : text.secondary} />, sub: prevExpenses > 0 ? `${expensesDelta >= 0 ? '+' : ''}${expensesDelta.toFixed(0)}% vs минулий міс.` : undefined },
+    { label: 'Баланс', value: `${net >= 0 ? '+' : '−'}₴${fmtInt(Math.abs(net))}`, color: net >= 0 ? '#7fb896' : '#e07070', icon: <WalletIcon color={net >= 0 ? '#7fb896' : '#e07070'} /> },
+    { label: 'Заощадження', value: `${savingsRate}%`, color: savingsRate >= 20 ? '#7fb896' : savingsRate >= 10 ? gold : text.secondary, icon: <BankIcon color={savingsRate >= 20 ? '#7fb896' : savingsRate >= 10 ? gold : text.secondary} /> },
   ];
   if (!income && !expenses) return null;
   return (
@@ -2864,7 +2956,7 @@ function MonthlyFinanceSummary({ transactions }: { transactions: TxItem[] }) {
         {items.map(({ label, value, color, icon, sub }) => (
           <div key={label} style={{ ...glassCard(), padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-              <span style={{ fontSize: 16 }}>{icon}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16 }}>{icon}</span>
               <span style={{ fontSize: 11, color: text.muted }}>{label}</span>
             </div>
             <div style={{ fontSize: 18, fontWeight: 700, color, fontFeatureSettings: '"tnum"' }}>{value}</div>
@@ -3197,15 +3289,15 @@ function FinancialHealthScore({ transactions, account }: { transactions: TxItem[
   const activityScore = Math.min(100, monthTx.length * 5);
   const score = Math.round(savingsRate * 0.5 + balanceScore * 0.3 + activityScore * 0.2);
 
-  const level = score >= 80 ? { label: 'Відмінно', color: '#7fb896', emoji: '🏆' }
-    : score >= 60 ? { label: 'Добре', color: '#c9a964', emoji: '✅' }
-    : score >= 40 ? { label: 'Задовільно', color: '#e8a84a', emoji: '📊' }
-    : { label: 'Потребує уваги', color: '#e05a40', emoji: '⚠️' };
+  const level = score >= 80 ? { label: 'Відмінно', color: '#7fb896', icon: <TrophyIcon color="#7fb896" /> }
+    : score >= 60 ? { label: 'Добре', color: '#c9a964', icon: <CheckBadgeIcon color="#c9a964" /> }
+    : score >= 40 ? { label: 'Задовільно', color: '#e8a84a', icon: <ChartIcon color="#e8a84a" /> }
+    : { label: 'Потребує уваги', color: '#e05a40', icon: <AlertIcon color="#e05a40" /> };
 
   const tips = [
-    income > 0 && expenses / income > 0.8 && '💡 Витрати перевищують 80% доходу — розгляньте бюджет',
-    balance < 1000 && '💡 Підтримуйте резервний фонд від ₴5 000',
-    monthTx.length < 3 && '💡 Мало активності — використовуйте картку для кешбеку',
+    income > 0 && expenses / income > 0.8 && 'Витрати перевищують 80% доходу — розгляньте бюджет',
+    balance < 1000 && 'Підтримуйте резервний фонд від ₴5 000',
+    monthTx.length < 3 && 'Мало активності — використовуйте картку для кешбеку',
   ].filter(Boolean) as string[];
 
   return (
@@ -3214,7 +3306,10 @@ function FinancialHealthScore({ transactions, account }: { transactions: TxItem[
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <div>
           <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.8, marginBottom: 4 }}>ФІНАНСОВИЙ РЕЙТИНГ</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: level.color }}>{level.emoji} {level.label}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: level.color }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16 }}>{level.icon}</span>
+            <span>{level.label}</span>
+          </div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 36, fontWeight: 800, color: level.color, lineHeight: 1 }}>{score}</div>
@@ -3242,7 +3337,12 @@ function FinancialHealthScore({ transactions, account }: { transactions: TxItem[
       {tips.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {tips.map((tip, i) => (
-            <div key={i} style={{ fontSize: 11, color: text.muted, background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '7px 10px' }}>{tip}</div>
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 11, color: text.muted, background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '7px 10px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, color: gold, flexShrink: 0, marginTop: 1 }}>
+                <TipIcon color={gold} />
+              </span>
+              <span>{tip}</span>
+            </div>
           ))}
         </div>
       )}
@@ -5354,7 +5454,7 @@ function OperationsScreen() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ ...T.body, fontWeight: 600, color: item.positive ? '#7fb896' : text.secondary, ...T.num }}>{item.amount} ₴</div>
                       {item.txId ? (
-                        <button onClick={e => { e.stopPropagation(); downloadReceipt(item.txId!); }} disabled={dlReceipt === item.txId} title={t('download_receipt')} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(180,172,155,0.08)', border: `1px solid rgba(180,172,155,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13 }}>{dlReceipt === item.txId ? '…' : '🧾'}</button>
+                        <button onClick={e => { e.stopPropagation(); downloadReceipt(item.txId!); }} disabled={dlReceipt === item.txId} title={t('download_receipt')} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(180,172,155,0.08)', border: `1px solid rgba(180,172,155,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: goldLight }}>{dlReceipt === item.txId ? '…' : <ReceiptIcon size={14} color={goldLight} />}</button>
                       ) : (
                         <Chevron size={12} color="rgba(220,215,200,0.3)" />
                       )}
@@ -6829,23 +6929,23 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const tabs = getTabs(t);
   const activeIdx = tabs.findIndex(tab => tab.k === active);
   return (
-    // position:fixed bottom:0 anchors directly to the viewport edge — bypasses
-    // the layout-viewport gap that on some iOS PWA configurations leaves the
-    // in-flow tab bar floating above the home indicator with a dead zone below.
+    // A negative bottom offset lets the shell overshoot into the physical
+    // safe-area, which helps stubborn iOS/PWA layouts where bottom:0 still
+    // leaves a visible gap and a partially dead touch zone under the bar.
     <div style={{
       position: 'fixed',
       left: 0,
       right: 0,
-      bottom: 0,
+      bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px) - 6px)',
       zIndex: 120,
       backgroundColor: appBgBase,
       borderTop: '0.5px solid rgba(180,172,155,0.1)',
-      // Tight bottom: just enough clearance above the home indicator (~6px of
-      // visible safe-area). max() floors at 8px in browser mode (no env()).
+      // Re-add the inset as inner padding so the visible tab row still sits a
+      // few pixels above the home indicator while the shell reaches full depth.
       paddingTop: 8,
       paddingLeft: 14,
       paddingRight: 14,
-      paddingBottom: 'max(calc(env(safe-area-inset-bottom, 0px) - 14px), 8px)',
+      paddingBottom: 'max(calc(env(safe-area-inset-bottom, 0px) + 10px), 16px)',
       backdropFilter: 'blur(24px) saturate(180%)',
       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
     }}>
