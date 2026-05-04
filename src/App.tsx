@@ -6936,16 +6936,14 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       position: 'fixed',
       left: 0,
       right: 0,
-      bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px) - 6px)',
+      bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px) - 4px)',
       zIndex: 120,
-      backgroundColor: appBgBase,
-      borderTop: '0.5px solid rgba(180,172,155,0.1)',
-      // Re-add the inset as inner padding so the visible tab row still sits a
-      // few pixels above the home indicator while the shell reaches full depth.
-      paddingTop: 8,
+      background: `linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.72) 28%, ${appBgBase} 100%)`,
+      // Keep the row low and relaxed while still covering the physical bottom.
+      paddingTop: 4,
       paddingLeft: 14,
       paddingRight: 14,
-      paddingBottom: 'max(calc(env(safe-area-inset-bottom, 0px) + 10px), 16px)',
+      paddingBottom: 'max(calc(env(safe-area-inset-bottom, 0px) - 8px), 10px)',
       backdropFilter: 'blur(24px) saturate(180%)',
       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
     }}>
@@ -8016,7 +8014,7 @@ export default function App() {
               overflowX: 'hidden',
               width: '100%',
               touchAction: 'pan-y',
-              paddingBottom: 'calc(78px + env(safe-area-inset-bottom, 0px))',
+              paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
