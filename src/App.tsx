@@ -5151,8 +5151,21 @@ function OperationsScreen() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ ...T.h1, color: text.primary }}>{t('operations_title')}</div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={downloadExport} disabled={dlExport} title={t('download_csv')} style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold, fontSize: 16 }}>{dlExport ? '…' : '📊'}</button>
-            <button onClick={downloadStatement} title={t('statement_pdf')} style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold, fontSize: 16 }}>📄</button>
+            <button onClick={downloadExport} disabled={dlExport} title={t('download_csv')} style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold }}>
+              {dlExport ? <span style={{ fontSize: 16 }}>…</span> : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 4h12l4 4v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z" stroke={gold} strokeWidth="1.6" strokeLinejoin="round"/>
+                  <path d="M14 4v5h5M7 13h10M7 17h7" stroke={gold} strokeWidth="1.6" strokeLinecap="round"/>
+                </svg>
+              )}
+            </button>
+            <button onClick={downloadStatement} title={t('statement_pdf')} style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke={gold} strokeWidth="1.6" strokeLinejoin="round"/>
+                <path d="M14 2v6h6" stroke={gold} strokeWidth="1.6" strokeLinejoin="round"/>
+                <path d="M9 14h6M9 18h4" stroke={gold} strokeWidth="1.6" strokeLinecap="round"/>
+              </svg>
+            </button>
           </div>
         </div>
         {/* Search */}
@@ -5194,7 +5207,18 @@ function OperationsScreen() {
                 borderRadius: 100, cursor: 'pointer', fontFamily: 'inherit',
                 transition: 'background 0.15s, color 0.15s',
               }}>
-                {s === 'desc' ? `↓ ${t('sort_newest')}` : s === 'asc' ? `↑ ${t('sort_oldest')}` : `# ${t('sort_amount')}`}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  {s === 'desc' && (
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M12 4v16M6 14l6 6 6-6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  )}
+                  {s === 'asc' && (
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M12 20V4M6 10l6-6 6 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  )}
+                  {s === 'amount' && (
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M7 7h7a3 3 0 010 6H8a3 3 0 000 6h9" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  )}
+                  {s === 'desc' ? t('sort_newest') : s === 'asc' ? t('sort_oldest') : t('sort_amount')}
+                </span>
               </button>
             ))}
           </div>
@@ -6816,7 +6840,12 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       zIndex: 120,
       backgroundColor: appBgBase,
       borderTop: '0.5px solid rgba(180,172,155,0.1)',
-      padding: '8px 14px max(env(safe-area-inset-bottom, 0px), 8px)',
+      // Tight bottom: just enough clearance above the home indicator (~6px of
+      // visible safe-area). max() floors at 8px in browser mode (no env()).
+      paddingTop: 8,
+      paddingLeft: 14,
+      paddingRight: 14,
+      paddingBottom: 'max(calc(env(safe-area-inset-bottom, 0px) - 14px), 8px)',
       backdropFilter: 'blur(24px) saturate(180%)',
       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
     }}>
@@ -7887,7 +7916,7 @@ export default function App() {
               overflowX: 'hidden',
               width: '100%',
               touchAction: 'pan-y',
-              paddingBottom: 'calc(90px + env(safe-area-inset-bottom, 0px))',
+              paddingBottom: 'calc(78px + env(safe-area-inset-bottom, 0px))',
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
