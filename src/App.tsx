@@ -8013,7 +8013,8 @@ export default function App() {
               overflowX: 'hidden',
               width: '100%',
               touchAction: 'pan-y',
-              paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
+              // Reserve enough room so the last card/chart never sits under the floating tab bar.
+              paddingBottom: 'calc(112px + env(safe-area-inset-bottom, 0px))',
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
