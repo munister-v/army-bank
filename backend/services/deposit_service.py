@@ -86,7 +86,7 @@ class DepositService:
                         f" VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},'active',{ph})" + suffix,
                         (user_id, acc['id'], amount, interest_rate, term_months,
                          term_days, maturity_date.isoformat(), interest_earned,
-                         1 if auto_renew else 0, description or f'Депозит {term_months}м.'),
+                         bool(auto_renew), description or f'Депозит {term_months}м.'),
                     )
                     dep_id = insert_last_id(cur)
                 return self.get_deposit(dep_id, user_id)
