@@ -4604,7 +4604,7 @@ function DepositsSection() {
 
   async function createDeposit(e: React.FormEvent) {
     e.preventDefault();
-    const amt = parseFloat(String(amount).replace(',', '.'));
+    const amt = parseFloat(String(amount).replace(/[\s ]/g, '').replace(',', '.'));
     if (!amt || amt < 500) { toast(t('dep_min_amount')); return; }
     setCreating(true);
     try {
@@ -4614,8 +4614,10 @@ function DepositsSection() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}`, 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify({ amount: amt, term_months: termMonths, auto_renew: autoRenew, idempotency_key: idempotencyKey }),
       });
-      const j = await r.json();
-      if (!j.ok) throw new Error(j.error || t('operation_error'));
+      let j: Record<string, unknown>;
+      try { j = await r.json(); }
+      catch { throw new Error('Сервер не відповів — зачекайте хвилину і спробуйте ще раз'); }
+      if (!j.ok) throw new Error((j.error as string) || t('operation_error'));
       toast(`✓ Депозит ₴${amt.toLocaleString('uk-UA')} відкрито`);
       setShowCreate(false); setAmount('');
       load();
@@ -4871,16 +4873,18 @@ function CreditsSection() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    const amtNum = parseFloat(amount.replace(',', '.'));
+    const amtNum = parseFloat(amount.replace(/[\s ]/g, '').replace(',', '.'));
     if (!amtNum || amtNum < 1000) { toast('Мінімальна сума — ₴1 000'); return; }
     if (amtNum > 500000) { toast('Максимальна сума — ₴500 000'); return; }
     setCreating(true);
     try {
       const idempotencyKey = `credit-create-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const r = await fetch('/api/credits', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey }, body: JSON.stringify({ amount: amtNum, term_months: term, description: desc, idempotency_key: idempotencyKey }) });
-      const j = await r.json();
+      let j: Record<string, unknown>;
+      try { j = await r.json(); }
+      catch { throw new Error('Сервер не відповів — зачекайте хвилину і спробуйте ще раз'); }
       if (j.ok) { setShowCreate(false); setAmount(''); setDesc(''); toast('✅ Кредит оформлено!'); load(); }
-      else toast(j.error || j.message || 'Помилка сервера');
+      else toast((j.error as string) || (j.message as string) || 'Помилка сервера');
     } catch (err) { toast(err instanceof Error ? err.message : 'Помилка мережі'); } finally { setCreating(false); }
   }
 
@@ -6810,8 +6814,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       zIndex: 120,
       backgroundColor: appBgBase,
       borderTop: '0.5px solid rgba(180,172,155,0.1)',
-      padding: '10px 14px 0',
-      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      padding: '10px 14px max(env(safe-area-inset-bottom, 0px), 10px)',
       backdropFilter: 'blur(24px) saturate(180%)',
       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
     }}>
@@ -7882,7 +7885,7 @@ export default function App() {
               overflowX: 'hidden',
               width: '100%',
               touchAction: 'pan-y',
-              paddingBottom: 16,
+              paddingBottom: 'calc(90px + env(safe-area-inset-bottom, 0px))',
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
