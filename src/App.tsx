@@ -6936,14 +6936,14 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       position: 'fixed',
       left: 0,
       right: 0,
-      bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px) - 4px)',
+      bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px) - 18px)',
       zIndex: 120,
       background: `linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.72) 28%, ${appBgBase} 100%)`,
       // Keep the row low and relaxed while still covering the physical bottom.
-      paddingTop: 4,
+      paddingTop: 2,
       paddingLeft: 14,
       paddingRight: 14,
-      paddingBottom: 'max(calc(env(safe-area-inset-bottom, 0px) - 8px), 10px)',
+      paddingBottom: 'max(calc(env(safe-area-inset-bottom, 0px) - 22px), 0px)',
       backdropFilter: 'blur(24px) saturate(180%)',
       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
     }}>
