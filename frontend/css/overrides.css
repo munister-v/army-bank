@@ -10246,13 +10246,20 @@ html.install-banner-visible #appScreen .app-content {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   PWA STANDALONE FIX: высокоспецифичные правила (specificity 0,4,1)
-   перебивают #appScreen #sidebar.bottom-nav (specificity 0,2,1) которые
-   задают min-height: calc(72px + env(safe-area-inset-bottom)) = 106px
-   на iPhone → навигация растягивалась в PWA но была нормальной в браузере
+   PWA STANDALONE FIX
+   В браузере safe-area-inset-bottom = 0 → nav = 64px, border-radius выглядит ок.
+   В PWA standalone safe-area-inset-bottom = 34px → nav = 98px, скруглённые
+   углы + align-items:center смещают иконки в центр 98px вместо видимых 64px.
+   Решение: в standalone — flush бар без скруглений, иконки прижаты сверху.
    ══════════════════════════════════════════════════════════════════════ */
 @media (max-width: 767px) {
-  /* Standalone nav rule removed in favor of universal flat bottom bar */
+  html.app-standalone .bottom-nav {
+    border-radius: 0 !important;
+    align-items: flex-start !important;
+    padding-top: 10px !important;
+    border-top: 0.5px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: none !important;
+  }
 
   /* Контент: в standalone нет browser-toolbar, только safe-area + nav */
   html.app-standalone #appScreen .app-content {
