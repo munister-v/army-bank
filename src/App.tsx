@@ -6805,16 +6805,18 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const tabs = getTabs(t);
   const activeIdx = tabs.findIndex(tab => tab.k === active);
   return (
-    // position:fixed + gradient ending at #07150f (exact match of html/body
-    // background). iOS safe-area zone below shows the same #07150f from body,
-    // so the seam is invisible regardless of whether bottom:0 reaches the
-    // physical screen edge.
+    // position:fixed bottom:0 anchors directly to the viewport edge — bypasses
+    // the layout-viewport gap that on some iOS PWA configurations leaves the
+    // in-flow tab bar floating above the home indicator with a dead zone below.
     <div style={{
-      flexShrink: 0,
+      position: 'fixed',
+      left: 0,
+      right: 0,
+      bottom: 0,
       zIndex: 120,
       backgroundColor: appBgBase,
       borderTop: '0.5px solid rgba(180,172,155,0.1)',
-      padding: '10px 14px max(env(safe-area-inset-bottom, 0px), 10px)',
+      padding: '8px 14px max(env(safe-area-inset-bottom, 0px), 8px)',
       backdropFilter: 'blur(24px) saturate(180%)',
       WebkitBackdropFilter: 'blur(24px) saturate(180%)',
     }}>
