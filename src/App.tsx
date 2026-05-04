@@ -6929,33 +6929,32 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const tabs = getTabs(t);
   const activeIdx = tabs.findIndex(tab => tab.k === active);
   return (
-    // A negative bottom offset lets the shell overshoot into the physical
-    // safe-area, which helps stubborn iOS/PWA layouts where bottom:0 still
-    // leaves a visible gap and a partially dead touch zone under the bar.
     <div style={{
       position: 'fixed',
       left: 0,
       right: 0,
-      bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px) - 18px)',
+      bottom: 0,
       zIndex: 120,
-      background: `linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.72) 28%, ${appBgBase} 100%)`,
-      // Keep the row low and relaxed while still covering the physical bottom.
-      paddingTop: 2,
+      background: 'transparent',
+      pointerEvents: 'none',
+      paddingTop: 0,
       paddingLeft: 14,
       paddingRight: 14,
-      paddingBottom: 'max(calc(env(safe-area-inset-bottom, 0px) - 22px), 0px)',
-      backdropFilter: 'blur(24px) saturate(180%)',
-      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+      paddingBottom: 'max(calc(env(safe-area-inset-bottom, 0px) - 8px), 2px)',
     }}>
       {/* Tab row */}
       <div style={{
         position: 'relative',
+        pointerEvents: 'auto',
         padding: '5px',
         background: 'rgba(12,26,20,0.6)',
         border: '1px solid rgba(180,172,155,0.2)',
         borderRadius: 28,
         display: 'flex',
+        marginBottom: 0,
         boxShadow: '0 8px 22px rgba(0,0,0,0.3), inset 0 1px 0 rgba(230,225,210,0.08)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
       }}>
         <div style={{
           position: 'absolute', top: 5, bottom: 5,
