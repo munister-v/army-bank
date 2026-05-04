@@ -6935,12 +6935,13 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       right: 0,
       bottom: 0,
       zIndex: 120,
-      background: 'transparent',
+      background: `linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.12) 18%, rgba(7,21,15,0.88) 56%, ${appBgBase} 100%)`,
       pointerEvents: 'none',
       paddingTop: 0,
       paddingLeft: 14,
       paddingRight: 14,
       paddingBottom: 'max(calc(env(safe-area-inset-bottom, 0px) - 8px), 2px)',
+      overflow: 'hidden',
     }}>
       {/* Tab row */}
       <div style={{
