@@ -925,6 +925,206 @@
       .app-card { width: 260px; }
       .float-badge { display: none; }
     }
+
+    /* ─── GALLERY ─── */
+    .gallery {
+      padding: 120px 0 140px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .gallery-glow {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 900px;
+      height: 600px;
+      background: radial-gradient(ellipse, rgba(200,168,75,.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .gallery .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .gallery-header {
+      text-align: center;
+      margin-bottom: 72px;
+    }
+
+    /* ─── CAROUSEL ─── */
+    .gallery-track-wrap {
+      position: relative;
+      /* fade edges */
+      mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+      overflow: hidden;
+    }
+
+    .gallery-track {
+      display: flex;
+      gap: 28px;
+      overflow-x: auto;
+      padding: 24px 60px 32px;
+      scroll-snap-type: x mandatory;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .gallery-track::-webkit-scrollbar { display: none; }
+
+    /* ─── PHONE MOCKUP ─── */
+    .phone-slide {
+      flex: 0 0 auto;
+      scroll-snap-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      cursor: grab;
+    }
+    .phone-slide:active { cursor: grabbing; }
+
+    .phone-frame {
+      position: relative;
+      width: 220px;
+      border-radius: 40px;
+      background: #0a0a0a;
+      box-shadow:
+        0 0 0 1.5px rgba(255,255,255,0.12),
+        0 0 0 8px #0f0f0f,
+        0 0 0 9.5px rgba(255,255,255,0.08),
+        0 40px 80px rgba(0,0,0,0.6),
+        0 10px 20px rgba(0,0,0,0.4);
+      transition: transform .4s cubic-bezier(.34,1.56,.64,1),
+                  box-shadow .4s ease;
+      overflow: hidden;
+    }
+
+    .phone-frame:hover {
+      transform: translateY(-12px) scale(1.03);
+      box-shadow:
+        0 0 0 1.5px rgba(200,168,75,0.4),
+        0 0 0 8px #0f0f0f,
+        0 0 0 9.5px rgba(200,168,75,0.15),
+        0 60px 100px rgba(0,0,0,0.7),
+        0 20px 40px rgba(200,168,75,0.15);
+    }
+
+    /* Dynamic island */
+    .phone-island {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 72px;
+      height: 22px;
+      background: #000;
+      border-radius: 12px;
+      z-index: 10;
+    }
+
+    .phone-screen {
+      width: 100%;
+      aspect-ratio: 9/19.5;
+      object-fit: cover;
+      object-position: top;
+      display: block;
+      border-radius: 40px;
+    }
+
+    /* placeholder when image not yet uploaded */
+    .phone-screen-placeholder {
+      width: 100%;
+      aspect-ratio: 9/19.5;
+      background: linear-gradient(160deg, #0d2a1c 0%, #071a10 60%, #0a1a0d 100%);
+      border-radius: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .phone-screen-placeholder svg {
+      opacity: 0.25;
+    }
+    .phone-screen-placeholder span {
+      font-size: 11px;
+      color: rgba(255,255,255,.3);
+      letter-spacing: 0.5px;
+    }
+
+    .phone-label {
+      text-align: center;
+    }
+    .phone-label-title {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .phone-label-sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    /* ─── CAROUSEL CONTROLS ─── */
+    .gallery-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 36px;
+    }
+
+    .gallery-arrow {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .gallery-arrow:hover {
+      background: rgba(255,255,255,.12);
+      border-color: rgba(255,255,255,.2);
+      color: var(--text);
+    }
+    .gallery-arrow svg { width: 18px; height: 18px; }
+
+    .gallery-dots {
+      display: flex;
+      gap: 6px;
+    }
+    .gallery-dot {
+      width: 6px; height: 6px;
+      border-radius: 3px;
+      background: var(--border);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .gallery-dot.active {
+      width: 22px;
+      background: var(--accent);
+    }
+
+    @media (max-width: 768px) {
+      .gallery { padding: 80px 0 100px; }
+      .gallery-header { margin-bottom: 48px; }
+      .gallery-track { padding: 16px 32px 24px; gap: 20px; }
+      .phone-frame { width: 180px; }
+    }
+
+    @media (max-width: 600px) {
+      .phone-frame { width: 160px; border-radius: 32px; }
+      .phone-island { width: 60px; height: 18px; top: 10px; }
+    }
   </style>
 </head>
 <body>
@@ -940,6 +1140,7 @@
     <nav>
       <a href="#features">Функції</a>
       <a href="#security">Безпека</a>
+      <a href="#gallery">Галерея</a>
       <a href="#how">Як це працює</a>
     </nav>
 
@@ -953,6 +1154,7 @@
   <div class="mobile-nav" id="mobile-nav">
     <a href="#features" class="mobile-nav-link">Функції</a>
     <a href="#security" class="mobile-nav-link">Безпека</a>
+    <a href="#gallery" class="mobile-nav-link">Галерея</a>
     <a href="#how" class="mobile-nav-link">Як це працює</a>
     <a href="/dashboard" class="btn btn-accent">Відкрити акаунт →</a>
   </div>
@@ -1195,6 +1397,179 @@
   </div>
 </section>
 
+<!-- ─── GALLERY ─── -->
+<section class="gallery" id="gallery">
+  <div class="gallery-glow"></div>
+  <div class="container">
+    <div class="gallery-header">
+      <div class="section-label fade-in">Інтерфейс</div>
+      <h2 class="section-title fade-in fade-in-delay-1">Додаток зсередини</h2>
+      <p class="section-sub fade-in fade-in-delay-2" style="margin: 0 auto;">Продуманий до дрібниць — від сплеш-екрану до аналітики витрат.</p>
+    </div>
+  </div>
+
+  <div class="gallery-track-wrap">
+    <div class="gallery-track" id="galleryTrack">
+
+      <!-- 1 Splash -->
+      <div class="phone-slide">
+        <div class="phone-frame">
+          <div class="phone-island"></div>
+          <img class="phone-screen" src="/screens/screen-9.jpg" alt="Splash ARMBank Toscana" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="phone-screen-placeholder" style="display:none">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><rect x="2" y="3" width="20" height="18" rx="3"/><circle cx="12" cy="12" r="4"/></svg>
+            <span>screen-9.jpg</span>
+          </div>
+        </div>
+        <div class="phone-label">
+          <div class="phone-label-title">Splash Screen</div>
+          <div class="phone-label-sub">Toscana Private Flow</div>
+        </div>
+      </div>
+
+      <!-- 2 Огляд -->
+      <div class="phone-slide">
+        <div class="phone-frame">
+          <div class="phone-island"></div>
+          <img class="phone-screen" src="/screens/screen-8.jpg" alt="Огляд" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="phone-screen-placeholder" style="display:none">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><rect x="2" y="3" width="20" height="18" rx="3"/><circle cx="12" cy="12" r="4"/></svg>
+            <span>screen-8.jpg</span>
+          </div>
+        </div>
+        <div class="phone-label">
+          <div class="phone-label-title">Огляд</div>
+          <div class="phone-label-sub">Баланс і картки</div>
+        </div>
+      </div>
+
+      <!-- 3 Операції -->
+      <div class="phone-slide">
+        <div class="phone-frame">
+          <div class="phone-island"></div>
+          <img class="phone-screen" src="/screens/screen-7.jpg" alt="Операції" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="phone-screen-placeholder" style="display:none">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><rect x="2" y="3" width="20" height="18" rx="3"/><circle cx="12" cy="12" r="4"/></svg>
+            <span>screen-7.jpg</span>
+          </div>
+        </div>
+        <div class="phone-label">
+          <div class="phone-label-title">Операції</div>
+          <div class="phone-label-sub">Аналітика витрат</div>
+        </div>
+      </div>
+
+      <!-- 4 Картки -->
+      <div class="phone-slide">
+        <div class="phone-frame">
+          <div class="phone-island"></div>
+          <img class="phone-screen" src="/screens/screen-6.jpg" alt="Мої картки" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="phone-screen-placeholder" style="display:none">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><rect x="2" y="3" width="20" height="18" rx="3"/><circle cx="12" cy="12" r="4"/></svg>
+            <span>screen-6.jpg</span>
+          </div>
+        </div>
+        <div class="phone-label">
+          <div class="phone-label-title">Мої картки</div>
+          <div class="phone-label-sub">Управління картками</div>
+        </div>
+      </div>
+
+      <!-- 5 Магазин — каталог -->
+      <div class="phone-slide">
+        <div class="phone-frame">
+          <div class="phone-island"></div>
+          <img class="phone-screen" src="/screens/screen-5.jpg" alt="Магазин каталог" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="phone-screen-placeholder" style="display:none">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><rect x="2" y="3" width="20" height="18" rx="3"/><circle cx="12" cy="12" r="4"/></svg>
+            <span>screen-5.jpg</span>
+          </div>
+        </div>
+        <div class="phone-label">
+          <div class="phone-label-title">Магазин</div>
+          <div class="phone-label-sub">Каталог товарів</div>
+        </div>
+      </div>
+
+      <!-- 6 Магазин — замовлення -->
+      <div class="phone-slide">
+        <div class="phone-frame">
+          <div class="phone-island"></div>
+          <img class="phone-screen" src="/screens/screen-4.jpg" alt="Замовлення" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="phone-screen-placeholder" style="display:none">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><rect x="2" y="3" width="20" height="18" rx="3"/><circle cx="12" cy="12" r="4"/></svg>
+            <span>screen-4.jpg</span>
+          </div>
+        </div>
+        <div class="phone-label">
+          <div class="phone-label-title">Замовлення</div>
+          <div class="phone-label-sub">Історія покупок</div>
+        </div>
+      </div>
+
+      <!-- 7 Профіль -->
+      <div class="phone-slide">
+        <div class="phone-frame">
+          <div class="phone-island"></div>
+          <img class="phone-screen" src="/screens/screen-3.jpg" alt="Профіль" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="phone-screen-placeholder" style="display:none">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><rect x="2" y="3" width="20" height="18" rx="3"/><circle cx="12" cy="12" r="4"/></svg>
+            <span>screen-3.jpg</span>
+          </div>
+        </div>
+        <div class="phone-label">
+          <div class="phone-label-title">Профіль</div>
+          <div class="phone-label-sub">Особисті дані</div>
+        </div>
+      </div>
+
+      <!-- 8 Безпека -->
+      <div class="phone-slide">
+        <div class="phone-frame">
+          <div class="phone-island"></div>
+          <img class="phone-screen" src="/screens/screen-2.jpg" alt="Безпека" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="phone-screen-placeholder" style="display:none">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><rect x="2" y="3" width="20" height="18" rx="3"/><circle cx="12" cy="12" r="4"/></svg>
+            <span>screen-2.jpg</span>
+          </div>
+        </div>
+        <div class="phone-label">
+          <div class="phone-label-title">Безпека</div>
+          <div class="phone-label-sub">Face ID / 2FA</div>
+        </div>
+      </div>
+
+      <!-- 9 Досягнення -->
+      <div class="phone-slide">
+        <div class="phone-frame">
+          <div class="phone-island"></div>
+          <img class="phone-screen" src="/screens/screen-1.jpg" alt="Досягнення" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="phone-screen-placeholder" style="display:none">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><rect x="2" y="3" width="20" height="18" rx="3"/><circle cx="12" cy="12" r="4"/></svg>
+            <span>screen-1.jpg</span>
+          </div>
+        </div>
+        <div class="phone-label">
+          <div class="phone-label-title">Досягнення</div>
+          <div class="phone-label-sub">Геймификація</div>
+        </div>
+      </div>
+
+    </div><!-- /gallery-track -->
+  </div><!-- /gallery-track-wrap -->
+
+  <div class="gallery-controls">
+    <button class="gallery-arrow" id="galleryPrev" aria-label="Назад">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="gallery-dots" id="galleryDots"></div>
+    <button class="gallery-arrow" id="galleryNext" aria-label="Вперед">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+  </div>
+
+</section>
+
 </main>
 
 <!-- ─── FOOTER ─── -->
@@ -1284,6 +1659,74 @@
   }
   handleResize();
   window.addEventListener('resize', handleResize);
+
+  // ── Gallery carousel ──
+  (function() {
+    const track  = document.getElementById('galleryTrack');
+    const dotsWrap = document.getElementById('galleryDots');
+    if (!track) return;
+
+    const slides = track.querySelectorAll('.phone-slide');
+    const total  = slides.length;
+    let current  = 0;
+
+    // Build dots
+    slides.forEach((_, i) => {
+      const d = document.createElement('div');
+      d.className = 'gallery-dot' + (i === 0 ? ' active' : '');
+      d.addEventListener('click', () => goTo(i));
+      dotsWrap.appendChild(d);
+    });
+
+    function updateDots() {
+      dotsWrap.querySelectorAll('.gallery-dot').forEach((d, i) => {
+        d.classList.toggle('active', i === current);
+      });
+    }
+
+    function goTo(idx) {
+      current = Math.max(0, Math.min(total - 1, idx));
+      const slide = slides[current];
+      const slideLeft = slide.offsetLeft;
+      const slideW    = slide.offsetWidth;
+      const trackW    = track.offsetWidth;
+      track.scrollTo({ left: slideLeft - (trackW - slideW) / 2, behavior: 'smooth' });
+      updateDots();
+    }
+
+    document.getElementById('galleryPrev').addEventListener('click', () => goTo(current - 1));
+    document.getElementById('galleryNext').addEventListener('click', () => goTo(current + 1));
+
+    // Sync dots on scroll (debounced)
+    let scrollTimer;
+    track.addEventListener('scroll', () => {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        const trackCenter = track.scrollLeft + track.offsetWidth / 2;
+        let closest = 0, minDist = Infinity;
+        slides.forEach((s, i) => {
+          const dist = Math.abs(s.offsetLeft + s.offsetWidth / 2 - trackCenter);
+          if (dist < minDist) { minDist = dist; closest = i; }
+        });
+        current = closest;
+        updateDots();
+      }, 80);
+    }, { passive: true });
+
+    // Drag to scroll (mouse)
+    let isDragging = false, startX = 0, scrollStart = 0;
+    track.addEventListener('mousedown', e => {
+      isDragging = true; startX = e.pageX; scrollStart = track.scrollLeft;
+      track.style.cursor = 'grabbing';
+    });
+    document.addEventListener('mousemove', e => {
+      if (!isDragging) return;
+      track.scrollLeft = scrollStart - (e.pageX - startX);
+    });
+    document.addEventListener('mouseup', () => {
+      isDragging = false; track.style.cursor = '';
+    });
+  })();
 </script>
 
 </body>
