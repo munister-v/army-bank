@@ -7207,13 +7207,13 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       paddingTop: 12,
       paddingLeft: 12,
       paddingRight: 12,
-      paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
+      paddingBottom: 0,
     }}>
       {/* Tab row */}
       <div style={{
         position: 'relative',
         pointerEvents: 'auto',
-        padding: '6px 6px 8px',
+        padding: `6px 6px calc(env(safe-area-inset-bottom, 0px) + 8px)`,
         background: 'linear-gradient(180deg, rgba(13,30,22,0.88) 0%, rgba(9,19,15,0.94) 100%)',
         border: '1px solid rgba(180,172,155,0.15)',
         borderRadius: 24,
