@@ -133,7 +133,9 @@ class DepositService:
             raise ValueError(f'Депозит не можна закрити (статус: {dep["status"]}).')
 
         today = date.today()
-        mat = date.fromisoformat(dep['maturity_date'])
+        mat = self._coerce_date(dep.get('maturity_date'))
+        if not mat:
+            raise ValueError('Некоректна дата завершення депозиту.')
         is_early = today < mat or early
 
         if is_early:
@@ -234,7 +236,10 @@ class DepositService:
     def _enrich(d: dict) -> dict:
         today = date.today()
         try:
-            mat = date.fromisoformat(str(d.get('maturity_date', '')))
+            mat = DepositService._coerce_date(d.get('maturity_date'))
+            if not mat:
+                raise ValueError('invalid maturity_date')
+            d['maturity_date'] = mat.isoformat()
             days_left = (mat - today).days
             d['days_left'] = max(0, days_left)
             d['matured'] = days_left <= 0
@@ -246,6 +251,12 @@ class DepositService:
             d['days_left'] = 0
             d['matured'] = False
             d['progress'] = 0.0
+        for key in ('created_at', 'closed_at'):
+            val = d.get(key)
+            if hasattr(val, 'isoformat'):
+                d[key] = val.isoformat()
+        if 'auto_renew' in d:
+            d['auto_renew'] = bool(d.get('auto_renew'))
         # Accrued interest so far (approx)
         try:
             if d.get('status') == 'active':
@@ -267,6 +278,22 @@ class DepositService:
         month = month % 12 + 1
         day = min(d.day, calendar.monthrange(year, month)[1])
         return date(year, month, day)
+
+    @staticmethod
+    def _coerce_date(value: object) -> date | None:
+        if isinstance(value, date) and not isinstance(value, datetime):
+            return value
+        if isinstance(value, datetime):
+            return value.date()
+        if value is None:
+            return None
+        raw = str(value).strip()
+        if not raw:
+            return None
+        try:
+            return date.fromisoformat(raw[:10])
+        except Exception:
+            return None
 
     def _ensure_schema(self):
         for sql in [

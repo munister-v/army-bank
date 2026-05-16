@@ -157,7 +157,7 @@ def create_app() -> Flask:
     @app.after_request
     def add_headers(resp):
         resp.headers['X-Content-Type-Options'] = 'nosniff'
-        # X-Frame-Options intentionally omitted — ARM OS iframe embedding allowed
+        # Keep HTML shells embeddable, but harden API/health responses.
         resp.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
         # Permissions-Policy set below, after norm_path is known (messenger needs microphone)
         resp.headers.setdefault('Cross-Origin-Opener-Policy', 'unsafe-none')
@@ -198,6 +198,8 @@ def create_app() -> Flask:
         content_type = (resp.headers.get('Content-Type') or '').lower()
         is_html = 'text/html' in content_type
         is_versioned_asset = bool((_req.args.get('v') or '').strip())
+        if norm_path.startswith('/api/') or norm_path == '/health':
+            resp.headers.setdefault('X-Frame-Options', 'DENY')
         if is_html:
             # Always fetch fresh HTML to prevent old auth/dashboard shell flashes.
             resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'

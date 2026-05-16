@@ -10,11 +10,8 @@ import valdorciaHillsImage from './assets/italy/valdorcia-hills.png';
 import valdorciaChapelImage from './assets/italy/valdorcia-chapel.png';
 import sicilyEmblemImage from './assets/italy/sicily-emblem.png';
 
-export class ErrorBoundary extends Component<{ children: React.ReactNode }, { error: string | null }> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { error: null };
-  }
+export class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: string | null }> {
+  override state = { error: null } as { error: string | null };
   static getDerivedStateFromError(err: Error): { error: string | null } { return { error: err.message }; }
   render() {
     if (this.state.error) {
@@ -51,6 +48,8 @@ const text = {
 };
 const radius = { sm: 10, md: 14, lg: 18, xl: 22, '2xl': 28 };
 const fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+const mobileDockInset = 'calc(108px + env(safe-area-inset-bottom, 0px))';
+const mobileDockInsetCompact = 'calc(88px + env(safe-area-inset-bottom, 0px))';
 
 // ─── Type scale helpers ───────────────────────────────────────
 const T = {
@@ -141,10 +140,10 @@ const useLayout = () => useContext(LayoutCtx);
 // ─── App context (logout + navigation + toast + user + data) ─
 type TabKey = 'overview' | 'operations' | 'cards' | 'market' | 'profile';
 type TransferMode = 'topup' | 'by_card' | 'by_account';
-interface UserInfo { full_name: string; phone: string; email: string; bank_account_number?: string; }
-interface AccountInfo { id: number; account_number: string; balance: number; currency: string; }
-interface TxItem { id: number; tx_type: string; direction: 'in' | 'out'; amount: number; description: string; created_at: string; related_account?: string; }
-interface CardInfo { id: number; masked_number: string; expiry_display: string; card_type: string; design: string; status: string; holder_name: string; display_balance: number; is_primary: boolean; }
+interface UserInfo { id: number; full_name: string; phone: string; email: string; bank_account_number?: string; }
+interface AccountInfo { id: number; account_number: string; balance: number; currency?: string; }
+interface TxItem { id: number; tx_type: string; direction: 'in' | 'out' | string; amount: number; description: string; created_at: string; related_account?: string | null; note?: string | null; }
+interface CardInfo { id: number; masked_number?: string; expiry_display?: string; card_type?: string; design?: string; status?: string; holder_name?: string; display_balance?: number; is_primary?: boolean; }
 interface AppCtxType {
   logout: () => void; goTo: (tab: TabKey) => void; toast: (msg: string) => void;
   user: UserInfo | null; account: AccountInfo | null;
@@ -288,7 +287,6 @@ const BankDataCtx = createContext<BankDataCtxType>({
 const useBankData = () => useContext(BankDataCtx);
 
 const API_BASE = (typeof window !== 'undefined' && (window as { ARMY_BANK_BASE?: string }).ARMY_BANK_BASE) || '';
-const uahFmt = new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function localeForLang(lang: AppLang): string {
   return lang === 'en' ? 'en-US'
@@ -297,8 +295,15 @@ function localeForLang(lang: AppLang): string {
     : 'uk-UA';
 }
 
-function formatUah(value: number): string {
-  return `₴ ${uahFmt.format(Number.isFinite(value) ? value : 0)}`;
+function formatUah(value: number, lang: AppLang = getStoredLanguage()): string {
+  return `₴ ${new Intl.NumberFormat(localeForLang(lang), {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(value) ? value : 0)}`;
+}
+
+function apiUrl(url: string): string {
+  return (url.startsWith('http') || url.startsWith('//')) ? url : `${API_BASE}${url}`;
 }
 
 function analyticsChangeLabel(analytics?: ApiAnalytics | null): string {
@@ -1471,7 +1476,7 @@ async function ensureApiStatusHealthy(): Promise<void> {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 4500);
   try {
-    const res = await fetch('/api-status', {
+    const res = await fetch(apiUrl('/api-status'), {
       method: 'GET',
       cache: 'no-store',
       signal: controller.signal,
@@ -1489,13 +1494,12 @@ async function ensureApiStatusHealthy(): Promise<void> {
 }
 
 async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
-  const fullUrl = (url.startsWith('http') || url.startsWith('//')) ? url : `${API_BASE}${url}`;
   const token = getToken();
   const headers = new Headers(options.headers || {});
   headers.set('Content-Type', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const response = await fetch(fullUrl, { ...options, headers });
+  const response = await fetch(apiUrl(url), { ...options, headers });
   const refreshed = response.headers.get('X-Refresh-Token');
   if (refreshed) localStorage.setItem('army_bank_token', refreshed);
 
@@ -1615,15 +1619,16 @@ function openPdfBlobInNewTab(blob: Blob, fallbackFileName: string, toast?: (msg:
 function Toast({ msg }: { msg: string }) {
   return (
     <div style={{
-      position: 'fixed', bottom: 'calc(90px + env(safe-area-inset-bottom, 0px))',
+      position: 'fixed', bottom: mobileDockInset,
       left: '50%', transform: 'translateX(-50%)',
       zIndex: 9999, pointerEvents: 'none',
-      padding: '10px 20px', borderRadius: 100,
-      background: 'rgba(12,28,20,0.94)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
-      border: '1px solid rgba(180,172,155,0.22)',
+      padding: '12px 18px', borderRadius: 18,
+      background: 'linear-gradient(180deg, rgba(12,30,21,0.96) 0%, rgba(8,20,14,0.98) 100%)',
+      backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+      border: '1px solid rgba(180,172,155,0.18)',
       color: text.primary, ...T.sm, fontWeight: 500,
-      boxShadow: '0 12px 32px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(180,172,155,0.1)',
-      maxWidth: 'calc(100vw - 48px)', textAlign: 'center', whiteSpace: 'nowrap',
+      boxShadow: '0 16px 40px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.06)',
+      maxWidth: 'min(420px, calc(100vw - 32px))', textAlign: 'center', whiteSpace: 'normal', lineHeight: 1.35,
     }}>{msg}</div>
   );
 }
@@ -2178,7 +2183,7 @@ function BalanceHistoryChart() {
     const token = localStorage.getItem('army_bank_token');
     if (!token) { setLoading(false); return; }
     const ctrl = new AbortController();
-    fetch('/api/analytics/balance-history?days=14', { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal })
+    fetch(apiUrl('/api/analytics/balance-history?days=14'), { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal })
       .then(r => r.ok ? r.json() : null)
       .then(j => { if (j?.ok && Array.isArray(j.data)) setPoints(j.data); })
       .catch(() => {})
@@ -2710,7 +2715,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
       if (!token) { setLoading(false); setError(t('session_expired')); return; }
       try {
         await ensureApiStatusHealthy();
-        const r = await fetch('/api/3ds/challenge', {
+        const r = await fetch(apiUrl('/api/3ds/challenge'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ amount: amtNum, recipient: recipient.trim() }),
@@ -2748,7 +2753,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
         ? { card_number: normalizedCard, amount: amtNum, description: description || t('transfer_by_card_title'), idempotency_key: idempotencyKey }
         : { recipient_account_number: recipient.trim(), amount: amtNum, description: description || t('transfer_by_account_title'), idempotency_key: idempotencyKey };
       if (tdsSession) body['tds_session'] = tdsSession;
-      const r = await fetch(url, {
+      const r = await fetch(apiUrl(url), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3579,10 +3584,10 @@ function OverviewScreen() {
   const cards = apiCards.length > 0
     ? apiCards.filter(c => c.status !== 'closed').map(c => apiCardToData(c, userNameUp))
     : [
-      { variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29' },
-      { variant: 'emerald', number: '1183', name: userNameUp, expiry: '02/29' },
-      { variant: 'platinum', number: '7147', name: userNameUp, expiry: '08/28' },
-      { variant: 'obsidian', number: '4402', name: userNameUp, expiry: '11/30' },
+      { variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29', balance: Number(account?.balance || 0), isPrimary: true },
+      { variant: 'emerald', number: '1183', name: userNameUp, expiry: '02/29', balance: Number(account?.balance || 0), isPrimary: false },
+      { variant: 'platinum', number: '7147', name: userNameUp, expiry: '08/28', balance: Number(account?.balance || 0), isPrimary: false },
+      { variant: 'obsidian', number: '4402', name: userNameUp, expiry: '11/30', balance: Number(account?.balance || 0), isPrimary: false },
     ];
   const safeCardIdx = Math.min(cardIdx, Math.max(0, cards.length - 1));
   const swipeStartXRef = useRef<number | null>(null);
@@ -4023,11 +4028,11 @@ function CardsScreen() {
   const { refresh } = useBankData();
   const userNameUp = (user?.full_name || 'ARMY BANK').toUpperCase();
   const statusText = (status?: string) => status === 'active' ? t('card_active_status') : status === 'blocked' ? t('card_frozen_status') : t('card_closed');
-  const FALLBACK_CARDS: (CardData & { id: number; type: string; limit: string; used: string; statusRaw: string; cardTypeRaw: string })[] = [
-    { id: 0, design: 'gold', variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29', type: t('card_virtual'), limit: '150 000', used: '48 230', status: statusText('active'), statusRaw: 'active', cardTypeRaw: 'virtual' },
-    { id: 0, design: 'florence', variant: 'florence', number: '1183', name: userNameUp, expiry: '02/29', type: t('card_physical'), limit: '80 000', used: '12 400', status: statusText('active'), statusRaw: 'active', cardTypeRaw: 'physical' },
-    { id: 0, design: 'venice', variant: 'venice', number: '7147', name: userNameUp, expiry: '08/28', type: t('card_physical'), limit: '500 000', used: '215 800', status: statusText('active'), statusRaw: 'active', cardTypeRaw: 'physical' },
-    { id: 0, design: 'tuscany_villa', variant: 'tuscany_villa', number: '4402', name: userNameUp, expiry: '11/30', type: t('card_virtual'), limit: '50 000', used: '0', status: statusText('blocked'), statusRaw: 'blocked', cardTypeRaw: 'virtual' },
+  const FALLBACK_CARDS: (CardData & { id: number; type: string; limit: string; used: string; statusRaw: string; cardTypeRaw: string; balance: number; isPrimary: boolean })[] = [
+    { id: 0, design: 'gold', variant: 'gold', number: '0001', name: userNameUp, expiry: '03/29', type: t('card_virtual'), limit: '150 000', used: '48 230', status: statusText('active'), statusRaw: 'active', cardTypeRaw: 'virtual', balance: Number(account?.balance || 0), isPrimary: true },
+    { id: 0, design: 'florence', variant: 'florence', number: '1183', name: userNameUp, expiry: '02/29', type: t('card_physical'), limit: '80 000', used: '12 400', status: statusText('active'), statusRaw: 'active', cardTypeRaw: 'physical', balance: Number(account?.balance || 0), isPrimary: false },
+    { id: 0, design: 'venice', variant: 'venice', number: '7147', name: userNameUp, expiry: '08/28', type: t('card_physical'), limit: '500 000', used: '215 800', status: statusText('active'), statusRaw: 'active', cardTypeRaw: 'physical', balance: Number(account?.balance || 0), isPrimary: false },
+    { id: 0, design: 'tuscany_villa', variant: 'tuscany_villa', number: '4402', name: userNameUp, expiry: '11/30', type: t('card_virtual'), limit: '50 000', used: '0', status: statusText('blocked'), statusRaw: 'blocked', cardTypeRaw: 'virtual', balance: Number(account?.balance || 0), isPrimary: false },
   ];
   const [designOverrides, setDesignOverrides] = useState<Record<number, string>>({});
   const cards = apiCards.length > 0
@@ -4679,7 +4684,7 @@ const DEPOSIT_TERMS = [1, 3, 6, 12];
 
 function DepositsSection() {
   const { toast } = useApp();
-  const { t } = usePreferences();
+  const { t, lang } = usePreferences();
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -4688,14 +4693,13 @@ function DepositsSection() {
   const [autoRenew, setAutoRenew] = useState(false);
   const [creating, setCreating] = useState(false);
   const [closing, setClosing] = useState<number | null>(null);
-  const token = () => localStorage.getItem('army_bank_token');
+  const locale = localeForLang(lang);
 
   async function load() {
     setLoading(true);
     try {
-      const r = await fetch('/api/deposits', { headers: { Authorization: `Bearer ${token()}` } });
-      const j = await r.json();
-      if (j.ok) setDeposits(j.data);
+      const data = await apiRequest<Deposit[]>('/api/deposits');
+      setDeposits(Array.isArray(data) ? data : []);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }
@@ -4709,19 +4713,16 @@ function DepositsSection() {
     setCreating(true);
     try {
       const idempotencyKey = `dep-create-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const r = await fetch('/api/deposits', {
+      await apiRequest('/api/deposits', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}`, 'Idempotency-Key': idempotencyKey },
+        headers: { 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify({ amount: amt, term_months: termMonths, auto_renew: autoRenew, idempotency_key: idempotencyKey }),
       });
-      let j: Record<string, unknown>;
-      try { j = await r.json(); }
-      catch { throw new Error('Сервер не відповів — зачекайте хвилину і спробуйте ще раз'); }
-      if (!j.ok) throw new Error((j.error as string) || t('operation_error'));
       toast(`✓ Депозит ₴${amt.toLocaleString('uk-UA')} відкрито`);
       setShowCreate(false); setAmount('');
+      setAutoRenew(false);
       load();
-    } catch (e) { toast(e instanceof Error ? e.message : t('operation_error')); }
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : t('operation_error')); }
     finally { setCreating(false); }
   }
 
@@ -4729,17 +4730,15 @@ function DepositsSection() {
     setClosing(dep.id);
     try {
       const idempotencyKey = `dep-close-${dep.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const r = await fetch(`/api/deposits/${dep.id}/close`, {
+      const data = await apiRequest<{ payout: number }>(`/api/deposits/${dep.id}/close`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}`, 'Idempotency-Key': idempotencyKey },
+        headers: { 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify({ early, idempotency_key: idempotencyKey }),
       });
-      const j = await r.json();
-      if (!j.ok) throw new Error(j.error || t('operation_error'));
-      const payout = j.data.payout;
+      const payout = data?.payout ?? 0;
       toast(`✓ Депозит закрито. Виплачено ₴${Number(payout).toLocaleString('uk-UA')}`);
       load();
-    } catch (e) { toast(e instanceof Error ? e.message : t('operation_error')); }
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : t('operation_error')); }
     finally { setClosing(null); }
   }
 
@@ -4760,14 +4759,80 @@ function DepositsSection() {
     return (amt * rate / 100 * days / 365).toFixed(2);
   };
 
+  const panelStyle: React.CSSProperties = {
+    background: 'linear-gradient(180deg, rgba(14,38,27,0.72) 0%, rgba(10,26,19,0.78) 100%)',
+    border: '1px solid rgba(171, 188, 162, 0.12)',
+    borderRadius: 26,
+    overflow: 'hidden',
+    boxShadow: '0 18px 44px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.04)',
+  };
+  const metricGridStyle: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: 1,
+    background: 'rgba(171,188,162,0.08)',
+    borderRadius: 18,
+    overflow: 'hidden',
+    marginBottom: 14,
+  };
+  const metricCellStyle: React.CSSProperties = {
+    background: 'rgba(7,21,15,0.14)',
+    padding: '14px 12px',
+  };
+  const actionBtnBase: React.CSSProperties = {
+    flex: 1,
+    padding: '14px 12px',
+    borderRadius: 16,
+    fontFamily: 'inherit',
+    fontSize: 13,
+    cursor: 'pointer',
+    transition: 'transform 0.18s ease, opacity 0.18s ease',
+  };
+  const sectionIconStyle: React.CSSProperties = {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    background: 'linear-gradient(145deg, rgba(181,156,96,0.24) 0%, rgba(100,80,44,0.26) 100%)',
+    border: '1px solid rgba(201,169,100,0.22)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: goldLight,
+    flexShrink: 0,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+  };
+
   return (
     <div style={{ margin: '0 0 24px' }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}>
-        <span style={{ ...T.h3, color: text.secondary }}>{t('dep_title')}</span>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14 }}>
+        <div style={sectionIconStyle}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M4 10h16M6 10V8a6 6 0 0112 0v2M6 10v8a2 2 0 002 2h8a2 2 0 002-2v-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M12 13v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </div>
+        <div>
+          <div style={{ ...T.h3, color: text.secondary }}>{t('dep_title')}</div>
+          <div style={{ fontSize: 12, color: text.muted }}>{deposits.filter(dep => dep.status === 'active').length > 0 ? `${deposits.filter(dep => dep.status === 'active').length} ${t('dep_status_active').toLowerCase()}` : t('dep_no_items')}</div>
+        </div>
         <div style={{ flex: 1 }} />
         <button
           onClick={() => setShowCreate(v => !v)}
-          style={{ fontSize: 12, color: gold, background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit', fontWeight: 600, cursor: 'pointer' }}
+          style={{
+            padding: '10px 16px',
+            borderRadius: 14,
+            background: showCreate ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, rgba(168,120,62,0.95), rgba(124,84,44,0.95))',
+            border: showCreate ? `1px solid ${bg.border}` : '1px solid rgba(201,169,100,0.22)',
+            color: showCreate ? text.secondary : '#faf4ea',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontFamily: 'inherit',
+            fontWeight: 700,
+            fontSize: 12.5,
+            cursor: 'pointer',
+            boxShadow: showCreate ? 'none' : '0 12px 28px rgba(79,52,22,0.22)',
+          }}
         >
           {showCreate ? '✕ Скасувати' : `+ ${t('dep_open')}`}
         </button>
@@ -4775,7 +4840,7 @@ function DepositsSection() {
 
       {/* Create form */}
       {showCreate && (
-        <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 20, padding: '20px', marginBottom: 14 }}>
+        <div style={{ ...panelStyle, padding: '20px 20px 18px', marginBottom: 14 }}>
           <form onSubmit={createDeposit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.8, marginBottom: 8 }}>{t('dep_amount').toUpperCase()}</div>
@@ -4783,7 +4848,7 @@ function DepositsSection() {
                 type="text" inputMode="decimal"
                 value={amount} onChange={e => setAmount(e.target.value)}
                 placeholder="0,00"
-                style={{ width: '100%', padding: '13px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.16)`, borderRadius: 12, color: text.primary, fontSize: 22, fontWeight: 300, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '14px 16px', background: 'rgba(255,255,255,0.045)', border: `1px solid rgba(180,172,155,0.16)`, borderRadius: 14, color: text.primary, fontSize: 22, fontWeight: 500, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }}
               />
               <div style={{ fontSize: 11, color: text.muted, marginTop: 4 }}>{t('dep_min_amount')}</div>
             </div>
@@ -4811,7 +4876,7 @@ function DepositsSection() {
             </div>
 
             {/* Projected return */}
-            <div style={{ background: 'rgba(201,169,100,0.07)', border: `1px solid rgba(201,169,100,0.15)`, borderRadius: 12, padding: '12px 14px', display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ background: 'rgba(201,169,100,0.07)', border: `1px solid rgba(201,169,100,0.15)`, borderRadius: 16, padding: '14px 16px', display: 'flex', justifyContent: 'space-between', gap: 12 }}>
               <div>
                 <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8 }}>{t('dep_accrued')}</div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: gold }}>+₴{projectedInterest()}</div>
@@ -4866,47 +4931,50 @@ function DepositsSection() {
           {deposits.map(dep => {
             const isActive = dep.status === 'active';
             const statusColor = depStatusColor(dep.status);
-            const matDate = dep.maturity_date ? new Date(dep.maturity_date).toLocaleDateString('uk-UA') : '—';
-            const total = Number(dep.amount) + Number(dep.interest_earned);
+            const matDate = dep.maturity_date ? new Date(dep.maturity_date).toLocaleDateString(locale) : '—';
+            const total = Number(dep.amount) + Number(dep.interest_earned || 0);
+            const progressPct = Math.round(Math.max(0, Math.min(1, Number(dep.progress || 0))) * 100);
             return (
-              <div key={dep.id} style={{
-                background: bg.card, border: `1px solid ${bg.border}`,
-                borderRadius: 20, overflow: 'hidden',
-              }}>
-                <div style={{ padding: '16px 18px 12px' }}>
+              <div key={dep.id} style={panelStyle}>
+                <div style={{ padding: '18px 18px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: 10, background: `rgba(201,169,100,0.12)`, border: `1px solid rgba(201,169,100,0.2)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>🏦</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: text.primary }}>{dep.description || `${t('dep_title')} ${dep.term_months}${t('dep_monthly')}`}</div>
-                      <div style={{ fontSize: 11, color: text.muted }}>{dep.interest_rate}% р.а. · {matDate}</div>
+                    <div style={{ ...sectionIconStyle, width: 56, height: 56, borderRadius: 18 }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M4 10h16M6 10V8a6 6 0 0112 0v2M6 10v8a2 2 0 002 2h8a2 2 0 002-2v-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M12 13v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                      </svg>
                     </div>
-                    <div style={{ padding: '3px 8px', borderRadius: 100, background: `${statusColor}1a`, border: `1px solid ${statusColor}44`, fontSize: 10, fontWeight: 600, color: statusColor, flexShrink: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: text.primary }}>{dep.description || `${t('dep_title')} ${dep.term_months}${t('dep_monthly')}`}</div>
+                      <div style={{ fontSize: 12, color: text.muted, marginTop: 2 }}>{dep.interest_rate}% р.а. · {matDate}</div>
+                    </div>
+                    <div style={{ padding: '7px 12px', borderRadius: 999, background: `${statusColor}16`, border: `1px solid ${statusColor}30`, fontSize: 11, fontWeight: 700, color: statusColor, flexShrink: 0, letterSpacing: 0.2 }}>
                       {depStatusLabel(dep.status)}
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <div>
+                  <div style={metricGridStyle}>
+                    <div style={metricCellStyle}>
                       <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8 }}>ТІЛО</div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: text.primary }}>₴{Number(dep.amount).toLocaleString('uk-UA')}</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: text.primary, marginTop: 4 }}>{formatUah(Number(dep.amount), lang)}</div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
+                    <div style={{ ...metricCellStyle, textAlign: 'right' }}>
                       <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8 }}>{t('dep_accrued')}</div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: isActive ? gold : text.secondary }}>+₴{Number(dep.interest_accrued).toLocaleString('uk-UA', { minimumFractionDigits: 2 })}</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: isActive ? gold : text.secondary, marginTop: 4 }}>+{formatUah(Number(dep.interest_accrued), lang)}</div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
+                    <div style={{ ...metricCellStyle, textAlign: 'right' }}>
                       <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8 }}>{t('dep_total_payout')}</div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: text.secondary }}>₴{total.toLocaleString('uk-UA', { minimumFractionDigits: 2 })}</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: text.secondary, marginTop: 4 }}>{formatUah(total, lang)}</div>
                     </div>
                   </div>
 
                   {isActive && (
                     <>
-                      <div style={{ height: 4, background: 'rgba(180,172,155,0.1)', borderRadius: 2, overflow: 'hidden', marginBottom: 6 }}>
-                        <div style={{ height: '100%', width: `${Math.round(dep.progress * 100)}%`, background: `linear-gradient(90deg, ${goldDark}, ${gold})`, borderRadius: 2 }} />
+                      <div style={{ height: 6, background: 'rgba(180,172,155,0.1)', borderRadius: 999, overflow: 'hidden', marginBottom: 8 }}>
+                        <div style={{ height: '100%', width: `${progressPct}%`, background: `linear-gradient(90deg, ${goldDark}, ${gold})`, borderRadius: 999, boxShadow: '0 0 18px rgba(201,169,100,0.18)' }} />
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: text.muted, marginBottom: 10 }}>
-                        <span>{Math.round(dep.progress * 100)}%</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: text.muted, marginBottom: 14 }}>
+                        <span>{progressPct}%</span>
                         <span>{dep.days_left} {t('dep_days_left')}</span>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
@@ -4914,10 +4982,11 @@ function DepositsSection() {
                           onClick={() => closeDeposit(dep, false)}
                           disabled={closing === dep.id || dep.days_left > 0}
                           style={{
-                            flex: 1, padding: '8px', borderRadius: 10, fontFamily: 'inherit', cursor: dep.days_left > 0 || closing === dep.id ? 'default' : 'pointer',
+                            ...actionBtnBase,
                             background: dep.days_left > 0 ? 'rgba(180,172,155,0.06)' : 'rgba(127,184,150,0.12)',
                             border: `1px solid ${dep.days_left > 0 ? 'rgba(180,172,155,0.1)' : 'rgba(127,184,150,0.3)'}`,
-                            color: dep.days_left > 0 ? text.muted : '#7fb896', fontSize: 12, fontWeight: 600,
+                            color: dep.days_left > 0 ? text.muted : '#7fb896', fontWeight: 700,
+                            cursor: dep.days_left > 0 || closing === dep.id ? 'default' : 'pointer',
                             opacity: closing === dep.id ? 0.5 : 1,
                           }}
                         >{closing === dep.id ? '…' : t('dep_close')}</button>
@@ -4925,9 +4994,10 @@ function DepositsSection() {
                           onClick={() => closeDeposit(dep, true)}
                           disabled={closing === dep.id}
                           style={{
-                            flex: 1, padding: '8px', borderRadius: 10, fontFamily: 'inherit', cursor: closing === dep.id ? 'default' : 'pointer',
+                            ...actionBtnBase,
                             background: 'rgba(220,100,100,0.06)', border: '1px solid rgba(220,100,100,0.18)',
-                            color: '#f08080', fontSize: 11, fontWeight: 500,
+                            color: '#f08080', fontSize: 12, fontWeight: 600,
+                            cursor: closing === dep.id ? 'default' : 'pointer',
                             opacity: closing === dep.id ? 0.5 : 1,
                           }}
                         >{t('dep_close_early')}</button>
@@ -4945,13 +5015,13 @@ function DepositsSection() {
 }
 
 // ─── Credits Section ──────────────────────────────────────────────────────────
-interface Credit { id: number; user_id: number; account_id: number; principal: number; interest_rate: number; term_months: number; monthly_payment: number; total_paid: number; balance_remaining: number; next_payment_date: string; status: string; description: string; created_at: string; days_to_payment: number | null; progress: number; }
+interface Credit { id: number; user_id: number; account_id: number; principal: number; interest_rate: number; term_months: number; monthly_payment: number; total_paid: number; balance_remaining: number; next_payment_date: string; status: string; description: string; created_at: string; days_to_payment: number | null; progress: number; scheduled_total?: number; }
 const CREDIT_RATES: Record<number, number> = { 3: 18, 6: 20, 12: 22, 24: 24, 36: 26 };
 const CREDIT_TERMS = [3, 6, 12, 24, 36];
 
 function CreditsSection() {
   const { toast } = useApp();
-  const { t } = usePreferences();
+  const { lang } = usePreferences();
   const [credits, setCredits] = useState<Credit[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -4960,32 +5030,210 @@ function CreditsSection() {
   const [desc, setDesc] = useState('');
   const [creating, setCreating] = useState(false);
   const [repaying, setRepaying] = useState<number | null>(null);
-  const token = localStorage.getItem('army_bank_token');
+  const tt = React.useMemo(() => ({
+    uk: {
+      title: 'Кредити',
+      subtitle: 'Споживче кредитування',
+      activeSuffix: 'активних',
+      toggleOpen: 'Взяти кредит',
+      amountLabel: 'Сума кредиту',
+      amountPlaceholder: '1 000 – 500 000 ₴',
+      termLabel: 'Строк',
+      monthlyPayment: 'ЩОМІСЯЧНИЙ ПЛАТІЖ',
+      totalCost: 'ЗАГАЛЬНА ВАРТІСТЬ',
+      purposePlaceholder: "Призначення (необов'язково)",
+      submit: 'Взяти кредит',
+      noCredits: 'У вас немає активних кредитів',
+      statusActive: 'Активний',
+      statusClosed: 'Погашено',
+      progressPaid: 'погашено',
+      remaining: 'Залишок',
+      paymentPerMonth: 'Платіж/міс.',
+      nextPayment: 'Наступний',
+      overdue: 'Прострочено на {days} днів',
+      payInstallment: 'Сплатити платіж',
+      repayFull: 'Погасити',
+      minAmount: 'Мінімальна сума — ₴1 000',
+      maxAmount: 'Максимальна сума — ₴500 000',
+      serverNoResponse: 'Сервер не відповів — зачекайте хвилину і спробуйте ще раз',
+      createSuccess: 'Кредит оформлено',
+      repaySuccess: 'Кредит погашено',
+      paymentSuccess: 'Платіж зараховано',
+      serverError: 'Помилка сервера',
+      networkError: 'Помилка мережі',
+      genericError: 'Помилка',
+      creditLine: 'Кредит {months} міс. · {rate}% річних',
+    },
+    en: {
+      title: 'Loans',
+      subtitle: 'Consumer lending',
+      activeSuffix: 'active',
+      toggleOpen: 'Get a loan',
+      amountLabel: 'Loan amount',
+      amountPlaceholder: '1,000 – 500,000 ₴',
+      termLabel: 'Term',
+      monthlyPayment: 'MONTHLY PAYMENT',
+      totalCost: 'TOTAL COST',
+      purposePlaceholder: 'Purpose (optional)',
+      submit: 'Get a loan',
+      noCredits: 'You have no active loans',
+      statusActive: 'Active',
+      statusClosed: 'Closed',
+      progressPaid: 'repaid',
+      remaining: 'Remaining',
+      paymentPerMonth: 'Monthly',
+      nextPayment: 'Next',
+      overdue: 'Overdue by {days} days',
+      payInstallment: 'Pay installment',
+      repayFull: 'Repay fully',
+      minAmount: 'Minimum amount is ₴1,000',
+      maxAmount: 'Maximum amount is ₴500,000',
+      serverNoResponse: 'Server did not respond. Please try again shortly',
+      createSuccess: 'Loan issued',
+      repaySuccess: 'Loan repaid',
+      paymentSuccess: 'Payment received',
+      serverError: 'Server error',
+      networkError: 'Network error',
+      genericError: 'Error',
+      creditLine: 'Loan {months} mo · {rate}% APR',
+    },
+    it: {
+      title: 'Prestiti',
+      subtitle: 'Credito al consumo',
+      activeSuffix: 'attivi',
+      toggleOpen: 'Richiedi prestito',
+      amountLabel: 'Importo del prestito',
+      amountPlaceholder: '1.000 – 500.000 ₴',
+      termLabel: 'Durata',
+      monthlyPayment: 'RATA MENSILE',
+      totalCost: 'COSTO TOTALE',
+      purposePlaceholder: 'Finalità (facoltativa)',
+      submit: 'Richiedi prestito',
+      noCredits: 'Non hai prestiti attivi',
+      statusActive: 'Attivo',
+      statusClosed: 'Estinto',
+      progressPaid: 'rimborsato',
+      remaining: 'Residuo',
+      paymentPerMonth: 'Rata/mese',
+      nextPayment: 'Prossima',
+      overdue: 'Scaduto da {days} giorni',
+      payInstallment: 'Paga rata',
+      repayFull: 'Estingui',
+      minAmount: 'L’importo minimo è ₴1.000',
+      maxAmount: 'L’importo massimo è ₴500.000',
+      serverNoResponse: 'Il server non risponde. Riprova tra poco',
+      createSuccess: 'Prestito erogato',
+      repaySuccess: 'Prestito estinto',
+      paymentSuccess: 'Pagamento registrato',
+      serverError: 'Errore del server',
+      networkError: 'Errore di rete',
+      genericError: 'Errore',
+      creditLine: 'Prestito {months} mesi · {rate}% annuo',
+    },
+    es: {
+      title: 'Créditos',
+      subtitle: 'Crédito al consumo',
+      activeSuffix: 'activos',
+      toggleOpen: 'Solicitar crédito',
+      amountLabel: 'Importe del crédito',
+      amountPlaceholder: '1.000 – 500.000 ₴',
+      termLabel: 'Plazo',
+      monthlyPayment: 'CUOTA MENSUAL',
+      totalCost: 'COSTE TOTAL',
+      purposePlaceholder: 'Destino (opcional)',
+      submit: 'Solicitar crédito',
+      noCredits: 'No tienes créditos activos',
+      statusActive: 'Activo',
+      statusClosed: 'Pagado',
+      progressPaid: 'pagado',
+      remaining: 'Pendiente',
+      paymentPerMonth: 'Pago/mes',
+      nextPayment: 'Siguiente',
+      overdue: 'Atrasado {days} días',
+      payInstallment: 'Pagar cuota',
+      repayFull: 'Liquidar',
+      minAmount: 'El importe mínimo es ₴1.000',
+      maxAmount: 'El importe máximo es ₴500.000',
+      serverNoResponse: 'El servidor no responde. Inténtalo de nuevo en un momento',
+      createSuccess: 'Crédito emitido',
+      repaySuccess: 'Crédito liquidado',
+      paymentSuccess: 'Pago aplicado',
+      serverError: 'Error del servidor',
+      networkError: 'Error de red',
+      genericError: 'Error',
+      creditLine: 'Crédito {months} meses · {rate}% anual',
+    },
+  }[lang]), [lang]);
+
+  const activeCredits = credits.filter(c => c.status === 'active').length;
+  const panelStyle: React.CSSProperties = {
+    background: 'linear-gradient(180deg, rgba(14,38,27,0.72) 0%, rgba(10,26,19,0.78) 100%)',
+    border: '1px solid rgba(171, 188, 162, 0.12)',
+    borderRadius: 26,
+    overflow: 'hidden',
+    boxShadow: '0 18px 44px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.04)',
+  };
+  const sectionIconStyle: React.CSSProperties = {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    background: 'linear-gradient(145deg, rgba(167,88,50,0.28) 0%, rgba(114,58,33,0.28) 100%)',
+    border: '1px solid rgba(192,115,72,0.2)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#f0d6c9',
+    flexShrink: 0,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  };
+  const metricGridStyle: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: 1,
+    background: 'rgba(171,188,162,0.08)',
+    borderRadius: 18,
+    overflow: 'hidden',
+  };
+  const metricCellStyle: React.CSSProperties = {
+    background: 'rgba(7,21,15,0.14)',
+    padding: '14px 12px',
+  };
 
   async function load() {
     try {
-      const r = await fetch('/api/credits', { headers: { Authorization: `Bearer ${token}` } });
-      const j = await r.json();
-      if (j.ok) setCredits(j.data);
-    } catch { /* ignore */ } finally { setLoading(false); }
+      const data = await apiRequest<Credit[]>('/api/credits');
+      setCredits(Array.isArray(data) ? data : []);
+    } catch {
+      setCredits([]);
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => { load(); }, []);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     const amtNum = parseFloat(amount.replace(/[\s ]/g, '').replace(',', '.'));
-    if (!amtNum || amtNum < 1000) { toast('Мінімальна сума — ₴1 000'); return; }
-    if (amtNum > 500000) { toast('Максимальна сума — ₴500 000'); return; }
+    if (!amtNum || amtNum < 1000) { toast(tt.minAmount); return; }
+    if (amtNum > 500000) { toast(tt.maxAmount); return; }
     setCreating(true);
     try {
       const idempotencyKey = `credit-create-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const r = await fetch('/api/credits', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey }, body: JSON.stringify({ amount: amtNum, term_months: term, description: desc, idempotency_key: idempotencyKey }) });
-      let j: Record<string, unknown>;
-      try { j = await r.json(); }
-      catch { throw new Error('Сервер не відповів — зачекайте хвилину і спробуйте ще раз'); }
-      if (j.ok) { setShowCreate(false); setAmount(''); setDesc(''); toast('✅ Кредит оформлено!'); load(); }
-      else toast((j.error as string) || (j.message as string) || 'Помилка сервера');
-    } catch (err) { toast(err instanceof Error ? err.message : 'Помилка мережі'); } finally { setCreating(false); }
+      await apiRequest('/api/credits', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ amount: amtNum, term_months: term, description: desc, idempotency_key: idempotencyKey }),
+      });
+      setShowCreate(false);
+      setAmount('');
+      setDesc('');
+      toast(tt.createSuccess);
+      load();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : tt.networkError);
+    } finally {
+      setCreating(false);
+    }
   }
 
   async function handleRepay(creditId: number, full = false) {
@@ -4994,103 +5242,124 @@ function CreditsSection() {
       const credit = credits.find(c => c.id === creditId);
       const idempotencyKey = `credit-repay-${creditId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const body = full ? { amount: credit?.balance_remaining, idempotency_key: idempotencyKey } : { idempotency_key: idempotencyKey };
-      const r = await fetch(`/api/credits/${creditId}/repay`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(body) });
-      const j = await r.json();
-      if (j.ok) { toast(j.data.status === 'closed' ? '✅ Кредит погашено!' : '✅ Платіж зараховано!'); load(); }
-      else toast(j.error || 'Помилка');
-    } catch { toast('Помилка'); } finally { setRepaying(null); }
+      const updated = await apiRequest<Credit>(`/api/credits/${creditId}/repay`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify(body),
+      });
+      toast(updated.status === 'closed' ? tt.repaySuccess : tt.paymentSuccess);
+      load();
+    } catch {
+      toast(tt.genericError);
+    } finally {
+      setRepaying(null);
+    }
   }
 
   const amtNum = parseFloat(amount.replace(',', '.')) || 0;
   const r = (CREDIT_RATES[term] ?? 22) / 100 / 12;
   const monthlyPayment = amtNum > 0 && r > 0 ? amtNum * r * (1 + r) ** term / ((1 + r) ** term - 1) : 0;
   const totalCost = monthlyPayment * term;
+  const fmtDate = (iso: string | null | undefined) => {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleDateString(localeForLang(lang)); }
+    catch { return '—'; }
+  };
 
   return (
     <div style={{ marginBottom: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #c94a20 0%, #a03010 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>💳</div>
+          <div style={sectionIconStyle}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="6" width="18" height="12" rx="3" stroke="currentColor" strokeWidth="1.8" />
+              <path d="M3 10h18" stroke="currentColor" strokeWidth="1.8" />
+              <path d="M7 15h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </div>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: text.primary }}>Кредити</div>
-            <div style={{ fontSize: 12, color: text.muted }}>{credits.filter(c => c.status === 'active').length > 0 ? `${credits.filter(c => c.status === 'active').length} активних` : 'Споживче кредитування'}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: text.primary }}>{tt.title}</div>
+            <div style={{ fontSize: 12, color: text.muted }}>{activeCredits > 0 ? `${activeCredits} ${tt.activeSuffix}` : tt.subtitle}</div>
           </div>
         </div>
-        <button onClick={() => setShowCreate(v => !v)} style={{ padding: '8px 16px', borderRadius: 12, border: 'none', cursor: 'pointer', background: showCreate ? 'rgba(40,55,45,0.5)' : 'linear-gradient(135deg, #c94a20, #a03010)', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>{showCreate ? '✕' : 'Взяти кредит'}</button>
+        <button onClick={() => setShowCreate(v => !v)} style={{ padding: '10px 16px', borderRadius: 14, border: showCreate ? `1px solid ${bg.border}` : '1px solid rgba(192,115,72,0.18)', cursor: 'pointer', background: showCreate ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, rgba(164,84,48,0.96), rgba(108,55,32,0.96))', color: '#fff7f2', fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit', boxShadow: showCreate ? 'none' : '0 12px 28px rgba(85,39,20,0.22)' }}>{showCreate ? '✕' : tt.toggleOpen}</button>
       </div>
 
       {showCreate && (
-        <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 20, padding: 20, marginBottom: 16 }}>
+        <div style={{ ...panelStyle, padding: 20, marginBottom: 16 }}>
           <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
-              <label style={{ fontSize: 12, color: text.muted, display: 'block', marginBottom: 6 }}>Сума кредиту</label>
-              <input type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="1 000 – 500 000 ₴" style={{ width: '100%', padding: '12px 14px', borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, color: text.primary, fontSize: 16, outline: 'none' }} />
+              <label style={{ fontSize: 12, color: text.muted, display: 'block', marginBottom: 6 }}>{tt.amountLabel}</label>
+              <input type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder={tt.amountPlaceholder} style={{ width: '100%', padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.045)', border: `1px solid ${bg.border}`, color: text.primary, fontSize: 16, outline: 'none', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: text.muted, display: 'block', marginBottom: 8 }}>Строк</label>
+              <label style={{ fontSize: 12, color: text.muted, display: 'block', marginBottom: 8 }}>{tt.termLabel}</label>
               <div style={{ display: 'flex', gap: 8 }}>
                 {CREDIT_TERMS.map(mo => (
-                  <button key={mo} type="button" onClick={() => setTerm(mo)} style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: `1.5px solid ${term === mo ? '#c94a20' : bg.border}`, background: term === mo ? 'rgba(201,74,32,0.15)' : bg.card, color: term === mo ? '#e8784a' : text.muted, fontSize: 12, fontWeight: term === mo ? 700 : 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <button key={mo} type="button" onClick={() => setTerm(mo)} style={{ flex: 1, padding: '10px 0', borderRadius: 12, border: `1.5px solid ${term === mo ? '#ba6a45' : bg.border}`, background: term === mo ? 'rgba(186,106,69,0.14)' : 'rgba(255,255,255,0.035)', color: term === mo ? '#efc2a9' : text.muted, fontSize: 12, fontWeight: term === mo ? 700 : 500, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {mo}м<div style={{ fontSize: 10, marginTop: 2 }}>{CREDIT_RATES[mo]}%</div>
                   </button>
                 ))}
               </div>
             </div>
             {amtNum > 0 && (
-              <div style={{ background: 'rgba(201,74,32,0.08)', border: '1px solid rgba(201,74,32,0.18)', borderRadius: 12, padding: 14, display: 'flex', gap: 16 }}>
+              <div style={{ background: 'rgba(186,106,69,0.08)', border: '1px solid rgba(186,106,69,0.18)', borderRadius: 16, padding: 14, display: 'flex', gap: 16 }}>
                 <div style={{ flex: 1, textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8, marginBottom: 4 }}>МІСЯЧНИЙ ПЛАТІЖ</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#e8784a' }}>₴{monthlyPayment.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8, marginBottom: 4 }}>{tt.monthlyPayment}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#efc2a9' }}>{formatUah(monthlyPayment, lang)}</div>
                 </div>
                 <div style={{ flex: 1, textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8, marginBottom: 4 }}>ЗАГАЛЬНА ВАРТІСТЬ</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: text.secondary }}>₴{totalCost.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.8, marginBottom: 4 }}>{tt.totalCost}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: text.secondary }}>{formatUah(totalCost, lang)}</div>
                 </div>
               </div>
             )}
-            <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Призначення (необов'язково)" style={{ width: '100%', padding: '12px 14px', borderRadius: 12, background: bg.card, border: `1px solid ${bg.border}`, color: text.primary, fontSize: 14, outline: 'none' }} />
-            <button type="submit" disabled={creating} style={{ padding: '14px', borderRadius: 14, border: 'none', background: creating ? 'rgba(40,55,45,0.4)' : 'linear-gradient(135deg, #c94a20, #a03010)', color: creating ? text.dim : '#fff', fontSize: 14, fontWeight: 700, cursor: creating ? 'default' : 'pointer', fontFamily: 'inherit' }}>{creating ? '…' : 'Взяти кредит'}</button>
+            <input value={desc} onChange={e => setDesc(e.target.value)} placeholder={tt.purposePlaceholder} style={{ width: '100%', padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.045)', border: `1px solid ${bg.border}`, color: text.primary, fontSize: 14, outline: 'none', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }} />
+            <button type="submit" disabled={creating} style={{ padding: '14px', borderRadius: 16, border: 'none', background: creating ? 'rgba(40,55,45,0.4)' : 'linear-gradient(135deg, rgba(164,84,48,0.96), rgba(108,55,32,0.96))', color: creating ? text.dim : '#fff7f2', fontSize: 14, fontWeight: 700, cursor: creating ? 'default' : 'pointer', fontFamily: 'inherit', boxShadow: creating ? 'none' : '0 14px 30px rgba(85,39,20,0.2)' }}>{creating ? '…' : tt.submit}</button>
           </form>
         </div>
       )}
 
       {loading ? <div style={{ padding: '20px', color: text.muted, fontSize: 13, textAlign: 'center' }}>…</div>
-       : credits.length === 0 ? <div style={{ padding: '20px 0', color: text.muted, fontSize: 13 }}>У вас немає активних кредитів</div>
+       : credits.length === 0 ? <div style={{ padding: '20px 0', color: text.muted, fontSize: 13 }}>{tt.noCredits}</div>
        : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {credits.map(cr => {
             const isActive = cr.status === 'active';
             const statusColor = isActive ? '#4a9' : '#888';
-            const nextDate = cr.next_payment_date ? new Date(cr.next_payment_date).toLocaleDateString('uk-UA') : '—';
+            const nextDate = fmtDate(cr.next_payment_date);
             const overdue = isActive && (cr.days_to_payment ?? 0) < 0;
+            const creditLine = tt.creditLine
+              .replace('{months}', String(cr.term_months))
+              .replace('{rate}', String(cr.interest_rate));
             return (
-              <div key={cr.id} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 20, overflow: 'hidden' }}>
-                <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${bg.border}` }}>
+              <div key={cr.id} style={panelStyle}>
+                <div style={{ padding: '18px 18px 14px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: text.primary }}>Кредит {cr.term_months} міс. · {cr.interest_rate}% річних</div>
-                      {cr.description ? <div style={{ fontSize: 11, color: text.muted, marginTop: 2 }}>{cr.description}</div> : null}
+                      <div style={{ fontSize: 15, fontWeight: 700, color: text.primary }}>{creditLine}</div>
+                      {cr.description ? <div style={{ fontSize: 12, color: text.muted, marginTop: 3 }}>{cr.description}</div> : null}
                     </div>
-                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.8, padding: '3px 8px', borderRadius: 20, background: `${statusColor}22`, color: statusColor, border: `1px solid ${statusColor}44` }}>{isActive ? 'Активний' : 'Погашено'}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '7px 12px', borderRadius: 999, background: `${statusColor}18`, color: statusColor, border: `1px solid ${statusColor}30` }}>{isActive ? tt.statusActive : tt.statusClosed}</div>
                   </div>
-                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 4, height: 4, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', borderRadius: 4, background: isActive ? 'linear-gradient(90deg, #c94a20, #e8784a)' : '#666', width: `${cr.progress}%`, transition: 'width 0.6s' }} />
+                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 999, height: 6, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', borderRadius: 999, background: isActive ? 'linear-gradient(90deg, rgba(144,73,42,0.95), rgba(206,140,96,0.95))' : '#666', width: `${cr.progress}%`, transition: 'width 0.6s', boxShadow: isActive ? '0 0 16px rgba(206,140,96,0.16)' : 'none' }} />
                   </div>
-                  <div style={{ fontSize: 10, color: text.muted, marginTop: 4 }}>{cr.progress.toFixed(0)}% погашено</div>
+                  <div style={{ fontSize: 11, color: text.muted, marginTop: 6 }}>{cr.progress.toFixed(0)}% {tt.progressPaid}</div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: bg.border }}>
-                  {[{ label: 'Залишок', value: `₴${Number(cr.balance_remaining).toLocaleString('uk-UA', { minimumFractionDigits: 2 })}` }, { label: 'Платіж/міс.', value: `₴${Number(cr.monthly_payment).toLocaleString('uk-UA', { minimumFractionDigits: 2 })}` }, { label: 'Наступний', value: isActive ? nextDate : '—' }].map(({ label, value }) => (
-                    <div key={label} style={{ background: bg.card, padding: '10px 12px' }}>
+                <div style={metricGridStyle}>
+                  {[{ label: tt.remaining, value: formatUah(Number(cr.balance_remaining), lang) }, { label: tt.paymentPerMonth, value: formatUah(Number(cr.monthly_payment), lang) }, { label: tt.nextPayment, value: isActive ? nextDate : '—' }].map(({ label, value }) => (
+                    <div key={label} style={metricCellStyle}>
                       <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.6 }}>{label}</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: text.primary, marginTop: 2 }}>{value}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: text.primary, marginTop: 4 }}>{value}</div>
                     </div>
                   ))}
                 </div>
-                {overdue && <div style={{ padding: '8px 16px', background: 'rgba(220,60,40,0.12)', borderTop: `1px solid rgba(220,60,40,0.25)` }}><div style={{ fontSize: 12, color: '#e05a40', fontWeight: 600 }}>⚠️ Прострочено на {Math.abs(cr.days_to_payment ?? 0)} днів</div></div>}
+                {overdue && <div style={{ padding: '10px 16px', background: 'rgba(220,60,40,0.12)', borderTop: `1px solid rgba(220,60,40,0.22)` }}><div style={{ fontSize: 12, color: '#ef9d88', fontWeight: 600 }}>⚠️ {tt.overdue.replace('{days}', String(Math.abs(cr.days_to_payment ?? 0)))}</div></div>}
                 {isActive && (
-                  <div style={{ padding: '12px 16px', display: 'flex', gap: 8, borderTop: `1px solid ${bg.border}` }}>
-                    <button disabled={repaying === cr.id} onClick={() => handleRepay(cr.id)} style={{ flex: 1, padding: '10px', borderRadius: 12, border: 'none', cursor: 'pointer', background: repaying === cr.id ? 'rgba(40,55,45,0.4)' : 'linear-gradient(135deg, #c94a20, #a03010)', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>{repaying === cr.id ? '…' : 'Сплатити платіж'}</button>
-                    <button disabled={repaying === cr.id} onClick={() => handleRepay(cr.id, true)} style={{ padding: '10px 14px', borderRadius: 12, border: `1px solid rgba(201,74,32,0.4)`, background: 'transparent', color: '#e8784a', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Погасити</button>
+                  <div style={{ padding: '14px 16px 16px', display: 'flex', gap: 8 }}>
+                    <button disabled={repaying === cr.id} onClick={() => handleRepay(cr.id)} style={{ flex: 1, padding: '14px', borderRadius: 16, border: 'none', cursor: 'pointer', background: repaying === cr.id ? 'rgba(40,55,45,0.4)' : 'linear-gradient(135deg, rgba(164,84,48,0.96), rgba(108,55,32,0.96))', color: '#fff7f2', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', boxShadow: repaying === cr.id ? 'none' : '0 14px 30px rgba(85,39,20,0.18)' }}>{repaying === cr.id ? '…' : tt.payInstallment}</button>
+                    <button disabled={repaying === cr.id} onClick={() => handleRepay(cr.id, true)} style={{ padding: '14px 16px', borderRadius: 16, border: `1px solid rgba(186,106,69,0.28)`, background: 'rgba(255,255,255,0.02)', color: '#efc2a9', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{tt.repayFull}</button>
                   </div>
                 )}
               </div>
@@ -5231,7 +5500,7 @@ function OperationsScreen() {
           subtitle: fmtTime(tx.created_at, lang) + (tx.related_account ? ` • ${tx.related_account}` : ''),
           amount: (tx.direction === 'in' ? '+' : '-') + fmtInt(tx.amount) + fmtDec(tx.amount),
           positive: tx.direction === 'in',
-          cat: txToCat(tx),
+          cat: txToCat(tx as TxItem),
         })),
       };
     });
@@ -6504,7 +6773,7 @@ function MarketplaceScreen() {
     const idempotencyKey = `cart-${Date.now()}`;
     try {
       await ensureApiStatusHealthy();
-      const r = await fetch('/api/marketplace/checkout', {
+      const r = await fetch(apiUrl('/api/marketplace/checkout'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -6539,21 +6808,21 @@ function MarketplaceScreen() {
   useEffect(() => {
     if (tab === 'catalog') {
       setLoading(true);
-      fetch('/api/marketplace/catalog?per_page=96&sort=newest', { headers: { Authorization: `Bearer ${token}` } })
+      fetch(apiUrl('/api/marketplace/catalog?per_page=96&sort=newest'), { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json())
         .then(j => { if (j.ok) setProducts(Array.isArray(j.data?.items) ? j.data.items : (Array.isArray(j.data) ? j.data : [])); })
         .catch(() => {})
         .finally(() => setLoading(false));
     } else if (tab === 'orders') {
       setLoading(true);
-      fetch('/api/marketplace/orders', { headers: { Authorization: `Bearer ${token}` } })
+      fetch(apiUrl('/api/marketplace/orders'), { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json())
         .then(j => { if (j.ok) setOrders(Array.isArray(j.data?.orders) ? j.data.orders : []); })
         .catch(() => {})
         .finally(() => setLoading(false));
     } else if (tab === 'invoices') {
       setLoading(true);
-      fetch('/api/marketplace/invoices', { headers: { Authorization: `Bearer ${token}` } })
+      fetch(apiUrl('/api/marketplace/invoices'), { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json())
         .then(j => { if (j.ok) setInvoices(Array.isArray(j.data?.invoices) ? j.data.invoices : []); })
         .catch(() => {})
@@ -6935,45 +7204,47 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       right: 0,
       bottom: 0,
       zIndex: 120,
-      background: 'transparent',
+      background: 'linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.88) 24%, rgba(7,21,15,0.98) 100%)',
       pointerEvents: 'none',
-      paddingTop: 0,
-      paddingLeft: 14,
-      paddingRight: 14,
-      paddingBottom: 0,
+      paddingTop: 12,
+      paddingLeft: 12,
+      paddingRight: 12,
+      paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
     }}>
       {/* Tab row */}
       <div style={{
         position: 'relative',
         pointerEvents: 'auto',
-        padding: '5px',
-        background: 'rgba(12,26,20,0.6)',
-        border: '1px solid rgba(180,172,155,0.2)',
-        borderRadius: 28,
+        padding: '6px',
+        background: 'linear-gradient(180deg, rgba(13,30,22,0.88) 0%, rgba(9,19,15,0.94) 100%)',
+        border: '1px solid rgba(180,172,155,0.15)',
+        borderRadius: 24,
         display: 'flex',
         marginBottom: 0,
-        boxShadow: '0 8px 22px rgba(0,0,0,0.3), inset 0 1px 0 rgba(230,225,210,0.08)',
+        boxShadow: '0 18px 40px rgba(0,0,0,0.34), inset 0 1px 0 rgba(230,225,210,0.06)',
         backdropFilter: 'blur(24px) saturate(180%)',
         WebkitBackdropFilter: 'blur(24px) saturate(180%)',
       }}>
         <div style={{
-          position: 'absolute', top: 5, bottom: 5,
-          left: `calc(${activeIdx * 20}% + 5px)`, width: 'calc(20% - 10px)',
-          background: 'linear-gradient(135deg, rgba(180,172,155,0.22) 0%, rgba(100,95,80,0.12) 100%)',
-          border: '1px solid rgba(180,172,155,0.32)', borderRadius: 22,
+          position: 'absolute', top: 6, bottom: 6,
+          left: `calc(${activeIdx * 20}% + 6px)`, width: 'calc(20% - 12px)',
+          background: 'linear-gradient(135deg, rgba(180,172,155,0.18) 0%, rgba(96,104,92,0.18) 100%)',
+          border: '1px solid rgba(180,172,155,0.18)', borderRadius: 18,
           transition: 'left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.12)',
+          boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.08)',
           pointerEvents: 'none',
         }} />
         {tabs.map(tab => {
           const isActive = tab.k === active;
-          const color = isActive ? goldLight : 'rgba(220,215,200,0.48)';
+          const color = isActive ? goldLight : 'rgba(220,215,200,0.52)';
           return (
             <button key={tab.k} onClick={() => onChange(tab.k)} style={{
-              flex: 1, padding: '9px 4px 7px', background: 'transparent', border: 'none', cursor: 'pointer',
+              flex: 1, padding: '10px 4px 8px', background: 'transparent', border: 'none', cursor: 'pointer',
               position: 'relative', zIndex: 1,
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-              color, fontSize: 10, fontWeight: isActive ? 700 : 500,
+              color, fontSize: 10.5, fontWeight: isActive ? 700 : 500,
               letterSpacing: 0.3, fontFamily: 'inherit', transition: 'color 0.2s',
             }}>
               {tab.icon(color)}
@@ -7779,21 +8050,19 @@ export default function App() {
   }, [showSplash]);
 
   const fetchDashboard = React.useCallback(async () => {
-    const token = localStorage.getItem('army_bank_token');
-    if (!token) return;
     try {
-      const [dashRes, cardsRes] = await Promise.all([
-        fetch('/api/dashboard', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/cards', { headers: { Authorization: `Bearer ${token}` } }),
+      const [dashboard, cardsData] = await Promise.all([
+        apiRequest<{
+          user: UserInfo;
+          account: AccountInfo;
+          transactions: TxItem[];
+        }>('/api/dashboard'),
+        apiRequest<CardInfo[]>('/api/cards'),
       ]);
-      const dashJson = await dashRes.json();
-      if (dashJson.ok) {
-        setUser(dashJson.data.user);
-        setAccount(dashJson.data.account);
-        setTransactions(dashJson.data.transactions || []);
-      }
-      const cardsJson = await cardsRes.json();
-      if (cardsJson.ok) setCards(cardsJson.data || []);
+      setUser(dashboard.user);
+      setAccount(dashboard.account);
+      setTransactions(dashboard.transactions || []);
+      setCards(cardsData || []);
     } catch { /* silent */ }
   }, []);
 
@@ -8006,14 +8275,14 @@ export default function App() {
               WebkitFontSmoothing: 'antialiased',
             }}>
             <LuxuryAmbientFx />
-            <div style={{
+          <div style={{
               flex: 1,
               minHeight: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
               width: '100%',
               touchAction: 'pan-y',
-              paddingBottom: 0,
+              paddingBottom: tabBarHidden ? 0 : mobileDockInsetCompact,
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}

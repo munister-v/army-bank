@@ -391,6 +391,7 @@ class AccountRepository(BaseRepository):
         type_labels = {
             'topup': 'Поповнення', 'transfer': 'Переказ', 'payout': 'Виплата',
             'donation': 'Донат', 'savings': 'Накопичення',
+            'credit': 'Видача кредиту', 'credit_payment': 'Погашення кредиту',
         }
         for tx in transactions:
             writer.writerow([

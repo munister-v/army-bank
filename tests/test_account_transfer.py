@@ -29,6 +29,23 @@ def _get_account(client, token):
     return r.get_json()['data']
 
 
+def _get_3ds_session(client, token: str, amount: float, recipient: str) -> str:
+    headers = {'Authorization': f'Bearer {token}'}
+    challenge = client.post('/api/3ds/challenge', json={
+        'amount': amount,
+        'recipient': recipient,
+    }, headers=headers)
+    assert challenge.status_code == 200
+    challenge_data = challenge.get_json()['data']
+
+    verify = client.post('/api/3ds/verify', json={
+        'challenge_id': challenge_data['challenge_id'],
+        'otp_code': challenge_data['demo_otp'],
+    }, headers=headers)
+    assert verify.status_code == 200
+    return str(verify.get_json()['data']['session_token'])
+
+
 def _make_admin_headers(client):
     uid = _rand_uid()
     user_id, token = _register(client, uid)
@@ -112,6 +129,7 @@ def test_transfer_ok(client):
         'recipient_account_number': recipient_acc,
         'amount': 1000,
         'description': 'Тест переказу',
+        'tds_session': _get_3ds_session(client, tok1, 1000, recipient_acc),
     }, headers=h1)
     assert r.status_code == 200
     data = r.get_json()
@@ -130,6 +148,7 @@ def test_transfer_updates_both_balances(client):
     client.post('/api/transactions/transfer', json={
         'recipient_account_number': recipient_acc,
         'amount': 1500,
+        'tds_session': _get_3ds_session(client, tok1, 1500, recipient_acc),
     }, headers=h1)
 
     acc1_after = _get_account(client, tok1)
@@ -147,6 +166,7 @@ def test_transfer_insufficient_funds(client):
     r = client.post('/api/transactions/transfer', json={
         'recipient_account_number': acc2['account_number'],
         'amount': 9999,
+        'tds_session': _get_3ds_session(client, tok1, 9999, acc2['account_number']),
     }, headers=h1)
     assert r.status_code in (400, 422)
 
@@ -160,6 +180,7 @@ def test_transfer_zero_amount(client):
     r = client.post('/api/transactions/transfer', json={
         'recipient_account_number': acc2['account_number'],
         'amount': 0,
+        'tds_session': _get_3ds_session(client, tok1, 0, acc2['account_number']),
     }, headers=h1)
     assert r.status_code in (400, 422)
 
@@ -172,6 +193,7 @@ def test_transfer_to_self(client):
     r = client.post('/api/transactions/transfer', json={
         'recipient_account_number': acc1['account_number'],
         'amount': 500,
+        'tds_session': _get_3ds_session(client, tok1, 500, acc1['account_number']),
     }, headers=h1)
     # Self-transfer should be rejected or succeed — depends on business logic
     # Just ensure it doesn't 500
@@ -185,6 +207,7 @@ def test_transfer_unknown_recipient(client):
     r = client.post('/api/transactions/transfer', json={
         'recipient_account_number': 'AB-000000',
         'amount': 100,
+        'tds_session': _get_3ds_session(client, tok1, 100, 'AB-000000'),
     }, headers=h1)
     assert r.status_code in (400, 404, 422)
 
@@ -235,6 +258,7 @@ def test_transaction_history_shows_transfer(client):
     client.post('/api/transactions/transfer', json={
         'recipient_account_number': acc2['account_number'],
         'amount': 300,
+        'tds_session': _get_3ds_session(client, tok1, 300, acc2['account_number']),
     }, headers=h1)
     r = client.get('/api/transactions/history', headers=h1)
     txs = r.get_json()['data']

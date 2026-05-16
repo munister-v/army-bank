@@ -6816,6 +6816,7 @@ body.app-scroll-locked .app-content {
 #receiptOverlay.hidden,
 #statementOverlay.hidden,
 #transferConfirmOverlay.hidden,
+#threeDsOverlay.hidden,
 #confirmDialog.hidden,
 #confirmBackdrop.hidden,
 #pinLockOverlay.hidden,
@@ -6861,6 +6862,61 @@ body.app-scroll-locked .app-content {
 
 .keyboard-open .bottom-nav {
   transform: translateY(130%) !important;
+}
+
+.three-ds-sheet {
+  max-width: 440px;
+}
+
+.three-ds-icon {
+  background: rgba(59, 130, 246, 0.14) !important;
+  color: #93c5fd;
+}
+
+.three-ds-subtitle {
+  margin: -2px 0 14px;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.three-ds-demo {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(147, 197, 253, 0.22);
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.08);
+  color: #dbeafe;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.three-ds-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.three-ds-field input {
+  text-align: center;
+  letter-spacing: 0.32em;
+  font-family: var(--font-mono);
+  font-size: 22px;
+}
+
+.three-ds-field label {
+  letter-spacing: 0.04em;
+}
+
+.three-ds-error {
+  padding: 10px 12px;
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  border-radius: 12px;
+  background: rgba(248, 113, 113, 0.08);
+  color: #fca5a5;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 #appScreen.app-shell {

@@ -351,11 +351,22 @@ def start_call():
 
         _expire_stale_pending_calls(conn, conv_id)
         active = conn.execute(
-            "SELECT id FROM calls WHERE conversation_id = %s AND status IN ('pending','active')",
+            "SELECT id, caller_id, status FROM calls WHERE conversation_id = %s AND status IN ('pending','active') ORDER BY id DESC LIMIT 1",
             (conv_id,),
         ).fetchone()
         if active:
-            return api_error('Вже є активний дзвінок у цій розмові.', 409)
+            active_id = int(active['id'])
+            active_caller = int(active['caller_id'])
+            active_status = str(active.get('status') or '')
+            if active_status == 'pending' and active_caller == me_id:
+                conn.execute(
+                    f"UPDATE calls SET status='missed', ended_at={_now_sql()} WHERE id = %s",
+                    (active_id,),
+                )
+            elif active_status == 'pending':
+                return api_error('У розмові вже є дзвінок у стані очікування відповіді.', 409)
+            else:
+                return api_error('Вже є активний дзвінок у цій розмові.', 409)
 
         is_group_call = bool(conv_meta.get('is_group'))
         sdp_offer = str(data.get('sdp_offer') or '').strip()

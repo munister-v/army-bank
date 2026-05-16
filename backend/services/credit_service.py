@@ -4,6 +4,7 @@
   - Клієнт оформлює кредит: сума (1000–500000 UAH), строк (3/6/12/24/36 міс)
   - Зараховуємо суму на рахунок одразу
   - Щомісячний платіж — ануїтет: principal * r * (1+r)^n / ((1+r)^n - 1)
+  - Balance remaining зберігає повну суму до сплати за графіком, а не лише тіло кредиту
   - Ставки (% річних): 3м→18%, 6м→20%, 12м→22%, 24м→24%, 36м→26%
 """
 from __future__ import annotations
@@ -26,6 +27,10 @@ def _pmt(principal: float, annual_rate_pct: float, months: int) -> float:
         return round(principal / months, 2)
     factor = (1 + r) ** months
     return round(principal * r * factor / (factor - 1), 2)
+
+
+def _scheduled_total(monthly_payment: float, months: int) -> float:
+    return round(monthly_payment * months, 2)
 
 
 def _add_months(d: date, n: int) -> date:
@@ -100,45 +105,59 @@ class CreditService:
 
         rate = RATES[term_months]
         monthly = _pmt(amount, rate, term_months)
+        total_due = _scheduled_total(monthly, term_months)
         today = date.today()
         next_payment = _add_months(today, 1)
         now_iso = datetime.now(timezone.utc).isoformat()
 
-        # Зараховуємо суму на рахунок
         acc = self._get_account(user_id)
         if not acc:
             raise ValueError('Рахунок не знайдено.')
 
-        for ph in ('%s', '?'):
-            try:
-                with get_connection() as conn:
-                    conn.execute(
-                        f'UPDATE accounts SET balance = balance + {ph} WHERE id = {ph}',
-                        (amount, acc['id']),
-                    )
-                break
-            except Exception:
-                continue
-
         suffix = get_returning_id_suffix()
-        for ph in ('%s', '?'):
-            try:
-                with get_connection() as conn:
-                    cur = conn.execute(
-                        f"INSERT INTO credits"
-                        f" (user_id, account_id, principal, interest_rate, term_months,"
-                        f"  monthly_payment, total_paid, balance_remaining,"
-                        f"  next_payment_date, status, description, created_at)"
-                        f" VALUES ({ph},{ph},{ph},{ph},{ph},{ph},0,{ph},{ph},'active',{ph},{ph})" + suffix,
-                        (user_id, acc['id'], amount, rate, term_months,
-                         monthly, amount, next_payment.isoformat(),
-                         description or f'Кредит {term_months} міс.', now_iso),
-                    )
-                    credit_id = insert_last_id(cur)
-                return self._get_credit(credit_id, user_id)
-            except Exception:
-                continue
-        raise ValueError('Не вдалося оформити кредит.')
+        credit_title = description or f'Кредит {term_months} міс.'
+
+        try:
+            with get_connection() as conn:
+                conn.execute(
+                    'UPDATE accounts SET balance = balance + %s WHERE id = %s',
+                    (amount, acc['id']),
+                )
+                cur = conn.execute(
+                    "INSERT INTO credits"
+                    " (user_id, account_id, principal, interest_rate, term_months,"
+                    "  monthly_payment, total_paid, balance_remaining,"
+                    "  next_payment_date, status, description, created_at)"
+                    " VALUES (%s,%s,%s,%s,%s,%s,0,%s,%s,'active',%s,%s)" + suffix,
+                    (
+                        user_id,
+                        acc['id'],
+                        amount,
+                        rate,
+                        term_months,
+                        monthly,
+                        total_due,
+                        next_payment.isoformat(),
+                        credit_title,
+                        now_iso,
+                    ),
+                )
+                credit_id = insert_last_id(cur)
+                conn.execute(
+                    """INSERT INTO transactions(account_id, tx_type, direction, amount, description, related_account)
+                       VALUES(%s, %s, %s, %s, %s, %s)""",
+                    (
+                        acc['id'],
+                        'credit',
+                        'in',
+                        amount,
+                        f'Видача кредиту: {credit_title}',
+                        f'CREDIT-{credit_id}',
+                    ),
+                )
+            return self._get_credit(credit_id, user_id)
+        except Exception as exc:
+            raise ValueError(f'Не вдалося оформити кредит: {exc}') from exc
 
     # ── List ─────────────────────────────────────────────────────────────────
 
@@ -196,38 +215,43 @@ class CreditService:
         if float(acc['balance']) < pay:
             raise ValueError('Недостатньо коштів для погашення.')
 
-        for ph in ('%s', '?'):
-            try:
-                with get_connection() as conn:
-                    cur = conn.execute(
-                        f'UPDATE accounts SET balance = balance - {ph} WHERE id = {ph} AND balance >= {ph}',
-                        (pay, acc['id'], pay),
-                    )
-                    if cur.rowcount == 0:
-                        raise ValueError('Недостатньо коштів (конкурентна операція).')
-                break
-            except ValueError:
-                raise
-            except Exception:
-                continue
-
         new_balance = round(credit['balance_remaining'] - pay, 2)
         new_total = round(credit['total_paid'] + pay, 2)
         new_status = 'closed' if new_balance <= 0 else 'active'
         today = date.today()
-        next_payment = _add_months(today, 1).isoformat()
+        try:
+            current_next = date.fromisoformat(str(credit.get('next_payment_date') or ''))
+        except Exception:
+            current_next = today
+        schedule_anchor = current_next if current_next >= today else today
+        next_payment = _add_months(schedule_anchor, 1).isoformat()
+        repayment_desc = f'Погашення кредиту #{credit_id}'
 
-        for ph in ('%s', '?'):
-            try:
-                with get_connection() as conn:
-                    conn.execute(
-                        f'UPDATE credits SET balance_remaining={ph}, total_paid={ph},'
-                        f' status={ph}, next_payment_date={ph} WHERE id={ph}',
-                        (new_balance, new_total, new_status, next_payment, credit_id),
-                    )
-                break
-            except Exception:
-                continue
+        with get_connection() as conn:
+            cur = conn.execute(
+                'UPDATE accounts SET balance = balance - %s WHERE id = %s AND balance >= %s',
+                (pay, acc['id'], pay),
+            )
+            if cur.rowcount == 0:
+                raise ValueError('Недостатньо коштів (конкурентна операція).')
+
+            conn.execute(
+                'UPDATE credits SET balance_remaining=%s, total_paid=%s,'
+                ' status=%s, next_payment_date=%s WHERE id=%s',
+                (new_balance, new_total, new_status, next_payment, credit_id),
+            )
+            conn.execute(
+                """INSERT INTO transactions(account_id, tx_type, direction, amount, description, related_account)
+                   VALUES(%s, %s, %s, %s, %s, %s)""",
+                (
+                    acc['id'],
+                    'credit_payment',
+                    'out',
+                    pay,
+                    repayment_desc,
+                    f'CREDIT-{credit_id}',
+                ),
+            )
 
         return self._get_credit(credit_id, user_id)
 
@@ -277,6 +301,11 @@ class CreditService:
             c['days_to_payment'] = None
 
         principal = float(c.get('principal') or 0)
+        monthly_payment = float(c.get('monthly_payment') or 0)
+        term_months = int(c.get('term_months') or 0)
+        scheduled_total = _scheduled_total(monthly_payment, term_months) if monthly_payment and term_months else principal
         balance = float(c.get('balance_remaining') or 0)
-        c['progress'] = round((1 - balance / principal) * 100, 1) if principal > 0 else 100.0
+        total_paid = float(c.get('total_paid') or 0)
+        c['scheduled_total'] = scheduled_total
+        c['progress'] = round(min(100.0, (total_paid / scheduled_total) * 100), 1) if scheduled_total > 0 else 100.0
         return c

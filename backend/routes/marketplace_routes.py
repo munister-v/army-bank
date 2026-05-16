@@ -854,7 +854,7 @@ def catalog():
     category = str(request.args.get('category')  or '').strip()
     sort     = str(request.args.get('sort')       or 'default').strip()
     page     = max(1, int(request.args.get('page')     or 1))
-    per_page = min(max(int(request.args.get('per_page') or 24), 4), 96)
+    per_page = min(max(int(request.args.get('per_page') or 96), 4), 96)
     min_price = request.args.get('min_price')
     max_price = request.args.get('max_price')
 

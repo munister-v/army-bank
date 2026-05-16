@@ -194,7 +194,7 @@ const DESKTOP_MOBILE_ONLY_BLOCKED = document.documentElement.classList.contains(
   function hasVisibleBlockingLayers() {
     const ids = [
       'txDrawer', 'drawerBackdrop', 'receiptOverlay', 'statementOverlay',
-      'transferConfirmOverlay', 'confirmDialog', 'confirmBackdrop',
+      'transferConfirmOverlay', 'threeDsOverlay', 'confirmDialog', 'confirmBackdrop',
       'pinLockOverlay', 'onboardingOverlay',
     ];
     for (const id of ids) {
@@ -325,11 +325,15 @@ function closeTransientLayers(options = {}) {
   const keepPin = !!options.keepPin;
   [
     '#txDrawer', '#drawerBackdrop', '#receiptOverlay', '#statementOverlay',
-    '#transferConfirmOverlay', '#confirmDialog', '#confirmBackdrop', '#onboardingOverlay'
+    '#transferConfirmOverlay', '#threeDsOverlay', '#confirmDialog', '#confirmBackdrop', '#onboardingOverlay'
   ].forEach((sel) => {
     const el = document.querySelector(sel);
     if (el) el.classList.add('hidden');
   });
+
+  if (typeof cancelThreeDsFlow === 'function') {
+    cancelThreeDsFlow({ message: 'Підтвердження 3DS скасовано.' });
+  }
 
   if (!keepPin) {
     const pin = document.getElementById('pinLockOverlay');
@@ -349,7 +353,7 @@ function reconcileTransientState() {
   const hasPin = !!document.getElementById('pinLockOverlay') && !document.getElementById('pinLockOverlay').classList.contains('hidden');
   const hasLayer = [
     '#txDrawer', '#drawerBackdrop', '#receiptOverlay', '#statementOverlay',
-    '#transferConfirmOverlay', '#confirmDialog', '#confirmBackdrop', '#onboardingOverlay'
+    '#transferConfirmOverlay', '#threeDsOverlay', '#confirmDialog', '#confirmBackdrop', '#onboardingOverlay'
   ].some((sel) => {
     const el = document.querySelector(sel);
     return !!el && !el.classList.contains('hidden');
@@ -1162,6 +1166,130 @@ $('#confirmBackdrop')?.addEventListener('click', closeConfirm);
 $('#confirmOk')?.addEventListener('click', () => {
   if (_confirmCallback) _confirmCallback();
   closeConfirm();
+});
+
+// ── 3DS CONFIRMATION ─────────────────────────────────────
+let _threeDsFlow = null;
+
+function setThreeDsError(message) {
+  const errorEl = $('#threeDsError');
+  if (!errorEl) return;
+  if (message) {
+    errorEl.textContent = message;
+    errorEl.classList.remove('hidden');
+  } else {
+    errorEl.textContent = '';
+    errorEl.classList.add('hidden');
+  }
+}
+
+function closeThreeDsOverlay() {
+  $('#threeDsOverlay')?.classList.add('hidden');
+  unlockBodyScroll('three-ds');
+}
+
+function cancelThreeDsFlow(options = {}) {
+  const flow = _threeDsFlow;
+  closeThreeDsOverlay();
+  if (!flow) return;
+  _threeDsFlow = null;
+  setThreeDsError('');
+  const input = $('#threeDsOtpInput');
+  if (input) input.value = '';
+  if (typeof flow.reject === 'function') {
+    flow.reject(new Error(options.message || 'Підтвердження 3DS скасовано.'));
+  }
+}
+
+function requestThreeDsSession(challenge = {}) {
+  const overlay = $('#threeDsOverlay');
+  const subtitle = $('#threeDsSubtitle');
+  const demoHint = $('#threeDsDemoHint');
+  const input = $('#threeDsOtpInput');
+  if (!overlay || !subtitle || !demoHint || !input) {
+    return Promise.reject(new Error('3DS-підтвердження зараз недоступне.'));
+  }
+
+  cancelThreeDsFlow({ message: 'Попереднє підтвердження 3DS скасовано.' });
+  setThreeDsError('');
+  input.value = '';
+  subtitle.textContent = challenge?.masked_phone
+    ? `Ми надіслали код на ${challenge.masked_phone}. Введіть 6 цифр, щоб підтвердити переказ.`
+    : 'Введіть 6-значний код підтвердження, щоб завершити переказ.';
+
+  if (challenge?.demo_otp) {
+    demoHint.textContent = `Демо-код для перевірки: ${challenge.demo_otp}`;
+    demoHint.classList.remove('hidden');
+  } else {
+    demoHint.textContent = '';
+    demoHint.classList.add('hidden');
+  }
+
+  overlay.classList.remove('hidden');
+  lockBodyScroll('three-ds');
+
+  return new Promise((resolve, reject) => {
+    _threeDsFlow = {
+      challengeId: challenge?.challenge_id,
+      resolve,
+      reject,
+    };
+    setTimeout(() => {
+      try { input.focus(); } catch (_) {}
+    }, 30);
+  });
+}
+
+$('#threeDsCancelBtn')?.addEventListener('click', () => cancelThreeDsFlow());
+$('#threeDsOverlay')?.addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) cancelThreeDsFlow();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && _threeDsFlow) cancelThreeDsFlow();
+});
+$('#threeDsOtpInput')?.addEventListener('input', (event) => {
+  const el = event.currentTarget;
+  el.value = String(el.value || '').replace(/\D/g, '').slice(0, 6);
+  setThreeDsError('');
+});
+$('#threeDsForm')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const flow = _threeDsFlow;
+  if (!flow) return;
+
+  const input = $('#threeDsOtpInput');
+  const submitBtn = $('#threeDsSubmitBtn');
+  const cancelBtn = $('#threeDsCancelBtn');
+  const otp = String(input?.value || '').replace(/\D/g, '').slice(0, 6);
+  if (input) input.value = otp;
+  if (otp.length !== 6) {
+    setThreeDsError('Введіть 6-значний код підтвердження.');
+    try { input?.focus(); } catch (_) {}
+    return;
+  }
+
+  try {
+    setThreeDsError('');
+    setButtonLoading(submitBtn, true);
+    if (cancelBtn) cancelBtn.disabled = true;
+    const verified = await api.request('/api/3ds/verify', {
+      method: 'POST',
+      body: JSON.stringify({
+        challenge_id: flow.challengeId,
+        otp_code: otp,
+      }),
+    });
+    closeThreeDsOverlay();
+    _threeDsFlow = null;
+    if (input) input.value = '';
+    if (typeof flow.resolve === 'function') flow.resolve(verified.session_token);
+  } catch (error) {
+    setThreeDsError(error?.message || 'Не вдалося перевірити код. Спробуйте ще раз.');
+    try { input?.focus(); } catch (_) {}
+  } finally {
+    setButtonLoading(submitBtn, false);
+    if (cancelBtn) cancelBtn.disabled = false;
+  }
 });
 
 // ── CSV EXPORT ──────────────────────────────────────────
@@ -2656,7 +2784,10 @@ function bindJsonForm(selector, endpoint, options = {}) {
     try {
       setButtonLoading(btn, true);
       const values = Object.fromEntries(new FormData(form).entries());
-      const payload = options.transform ? options.transform(values) : values;
+      let payload = options.transform ? options.transform(values) : values;
+      if (options.preSubmit) {
+        payload = await options.preSubmit(payload, form);
+      }
       const result = await api.request(endpoint(payload), { method: 'POST', body: JSON.stringify(payload) });
       form.reset();
       if (options.afterReset) options.afterReset(form);
@@ -2739,6 +2870,24 @@ bindJsonForm('#transferForm', () => {
       amount: Number(v.amount),
       description: v.description || 'Переказ',
       idempotency_key: ikey,
+    };
+  },
+  preSubmit: async (payload) => {
+    const activeMode = ($('#transferModeToggle .tmt-btn.active') || {}).dataset?.mode || 'account';
+    if (activeMode !== 'card' && activeMode !== 'account') return payload;
+
+    const amount = Number(payload?.amount || 0);
+    const recipient = activeMode === 'card'
+      ? String(payload?.card_number || '')
+      : String(payload?.recipient_account_number || '');
+    const challenge = await api.request('/api/3ds/challenge', {
+      method: 'POST',
+      body: JSON.stringify({ amount, recipient }),
+    });
+    const sessionToken = await requestThreeDsSession(challenge);
+    return {
+      ...payload,
+      tds_session: sessionToken,
     };
   },
   successMessage: 'Переказ виконано.',
@@ -5679,6 +5828,7 @@ console.log('[Army Bank] UX core modules loaded');
   function hasOpenOverlay() {
     return !document.getElementById('txDrawer')?.classList.contains('hidden') ||
       !document.getElementById('transferConfirmOverlay')?.classList.contains('hidden') ||
+      !document.getElementById('threeDsOverlay')?.classList.contains('hidden') ||
       !document.getElementById('confirmDialog')?.classList.contains('hidden') ||
       document.getElementById('notifPanel')?.classList.contains('open');
   }
