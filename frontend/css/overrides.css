@@ -10329,3 +10329,35 @@ html.install-banner-visible #appScreen .app-content {
     ) !important;
   }
 }
+
+/* ── FINAL iPhone PWA nav fix: legacy dashboard must not float above the home-indicator zone ── */
+@media (max-width: 767px) {
+  html.app-standalone #appScreen.screen-dashboard #sidebar.bottom-nav {
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    min-height: calc(62px + env(safe-area-inset-bottom, 0px)) !important;
+    height: calc(62px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 0 6px env(safe-area-inset-bottom, 0px) !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    border-top: 0.5px solid rgba(50, 79, 59, 0.18) !important;
+    box-shadow: none !important;
+    background: rgba(244, 248, 243, 0.96) !important;
+    backdrop-filter: saturate(180%) blur(20px) !important;
+    -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+  }
+
+  html.app-standalone #appScreen.screen-dashboard #sidebar.bottom-nav .nav-item {
+    min-height: 62px !important;
+    border-radius: 18px !important;
+    padding: 6px 4px !important;
+  }
+
+  html.app-standalone #appScreen.screen-dashboard .app-content {
+    padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px) + 8px) !important;
+    scroll-padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px) + 8px) !important;
+  }
+}
