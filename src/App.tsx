@@ -7204,11 +7204,14 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const { t } = usePreferences();
   const tabs = getTabs(t);
   const activeIdx = tabs.findIndex(tab => tab.k === active);
+  const safeAreaInset = 'env(safe-area-inset-bottom, 0px)';
   const tabButtonHeight = 64;
   return (
     <div style={{
-      position: 'relative',
-      flexShrink: 0,
+      position: 'fixed',
+      left: 0,
+      right: 0,
+      bottom: 0,
       zIndex: 120,
       pointerEvents: 'none',
       paddingTop: 0,
@@ -7228,7 +7231,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
         <div style={{
           position: 'relative',
           display: 'flex',
-          padding: '5px 6px 0',
+          padding: `5px 6px calc(${safeAreaInset} + 4px)`,
         }}>
           <div style={{
             position: 'absolute',
@@ -8296,31 +8299,23 @@ export default function App() {
     <AppCtx.Provider value={appCtx}>
       <BankDataCtx.Provider value={bankCtx}>
         <LayoutCtx.Provider value="mobile">
-          {/*
-            Mobile root: position:fixed full-screen flex column.
-            TabBar is the last flex child (in-flow), so the OS correctly
-            reserves env(safe-area-inset-bottom) below it.
-            overflow:hidden is intentionally removed — it was clipping the
-            TabBar upward scrim that bleeds above 100% of the tab bar.
-          */}
           <div style={{
-              // position:fixed inset:0 always covers the full physical screen on iOS PWA.
-              // height:100% via -webkit-fill-available can be ~34px short (safe-area-
-              // inset-bottom not included), leaving a visible gap below the tab bar.
               position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-              display: 'flex', flexDirection: 'column',
               background: appBg, color: text.secondary, fontFamily,
               WebkitFontSmoothing: 'antialiased',
             }}>
             <LuxuryAmbientFx />
           <div style={{
-              flex: 1,
-              minHeight: 0,
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
               width: '100%',
               touchAction: 'pan-y',
-              paddingBottom: tabBarHidden ? 0 : 28,
+              paddingBottom: tabBarHidden ? 0 : mobileDockInset,
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
