@@ -7198,6 +7198,8 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const tabs = getTabs(t);
   const activeIdx = tabs.findIndex(tab => tab.k === active);
   const safeAreaInset = 'env(safe-area-inset-bottom, 0px)';
+  const safeAreaVisual = `max(10px, calc(${safeAreaInset} - 14px))`;
+  const tabButtonHeight = 76;
   return (
     <div style={{
       position: 'relative',
@@ -7205,7 +7207,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       zIndex: 120,
       background: 'transparent',
       pointerEvents: 'none',
-      paddingTop: 12,
+      paddingTop: 8,
       paddingLeft: 12,
       paddingRight: 12,
       paddingBottom: 0,
@@ -7229,7 +7231,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
           <div style={{
             position: 'absolute',
             top: 6,
-            bottom: 6,
+            height: tabButtonHeight,
             left: `calc(${activeIdx * 20}% + 6px)`,
             width: 'calc(20% - 12px)',
             background: 'linear-gradient(135deg, rgba(180,172,155,0.18) 0%, rgba(96,104,92,0.18) 100%)',
@@ -7245,6 +7247,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
             return (
               <button key={tab.k} onClick={() => onChange(tab.k)} style={{
                 flex: 1,
+                minHeight: tabButtonHeight,
                 padding: '10px 4px 8px',
                 background: 'transparent',
                 border: 'none',
@@ -7270,10 +7273,10 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
           })}
         </div>
         <div style={{
-          height: `calc(${safeAreaInset} + 4px)`,
+          height: safeAreaVisual,
           minHeight: 10,
-          borderTop: '1px solid rgba(220,215,200,0.05)',
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(7,21,15,0) 100%)',
+          marginTop: -2,
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.015) 0%, rgba(9,19,15,0.08) 100%)',
           borderBottomLeftRadius: 24,
           borderBottomRightRadius: 24,
         }} />
