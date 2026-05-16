@@ -7197,6 +7197,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const { t } = usePreferences();
   const tabs = getTabs(t);
   const activeIdx = tabs.findIndex(tab => tab.k === active);
+  const safeAreaInset = 'env(safe-area-inset-bottom, 0px)';
   return (
     <div style={{
       position: 'relative',
@@ -7209,45 +7210,73 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       paddingRight: 12,
       paddingBottom: 0,
     }}>
-      {/* Tab row */}
       <div style={{
         position: 'relative',
         pointerEvents: 'auto',
-        padding: `6px 6px calc(env(safe-area-inset-bottom, 0px) + 8px)`,
         background: 'linear-gradient(180deg, rgba(13,30,22,0.88) 0%, rgba(9,19,15,0.94) 100%)',
         border: '1px solid rgba(180,172,155,0.15)',
         borderRadius: 24,
-        display: 'flex',
         marginBottom: 0,
         boxShadow: '0 18px 40px rgba(0,0,0,0.34), inset 0 1px 0 rgba(230,225,210,0.06)',
         backdropFilter: 'blur(24px) saturate(180%)',
         WebkitBackdropFilter: 'blur(24px) saturate(180%)',
       }}>
         <div style={{
-          position: 'absolute', top: 6, bottom: 6,
-          left: `calc(${activeIdx * 20}% + 6px)`, width: 'calc(20% - 12px)',
-          background: 'linear-gradient(135deg, rgba(180,172,155,0.18) 0%, rgba(96,104,92,0.18) 100%)',
-          border: '1px solid rgba(180,172,155,0.18)', borderRadius: 18,
-          transition: 'left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.08)',
-          pointerEvents: 'none',
+          position: 'relative',
+          display: 'flex',
+          padding: '6px',
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 6,
+            bottom: 6,
+            left: `calc(${activeIdx * 20}% + 6px)`,
+            width: 'calc(20% - 12px)',
+            background: 'linear-gradient(135deg, rgba(180,172,155,0.18) 0%, rgba(96,104,92,0.18) 100%)',
+            border: '1px solid rgba(180,172,155,0.18)',
+            borderRadius: 18,
+            transition: 'left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.08)',
+            pointerEvents: 'none',
+          }} />
+          {tabs.map(tab => {
+            const isActive = tab.k === active;
+            const color = isActive ? goldLight : 'rgba(220,215,200,0.52)';
+            return (
+              <button key={tab.k} onClick={() => onChange(tab.k)} style={{
+                flex: 1,
+                padding: '10px 4px 8px',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                position: 'relative',
+                zIndex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 3,
+                color,
+                fontSize: 10.5,
+                fontWeight: isActive ? 700 : 500,
+                letterSpacing: 0.3,
+                fontFamily: 'inherit',
+                transition: 'color 0.2s',
+              }}>
+                {tab.icon(color)}
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div style={{
+          height: `calc(${safeAreaInset} + 4px)`,
+          minHeight: 10,
+          borderTop: '1px solid rgba(220,215,200,0.05)',
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(7,21,15,0) 100%)',
+          borderBottomLeftRadius: 24,
+          borderBottomRightRadius: 24,
         }} />
-        {tabs.map(tab => {
-          const isActive = tab.k === active;
-          const color = isActive ? goldLight : 'rgba(220,215,200,0.52)';
-          return (
-            <button key={tab.k} onClick={() => onChange(tab.k)} style={{
-              flex: 1, padding: '10px 4px 8px', background: 'transparent', border: 'none', cursor: 'pointer',
-              position: 'relative', zIndex: 1,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-              color, fontSize: 10.5, fontWeight: isActive ? 700 : 500,
-              letterSpacing: 0.3, fontFamily: 'inherit', transition: 'color 0.2s',
-            }}>
-              {tab.icon(color)}
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
       </div>
     </div>
   );
