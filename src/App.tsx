@@ -7199,25 +7199,21 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const activeIdx = tabs.findIndex(tab => tab.k === active);
   return (
     <div style={{
-      position: 'fixed',
-      left: 0,
-      right: 0,
-      bottom: 0,
+      position: 'relative',
+      flexShrink: 0,
       zIndex: 120,
-      background: 'linear-gradient(180deg, rgba(7,21,15,0) 0%, rgba(7,21,15,0.88) 24%, rgba(7,21,15,0.98) 100%)',
+      background: 'transparent',
       pointerEvents: 'none',
       paddingTop: 12,
       paddingLeft: 12,
       paddingRight: 12,
-      paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
-      backdropFilter: 'blur(12px)',
-      WebkitBackdropFilter: 'blur(12px)',
+      paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
     }}>
       {/* Tab row */}
       <div style={{
         position: 'relative',
         pointerEvents: 'auto',
-        padding: '6px',
+        padding: '6px 6px 8px',
         background: 'linear-gradient(180deg, rgba(13,30,22,0.88) 0%, rgba(9,19,15,0.94) 100%)',
         border: '1px solid rgba(180,172,155,0.15)',
         borderRadius: 24,
@@ -8282,7 +8278,7 @@ export default function App() {
               overflowX: 'hidden',
               width: '100%',
               touchAction: 'pan-y',
-              paddingBottom: tabBarHidden ? 0 : mobileDockInsetCompact,
+              paddingBottom: tabBarHidden ? 0 : 28,
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
