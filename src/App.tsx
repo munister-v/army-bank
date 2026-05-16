@@ -492,7 +492,7 @@ const translations = {
     download_error: 'Помилка завантаження',
     export_error: 'Помилка експорту',
     statement_error: 'Помилка виписки',
-    face_id_on: 'Face ID увімкнено ✓',
+    face_id_on: 'Face ID увімкнено',
     face_id_off: 'Face ID вимкнено',
     password_changed: 'Пароль змінено успішно',
     pick_image: 'Оберіть зображення',
@@ -754,7 +754,7 @@ const translations = {
     download_error: 'Download error',
     export_error: 'Export error',
     statement_error: 'Statement error',
-    face_id_on: 'Face ID enabled ✓',
+    face_id_on: 'Face ID enabled',
     face_id_off: 'Face ID disabled',
     password_changed: 'Password changed successfully',
     pick_image: 'Choose an image',
@@ -1016,7 +1016,7 @@ const translations = {
     download_error: 'Errore di download',
     export_error: 'Errore esportazione',
     statement_error: 'Errore estratto conto',
-    face_id_on: 'Face ID attivato ✓',
+    face_id_on: 'Face ID attivato',
     face_id_off: 'Face ID disattivato',
     password_changed: 'Password cambiata con successo',
     pick_image: "Scegli un'immagine",
@@ -1278,7 +1278,7 @@ const translations = {
     download_error: 'Error de descarga',
     export_error: 'Error de exportación',
     statement_error: 'Error del extracto',
-    face_id_on: 'Face ID activado ✓',
+    face_id_on: 'Face ID activado',
     face_id_off: 'Face ID desactivado',
     password_changed: 'Contraseña cambiada correctamente',
     pick_image: 'Elige una imagen',
@@ -3524,16 +3524,20 @@ function ReferralWidget({ user }: { user: UserInfo | null }) {
 
   function shareLink() {
     if (navigator.share) {
-      navigator.share({ title: 'ARM Bank', text: 'Приєднуйся до ARM Bank — банкінг для захисників України 🇺🇦', url: link });
+      navigator.share({ title: 'ARM Bank', text: 'Приєднуйся до ARM Bank — банкінг для захисників України', url: link });
     } else {
       copyLink();
     }
   }
 
   return (
-    <div style={{ margin: '0 22px 20px', background: `linear-gradient(135deg, rgba(201,169,100,0.1) 0%, rgba(100,140,110,0.08) 100%)`, border: `1px solid rgba(201,169,100,0.25)`, borderRadius: 20, padding: '18px 20px' }}>
+    <div style={{ margin: '0 18px 20px', background: `linear-gradient(135deg, rgba(201,169,100,0.1) 0%, rgba(100,140,110,0.08) 100%)`, border: `1px solid rgba(201,169,100,0.25)`, borderRadius: 22, padding: '18px 20px', boxShadow: '0 18px 34px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-        <div style={{ width: 42, height: 42, borderRadius: 13, background: 'linear-gradient(135deg, rgba(201,169,100,0.2), rgba(201,169,100,0.08))', border: `1px solid rgba(201,169,100,0.3)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🎖️</div>
+        <div style={{ width: 42, height: 42, borderRadius: 13, background: 'linear-gradient(135deg, rgba(201,169,100,0.2), rgba(201,169,100,0.08))', border: `1px solid rgba(201,169,100,0.3)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.6-4.9-2.6-4.9 2.6.9-5.6-4-3.9 5.5-.8L12 3z" stroke={gold} strokeWidth="1.6" strokeLinejoin="round" />
+          </svg>
+        </div>
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, color: text.secondary }}>Запросити друга</div>
           <div style={{ fontSize: 12, color: text.muted }}>Поділіться ARM Bank з колегами</div>
@@ -4121,6 +4125,7 @@ function CardsScreen() {
   const [topupModal, setTopupModal] = useState(false);
   const [topupAmount, setTopupAmount] = useState('');
   const [topupLoading, setTopupLoading] = useState(false);
+  const activeCardsCount = cards.filter(c => c.statusRaw === 'active').length;
 
   // Card flip / reveal
   const [flipped, setFlipped] = useState(false);
@@ -4308,27 +4313,49 @@ function CardsScreen() {
     <>
     <ContentWrap maxW={760}>
     <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
-      <div style={{ padding: `${topPad} 22px 16px`, display: 'flex', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontSize: 12, color: text.muted, fontWeight: 500, marginBottom: 4 }}>{t('cards_title')}</div>
-          <div style={{ ...T.h1, color: text.primary }}>{t('cards_title')}</div>
-        </div>
-        <div style={{ flex: 1 }} />
-        <button onClick={() => openDesignModal('issue')} style={{
-          padding: '10px 16px', background: `linear-gradient(135deg, ${gold} 0%, ${goldDark} 100%)`,
-          color: text.primary, border: 'none', borderRadius: 100, fontSize: 13, fontWeight: 600,
-          fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-          boxShadow: `0 4px 10px -4px rgba(180,172,155,0.5), inset 0 1px 0 rgba(230,225,210,0.5)`,
-          opacity: designLoading && designMode === 'issue' ? 0.65 : 1,
+      <div style={{ padding: `${topPad} 18px 14px` }}>
+        <div style={{
+          ...glassCard({
+            padding: '18px 18px 16px',
+            borderRadius: 26,
+            background: 'linear-gradient(180deg, rgba(14,34,25,0.92) 0%, rgba(9,22,16,0.82) 100%)',
+            boxShadow: '0 20px 42px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.05)',
+          }),
+          position: 'relative',
+          overflow: 'hidden',
         }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#1c2e22" strokeWidth="2.4" strokeLinecap="round" /></svg>
-          {designLoading && designMode === 'issue' ? t('creating') : t('issue_card')}
-        </button>
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(circle at 18% 10%, rgba(146,198,165,0.1) 0%, rgba(146,198,165,0) 38%), radial-gradient(circle at 85% 18%, rgba(201,169,100,0.12) 0%, rgba(201,169,100,0) 42%)' }} />
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.6, marginBottom: 4 }}>{t('cards_title')}</div>
+              <div style={{ ...T.h1, color: text.primary, marginBottom: 8 }}>{t('cards_title')}</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ padding: '7px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)', fontSize: 11, color: 'rgba(220,215,200,0.78)', fontWeight: 600 }}>
+                  {cards.length} {cards.length === 1 ? 'картка' : 'картки'}
+                </div>
+                <div style={{ padding: '7px 12px', borderRadius: 999, background: 'rgba(127,184,150,0.12)', border: '1px solid rgba(127,184,150,0.22)', fontSize: 11, color: '#9ad4b0', fontWeight: 600 }}>
+                  {activeCardsCount} активних
+                </div>
+              </div>
+            </div>
+            <button onClick={() => openDesignModal('issue')} style={{
+              padding: '11px 16px', background: `linear-gradient(135deg, ${goldLight} 0%, ${gold} 48%, ${goldDark} 100%)`,
+              color: '#1c2e22', border: 'none', borderRadius: 16, fontSize: 13, fontWeight: 700,
+              fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+              boxShadow: `0 10px 22px -10px rgba(180,172,155,0.45), inset 0 1px 0 rgba(245,240,230,0.55)`,
+              opacity: designLoading && designMode === 'issue' ? 0.65 : 1,
+              flexShrink: 0,
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#1c2e22" strokeWidth="2.4" strokeLinecap="round" /></svg>
+              {designLoading && designMode === 'issue' ? t('creating') : t('issue_card')}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Horizontal card scroll */}
       <div style={{
-        display: 'flex', gap: 12, padding: '0 22px 8px',
+        display: 'flex', gap: 12, padding: '0 18px 10px',
         overflowX: 'auto', scrollSnapType: 'x mandatory', scrollbarWidth: 'none',
       }}>
         {cards.map((c, i) => {
@@ -4349,7 +4376,7 @@ function CardsScreen() {
                     {/* Front */}
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
                       <PremiumCard {...c} style={{ width: '100%' }} balance={c.balance} isPrimary={c.isPrimary} />
-                      {!flipped && <div style={{ position: 'absolute', bottom: 10, right: 12, fontSize: 9, color: 'rgba(255,255,255,0.5)', pointerEvents: 'none' }}>{revealing ? '…' : '👁 перевернути'}</div>}
+                      {!flipped && <div style={{ position: 'absolute', bottom: 12, right: 14, fontSize: 9, color: 'rgba(255,255,255,0.54)', pointerEvents: 'none', letterSpacing: 0.5, textTransform: 'uppercase' }}>{revealing ? '…' : 'Реквізити'}</div>}
                     </div>
                     {/* Back */}
                     <div style={{
@@ -4388,7 +4415,7 @@ function CardsScreen() {
                         <div><div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>ДІЙСНА ДО</div><div style={{ fontFamily: '"SF Mono", monospace', fontSize: 11, fontWeight: 700, color: '#fff' }}>{c.expiry}</div></div>
                         <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>ВЛАСНИК</div><div style={{ fontSize: 10, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div></div>
                       </div>
-                      <div style={{ position: 'absolute', top: 10, right: 14, fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>↩ закрити</div>
+                      <div style={{ position: 'absolute', top: 10, right: 14, fontSize: 9, color: 'rgba(255,255,255,0.42)', letterSpacing: 0.45, textTransform: 'uppercase' }}>Закрити</div>
                     </div>
                   </div>
                 </div>
@@ -4489,7 +4516,7 @@ function CardsScreen() {
           </div>
 
           {/* Actions */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: layout === 'mobile' ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
             {[
               { label: t('card_details'), msg: `${t('cards_title')} •• ${card.number} · ${t('card_valid_until')} ${card.expiry}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M3 10h18" stroke={gold} strokeWidth="1.6" /></svg> },
               { label: 'PIN', action: () => setPinModal(true), icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="11" width="16" height="10" rx="2" stroke={gold} strokeWidth="1.6" /><path d="M8 11V8a4 4 0 018 0v3" stroke={gold} strokeWidth="1.6" /></svg> },
@@ -4497,10 +4524,13 @@ function CardsScreen() {
               { label: t('account_label'), msg: `${t('account_label')}: ${account?.account_number || '—'}`, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1116 0" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><path d="M12 12l4-4" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /><circle cx="12" cy="12" r="1.5" fill={gold} /></svg> },
             ].map((a, i) => (
               <button key={i} onClick={() => 'action' in a ? a.action() : toast(a.msg as string)} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                padding: '10px 4px', background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(180,172,155,0.1)', borderRadius: 14,
-                color: '#ddd8cc', fontSize: 11, fontFamily: 'inherit', fontWeight: 500, cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: layout === 'mobile' ? 'flex-start' : 'center', gap: 10,
+                minHeight: layout === 'mobile' ? 94 : undefined,
+                padding: layout === 'mobile' ? '14px 12px' : '10px 4px',
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.024) 100%)',
+                border: '1px solid rgba(180,172,155,0.12)', borderRadius: 16,
+                color: '#ddd8cc', fontSize: layout === 'mobile' ? 12.5 : 11, fontFamily: 'inherit', fontWeight: 600, cursor: 'pointer',
+                textAlign: layout === 'mobile' ? 'left' : 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
               }}>
                 {a.icon}{a.label}
               </button>
@@ -5566,10 +5596,24 @@ function OperationsScreen() {
     <>
     <ContentWrap maxW={720}>
     <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
-      <div style={{ padding: `${topPad} 22px 14px` }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ ...T.h1, color: text.primary }}>{t('operations_title')}</div>
-          <div style={{ display: 'flex', gap: 6 }}>
+      <div style={{ padding: `${topPad} 18px 14px` }}>
+        <div style={{
+          ...glassCard({
+            padding: '18px 18px 16px',
+            borderRadius: 26,
+            background: 'linear-gradient(180deg, rgba(14,34,25,0.9) 0%, rgba(9,22,16,0.8) 100%)',
+            boxShadow: '0 20px 42px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
+          }),
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(circle at 16% 8%, rgba(136,168,232,0.08) 0%, rgba(136,168,232,0) 34%), radial-gradient(circle at 84% 18%, rgba(201,169,100,0.1) 0%, rgba(201,169,100,0) 42%)' }} />
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.6, marginBottom: 4 }}>{t('operations_title')}</div>
+            <div style={{ ...T.h1, color: text.primary }}>{t('operations_title')}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={downloadExport} disabled={dlExport} title={t('download_csv')} style={{ width: 36, height: 36, borderRadius: 10, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: gold }}>
               {dlExport ? <span style={{ fontSize: 16 }}>…</span> : (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -5587,7 +5631,6 @@ function OperationsScreen() {
             </button>
           </div>
         </div>
-        {/* Search */}
         <div style={{ position: 'relative' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.5 }}><circle cx="11" cy="11" r="7" stroke="#ddd8cc" strokeWidth="1.8" /><path d="M20 20l-3-3" stroke="#ddd8cc" strokeWidth="1.8" strokeLinecap="round" /></svg>
           <input
@@ -5597,7 +5640,6 @@ function OperationsScreen() {
             style={{ width: '100%', padding: '10px 14px 10px 36px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 12, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
           />
         </div>
-        {/* Type filter */}
         <div style={{ display: 'flex', gap: 4, padding: '3px', background: 'rgba(26,40,32,0.5)', borderRadius: 100, marginTop: 10 }}>
           {(['all', 'in', 'out'] as const).map(f => (
             <button key={f} onClick={() => setTxFilter(f)} style={{
@@ -5611,7 +5653,6 @@ function OperationsScreen() {
             </button>
           ))}
         </div>
-        {/* Sort order */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
           <span style={{ fontSize: 10, color: text.dim, textTransform: 'uppercase', letterSpacing: 0.7, flexShrink: 0 }}>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ verticalAlign: 'middle', marginRight: 3 }}><path d="M4 6h16M4 12h10M4 18h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
@@ -5642,11 +5683,11 @@ function OperationsScreen() {
             ))}
           </div>
         </div>
+        </div>
       </div>
 
-      {/* Chart */}
-      <div style={{ padding: '0 22px 18px' }}>
-        <div style={{ padding: 20, ...glassCard() }}>
+      <div style={{ padding: '0 18px 18px' }}>
+        <div style={{ padding: 20, ...glassCard({ borderRadius: 24, background: 'linear-gradient(180deg, rgba(15,34,25,0.72) 0%, rgba(10,22,16,0.58) 100%)' }) }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
               <div style={{ ...sectionLabel, padding: 0, marginBottom: 4 }}>{t('spending_this_month')}</div>
@@ -5707,8 +5748,8 @@ function OperationsScreen() {
         if (!rows.length) return null;
         const SPEND_LABELS: Record<string, string> = { transfer: t('spend_transfer'), food: t('spend_food'), transport: t('spend_transport'), utility: t('spend_utility'), shopping: t('spend_shopping'), subscription: t('spend_subscription'), income: t('filter_income') };
         return (
-          <div style={{ padding: '0 22px 18px' }}>
-            <div style={{ padding: 20, ...glassCard() }}>
+          <div style={{ padding: '0 18px 18px' }}>
+            <div style={{ padding: 20, ...glassCard({ borderRadius: 24, background: 'linear-gradient(180deg, rgba(15,34,25,0.72) 0%, rgba(10,22,16,0.58) 100%)' }) }}>
               <div style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 }}>{t('filter_outcome')}</div>
               {rows.map(({ cat, pct, amt }) => {
                 const s = CAT_STYLES[cat];
@@ -5739,21 +5780,21 @@ function OperationsScreen() {
       {txFilter === 'all' && <BudgetPlanner transactions={transactions} />}
 
       {/* Credits & Deposits — right after spending chart */}
-      <div style={{ padding: '0 22px 4px' }}>
+      <div style={{ padding: '0 18px 4px' }}>
         <CreditsSection />
         <DepositsSection />
       </div>
 
       {/* Transactions */}
       {txGroups.length === 0 && (
-        <div style={{ padding: '40px 22px', textAlign: 'center', color: text.muted, fontSize: 14 }}>
+        <div style={{ padding: '40px 18px', textAlign: 'center', color: text.muted, fontSize: 14 }}>
           {searchQuery ? `${t('nothing_found_for')} «${searchQuery}»` : t('no_transactions_yet')}
         </div>
       )}
       {txGroups.map((g, gi) => (
-        <div key={gi} style={{ padding: '4px 22px 12px' }}>
+        <div key={gi} style={{ padding: '4px 18px 12px' }}>
           <div style={{ ...sectionLabel }}>{g.group}</div>
-          <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 18, overflow: 'hidden' }}>
+          <div style={{ background: 'linear-gradient(180deg, rgba(17,36,27,0.82) 0%, rgba(11,24,18,0.7) 100%)', border: `1px solid ${bg.border}`, borderRadius: 20, overflow: 'hidden', boxShadow: '0 14px 30px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
             {g.items.map((item, i) => {
               const s = CAT_STYLES[item.cat];
               return (
@@ -6130,16 +6171,28 @@ function ProfileScreen() {
   ];
 
   const section = (children: React.ReactNode) => (
-    <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 20, overflow: 'hidden', margin: '0 22px 14px' }}>
+    <div style={{ background: 'linear-gradient(180deg, rgba(18,38,29,0.8) 0%, rgba(11,25,18,0.68) 100%)', border: `1px solid ${bg.border}`, borderRadius: 22, overflow: 'hidden', margin: '0 18px 14px', boxShadow: '0 16px 34px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
       {children}
     </div>
   );
+  const sectionTitleWrapStyle = { padding: '4px 18px 8px' };
 
   return (
     <ContentWrap maxW={680}>
     <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
-      {/* Avatar */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: `${topPad} 22px 28px` }}>
+      <div style={{ padding: `${topPad} 18px 18px` }}>
+        <div style={{
+          ...glassCard({
+            padding: '22px 18px 18px',
+            borderRadius: 28,
+            background: 'linear-gradient(180deg, rgba(14,34,25,0.92) 0%, rgba(9,22,16,0.82) 100%)',
+            boxShadow: '0 22px 44px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.05)',
+          }),
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(circle at 18% 8%, rgba(146,198,165,0.12) 0%, rgba(146,198,165,0) 38%), radial-gradient(circle at 84% 14%, rgba(201,169,100,0.12) 0%, rgba(201,169,100,0) 44%)' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <input
           ref={photoInputRef}
           type="file"
@@ -6185,9 +6238,22 @@ function ProfileScreen() {
           )}
         </div>
         <div style={{ ...T.h2, color: text.primary, marginBottom: 4 }}>{displayName}</div>
+        <div style={{ fontSize: 12, color: text.muted, marginBottom: 12 }}>{account?.account_number ?? '—'}</div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: 'rgba(127,184,150,0.12)', border: '1px solid rgba(127,184,150,0.25)', borderRadius: 100 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#7fb896' }} />
           <span style={{ fontSize: 11.5, color: '#7fb896', fontWeight: 500 }}>{t('profile_verified')}</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10, width: '100%', marginTop: 16 }}>
+          <div style={{ padding: '12px 14px', borderRadius: 18, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.7, marginBottom: 4 }}>{t('profile_phone')}</div>
+            <div style={{ fontSize: 13, color: text.secondary, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{phone}</div>
+          </div>
+          <div style={{ padding: '12px 14px', borderRadius: 18, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.7, marginBottom: 4 }}>{t('balance_total')}</div>
+            <div style={{ fontSize: 13, color: text.primary, fontWeight: 700, fontFeatureSettings: '"tnum" 1' }}>{formatUah(Number(account?.balance || 0), lang)}</div>
+          </div>
+        </div>
+        </div>
         </div>
       </div>
 
@@ -6199,7 +6265,7 @@ function ProfileScreen() {
         <ProfileRow label={t('profile_account')} value={account?.account_number ?? '—'} mono copyable last />
       </>)}
 
-      <div style={{ padding: '4px 22px 8px' }}>
+      <div style={sectionTitleWrapStyle}>
         <div style={{ ...sectionLabel }}>{t('settings_language')}</div>
       </div>
       {section(
@@ -6234,7 +6300,7 @@ function ProfileScreen() {
       )}
 
       {/* Security */}
-      <div style={{ padding: '4px 22px 8px' }}>
+      <div style={sectionTitleWrapStyle}>
         <div style={{ ...sectionLabel }}>{t('profile_security')}</div>
       </div>
       {section(<>
@@ -6270,7 +6336,7 @@ function ProfileScreen() {
       </>)}
 
       {/* Change password */}
-      <div style={{ padding: '4px 22px 8px' }}>
+      <div style={sectionTitleWrapStyle}>
         <div style={{ ...sectionLabel }}>{t('profile_password')}</div>
       </div>
       {section(<>
@@ -6310,7 +6376,7 @@ function ProfileScreen() {
       </>)}
 
       {/* Notifications */}
-      <div style={{ padding: '4px 22px 8px' }}>
+      <div style={sectionTitleWrapStyle}>
         <div style={{ ...sectionLabel }}>{t('settings_notifications')}</div>
       </div>
       {section(<>
@@ -6328,7 +6394,7 @@ function ProfileScreen() {
       </>)}
 
       {/* Budget Limits */}
-      <div style={{ padding: '4px 22px 8px' }}>
+      <div style={sectionTitleWrapStyle}>
         <div style={{ ...sectionLabel }}>{t('settings_limits')}</div>
       </div>
       {section(
@@ -6372,7 +6438,7 @@ function ProfileScreen() {
       )}
 
       {/* PIN */}
-      <div style={{ padding: '4px 22px 8px' }}>
+      <div style={sectionTitleWrapStyle}>
         <div style={{ ...sectionLabel }}>{t('settings_pin')}</div>
       </div>
       {section(<>
@@ -6400,7 +6466,7 @@ function ProfileScreen() {
                 style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.16)`, borderRadius: 10, color: text.primary, fontSize: 20, letterSpacing: 8, outline: 'none', fontFamily: 'inherit' }}
               />
               <button type="submit" disabled={pinLoading || pinInput.length < 4} style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: pinInput.length >= 4 ? `linear-gradient(135deg, ${goldDark}, ${gold})` : 'rgba(100,95,80,0.3)', color: '#1a2820', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>
-                {pinLoading ? '…' : '✓'}
+                {pinLoading ? '…' : t('profile_save')}
               </button>
             </form>
           )}
@@ -6408,7 +6474,7 @@ function ProfileScreen() {
       </>)}
 
       {/* App info */}
-      <div style={{ padding: '4px 22px 8px' }}>
+      <div style={sectionTitleWrapStyle}>
         <div style={{ ...sectionLabel }}>{t('settings_app_info')}</div>
       </div>
       {section(<>
@@ -6425,7 +6491,7 @@ function ProfileScreen() {
 
       {/* Achievements */}
       {achievements && (
-        <div style={{ margin: '0 22px 14px' }}>
+        <div style={{ margin: '0 18px 14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{ ...T.h3, color: text.secondary }}>{t('achievements_title')}</span>
             <span style={{ fontSize: 12, color: text.muted }}>{achievements.done}/{achievements.total} {t('achievements_progress')}</span>
@@ -6433,16 +6499,20 @@ function ProfileScreen() {
           <div style={{ height: 3, background: 'rgba(180,172,155,0.1)', borderRadius: 3, marginBottom: 14, overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${(achievements.done / achievements.total) * 100}%`, background: `linear-gradient(90deg, ${gold}, ${goldDark})`, borderRadius: 3, transition: 'width 0.6s ease' }} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: layout === 'mobile' ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, 1fr)', gap: 10 }}>
             {achievements.achievements.map(a => (
               <div key={a.id} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '10px 6px',
-                background: a.done ? 'rgba(127,184,150,0.07)' : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${a.done ? 'rgba(127,184,150,0.2)' : 'rgba(180,172,155,0.08)'}`,
-                borderRadius: 14, opacity: a.done ? 1 : 0.45, transition: 'opacity 0.3s',
+                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10, padding: '12px',
+                background: a.done ? 'linear-gradient(180deg, rgba(127,184,150,0.12) 0%, rgba(127,184,150,0.06) 100%)' : 'linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.018) 100%)',
+                border: `1px solid ${a.done ? 'rgba(127,184,150,0.18)' : 'rgba(180,172,155,0.08)'}`,
+                borderRadius: 16, opacity: a.done ? 1 : 0.72, transition: 'opacity 0.3s',
               }}>
-                <span style={{ fontSize: 22, filter: a.done ? 'none' : 'grayscale(1)' }}>{a.icon}</span>
-                <span style={{ fontSize: 9, color: a.done ? text.secondary : text.muted, textAlign: 'center', lineHeight: 1.3, fontWeight: a.done ? 600 : 400 }}>{a.title}</span>
+                <div style={{ width: 34, height: 34, borderRadius: 12, background: a.done ? 'rgba(127,184,150,0.14)' : 'rgba(180,172,155,0.08)', border: `1px solid ${a.done ? 'rgba(127,184,150,0.22)' : 'rgba(180,172,155,0.12)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: a.done ? '#9ad4b0' : gold, fontSize: 11, fontWeight: 800, letterSpacing: 0.6 }}>
+                  {a.title.split(/\s+/).slice(0, 2).map(part => part[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <div style={{ fontSize: 11.5, color: a.done ? text.secondary : text.muted, lineHeight: 1.35, fontWeight: a.done ? 600 : 500 }}>
+                  {a.title}
+                </div>
               </div>
             ))}
           </div>
@@ -6453,7 +6523,7 @@ function ProfileScreen() {
       <ReferralWidget user={user} />
 
       {/* Sign out */}
-      <div style={{ padding: '8px 22px' }}>
+      <div style={{ padding: '8px 18px' }}>
         <button onClick={logout} style={{
           width: '100%', padding: '14px', borderRadius: 16,
           background: 'rgba(220,100,110,0.06)', border: '1px solid rgba(220,100,110,0.18)',
