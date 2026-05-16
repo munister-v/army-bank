@@ -48,9 +48,9 @@ const text = {
 };
 const radius = { sm: 10, md: 14, lg: 18, xl: 22, '2xl': 28 };
 const fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-const mobileTabBarOffset = 'calc(96px + env(safe-area-inset-bottom, 0px))';
-const mobileDockInset = `calc(${mobileTabBarOffset} + 12px)`;
-const mobileDockInsetCompact = `calc(${mobileTabBarOffset} - 8px)`;
+const mobileTabBarOffset = 'calc(88px + env(safe-area-inset-bottom, 0px))';
+const mobileDockInset = `calc(${mobileTabBarOffset} + 8px)`;
+const mobileDockInsetCompact = `calc(${mobileTabBarOffset} - 6px)`;
 
 // ─── Type scale helpers ───────────────────────────────────────
 const T = {
@@ -7069,7 +7069,7 @@ function MarketplaceScreen() {
       </button>
     )}
     <ContentWrap maxW={isMobileMarket ? 800 : 1400}>
-    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 'calc(104px + env(safe-area-inset-bottom, 0px))', paddingRight: isMobileMarket ? undefined : 356, overflowX: 'hidden' }}>
+    <div style={{ paddingBottom: layout === 'desktop' ? 80 : mobileDockInset, paddingRight: isMobileMarket ? undefined : 356, overflowX: 'hidden' }}>
       <div ref={marketTopRef} style={{ padding: isMobileMarket ? `${topPad} 22px 12px` : '40px 32px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ ...T.h1, color: text.primary }}>{t('market_title')}</div>
@@ -7330,23 +7330,24 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       pointerEvents: 'none',
       paddingLeft: 12,
       paddingRight: 12,
-      paddingBottom: 12,
+      paddingBottom: 0,
     }}>
       <div style={{
         position: 'relative',
         pointerEvents: 'auto',
         background: 'linear-gradient(180deg, rgba(13,30,22,0.88) 0%, rgba(9,19,15,0.94) 100%)',
         border: '1px solid rgba(180,172,155,0.15)',
-        borderRadius: 24,
+        borderRadius: '24px 24px 0 0',
         marginBottom: 0,
-        boxShadow: '0 18px 40px rgba(0,0,0,0.34), inset 0 1px 0 rgba(230,225,210,0.06)',
+        boxShadow: '0 -10px 28px rgba(0,0,0,0.28), inset 0 1px 0 rgba(230,225,210,0.06)',
         backdropFilter: 'blur(24px) saturate(180%)',
         WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+        overflow: 'hidden',
       }}>
         <div style={{
           position: 'relative',
           display: 'flex',
-          padding: `6px 6px calc(${safeAreaInset} + 6px)`,
+          padding: `6px 6px calc(${safeAreaInset} + 2px)`,
         }}>
           <div style={{
             position: 'absolute',
