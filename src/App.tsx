@@ -48,8 +48,9 @@ const text = {
 };
 const radius = { sm: 10, md: 14, lg: 18, xl: 22, '2xl': 28 };
 const fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-const mobileDockInset = 'calc(108px + env(safe-area-inset-bottom, 0px))';
-const mobileDockInsetCompact = 'calc(88px + env(safe-area-inset-bottom, 0px))';
+const mobileTabBarOffset = 'calc(96px + env(safe-area-inset-bottom, 0px))';
+const mobileDockInset = `calc(${mobileTabBarOffset} + 12px)`;
+const mobileDockInsetCompact = `calc(${mobileTabBarOffset} - 8px)`;
 
 // ─── Type scale helpers ───────────────────────────────────────
 const T = {
@@ -7198,19 +7199,19 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const tabs = getTabs(t);
   const activeIdx = tabs.findIndex(tab => tab.k === active);
   const safeAreaInset = 'env(safe-area-inset-bottom, 0px)';
-  const safeAreaVisual = `max(10px, calc(${safeAreaInset} - 14px))`;
   const tabButtonHeight = 76;
   return (
     <div style={{
-      position: 'relative',
-      flexShrink: 0,
+      position: 'fixed',
+      left: 0,
+      right: 0,
+      bottom: 0,
       zIndex: 120,
       background: 'transparent',
       pointerEvents: 'none',
-      paddingTop: 8,
       paddingLeft: 12,
       paddingRight: 12,
-      paddingBottom: 0,
+      paddingBottom: 12,
     }}>
       <div style={{
         position: 'relative',
@@ -7226,7 +7227,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
         <div style={{
           position: 'relative',
           display: 'flex',
-          padding: '6px',
+          padding: `6px 6px calc(${safeAreaInset} + 6px)`,
         }}>
           <div style={{
             position: 'absolute',
@@ -7272,14 +7273,6 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
             );
           })}
         </div>
-        <div style={{
-          height: safeAreaVisual,
-          minHeight: 10,
-          marginTop: -2,
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.015) 0%, rgba(9,19,15,0.08) 100%)',
-          borderBottomLeftRadius: 24,
-          borderBottomRightRadius: 24,
-        }} />
       </div>
     </div>
   );
@@ -8286,31 +8279,23 @@ export default function App() {
     <AppCtx.Provider value={appCtx}>
       <BankDataCtx.Provider value={bankCtx}>
         <LayoutCtx.Provider value="mobile">
-          {/*
-            Mobile root: position:fixed full-screen flex column.
-            TabBar is the last flex child (in-flow), so the OS correctly
-            reserves env(safe-area-inset-bottom) below it.
-            overflow:hidden is intentionally removed — it was clipping the
-            TabBar upward scrim that bleeds above 100% of the tab bar.
-          */}
           <div style={{
-              // position:fixed inset:0 always covers the full physical screen on iOS PWA.
-              // height:100% via -webkit-fill-available can be ~34px short (safe-area-
-              // inset-bottom not included), leaving a visible gap below the tab bar.
               position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-              display: 'flex', flexDirection: 'column',
               background: appBg, color: text.secondary, fontFamily,
               WebkitFontSmoothing: 'antialiased',
             }}>
             <LuxuryAmbientFx />
           <div style={{
-              flex: 1,
-              minHeight: 0,
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
               width: '100%',
               touchAction: 'pan-y',
-              paddingBottom: tabBarHidden ? 0 : 28,
+              paddingBottom: tabBarHidden ? 0 : mobileDockInset,
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch',
             }}
