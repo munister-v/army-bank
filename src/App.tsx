@@ -48,7 +48,7 @@ const text = {
 };
 const radius = { sm: 10, md: 14, lg: 18, xl: 22, '2xl': 28 };
 const fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-const mobileTabBarOffset = 'calc(88px + env(safe-area-inset-bottom, 0px))';
+const mobileTabBarOffset = 'calc(74px + env(safe-area-inset-bottom, 0px))';
 const mobileDockInset = `calc(${mobileTabBarOffset} + 8px)`;
 const mobileDockInsetCompact = `calc(${mobileTabBarOffset} - 6px)`;
 
@@ -7318,7 +7318,9 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const tabs = getTabs(t);
   const activeIdx = tabs.findIndex(tab => tab.k === active);
   const safeAreaInset = 'env(safe-area-inset-bottom, 0px)';
-  const tabButtonHeight = 76;
+  const tabButtonHeight = 62;
+  const tabBarVerticalPadding = 6;
+  const tabBarFrameHeight = `calc(${tabButtonHeight + tabBarVerticalPadding * 2}px + ${safeAreaInset})`;
   return (
     <div style={{
       position: 'fixed',
@@ -7347,11 +7349,13 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
         <div style={{
           position: 'relative',
           display: 'flex',
-          padding: `6px 6px calc(${safeAreaInset} + 2px)`,
+          alignItems: 'flex-end',
+          minHeight: tabBarFrameHeight,
+          padding: `${tabBarVerticalPadding}px 6px`,
         }}>
           <div style={{
             position: 'absolute',
-            top: 6,
+            bottom: tabBarVerticalPadding,
             height: tabButtonHeight,
             left: `calc(${activeIdx * 20}% + 6px)`,
             width: 'calc(20% - 12px)',
@@ -7369,7 +7373,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
               <button key={tab.k} onClick={() => onChange(tab.k)} style={{
                 flex: 1,
                 minHeight: tabButtonHeight,
-                padding: '10px 4px 8px',
+                padding: '8px 4px 6px',
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
@@ -7379,9 +7383,9 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 3,
+                gap: 2,
                 color,
-                fontSize: 10.5,
+                fontSize: 10,
                 fontWeight: isActive ? 700 : 500,
                 letterSpacing: 0.3,
                 fontFamily: 'inherit',
