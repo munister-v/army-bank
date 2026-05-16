@@ -7211,20 +7211,17 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
       flexShrink: 0,
       zIndex: 120,
       pointerEvents: 'none',
-      paddingTop: 6,
-      paddingLeft: 10,
-      paddingRight: 10,
+      paddingTop: 0,
+      paddingLeft: 0,
+      paddingRight: 0,
       paddingBottom: 0,
     }}>
       <div style={{
         position: 'relative',
         pointerEvents: 'auto',
         background: 'linear-gradient(180deg, rgba(14,34,25,0.92) 0%, rgba(9,21,15,0.97) 100%)',
-        border: '1px solid rgba(180,172,155,0.13)',
-        borderRadius: '22px 22px 0 0',
-        borderBottom: 'none',
-        marginBottom: 0,
-        boxShadow: '0 -8px 32px rgba(0,0,0,0.28), inset 0 1px 0 rgba(230,225,210,0.07)',
+        borderTop: '1px solid rgba(180,172,155,0.10)',
+        boxShadow: '0 -8px 32px rgba(0,0,0,0.28)',
         backdropFilter: 'blur(28px) saturate(190%)',
         WebkitBackdropFilter: 'blur(28px) saturate(190%)',
       }}>
@@ -7239,9 +7236,9 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
             height: tabButtonHeight,
             left: `calc(${activeIdx * 20}% + 6px)`,
             width: 'calc(20% - 12px)',
-            background: 'linear-gradient(135deg, rgba(184,176,154,0.14) 0%, rgba(120,128,116,0.10) 100%)',
-            border: '1px solid rgba(184,176,154,0.16)',
-            borderRadius: 16,
+            background: 'linear-gradient(135deg, rgba(184,176,154,0.12) 0%, rgba(120,128,116,0.08) 100%)',
+            border: '1px solid rgba(184,176,154,0.12)',
+            borderRadius: 14,
             transition: 'left 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
             boxShadow: 'inset 0 1px 0 rgba(230,225,210,0.06)',
             pointerEvents: 'none',
@@ -7279,11 +7276,9 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
         </div>
       </div>
       {/* Safe-area filler — extends to the very bottom of the screen with solid bg */}
-      <div style={{
+      <div className="tab-safe-area" style={{
         pointerEvents: 'auto',
         background: 'rgba(9,21,15,0.97)',
-        height: 'env(safe-area-inset-bottom, 0px)',
-        minHeight: 6,
       }} />
     </div>
   );
