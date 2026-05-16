@@ -2313,23 +2313,48 @@ function TopRecipientsMini({ onTransfer }: { onTransfer: (account: string) => vo
 
 // ─── Overview screen ──────────────────────────────────────────
 function QuickAction({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
+  const layout = useLayout();
+  const isMobile = layout === 'mobile';
   return (
     <button onClick={onClick} style={{
-      flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-      padding: '16px 6px 14px', background: 'linear-gradient(180deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.025) 100%)',
-      border: `1px solid rgba(184,176,154,0.12)`,
-      borderRadius: radius.lg, color: text.secondary, fontFamily: 'inherit', ...T.caption,
-      letterSpacing: 0.4, cursor: 'pointer', transition: 'background 0.15s, border-color 0.15s, transform 0.15s',
-      backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
+      flex: 1,
+      minHeight: isMobile ? 112 : undefined,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: isMobile ? 'flex-start' : 'center',
+      justifyContent: 'space-between',
+      gap: isMobile ? 14 : 9,
+      padding: isMobile ? '16px 14px' : '16px 6px 14px',
+      background: isMobile
+        ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.028) 100%)'
+        : 'linear-gradient(180deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.025) 100%)',
+      border: `1px solid rgba(184,176,154,${isMobile ? '0.16' : '0.12'})`,
+      borderRadius: isMobile ? 20 : radius.lg,
+      color: text.secondary,
+      fontFamily: 'inherit',
+      cursor: 'pointer',
+      transition: 'background 0.15s, border-color 0.15s, transform 0.15s',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
+      boxShadow: isMobile ? '0 10px 24px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.05)' : '0 2px 8px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
+      textAlign: isMobile ? 'left' : 'center',
     }}>
       <div style={{
-        width: 42, height: 42, borderRadius: 13,
-        background: `linear-gradient(145deg, ${gold} 0%, ${goldDark} 100%)`,
+        width: isMobile ? 46 : 42,
+        height: isMobile ? 46 : 42,
+        borderRadius: isMobile ? 14 : 13,
+        background: `linear-gradient(135deg, ${goldLight} 0%, ${gold} 52%, ${goldDark} 100%)`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: `0 6px 14px -4px rgba(184,176,154,0.45), inset 0 1px 0 rgba(240,235,220,0.45)`,
+        boxShadow: `0 8px 18px -8px rgba(180,172,155,0.58), inset 0 1px 0 rgba(245,240,230,0.52)`,
       }}>{icon}</div>
-      <span style={{ lineHeight: 1.2 }}>{label}</span>
+      <span style={{
+        fontSize: isMobile ? 13 : 10.5,
+        fontWeight: isMobile ? 650 : 600,
+        lineHeight: isMobile ? 1.25 : 1.2,
+        letterSpacing: isMobile ? 0.1 : 0.4,
+        textTransform: isMobile ? 'none' : 'uppercase',
+        color: isMobile ? text.primary : text.secondary,
+      }}>{label}</span>
     </button>
   );
 }
@@ -3560,6 +3585,19 @@ function OverviewScreen() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [apiNotifications, setApiNotifications] = useState<ApiNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const byType = (analytics?.by_type || []).filter(r => r.direction === 'out');
+  const totalOut = byType.reduce((s, r) => s + Number(r.total), 0);
+  const monthIn = Number(analytics?.current_month?.total_in || 0);
+  const monthOut = Number(analytics?.current_month?.total_out || 0);
+  const flowNet = monthIn - monthOut;
+  const flowNetSign = flowNet >= 0 ? '+' : '−';
+  const SPEND_LABELS: Record<string, string> = { transfer: t('spend_transfer'), food: t('spend_food'), transport: t('spend_transport'), utility: t('spend_utility'), shopping: t('spend_shopping'), subscription: t('spend_subscription') };
+  const SPEND_COLORS: Record<string, string> = { transfer: '#ddd8cc', food: '#e8a864', transport: '#88a8e8', utility: gold, shopping: '#c97db4', subscription: '#78c8b4' };
+  const spendRows = totalOut > 0 ? byType.map(r => ({
+    label: SPEND_LABELS[r.tx_type] || r.tx_type,
+    pct: Math.round(Number(r.total) / totalOut * 100),
+    color: SPEND_COLORS[r.tx_type] || gold,
+  })) : [];
 
   useEffect(() => {
     const token = localStorage.getItem('army_bank_token');
@@ -3699,11 +3737,25 @@ function OverviewScreen() {
 
   const cardSection = (
     <div>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}>
         <span style={{ ...T.h3, color: text.secondary }}>{t('cards_mine')}</span>
         <span style={{ ...T.sm, color: text.dim }}>• {cards.length}</span>
         <div style={{ flex: 1 }} />
-        <button onClick={() => goTo('cards')} style={{ fontSize: 12, color: gold, background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: 3, fontFamily: 'inherit', fontWeight: 500, cursor: 'pointer' }}>
+        <button onClick={() => goTo('cards')} style={{
+          fontSize: 12,
+          color: goldLight,
+          background: 'rgba(184,176,154,0.08)',
+          border: '1px solid rgba(184,176,154,0.16)',
+          borderRadius: 999,
+          padding: '7px 11px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          fontFamily: 'inherit',
+          fontWeight: 600,
+          cursor: 'pointer',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+        }}>
           {t('all')} <Chevron size={12} color={gold} />
         </button>
       </div>
@@ -3809,7 +3861,7 @@ function OverviewScreen() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 16 }}>
             {cards.map((_, i) => (
-              <button key={i} onClick={() => setCardIdx(i)} style={{ width: i === safeCardIdx ? 22 : 7, height: 7, borderRadius: 4, background: i === safeCardIdx ? `linear-gradient(90deg, ${gold}, ${goldLight})` : 'rgba(184,176,154,0.22)', border: 'none', padding: 0, cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: i === safeCardIdx ? `0 0 8px rgba(184,176,154,0.3)` : 'none' }} />
+              <button key={i} onClick={() => setCardIdx(i)} style={{ width: i === safeCardIdx ? 24 : 7, height: 7, borderRadius: 999, background: i === safeCardIdx ? `linear-gradient(90deg, ${gold}, ${goldLight})` : 'rgba(184,176,154,0.22)', border: 'none', padding: 0, cursor: 'pointer', transition: 'all 0.25s', boxShadow: i === safeCardIdx ? '0 0 0 2px rgba(184,176,154,0.14), 0 0 8px rgba(184,176,154,0.24)' : 'none' }} />
             ))}
           </div>
         </>
@@ -3819,26 +3871,12 @@ function OverviewScreen() {
 
   const quickActionsSection = (
     <div>
-      <div style={{ ...T.h3, color: text.secondary, marginBottom: 12 }}>{t('quick_actions')}</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+      <div style={{ ...T.h3, color: text.secondary, marginBottom: 14 }}>{t('quick_actions')}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: layout === 'mobile' ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, 1fr)', gap: layout === 'mobile' ? 12 : 8 }}>
         {quickActions.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => handleQuickAction(a.action)} /></Fragment>)}
       </div>
     </div>
   );
-
-  const byType = (analytics?.by_type || []).filter(r => r.direction === 'out');
-  const totalOut = byType.reduce((s, r) => s + Number(r.total), 0);
-  const monthIn = Number(analytics?.current_month?.total_in || 0);
-  const monthOut = Number(analytics?.current_month?.total_out || 0);
-  const flowNet = monthIn - monthOut;
-  const flowNetSign = flowNet >= 0 ? '+' : '−';
-  const SPEND_LABELS: Record<string, string> = { transfer: t('spend_transfer'), food: t('spend_food'), transport: t('spend_transport'), utility: t('spend_utility'), shopping: t('spend_shopping'), subscription: t('spend_subscription') };
-  const SPEND_COLORS: Record<string, string> = { transfer: '#ddd8cc', food: '#e8a864', transport: '#88a8e8', utility: gold, shopping: '#c97db4', subscription: '#78c8b4' };
-  const spendRows = totalOut > 0 ? byType.map(r => ({
-    label: SPEND_LABELS[r.tx_type] || r.tx_type,
-    pct: Math.round(Number(r.total) / totalOut * 100),
-    color: SPEND_COLORS[r.tx_type] || gold,
-  })) : [];
 
   const greeting = timeGreeting(lang);
 
@@ -3904,48 +3942,59 @@ function OverviewScreen() {
   return (
     <>
     <div style={{ paddingBottom: 20 }}>
-      <div style={{ padding: `${topPad} 22px 8px` }}>
+      <div style={{ padding: `${topPad} 18px 0` }}>
         <div style={{
-          padding: 0,
+          ...glassCard({
+            padding: '18px 18px 16px',
+            borderRadius: 28,
+            background: 'linear-gradient(180deg, rgba(16,39,29,0.9) 0%, rgba(9,24,17,0.82) 100%)',
+            boxShadow: '0 20px 42px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.06)',
+          }),
+          position: 'relative',
+          overflow: 'hidden',
         }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 18% 8%, rgba(146,198,165,0.12) 0%, rgba(146,198,165,0) 40%), radial-gradient(circle at 86% 16%, rgba(201,169,100,0.12) 0%, rgba(201,169,100,0) 42%)', pointerEvents: 'none' }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 44, height: 44, borderRadius: '50%', background: `linear-gradient(145deg, ${gold} 0%, ${goldDark} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a2820', fontSize: 13.5, fontWeight: 700, boxShadow: `0 0 0 2px rgba(184,176,154,0.15), 0 4px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(240,235,220,0.5)`, overflow: 'hidden', flexShrink: 0 }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: `linear-gradient(135deg, ${goldLight} 0%, ${gold} 52%, ${goldDark} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a2820', fontSize: 14, fontWeight: 700, boxShadow: '0 0 0 2px rgba(184,176,154,0.14), inset 0 1px 0 rgba(230,225,210,0.5), 0 6px 18px rgba(0,0,0,0.28)', overflow: 'hidden', flexShrink: 0 }}>
               {profilePhoto ? <img src={profilePhoto} alt={t('profile_photo_alt')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : avatarInitials}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.6, marginBottom: 3 }}>{greeting}</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.1, letterSpacing: -0.3 }}>{firstName}</div>
+              <div style={{ fontSize: 11, color: 'rgba(220,215,200,0.68)', letterSpacing: 0.5, marginBottom: 3 }}>{greeting}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.08, letterSpacing: -0.2 }}>{firstName}</div>
             </div>
             {[
               <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
               <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#ddd8cc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
             ].map((icon, i) => (
-              <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : openNotificationsPanel()} style={{ width: 40, height: 40, borderRadius: 13, background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(184,176,154,0.08)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 2px 6px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, position: 'relative', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
+              <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : openNotificationsPanel()} style={{ width: 40, height: 40, borderRadius: 14, background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(184,176,154,0.08)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 2px 6px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, position: 'relative', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
+
                 {icon}
                 {i === 1 && unreadCount > 0 && <span style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: '50%', background: '#e07070', border: '1.5px solid rgba(7,21,15,0.9)' }} />}
               </button>
             ))}
           </div>
-        </div>
-      </div>
-
-      <div style={{ padding: '24px 22px 18px' }}>
-        <div style={{ padding: 0 }}>
+          <div style={{ height: 18 }} />
           <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} balance={account?.balance ?? 0} accountNumber={account?.account_number ?? '—'} />
+          <div style={{ display: 'flex', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
+            <div style={{ padding: '8px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.06)', fontSize: 11, color: 'rgba(220,215,200,0.78)', fontWeight: 600 }}>
+              {cards.length} {cards.length === 1 ? 'картка' : 'картки'}
+            </div>
+            <div style={{ padding: '8px 12px', borderRadius: 999, background: flowNet >= 0 ? 'rgba(127,184,150,0.14)' : 'rgba(224,112,112,0.14)', border: `1px solid ${flowNet >= 0 ? 'rgba(127,184,150,0.24)' : 'rgba(224,112,112,0.22)'}`, fontSize: 11, color: flowNet >= 0 ? '#9ad4b0' : '#f0b2ad', fontWeight: 600, fontFeatureSettings: '"tnum" 1' }}>
+              {flowNetSign}₴{fmtInt(Math.abs(flowNet))}{fmtDec(Math.abs(flowNet))} цього місяця
+            </div>
+          </div>
         </div>
       </div>
 
-      <div style={{ padding: '0 22px 4px' }}>
-        <div style={{ padding: 0 }}>
+      <div style={{ padding: '18px 18px 0' }}>
+        <div style={{ ...glassCard({ padding: '18px 16px 16px', borderRadius: 24, background: 'linear-gradient(180deg, rgba(15,34,25,0.72) 0%, rgba(10,22,16,0.58) 100%)' }) }}>
           {cardSection}
         </div>
       </div>
 
-      <div style={{ padding: '22px 22px 0' }}>
-        <div style={{ padding: 0 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {quickActions.map(a => <Fragment key={a.label}><QuickAction icon={a.icon} label={a.label} onClick={() => handleQuickAction(a.action)} /></Fragment>)}
-          </div>
+      <div style={{ padding: '18px 18px 0' }}>
+        <div style={{ ...glassCard({ padding: '18px 16px 16px', borderRadius: 24, background: 'linear-gradient(180deg, rgba(14,32,23,0.7) 0%, rgba(9,20,15,0.56) 100%)' }) }}>
+          {quickActionsSection}
         </div>
       </div>
 
