@@ -7327,7 +7327,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const safeAreaInset = 'env(safe-area-inset-bottom, 0px)';
   const tabButtonHeight = 62;
   const tabBarVerticalPadding = 6;
-  const tabBarFrameHeight = `calc(${tabButtonHeight + tabBarVerticalPadding * 2}px + ${safeAreaInset})`;
+  const tabBarFrameHeight = `${tabButtonHeight + tabBarVerticalPadding * 2}px`;
   return (
     <div style={{
       position: 'fixed',
