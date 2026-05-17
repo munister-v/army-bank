@@ -7330,7 +7330,7 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
   const tabBarFrameHeight = `${tabButtonHeight + tabBarVerticalPadding * 2}px`;
   return (
     <div style={{
-      position: 'fixed',
+      position: 'absolute',
       left: 0,
       right: 0,
       bottom: 0,
@@ -8424,7 +8424,11 @@ export default function App() {
       <BankDataCtx.Provider value={bankCtx}>
         <LayoutCtx.Provider value="mobile">
           <div style={{
-              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              position: 'relative',
+              width: '100%',
+              height: 'var(--app-vh, 100dvh)',
+              minHeight: 'var(--app-vh, 100dvh)',
+              overflow: 'hidden',
               background: appBg, color: text.secondary, fontFamily,
               WebkitFontSmoothing: 'antialiased',
             }}>
