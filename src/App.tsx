@@ -2838,7 +2838,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }} onClick={e => e.target === e.currentTarget && onClose()}>
       <div
         {...sheetSwipe.sheetProps}
-        style={{ width: '100%', maxWidth: 480, background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)', border: '1px solid rgba(180,172,155,0.2)', borderRadius: '24px 24px 0 0', padding: '28px 24px 40px', boxShadow: '0 -20px 60px rgba(0,0,0,0.5)', ...sheetSwipe.sheetStyle }}
+        style={{ width: '100%', maxWidth: 480, background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)', border: '1px solid rgba(180,172,155,0.2)', borderRadius: '24px 24px 0 0', padding: '28px 24px calc(40px + env(safe-area-inset-bottom, 0px))', boxShadow: '0 -20px 60px rgba(0,0,0,0.5)', ...sheetSwipe.sheetStyle }}
       >
         <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(180,172,155,0.25)', margin: '-8px auto 16px' }} />
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
@@ -6631,7 +6631,7 @@ function ProductDetailDrawer({ product, onClose, onAddToCart }: { product: Produ
         onClick={e => e.stopPropagation()}
         style={{
         position: 'relative', background: 'linear-gradient(180deg,#112820 0%,#0b1e16 100%)',
-        borderRadius: '24px 24px 0 0', padding: '28px 24px 48px',
+        borderRadius: '24px 24px 0 0', padding: '28px 24px calc(48px + env(safe-area-inset-bottom, 0px))',
         boxShadow: '0 -20px 60px rgba(0,0,0,0.6)', maxHeight: '85vh', overflowY: 'auto',
         border: '1px solid rgba(180,172,155,0.15)', borderBottom: 'none',
         ...sheetSwipe.sheetStyle,
@@ -6723,7 +6723,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
         background: 'linear-gradient(180deg,rgba(17,40,32,0.98) 0%,rgba(11,30,22,0.98) 100%)',
         backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
         borderRadius: '28px 28px 0 0',
-        padding: '18px 18px 0',
+        padding: '18px 18px env(safe-area-inset-bottom, 0px)',
         boxShadow: '0 -20px 60px rgba(0,0,0,0.6)',
         height: 'auto',
         maxHeight: 'min(86dvh, 720px)',
@@ -7749,7 +7749,7 @@ function PremiumStatusStrip() {
 
 function WowSplash() {
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', zIndex: 9999, overflow: 'hidden', background: '#07150f' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px))', zIndex: 9999, overflow: 'hidden', background: '#07150f' }}>
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 86% 56% at 50% 14%, rgba(34,74,52,0.64) 0%, rgba(10,26,18,0.92) 65%, rgba(6,16,11,1) 100%)' }} />
       <div style={{
         position: 'absolute',
@@ -7895,16 +7895,16 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
   return (
     <div style={{ ...appBase, overflowY: 'auto' }}>
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none', background: '#07150f' }} />
-      <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none',
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0,       bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px))', pointerEvents: 'none', background: '#07150f' }} />
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px))', pointerEvents: 'none',
         backgroundImage: `url(${AUTH_STATIC_BG})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center top',
         opacity: 0.82,
       }} />
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 'calc(-1 * env(safe-area-inset-bottom, 40px))', pointerEvents: 'none',
-        background: 'radial-gradient(ellipse 72% 50% at 50% 0%, rgba(20,46,32,0.48) 0%, rgba(6,14,10,0.74) 58%, rgba(5,11,8,0.9) 100%)',
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0,       bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px))', pointerEvents: 'none',
+              background: 'radial-gradient(ellipse 72% 50% at 50% 0%, rgba(20,46,32,0.48) 0%, rgba(6,14,10,0.74) 58%, rgba(5,11,8,0.9) 100%)',
       }} />
       <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 20px', position: 'relative' }}>
       <div style={{ width: '100%', maxWidth: 380 }}>
