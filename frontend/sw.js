@@ -5,8 +5,8 @@ const CACHE = `army-bank-v${SW_VERSION}`;
 /* Keep precache minimal to reduce stale-asset risk */
 const PRECACHE = [
   '/offline.html',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  '/icons/icon-v2-192.png',
+  '/icons/icon-v2-512.png',
 ];
 
 function asNoStore(request) {
@@ -152,8 +152,8 @@ self.addEventListener('push', (e) => {
 
   const options = {
     body: data.body,
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-72.png',
+        icon: '/icons/icon-v2-192.png',
+        badge: '/icons/icon-v2-192.png',
     tag: `army-bank-${data.type || 'push'}`,
     renotify: true,
     vibrate: [200, 100, 200, 100, 200],
