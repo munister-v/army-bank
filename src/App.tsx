@@ -1598,6 +1598,21 @@ function readStoredMarketTab(): 'catalog' | 'orders' | 'invoices' {
 function openPdfBlobInNewTab(blob: Blob, fallbackFileName: string, toast?: (msg: string) => void) {
   markAppContinuation();
   const blobUrl = URL.createObjectURL(blob);
+
+  const isIosPwa = (window.navigator as { standalone?: boolean }).standalone === true;
+  if (isIosPwa) {
+    // iOS PWA blocks window.open — trigger download via <a> with download attr
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = fallbackFileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 5_000);
+    if (toast) toast(translations[getStoredLanguage()].receipt_opened);
+    return;
+  }
+
   const popup = window.open(blobUrl, '_blank', 'noopener,noreferrer');
   if (popup) {
     window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);

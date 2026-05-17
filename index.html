@@ -122,49 +122,6 @@
     </style>
     <script>
       (function () {
-        function isStandaloneMode() {
-          try {
-            var iosStandalone = window.navigator && window.navigator.standalone === true;
-            var mediaStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
-            return !!(iosStandalone || mediaStandalone);
-          } catch (_) {
-            return false;
-          }
-        }
-        var root = document.documentElement;
-        function setAppVh() {
-          var ih = window.innerHeight || 0;
-          var ch = document.documentElement.clientHeight || 0;
-          var vv = (window.visualViewport && window.visualViewport.height) ? Math.round(window.visualViewport.height) : 0;
-          var h = 0;
-          if (isStandaloneMode()) {
-            // In iOS PWA visualViewport can be shorter than the real app canvas.
-            // Recover missing bottom area when the mismatch is small (safe-area range).
-            // In PWA standalone use innerHeight — screen.height overshoots
-            // and pushes position:fixed elements below the visible viewport.
-            h = vv || ih || ch;
-          } else {
-            // Browser mode: prefer visualViewport to track dynamic toolbars.
-            h = vv || ih || ch;
-          }
-          if (h > 0) root.style.setProperty('--app-vh', h + 'px');
-        }
-        setAppVh();
-        requestAnimationFrame(setAppVh);
-        setTimeout(setAppVh, 120);
-        setTimeout(setAppVh, 600);
-        setTimeout(setAppVh, 1200);
-        window.addEventListener('resize', setAppVh, { passive: true });
-        if (window.visualViewport && window.visualViewport.addEventListener) {
-          window.visualViewport.addEventListener('resize', setAppVh, { passive: true });
-          window.visualViewport.addEventListener('scroll', setAppVh, { passive: true });
-        }
-        window.addEventListener('orientationchange', setAppVh);
-        window.addEventListener('pageshow', setAppVh);
-      })();
-    </script>
-    <script>
-      (function () {
         var buildId = '2026-04-26-08';
         var buildKey = 'army_bank_build_id';
         try {
