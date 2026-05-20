@@ -7402,10 +7402,13 @@ function TabBar({ active, onChange }: { active: TabKey; onChange: (k: TabKey) =>
           })}
         </div>
       </div>
-      {/* Safe-area filler — extends to the very bottom of the screen with solid bg */}
+      {/* Safe-area filler — fills home-indicator zone so no background bleeds through */}
       <div className="tab-safe-area" style={{
         pointerEvents: 'auto',
+        height: safeAreaInset,   /* = env(safe-area-inset-bottom, 0px) */
+        minHeight: safeAreaInset,
         background: 'rgba(9,21,15,0.97)',
+        flexShrink: 0,
       }} />
     </div>
   );
