@@ -2,8 +2,8 @@
 <html lang="uk">
 <head>
   <script>
-    if (localStorage.getItem('FORCE_RELOAD_VER') !== 'v82') {
-      localStorage.setItem('FORCE_RELOAD_VER', 'v82');
+    if (localStorage.getItem('FORCE_RELOAD_VER') !== 'v83') {
+      localStorage.setItem('FORCE_RELOAD_VER', 'v83');
       if ('caches' in window) caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k); }); });
       if (navigator.serviceWorker) navigator.serviceWorker.getRegistrations().then(function(rs){ rs.forEach(function(r){ r.unregister(); }); });
       setTimeout(function(){ window.location.reload(true); }, 200);
@@ -41,7 +41,7 @@
     .hidden{display:none!important}
     .screen{display:none;flex-direction:column;height:100%}
     .screen.active-screen{display:block}
-    #authScreen.auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(180deg,#274fb5 0%,#3f6fd8 52%,#7da0df 100%)}
+    #authScreen.auth-screen{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;overflow-y:auto;-webkit-overflow-scrolling:touch;background:linear-gradient(180deg,#274fb5 0%,#3f6fd8 52%,#7da0df 100%);padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
     #authScreen.hidden{display:none!important}
     #appScreen.hidden{display:none!important}
     /* Instant auth-state — applied by inline script below before body renders */

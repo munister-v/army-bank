@@ -307,6 +307,18 @@ body {
 
 /* ── Auth ─────────────────────────────────────────── */
 .auth-screen {
+  /* position:fixed covers the full viewport including safe areas on iOS PWA —
+     prevents the app screen / any background from bleeding through at the bottom */
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  /* Safe-area padding so the form isn't hidden behind notch / home indicator */
+  padding: max(20px, env(safe-area-inset-top, 20px))
+           max(20px, env(safe-area-inset-right, 20px))
+           max(24px, env(safe-area-inset-bottom, 24px))
+           max(20px, env(safe-area-inset-left, 20px)) !important;
   background:
     radial-gradient(120% 80% at 10% -10%, rgba(83, 128, 255, 0.28) 0%, transparent 70%),
     linear-gradient(180deg, #274fb5 0%, #3f6fd8 52%, #7da0df 100%) !important;
@@ -10212,9 +10224,11 @@ html.install-banner-visible #appScreen .app-content {
     max-height: calc(62px + env(safe-area-inset-bottom, 0px)) !important;
     display: flex !important;
     flex-direction: row !important;
+    /* flex-start: іконки притиснуті до верху; safe-area залишається порожнім тлом */
     align-items: flex-start !important;
     justify-content: space-around !important;
-    padding: 0 6px env(safe-area-inset-bottom, 0px) !important;
+    /* padding-bottom = safe-area = тло бару перекриває home-indicator, але без вмісту */
+    padding: 0 6px env(safe-area-inset-bottom, 0px) 6px !important;
     border-radius: 20px 20px 0 0 !important;
     background: rgba(243, 246, 240, 0.96) !important;
     backdrop-filter: saturate(180%) blur(20px) !important;
@@ -10233,16 +10247,19 @@ html.install-banner-visible #appScreen .app-content {
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
-    justify-content: center !important;
+    /* ↓ НЕ center — center розтягує іконки в зону home-indicator */
+    justify-content: flex-start !important;
     gap: 3px !important;
     flex: 1 !important;
     min-width: 0 !important;
     max-width: 88px !important;
-    height: 100% !important;
-    padding: 6px 4px !important;
+    /* ↓ фіксована висота = лише видима зона; safe-area під нею — пусте тло бара */
+    height: 62px !important;
+    align-self: flex-start !important;
+    padding: 10px 4px 0 !important;
     background: transparent !important;
     border: none !important;
-    border-radius: 24px !important;
+    border-radius: 12px !important;
     cursor: pointer !important;
     text-decoration: none !important;
     transition: background .15s ease, color .15s ease !important;
