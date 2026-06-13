@@ -87,6 +87,33 @@
       border-left:3px solid var(--accent); padding:8px 12px; background:rgba(52,211,153,.06);
       border-radius:0 8px 8px 0; font-size:.88rem; color:#bfe7d6; margin:12px 0;
     }
+    /* ── SQL-підсвітка для DDL-блоків ─────────────────────────────────────── */
+    pre.sql .kw   { color:#34d399; font-weight:600; }              /* CREATE, TABLE, PRIMARY KEY ... */
+    pre.sql .tbl  { color:#7dd3fc; font-weight:600; }               /* назва таблиці */
+    pre.sql .col  { color:#e8f3ed; }                                /* назва колонки */
+    pre.sql .type { color:#fbbf24; }                                /* INTEGER, TEXT, REAL ... */
+    pre.sql .cmt  { color:#6b8f7f; font-style:italic; }             /* -- коментар з поясненням */
+    pre.sql .fk   { color:#f472b6; }                                /* FOREIGN KEY / REFERENCES */
+    /* ── ER-діаграма (SVG) ───────────────────────────────────────────────── */
+    .er-diagram{
+      background:var(--code); border:1px solid var(--border); border-radius:10px;
+      padding:14px; overflow-x:auto; margin:14px 0;
+    }
+    .er-diagram svg{display:block; min-width:760px; width:100%; height:auto;}
+    .er-box{fill:var(--panel2); stroke:var(--border); stroke-width:1;}
+    .er-box.core{stroke:var(--accent); stroke-width:1.5;}
+    .er-title{fill:var(--accent); font:600 13px "SF Mono",Menlo,Consolas,monospace;}
+    .er-title.core{fill:#7dd3fc;}
+    .er-field{fill:#cfe3da; font:12px "SF Mono",Menlo,Consolas,monospace;}
+    .er-field.pk{fill:#fbbf24;}
+    .er-field.fk{fill:#f472b6;}
+    .er-line{stroke:var(--muted); stroke-width:1.2; fill:none;}
+    .er-label{fill:var(--muted); font:11px "SF Mono",Menlo,Consolas,monospace;}
+    /* ── Легенда / бейджі типів колонок ──────────────────────────────────── */
+    .legend{display:flex; flex-wrap:wrap; gap:8px 18px; margin:10px 0 18px; font-size:.82rem; color:var(--muted);}
+    .legend span{display:inline-flex; align-items:center; gap:6px;}
+    .legend i{display:inline-block; width:12px; height:12px; border-radius:3px;}
+    .i-pk{background:#fbbf24;} .i-fk{background:#f472b6;} .i-cmt{background:#6b8f7f;} .i-tbl{background:#7dd3fc;}
   </style>
 </head>
 <body>
@@ -473,20 +500,139 @@ src/                  # вихідний код React (TypeScript), компіл
       Усі зв'язки — через <code class="inline">FOREIGN KEY ... ON DELETE CASCADE</code> (видалення користувача
       каскадно видаляє його рахунок, картки, операції тощо).</p>
 
-      <h3>ER-схема (спрощено)</h3>
-      <pre>users (1) ──── (1) accounts (1) ──── (N) cards
-  │                   │
-  │                   └──── (N) transactions
-  │
-  ├──── (N) sessions
-  ├──── (N) family_contacts
-  ├──── (N) savings_goals
-  ├──── (N) donations
-  ├──── (N) payouts
-  ├──── (N) payment_templates
-  ├──── (N) push_subscriptions
-  ├──── (N) budget_limits   (тільки PostgreSQL-схема)
-  └──── (N) audit_logs      (ON DELETE SET NULL)</pre>
+      <h3>ER-схема</h3>
+      <div class="legend">
+        <span><i class="i-tbl"></i> Центральна таблиця</span>
+        <span><i class="i-pk"></i> PRIMARY KEY</span>
+        <span><i class="i-fk"></i> FOREIGN KEY → users / accounts</span>
+        <span><i class="i-cmt"></i> Коментар у DDL нижче</span>
+      </div>
+      <div class="er-diagram">
+        <svg viewBox="0 0 800 560" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+            </marker>
+          </defs>
+
+          <!-- ── users (центральна таблиця) ───────────────────────────── -->
+          <rect class="er-box core" x="20" y="20" width="240" height="118" rx="8"/>
+          <text class="er-title core" x="32" y="40">users</text>
+          <text class="er-field pk" x="32" y="60">id  PK</text>
+          <text class="er-field" x="32" y="78">full_name, role</text>
+          <text class="er-field" x="32" y="96">email UNIQUE, phone UNIQUE</text>
+          <text class="er-field" x="32" y="114">password_hash, military_status</text>
+
+          <!-- ── accounts (центральна таблиця) ────────────────────────── -->
+          <rect class="er-box core" x="300" y="20" width="220" height="100" rx="8"/>
+          <text class="er-title core" x="312" y="40">accounts</text>
+          <text class="er-field pk" x="312" y="60">id  PK</text>
+          <text class="er-field fk" x="312" y="78">user_id  FK → users.id (UNIQUE)</text>
+          <text class="er-field" x="312" y="96">account_number, balance, status</text>
+
+          <!-- users -> accounts: 1:1 -->
+          <path class="er-line" d="M260,70 H300" marker-end="url(#arrow)"/>
+          <text class="er-label" x="263" y="64">1 : 1</text>
+
+          <!-- ── sessions ──────────────────────────────────────────────── -->
+          <rect class="er-box" x="20" y="170" width="170" height="80" rx="8"/>
+          <text class="er-title" x="32" y="190">sessions</text>
+          <text class="er-field pk" x="32" y="210">id  PK</text>
+          <text class="er-field fk" x="32" y="228">user_id  FK</text>
+          <text class="er-field" x="32" y="246">token, expires_at</text>
+
+          <!-- ── cards (під accounts) ─────────────────────────────────── -->
+          <rect class="er-box" x="300" y="170" width="170" height="80" rx="8"/>
+          <text class="er-title" x="312" y="190">cards</text>
+          <text class="er-field pk" x="312" y="210">id  PK</text>
+          <text class="er-field fk" x="312" y="228">account_id  FK</text>
+          <text class="er-field" x="312" y="246">card_number, card_type</text>
+
+          <!-- ── transactions ──────────────────────────────────────────── -->
+          <rect class="er-box" x="500" y="170" width="200" height="100" rx="8"/>
+          <text class="er-title" x="512" y="190">transactions</text>
+          <text class="er-field pk" x="512" y="210">id  PK</text>
+          <text class="er-field fk" x="512" y="228">account_id  FK</text>
+          <text class="er-field" x="512" y="246">tx_type, direction, amount</text>
+          <text class="er-field" x="512" y="264">related_account, created_at</text>
+
+          <!-- accounts -> cards / transactions -->
+          <path class="er-line" d="M385,120 V170" marker-end="url(#arrow)"/>
+          <text class="er-label" x="390" y="150">1 : N</text>
+          <path class="er-line" d="M520,120 C520,145 600,145 600,170" marker-end="url(#arrow)"/>
+          <text class="er-label" x="525" y="150">1 : N</text>
+
+          <!-- ── Друга група: персональні дані користувача (1:N від users) ── -->
+          <rect class="er-box" x="20" y="300" width="170" height="80" rx="8"/>
+          <text class="er-title" x="32" y="320">family_contacts</text>
+          <text class="er-field pk" x="32" y="340">id  PK</text>
+          <text class="er-field fk" x="32" y="358">user_id  FK</text>
+          <text class="er-field" x="32" y="376">contact_name, relation_type</text>
+
+          <rect class="er-box" x="210" y="300" width="170" height="80" rx="8"/>
+          <text class="er-title" x="222" y="320">savings_goals</text>
+          <text class="er-field pk" x="222" y="340">id  PK</text>
+          <text class="er-field fk" x="222" y="358">user_id  FK</text>
+          <text class="er-field" x="222" y="376">title, target_amount</text>
+
+          <rect class="er-box" x="400" y="300" width="170" height="80" rx="8"/>
+          <text class="er-title" x="412" y="320">donations</text>
+          <text class="er-field pk" x="412" y="340">id  PK</text>
+          <text class="er-field fk" x="412" y="358">user_id  FK</text>
+          <text class="er-field" x="412" y="376">fund_name, amount</text>
+
+          <rect class="er-box" x="590" y="300" width="170" height="80" rx="8"/>
+          <text class="er-title" x="602" y="320">payouts</text>
+          <text class="er-field pk" x="602" y="340">id  PK</text>
+          <text class="er-field fk" x="602" y="358">user_id  FK</text>
+          <text class="er-field" x="602" y="376">title, amount, payout_type</text>
+
+          <!-- ── Третя група: шаблони / push / аудит / ліміти ────────────── -->
+          <rect class="er-box" x="20" y="420" width="190" height="80" rx="8"/>
+          <text class="er-title" x="32" y="440">payment_templates</text>
+          <text class="er-field pk" x="32" y="460">id  PK</text>
+          <text class="er-field fk" x="32" y="478">user_id  FK (nullable)</text>
+          <text class="er-field" x="32" y="496">name, recipient_account</text>
+
+          <rect class="er-box" x="230" y="420" width="190" height="80" rx="8"/>
+          <text class="er-title" x="242" y="440">push_subscriptions</text>
+          <text class="er-field pk" x="242" y="460">id  PK</text>
+          <text class="er-field fk" x="242" y="478">user_id  FK</text>
+          <text class="er-field" x="242" y="496">endpoint, p256dh, auth</text>
+
+          <rect class="er-box" x="440" y="420" width="160" height="80" rx="8"/>
+          <text class="er-title" x="452" y="440">audit_logs</text>
+          <text class="er-field pk" x="452" y="460">id  PK</text>
+          <text class="er-field fk" x="452" y="478">user_id  FK (SET NULL)</text>
+          <text class="er-field" x="452" y="496">action, details</text>
+
+          <rect class="er-box" x="620" y="420" width="160" height="80" rx="8" stroke-dasharray="4 3"/>
+          <text class="er-title" x="632" y="440">budget_limits</text>
+          <text class="er-field pk" x="632" y="460">id  PK (PG only)</text>
+          <text class="er-field fk" x="632" y="478">user_id  FK</text>
+          <text class="er-field" x="632" y="496">tx_type, monthly_limit</text>
+
+          <!-- ── Вертикальна "шина" 1:N від users до всіх дочірніх таблиць ── -->
+          <path class="er-line" d="M40,138 V480" marker-end="none"/>
+          <text class="er-label" x="44" y="296">users.id → FK (1 : N) у всіх таблицях нижче</text>
+          <path class="er-line" d="M40,260 H105 V300" marker-end="url(#arrow)"/>
+          <path class="er-line" d="M40,260 H295 V300" marker-end="url(#arrow)"/>
+          <path class="er-line" d="M40,260 H485 V300" marker-end="url(#arrow)"/>
+          <path class="er-line" d="M40,260 H675 V300" marker-end="url(#arrow)"/>
+          <path class="er-line" d="M40,380 H115 V420" marker-end="url(#arrow)"/>
+          <path class="er-line" d="M40,380 H325 V420" marker-end="url(#arrow)"/>
+          <path class="er-line" d="M40,380 H520 V420" marker-end="url(#arrow)"/>
+          <path class="er-line" d="M40,380 H700 V420" marker-end="url(#arrow)"/>
+          <path class="er-line" d="M40,170 H105 V170" marker-end="url(#arrow)"/>
+        </svg>
+      </div>
+      <p class="note">
+        Усі зв'язки — через <code class="inline">FOREIGN KEY ... ON DELETE CASCADE</code>
+        (видалення користувача каскадно видаляє його рахунок, картки, операції, сесії тощо),
+        окрім <code class="inline">audit_logs.user_id</code> — там
+        <code class="inline">ON DELETE SET NULL</code>, щоб лог дій зберігався навіть
+        після видалення акаунта.
+      </p>
 
       <h3>users</h3>
       <table>
@@ -644,142 +790,146 @@ src/                  # вихідний код React (TypeScript), компіл
       </table>
       <p><em>Унікальність:</em> <code class="inline">UNIQUE (user_id, tx_type)</code> — один ліміт на категорію для користувача.</p>
 
-      <h3>Повний DDL (SQLite)</h3>
-      <pre>PRAGMA foreign_keys = ON;
+      <h3>Повний DDL (SQLite) — з поясненням кожного рядка</h3>
+      <p>Файл цілком: <a class="src" href="https://github.com/munister-v/army-bank/blob/main/database/schema.sql" target="_blank" rel="noopener">database/schema.sql</a>.
+      Нижче — той самий DDL, але з коментарем <span class="pill" style="margin:0">-- ...</span> до кожного рядка, що пояснює призначення поля чи обмеження.</p>
+      <pre class="sql"><span class="kw">PRAGMA foreign_keys = ON;</span>                                    <span class="cmt">-- SQLite за замовчуванням НЕ перевіряє FK — увімкнути примусово</span>
 
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    full_name TEXT NOT NULL,
-    phone TEXT NOT NULL UNIQUE,
-    email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'soldier',
-    military_status TEXT NOT NULL DEFAULT 'active',
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_seen_at TEXT DEFAULT NULL
+<span class="kw">CREATE TABLE IF NOT EXISTS</span> <span class="tbl">users</span> (                          <span class="cmt">-- профіль і облікові дані користувача</span>
+    id <span class="type">INTEGER</span> <span class="kw">PRIMARY KEY AUTOINCREMENT</span>,             <span class="cmt">-- унікальний ID користувача (PK)</span>
+    full_name <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                       <span class="cmt">-- ПІБ для відображення в інтерфейсі</span>
+    phone <span class="type">TEXT</span> <span class="kw">NOT NULL UNIQUE</span>,                    <span class="cmt">-- телефон; унікальний, може йти для входу/відновлення</span>
+    email <span class="type">TEXT</span> <span class="kw">NOT NULL UNIQUE</span>,                    <span class="cmt">-- email — основний логін, унікальний</span>
+    password_hash <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                   <span class="cmt">-- bcrypt-хеш пароля, див. utils/security.py</span>
+    role <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT</span> 'soldier',           <span class="cmt">-- soldier / admin / platform_admin / operator</span>
+    military_status <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT</span> 'active', <span class="cmt">-- військовий статус облікового запису</span>
+    created_at <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT CURRENT_TIMESTAMP</span>, <span class="cmt">-- дата реєстрації (UTC, ISO-рядок)</span>
+    last_seen_at <span class="type">TEXT</span> <span class="kw">DEFAULT NULL</span>                  <span class="cmt">-- оновлюється на кожен запит у auth_required()</span>
 );
 
-CREATE TABLE IF NOT EXISTS accounts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL UNIQUE,
-    account_number TEXT NOT NULL UNIQUE,
-    currency TEXT NOT NULL DEFAULT 'UAH',
-    balance REAL NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'active',
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+<span class="kw">CREATE TABLE IF NOT EXISTS</span> <span class="tbl">accounts</span> (                       <span class="cmt">-- банківський рахунок, рівно 1 на користувача</span>
+    id <span class="type">INTEGER</span> <span class="kw">PRIMARY KEY AUTOINCREMENT</span>,             <span class="cmt">-- ID рахунку (PK)</span>
+    user_id <span class="type">INTEGER</span> <span class="kw">NOT NULL UNIQUE</span>,                <span class="cmt">-- власник; UNIQUE ⇒ лише 1 рахунок на user</span>
+    account_number <span class="type">TEXT</span> <span class="kw">NOT NULL UNIQUE</span>,            <span class="cmt">-- номер рахунку, видається при реєстрації</span>
+    currency <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT</span> 'UAH',            <span class="cmt">-- валюта рахунку</span>
+    balance <span class="type">REAL</span> <span class="kw">NOT NULL DEFAULT</span> 0,                 <span class="cmt">-- баланс; змінюється лише через PaymentCore</span>
+    status <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT</span> 'active',           <span class="cmt">-- active / frozen</span>
+    created_at <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT CURRENT_TIMESTAMP</span>, <span class="cmt">-- дата відкриття рахунку</span>
+    <span class="fk">FOREIGN KEY</span>(user_id) <span class="fk">REFERENCES</span> users(id) <span class="fk">ON DELETE CASCADE</span> <span class="cmt">-- видалили user ⇒ видаляється й рахунок</span>
 );
 
-CREATE TABLE IF NOT EXISTS sessions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    token TEXT NOT NULL UNIQUE,
-    expires_at TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+<span class="kw">CREATE TABLE IF NOT EXISTS</span> <span class="tbl">sessions</span> (                       <span class="cmt">-- активні сесії (видані Bearer-токени)</span>
+    id <span class="type">INTEGER</span> <span class="kw">PRIMARY KEY AUTOINCREMENT</span>,             <span class="cmt">-- ID сесії (PK)</span>
+    user_id <span class="type">INTEGER</span> <span class="kw">NOT NULL</span>,                       <span class="cmt">-- власник токена</span>
+    token <span class="type">TEXT</span> <span class="kw">NOT NULL UNIQUE</span>,                      <span class="cmt">-- secrets.token_urlsafe(32) — сам токен</span>
+    expires_at <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                       <span class="cmt">-- термін дії; перевіряє/продовжує auth_required()</span>
+    created_at <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT CURRENT_TIMESTAMP</span>, <span class="cmt">-- час видачі токена</span>
+    <span class="fk">FOREIGN KEY</span>(user_id) <span class="fk">REFERENCES</span> users(id) <span class="fk">ON DELETE CASCADE</span> <span class="cmt">-- видалили user ⇒ всі його сесії зникають</span>
 );
 
-CREATE TABLE IF NOT EXISTS family_contacts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    contact_name TEXT NOT NULL,
-    relation_type TEXT NOT NULL,
-    phone TEXT,
-    account_number TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+<span class="kw">CREATE TABLE IF NOT EXISTS</span> <span class="tbl">family_contacts</span> (                 <span class="cmt">-- адресна книга для швидких переказів</span>
+    id <span class="type">INTEGER</span> <span class="kw">PRIMARY KEY AUTOINCREMENT</span>,             <span class="cmt">-- ID запису (PK)</span>
+    user_id <span class="type">INTEGER</span> <span class="kw">NOT NULL</span>,                       <span class="cmt">-- власник адресної книги</span>
+    contact_name <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                     <span class="cmt">-- ім'я контакту (довільний текст)</span>
+    relation_type <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                    <span class="cmt">-- тип зв'язку: родина / друг / ін.</span>
+    phone <span class="type">TEXT</span>,                                       <span class="cmt">-- телефон контакту (опційно)</span>
+    account_number <span class="type">TEXT</span>,                              <span class="cmt">-- рахунок для швидкого переказу (опційно)</span>
+    created_at <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT CURRENT_TIMESTAMP</span>, <span class="cmt">-- дата додавання контакту</span>
+    <span class="fk">FOREIGN KEY</span>(user_id) <span class="fk">REFERENCES</span> users(id) <span class="fk">ON DELETE CASCADE</span> <span class="cmt">-- видалили user ⇒ видаляється й книга контактів</span>
 );
 
-CREATE TABLE IF NOT EXISTS savings_goals (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    target_amount REAL NOT NULL,
-    current_amount REAL NOT NULL DEFAULT 0,
-    deadline TEXT,
-    status TEXT NOT NULL DEFAULT 'active',
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+<span class="kw">CREATE TABLE IF NOT EXISTS</span> <span class="tbl">savings_goals</span> (                  <span class="cmt">-- особисті цілі накопичення</span>
+    id <span class="type">INTEGER</span> <span class="kw">PRIMARY KEY AUTOINCREMENT</span>,             <span class="cmt">-- ID цілі (PK)</span>
+    user_id <span class="type">INTEGER</span> <span class="kw">NOT NULL</span>,                       <span class="cmt">-- власник цілі</span>
+    title <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                            <span class="cmt">-- назва цілі ("На авто", "Резерв"...)</span>
+    target_amount <span class="type">REAL</span> <span class="kw">NOT NULL</span>,                    <span class="cmt">-- цільова сума</span>
+    current_amount <span class="type">REAL</span> <span class="kw">NOT NULL DEFAULT</span> 0,          <span class="cmt">-- скільки вже накопичено</span>
+    deadline <span class="type">TEXT</span>,                                    <span class="cmt">-- бажаний термін досягнення (опційно)</span>
+    status <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT</span> 'active',           <span class="cmt">-- active / completed / archived</span>
+    created_at <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT CURRENT_TIMESTAMP</span>, <span class="cmt">-- дата створення цілі</span>
+    <span class="fk">FOREIGN KEY</span>(user_id) <span class="fk">REFERENCES</span> users(id) <span class="fk">ON DELETE CASCADE</span> <span class="cmt">-- видалили user ⇒ видаляються й цілі</span>
 );
 
-CREATE TABLE IF NOT EXISTS donations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    fund_name TEXT NOT NULL,
-    amount REAL NOT NULL,
-    comment TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+<span class="kw">CREATE TABLE IF NOT EXISTS</span> <span class="tbl">donations</span> (                      <span class="cmt">-- історія донатів на фонди</span>
+    id <span class="type">INTEGER</span> <span class="kw">PRIMARY KEY AUTOINCREMENT</span>,             <span class="cmt">-- ID запису (PK)</span>
+    user_id <span class="type">INTEGER</span> <span class="kw">NOT NULL</span>,                       <span class="cmt">-- хто задонатив</span>
+    fund_name <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                        <span class="cmt">-- назва фонду/збору</span>
+    amount <span class="type">REAL</span> <span class="kw">NOT NULL</span>,                           <span class="cmt">-- сума донату</span>
+    comment <span class="type">TEXT</span>,                                      <span class="cmt">-- довільний коментар донора (опційно)</span>
+    created_at <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT CURRENT_TIMESTAMP</span>, <span class="cmt">-- дата донату</span>
+    <span class="fk">FOREIGN KEY</span>(user_id) <span class="fk">REFERENCES</span> users(id) <span class="fk">ON DELETE CASCADE</span> <span class="cmt">-- видалили user ⇒ видаляється й історія донатів</span>
 );
 
-CREATE TABLE IF NOT EXISTS payouts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    amount REAL NOT NULL,
-    payout_type TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'credited',
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+<span class="kw">CREATE TABLE IF NOT EXISTS</span> <span class="tbl">payouts</span> (                        <span class="cmt">-- нарахування користувачу (зарплата/бонуси/гранти)</span>
+    id <span class="type">INTEGER</span> <span class="kw">PRIMARY KEY AUTOINCREMENT</span>,             <span class="cmt">-- ID запису (PK)</span>
+    user_id <span class="type">INTEGER</span> <span class="kw">NOT NULL</span>,                       <span class="cmt">-- отримувач нарахування</span>
+    title <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                            <span class="cmt">-- назва нарахування</span>
+    amount <span class="type">REAL</span> <span class="kw">NOT NULL</span>,                           <span class="cmt">-- сума нарахування</span>
+    payout_type <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                      <span class="cmt">-- тип: зарплата / бонус / грант / ...</span>
+    status <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT</span> 'credited',          <span class="cmt">-- credited / pending</span>
+    created_at <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT CURRENT_TIMESTAMP</span>, <span class="cmt">-- дата нарахування</span>
+    <span class="fk">FOREIGN KEY</span>(user_id) <span class="fk">REFERENCES</span> users(id) <span class="fk">ON DELETE CASCADE</span> <span class="cmt">-- видалили user ⇒ видаляється й історія нарахувань</span>
 );
 
-CREATE TABLE IF NOT EXISTS transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_id INTEGER NOT NULL,
-    tx_type TEXT NOT NULL,
-    direction TEXT NOT NULL,
-    amount REAL NOT NULL,
-    description TEXT NOT NULL,
-    related_account TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE
+<span class="kw">CREATE TABLE IF NOT EXISTS</span> <span class="tbl">transactions</span> (                   <span class="cmt">-- журнал усіх операцій по рахунку (книга проводок)</span>
+    id <span class="type">INTEGER</span> <span class="kw">PRIMARY KEY AUTOINCREMENT</span>,             <span class="cmt">-- ID операції (PK)</span>
+    account_id <span class="type">INTEGER</span> <span class="kw">NOT NULL</span>,                    <span class="cmt">-- рахунок, по якому проведена операція</span>
+    tx_type <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                          <span class="cmt">-- тип: transfer / topup / payment / ...</span>
+    direction <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                        <span class="cmt">-- 'in' (надходження) або 'out' (списання)</span>
+    amount <span class="type">REAL</span> <span class="kw">NOT NULL</span>,                           <span class="cmt">-- сума операції (завжди додатна)</span>
+    description <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                      <span class="cmt">-- опис, видимий користувачу</span>
+    related_account <span class="type">TEXT</span>,                              <span class="cmt">-- рахунок контрагента (для переказів)</span>
+    created_at <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT CURRENT_TIMESTAMP</span>, <span class="cmt">-- дата/час операції</span>
+    <span class="fk">FOREIGN KEY</span>(account_id) <span class="fk">REFERENCES</span> accounts(id) <span class="fk">ON DELETE CASCADE</span> <span class="cmt">-- видалили рахунок ⇒ видаляється історія</span>
+);
+<span class="cmt">-- Кожен переказ створює ДВА рядки: 'out' у відправника + 'in' у отримувача,</span>
+<span class="cmt">-- обидва в одній SQL-транзакції — див. payment_core.py _execute_atomic_transfer().</span>
+
+<span class="kw">CREATE TABLE IF NOT EXISTS</span> <span class="tbl">audit_logs</span> (                      <span class="cmt">-- журнал дій користувачів для аудиту/безпеки</span>
+    id <span class="type">INTEGER</span> <span class="kw">PRIMARY KEY AUTOINCREMENT</span>,             <span class="cmt">-- ID запису (PK)</span>
+    user_id <span class="type">INTEGER</span>,                                  <span class="cmt">-- хто виконав дію (може бути NULL)</span>
+    action <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                           <span class="cmt">-- назва дії: login, transfer, card_freeze, ...</span>
+    details <span class="type">TEXT</span>,                                      <span class="cmt">-- довільні деталі (текст або JSON)</span>
+    created_at <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT CURRENT_TIMESTAMP</span>, <span class="cmt">-- час дії</span>
+    <span class="fk">FOREIGN KEY</span>(user_id) <span class="fk">REFERENCES</span> users(id) <span class="fk">ON DELETE SET NULL</span> <span class="cmt">-- видалили user ⇒ запис лишається, user_id = NULL</span>
 );
 
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    action TEXT NOT NULL,
-    details TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
+<span class="kw">CREATE TABLE IF NOT EXISTS</span> <span class="tbl">payment_templates</span> (               <span class="cmt">-- шаблони швидких платежів</span>
+    id <span class="type">INTEGER</span> <span class="kw">PRIMARY KEY AUTOINCREMENT</span>,             <span class="cmt">-- ID шаблону (PK)</span>
+    user_id <span class="type">INTEGER</span>,                                  <span class="cmt">-- власник; NULL = системний шаблон (видимий усім)</span>
+    name <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                            <span class="cmt">-- назва шаблону</span>
+    recipient_account <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,               <span class="cmt">-- рахунок отримувача</span>
+    amount <span class="type">REAL</span>,                                       <span class="cmt">-- сума за замовчуванням (опційно)</span>
+    description <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT</span> '',           <span class="cmt">-- опис платежу за шаблоном</span>
+    is_system <span class="type">INTEGER</span> <span class="kw">NOT NULL DEFAULT</span> 0,           <span class="cmt">-- 1 = системний шаблон (для всіх користувачів)</span>
+    created_at <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT CURRENT_TIMESTAMP</span>, <span class="cmt">-- дата створення шаблону</span>
+    <span class="fk">FOREIGN KEY</span>(user_id) <span class="fk">REFERENCES</span> users(id) <span class="fk">ON DELETE CASCADE</span> <span class="cmt">-- видалили user ⇒ видаляються його шаблони</span>
 );
 
-CREATE TABLE IF NOT EXISTS payment_templates (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    name TEXT NOT NULL,
-    recipient_account TEXT NOT NULL,
-    amount REAL,
-    description TEXT NOT NULL DEFAULT '',
-    is_system INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+<span class="kw">CREATE TABLE IF NOT EXISTS</span> <span class="tbl">push_subscriptions</span> (              <span class="cmt">-- підписки на web-push сповіщення</span>
+    id <span class="type">INTEGER</span> <span class="kw">PRIMARY KEY AUTOINCREMENT</span>,             <span class="cmt">-- ID підписки (PK)</span>
+    user_id <span class="type">INTEGER</span> <span class="kw">NOT NULL</span>,                       <span class="cmt">-- власник підписки</span>
+    endpoint <span class="type">TEXT</span> <span class="kw">NOT NULL UNIQUE</span>,                   <span class="cmt">-- унікальний URL push-сервісу браузера</span>
+    p256dh <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                          <span class="cmt">-- публічний ключ для шифрування push-повідомлень</span>
+    auth <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                            <span class="cmt">-- секрет автентифікації push-підписки</span>
+    created_at <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT CURRENT_TIMESTAMP</span>, <span class="cmt">-- дата підписки</span>
+    <span class="fk">FOREIGN KEY</span>(user_id) <span class="fk">REFERENCES</span> users(id) <span class="fk">ON DELETE CASCADE</span> <span class="cmt">-- видалили user ⇒ видаляються його підписки</span>
 );
 
-CREATE TABLE IF NOT EXISTS push_subscriptions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    endpoint TEXT NOT NULL UNIQUE,
-    p256dh TEXT NOT NULL,
-    auth TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+<span class="kw">CREATE TABLE IF NOT EXISTS</span> <span class="tbl">cards</span> (                         <span class="cmt">-- картки (virtual/фізичні), прив'язані до рахунку</span>
+    id <span class="type">INTEGER</span> <span class="kw">PRIMARY KEY AUTOINCREMENT</span>,             <span class="cmt">-- ID картки (PK)</span>
+    account_id <span class="type">INTEGER</span> <span class="kw">NOT NULL</span>,                    <span class="cmt">-- рахунок-власник картки</span>
+    card_number <span class="type">TEXT</span> <span class="kw">NOT NULL UNIQUE</span>,                <span class="cmt">-- номер картки, унікальний</span>
+    card_type <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT</span> 'virtual',       <span class="cmt">-- virtual/Gold/Emerald/Platinum/Obsidian</span>
+    status <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT</span> 'active',           <span class="cmt">-- active / frozen / closed</span>
+    holder_name <span class="type">TEXT</span>,                                  <span class="cmt">-- ім'я власника, надруковане на картці</span>
+    issued_at <span class="type">TEXT</span> <span class="kw">NOT NULL DEFAULT CURRENT_TIMESTAMP</span>, <span class="cmt">-- дата видачі картки</span>
+    expires_at <span class="type">TEXT</span> <span class="kw">NOT NULL</span>,                       <span class="cmt">-- дата закінчення дії картки</span>
+    <span class="fk">FOREIGN KEY</span>(account_id) <span class="fk">REFERENCES</span> accounts(id) <span class="fk">ON DELETE CASCADE</span> <span class="cmt">-- видалили рахунок ⇒ видаляються його картки</span>
 );
 
-CREATE TABLE IF NOT EXISTS cards (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_id INTEGER NOT NULL,
-    card_number TEXT NOT NULL UNIQUE,
-    card_type TEXT NOT NULL DEFAULT 'virtual',
-    status TEXT NOT NULL DEFAULT 'active',
-    holder_name TEXT,
-    issued_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    expires_at TEXT NOT NULL,
-    FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_cards_account_id ON cards(account_id);
-CREATE INDEX IF NOT EXISTS idx_cards_card_number ON cards(card_number);</pre>
+<span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_cards_account_id <span class="kw">ON</span> cards(account_id); <span class="cmt">-- швидкий пошук усіх карток рахунку</span>
+<span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_cards_card_number <span class="kw">ON</span> cards(card_number); <span class="cmt">-- швидкий пошук картки за номером</span></pre>
     </section>
 
     <section id="api">
