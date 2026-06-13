@@ -1243,16 +1243,25 @@ class FraudEngine:
         r = self._run  # alias
 
         # ── Layer 1: без DB ───────────────────────────────────────────────────
+        # Найдешевші перевірки — рахуються миттєво з аргументів функції,
+        # без жодного звернення до БД. Виконуються для КОЖНОГО переказу.
         r(self._structuring.evaluate,    amount, result)
         r(self._round.evaluate,          amount, result)
         r(self._description.evaluate,    description, result)
         r(self._depletion.evaluate,      account_id, amount, balance, result)
         r(self._threshold_mask.evaluate, amount, result)        # NEW
 
+        # Early-exit: якщо вже після Layer 1 ризик критичний (наприклад,
+        # сума = 100% балансу + структуринг), немає сенсу робити додаткові
+        # запити до БД — переказ все одно буде заблоковано в payment_core.
         if result.is_critical:
             result.finalize()
             return result
 
+        # На SQLite (наприклад, локальна розробка без Postgres) важкі
+        # аналітичні запити Layer 2/3 (STDDEV, PERCENTILE_CONT, графи)
+        # або занадто дорогі, або синтаксично несумісні — обмежуємось
+        # Layer 1 і явно позначаємо це в details для прозорості в логах/UI.
         if not USE_PG:
             result.details.setdefault('fraud_mode', 'lite_sqlite')
             result.finalize()

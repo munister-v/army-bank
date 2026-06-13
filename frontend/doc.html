@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>Документація — ARM Bank</title>
+  <style>
+    :root{
+      --bg:#071510; --panel:#0e231b; --panel2:#0b1d16; --border:#1d3a2d;
+      --text:#e8f3ed; --muted:#8fb3a4; --accent:#34d399; --accent2:#22c55e;
+      --code:#0a1a13;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;}
+    body{
+      background:var(--bg); color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+      line-height:1.6; padding-bottom:60px;
+    }
+    .wrap{max-width:1040px;margin:0 auto;padding:24px 20px 80px;}
+    header.top{
+      display:flex; align-items:center; justify-content:space-between;
+      flex-wrap:wrap; gap:12px; margin-bottom:28px;
+    }
+    header.top h1{font-size:1.5rem;margin:0;}
+    .back{
+      display:inline-block; padding:8px 16px; border:1px solid var(--border);
+      border-radius:10px; color:var(--accent); text-decoration:none; font-size:.9rem;
+    }
+    .back:hover{background:var(--panel);}
+    nav.toc{
+      background:var(--panel); border:1px solid var(--border); border-radius:14px;
+      padding:16px 20px; margin-bottom:28px;
+    }
+    nav.toc h2{margin:0 0 10px; font-size:1rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em;}
+    nav.toc ol{margin:0; padding-left:20px; columns:2; gap:20px;}
+    nav.toc a{color:var(--text); text-decoration:none;}
+    nav.toc a:hover{color:var(--accent);}
+    section{margin-bottom:42px;}
+    h2{
+      font-size:1.3rem; border-bottom:1px solid var(--border); padding-bottom:8px;
+      margin-top:0; color:var(--accent);
+    }
+    h3{font-size:1.05rem; color:#cfe9dd; margin-top:24px;}
+    h4{font-size:.95rem; color:#b8dccb; margin:18px 0 6px;}
+    p{color:#cfe3da;}
+    .card{
+      background:var(--panel); border:1px solid var(--border); border-radius:14px;
+      padding:18px 20px; margin:14px 0;
+    }
+    table{width:100%; border-collapse:collapse; font-size:.88rem; margin:12px 0;}
+    th,td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top;}
+    th{background:var(--panel2); color:var(--accent); font-weight:600;}
+    tr:nth-child(even) td{background:rgba(255,255,255,.02);}
+    code, pre{
+      font-family:"SF Mono",Menlo,Consolas,monospace; font-size:.83rem;
+    }
+    pre{
+      background:var(--code); border:1px solid var(--border); border-radius:10px;
+      padding:14px; overflow-x:auto; white-space:pre;
+    }
+    code.inline{
+      background:var(--code); padding:2px 6px; border-radius:6px; color:var(--accent);
+    }
+    ul{padding-left:22px; color:#cfe3da;}
+    li{margin-bottom:4px;}
+    .pill{
+      display:inline-block; background:var(--panel2); border:1px solid var(--border);
+      border-radius:999px; padding:3px 10px; font-size:.75rem; color:var(--muted); margin:2px 4px 2px 0;
+    }
+    .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+    @media (max-width:700px){.grid2{grid-template-columns:1fr;} nav.toc ol{columns:1;}}
+    footer{color:var(--muted); font-size:.8rem; text-align:center; margin-top:40px;}
+    a.src{
+      color:var(--accent2); text-decoration:none; font-size:.8rem;
+      border:1px solid var(--border); border-radius:6px; padding:1px 8px;
+      white-space:nowrap; display:inline-block; margin:2px 0;
+    }
+    a.src:hover{background:var(--panel2); color:#fff;}
+    a.src::before{content:"⌥ "; opacity:.6;}
+    .filehead{
+      display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+      flex-wrap:wrap;
+    }
+    .note{
+      border-left:3px solid var(--accent); padding:8px 12px; background:rgba(52,211,153,.06);
+      border-radius:0 8px 8px 0; font-size:.88rem; color:#bfe7d6; margin:12px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <h1>📘 Документація ARM Bank</h1>
+      <a class="back" href="/">← Повернутись у банк</a>
+    </header>
+
+    <p>
+      Ця сторінка описує, як організований проєкт <strong>ARM Bank</strong>: архітектура,
+      технологічний стек, повна модель даних (SQL-схема з усіма полями), структура коду
+      backend/frontend із прокоментованими фрагментами та посиланнями на файли в репозиторії,
+      а також заходи безпеки та інфраструктура.
+    </p>
+    <div class="note">
+      Посилання <span class="pill" style="margin:0 4px;">⌥ шлях/до/файлу.py</span> ведуть на
+      вихідний код у репозиторії
+      <a href="https://github.com/munister-v/army-bank" target="_blank" rel="noopener" style="color:var(--accent2)">github.com/munister-v/army-bank</a>
+      (гілка <code class="inline">main</code>).
+    </div>
+
+    <nav class="toc">
+      <h2>Зміст</h2>
+      <ol>
+        <li><a href="#overview">Загальний огляд</a></li>
+        <li><a href="#arch">Архітектура та стек</a></li>
+        <li><a href="#code">Структура коду (backend)</a></li>
+        <li><a href="#flows">Ключові потоки з кодом</a></li>
+        <li><a href="#frontend">Структура фронтенду</a></li>
+        <li><a href="#db">Повна модель даних (SQL)</a></li>
+        <li><a href="#api">API та маршрути</a></li>
+        <li><a href="#security">Безпека</a></li>
+        <li><a href="#deploy">Розгортання та інфраструктура</a></li>
+      </ol>
+    </nav>
+
+    <section id="overview">
+      <h2>1. Загальний огляд</h2>
+      <p>
+        ARM Bank — мобільний банкінг-застосунок: React PWA (фронтенд) + Flask REST API
+        (бекенд) на Python, з базою даних SQLite/PostgreSQL. Підтримує рахунки, картки, перекази,
+        депозити, кредити, маркетплейс, месенджер, систему оцінки ризику (anti-fraud) та адмін-панель.
+      </p>
+      <div class="card">
+        <span class="pill">Python 3.12 + Flask 3.1</span>
+        <span class="pill">React 19 + TypeScript + Vite 6</span>
+        <span class="pill">SQLite / PostgreSQL</span>
+        <span class="pill">Gunicorn + nginx</span>
+        <span class="pill">Bearer-токени (secrets.token_urlsafe)</span>
+        <span class="pill">bcrypt (12 раундів)</span>
+        <span class="pill">WebAuthn / Passkeys</span>
+        <span class="pill">Fraud Engine (fuzzy-logic)</span>
+        <span class="pill">PWA + Service Worker</span>
+      </div>
+    </section>
+
+    <section id="arch">
+      <h2>2. Архітектура та стек</h2>
+      <p>Шлях запиту від користувача до бази даних:</p>
+      <pre>Браузер (HTTPS)
+  → nginx :443 (TLS, rate-limit на /api/auth/*)
+    → gunicorn 127.0.0.1:8011 (2 worker-процеси, gthread)
+      → Flask app (backend/app.py)
+          → Blueprints (routes/*) → Services (services/*) → Repositories (repositories/*)
+              → SQLite (database/army_bank.db) / PostgreSQL
+      → Статика React PWA (frontend/bank) — SPA fallback на index.html</pre>
+
+      <h3>Шари застосунку (layered architecture)</h3>
+      <table>
+        <tr><th>Шар</th><th>Призначення</th><th>Файли</th></tr>
+        <tr><td><code class="inline">routes/</code></td><td>HTTP-обробники: парсинг запиту, валідація, виклик сервісів, JSON-відповідь</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/tree/main/backend/routes" target="_blank" rel="noopener">backend/routes/</a></td></tr>
+        <tr><td><code class="inline">services/</code></td><td>Бізнес-логіка: розрахунки, переказ коштів, нарахування, аутентифікація, антифрод</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/tree/main/backend/services" target="_blank" rel="noopener">backend/services/</a></td></tr>
+        <tr><td><code class="inline">repositories/</code></td><td>SQL-запити до БД, ізоляція від бізнес-логіки</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/tree/main/backend/repositories" target="_blank" rel="noopener">backend/repositories/</a></td></tr>
+        <tr><td><code class="inline">utils/</code></td><td>Хешування паролів, токени, валідатори, контекст запиту</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/tree/main/backend/utils" target="_blank" rel="noopener">backend/utils/</a></td></tr>
+      </table>
+    </section>
+
+    <section id="code">
+      <h2>3. Структура коду (backend)</h2>
+
+      <h3>backend/app.py — точка входу <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/app.py" target="_blank" rel="noopener">переглянути файл</a></h3>
+      <p>Створює Flask-застосунок, реєструє всі blueprints, налаштовує CORS, заголовки безпеки,
+      gzip-стиснення (Flask-Compress), обробники помилок та SPA-маршрути для фронтенду.</p>
+      <pre># Створення застосунку: static_folder = frontend/, всі статичні файли (PWA, ассети)
+app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path=BASE_PATH or '')
+
+# Gzip-стиснення JSON/HTML/CSS/JS — швидша віддача через мобільні мережі
+app.config['COMPRESS_MIMETYPES'] = [
+    'application/json', 'text/html', 'text/css',
+    'application/javascript', 'text/javascript', 'image/svg+xml',
+]
+Compress(app)
+
+# Білий список доменів для CORS — лише ці origin отримають
+# Access-Control-Allow-Origin у відповіді
+_ALLOWED_ORIGINS = {
+    'https://munister.com.ua',
+    'https://bank.munister.com.ua',
+    ...
+}</pre>
+
+      <h4>routes/ — HTTP-маршрути</h4>
+      <table>
+        <tr><th>Файл</th><th>Призначення</th><th></th></tr>
+        <tr><td>auth_routes.py</td><td>реєстрація, логін, refresh, passkeys (WebAuthn)</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/auth_routes.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>account_routes.py</td><td>рахунки, баланс, перекази</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/account_routes.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>card_routes.py</td><td>картки (випуск, заморозка, зміна PIN)</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/card_routes.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>deposit_routes.py / credit_routes.py</td><td>депозити та кредити</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/deposit_routes.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>payment_audit_routes.py</td><td>аудит платіжних операцій</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/payment_audit_routes.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>marketplace_routes.py</td><td>маркетплейс, кошик, замовлення</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/marketplace_routes.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>messenger_routes.py / call_routes.py</td><td>чат, дзвінки (WebRTC)</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/messenger_routes.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>admin_routes.py / admin_cards_routes.py / admin_compliance_routes.py</td><td>адміністрування</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/admin_routes.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>operator_routes.py</td><td>роль «оператор»</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/operator_routes.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>platform_routes.py</td><td>платформенне адміністрування</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/platform_routes.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>push_routes.py</td><td>Web Push підписки</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/push_routes.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>document_routes.py</td><td>PDF-виписки, чеки (ReportLab)</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/document_routes.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>three_ds_routes.py</td><td>емуляція 3-D Secure</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/three_ds_routes.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>feature_routes.py</td><td>фіча-флаги</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/feature_routes.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>helpers.py</td><td>декоратори: <code class="inline">auth_required</code>, <code class="inline">rate_limit</code>, <code class="inline">role_required</code>, ідемпотентність</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/helpers.py" target="_blank" rel="noopener">код</a></td></tr>
+      </table>
+
+      <h4>services/ — бізнес-логіка</h4>
+      <table>
+        <tr><th>Файл</th><th>Призначення</th><th></th></tr>
+        <tr><td>auth_service.py</td><td>реєстрація, логін, перевірка пароля, видача/оновлення токенів</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/auth_service.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>payment_core.py</td><td>ядро переказів — state machine, ідемпотентність, виклик antifraud</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/payment_core.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>fraud_engine.py</td><td>оцінка ризику операції (fuzzy-logic скоринг, RiskResult)</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/fraud_engine.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>ledger_service.py</td><td>бухгалтерський журнал операцій (double-entry)</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/ledger_service.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>settlement_service.py</td><td>розрахунки/клірінг</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/settlement_service.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>eod_processor.py</td><td>end-of-day обробка: нарахування відсотків, оновлення статусів</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/eod_processor.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>account_service.py / card_service.py</td><td>операції з рахунками та картками</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/account_service.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>deposit_service.py / credit_service.py</td><td>депозити та кредити</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/deposit_service.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>platform_service.py</td><td>платформенна логіка (мульти-тенант)</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/platform_service.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>integrity_service.py</td><td>перевірка цілісності балансів/журналу</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/integrity_service.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>messenger_crypto.py</td><td>шифрування повідомлень (Fernet, ротація ключів)</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/messenger_crypto.py" target="_blank" rel="noopener">код</a></td></tr>
+      </table>
+
+      <h4>repositories/ — доступ до даних</h4>
+      <table>
+        <tr><th>Файл</th><th>Таблиці</th><th></th></tr>
+        <tr><td>base.py</td><td>базові SQL-хелпери (виконання запитів, отримання курсора)</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/repositories/base.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>user_repository.py</td><td>users, sessions</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/repositories/user_repository.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>account_repository.py</td><td>accounts, transactions</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/repositories/account_repository.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>card_repository.py</td><td>cards</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/repositories/card_repository.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>payment_repository.py</td><td>payment orders / journal</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/repositories/payment_repository.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>feature_repository.py</td><td>feature flags</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/repositories/feature_repository.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>platform_repository.py</td><td>платформенні сутності</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/repositories/platform_repository.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>passkey_repository.py</td><td>WebAuthn credentials</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/repositories/passkey_repository.py" target="_blank" rel="noopener">код</a></td></tr>
+      </table>
+
+      <h4>utils/ — допоміжні модулі</h4>
+      <table>
+        <tr><th>Файл</th><th>Призначення</th><th></th></tr>
+        <tr><td>security.py</td><td>bcrypt-хешування, генерація токенів, перевірка терміну сесії</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/utils/security.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>validators.py</td><td>перевірка вхідних даних (телефон, email, суми)</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/utils/validators.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>request_context.py</td><td>X-Request-Id для трасування запитів у логах</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/utils/request_context.py" target="_blank" rel="noopener">код</a></td></tr>
+      </table>
+
+      <h4>config.py / database.py</h4>
+      <table>
+        <tr><th>Файл</th><th>Призначення</th><th></th></tr>
+        <tr><td>config.py</td><td>читання .env: SECRET_KEY, DATABASE_URL, TOKEN_TTL_HOURS, BASE_PATH, ADMIN_*, rate-limit ліміти</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/config.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>database.py</td><td>SQLite/PostgreSQL connection pool, ініціалізація схеми, seed адміна</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/database.py" target="_blank" rel="noopener">код</a></td></tr>
+      </table>
+    </section>
+
+    <section id="flows">
+      <h2>4. Ключові потоки з кодом</h2>
+
+      <h3>4.1. Хешування паролів та токени сесій
+        <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/utils/security.py" target="_blank" rel="noopener">backend/utils/security.py</a>
+      </h3>
+      <pre>def hash_password(password: str) -> str:
+    """Хешує пароль через bcrypt (або SHA-256 fallback якщо бібліотека недоступна)."""
+    if _USE_BCRYPT:
+        return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
+    # Fallback: HMAC-SHA256 зі SECRET_KEY (стара поведінка — зворотна сумісність)
+    salted = f"{SECRET_KEY}:{password}".encode('utf-8')
+    return hashlib.sha256(salted).hexdigest()
+
+def verify_password(password: str, password_hash: str) -> bool:
+    """Перевіряє пароль. Підтримує bcrypt ($2b$/$2a$/$2y$) і старий SHA-256."""
+    if password_hash.startswith(('$2b$', '$2a$', '$2y$')):
+        return bcrypt.checkpw(password.encode(), password_hash.encode())
+    ...
+
+def generate_token() -> str:
+    """Генерує безпечний токен сесії (43 символи URL-safe)."""
+    return secrets.token_urlsafe(32)
+
+# Якщо до закінчення сесії залишилось < 7 днів — токен автоматично
+# продовжується (helpers.auth_required викликає refresh_session)
+_REFRESH_THRESHOLD_HOURS = 24 * 7</pre>
+
+      <h3>4.2. Логін
+        <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/auth_routes.py" target="_blank" rel="noopener">backend/routes/auth_routes.py</a>
+      </h3>
+      <pre>def _login_rate_key() -> str:
+    # Ключ для rate-limit: окремий лічильник на кожну пару (IP, email)
+    data = request.get_json(silent=True) or {}
+    identity = (data.get('identity') or '').strip().lower()[:80]
+    return f'auth:login:{_auth_client_ip()}:{identity}'
+
+@auth_bp.post('/login')
+@rate_limit(AUTH_LOGIN_RATE_LIMIT, AUTH_RATE_WINDOW_SECONDS, key_func=_login_rate_key)
+def login():
+    try:
+        payload = auth_service.login(request.get_json(force=True))
+        return jsonify({'ok': True, 'data': payload})
+    except Exception as exc:
+        # 401, а не 400 — щоб клієнт відрізняв "невірні дані" від "поганий запит"
+        return api_error(str(exc), 401)</pre>
+      <p>Маршрут захищений декоратором <code class="inline">@rate_limit(...)</code> — ключ враховує IP
+      і email, тож brute-force по одному акаунту або з одної IP блокується окремо.</p>
+
+      <h3>4.3. Захист маршрутів — <code class="inline">auth_required</code> та <code class="inline">role_required</code>
+        <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/helpers.py" target="_blank" rel="noopener">backend/routes/helpers.py</a>
+      </h3>
+      <pre>def auth_required(func):
+    """Декоратор: перевіряє Authorization: Bearer &lt;token&gt;, кладе user у g.current_user."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        token = ...  # дістається з заголовка Authorization
+        user = auth_service.get_user_by_token(token)
+        if not user:
+            return api_error('Недійсний токен.', 401)
+        g.current_user = user
+        g.current_token = token
+
+        # Автооновлення сесії, якщо залишилось &lt; 7 днів — клієнт отримає
+        # новий токен у заголовку X-Refresh-Token без повторного логіну
+        if should_refresh_session(user.get('expires_at', '')):
+            new_token = auth_service.refresh_session(token, user['id'])
+            if new_token:
+                @after_this_request
+                def add_refresh_header(response):
+                    response.headers['X-Refresh-Token'] = new_token
+                    return response
+        return func(*args, **kwargs)
+    return wrapper
+
+def role_required(*allowed_roles: str):
+    """Декоратор: дозволяє доступ лише користувачам з певними ролями
+    (admin, platform_admin, operator...)."""
+    ...</pre>
+
+      <h3>4.4. Переказ коштів — state machine + antifraud
+        <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/payment_core.py" target="_blank" rel="noopener">backend/services/payment_core.py</a>
+      </h3>
+      <pre>def transfer(self, user_id, recipient_account_number, amount, description, idempotency_key=None):
+    """Виконує переказ через state machine з перевіркою шахрайства."""
+    if idempotency_key is None:
+        idempotency_key = secrets.token_hex(16)
+
+    # Ідемпотентність: якщо такий запит уже виконано — повертаємо готовий результат
+    # (захищає від подвійного списання при повторній відправці форми / ретраї мережі)
+    existing = self._payments.get_by_idempotency_key(idempotency_key)
+    if existing and existing['status'] == 'completed':
+        ...
+        return {'account': ..., 'order_id': existing['id'], 'idempotent': True}
+
+    # 1. Валідація: сума > 0, є кошти, рахунки існують, не переказ собі
+    if amount <= 0 or amount > 99_999_999.99:
+        raise ValueError('Недійсна сума переказу.')
+    if float(sender['balance']) < amount:
+        raise ValueError('Недостатньо коштів на рахунку.')
+
+    # 2. Оцінка ризику через FraudEngine (fuzzy-logic скоринг)
+    risk = self._fraud.assess(sender['id'], recipient_account_number, amount,
+                               balance=float(sender['balance']), description=description,
+                               recipient_account_id=recipient['id'])
+
+    # 3. Створення order(pending) -> списання/зарахування -> completed
+    order_id = self._payments.create_order(idempotency_key=idempotency_key, ...,
+                                            risk_score=risk.score, risk_level=risk.level,
+                                            risk_flags=risk.flags)
+    ...</pre>
+      <p>Якщо <code class="inline">risk.level == RISK_CRITICAL</code>, операція може бути затримана
+      для ручної перевірки оператором (<code class="inline">operator_routes.py</code>) замість миттєвого виконання.</p>
+
+      <h3>4.5. Антифрод-скоринг
+        <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/fraud_engine.py" target="_blank" rel="noopener">backend/services/fraud_engine.py</a>
+      </h3>
+      <pre>class RiskResult:
+    """Накопичує бали ризику та прапорці (flags) під час оцінки операції."""
+    def add(self, delta: int, flag: str, **kw) -> None: ...
+    def add_belief(self, prob: float, flag: str, **kw) -> None: ...
+    def finalize(self) -> None: ...
+    def _calc_level(self) -> str:
+        # score -> low / medium / high / critical
+        ...
+    def apply_correlation_bonus(self) -> None:
+        # Якщо кілька підозрілих факторів збігаються одночасно — додатковий штраф
+        ...
+
+class FM:
+    """Fuzzy-membership функції для плавної оцінки (без жорстких порогів)."""
+    @staticmethod
+    def sigmoid(x, center, slope=5.0): ...
+    @staticmethod
+    def gaussian(x, center, sigma): ...
+    @staticmethod
+    def trapezoid(x, a, b, c, d): ...</pre>
+      <p>Замість жорстких "if amount &gt; 10000: block", двигун використовує fuzzy-logic
+      (сигмоїди, гаусіани, трапеції) для плавної оцінки ризику за сумою, часом доби,
+      історією рахунку та кореляцією кількох факторів одночасно.</p>
+    </section>
+
+    <section id="frontend">
+      <h2>5. Структура фронтенду</h2>
+      <pre>frontend/
+├── bank/            # збірка React PWA (vite build, base="/") — основний застосунок
+├── index.html       # головна точка входу (Render: дублює bank/index.html)
+├── landing.html, admin.html, operator.html, platform.html, marketplace.html
+├── messenger.html, api-status.html, evolutionary.html, offline.html
+├── manifest.json, manifest-marketplace.json, manifest-messenger.json
+├── sw.js, sw-messenger.js   # Service Workers (PWA офлайн-кеш)
+├── icons/, screens/, css/, js/
+└── doc.html         # ця сторінка документації
+
+src/                  # вихідний код React (TypeScript), компілюється у frontend/bank
+├── components/, pages/, hooks/, contexts/
+└── lib/              # клієнт для API, утиліти</pre>
+      <p>
+        <a class="src" href="https://github.com/munister-v/army-bank/tree/main/src" target="_blank" rel="noopener">src/ (вихідний код React)</a>
+        &nbsp;
+        <a class="src" href="https://github.com/munister-v/army-bank/blob/main/vite.config.ts" target="_blank" rel="noopener">vite.config.ts</a>
+        &nbsp;
+        <a class="src" href="https://github.com/munister-v/army-bank/tree/main/frontend" target="_blank" rel="noopener">frontend/</a>
+      </p>
+      <p>Збірка: <code class="inline">npm run build</code> → Vite компілює <code class="inline">src/</code> у
+      <code class="inline">frontend/bank/</code> (outDir), <code class="inline">base: '/'</code> — застосунок
+      відкривається на корені домену <code class="inline">bank.munister.com.ua</code>.</p>
+    </section>
+
+    <section id="db">
+      <h2>6. Повна модель даних (SQL-схема)</h2>
+      <p>SQLite: <a class="src" href="https://github.com/munister-v/army-bank/blob/main/database/schema.sql" target="_blank" rel="noopener">database/schema.sql</a>
+      &nbsp;·&nbsp; PostgreSQL: <a class="src" href="https://github.com/munister-v/army-bank/blob/main/database/schema_pg.sql" target="_blank" rel="noopener">database/schema_pg.sql</a>.
+      Усі зв'язки — через <code class="inline">FOREIGN KEY ... ON DELETE CASCADE</code> (видалення користувача
+      каскадно видаляє його рахунок, картки, операції тощо).</p>
+
+      <h3>ER-схема (спрощено)</h3>
+      <pre>users (1) ──── (1) accounts (1) ──── (N) cards
+  │                   │
+  │                   └──── (N) transactions
+  │
+  ├──── (N) sessions
+  ├──── (N) family_contacts
+  ├──── (N) savings_goals
+  ├──── (N) donations
+  ├──── (N) payouts
+  ├──── (N) payment_templates
+  ├──── (N) push_subscriptions
+  ├──── (N) budget_limits   (тільки PostgreSQL-схема)
+  └──── (N) audit_logs      (ON DELETE SET NULL)</pre>
+
+      <h3>users</h3>
+      <table>
+        <tr><th>Поле</th><th>Тип</th><th>Обмеження</th><th>Опис</th></tr>
+        <tr><td>id</td><td>INTEGER</td><td>PRIMARY KEY AUTOINCREMENT</td><td>Ідентифікатор</td></tr>
+        <tr><td>full_name</td><td>TEXT</td><td>NOT NULL</td><td>Повне ім'я</td></tr>
+        <tr><td>phone</td><td>TEXT</td><td>NOT NULL UNIQUE</td><td>Телефон</td></tr>
+        <tr><td>email</td><td>TEXT</td><td>NOT NULL UNIQUE</td><td>Email (логін)</td></tr>
+        <tr><td>password_hash</td><td>TEXT</td><td>NOT NULL</td><td>bcrypt-хеш пароля</td></tr>
+        <tr><td>role</td><td>TEXT</td><td>DEFAULT 'soldier'</td><td>soldier / admin / platform_admin / operator</td></tr>
+        <tr><td>military_status</td><td>TEXT</td><td>DEFAULT 'active'</td><td>Статус</td></tr>
+        <tr><td>created_at</td><td>TEXT</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Дата реєстрації</td></tr>
+        <tr><td>last_seen_at</td><td>TEXT</td><td>DEFAULT NULL</td><td>Останній вхід</td></tr>
+      </table>
+
+      <h3>accounts</h3>
+      <table>
+        <tr><th>Поле</th><th>Тип</th><th>Обмеження</th><th>Опис</th></tr>
+        <tr><td>id</td><td>INTEGER</td><td>PRIMARY KEY AUTOINCREMENT</td><td>Ідентифікатор</td></tr>
+        <tr><td>user_id</td><td>INTEGER</td><td>NOT NULL UNIQUE, FK → users.id ON DELETE CASCADE</td><td>1 рахунок на користувача</td></tr>
+        <tr><td>account_number</td><td>TEXT</td><td>NOT NULL UNIQUE</td><td>Номер рахунку</td></tr>
+        <tr><td>currency</td><td>TEXT</td><td>DEFAULT 'UAH'</td><td>Валюта</td></tr>
+        <tr><td>balance</td><td>REAL</td><td>DEFAULT 0</td><td>Поточний баланс</td></tr>
+        <tr><td>status</td><td>TEXT</td><td>DEFAULT 'active'</td><td>active / frozen</td></tr>
+        <tr><td>created_at</td><td>TEXT</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Дата відкриття</td></tr>
+      </table>
+
+      <h3>sessions</h3>
+      <table>
+        <tr><th>Поле</th><th>Тип</th><th>Обмеження</th><th>Опис</th></tr>
+        <tr><td>id</td><td>INTEGER</td><td>PRIMARY KEY AUTOINCREMENT</td><td>Ідентифікатор</td></tr>
+        <tr><td>user_id</td><td>INTEGER</td><td>NOT NULL, FK → users.id ON DELETE CASCADE</td><td>Власник сесії</td></tr>
+        <tr><td>token</td><td>TEXT</td><td>NOT NULL UNIQUE</td><td>Bearer-токен (secrets.token_urlsafe(32))</td></tr>
+        <tr><td>expires_at</td><td>TEXT</td><td>NOT NULL</td><td>Термін дії (TOKEN_TTL_HOURS від видачі)</td></tr>
+        <tr><td>created_at</td><td>TEXT</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Дата видачі</td></tr>
+      </table>
+
+      <h3>cards</h3>
+      <table>
+        <tr><th>Поле</th><th>Тип</th><th>Обмеження</th><th>Опис</th></tr>
+        <tr><td>id</td><td>INTEGER</td><td>PRIMARY KEY AUTOINCREMENT</td><td>Ідентифікатор</td></tr>
+        <tr><td>account_id</td><td>INTEGER</td><td>NOT NULL, FK → accounts.id ON DELETE CASCADE</td><td>Рахунок</td></tr>
+        <tr><td>card_number</td><td>TEXT</td><td>NOT NULL UNIQUE</td><td>Номер картки</td></tr>
+        <tr><td>card_type</td><td>TEXT</td><td>DEFAULT 'virtual'</td><td>virtual / Gold / Emerald / Platinum / Obsidian</td></tr>
+        <tr><td>status</td><td>TEXT</td><td>DEFAULT 'active'</td><td>active / frozen / closed</td></tr>
+        <tr><td>holder_name</td><td>TEXT</td><td>—</td><td>Ім'я власника на картці</td></tr>
+        <tr><td>issued_at</td><td>TEXT</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Дата видачі</td></tr>
+        <tr><td>expires_at</td><td>TEXT</td><td>NOT NULL</td><td>Дата закінчення дії</td></tr>
+      </table>
+      <p><em>Індекси:</em> <code class="inline">idx_cards_account_id</code>, <code class="inline">idx_cards_card_number</code>.</p>
+
+      <h3>transactions</h3>
+      <table>
+        <tr><th>Поле</th><th>Тип</th><th>Обмеження</th><th>Опис</th></tr>
+        <tr><td>id</td><td>INTEGER</td><td>PRIMARY KEY AUTOINCREMENT</td><td>Ідентифікатор</td></tr>
+        <tr><td>account_id</td><td>INTEGER</td><td>NOT NULL, FK → accounts.id ON DELETE CASCADE</td><td>Рахунок</td></tr>
+        <tr><td>tx_type</td><td>TEXT</td><td>NOT NULL</td><td>Тип операції (transfer, topup, payment...)</td></tr>
+        <tr><td>direction</td><td>TEXT</td><td>NOT NULL</td><td>in / out</td></tr>
+        <tr><td>amount</td><td>REAL</td><td>NOT NULL</td><td>Сума</td></tr>
+        <tr><td>description</td><td>TEXT</td><td>NOT NULL</td><td>Опис операції</td></tr>
+        <tr><td>related_account</td><td>TEXT</td><td>—</td><td>Рахунок контрагента</td></tr>
+        <tr><td>created_at</td><td>TEXT</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Дата/час операції</td></tr>
+      </table>
+
+      <h3>family_contacts</h3>
+      <table>
+        <tr><th>Поле</th><th>Тип</th><th>Обмеження</th><th>Опис</th></tr>
+        <tr><td>id</td><td>INTEGER</td><td>PRIMARY KEY AUTOINCREMENT</td><td>Ідентифікатор</td></tr>
+        <tr><td>user_id</td><td>INTEGER</td><td>NOT NULL, FK → users.id ON DELETE CASCADE</td><td>Власник списку контактів</td></tr>
+        <tr><td>contact_name</td><td>TEXT</td><td>NOT NULL</td><td>Ім'я контакту</td></tr>
+        <tr><td>relation_type</td><td>TEXT</td><td>NOT NULL</td><td>Тип зв'язку (родина, друг...)</td></tr>
+        <tr><td>phone</td><td>TEXT</td><td>—</td><td>Телефон контакту</td></tr>
+        <tr><td>account_number</td><td>TEXT</td><td>—</td><td>Рахунок для швидких переказів</td></tr>
+        <tr><td>created_at</td><td>TEXT</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Дата додавання</td></tr>
+      </table>
+
+      <h3>savings_goals</h3>
+      <table>
+        <tr><th>Поле</th><th>Тип</th><th>Обмеження</th><th>Опис</th></tr>
+        <tr><td>id</td><td>INTEGER</td><td>PRIMARY KEY AUTOINCREMENT</td><td>Ідентифікатор</td></tr>
+        <tr><td>user_id</td><td>INTEGER</td><td>NOT NULL, FK → users.id ON DELETE CASCADE</td><td>Власник цілі</td></tr>
+        <tr><td>title</td><td>TEXT</td><td>NOT NULL</td><td>Назва цілі</td></tr>
+        <tr><td>target_amount</td><td>REAL</td><td>NOT NULL</td><td>Цільова сума</td></tr>
+        <tr><td>current_amount</td><td>REAL</td><td>DEFAULT 0</td><td>Накопичено</td></tr>
+        <tr><td>deadline</td><td>TEXT</td><td>—</td><td>Термін досягнення</td></tr>
+        <tr><td>status</td><td>TEXT</td><td>DEFAULT 'active'</td><td>active / completed / archived</td></tr>
+        <tr><td>created_at</td><td>TEXT</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Дата створення</td></tr>
+      </table>
+
+      <h3>donations</h3>
+      <table>
+        <tr><th>Поле</th><th>Тип</th><th>Обмеження</th><th>Опис</th></tr>
+        <tr><td>id</td><td>INTEGER</td><td>PRIMARY KEY AUTOINCREMENT</td><td>Ідентифікатор</td></tr>
+        <tr><td>user_id</td><td>INTEGER</td><td>NOT NULL, FK → users.id ON DELETE CASCADE</td><td>Хто задонатив</td></tr>
+        <tr><td>fund_name</td><td>TEXT</td><td>NOT NULL</td><td>Назва фонду</td></tr>
+        <tr><td>amount</td><td>REAL</td><td>NOT NULL</td><td>Сума</td></tr>
+        <tr><td>comment</td><td>TEXT</td><td>—</td><td>Коментар</td></tr>
+        <tr><td>created_at</td><td>TEXT</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Дата</td></tr>
+      </table>
+
+      <h3>payouts</h3>
+      <table>
+        <tr><th>Поле</th><th>Тип</th><th>Обмеження</th><th>Опис</th></tr>
+        <tr><td>id</td><td>INTEGER</td><td>PRIMARY KEY AUTOINCREMENT</td><td>Ідентифікатор</td></tr>
+        <tr><td>user_id</td><td>INTEGER</td><td>NOT NULL, FK → users.id ON DELETE CASCADE</td><td>Отримувач</td></tr>
+        <tr><td>title</td><td>TEXT</td><td>NOT NULL</td><td>Назва нарахування</td></tr>
+        <tr><td>amount</td><td>REAL</td><td>NOT NULL</td><td>Сума</td></tr>
+        <tr><td>payout_type</td><td>TEXT</td><td>NOT NULL</td><td>Тип (зарплата, бонус, грант...)</td></tr>
+        <tr><td>status</td><td>TEXT</td><td>DEFAULT 'credited'</td><td>credited / pending</td></tr>
+        <tr><td>created_at</td><td>TEXT</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Дата нарахування</td></tr>
+      </table>
+
+      <h3>audit_logs</h3>
+      <table>
+        <tr><th>Поле</th><th>Тип</th><th>Обмеження</th><th>Опис</th></tr>
+        <tr><td>id</td><td>INTEGER</td><td>PRIMARY KEY AUTOINCREMENT</td><td>Ідентифікатор</td></tr>
+        <tr><td>user_id</td><td>INTEGER</td><td>FK → users.id ON DELETE SET NULL</td><td>Хто виконав дію (NULL, якщо акаунт видалено)</td></tr>
+        <tr><td>action</td><td>TEXT</td><td>NOT NULL</td><td>Назва дії (login, transfer, card_freeze...)</td></tr>
+        <tr><td>details</td><td>TEXT</td><td>—</td><td>Деталі (JSON/текст)</td></tr>
+        <tr><td>created_at</td><td>TEXT</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Час дії</td></tr>
+      </table>
+
+      <h3>payment_templates</h3>
+      <table>
+        <tr><th>Поле</th><th>Тип</th><th>Обмеження</th><th>Опис</th></tr>
+        <tr><td>id</td><td>INTEGER</td><td>PRIMARY KEY AUTOINCREMENT</td><td>Ідентифікатор</td></tr>
+        <tr><td>user_id</td><td>INTEGER</td><td>FK → users.id ON DELETE CASCADE</td><td>Власник шаблону (NULL — системний)</td></tr>
+        <tr><td>name</td><td>TEXT</td><td>NOT NULL</td><td>Назва шаблону</td></tr>
+        <tr><td>recipient_account</td><td>TEXT</td><td>NOT NULL</td><td>Рахунок отримувача</td></tr>
+        <tr><td>amount</td><td>REAL</td><td>—</td><td>Сума (опціонально)</td></tr>
+        <tr><td>description</td><td>TEXT</td><td>DEFAULT ''</td><td>Опис</td></tr>
+        <tr><td>is_system</td><td>INTEGER</td><td>DEFAULT 0</td><td>1 — системний шаблон (доступний усім)</td></tr>
+        <tr><td>created_at</td><td>TEXT</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Дата створення</td></tr>
+      </table>
+
+      <h3>push_subscriptions</h3>
+      <table>
+        <tr><th>Поле</th><th>Тип</th><th>Обмеження</th><th>Опис</th></tr>
+        <tr><td>id</td><td>INTEGER</td><td>PRIMARY KEY AUTOINCREMENT</td><td>Ідентифікатор</td></tr>
+        <tr><td>user_id</td><td>INTEGER</td><td>NOT NULL, FK → users.id ON DELETE CASCADE</td><td>Власник підписки</td></tr>
+        <tr><td>endpoint</td><td>TEXT</td><td>NOT NULL UNIQUE</td><td>Push-endpoint браузера</td></tr>
+        <tr><td>p256dh</td><td>TEXT</td><td>NOT NULL</td><td>Публічний ключ підписки</td></tr>
+        <tr><td>auth</td><td>TEXT</td><td>NOT NULL</td><td>Auth-секрет підписки</td></tr>
+        <tr><td>created_at</td><td>TEXT</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Дата підписки</td></tr>
+      </table>
+
+      <h3>budget_limits <span class="pill">тільки PostgreSQL-схема</span></h3>
+      <table>
+        <tr><th>Поле</th><th>Тип</th><th>Обмеження</th><th>Опис</th></tr>
+        <tr><td>id</td><td>SERIAL</td><td>PRIMARY KEY</td><td>Ідентифікатор</td></tr>
+        <tr><td>user_id</td><td>INTEGER</td><td>NOT NULL, FK → users.id ON DELETE CASCADE</td><td>Власник лімітів</td></tr>
+        <tr><td>tx_type</td><td>VARCHAR(30)</td><td>NOT NULL</td><td>Категорія операції</td></tr>
+        <tr><td>monthly_limit</td><td>NUMERIC(14,2)</td><td>NOT NULL, CHECK &gt; 0</td><td>Місячний ліміт</td></tr>
+        <tr><td>created_at</td><td>TIMESTAMPTZ</td><td>DEFAULT NOW()</td><td>Дата встановлення</td></tr>
+      </table>
+      <p><em>Унікальність:</em> <code class="inline">UNIQUE (user_id, tx_type)</code> — один ліміт на категорію для користувача.</p>
+
+      <h3>Повний DDL (SQLite)</h3>
+      <pre>PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    full_name TEXT NOT NULL,
+    phone TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'soldier',
+    military_status TEXT NOT NULL DEFAULT 'active',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at TEXT DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL UNIQUE,
+    account_number TEXT NOT NULL UNIQUE,
+    currency TEXT NOT NULL DEFAULT 'UAH',
+    balance REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS family_contacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    contact_name TEXT NOT NULL,
+    relation_type TEXT NOT NULL,
+    phone TEXT,
+    account_number TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS savings_goals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    target_amount REAL NOT NULL,
+    current_amount REAL NOT NULL DEFAULT 0,
+    deadline TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS donations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    fund_name TEXT NOT NULL,
+    amount REAL NOT NULL,
+    comment TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS payouts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    amount REAL NOT NULL,
+    payout_type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'credited',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    tx_type TEXT NOT NULL,
+    direction TEXT NOT NULL,
+    amount REAL NOT NULL,
+    description TEXT NOT NULL,
+    related_account TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    action TEXT NOT NULL,
+    details TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS payment_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    name TEXT NOT NULL,
+    recipient_account TEXT NOT NULL,
+    amount REAL,
+    description TEXT NOT NULL DEFAULT '',
+    is_system INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS cards (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    card_number TEXT NOT NULL UNIQUE,
+    card_type TEXT NOT NULL DEFAULT 'virtual',
+    status TEXT NOT NULL DEFAULT 'active',
+    holder_name TEXT,
+    issued_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TEXT NOT NULL,
+    FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_cards_account_id ON cards(account_id);
+CREATE INDEX IF NOT EXISTS idx_cards_card_number ON cards(card_number);</pre>
+    </section>
+
+    <section id="api">
+      <h2>7. API та маршрути</h2>
+      <p>Усі бізнес-маршрути доступні під префіксом <code class="inline">/api/*</code> і повертають JSON.
+      Авторизація — заголовок <code class="inline">Authorization: Bearer &lt;token&gt;</code>.
+      Повна специфікація: <a class="src" href="/api/docs" target="_blank" rel="noopener">/api/docs</a> (OpenAPI/Swagger),
+      JSON-схема — <a class="src" href="/api/openapi.json" target="_blank" rel="noopener">/api/openapi.json</a>,
+      генератор — <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/api_docs.py" target="_blank" rel="noopener">backend/api_docs.py</a>.</p>
+      <table>
+        <tr><th>Префікс</th><th>Blueprint</th><th>Призначення</th></tr>
+        <tr><td>/api/auth</td><td>auth_bp</td><td>реєстрація, логін, refresh, passkeys</td></tr>
+        <tr><td>/api</td><td>account_bp</td><td>рахунки, баланс, перекази</td></tr>
+        <tr><td>/api</td><td>card_bp</td><td>картки</td></tr>
+        <tr><td>/api</td><td>deposit_bp / credit_bp</td><td>депозити, кредити</td></tr>
+        <tr><td>/api</td><td>marketplace_bp</td><td>маркетплейс, замовлення</td></tr>
+        <tr><td>/api</td><td>messenger_bp / call_bp</td><td>чат, дзвінки</td></tr>
+        <tr><td>/api</td><td>admin_bp, operator_bp, platform_bp</td><td>адміністрування</td></tr>
+        <tr><td>/api</td><td>document_bp</td><td>PDF-виписки, чеки</td></tr>
+      </table>
+      <p>Допоміжні сторінки: <code class="inline">/health</code> — статус сервісу,
+      <code class="inline">/api-status</code> — панель перевірки endpoint-ів,
+      <code class="inline">/admin</code>, <code class="inline">/operator</code>, <code class="inline">/platform</code> — окремі UI для ролей,
+      <code class="inline">/marketplace</code>, <code class="inline">/messenger</code>.</p>
+    </section>
+
+    <section id="security">
+      <h2>8. Безпека</h2>
+      <ul>
+        <li><strong>Паролі</strong> — лише bcrypt-хеші (12 раундів), у відкритому вигляді не зберігаються.
+          <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/utils/security.py" target="_blank" rel="noopener">utils/security.py</a></li>
+        <li><strong>Токени сесій</strong> — криптографічно випадкові (<code class="inline">secrets.token_urlsafe(32)</code>), з TTL та автопродовженням.</li>
+        <li><strong>Passkeys / WebAuthn</strong> — підтримка безпарольного входу (Face ID тощо).
+          <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/passkey_routes.py" target="_blank" rel="noopener">routes/passkey_routes.py</a></li>
+        <li><strong>Anti-fraud скоринг</strong> — кожен переказ проходить fuzzy-logic оцінку ризику.
+          <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/fraud_engine.py" target="_blank" rel="noopener">services/fraud_engine.py</a></li>
+        <li><strong>HTTPS обов'язково</strong> — HTTP редіректить на HTTPS, HSTS-заголовок.</li>
+        <li><strong>Rate limiting</strong> — декоратор <code class="inline">@rate_limit(...)</code> на /api/auth/* (бекенд) + nginx обмеження 5 req/s з IP.
+          <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/helpers.py" target="_blank" rel="noopener">routes/helpers.py</a></li>
+        <li><strong>CORS</strong> — лише білий список дозволених доменів (munister.com.ua, bank.munister.com.ua тощо).
+          <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/app.py" target="_blank" rel="noopener">app.py</a></li>
+        <li><strong>HTTP-заголовки</strong> — X-Content-Type-Options, X-Frame-Options (для API), Referrer-Policy, Permissions-Policy.</li>
+        <li><strong>Cache-Control: no-store</strong> для всіх <code class="inline">/api/*</code> — конфіденційні дані не кешуються.</li>
+        <li><strong>Аудит</strong> — таблиця <code class="inline">audit_logs</code> фіксує значущі дії користувачів/адмінів.</li>
+        <li><strong>Ідемпотентність платежів</strong> — заголовок <code class="inline">Idempotency-Key</code> запобігає повторному виконанню операції.
+          <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/payment_core.py" target="_blank" rel="noopener">services/payment_core.py</a></li>
+        <li><strong>Месенджер</strong> — шифрування повідомлень у спокої (Fernet, ротація ключів).
+          <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/messenger_crypto.py" target="_blank" rel="noopener">services/messenger_crypto.py</a></li>
+        <li><strong>Секрети</strong> — у файлі <code class="inline">.env</code> на сервері (права 600), не потрапляють у git.</li>
+        <li><strong>Firewall</strong> — на сервері відкриті лише 22 (SSH), 80/443 (HTTP/HTTPS).</li>
+        <li><strong>Gunicorn</strong> слухає лише <code class="inline">127.0.0.1:8011</code> — недосяжний напряму з інтернету.</li>
+      </ul>
+    </section>
+
+    <section id="deploy">
+      <h2>9. Розгортання та інфраструктура</h2>
+      <table>
+        <tr><th>Параметр</th><th>Значення</th></tr>
+        <tr><td>URL</td><td>https://bank.munister.com.ua</td></tr>
+        <tr><td>Сервер</td><td>VPS (AlmaLinux/RHEL, nginx, systemd)</td></tr>
+        <tr><td>Каталог</td><td>/opt/army-bank</td></tr>
+        <tr><td>Процес</td><td>gunicorn (army-bank.service), 127.0.0.1:8011, 2 workers</td></tr>
+        <tr><td>Reverse proxy</td><td>nginx + Let's Encrypt (HTTPS, автопродовження)</td></tr>
+        <tr><td>БД</td><td>SQLite (database/army_bank.db)</td></tr>
+        <tr><td>Репозиторій</td><td><a class="src" href="https://github.com/munister-v/army-bank" target="_blank" rel="noopener">github.com/munister-v/army-bank</a> (main)</td></tr>
+        <tr><td>Конфіг gunicorn</td><td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/deploy/gunicorn.conf.py" target="_blank" rel="noopener">deploy/gunicorn.conf.py</a></td></tr>
+      </table>
+      <h3>Оновлення</h3>
+      <pre>cd /opt/army-bank
+git pull
+.venv/bin/pip install -r requirements.txt   # якщо змінились залежності
+npm ci && npm run build                      # якщо змінився фронтенд
+systemctl restart army-bank</pre>
+    </section>
+
+    <footer>ARM Bank · технічна документація · /doc</footer>
+  </div>
+</body>
+</html>

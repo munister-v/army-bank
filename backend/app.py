@@ -425,6 +425,10 @@ def create_app() -> Flask:
     def api_status_page():
         return send_html('api-status.html')
 
+    @app.get(prefix + '/doc')
+    def doc_page():
+        return send_html('doc.html')
+
     @app.get(prefix + '/messenger' if prefix else '/messenger')
     def messenger_page():
         return send_html('messenger.html')

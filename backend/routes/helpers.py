@@ -1,4 +1,13 @@
-"""Допоміжні функції для маршрутів Flask."""
+"""Допоміжні функції для маршрутів Flask.
+
+Містить наскрізні (cross-cutting) механізми, що використовуються майже
+в усіх роутах:
+  * auth_required   — перевірка Bearer-токена + sliding session refresh
+  * role_required   — перевірка ролі користувача (admin/user тощо)
+  * rate_limit      — in-memory rate limiter (захист від brute-force/спаму)
+  * require_idempotency_key — перевірка заголовка Idempotency-Key
+                               для платіжних операцій
+"""
 from __future__ import annotations
 
 import threading
@@ -18,11 +27,16 @@ from ..config import (
 
 auth_service = AuthService()
 
+# In-memory rate limiter: лічильники зберігаються в пам'яті процесу.
+# _RATE_LOCK захищає _RATE_BUCKETS від паралельних запитів (gunicorn -
+# 2 worker'и означають 2 окремі набори лічильників, але кожен потоковий
+# worker (gthread) ділить ці структури між потоками, тож блокування потрібне).
 _RATE_LOCK = threading.Lock()
 _RATE_BUCKETS: dict[str, deque[float]] = defaultdict(deque)
 
 
 def api_error(message: str, status: int = 400):
+    """Уніфікований формат помилки API: {'ok': False, 'error': ...}."""
     return jsonify({'ok': False, 'error': message}), status
 
 
@@ -35,20 +49,26 @@ def auth_required(func):
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
+        # Очікуваний формат: "Authorization: Bearer <token>"
         header = request.headers.get('Authorization', '')
         if not header.startswith('Bearer '):
             return api_error('Потрібна авторизація.', 401)
         token = header.replace('Bearer ', '', 1).strip()
+        # get_user_by_token() звертається до таблиці sessions і одночасно
+        # перевіряє, що сесія ще не прострочена (expires_at > now).
         user = auth_service.get_user_by_token(token)
         if not user:
             return api_error('Недійсна або прострочена сесія.', 401)
 
         g.current_user = user
         g.current_token = token
-        # Backward compatibility: some routes still read g.user_id directly.
+        # Зворотна сумісність: деякі (старіші) роути читають g.user_id напряму
+        # замість g.current_user['id'].
         g.user_id = user.get('id')
 
-        # Оновити last_seen_at
+        # Оновити users.last_seen_at — використовується, наприклад,
+        # для індикації "онлайн"-статусу в адмінці/месенджері.
+        # Best-effort: збій цього запиту не повинен блокувати основний роут.
         try:
             from ..database import get_connection
             from ..config import USE_PG
@@ -61,13 +81,21 @@ def auth_required(func):
         except Exception:
             pass
 
-        # Автооновлення сесії якщо залишилось < 7 днів
+        # Sliding expiration: якщо до закінчення сесії залишилось менше
+        # 7 днів (_REFRESH_THRESHOLD_HOURS у security.py), видаємо новий
+        # токен і повертаємо його у заголовку X-Refresh-Token. Фронтенд
+        # перехоплює цей заголовок і замінює збережений токен — користувач
+        # лишається залогіненим без явного re-login, доки активно
+        # користується застосунком.
         if should_refresh_session(user.get('expires_at', '')):
             new_token = auth_service.refresh_session(token, user['id'])
             if new_token:
                 @after_this_request
                 def add_refresh_header(response):
                     response.headers['X-Refresh-Token'] = new_token
+                    # CORS: за замовчуванням браузер не дає JS читати кастомні
+                    # заголовки відповіді, якщо вони не перелічені в
+                    # Access-Control-Expose-Headers — додаємо їх явно.
                     existing = (response.headers.get('Access-Control-Expose-Headers') or '').strip()
                     parts = [p.strip() for p in existing.split(',') if p.strip()]
                     for header_name in ('X-Refresh-Token', 'X-Request-Id'):
@@ -81,6 +109,13 @@ def auth_required(func):
 
 
 def _client_ip() -> str:
+    """IP клієнта з урахуванням nginx-проксі.
+
+    nginx додає заголовок X-Forwarded-For з реальною IP клієнта (інакше
+    request.remote_addr показував би 127.0.0.1 — адресу проксі).
+    Беремо ПЕРШИЙ елемент списку (оригінальний клієнт), решта — це
+    проміжні проксі.
+    """
     xff = (request.headers.get('X-Forwarded-For') or '').strip()
     if xff:
         return xff.split(',')[0].strip()[:80]
@@ -103,7 +138,13 @@ def _idempotency_enforced() -> bool:
 
 
 def require_idempotency_key(payload: dict | None = None, allow_body_fallback: bool = False):
-    """Повертає (key, None) або (None, error_response)."""
+    """Дістає ключ ідемпотентності для платіжних операцій.
+
+    Повертає (key, None) при успіху або (None, error_response) при помилці.
+    Цей ключ передається у PaymentCore.transfer() — повторний запит з тим
+    же ключем не призведе до повторного списання коштів (див.
+    payment_core.py: перевірка `get_by_idempotency_key`).
+    """
     header_key = (request.headers.get('Idempotency-Key') or '').strip()
     if header_key:
         if len(header_key) > 128:
@@ -123,6 +164,11 @@ def require_idempotency_key(payload: dict | None = None, allow_body_fallback: bo
 
 
 def actor_rate_key(scope: str = 'api') -> str:
+    """Ключ rate-limit'у: по user_id якщо залогінений, інакше по IP.
+
+    Авторизований користувач обмежується персонально (не може заблокувати
+    інших спільним IP в офісі/NAT), анонімні запити обмежуються по IP.
+    """
     user = getattr(g, 'current_user', None) or {}
     user_id = user.get('id')
     if user_id:
@@ -131,6 +177,9 @@ def actor_rate_key(scope: str = 'api') -> str:
 
 
 def user_or_ip_rate_key(scope: str = 'api') -> str:
+    """Псевдонім actor_rate_key — окрема назва для семантичної ясності
+    у місцях, де ключ використовується для лімітів "на користувача/IP"
+    (наприклад, операції з рахунком), а не суто автентифікації."""
     user = getattr(g, 'current_user', None) or {}
     user_id = user.get('id')
     if user_id:
@@ -139,9 +188,20 @@ def user_or_ip_rate_key(scope: str = 'api') -> str:
 
 
 def rate_limit(limit: int, window_seconds: int, key_func=None):
-    """Простий in-memory rate limiter.
+    """Простий in-memory rate limiter за алгоритмом sliding window log.
 
-    У TESTING режимі вимкнений, щоб не ламати unit/integration тести.
+    Для кожного ключа зберігається deque з timestamp'ами останніх запитів.
+    При новому запиті старі записи (старші за window_seconds) видаляються
+    зліва (вони впорядковані за часом), і якщо залишок >= limit — запит
+    відхиляється з 429 і заголовком Retry-After.
+
+    Обмеження: лічильники живуть в пам'яті процесу gunicorn — при кількох
+    worker'ах кожен має свій набір лічильників (тобто фактичний ліміт
+    може бути в N_WORKERS разів вищий за вказаний). Для критичних шляхів
+    (логін/реєстрація) додатково є nginx limit_req_zone на рівні проксі.
+
+    У TESTING режимі вимкнений, щоб не ламати unit/integration тести
+    (якщо явно не увімкнено ENABLE_RATE_LIMIT_IN_TESTS).
     """
     def decorator(func):
         @wraps(func)
@@ -160,10 +220,14 @@ def rate_limit(limit: int, window_seconds: int, key_func=None):
 
             with _RATE_LOCK:
                 bucket = _RATE_BUCKETS[key]
+                # Видаляємо застарілі записи з початку deque (вони
+                # завжди впорядковані за часом додавання).
                 while bucket and bucket[0] <= cutoff:
                     bucket.popleft()
 
                 if len(bucket) >= limit:
+                    # Retry-After: скільки секунд лишилось до того, як
+                    # найстаріший запис у вікні "застаріє" і звільнить слот.
                     retry_after = max(1, int(window_seconds - (now - bucket[0])))
                     resp = jsonify({
                         'ok': False,
@@ -181,7 +245,11 @@ def rate_limit(limit: int, window_seconds: int, key_func=None):
 
 
 def role_required(*allowed_roles: str):
-    """Декоратор: перевіряє, що g.current_user має одну з дозволених ролей. Після auth_required."""
+    """Декоратор: перевіряє, що g.current_user має одну з дозволених ролей.
+
+    Повинен застосовуватись ПІСЛЯ @auth_required (потребує g.current_user).
+    Приклад: @role_required('admin') — доступ лише для ролі 'admin'.
+    """
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
