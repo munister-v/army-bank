@@ -202,23 +202,31 @@
       <h3>backend/app.py — точка входу <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/app.py" target="_blank" rel="noopener">переглянути файл</a></h3>
       <p>Створює Flask-застосунок, реєструє всі blueprints, налаштовує CORS, заголовки безпеки,
       gzip-стиснення (Flask-Compress), обробники помилок та SPA-маршрути для фронтенду.</p>
-      <pre># Створення застосунку: static_folder = frontend/, всі статичні файли (PWA, ассети)
+      <pre># ── Створення Flask-застосунку ───────────────────────────────────────────
+# static_folder=frontend/ — Flask сам віддаватиме статику (PWA-маніфест, ассети, іконки);
+# static_url_path=BASE_PATH — префікс URL, якщо застосунок живе не в корені домену (напр. /bank).
 app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path=BASE_PATH or '')
 
-# Gzip-стиснення JSON/HTML/CSS/JS — швидша віддача через мобільні мережі
+# ── Gzip-стиснення відповідей ────────────────────────────────────────────
+# Перелічуємо лише текстові MIME-типи (бінарні картинки стискати немає сенсу).
+# Менший обсяг трафіку = швидше завантаження на мобільних мережах.
 app.config['COMPRESS_MIMETYPES'] = [
-    'application/json', 'text/html', 'text/css',
-    'application/javascript', 'text/javascript', 'image/svg+xml',
+    'application/json', 'text/html', 'text/css',         # API-відповіді, HTML-сторінки, стилі
+    'application/javascript', 'text/javascript', 'image/svg+xml',  # скрипти та векторні іконки
 ]
-Compress(app)
+Compress(app)                                            # підключає Flask-Compress до застосунку
 
-# Білий список доменів для CORS — лише ці origin отримають
-# Access-Control-Allow-Origin у відповіді
+# ── Білий список origin для CORS ─────────────────────────────────────────
+# Лише ці домени отримають заголовок Access-Control-Allow-Origin у відповіді.
+# Усе інше браузер заблокує — захист від запитів зі сторонніх сайтів (CSRF/крадіжка даних).
 _ALLOWED_ORIGINS = {
-    'https://munister.com.ua',
-    'https://bank.munister.com.ua',
-    ...
+    'https://munister.com.ua',                           # головний домен
+    'https://bank.munister.com.ua',                      # піддомен банку
+    ...                                                  # (інші довірені origin)
 }</pre>
+      <p>Усе налаштовується <b>один раз при старті процесу</b>. Далі кожен HTTP-запит проходить
+      через цей застосунок: спершу CORS-перевірка origin, потім маршрут (blueprint), а на виході —
+      gzip-стиснення тіла відповіді.</p>
 
       <h4>routes/ — HTTP-маршрути</h4>
       <table>
@@ -332,43 +340,54 @@ _ALLOWED_ORIGINS = {
       </h3>
       <pre>def hash_password(password: str) -> str:
     """Хешує пароль через bcrypt (або SHA-256 fallback якщо бібліотека недоступна)."""
-    if _USE_BCRYPT:
+    if _USE_BCRYPT:                                   # bcrypt встановлено? (перевірка одна на весь процес)
+        # gensalt(rounds=12) — створює випадкову «сіль» і задає вартість 2^12 ітерацій:
+        # навмисно повільно для перебору паролів, але непомітно для людини.
+        # Сіль зберігається ВСЕРЕДИНІ результату, тож окремо її тримати не треба.
         return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
-    # Fallback: HMAC-SHA256 зі SECRET_KEY (стара поведінка — зворотна сумісність)
-    salted = f"{SECRET_KEY}:{password}".encode('utf-8')
-    return hashlib.sha256(salted).hexdigest()
+    # Fallback (резервний шлях): HMAC-SHA256 зі SECRET_KEY — стара поведінка для
+    # зворотної сумісності зі старими записами в БД, створеними до переходу на bcrypt.
+    salted = f"{SECRET_KEY}:{password}".encode('utf-8')   # «солимо» секретним ключем сервера
+    return hashlib.sha256(salted).hexdigest()             # повертаємо 64-символьний hex-хеш
 
 def verify_password(password: str, password_hash: str) -> bool:
     """Перевіряє пароль. Підтримує bcrypt ($2b$/$2a$/$2y$) і старий SHA-256."""
-    if password_hash.startswith(('$2b$', '$2a$', '$2y$')):
-        return bcrypt.checkpw(password.encode(), password_hash.encode())
-    ...
+    if password_hash.startswith(('$2b$', '$2a$', '$2y$')):  # за префіксом визначаємо алгоритм хешу
+        return bcrypt.checkpw(password.encode(), password_hash.encode())  # bcrypt сам дістає сіль із хешу
+    ...                                                   # інакше — звіряємо як старий SHA-256
 
 def generate_token() -> str:
     """Генерує безпечний токен сесії (43 символи URL-safe)."""
-    return secrets.token_urlsafe(32)
+    return secrets.token_urlsafe(32)                      # 32 байти з криптостійкого ГВЧ -> base64url
 
-# Якщо до закінчення сесії залишилось < 7 днів — токен автоматично
-# продовжується (helpers.auth_required викликає refresh_session)
-_REFRESH_THRESHOLD_HOURS = 24 * 7</pre>
+# Якщо до закінчення сесії залишилось менше 7 днів — токен автоматично
+# продовжується (helpers.auth_required викликає refresh_session),
+# щоб активний користувач не «вилітав» з акаунта раптово.
+_REFRESH_THRESHOLD_HOURS = 24 * 7                         # поріг автопродовження = 7 діб, у годинах</pre>
+      <p>Чому саме так: <b>bcrypt</b> з вартістю 12 робить підбір пароля дорогим навіть за
+      витоку бази; <b>secrets</b> (а не <code class="inline">random</code>) дає криптостійкі токени,
+      які неможливо передбачити; <b>автопродовження</b> сесії покращує UX, не жертвуючи безпекою —
+      старий токен лишається дійсним лише до закінчення терміну.</p>
 
       <h3>4.2. Логін
         <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/routes/auth_routes.py" target="_blank" rel="noopener">backend/routes/auth_routes.py</a>
       </h3>
       <pre>def _login_rate_key() -> str:
-    # Ключ для rate-limit: окремий лічильник на кожну пару (IP, email)
-    data = request.get_json(silent=True) or {}
-    identity = (data.get('identity') or '').strip().lower()[:80]
-    return f'auth:login:{_auth_client_ip()}:{identity}'
+    # Формуємо ключ лічильника rate-limit: окремий ліміт на кожну пару (IP, email),
+    # тож перебір одного акаунта або атака з однієї IP блокуються незалежно.
+    data = request.get_json(silent=True) or {}            # читаємо тіло; silent=True — без винятку на битий JSON
+    identity = (data.get('identity') or '').strip().lower()[:80]  # нормалізуємо email і обрізаємо до 80 символів
+    return f'auth:login:{_auth_client_ip()}:{identity}'   # підсумковий ключ виду auth:login:&lt;ip&gt;:&lt;email&gt;
 
-@auth_bp.post('/login')
-@rate_limit(AUTH_LOGIN_RATE_LIMIT, AUTH_RATE_WINDOW_SECONDS, key_func=_login_rate_key)
+@auth_bp.post('/login')                                   # реєструємо POST-маршрут /login у blueprint
+@rate_limit(AUTH_LOGIN_RATE_LIMIT, AUTH_RATE_WINDOW_SECONDS, key_func=_login_rate_key)  # N спроб за вікно часу
 def login():
     try:
-        payload = auth_service.login(request.get_json(force=True))
-        return jsonify({'ok': True, 'data': payload})
+        payload = auth_service.login(request.get_json(force=True))  # бізнес-логіка: перевірка пароля + видача токена
+        return jsonify({'ok': True, 'data': payload})     # успіх: повертаємо токен і дані користувача
     except Exception as exc:
-        # 401, а не 400 — щоб клієнт відрізняв "невірні дані" від "поганий запит"
+        # 401 (а не 400) — щоб клієнт відрізняв «невірні дані» від «поганий запит».
+        # Текст помилки навмисно загальний, щоб не підказувати, що саме не так (email чи пароль).
         return api_error(str(exc), 401)</pre>
       <p>Маршрут захищений декоратором <code class="inline">@rate_limit(...)</code> — ключ враховує IP
       і email, тож brute-force по одному акаунту або з одної IP блокується окремо.</p>
@@ -378,59 +397,70 @@ def login():
       </h3>
       <pre>def auth_required(func):
     """Декоратор: перевіряє Authorization: Bearer &lt;token&gt;, кладе user у g.current_user."""
-    @wraps(func)
+    @wraps(func)                                          # зберігає ім'я/докстрінг оригінальної функції
     def wrapper(*args, **kwargs):
-        token = ...  # дістається з заголовка Authorization
-        user = auth_service.get_user_by_token(token)
-        if not user:
-            return api_error('Недійсний токен.', 401)
-        g.current_user = user
-        g.current_token = token
+        token = ...                                       # дістаємо токен із заголовка Authorization
+        user = auth_service.get_user_by_token(token)      # шукаємо активну сесію за токеном у БД
+        if not user:                                      # токен відсутній, прострочений або підроблений
+            return api_error('Недійсний токен.', 401)     # -> 401, доступ заборонено
+        g.current_user = user                             # кладемо користувача в g — глобальний контекст запиту
+        g.current_token = token                           # і сам токен (знадобиться для refresh/logout)
 
-        # Автооновлення сесії, якщо залишилось &lt; 7 днів — клієнт отримає
-        # новий токен у заголовку X-Refresh-Token без повторного логіну
-        if should_refresh_session(user.get('expires_at', '')):
-            new_token = auth_service.refresh_session(token, user['id'])
+        # Автооновлення сесії: якщо до кінця лишилось &lt; 7 днів — мовчки видаємо новий
+        # токен у заголовку X-Refresh-Token. Клієнт підхопить його без повторного логіну.
+        if should_refresh_session(user.get('expires_at', '')):  # перевіряємо термін дії
+            new_token = auth_service.refresh_session(token, user['id'])  # створюємо новий токен у БД
             if new_token:
-                @after_this_request
+                @after_this_request                       # хук Flask: виконати ПІСЛЯ формування відповіді
                 def add_refresh_header(response):
-                    response.headers['X-Refresh-Token'] = new_token
+                    response.headers['X-Refresh-Token'] = new_token  # віддаємо новий токен клієнту
                     return response
-        return func(*args, **kwargs)
+        return func(*args, **kwargs)                      # усе гаразд — викликаємо сам захищений маршрут
     return wrapper
 
 def role_required(*allowed_roles: str):
     """Декоратор: дозволяє доступ лише користувачам з певними ролями
     (admin, platform_admin, operator...)."""
-    ...</pre>
+    ...                                                   # усередині звіряє g.current_user['role'] зі списком
+</pre>
+      <p><b>Розділення обов'язків:</b> <code class="inline">auth_required</code> відповідає на питання
+      «хто ти?» (аутентифікація), а <code class="inline">role_required</code> — «що тобі дозволено?»
+      (авторизація). Декоратори вішаються на маршрут стосом, тож перевірки виконуються
+      послідовно ще до бізнес-логіки.</p>
 
       <h3>4.4. Переказ коштів — state machine + antifraud
         <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/payment_core.py" target="_blank" rel="noopener">backend/services/payment_core.py</a>
       </h3>
       <pre>def transfer(self, user_id, recipient_account_number, amount, description, idempotency_key=None):
     """Виконує переказ через state machine з перевіркою шахрайства."""
-    if idempotency_key is None:
-        idempotency_key = secrets.token_hex(16)
+    if idempotency_key is None:                           # клієнт не передав ключ ідемпотентності?
+        idempotency_key = secrets.token_hex(16)           # генеруємо власний (32 hex-символи)
 
-    # Ідемпотентність: якщо такий запит уже виконано — повертаємо готовий результат
-    # (захищає від подвійного списання при повторній відправці форми / ретраї мережі)
-    existing = self._payments.get_by_idempotency_key(idempotency_key)
-    if existing and existing['status'] == 'completed':
+    # ── Ідемпотентність ──────────────────────────────────────────────────
+    # Якщо запит із таким ключем уже виконано — повертаємо ГОТОВИЙ результат,
+    # а не робимо переказ удруге. Це захищає від подвійного списання при
+    # повторній відправці форми, ретраї мережі або «дабл-кліку».
+    existing = self._payments.get_by_idempotency_key(idempotency_key)  # шукаємо попередній запис
+    if existing and existing['status'] == 'completed':    # такий переказ уже успішно завершено
         ...
-        return {'account': ..., 'order_id': existing['id'], 'idempotent': True}
+        return {'account': ..., 'order_id': existing['id'], 'idempotent': True}  # віддаємо старий результат
 
-    # 1. Валідація: сума > 0, є кошти, рахунки існують, не переказ собі
-    if amount <= 0 or amount > 99_999_999.99:
+    # ── 1. Валідація ─────────────────────────────────────────────────────
+    # сума додатна і в межах ліміту; рахунки існують; це не переказ самому собі
+    if amount <= 0 or amount > 99_999_999.99:             # захист від нуля, від'ємних і переповнення
         raise ValueError('Недійсна сума переказу.')
-    if float(sender['balance']) < amount:
+    if float(sender['balance']) < amount:                 # перевірка достатності коштів ДО списання
         raise ValueError('Недостатньо коштів на рахунку.')
 
-    # 2. Оцінка ризику через FraudEngine (fuzzy-logic скоринг)
+    # ── 2. Оцінка ризику ─────────────────────────────────────────────────
+    # FraudEngine рахує скоринг за сумою, балансом, отримувачем, описом, часом тощо.
     risk = self._fraud.assess(sender['id'], recipient_account_number, amount,
                                balance=float(sender['balance']), description=description,
                                recipient_account_id=recipient['id'])
 
-    # 3. Створення order(pending) -> списання/зарахування -> completed
+    # ── 3. State machine: order(pending) -> списання/зарахування -> completed ─
+    # Спершу створюємо «замовлення» в статусі pending із прикріпленим скорингом ризику,
+    # далі атомарно рухаємо кошти й переводимо статус у completed (або failed при збої).
     order_id = self._payments.create_order(idempotency_key=idempotency_key, ...,
                                             risk_score=risk.score, risk_level=risk.level,
                                             risk_flags=risk.flags)
@@ -443,24 +473,25 @@ def role_required(*allowed_roles: str):
       </h3>
       <pre>class RiskResult:
     """Накопичує бали ризику та прапорці (flags) під час оцінки операції."""
-    def add(self, delta: int, flag: str, **kw) -> None: ...
-    def add_belief(self, prob: float, flag: str, **kw) -> None: ...
-    def finalize(self) -> None: ...
+    def add(self, delta: int, flag: str, **kw) -> None: ...        # додати фіксований бал + прапорець-причину
+    def add_belief(self, prob: float, flag: str, **kw) -> None: ... # додати «ймовірнісний» внесок 0..1 (нечітка логіка)
+    def finalize(self) -> None: ...                                # підбити підсумок: звести бали в остаточний score
     def _calc_level(self) -> str:
-        # score -> low / medium / high / critical
+        # Перетворює числовий score у рівень: low / medium / high / critical
         ...
     def apply_correlation_bonus(self) -> None:
-        # Якщо кілька підозрілих факторів збігаються одночасно — додатковий штраф
+        # Якщо кілька підозрілих факторів збігаються одночасно (велика сума + новий
+        # отримувач + ніч) — додаємо штраф понад суму окремих балів: збіг небезпечніший.
         ...
 
 class FM:
     """Fuzzy-membership функції для плавної оцінки (без жорстких порогів)."""
     @staticmethod
-    def sigmoid(x, center, slope=5.0): ...
+    def sigmoid(x, center, slope=5.0): ...               # S-крива: плавний перехід 0->1 навколо center
     @staticmethod
-    def gaussian(x, center, sigma): ...
+    def gaussian(x, center, sigma): ...                  # «дзвін»: пік біля center, спад на боки (sigma = ширина)
     @staticmethod
-    def trapezoid(x, a, b, c, d): ...</pre>
+    def trapezoid(x, a, b, c, d): ...                    # трапеція: 0 до a, 1 на [b,c], спад до 0 після d</pre>
       <p>Замість жорстких "if amount &gt; 10000: block", двигун використовує fuzzy-logic
       (сигмоїди, гаусіани, трапеції) для плавної оцінки ризику за сумою, часом доби,
       історією рахунку та кореляцією кількох факторів одночасно.</p>
@@ -998,11 +1029,15 @@ src/                  # вихідний код React (TypeScript), компіл
         <tr><td>Конфіг gunicorn</td><td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/deploy/gunicorn.conf.py" target="_blank" rel="noopener">deploy/gunicorn.conf.py</a></td></tr>
       </table>
       <h3>Оновлення</h3>
-      <pre>cd /opt/army-bank
-git pull
-.venv/bin/pip install -r requirements.txt   # якщо змінились залежності
-npm ci && npm run build                      # якщо змінився фронтенд
-systemctl restart army-bank</pre>
+      <pre>cd /opt/army-bank                            # переходимо в каталог проєкту на сервері
+git pull                                     # підтягуємо свіжий код з гілки main на GitHub
+.venv/bin/pip install -r requirements.txt    # оновлюємо Python-залежності (лише якщо змінилися)
+npm ci && npm run build                      # чиста переустановка npm + збірка React-фронтенду (vite)
+systemctl restart army-bank                  # перезапускаємо gunicorn-сервіс, щоб застосувати зміни</pre>
+      <p class="note">Порядок важливий: спершу код (<code class="inline">git pull</code>), потім залежності
+      й збірка фронтенду, і лише наприкінці — рестарт сервісу. Якщо змінився тільки текст цієї
+      сторінки (<code class="inline">frontend/doc.html</code>) — досить <code class="inline">git pull</code>,
+      бо статику nginx/Flask віддають без перезбірки.</p>
     </section>
 
     <footer>ARM Bank · технічна документація · /doc</footer>
