@@ -114,6 +114,13 @@
     .legend span{display:inline-flex; align-items:center; gap:6px;}
     .legend i{display:inline-block; width:12px; height:12px; border-radius:3px;}
     .i-pk{background:#fbbf24;} .i-fk{background:#f472b6;} .i-cmt{background:#6b8f7f;} .i-tbl{background:#7dd3fc;}
+    /* ── Бейдж «файл із детальними коментарями» ───────────────────────────── */
+    .done{
+      display:inline-block; background:rgba(52,211,153,.14); border:1px solid var(--accent);
+      color:var(--accent); border-radius:999px; padding:1px 8px; font-size:.7rem;
+      white-space:nowrap; margin-left:6px; vertical-align:middle;
+    }
+    .done::before{content:"✓ "; }
   </style>
 </head>
 <body>
@@ -199,6 +206,20 @@
     <section id="code">
       <h2>3. Структура коду (backend)</h2>
 
+      <div class="note">
+        Бейдж <span class="done">коментарі</span> позначає файли, у які додано
+        <b>детальні пояснення коду рядок за рядком</b> (українською). Спершу прокоментовано
+        найважливіші модулі, що раніше не мали інлайн-коментарів — безпека грошових операцій,
+        цілісність даних, валідація вводу та доступ до користувачів/сесій:
+        <ul style="margin:8px 0 0;">
+          <li><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/idempotency_service.py" target="_blank" rel="noopener">services/idempotency_service.py</a> — ідемпотентність (захист від подвійного списання)</li>
+          <li><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/integrity_service.py" target="_blank" rel="noopener">services/integrity_service.py</a> — хеш-ланцюг цілісності транзакцій</li>
+          <li><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/utils/validators.py" target="_blank" rel="noopener">utils/validators.py</a> — валідація вхідних даних</li>
+          <li><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/repositories/user_repository.py" target="_blank" rel="noopener">repositories/user_repository.py</a> — користувачі та сесії</li>
+          <li><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/repositories/base.py" target="_blank" rel="noopener">repositories/base.py</a> — базовий доступ до БД</li>
+        </ul>
+      </div>
+
       <h3>backend/app.py — точка входу <a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/app.py" target="_blank" rel="noopener">переглянути файл</a></h3>
       <p>Створює Flask-застосунок, реєструє всі blueprints, налаштовує CORS, заголовки безпеки,
       gzip-стиснення (Flask-Compress), обробники помилок та SPA-маршрути для фронтенду.</p>
@@ -270,6 +291,8 @@ _ALLOWED_ORIGINS = {
           <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/auth_service.py" target="_blank" rel="noopener">код</a></td></tr>
         <tr><td>payment_core.py</td><td>ядро переказів — state machine, ідемпотентність, виклик antifraud</td>
           <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/payment_core.py" target="_blank" rel="noopener">код</a></td></tr>
+        <tr><td>idempotency_service.py <span class="done">коментарі</span></td><td>захист грошових операцій від подвійного виконання (reserve / complete / replay)</td>
+          <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/idempotency_service.py" target="_blank" rel="noopener">код</a></td></tr>
         <tr><td>fraud_engine.py</td><td>оцінка ризику операції (fuzzy-logic скоринг, RiskResult)</td>
           <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/fraud_engine.py" target="_blank" rel="noopener">код</a></td></tr>
         <tr><td>ledger_service.py</td><td>бухгалтерський журнал операцій (double-entry)</td>
@@ -284,7 +307,7 @@ _ALLOWED_ORIGINS = {
           <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/deposit_service.py" target="_blank" rel="noopener">код</a></td></tr>
         <tr><td>platform_service.py</td><td>платформенна логіка (мульти-тенант)</td>
           <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/platform_service.py" target="_blank" rel="noopener">код</a></td></tr>
-        <tr><td>integrity_service.py</td><td>перевірка цілісності балансів/журналу</td>
+        <tr><td>integrity_service.py <span class="done">коментарі</span></td><td>перевірка цілісності балансів/журналу (хеш-ланцюг)</td>
           <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/integrity_service.py" target="_blank" rel="noopener">код</a></td></tr>
         <tr><td>messenger_crypto.py</td><td>шифрування повідомлень (Fernet, ротація ключів)</td>
           <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/services/messenger_crypto.py" target="_blank" rel="noopener">код</a></td></tr>
@@ -293,9 +316,9 @@ _ALLOWED_ORIGINS = {
       <h4>repositories/ — доступ до даних</h4>
       <table>
         <tr><th>Файл</th><th>Таблиці</th><th></th></tr>
-        <tr><td>base.py</td><td>базові SQL-хелпери (виконання запитів, отримання курсора)</td>
+        <tr><td>base.py <span class="done">коментарі</span></td><td>базові SQL-хелпери (виконання запитів, отримання курсора)</td>
           <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/repositories/base.py" target="_blank" rel="noopener">код</a></td></tr>
-        <tr><td>user_repository.py</td><td>users, sessions</td>
+        <tr><td>user_repository.py <span class="done">коментарі</span></td><td>users, sessions</td>
           <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/repositories/user_repository.py" target="_blank" rel="noopener">код</a></td></tr>
         <tr><td>account_repository.py</td><td>accounts, transactions</td>
           <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/repositories/account_repository.py" target="_blank" rel="noopener">код</a></td></tr>
@@ -316,7 +339,7 @@ _ALLOWED_ORIGINS = {
         <tr><th>Файл</th><th>Призначення</th><th></th></tr>
         <tr><td>security.py</td><td>bcrypt-хешування, генерація токенів, перевірка терміну сесії</td>
           <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/utils/security.py" target="_blank" rel="noopener">код</a></td></tr>
-        <tr><td>validators.py</td><td>перевірка вхідних даних (телефон, email, суми)</td>
+        <tr><td>validators.py <span class="done">коментарі</span></td><td>перевірка вхідних даних (телефон, email, суми)</td>
           <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/utils/validators.py" target="_blank" rel="noopener">код</a></td></tr>
         <tr><td>request_context.py</td><td>X-Request-Id для трасування запитів у логах</td>
           <td><a class="src" href="https://github.com/munister-v/army-bank/blob/main/backend/utils/request_context.py" target="_blank" rel="noopener">код</a></td></tr>
