@@ -112,6 +112,20 @@ def _ensure_schema() -> None:
         conn.execute('CREATE INDEX IF NOT EXISTS idx_leads_pipeline ON leads(pipeline)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_leads_priority ON leads(priority)')
 
+        conn.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS lead_activity (
+                id {pk_sql},
+                lead_id INTEGER NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+                author VARCHAR(80) NOT NULL DEFAULT '',
+                kind VARCHAR(20) NOT NULL DEFAULT 'note',
+                text TEXT NOT NULL DEFAULT '',
+                created_at TIMESTAMP NOT NULL DEFAULT {now_sql}
+            )
+            """
+        )
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_lead_activity_lead ON lead_activity(lead_id, created_at)')
+
 
 def _require_admin():
     """403 якщо не адмін; повертає поточного користувача інакше."""
@@ -256,6 +270,21 @@ def get_lead(lead_id: int):
     return jsonify({'ok': True, 'data': _row_to_payload(dict(row))})
 
 
+_SYSTEM_TRACKED_FIELDS = {
+    'stage': 'Стадія',
+    'owner': 'Власник',
+    'priority': 'Пріоритет',
+    'outreach_status': 'Статус контакту',
+}
+
+
+def _log_activity(conn, lead_id: int, author: str, kind: str, text: str) -> None:
+    conn.execute(
+        'INSERT INTO lead_activity (lead_id, author, kind, text) VALUES (%s, %s, %s, %s)',
+        (lead_id, author, kind, text),
+    )
+
+
 @leads_bp.patch('/<int:lead_id>')
 @auth_required
 @role_required(*_ADMIN_ROLES)
@@ -266,18 +295,73 @@ def update_lead(lead_id: int):
     if not updates:
         return api_error('Немає полів для оновлення.', 400)
 
+    author = str(g.current_user.get('full_name') or 'Адмін')
     set_sql = ', '.join(f'{k} = %s' for k in updates)
     params = list(updates.values())
     with get_connection() as conn:
-        existing = conn.execute('SELECT id FROM leads WHERE id = %s', (lead_id,)).fetchone()
+        existing = conn.execute('SELECT * FROM leads WHERE id = %s', (lead_id,)).fetchone()
         if not existing:
             return api_error('Лід не знайдено.', 404)
+        existing = dict(existing)
         conn.execute(
             f'UPDATE leads SET {set_sql}, updated_at = {_now_sql()} WHERE id = %s',
             params + [lead_id],
         )
+        for field, label in _SYSTEM_TRACKED_FIELDS.items():
+            if field in updates and str(updates[field] or '') != str(existing.get(field) or ''):
+                old_val = existing.get(field) or '—'
+                new_val = updates[field] or '—'
+                _log_activity(conn, lead_id, author, 'system', f'{label}: {old_val} → {new_val}')
         row = conn.execute('SELECT * FROM leads WHERE id = %s', (lead_id,)).fetchone()
     return jsonify({'ok': True, 'data': _row_to_payload(dict(row))})
+
+
+@leads_bp.get('/<int:lead_id>/activity')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def list_lead_activity(lead_id: int):
+    _ensure_schema()
+    with get_connection() as conn:
+        lead = conn.execute('SELECT id FROM leads WHERE id = %s', (lead_id,)).fetchone()
+        if not lead:
+            return api_error('Лід не знайдено.', 404)
+        rows = conn.execute(
+            'SELECT * FROM lead_activity WHERE lead_id = %s ORDER BY id ASC',
+            (lead_id,),
+        ).fetchall()
+    return jsonify({'ok': True, 'data': [
+        {'id': r['id'], 'author': r['author'], 'kind': r['kind'], 'text': r['text'], 'created_at': r['created_at']}
+        for r in (rows or [])
+    ]})
+
+
+@leads_bp.post('/<int:lead_id>/activity')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def add_lead_activity(lead_id: int):
+    _ensure_schema()
+    body = request.get_json(silent=True) or {}
+    text = str(body.get('text') or '').strip()
+    if not text:
+        return api_error("Текст обов'язковий.", 400)
+    author = str(g.current_user.get('full_name') or 'Адмін')
+    with get_connection() as conn:
+        lead = conn.execute('SELECT id FROM leads WHERE id = %s', (lead_id,)).fetchone()
+        if not lead:
+            return api_error('Лід не знайдено.', 404)
+        _log_activity(conn, lead_id, author, 'note', text)
+        conn.execute(
+            f'UPDATE leads SET last_touch_date = %s, updated_at = {_now_sql()} WHERE id = %s',
+            (date.today().isoformat(), lead_id),
+        )
+        rows = conn.execute(
+            'SELECT * FROM lead_activity WHERE lead_id = %s ORDER BY id ASC',
+            (lead_id,),
+        ).fetchall()
+    return jsonify({'ok': True, 'data': [
+        {'id': r['id'], 'author': r['author'], 'kind': r['kind'], 'text': r['text'], 'created_at': r['created_at']}
+        for r in (rows or [])
+    ]})
 
 
 @leads_bp.post('/import')
@@ -373,6 +457,8 @@ def create_lead():
             [data[c] for c in cols],
         )
         new_id = insert_last_id(cur)
+        author = str(g.current_user.get('full_name') or 'Адмін')
+        _log_activity(conn, new_id, author, 'system', 'Лід створено вручну')
         row = conn.execute('SELECT * FROM leads WHERE id = %s', (new_id,)).fetchone()
 
     return jsonify({'ok': True, 'data': _row_to_payload(dict(row))})

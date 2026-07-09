@@ -2710,3 +2710,70 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 #leads-create-view .leads-detail-section label {
   display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text-2); margin-bottom: 8px;
 }
+
+/* Leads chat-thread view: header, quick-edit pills, message bubbles, composer */
+.leads-thread-header {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+  border-bottom: 1px solid var(--border-soft); flex-shrink: 0;
+}
+.leads-back-btn-inline { padding: 0; margin: 0; }
+.leads-thread-avatar {
+  width: 40px; height: 40px; border-radius: 50%; background: var(--blue-light);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700; color: var(--blue); text-transform: uppercase; flex-shrink: 0;
+}
+.leads-thread-info { flex: 1; min-width: 0; }
+.leads-thread-name { font-size: 15px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leads-thread-sub { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leads-thread-contacts { display: flex; gap: 6px; flex-shrink: 0; }
+
+.leads-thread-pills {
+  display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px;
+  border-bottom: 1px solid var(--border-soft); flex-shrink: 0;
+}
+.leads-pill-select {
+  border: 1.5px solid var(--border); border-radius: 999px; background: #fff; color: var(--text);
+  font-size: 12px; font-weight: 600; padding: 6px 10px; outline: none; cursor: pointer;
+}
+.leads-pill-select:focus { border-color: var(--blue); }
+
+.leads-thread-messages {
+  flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.leads-activity-system {
+  align-self: center; max-width: 90%; text-align: center; font-size: 11.5px; color: var(--text-2);
+  background: var(--surface-2); border-radius: 999px; padding: 5px 12px;
+}
+.leads-activity-note { max-width: 78%; align-self: flex-start; }
+.leads-activity-note .msg-bubble { background: rgba(255,255,255,.95); border: 1px solid rgba(21,66,49,.12); color: var(--text); border-bottom-left-radius: 4px; }
+.leads-activity-meta { font-size: 10.5px; color: var(--muted); margin-top: 3px; padding: 0 4px; }
+.leads-first-message-pinned {
+  border: 1px dashed var(--border); border-radius: 14px; padding: 10px 12px; background: var(--surface-2);
+  font-size: 12.5px; color: var(--text-2); line-height: 1.5; margin-bottom: 4px;
+}
+.leads-first-message-pinned .leads-fm-label { font-size: 10.5px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.leads-first-message-pinned button { margin-top: 8px; }
+
+.leads-thread-composer {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+  border-top: 1px solid var(--border-soft); flex-shrink: 0;
+}
+.leads-thread-composer input {
+  flex: 1; background: var(--surface-2); border: 1.5px solid var(--border);
+  border-radius: 22px; padding: 10px 16px; color: var(--text);
+  font-family: var(--font); font-size: 14px; outline: none;
+}
+.leads-thread-composer input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-dim); }
+
+/* Leads list cards restyled to match .conv-item visually */
+.leads-card.conv-style {
+  display: flex; flex-direction: row; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer;
+  border-radius: 14px; background: rgba(255,255,255,.58); border: 1px solid transparent;
+  transition: background .15s, border-color .15s, transform .12s; min-height: 64px;
+  flex-shrink: 0;
+}
+.leads-card.conv-style:hover { background: rgba(255,255,255,.9); border-color: rgba(31,107,76,.14); transform: translateY(-1px); }
+.leads-card-body { flex: 1; min-width: 0; }
+.leads-card-name-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.leads-card-preview { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.leads-card-badges { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }

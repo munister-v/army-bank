@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '48';
+const MESSENGER_ASSET_VERSION = '49';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const BANK_TOKEN_KEY = 'army_bank_token';
@@ -321,6 +321,8 @@ const leadsCreateView = $('leads-create-view');
 const btnLeadsCreateBack = $('btn-leads-create-back');
 const btnLeadCreateSave = $('btn-lead-create-save');
 const leadNewPriority = $('lead-new-priority');
+const leadActivityInput = $('lead-activity-input');
+const btnLeadActivitySend = $('btn-lead-activity-send');
 
 // ════════════════════════════════════════════
 // API helper
@@ -1102,6 +1104,7 @@ async function loadLeadsStats() {
 
 function leadCardHtml(lead) {
   const loc = [lead.city_area, lead.country].filter(Boolean).join(', ');
+  const preview = [lead.category, loc].filter(Boolean).join(' · ') || 'Немає деталей';
   const firstPhone = (lead.phone || lead.whatsapp_viber || '').split(/[;,]/)[0].trim();
   const firstEmail = (lead.email || '').split(/[;,]/)[0].trim();
   const quick = [
@@ -1110,19 +1113,22 @@ function leadCardHtml(lead) {
     firstEmail ? { href: 'mailto:' + firstEmail, label: '✉️' } : null,
   ].filter(Boolean);
   return `
-    <div class="leads-card" data-lead-id="${lead.id}">
-      <div class="leads-card-top">
-        <span class="leads-card-name">${escHtml(lead.business_name || '')}</span>
-        <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(lead.priority || '')}</span>
+    <div class="leads-card conv-style" data-lead-id="${lead.id}">
+      <div class="conv-avatar">${escHtml(initial(lead.business_name || '?'))}</div>
+      <div class="leads-card-body">
+        <div class="leads-card-name-row">
+          <span class="conv-name">${escHtml(lead.business_name || '')}</span>
+          <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(lead.priority || '')}</span>
+        </div>
+        <div class="leads-card-preview">${escHtml(preview)}</div>
+        <div class="leads-card-badges">
+          <span class="leads-badge leads-badge-stage">${escHtml(lead.stage || '')}</span>
+          <span class="leads-badge leads-badge-owner">${escHtml(lead.owner || '—')}</span>
+        </div>
+        ${quick.length ? `<div class="leads-card-quick">${quick.map(q =>
+          `<a class="leads-quick-btn" href="${escHtml(q.href)}" target="_blank" rel="noopener" data-quick-action="1" title="${escHtml(q.href)}">${q.label}</a>`
+        ).join('')}</div>` : ''}
       </div>
-      <div class="leads-card-meta">${escHtml(lead.category || '')}${loc ? ' · ' + escHtml(loc) : ''}</div>
-      <div class="leads-card-bottom">
-        <span class="leads-badge leads-badge-stage">${escHtml(lead.stage || '')}</span>
-        <span class="leads-badge leads-badge-owner">${escHtml(lead.owner || '—')}</span>
-      </div>
-      ${quick.length ? `<div class="leads-card-quick">${quick.map(q =>
-        `<a class="leads-quick-btn" href="${escHtml(q.href)}" target="_blank" rel="noopener" data-quick-action="1" title="${escHtml(q.href)}">${q.label}</a>`
-      ).join('')}</div>` : ''}
     </div>
   `;
 }
@@ -1173,102 +1179,141 @@ const LEADS_STAGE_OPTIONS = ['New', 'Contacted', 'Replied', 'Qualified', 'Propos
 const LEADS_OUTREACH_OPTIONS = ['Not contacted', 'Message sent', 'Follow-up sent', 'Call made', 'No reply', 'Replied'];
 const LEADS_PRIORITY_OPTIONS = ['Hot', 'High', 'Medium', 'Low', 'Watch'];
 
-function leadDetailHtml(lead) {
-  const contacts = [
-    lead.email ? { label: 'Email', value: lead.email, href: 'mailto:' + lead.email.split(';')[0].trim() } : null,
-    lead.phone ? { label: 'Телефон', value: lead.phone, href: 'tel:' + lead.phone } : null,
-    lead.whatsapp_viber ? { label: 'WhatsApp/Viber', value: lead.whatsapp_viber } : null,
-    lead.instagram ? { label: 'Instagram', value: lead.instagram, href: 'https://instagram.com/' + String(lead.instagram).replace('@', '') } : null,
-    lead.website_url ? { label: 'Сайт', value: lead.website_url, href: lead.website_url } : null,
-    lead.source_url ? { label: 'Джерело', value: 'посилання', href: lead.source_url } : null,
+function leadThreadContactIcons(lead) {
+  const firstPhone = (lead.phone || lead.whatsapp_viber || '').split(/[;,]/)[0].trim();
+  const firstEmail = (lead.email || '').split(/[;,]/)[0].trim();
+  const icons = [
+    firstPhone ? { href: 'tel:' + firstPhone.replace(/[^\d+]/g, ''), label: '📞' } : null,
+    firstPhone ? { href: 'https://wa.me/' + firstPhone.replace(/[^\d]/g, ''), label: '💬' } : null,
+    firstEmail ? { href: 'mailto:' + firstEmail, label: '✉️' } : null,
+    lead.instagram ? { href: 'https://instagram.com/' + String(lead.instagram).replace('@', ''), label: '📷' } : null,
   ].filter(Boolean);
+  return icons.map(i => `<a class="leads-quick-btn" href="${escHtml(i.href)}" target="_blank" rel="noopener" title="${escHtml(i.href)}">${i.label}</a>`).join('');
+}
 
+function leadThreadPillsHtml(lead) {
   const optSel = (options, current) => options.map(o =>
     `<option value="${escHtml(o)}" ${o === current ? 'selected' : ''}>${escHtml(o)}</option>`
   ).join('');
   const ownerOptions = ['Manager 1', 'Manager 2'];
-
   return `
-    <div class="leads-detail-title">${escHtml(lead.business_name || '')}</div>
-    <div class="leads-detail-sub">${escHtml(lead.category || '')} · ${escHtml([lead.city_area, lead.country].filter(Boolean).join(', '))}</div>
+    <select id="lead-edit-owner" class="leads-pill-select">${optSel(ownerOptions, lead.owner)}</select>
+    <select id="lead-edit-priority" class="leads-pill-select">${optSel(LEADS_PRIORITY_OPTIONS, lead.priority)}</select>
+    <select id="lead-edit-stage" class="leads-pill-select">${optSel(LEADS_STAGE_OPTIONS, lead.stage)}</select>
+    <select id="lead-edit-outreach" class="leads-pill-select">${optSel(LEADS_OUTREACH_OPTIONS, lead.outreach_status)}</select>
+    <input id="lead-edit-followup" class="leads-pill-select" type="date" title="Наступний контакт" value="${escHtml(lead.next_followup_date || '')}"/>
+  `;
+}
 
-    <div class="leads-detail-section">
-      <h4>Контакти</h4>
-      ${contacts.map(c => `
-        <div class="leads-detail-row">
-          <span>${escHtml(c.label)}</span>
-          <span>${c.href ? `<a href="${escHtml(c.href)}" target="_blank" rel="noopener">${escHtml(c.value)}</a>` : escHtml(c.value)}</span>
-        </div>
-      `).join('') || '<div class="leads-detail-row"><span>Немає контактів</span><span>—</span></div>'}
-      <div class="leads-detail-row"><span>Канал</span><span>${escHtml(lead.primary_channel || '—')}</span></div>
-      <div class="leads-detail-row"><span>Відкриття</span><span>${escHtml(lead.opening_date || lead.opening_window || '—')}</span></div>
-    </div>
-
-    <div class="leads-detail-section">
-      <h4>Керування</h4>
-      <div class="leads-edit-grid">
-        <label>Власник<select id="lead-edit-owner">${optSel(ownerOptions, lead.owner)}</select></label>
-        <label>Пріоритет<select id="lead-edit-priority">${optSel(LEADS_PRIORITY_OPTIONS, lead.priority)}</select></label>
-        <label>Стадія<select id="lead-edit-stage">${optSel(LEADS_STAGE_OPTIONS, lead.stage)}</select></label>
-        <label>Статус контакту<select id="lead-edit-outreach">${optSel(LEADS_OUTREACH_OPTIONS, lead.outreach_status)}</select></label>
+function leadActivityBubbleHtml(item) {
+  const timeStr = formatTimeFromDate(new Date(item.created_at));
+  if (item.kind === 'system') {
+    return `<div class="leads-activity-system">${escHtml(item.text)} · ${timeStr}</div>`;
+  }
+  return `
+    <div class="msg-bubble-wrap them leads-activity-note">
+      <div>
+        <div class="msg-bubble">${escHtml(item.text)}</div>
+        <div class="leads-activity-meta">${escHtml(item.author || '')} · ${timeStr}</div>
       </div>
-      <label>Наступний контакт <input id="lead-edit-followup" type="date" value="${escHtml(lead.next_followup_date || '')}"/></label>
-      <label>Нотатки<textarea id="lead-edit-notes" placeholder="Нотатки менеджера...">${escHtml(lead.notes || '')}</textarea></label>
-      <button class="btn-primary" id="btn-lead-save" type="button">Зберегти</button>
     </div>
-
-    ${lead.first_message_en ? `
-    <div class="leads-detail-section">
-      <h4>Заготовка першого повідомлення</h4>
-      <div class="leads-first-message">${escHtml(lead.first_message_en)}</div>
-      <button class="btn-primary btn-secondary" id="btn-lead-copy-msg" type="button">Скопіювати</button>
-    </div>` : ''}
-
-    ${lead.why_help_fits ? `
-    <div class="leads-detail-section">
-      <h4>Чому підходить</h4>
-      <div class="leads-first-message">${escHtml(lead.why_help_fits)}</div>
-    </div>` : ''}
   `;
 }
 
 async function openLeadDetail(leadId) {
-  if (!leadsDetailBody) return;
+  const threadMessages = document.getElementById('leads-thread-messages');
+  if (!threadMessages) return;
   leadsState.currentLeadId = leadId;
   leadsListView.hidden = true;
   leadsDetailView.hidden = false;
-  leadsDetailBody.innerHTML = '<p class="leads-empty">Завантаження…</p>';
+  threadMessages.innerHTML = '<p class="leads-empty">Завантаження…</p>';
   try {
-    const lead = await api('GET', `/leads/${leadId}`);
-    leadsDetailBody.innerHTML = leadDetailHtml(lead);
-    document.getElementById('btn-lead-save')?.addEventListener('click', () => saveLeadEdits(leadId));
-    document.getElementById('btn-lead-copy-msg')?.addEventListener('click', () => {
-      const text = lead.first_message_en || '';
-      navigator.clipboard?.writeText(text).then(
-        () => showToast('Скопійовано.'),
-        () => showToast('Не вдалося скопіювати.', true)
-      );
-    });
+    const [lead, activity] = await Promise.all([
+      api('GET', `/leads/${leadId}`),
+      api('GET', `/leads/${leadId}/activity`),
+    ]);
+    renderLeadThread(lead, activity);
   } catch (err) {
-    leadsDetailBody.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Помилка завантаження ліда.')}</p>`;
+    threadMessages.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Помилка завантаження ліда.')}</p>`;
   }
 }
 
-async function saveLeadEdits(leadId) {
+function renderLeadThread(lead, activity) {
+  const avatarEl = document.getElementById('lead-thread-avatar');
+  const nameEl = document.getElementById('lead-thread-name');
+  const subEl = document.getElementById('lead-thread-sub');
+  const contactsEl = document.getElementById('lead-thread-contacts');
+  const pillsEl = document.getElementById('leads-thread-pills');
+  const threadMessages = document.getElementById('leads-thread-messages');
+
+  if (avatarEl) avatarEl.textContent = initial(lead.business_name || '?');
+  if (nameEl) nameEl.textContent = lead.business_name || '';
+  if (subEl) subEl.textContent = [lead.category, [lead.city_area, lead.country].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+  if (contactsEl) contactsEl.innerHTML = leadThreadContactIcons(lead);
+  if (pillsEl) {
+    pillsEl.innerHTML = leadThreadPillsHtml(lead);
+    ['owner', 'priority', 'stage', 'outreach'].forEach(field => {
+      document.getElementById(`lead-edit-${field}`)?.addEventListener('change', () => saveLeadPillEdit(lead.id));
+    });
+    document.getElementById('lead-edit-followup')?.addEventListener('change', () => saveLeadPillEdit(lead.id));
+  }
+
+  const pinned = lead.first_message_en ? `
+    <div class="leads-first-message-pinned">
+      <div class="leads-fm-label">Заготовка першого повідомлення</div>
+      ${escHtml(lead.first_message_en)}
+      <div><button class="btn-primary btn-secondary" id="btn-lead-copy-msg" type="button">Скопіювати</button></div>
+    </div>
+  ` : '';
+  const bubbles = (activity || []).map(leadActivityBubbleHtml).join('');
+  threadMessages.innerHTML = pinned + (bubbles || '<p class="leads-empty">Активності ще немає. Напишіть першу нотатку нижче.</p>');
+  threadMessages.scrollTop = threadMessages.scrollHeight;
+
+  document.getElementById('btn-lead-copy-msg')?.addEventListener('click', () => {
+    navigator.clipboard?.writeText(lead.first_message_en || '').then(
+      () => showToast('Скопійовано.'),
+      () => showToast('Не вдалося скопіювати.', true)
+    );
+  });
+}
+
+async function saveLeadPillEdit(leadId) {
   const payload = {
     owner: document.getElementById('lead-edit-owner')?.value,
     priority: document.getElementById('lead-edit-priority')?.value,
     stage: document.getElementById('lead-edit-stage')?.value,
     outreach_status: document.getElementById('lead-edit-outreach')?.value,
     next_followup_date: document.getElementById('lead-edit-followup')?.value || null,
-    notes: document.getElementById('lead-edit-notes')?.value || '',
   };
   try {
     await api('PATCH', `/leads/${leadId}`, payload);
-    showToast('Лід оновлено.');
+    const activity = await api('GET', `/leads/${leadId}/activity`);
+    const threadMessages = document.getElementById('leads-thread-messages');
+    if (threadMessages) {
+      const lead = await api('GET', `/leads/${leadId}`);
+      renderLeadThread(lead, activity);
+    }
     loadLeadsStats();
   } catch (err) {
     showToast(err.message || 'Не вдалося зберегти зміни.', true);
+  }
+}
+
+async function sendLeadActivity(leadId) {
+  const input = document.getElementById('lead-activity-input');
+  const text = input?.value.trim();
+  if (!text) return;
+  try {
+    const activity = await api('POST', `/leads/${leadId}/activity`, { text });
+    input.value = '';
+    const threadMessages = document.getElementById('leads-thread-messages');
+    if (threadMessages) {
+      const pinned = threadMessages.querySelector('.leads-first-message-pinned')?.outerHTML || '';
+      threadMessages.innerHTML = pinned + activity.map(leadActivityBubbleHtml).join('');
+      threadMessages.scrollTop = threadMessages.scrollHeight;
+    }
+  } catch (err) {
+    showToast(err.message || 'Не вдалося надіслати нотатку.', true);
   }
 }
 
@@ -1358,6 +1403,15 @@ if (btnLeadsAdd) btnLeadsAdd.addEventListener('click', openLeadsCreateView);
 if (btnLeadsCreateBack) btnLeadsCreateBack.addEventListener('click', closeLeadsCreateView);
 if (btnLeadCreateSave) btnLeadCreateSave.addEventListener('click', saveNewLead);
 if (btnLeadsExport) btnLeadsExport.addEventListener('click', exportLeadsCsv);
+if (btnLeadActivitySend) btnLeadActivitySend.addEventListener('click', () => {
+  if (leadsState.currentLeadId) sendLeadActivity(leadsState.currentLeadId);
+});
+if (leadActivityInput) leadActivityInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && leadsState.currentLeadId) {
+    e.preventDefault();
+    sendLeadActivity(leadsState.currentLeadId);
+  }
+});
 if (leadsModal) {
   leadsModal.addEventListener('click', e => { if (e.target === leadsModal) closeLeadsModal(); });
 }

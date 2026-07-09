@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=48"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=51"/>
 </head>
 <body>
 
@@ -627,15 +627,32 @@
       <div class="leads-pagination" id="leads-pagination"></div>
     </div>
 
-    <!-- Detail sub-view -->
+    <!-- Detail sub-view: chat-thread style -->
     <div id="leads-detail-view" hidden>
-      <button class="leads-back-btn" id="btn-leads-back" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-        До списку
-      </button>
-      <div id="leads-detail-body"></div>
+      <div class="leads-thread-header">
+        <button class="leads-back-btn leads-back-btn-inline" id="btn-leads-back" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <div class="leads-thread-avatar" id="lead-thread-avatar"></div>
+        <div class="leads-thread-info">
+          <div class="leads-thread-name" id="lead-thread-name"></div>
+          <div class="leads-thread-sub" id="lead-thread-sub"></div>
+        </div>
+        <div class="leads-thread-contacts" id="lead-thread-contacts"></div>
+      </div>
+      <div class="leads-thread-pills" id="leads-thread-pills"></div>
+      <div class="leads-thread-messages" id="leads-thread-messages"></div>
+      <div class="leads-thread-composer">
+        <input id="lead-activity-input" type="text" placeholder="Написати нотатку..." maxlength="2000"/>
+        <button class="btn-send" id="btn-lead-activity-send" title="Надіслати" type="button">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+            <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M22 2L15 22 11 13 2 9l20-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <!-- Create sub-view -->
@@ -783,6 +800,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=48"></script>
+<script src="/js/messenger.js?v=49"></script>
 </body>
 </html>
