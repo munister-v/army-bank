@@ -295,7 +295,7 @@ _VALUE_LABELS_RU = {
     'priority': {
         'Hot': 'Горячий', 'High': 'Высокий', 'Medium': 'Средний', 'Low': 'Низкий', 'Watch': 'Наблюдение',
     },
-    'owner': {'Manager 1': 'Менеджер 1', 'Manager 2': 'Менеджер 2'},
+    'owner': {'Manager 1': 'Менеджер Миша', 'Manager 2': 'Менеджер Едуард'},
 }
 
 

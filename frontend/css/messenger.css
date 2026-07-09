@@ -2650,43 +2650,57 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 .leads-card-bottom { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
 .leads-badge {
-  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
-  border-radius: 999px; padding: 3px 8px;
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .02em;
+  border-radius: 999px; padding: 3px 9px; color: #fff;
 }
-.leads-badge-Hot { background: #fde2e2; color: #b42335; }
-.leads-badge-High { background: var(--sand-light); color: #8a6516; }
-.leads-badge-Medium { background: var(--blue-light); color: var(--blue); }
-.leads-badge-Low { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border-soft); }
-.leads-badge-Watch { background: #ede9fe; color: #6d28d9; }
+.leads-badge-Hot { background: #ef4444; }
+.leads-badge-High { background: #f59e0b; }
+.leads-badge-Medium { background: #3b82f6; }
+.leads-badge-Low { background: #94a3b8; }
+.leads-badge-Watch { background: #8b5cf6; }
 .leads-badge-stage { background: var(--surface); color: var(--text-2); border: 1px solid var(--border-soft); }
-.leads-badge-owner { background: #eef2ff; color: #3730a3; }
 
-/* Кольорове кодування стадій воронки — щоб менеджери швидко впізнавали статус на картці */
-.leads-badge-stage-New { background: var(--blue-light); color: var(--blue); }
-.leads-badge-stage-Contacted { background: var(--sand-light); color: #8a6516; }
-.leads-badge-stage-Replied { background: #e0f2fe; color: #0369a1; }
-.leads-badge-stage-Qualified { background: #ede9fe; color: #6d28d9; }
-.leads-badge-stage-Proposal-Sent { background: #ffedd5; color: #c2650c; }
-.leads-badge-stage-Won { background: #dcfce7; color: #15803d; }
-.leads-badge-stage-Lost { background: #fde2e2; color: #b42335; }
+/* Кольорове кодування стадій воронки — яскраві суцільні чіпи, щоб менеджери
+   впізнавали статус з першого погляду, а не вчитувались у текст */
+.leads-badge-stage-New { background: #2563eb; }
+.leads-badge-stage-Contacted { background: #d97706; }
+.leads-badge-stage-Replied { background: #0891b2; }
+.leads-badge-stage-Qualified { background: #7c3aed; }
+.leads-badge-stage-Proposal-Sent { background: #ea580c; }
+.leads-badge-stage-Won { background: #16a34a; }
+.leads-badge-stage-Lost { background: #dc2626; }
 
-/* Те саме для статусу зв'язку (outreach) у канбан-картках/фільтрах, якщо знадобиться badge */
-.leads-badge-outreach-Not-contacted { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border-soft); }
-.leads-badge-outreach-Message-sent { background: #e0f2fe; color: #0369a1; }
-.leads-badge-outreach-Follow-up-sent { background: var(--sand-light); color: #8a6516; }
-.leads-badge-outreach-Call-made { background: #d7f5ee; color: #0f766e; }
-.leads-badge-outreach-No-reply { background: #fde2e2; color: #b42335; }
-.leads-badge-outreach-Replied { background: #dcfce7; color: #15803d; }
+/* Статус зв'язку (outreach) */
+.leads-badge-outreach-Not-contacted { background: #94a3b8; }
+.leads-badge-outreach-Message-sent { background: #0891b2; }
+.leads-badge-outreach-Follow-up-sent { background: #d97706; }
+.leads-badge-outreach-Call-made { background: #0d9488; }
+.leads-badge-outreach-No-reply { background: #dc2626; }
+.leads-badge-outreach-Replied { background: #16a34a; }
 
-/* Кольоровий акцент зверху колонки канбану — той самий колірний код, що й у бейджах стадій */
-.leads-kanban-column { border-top: 3px solid var(--border); }
-.leads-kanban-column-New { border-top-color: var(--blue); }
-.leads-kanban-column-Contacted { border-top-color: #c99a3a; }
-.leads-kanban-column-Replied { border-top-color: #0369a1; }
-.leads-kanban-column-Qualified { border-top-color: #6d28d9; }
-.leads-kanban-column-Proposal-Sent { border-top-color: #c2650c; }
-.leads-kanban-column-Won { border-top-color: #15803d; }
-.leads-kanban-column-Lost { border-top-color: #b42335; }
+/* Хто веде ліда — окремий колір на менеджера, щоб було видно розподіл роботи */
+.leads-badge-owner- { background: #94a3b8; }
+.leads-badge-owner-Manager-1 { background: #db2777; }
+.leads-badge-owner-Manager-2 { background: #4f46e5; }
+
+/* Кольоровий акцент колонки канбану — той самий колірний код, що й у бейджах стадій,
+   товстіша смужка зверху + легкий тонований фон заголовка для кращої читабельності */
+.leads-kanban-column { border-top: 4px solid var(--border); }
+.leads-kanban-column-head { border-radius: 8px; padding: 6px 8px; margin: -2px -2px 4px; }
+.leads-kanban-column-New { border-top-color: #2563eb; }
+.leads-kanban-column-New .leads-kanban-column-head { background: #dbeafe; }
+.leads-kanban-column-Contacted { border-top-color: #d97706; }
+.leads-kanban-column-Contacted .leads-kanban-column-head { background: #fef3c7; }
+.leads-kanban-column-Replied { border-top-color: #0891b2; }
+.leads-kanban-column-Replied .leads-kanban-column-head { background: #cffafe; }
+.leads-kanban-column-Qualified { border-top-color: #7c3aed; }
+.leads-kanban-column-Qualified .leads-kanban-column-head { background: #ede9fe; }
+.leads-kanban-column-Proposal-Sent { border-top-color: #ea580c; }
+.leads-kanban-column-Proposal-Sent .leads-kanban-column-head { background: #ffedd5; }
+.leads-kanban-column-Won { border-top-color: #16a34a; }
+.leads-kanban-column-Won .leads-kanban-column-head { background: #dcfce7; }
+.leads-kanban-column-Lost { border-top-color: #dc2626; }
+.leads-kanban-column-Lost .leads-kanban-column-head { background: #fee2e2; }
 
 .leads-pagination {
   display: flex; align-items: center; justify-content: center; gap: 10px;

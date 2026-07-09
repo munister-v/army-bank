@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '54';
+const MESSENGER_ASSET_VERSION = '55';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const BANK_TOKEN_KEY = 'army_bank_token';
@@ -1123,7 +1123,7 @@ function leadCardHtml(lead) {
         <div class="leads-card-preview">${escHtml(preview)}</div>
         <div class="leads-card-badges">
           <span class="leads-badge leads-badge-stage-${escHtml(leadsSlug(lead.stage))}">${escHtml(leadsLabel(LEADS_STAGE_LABELS, lead.stage))}</span>
-          <span class="leads-badge leads-badge-owner">${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner) || '—')}</span>
+          <span class="leads-badge leads-badge-owner-${escHtml(leadsSlug(lead.owner))}">${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner) || '—')}</span>
         </div>
         ${quick.length ? `<div class="leads-card-quick">${quick.map(q =>
           `<a class="leads-quick-btn" href="${escHtml(q.href)}" target="_blank" rel="noopener" data-quick-action="1" title="${escHtml(q.title)}">${q.label}</a>`
@@ -1195,7 +1195,7 @@ const LEADS_OUTREACH_LABELS = {
 const LEADS_PRIORITY_LABELS = {
   'Hot': 'Горячий', 'High': 'Высокий', 'Medium': 'Средний', 'Low': 'Низкий', 'Watch': 'Наблюдение',
 };
-const LEADS_OWNER_LABELS = { 'Manager 1': 'Менеджер 1', 'Manager 2': 'Менеджер 2' };
+const LEADS_OWNER_LABELS = { 'Manager 1': 'Менеджер Миша', 'Manager 2': 'Менеджер Едуард' };
 
 function leadsLabel(map, value) {
   return map[value] || value || '';
@@ -1356,7 +1356,10 @@ function leadsKanbanCardHtml(lead, stageOptions) {
   return `
     <div class="leads-kanban-card" data-lead-id="${lead.id}">
       <div class="leads-kanban-card-name">${escHtml(lead.business_name || '')}</div>
-      <div class="leads-kanban-card-owner">${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner) || '—')} · <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority))}</span></div>
+      <div class="leads-kanban-card-owner">
+        <span class="leads-badge leads-badge-owner-${escHtml(leadsSlug(lead.owner))}">${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner) || '—')}</span>
+        <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority))}</span>
+      </div>
       <select class="leads-pill-select leads-kanban-stage-select">${optSel}</select>
     </div>
   `;
@@ -1372,7 +1375,10 @@ function renderLeadsKanban(stats, items) {
     if (!byStage.has(s)) byStage.set(s, []);
     byStage.get(s).push(lead);
   });
-  const orderedStages = [...byStage.keys()].sort((a, b) => byStage.get(b).length - byStage.get(a).length);
+  // Фіксований порядок стадій воронки (не сортуємо за кількістю — інакше колонки
+  // "стрибають" місцями після кожної зміни стадії, і дошку важко читати).
+  const orderedStages = LEADS_STAGE_OPTIONS.filter(s => byStage.has(s))
+    .concat([...byStage.keys()].filter(s => !LEADS_STAGE_OPTIONS.includes(s)));
 
   leadsKanbanColumnsEl.innerHTML = orderedStages.map(stage => `
     <div class="leads-kanban-column leads-kanban-column-${escHtml(leadsSlug(stage))}" data-stage="${escHtml(stage)}">
@@ -1385,6 +1391,7 @@ function renderLeadsKanban(stats, items) {
       </div>
     </div>
   `).join('');
+  leadsKanbanColumnsEl.scrollLeft = 0;
 
   leadsKanbanColumnsEl.querySelectorAll('.leads-kanban-card').forEach(card => {
     const leadId = Number(card.dataset.leadId);
