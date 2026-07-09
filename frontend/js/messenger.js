@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '53';
+const MESSENGER_ASSET_VERSION = '54';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const BANK_TOKEN_KEY = 'army_bank_token';
@@ -1041,7 +1041,7 @@ function leadsQueryString(extra = {}) {
   return params.toString();
 }
 
-function fillLeadsSelect(select, values, currentValue) {
+function fillLeadsSelect(select, values, currentValue, labels) {
   if (!select) return;
   const placeholder = select.options[0];
   select.innerHTML = '';
@@ -1049,7 +1049,7 @@ function fillLeadsSelect(select, values, currentValue) {
   values.forEach(v => {
     const opt = document.createElement('option');
     opt.value = v;
-    opt.textContent = v;
+    opt.textContent = labels ? leadsLabel(labels, v) : v;
     select.appendChild(opt);
   });
   select.value = currentValue || '';
@@ -1063,7 +1063,7 @@ async function loadLeadsStats() {
       { key: 'total', label: 'Всього', value: data.total },
       { key: 'not_contacted', label: 'Не звʼязались', value: data.not_contacted },
       { key: 'due_today', label: 'На сьогодні', value: data.due_today },
-      ...(data.by_owner || []).map(o => ({ key: 'owner:' + o.owner, label: o.owner, value: o.count })),
+      ...(data.by_owner || []).map(o => ({ key: 'owner:' + o.owner, label: leadsLabel(LEADS_OWNER_LABELS, o.owner), value: o.count })),
     ];
     if (leadsDueBadge) leadsDueBadge.hidden = !(data.due_today > 0);
     leadsStatsEl.innerHTML = chips.map(c => `
@@ -1092,9 +1092,9 @@ async function loadLeadsStats() {
       });
     });
     if (!leadsState.filtersLoaded) {
-      fillLeadsSelect(leadsFilterOwner, (data.by_owner || []).map(o => o.owner), leadsState.owner);
-      fillLeadsSelect(leadsFilterStage, (data.by_stage || []).map(o => o.stage), leadsState.stage);
-      fillLeadsSelect(leadsFilterPriority, (data.by_priority || []).map(o => o.priority), leadsState.priority);
+      fillLeadsSelect(leadsFilterOwner, (data.by_owner || []).map(o => o.owner), leadsState.owner, LEADS_OWNER_LABELS);
+      fillLeadsSelect(leadsFilterStage, (data.by_stage || []).map(o => o.stage), leadsState.stage, LEADS_STAGE_LABELS);
+      fillLeadsSelect(leadsFilterPriority, (data.by_priority || []).map(o => o.priority), leadsState.priority, LEADS_PRIORITY_LABELS);
       leadsState.filtersLoaded = true;
     }
   } catch (err) {
@@ -1108,9 +1108,9 @@ function leadCardHtml(lead) {
   const firstPhone = (lead.phone || lead.whatsapp_viber || '').split(/[;,]/)[0].trim();
   const firstEmail = (lead.email || '').split(/[;,]/)[0].trim();
   const quick = [
-    firstPhone ? { href: 'tel:' + firstPhone.replace(/[^\d+]/g, ''), label: '📞' } : null,
-    firstPhone ? { href: 'https://wa.me/' + firstPhone.replace(/[^\d]/g, ''), label: '💬' } : null,
-    firstEmail ? { href: 'mailto:' + firstEmail, label: '✉️' } : null,
+    firstPhone ? { href: 'tel:' + firstPhone.replace(/[^\d+]/g, ''), label: '📞', title: 'Зателефонувати' } : null,
+    firstPhone ? { href: 'https://wa.me/' + firstPhone.replace(/[^\d]/g, ''), label: '💬', title: 'WhatsApp' } : null,
+    firstEmail ? { href: 'mailto:' + firstEmail, label: '✉️', title: 'Написати email' } : null,
   ].filter(Boolean);
   return `
     <div class="leads-card conv-style" data-lead-id="${lead.id}">
@@ -1118,15 +1118,15 @@ function leadCardHtml(lead) {
       <div class="leads-card-body">
         <div class="leads-card-name-row">
           <span class="conv-name">${escHtml(lead.business_name || '')}</span>
-          <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(lead.priority || '')}</span>
+          <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority))}</span>
         </div>
         <div class="leads-card-preview">${escHtml(preview)}</div>
         <div class="leads-card-badges">
-          <span class="leads-badge leads-badge-stage">${escHtml(lead.stage || '')}</span>
-          <span class="leads-badge leads-badge-owner">${escHtml(lead.owner || '—')}</span>
+          <span class="leads-badge leads-badge-stage-${escHtml(leadsSlug(lead.stage))}">${escHtml(leadsLabel(LEADS_STAGE_LABELS, lead.stage))}</span>
+          <span class="leads-badge leads-badge-owner">${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner) || '—')}</span>
         </div>
         ${quick.length ? `<div class="leads-card-quick">${quick.map(q =>
-          `<a class="leads-quick-btn" href="${escHtml(q.href)}" target="_blank" rel="noopener" data-quick-action="1" title="${escHtml(q.href)}">${q.label}</a>`
+          `<a class="leads-quick-btn" href="${escHtml(q.href)}" target="_blank" rel="noopener" data-quick-action="1" title="${escHtml(q.title)}">${q.label}</a>`
         ).join('')}</div>` : ''}
       </div>
     </div>
@@ -1178,29 +1178,53 @@ function renderLeadsPagination() {
 const LEADS_STAGE_OPTIONS = ['New', 'Contacted', 'Replied', 'Qualified', 'Proposal Sent', 'Won', 'Lost'];
 const LEADS_OUTREACH_OPTIONS = ['Not contacted', 'Message sent', 'Follow-up sent', 'Call made', 'No reply', 'Replied'];
 const LEADS_PRIORITY_OPTIONS = ['Hot', 'High', 'Medium', 'Low', 'Watch'];
+const LEADS_OWNER_OPTIONS = ['Manager 1', 'Manager 2'];
+
+// Значення полів зберігаються англійською (сумісність з фільтрами/експортом/API),
+// але менеджери працюють з CRM російською — тому текст на екрані перекладається окремо.
+const LEADS_STAGE_LABELS = {
+  'New': 'Новый', 'Contacted': 'Связались', 'Replied': 'Ответил',
+  'Qualified': 'Квалифицирован', 'Proposal Sent': 'Предложение отправлено',
+  'Won': 'Выиграно', 'Lost': 'Проиграно',
+};
+const LEADS_OUTREACH_LABELS = {
+  'Not contacted': 'Не связывались', 'Message sent': 'Сообщение отправлено',
+  'Follow-up sent': 'Напоминание отправлено', 'Call made': 'Звонок совершён',
+  'No reply': 'Без ответа', 'Replied': 'Ответил',
+};
+const LEADS_PRIORITY_LABELS = {
+  'Hot': 'Горячий', 'High': 'Высокий', 'Medium': 'Средний', 'Low': 'Низкий', 'Watch': 'Наблюдение',
+};
+const LEADS_OWNER_LABELS = { 'Manager 1': 'Менеджер 1', 'Manager 2': 'Менеджер 2' };
+
+function leadsLabel(map, value) {
+  return map[value] || value || '';
+}
+function leadsSlug(value) {
+  return String(value || '').trim().replace(/\s+/g, '-');
+}
 
 function leadThreadContactIcons(lead) {
   const firstPhone = (lead.phone || lead.whatsapp_viber || '').split(/[;,]/)[0].trim();
   const firstEmail = (lead.email || '').split(/[;,]/)[0].trim();
   const icons = [
-    firstPhone ? { href: 'tel:' + firstPhone.replace(/[^\d+]/g, ''), label: '📞' } : null,
-    firstPhone ? { href: 'https://wa.me/' + firstPhone.replace(/[^\d]/g, ''), label: '💬' } : null,
-    firstEmail ? { href: 'mailto:' + firstEmail, label: '✉️' } : null,
-    lead.instagram ? { href: 'https://instagram.com/' + String(lead.instagram).replace('@', ''), label: '📷' } : null,
+    firstPhone ? { href: 'tel:' + firstPhone.replace(/[^\d+]/g, ''), label: '📞', title: 'Зателефонувати' } : null,
+    firstPhone ? { href: 'https://wa.me/' + firstPhone.replace(/[^\d]/g, ''), label: '💬', title: 'WhatsApp' } : null,
+    firstEmail ? { href: 'mailto:' + firstEmail, label: '✉️', title: 'Написати email' } : null,
+    lead.instagram ? { href: 'https://instagram.com/' + String(lead.instagram).replace('@', ''), label: '📷', title: 'Instagram' } : null,
   ].filter(Boolean);
-  return icons.map(i => `<a class="leads-quick-btn" href="${escHtml(i.href)}" target="_blank" rel="noopener" title="${escHtml(i.href)}">${i.label}</a>`).join('');
+  return icons.map(i => `<a class="leads-quick-btn" href="${escHtml(i.href)}" target="_blank" rel="noopener" title="${escHtml(i.title)}">${i.label}</a>`).join('');
 }
 
 function leadThreadPillsHtml(lead) {
-  const optSel = (options, current) => options.map(o =>
-    `<option value="${escHtml(o)}" ${o === current ? 'selected' : ''}>${escHtml(o)}</option>`
+  const optSel = (options, current, labels) => options.map(o =>
+    `<option value="${escHtml(o)}" ${o === current ? 'selected' : ''}>${escHtml(leadsLabel(labels, o))}</option>`
   ).join('');
-  const ownerOptions = ['Manager 1', 'Manager 2'];
   return `
-    <select id="lead-edit-owner" class="leads-pill-select">${optSel(ownerOptions, lead.owner)}</select>
-    <select id="lead-edit-priority" class="leads-pill-select">${optSel(LEADS_PRIORITY_OPTIONS, lead.priority)}</select>
-    <select id="lead-edit-stage" class="leads-pill-select">${optSel(LEADS_STAGE_OPTIONS, lead.stage)}</select>
-    <select id="lead-edit-outreach" class="leads-pill-select">${optSel(LEADS_OUTREACH_OPTIONS, lead.outreach_status)}</select>
+    <select id="lead-edit-owner" class="leads-pill-select">${optSel(LEADS_OWNER_OPTIONS, lead.owner, LEADS_OWNER_LABELS)}</select>
+    <select id="lead-edit-priority" class="leads-pill-select">${optSel(LEADS_PRIORITY_OPTIONS, lead.priority, LEADS_PRIORITY_LABELS)}</select>
+    <select id="lead-edit-stage" class="leads-pill-select">${optSel(LEADS_STAGE_OPTIONS, lead.stage, LEADS_STAGE_LABELS)}</select>
+    <select id="lead-edit-outreach" class="leads-pill-select">${optSel(LEADS_OUTREACH_OPTIONS, lead.outreach_status, LEADS_OUTREACH_LABELS)}</select>
     <input id="lead-edit-followup" class="leads-pill-select" type="date" title="Наступний контакт" value="${escHtml(lead.next_followup_date || '')}"/>
   `;
 }
@@ -1327,12 +1351,12 @@ function closeLeadsKanban() {
 
 function leadsKanbanCardHtml(lead, stageOptions) {
   const optSel = stageOptions.map(s =>
-    `<option value="${escHtml(s)}" ${s === lead.stage ? 'selected' : ''}>${escHtml(s)}</option>`
+    `<option value="${escHtml(s)}" ${s === lead.stage ? 'selected' : ''}>${escHtml(leadsLabel(LEADS_STAGE_LABELS, s))}</option>`
   ).join('');
   return `
     <div class="leads-kanban-card" data-lead-id="${lead.id}">
       <div class="leads-kanban-card-name">${escHtml(lead.business_name || '')}</div>
-      <div class="leads-kanban-card-owner">${escHtml(lead.owner || '—')} · <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(lead.priority || '')}</span></div>
+      <div class="leads-kanban-card-owner">${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner) || '—')} · <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority))}</span></div>
       <select class="leads-pill-select leads-kanban-stage-select">${optSel}</select>
     </div>
   `;
@@ -1351,9 +1375,9 @@ function renderLeadsKanban(stats, items) {
   const orderedStages = [...byStage.keys()].sort((a, b) => byStage.get(b).length - byStage.get(a).length);
 
   leadsKanbanColumnsEl.innerHTML = orderedStages.map(stage => `
-    <div class="leads-kanban-column" data-stage="${escHtml(stage)}">
+    <div class="leads-kanban-column leads-kanban-column-${escHtml(leadsSlug(stage))}" data-stage="${escHtml(stage)}">
       <div class="leads-kanban-column-head">
-        <span class="leads-kanban-column-title">${escHtml(stage)}</span>
+        <span class="leads-kanban-column-title">${escHtml(leadsLabel(LEADS_STAGE_LABELS, stage))}</span>
         <span class="leads-kanban-column-count">${byStage.get(stage).length}</span>
       </div>
       <div class="leads-kanban-cards">
@@ -1416,7 +1440,7 @@ function openLeadCreateModal() {
   const ownerSel = document.getElementById('lead-new-owner');
   if (ownerSel) ownerSel.value = leadsState.owner || 'Manager 1';
   if (leadNewPriority && !leadNewPriority.options.length) {
-    leadNewPriority.innerHTML = LEADS_PRIORITY_OPTIONS.map(p => `<option value="${escHtml(p)}">${escHtml(p)}</option>`).join('');
+    leadNewPriority.innerHTML = LEADS_PRIORITY_OPTIONS.map(p => `<option value="${escHtml(p)}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, p))}</option>`).join('');
   }
   if (leadNewPriority) leadNewPriority.value = 'Medium';
 }

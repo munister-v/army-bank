@@ -2661,6 +2661,33 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 .leads-badge-stage { background: var(--surface); color: var(--text-2); border: 1px solid var(--border-soft); }
 .leads-badge-owner { background: #eef2ff; color: #3730a3; }
 
+/* Кольорове кодування стадій воронки — щоб менеджери швидко впізнавали статус на картці */
+.leads-badge-stage-New { background: var(--blue-light); color: var(--blue); }
+.leads-badge-stage-Contacted { background: var(--sand-light); color: #8a6516; }
+.leads-badge-stage-Replied { background: #e0f2fe; color: #0369a1; }
+.leads-badge-stage-Qualified { background: #ede9fe; color: #6d28d9; }
+.leads-badge-stage-Proposal-Sent { background: #ffedd5; color: #c2650c; }
+.leads-badge-stage-Won { background: #dcfce7; color: #15803d; }
+.leads-badge-stage-Lost { background: #fde2e2; color: #b42335; }
+
+/* Те саме для статусу зв'язку (outreach) у канбан-картках/фільтрах, якщо знадобиться badge */
+.leads-badge-outreach-Not-contacted { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border-soft); }
+.leads-badge-outreach-Message-sent { background: #e0f2fe; color: #0369a1; }
+.leads-badge-outreach-Follow-up-sent { background: var(--sand-light); color: #8a6516; }
+.leads-badge-outreach-Call-made { background: #d7f5ee; color: #0f766e; }
+.leads-badge-outreach-No-reply { background: #fde2e2; color: #b42335; }
+.leads-badge-outreach-Replied { background: #dcfce7; color: #15803d; }
+
+/* Кольоровий акцент зверху колонки канбану — той самий колірний код, що й у бейджах стадій */
+.leads-kanban-column { border-top: 3px solid var(--border); }
+.leads-kanban-column-New { border-top-color: var(--blue); }
+.leads-kanban-column-Contacted { border-top-color: #c99a3a; }
+.leads-kanban-column-Replied { border-top-color: #0369a1; }
+.leads-kanban-column-Qualified { border-top-color: #6d28d9; }
+.leads-kanban-column-Proposal-Sent { border-top-color: #c2650c; }
+.leads-kanban-column-Won { border-top-color: #15803d; }
+.leads-kanban-column-Lost { border-top-color: #b42335; }
+
 .leads-pagination {
   display: flex; align-items: center; justify-content: center; gap: 10px;
   padding: 10px 16px; font-size: 12px; color: var(--text-2); flex-shrink: 0;

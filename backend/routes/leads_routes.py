@@ -272,11 +272,38 @@ def get_lead(lead_id: int):
 
 
 _SYSTEM_TRACKED_FIELDS = {
-    'stage': 'Стадія',
-    'owner': 'Власник',
-    'priority': 'Пріоритет',
-    'outreach_status': 'Статус контакту',
+    'stage': 'Стадия',
+    'owner': 'Менеджер',
+    'priority': 'Приоритет',
+    'outreach_status': 'Статус контакта',
 }
+
+# Значення полів у БД лишаються англійською (сумісність з фільтрами/CSV/API),
+# але текст у CRM-чаті/журналі менеджери читають російською — тому переклад
+# застосовується тільки в момент формування рядка активності/повідомлення.
+_VALUE_LABELS_RU = {
+    'stage': {
+        'New': 'Новый', 'Contacted': 'Связались', 'Replied': 'Ответил',
+        'Qualified': 'Квалифицирован', 'Proposal Sent': 'Предложение отправлено',
+        'Won': 'Выиграно', 'Lost': 'Проиграно',
+    },
+    'outreach_status': {
+        'Not contacted': 'Не связывались', 'Message sent': 'Сообщение отправлено',
+        'Follow-up sent': 'Напоминание отправлено', 'Call made': 'Звонок совершён',
+        'No reply': 'Без ответа', 'Replied': 'Ответил',
+    },
+    'priority': {
+        'Hot': 'Горячий', 'High': 'Высокий', 'Medium': 'Средний', 'Low': 'Низкий', 'Watch': 'Наблюдение',
+    },
+    'owner': {'Manager 1': 'Менеджер 1', 'Manager 2': 'Менеджер 2'},
+}
+
+
+def _ru_value(field: str, value) -> str:
+    text = str(value or '').strip()
+    if not text:
+        return '—'
+    return _VALUE_LABELS_RU.get(field, {}).get(text, text)
 
 
 def _log_activity(conn, lead_id: int, author: str, kind: str, text: str) -> None:
@@ -341,8 +368,8 @@ def update_lead(lead_id: int):
         changed_lines = []
         for field, label in _SYSTEM_TRACKED_FIELDS.items():
             if field in updates and str(updates[field] or '') != str(existing.get(field) or ''):
-                old_val = existing.get(field) or '—'
-                new_val = updates[field] or '—'
+                old_val = _ru_value(field, existing.get(field))
+                new_val = _ru_value(field, updates[field])
                 line = f'{label}: {old_val} → {new_val}'
                 _log_activity(conn, lead_id, author, 'system', line)
                 changed_lines.append(line)
