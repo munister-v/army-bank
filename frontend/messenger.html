@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=52"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=53"/>
 </head>
 <body>
 
@@ -126,7 +126,7 @@
         <div class="sidebar-logo-icon" aria-hidden="true">
           <img src="/icons/chat-icon-32.png" alt="" width="24" height="24"/>
         </div>
-        <span class="sidebar-title">Чати</span>
+        <span class="sidebar-title" id="sidebar-title">Чати</span>
       </div>
       <div class="sidebar-header-right">
         <button class="icon-btn" id="btn-leads" title="Ліди · CRM" hidden>
@@ -138,16 +138,19 @@
           </svg>
           <span class="badge" id="leads-due-badge" hidden></span>
         </button>
+        <button class="icon-btn" id="btn-leads-export" title="Експорт CSV" type="button" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="18" height="18">
+            <path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M4 19h16"/>
+          </svg>
+        </button>
         <button class="icon-btn" id="btn-new-chat" title="Новий чат">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
         </button>
-        <button class="icon-btn" data-open-call-settings title="Налаштування дзвінків">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="20" height="20">
-            <line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2.1"/>
-            <line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2.1"/>
-            <line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2.1"/>
+        <button class="icon-btn" id="btn-leads-add" title="Додати лід" type="button" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
         </button>
         <button class="icon-btn" id="btn-sidebar-logout" title="Вийти">
@@ -159,7 +162,7 @@
       </div>
     </div>
 
-    <div class="sidebar-search">
+    <div class="sidebar-search" id="sidebar-search">
       <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
         <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
       </svg>
@@ -173,6 +176,28 @@
         </svg>
         <p>Немає розмов.<br/>Натисніть + щоб почати чат.</p>
       </div>
+    </div>
+
+    <!-- Leads sidebar view: replaces conv-list when in "Ліди" mode -->
+    <div id="leads-sidebar-view" hidden>
+      <div class="leads-stats" id="leads-stats"></div>
+      <div class="leads-filters">
+        <input id="leads-search" class="search-input" type="text" placeholder="Пошук: назва, місто, країна..."/>
+        <select id="leads-filter-owner"><option value="">Всі власники</option></select>
+        <select id="leads-filter-stage"><option value="">Всі стадії</option></select>
+        <select id="leads-filter-priority"><option value="">Всі пріоритети</option></select>
+      </div>
+      <div class="leads-list" id="leads-list">
+        <div class="leads-card conv-style leads-kanban-entry" id="leads-kanban-entry">
+          <div class="conv-avatar">📋</div>
+          <div class="leads-card-body">
+            <div class="leads-card-name-row"><span class="conv-name">Канбан-дошка</span></div>
+            <div class="leads-card-preview">Усі ліди по стадіях воронки</div>
+          </div>
+        </div>
+        <div class="leads-empty" id="leads-empty" hidden>Лідів не знайдено.</div>
+      </div>
+      <div class="leads-pagination" id="leads-pagination"></div>
     </div>
   </aside>
 
@@ -190,14 +215,6 @@
           </svg>
           <span class="badge" id="unread-badge" hidden></span>
         </button>
-        <button class="icon-btn" data-open-call-settings title="Налаштування дзвінків">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="18" height="18">
-            <line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2.1"/>
-            <line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2.1"/>
-            <line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2.1"/>
-          </svg>
-        </button>
-        <span class="network-pill" id="network-pill" title="Стан мережі">Мережа</span>
         <div class="topbar-avatar" id="topbar-avatar"></div>
         <button class="icon-btn" id="btn-logout" title="Вийти">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
@@ -235,13 +252,6 @@
         </div>
         <div class="chat-header-actions">
           <button id="group-info-btn" class="icon-btn" hidden title="Учасники групи">👥</button>
-          <button class="icon-btn" data-open-call-settings title="Налаштування дзвінків">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="18" height="18">
-              <line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2.1"/>
-              <line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2.1"/>
-              <line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2.1"/>
-            </svg>
-          </button>
           <button class="icon-btn" id="btn-chat-logout" title="Вийти">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
               <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
@@ -259,6 +269,13 @@
             </svg>
           </button>
         </div>
+      </div>
+
+      <!-- Lead info banner: shown above the real chat thread when a lead conversation is open -->
+      <div class="leads-info-banner" id="lead-info-banner" hidden>
+        <div class="leads-thread-contacts" id="lead-thread-contacts"></div>
+        <div class="leads-thread-pills" id="leads-thread-pills"></div>
+        <div class="leads-first-message-pinned" id="lead-first-message-pinned" hidden></div>
       </div>
 
       <section class="assistant-panel" id="assistant-panel" hidden aria-label="Панель банківського асистента">
@@ -365,6 +382,22 @@
           </svg>
         </button>
       </div>
+    </div>
+
+    <!-- Kanban board: shown in place of chat-empty/chat-view when "Канбан-дошка" is selected -->
+    <div id="leads-kanban-view" hidden>
+      <div class="leads-thread-header">
+        <button class="icon-btn back-btn" id="btn-kanban-back" title="Назад" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <div class="leads-thread-info">
+          <div class="leads-thread-name">📋 Канбан-дошка</div>
+          <div class="leads-thread-sub">Перетягуйте стадію через випадаючий список на картці</div>
+        </div>
+      </div>
+      <div class="leads-kanban-columns" id="leads-kanban-columns"></div>
     </div>
 
   </main>
@@ -590,96 +623,30 @@
      LEADS / CRM MODAL
 ════════════════════════════════════════════ -->
 <div id="leads-modal" class="modal-overlay" hidden>
-  <div class="modal leads-modal" role="dialog" aria-modal="true" aria-label="Ліди · CRM">
+  <div class="modal leads-modal" role="dialog" aria-modal="true" aria-label="Новий лід">
     <div class="modal-header">
-      <h2 class="modal-title">Ліди · ARM CRM</h2>
-      <div class="leads-header-actions">
-        <button class="icon-btn" id="btn-leads-export" title="Експорт CSV" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="18" height="18">
-            <path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M4 19h16"/>
-          </svg>
-        </button>
-        <button class="icon-btn" id="btn-leads-add" title="Додати лід" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-        </button>
-        <button class="icon-btn modal-close" id="btn-close-leads">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <!-- List sub-view -->
-    <div id="leads-list-view">
-      <div class="leads-stats" id="leads-stats"></div>
-      <div class="leads-filters">
-        <input id="leads-search" class="search-input" type="text" placeholder="Пошук: назва, місто, країна..."/>
-        <select id="leads-filter-owner"><option value="">Всі власники</option></select>
-        <select id="leads-filter-stage"><option value="">Всі стадії</option></select>
-        <select id="leads-filter-priority"><option value="">Всі пріоритети</option></select>
-      </div>
-      <div class="leads-list" id="leads-list">
-        <div class="leads-empty" id="leads-empty" hidden>Лідів не знайдено.</div>
-      </div>
-      <div class="leads-pagination" id="leads-pagination"></div>
-    </div>
-
-    <!-- Detail sub-view: chat-thread style -->
-    <div id="leads-detail-view" hidden>
-      <div class="leads-thread-header">
-        <button class="leads-back-btn leads-back-btn-inline" id="btn-leads-back" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-            <polyline points="15 18 9 12 15 6"/>
-          </svg>
-        </button>
-        <div class="leads-thread-avatar" id="lead-thread-avatar"></div>
-        <div class="leads-thread-info">
-          <div class="leads-thread-name" id="lead-thread-name"></div>
-          <div class="leads-thread-sub" id="lead-thread-sub"></div>
-        </div>
-        <div class="leads-thread-contacts" id="lead-thread-contacts"></div>
-      </div>
-      <div class="leads-thread-pills" id="leads-thread-pills"></div>
-      <div class="leads-thread-messages" id="leads-thread-messages"></div>
-      <div class="leads-thread-composer">
-        <input id="lead-activity-input" type="text" placeholder="Написати нотатку..." maxlength="2000"/>
-        <button class="btn-send" id="btn-lead-activity-send" title="Надіслати" type="button">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
-            <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <path d="M22 2L15 22 11 13 2 9l20-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <!-- Create sub-view -->
-    <div id="leads-create-view" hidden>
-      <button class="leads-back-btn" id="btn-leads-create-back" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-          <polyline points="15 18 9 12 15 6"/>
+      <h2 class="modal-title">Новий лід</h2>
+      <button class="icon-btn modal-close" id="btn-close-leads">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
-        До списку
       </button>
-      <div class="leads-detail-section" style="margin: 0 16px 16px;">
-        <h4>Новий лід</h4>
-        <label>Назва бізнесу *<input id="lead-new-name" type="text" placeholder="Назва"/></label>
-        <div class="leads-edit-grid">
-          <label>Країна<input id="lead-new-country" type="text"/></label>
-          <label>Місто<input id="lead-new-city" type="text"/></label>
-        </div>
-        <div class="leads-edit-grid">
-          <label>Власник<select id="lead-new-owner"><option>Manager 1</option><option>Manager 2</option></select></label>
-          <label>Пріоритет<select id="lead-new-priority"></select></label>
-        </div>
-        <label>Телефон<input id="lead-new-phone" type="text"/></label>
-        <label>Email<input id="lead-new-email" type="text"/></label>
-        <label>Instagram<input id="lead-new-instagram" type="text" placeholder="@handle"/></label>
-        <label>Нотатки<textarea id="lead-new-notes"></textarea></label>
-        <button class="btn-primary" id="btn-lead-create-save" type="button">Створити</button>
+    </div>
+    <div class="leads-detail-section" style="margin: 16px;">
+      <label>Назва бізнесу *<input id="lead-new-name" type="text" placeholder="Назва"/></label>
+      <div class="leads-edit-grid">
+        <label>Країна<input id="lead-new-country" type="text"/></label>
+        <label>Місто<input id="lead-new-city" type="text"/></label>
       </div>
+      <div class="leads-edit-grid">
+        <label>Власник<select id="lead-new-owner"><option>Manager 1</option><option>Manager 2</option></select></label>
+        <label>Пріоритет<select id="lead-new-priority"></select></label>
+      </div>
+      <label>Телефон<input id="lead-new-phone" type="text"/></label>
+      <label>Email<input id="lead-new-email" type="text"/></label>
+      <label>Instagram<input id="lead-new-instagram" type="text" placeholder="@handle"/></label>
+      <label>Нотатки<textarea id="lead-new-notes"></textarea></label>
+      <button class="btn-primary" id="btn-lead-create-save" type="button">Створити</button>
     </div>
   </div>
 </div>
@@ -800,6 +767,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=52"></script>
+<script src="/js/messenger.js?v=53"></script>
 </body>
 </html>

@@ -23,6 +23,7 @@ from ..services.messenger_crypto import (
 )
 from ..utils.security import hash_password
 from .helpers import api_error, auth_required
+from .leads_routes import _log_activity as _log_lead_activity
 from .push_routes import send_push
 
 messenger_bp = Blueprint('messenger', __name__, url_prefix='/api/messenger')
@@ -1034,7 +1035,7 @@ def list_conversations():
             SELECT cp.conversation_id
             FROM conversation_participants cp
             JOIN conversations c ON c.id = cp.conversation_id
-            WHERE cp.user_id = %s
+            WHERE cp.user_id = %s AND c.lead_id IS NULL
             ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
             """,
             (me_id,),
@@ -1272,6 +1273,17 @@ def send_message(conv_id: int):
             (preview, conv_id),
         )
         _mark_read(conn, conv_id, me_id)
+
+        # Lead-linked conversation: mirror the message into the CRM activity log
+        # so lead_activity (used by stats/CSV export) stays in sync with the real chat.
+        lead_row = conn.execute('SELECT lead_id FROM conversations WHERE id = %s', (conv_id,)).fetchone()
+        lead_id = (lead_row or {}).get('lead_id')
+        if lead_id:
+            _log_lead_activity(conn, int(lead_id), sender_name, 'note', preview)
+            conn.execute(
+                f'UPDATE leads SET last_touch_date = %s, updated_at = {_now_sql()} WHERE id = %s',
+                (date.today().isoformat(), int(lead_id)),
+            )
 
         participant_rows = conn.execute(
             """

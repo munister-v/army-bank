@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '52';
+const MESSENGER_ASSET_VERSION = '53';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const BANK_TOKEN_KEY = 'army_bank_token';
@@ -172,6 +172,7 @@ const btnLoginText      = $('btn-login-text');
 const btnLoginSpin      = $('btn-login-spin');
 const btnTogglePw       = $('btn-toggle-pw');
 const sidebar           = $('sidebar');
+const sidebarSearchEl   = $('sidebar-search');
 const convList          = $('conv-list');
 const convEmpty         = $('conv-empty');
 const convSearch        = $('conv-search');
@@ -300,10 +301,8 @@ const btnBankDownloadPdf = $('btn-bank-download-pdf');
 const btnBankDownloadCsv = $('btn-bank-download-csv');
 const btnBankSendOrderMsg = $('btn-bank-send-order-msg');
 
-const leadsModal = $('leads-modal');
-const btnCloseLeads = $('btn-close-leads');
-const leadsListView = $('leads-list-view');
-const leadsDetailView = $('leads-detail-view');
+const leadsSidebarView = $('leads-sidebar-view');
+const sidebarTitleEl = $('sidebar-title');
 const leadsStatsEl = $('leads-stats');
 const leadsSearchInput = $('leads-search');
 const leadsFilterOwner = $('leads-filter-owner');
@@ -312,17 +311,18 @@ const leadsFilterPriority = $('leads-filter-priority');
 const leadsListEl = $('leads-list');
 const leadsEmptyEl = $('leads-empty');
 const leadsPaginationEl = $('leads-pagination');
-const btnLeadsBack = $('btn-leads-back');
-const leadsDetailBody = $('leads-detail-body');
 const leadsDueBadge = $('leads-due-badge');
 const btnLeadsExport = $('btn-leads-export');
 const btnLeadsAdd = $('btn-leads-add');
-const leadsCreateView = $('leads-create-view');
-const btnLeadsCreateBack = $('btn-leads-create-back');
+const leadInfoBanner = $('lead-info-banner');
+const leadCreateModal = $('leads-modal');
+const btnCloseLeadCreate = $('btn-close-leads');
 const btnLeadCreateSave = $('btn-lead-create-save');
 const leadNewPriority = $('lead-new-priority');
-const leadActivityInput = $('lead-activity-input');
-const btnLeadActivitySend = $('btn-lead-activity-send');
+const leadsKanbanView = $('leads-kanban-view');
+const leadsKanbanColumnsEl = $('leads-kanban-columns');
+const btnKanbanBack = $('btn-kanban-back');
+const leadsKanbanEntry = $('leads-kanban-entry');
 
 // ════════════════════════════════════════════
 // API helper
@@ -1139,7 +1139,7 @@ async function loadLeadsList() {
     const res = await api('GET', '/leads?' + leadsQueryString());
     const items = res?.items || [];
     leadsState.totalPages = res?.pages || 1;
-    leadsListEl.querySelectorAll('.leads-card').forEach(el => el.remove());
+    leadsListEl.querySelectorAll('.leads-card:not(#leads-kanban-entry)').forEach(el => el.remove());
     if (!items.length) {
       if (leadsEmptyEl) leadsEmptyEl.hidden = false;
     } else {
@@ -1205,50 +1205,39 @@ function leadThreadPillsHtml(lead) {
   `;
 }
 
-function leadActivityBubbleHtml(item) {
-  const timeStr = formatTimeFromDate(new Date(item.created_at));
-  if (item.kind === 'system') {
-    return `<div class="leads-activity-system">${escHtml(item.text)} · ${timeStr}</div>`;
-  }
-  return `
-    <div class="msg-bubble-wrap them leads-activity-note">
-      <div>
-        <div class="msg-bubble">${escHtml(item.text)}</div>
-        <div class="leads-activity-meta">${escHtml(item.author || '')} · ${timeStr}</div>
-      </div>
-    </div>
-  `;
-}
-
 async function openLeadDetail(leadId) {
-  const threadMessages = document.getElementById('leads-thread-messages');
-  if (!threadMessages) return;
+  if (!leadInfoBanner) return;
+  if (window.innerWidth <= 720) sidebar.classList.add('hidden');
   leadsState.currentLeadId = leadId;
-  leadsListView.hidden = true;
-  leadsDetailView.hidden = false;
-  threadMessages.innerHTML = '<p class="leads-empty">Завантаження…</p>';
+  document.querySelectorAll('.leads-card').forEach(el =>
+    el.classList.toggle('active', Number(el.dataset.leadId) === leadId));
   try {
-    const [lead, activity] = await Promise.all([
+    const [lead, convRes] = await Promise.all([
       api('GET', `/leads/${leadId}`),
-      api('GET', `/leads/${leadId}/activity`),
+      api('GET', `/leads/${leadId}/conversation`),
     ]);
-    renderLeadThread(lead, activity);
+    renderLeadInfoBanner(lead);
+    await openChat({
+      id: convRes.conversation_id,
+      is_group: true,
+      group_name: lead.business_name,
+      partner: null,
+    });
+    setChatHeaderStatus([lead.category, [lead.city_area, lead.country].filter(Boolean).join(', ')].filter(Boolean).join(' · '));
+    if (btnCall) btnCall.hidden = true;
+    const groupInfoBtn = document.getElementById('group-info-btn');
+    if (groupInfoBtn) groupInfoBtn.hidden = true;
   } catch (err) {
-    threadMessages.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Помилка завантаження ліда.')}</p>`;
+    showToast(err.message || 'Не вдалося завантажити ліда.', true);
   }
 }
 
-function renderLeadThread(lead, activity) {
-  const avatarEl = document.getElementById('lead-thread-avatar');
-  const nameEl = document.getElementById('lead-thread-name');
-  const subEl = document.getElementById('lead-thread-sub');
+function renderLeadInfoBanner(lead) {
   const contactsEl = document.getElementById('lead-thread-contacts');
   const pillsEl = document.getElementById('leads-thread-pills');
-  const threadMessages = document.getElementById('leads-thread-messages');
+  const pinnedEl = document.getElementById('lead-first-message-pinned');
 
-  if (avatarEl) avatarEl.textContent = initial(lead.business_name || '?');
-  if (nameEl) nameEl.textContent = lead.business_name || '';
-  if (subEl) subEl.textContent = [lead.category, [lead.city_area, lead.country].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+  leadInfoBanner.hidden = false;
   if (contactsEl) contactsEl.innerHTML = leadThreadContactIcons(lead);
   if (pillsEl) {
     pillsEl.innerHTML = leadThreadPillsHtml(lead);
@@ -1257,24 +1246,20 @@ function renderLeadThread(lead, activity) {
     });
     document.getElementById('lead-edit-followup')?.addEventListener('change', () => saveLeadPillEdit(lead.id));
   }
-
-  const pinned = lead.first_message_en ? `
-    <div class="leads-first-message-pinned">
+  if (pinnedEl) {
+    pinnedEl.hidden = !lead.first_message_en;
+    pinnedEl.innerHTML = lead.first_message_en ? `
       <div class="leads-fm-label">Заготовка першого повідомлення</div>
       ${escHtml(lead.first_message_en)}
       <div><button class="btn-primary btn-secondary" id="btn-lead-copy-msg" type="button">Скопіювати</button></div>
-    </div>
-  ` : '';
-  const bubbles = (activity || []).map(leadActivityBubbleHtml).join('');
-  threadMessages.innerHTML = pinned + (bubbles || '<p class="leads-empty">Активності ще немає. Напишіть першу нотатку нижче.</p>');
-  threadMessages.scrollTop = threadMessages.scrollHeight;
-
-  document.getElementById('btn-lead-copy-msg')?.addEventListener('click', () => {
-    navigator.clipboard?.writeText(lead.first_message_en || '').then(
-      () => showToast('Скопійовано.'),
-      () => showToast('Не вдалося скопіювати.', true)
-    );
-  });
+    ` : '';
+    document.getElementById('btn-lead-copy-msg')?.addEventListener('click', () => {
+      navigator.clipboard?.writeText(lead.first_message_en || '').then(
+        () => showToast('Скопійовано.'),
+        () => showToast('Не вдалося скопіювати.', true)
+      );
+    });
+  }
 }
 
 async function saveLeadPillEdit(leadId) {
@@ -1287,60 +1272,145 @@ async function saveLeadPillEdit(leadId) {
   };
   try {
     await api('PATCH', `/leads/${leadId}`, payload);
-    const activity = await api('GET', `/leads/${leadId}/activity`);
-    const threadMessages = document.getElementById('leads-thread-messages');
-    if (threadMessages) {
-      const lead = await api('GET', `/leads/${leadId}`);
-      renderLeadThread(lead, activity);
-    }
     loadLeadsStats();
+    // Стадія/пріоритет тепер дзеркалиться в реальний чат бекендом — підтягуємо свіжі повідомлення одразу.
+    if (activeConvId) fetchMessages();
   } catch (err) {
     showToast(err.message || 'Не вдалося зберегти зміни.', true);
   }
 }
 
-async function sendLeadActivity(leadId) {
-  const input = document.getElementById('lead-activity-input');
-  const text = input?.value.trim();
-  if (!text) return;
-  try {
-    const activity = await api('POST', `/leads/${leadId}/activity`, { text });
-    input.value = '';
-    const threadMessages = document.getElementById('leads-thread-messages');
-    if (threadMessages) {
-      const pinned = threadMessages.querySelector('.leads-first-message-pinned')?.outerHTML || '';
-      threadMessages.innerHTML = pinned + activity.map(leadActivityBubbleHtml).join('');
-      threadMessages.scrollTop = threadMessages.scrollHeight;
-    }
-  } catch (err) {
-    showToast(err.message || 'Не вдалося надіслати нотатку.', true);
-  }
-}
-
 function closeLeadDetail() {
-  leadsDetailView.hidden = true;
-  leadsListView.hidden = false;
+  if (window.innerWidth <= 720) sidebar.classList.remove('hidden');
+  if (leadInfoBanner) leadInfoBanner.hidden = true;
   leadsState.currentLeadId = null;
+  document.querySelectorAll('.leads-card').forEach(el => el.classList.remove('active'));
+  activeConvId = null;
+  activePartner = null;
+  clearInterval(convPollTimer);
+  if (chatView) chatView.hidden = true;
+  if (chatEmpty) chatEmpty.hidden = false;
+  if (btnCall) btnCall.hidden = false;
   loadLeadsList();
 }
 
-function openLeadsModal() {
-  if (!leadsModal) return;
+async function openLeadsKanban() {
+  if (!leadsKanbanView || !leadsKanbanColumnsEl) return;
+  if (window.innerWidth <= 720) sidebar.classList.add('hidden');
+  document.querySelectorAll('.leads-card').forEach(el => el.classList.remove('active'));
+  if (leadsKanbanEntry) leadsKanbanEntry.classList.add('active');
+  activeConvId = null;
+  activePartner = null;
+  clearInterval(convPollTimer);
+  if (chatEmpty) chatEmpty.hidden = true;
+  if (chatView) chatView.hidden = true;
+  if (leadInfoBanner) leadInfoBanner.hidden = true;
+  leadsKanbanView.hidden = false;
+  leadsKanbanColumnsEl.innerHTML = '<p class="leads-empty">Завантаження…</p>';
+  try {
+    const [stats, leadsRes] = await Promise.all([
+      api('GET', '/leads/stats'),
+      api('GET', '/leads?per_page=200'),
+    ]);
+    renderLeadsKanban(stats, leadsRes.items || []);
+  } catch (err) {
+    leadsKanbanColumnsEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Не вдалося завантажити канбан.')}</p>`;
+  }
+}
+
+function closeLeadsKanban() {
+  if (window.innerWidth <= 720) sidebar.classList.remove('hidden');
+  if (leadsKanbanView) leadsKanbanView.hidden = true;
+  if (leadsKanbanEntry) leadsKanbanEntry.classList.remove('active');
+  if (chatEmpty) chatEmpty.hidden = false;
+}
+
+function leadsKanbanCardHtml(lead, stageOptions) {
+  const optSel = stageOptions.map(s =>
+    `<option value="${escHtml(s)}" ${s === lead.stage ? 'selected' : ''}>${escHtml(s)}</option>`
+  ).join('');
+  return `
+    <div class="leads-kanban-card" data-lead-id="${lead.id}">
+      <div class="leads-kanban-card-name">${escHtml(lead.business_name || '')}</div>
+      <div class="leads-kanban-card-owner">${escHtml(lead.owner || '—')} · <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(lead.priority || '')}</span></div>
+      <select class="leads-pill-select leads-kanban-stage-select">${optSel}</select>
+    </div>
+  `;
+}
+
+function renderLeadsKanban(stats, items) {
+  const statStages = (stats.by_stage || []).map(s => s.stage).filter(Boolean);
+  const allStageOptions = Array.from(new Set([...statStages, ...LEADS_STAGE_OPTIONS]));
+  const byStage = new Map();
+  allStageOptions.forEach(s => byStage.set(s, []));
+  items.forEach(lead => {
+    const s = lead.stage || 'New';
+    if (!byStage.has(s)) byStage.set(s, []);
+    byStage.get(s).push(lead);
+  });
+  const orderedStages = [...byStage.keys()].sort((a, b) => byStage.get(b).length - byStage.get(a).length);
+
+  leadsKanbanColumnsEl.innerHTML = orderedStages.map(stage => `
+    <div class="leads-kanban-column" data-stage="${escHtml(stage)}">
+      <div class="leads-kanban-column-head">
+        <span class="leads-kanban-column-title">${escHtml(stage)}</span>
+        <span class="leads-kanban-column-count">${byStage.get(stage).length}</span>
+      </div>
+      <div class="leads-kanban-cards">
+        ${byStage.get(stage).map(lead => leadsKanbanCardHtml(lead, allStageOptions)).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  leadsKanbanColumnsEl.querySelectorAll('.leads-kanban-card').forEach(card => {
+    const leadId = Number(card.dataset.leadId);
+    card.querySelector('.leads-kanban-stage-select')?.addEventListener('change', async e => {
+      try {
+        await api('PATCH', `/leads/${leadId}`, { stage: e.target.value });
+        showToast('Стадію оновлено.');
+        openLeadsKanban();
+      } catch (err) {
+        showToast(err.message || 'Не вдалося оновити стадію.', true);
+      }
+    });
+  });
+}
+
+let sidebarMode = 'chats';
+
+function openLeadsSidebar() {
+  if (!leadsSidebarView) return;
   if (!token) { showToast('Спочатку виконайте вхід.', true); return; }
-  leadsModal.hidden = false;
-  syncOverlayLock();
-  leadsListView.hidden = false;
-  leadsDetailView.hidden = true;
-  if (leadsCreateView) leadsCreateView.hidden = true;
+  sidebarMode = 'leads';
+  if (sidebarSearchEl) sidebarSearchEl.hidden = true;
+  if (convList) convList.hidden = true;
+  leadsSidebarView.hidden = false;
+  if (sidebarTitleEl) sidebarTitleEl.textContent = 'Ліди';
+  if (btnLeadsExport) btnLeadsExport.hidden = false;
+  if (btnLeadsAdd) btnLeadsAdd.hidden = false;
+  if (btnNewChat) btnNewChat.hidden = true;
+  if (btnLeads) btnLeads.classList.add('active-mode');
   loadLeadsStats();
   loadLeadsList();
 }
 
-function openLeadsCreateView() {
-  if (!leadsCreateView) return;
-  leadsListView.hidden = true;
-  leadsDetailView.hidden = true;
-  leadsCreateView.hidden = false;
+function closeLeadsSidebar() {
+  sidebarMode = 'chats';
+  if (sidebarSearchEl) sidebarSearchEl.hidden = false;
+  if (convList) convList.hidden = false;
+  if (leadsSidebarView) leadsSidebarView.hidden = true;
+  if (sidebarTitleEl) sidebarTitleEl.textContent = 'Чати';
+  if (btnLeadsExport) btnLeadsExport.hidden = true;
+  if (btnLeadsAdd) btnLeadsAdd.hidden = true;
+  if (btnNewChat) btnNewChat.hidden = false;
+  if (btnLeads) btnLeads.classList.remove('active-mode');
+  closeLeadDetail();
+}
+
+function openLeadCreateModal() {
+  if (!leadCreateModal) return;
+  leadCreateModal.hidden = false;
+  syncOverlayLock();
   ['lead-new-name', 'lead-new-country', 'lead-new-city', 'lead-new-phone', 'lead-new-email', 'lead-new-instagram', 'lead-new-notes']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const ownerSel = document.getElementById('lead-new-owner');
@@ -1351,10 +1421,10 @@ function openLeadsCreateView() {
   if (leadNewPriority) leadNewPriority.value = 'Medium';
 }
 
-function closeLeadsCreateView() {
-  if (!leadsCreateView) return;
-  leadsCreateView.hidden = true;
-  leadsListView.hidden = false;
+function closeLeadCreateModal() {
+  if (!leadCreateModal) return;
+  leadCreateModal.hidden = true;
+  syncOverlayLock();
 }
 
 async function saveNewLead() {
@@ -1374,7 +1444,7 @@ async function saveNewLead() {
   try {
     await api('POST', '/leads', payload);
     showToast('Лід створено.');
-    closeLeadsCreateView();
+    closeLeadCreateModal();
     loadLeadsStats();
     loadLeadsList();
   } catch (err) {
@@ -1390,30 +1460,18 @@ async function exportLeadsCsv() {
   }
 }
 
-function closeLeadsModal() {
-  if (!leadsModal) return;
-  leadsModal.hidden = true;
-  syncOverlayLock();
-}
-
-if (btnLeads) btnLeads.addEventListener('click', openLeadsModal);
-if (btnCloseLeads) btnCloseLeads.addEventListener('click', closeLeadsModal);
-if (btnLeadsBack) btnLeadsBack.addEventListener('click', closeLeadDetail);
-if (btnLeadsAdd) btnLeadsAdd.addEventListener('click', openLeadsCreateView);
-if (btnLeadsCreateBack) btnLeadsCreateBack.addEventListener('click', closeLeadsCreateView);
+if (btnLeads) btnLeads.addEventListener('click', () => {
+  if (sidebarMode === 'leads') closeLeadsSidebar();
+  else openLeadsSidebar();
+});
+if (btnCloseLeadCreate) btnCloseLeadCreate.addEventListener('click', closeLeadCreateModal);
+if (btnLeadsAdd) btnLeadsAdd.addEventListener('click', openLeadCreateModal);
 if (btnLeadCreateSave) btnLeadCreateSave.addEventListener('click', saveNewLead);
 if (btnLeadsExport) btnLeadsExport.addEventListener('click', exportLeadsCsv);
-if (btnLeadActivitySend) btnLeadActivitySend.addEventListener('click', () => {
-  if (leadsState.currentLeadId) sendLeadActivity(leadsState.currentLeadId);
-});
-if (leadActivityInput) leadActivityInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && leadsState.currentLeadId) {
-    e.preventDefault();
-    sendLeadActivity(leadsState.currentLeadId);
-  }
-});
-if (leadsModal) {
-  leadsModal.addEventListener('click', e => { if (e.target === leadsModal) closeLeadsModal(); });
+if (leadsKanbanEntry) leadsKanbanEntry.addEventListener('click', openLeadsKanban);
+if (btnKanbanBack) btnKanbanBack.addEventListener('click', closeLeadsKanban);
+if (leadCreateModal) {
+  leadCreateModal.addEventListener('click', e => { if (e.target === leadCreateModal) closeLeadCreateModal(); });
 }
 let leadsSearchTimer = null;
 if (leadsSearchInput) {
@@ -1528,7 +1586,7 @@ function syncOverlayLock() {
   ) || (
     !!bankToolsModal && !bankToolsModal.hidden
   ) || (
-    !!leadsModal && !leadsModal.hidden
+    !!leadCreateModal && !leadCreateModal.hidden
   ) || (
     !!callSettingsModal && !callSettingsModal.hidden
   ) || (
@@ -5502,7 +5560,9 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (photoViewer && !photoViewer.hidden) { closePhotoViewer(); return; }
     if (bankToolsModal && !bankToolsModal.hidden) { closeBankToolsModal(); return; }
-    if (leadsModal && !leadsModal.hidden) { closeLeadsModal(); return; }
+    if (leadCreateModal && !leadCreateModal.hidden) { closeLeadCreateModal(); return; }
+    if (leadInfoBanner && !leadInfoBanner.hidden) { closeLeadDetail(); return; }
+    if (leadsKanbanView && !leadsKanbanView.hidden) { closeLeadsKanban(); return; }
     if (callSettingsModal && !callSettingsModal.hidden) { closeCallSettingsModal(); return; }
     closeNewChatModal();
     return;
@@ -5528,6 +5588,7 @@ btnCreateGroup.addEventListener('click', createGroup);
 
 btnBack.addEventListener('click', () => {
   if (isRecording) stopRecording(false);
+  if (leadsState.currentLeadId) { closeLeadDetail(); return; }
   sidebar.classList.remove('hidden');
   activeConvId = null;
   activePartner = null;

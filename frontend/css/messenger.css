@@ -2599,8 +2599,14 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 /* ════════════════════════════════════════════
    Leads / CRM modal
 ════════════════════════════════════════════ */
-.leads-modal { width: min(620px, 100%); }
-#leads-list-view, #leads-detail-view { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.leads-modal { width: min(420px, 100%); }
+
+/* Leads sidebar view: replaces conv-list when in "Ліди" mode */
+#leads-sidebar-view { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+#btn-leads.active-mode { background: var(--blue); color: #fff; }
+
+/* Kanban board view: fills chat-area exactly like .chat-view */
+#leads-kanban-view { display: flex; flex-direction: column; height: 100%; }
 
 .leads-stats {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 8px;
@@ -2764,6 +2770,32 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   font-family: var(--font); font-size: 14px; outline: none;
 }
 .leads-thread-composer input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-dim); }
+
+/* Lead info banner: sits above the real chat thread when a lead conversation is open */
+.leads-info-banner { flex-shrink: 0; }
+.leads-info-banner .leads-thread-contacts { padding: 10px 16px 0; }
+.leads-info-banner .leads-thread-pills { border-bottom: none; }
+.leads-info-banner .leads-first-message-pinned { margin: 0 16px 10px; }
+
+/* Kanban board: horizontally scrollable columns by stage */
+.leads-kanban-columns {
+  flex: 1; overflow-x: auto; overflow-y: hidden; display: flex; gap: 12px; padding: 14px 16px; align-items: flex-start;
+}
+.leads-kanban-column {
+  flex: 0 0 240px; display: flex; flex-direction: column; gap: 8px;
+  background: var(--surface-2); border-radius: 14px; padding: 10px; max-height: 100%;
+}
+.leads-kanban-column-head { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 4px; flex-shrink: 0; }
+.leads-kanban-column-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.leads-kanban-column-count { font-size: 11.5px; color: var(--text-2); background: #fff; border-radius: 999px; padding: 1px 8px; }
+.leads-kanban-cards { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+.leads-kanban-card {
+  background: #fff; border: 1px solid var(--border-soft); border-radius: 12px; padding: 8px 10px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.leads-kanban-card-name { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.leads-kanban-card-owner { font-size: 11px; color: var(--text-2); }
+.leads-kanban-card select { width: 100%; }
 
 /* Leads list cards restyled to match .conv-item visually */
 .leads-card.conv-style {

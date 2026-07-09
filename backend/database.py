@@ -823,6 +823,12 @@ def init_db() -> None:
                      optional=True, label='conversations.group_name')
             _pg_exec("ALTER TABLE messages ADD COLUMN IF NOT EXISTS msg_type VARCHAR(20) NOT NULL DEFAULT 'text';",
                      optional=True, label='messages.msg_type')
+            # lead_id: no FK constraint — leads table is owned/created by leads_routes.py's
+            # own self-contained _ensure_schema(), which may run after this migration.
+            _pg_exec("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS lead_id INTEGER;",
+                     optional=True, label='conversations.lead_id')
+            _pg_exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_lead ON conversations(lead_id) WHERE lead_id IS NOT NULL;",
+                     optional=True, label='conversations.idx_lead')
             _pg_exec("""CREATE TABLE IF NOT EXISTS calls (
                 id SERIAL PRIMARY KEY,
                 conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
@@ -1033,6 +1039,14 @@ def init_db() -> None:
                 pass
             try:
                 conn.execute("ALTER TABLE messages ADD COLUMN msg_type TEXT NOT NULL DEFAULT 'text';")
+            except Exception:
+                pass
+            try:
+                conn.execute("ALTER TABLE conversations ADD COLUMN lead_id INTEGER;")
+            except Exception:
+                pass
+            try:
+                conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_lead ON conversations(lead_id) WHERE lead_id IS NOT NULL;")
             except Exception:
                 pass
             try:

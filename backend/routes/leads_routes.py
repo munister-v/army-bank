@@ -14,6 +14,7 @@ from typing import Any
 from flask import Blueprint, Response, g, jsonify, request
 
 from ..database import get_connection, get_returning_id_suffix, insert_last_id
+from ..services.messenger_crypto import encrypt_message
 from .helpers import api_error, auth_required, role_required
 
 leads_bp = Blueprint('leads', __name__, url_prefix='/api/leads')
@@ -285,6 +286,36 @@ def _log_activity(conn, lead_id: int, author: str, kind: str, text: str) -> None
     )
 
 
+def _get_or_create_lead_conversation(conn, lead_id: int, actor_user_id: int) -> int:
+    """Знаходить або створює `conversations`-рядок, привʼязаний до ліда, і
+    гарантує, що actor_user_id є учасником (auto-join, ідемпотентно)."""
+    from ..config import USE_PG
+    row = conn.execute('SELECT id FROM conversations WHERE lead_id = %s', (lead_id,)).fetchone()
+    if row:
+        conv_id = int(row['id'])
+    else:
+        lead = conn.execute('SELECT business_name FROM leads WHERE id = %s', (lead_id,)).fetchone()
+        group_name = str((lead or {}).get('business_name') or 'Лід')
+        _true = True if USE_PG else 1
+        cur = conn.execute(
+            'INSERT INTO conversations (lead_id, is_group, group_name) VALUES (%s, %s, %s)'
+            + get_returning_id_suffix(),
+            (lead_id, _true, group_name),
+        )
+        conv_id = int(insert_last_id(cur))
+
+    already = conn.execute(
+        'SELECT id FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
+        (conv_id, actor_user_id),
+    ).fetchone()
+    if not already:
+        conn.execute(
+            'INSERT INTO conversation_participants (conversation_id, user_id) VALUES (%s, %s)',
+            (conv_id, actor_user_id),
+        )
+    return conv_id
+
+
 @leads_bp.patch('/<int:lead_id>')
 @auth_required
 @role_required(*_ADMIN_ROLES)
@@ -307,13 +338,42 @@ def update_lead(lead_id: int):
             f'UPDATE leads SET {set_sql}, updated_at = {_now_sql()} WHERE id = %s',
             params + [lead_id],
         )
+        changed_lines = []
         for field, label in _SYSTEM_TRACKED_FIELDS.items():
             if field in updates and str(updates[field] or '') != str(existing.get(field) or ''):
                 old_val = existing.get(field) or '—'
                 new_val = updates[field] or '—'
-                _log_activity(conn, lead_id, author, 'system', f'{label}: {old_val} → {new_val}')
+                line = f'{label}: {old_val} → {new_val}'
+                _log_activity(conn, lead_id, author, 'system', line)
+                changed_lines.append(line)
+        if changed_lines:
+            conv_id = _get_or_create_lead_conversation(conn, lead_id, g.current_user['id'])
+            msg_text = '\n'.join(changed_lines)
+            conn.execute(
+                'INSERT INTO messages (conversation_id, sender_id, text, msg_type) VALUES (%s, %s, %s, %s)',
+                (conv_id, g.current_user['id'], encrypt_message(msg_text), 'text'),
+            )
+            conn.execute(
+                f'UPDATE conversations SET last_message_at = {_now_sql()}, last_message_text = %s WHERE id = %s',
+                (msg_text[:180], conv_id),
+            )
         row = conn.execute('SELECT * FROM leads WHERE id = %s', (lead_id,)).fetchone()
     return jsonify({'ok': True, 'data': _row_to_payload(dict(row))})
+
+
+@leads_bp.get('/<int:lead_id>/conversation')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def get_lead_conversation(lead_id: int):
+    """Повертає id реальної розмови месенджера, привʼязаної до ліда
+    (створює за потреби) і приєднує поточного адміна до неї."""
+    _ensure_schema()
+    with get_connection() as conn:
+        lead = conn.execute('SELECT id FROM leads WHERE id = %s', (lead_id,)).fetchone()
+        if not lead:
+            return api_error('Лід не знайдено.', 404)
+        conv_id = _get_or_create_lead_conversation(conn, lead_id, g.current_user['id'])
+    return jsonify({'ok': True, 'data': {'conversation_id': conv_id}})
 
 
 @leads_bp.get('/<int:lead_id>/activity')
