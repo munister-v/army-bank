@@ -1,4 +1,4 @@
-"""Сигналінг для WebRTC дзвінків — ARM Bank Messenger."""
+"""Сигналінг для WebRTC дзвінків — ARM CRM Messenger."""
 from __future__ import annotations
 
 import json

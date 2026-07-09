@@ -1,4 +1,4 @@
-/* ARM Bank Messenger — Service Worker */
+/* ARM CRM Messenger — Service Worker */
 const SW_VERSION = new URL(self.location.href).searchParams.get('v') || '43';
 const CACHE = `msng-v${SW_VERSION}`;
 const SCOPE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
@@ -76,7 +76,7 @@ self.addEventListener('fetch', e => {
 
 function normalizePushPayload(rawPayload) {
   const fallback = {
-    title: 'ARM Bank',
+    title: 'ARM CRM',
     body: 'Нове сповіщення',
     url: '/messenger',
     type: 'default',
@@ -99,7 +99,7 @@ function buildNotificationDescriptor(payload) {
   };
 
   const base = {
-    title: String(payload.title || 'ARM Bank'),
+    title: String(payload.title || 'ARM CRM'),
     body: String(payload.body || ''),
     icon: '/icons/chat-icon-180.png',
     badge: '/icons/chat-icon-32.png',
@@ -179,7 +179,7 @@ function buildNotificationDescriptor(payload) {
   if (type === 'push_test') {
     return {
       ...base,
-      title: String(payload.title || '🔔 ARM Bank'),
+      title: String(payload.title || '🔔 ARM CRM'),
       body: String(payload.body || 'Тестове push-сповіщення'),
       tag: 'ab-push-test',
       vibrate: [80, 50, 80, 50, 160],
@@ -190,7 +190,7 @@ function buildNotificationDescriptor(payload) {
   if (type === 'message_voice') {
     return {
       ...base,
-      title: String(payload.title || 'ARM Bank'),
+      title: String(payload.title || 'ARM CRM'),
       body: String(payload.body || '🎤 Голосове повідомлення'),
       tag: convId ? `ab-msg-voice-${convId}` : 'ab-msg-voice',
       vibrate: [120, 60, 120],
@@ -201,7 +201,7 @@ function buildNotificationDescriptor(payload) {
   if (type === 'message_image') {
     return {
       ...base,
-      title: String(payload.title || 'ARM Bank'),
+      title: String(payload.title || 'ARM CRM'),
       body: String(payload.body || '🖼️ Нове фото'),
       tag: convId ? `ab-msg-image-${convId}` : 'ab-msg-image',
       vibrate: [100, 50, 100],

@@ -7,9 +7,9 @@ import os
 chdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 port = int(os.environ.get("PORT", "5000"))
 bind = f"0.0.0.0:{port}"
-workers = 2
-worker_class = "sync"
-threads = 2
+workers = 1
+worker_class = "gthread"
+threads = 4
 timeout = 60
 keepalive = 5
 

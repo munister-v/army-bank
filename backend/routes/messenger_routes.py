@@ -39,6 +39,53 @@ _ASSISTANT_PHONE = '+380990000001'
 _ASSISTANT_EMAIL = 'assistant@army-bank.bot'
 _ASSISTANT_PASSWORD = 'army-bank-assistant-system-only'
 
+# Тимчасово прибрано з UI (не видалено): жодних нових розмов з асистентом не
+# створюється, і вже наявні розмови з ним фільтруються зі списку. Щоб
+# повернути — досить виставити True.
+_ASSISTANT_FEATURE_ENABLED = False
+
+# Загальний чат: єдина групова розмова, до якої автоматично приєднується
+# кожен зареєстрований користувач. Розпізнається за фіксованою назвою
+# (з емодзі-префіксом, щоб не перетнутись зі звичайною групою користувача).
+_GENERAL_CHAT_NAME = '📢 Загальний чат'
+
+
+def _ensure_general_conversation(me_id: int) -> int:
+    """Повертає id системного загального чату, створює й приєднує поточного
+    користувача за потреби (ідемпотентно)."""
+    _true = True if USE_PG else 1
+    with get_connection() as conn:
+        row = conn.execute(
+            'SELECT id FROM conversations WHERE is_group = %s AND group_name = %s LIMIT 1',
+            (_true, _GENERAL_CHAT_NAME),
+        ).fetchone()
+        if row:
+            conv_id = int(row['id'])
+        else:
+            if USE_PG:
+                cur = conn.execute(
+                    'INSERT INTO conversations(is_group, group_name) VALUES(%s,%s) RETURNING id',
+                    (_true, _GENERAL_CHAT_NAME),
+                )
+                conv_id = int(cur.fetchone()['id'])
+            else:
+                conn.execute(
+                    'INSERT INTO conversations(is_group, group_name) VALUES(%s,%s)',
+                    (1, _GENERAL_CHAT_NAME),
+                )
+                conv_id = int(conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id'])
+
+        already_joined = conn.execute(
+            'SELECT id FROM conversation_participants WHERE conversation_id = %s AND user_id = %s',
+            (conv_id, me_id),
+        ).fetchone()
+        if not already_joined:
+            conn.execute(
+                'INSERT INTO conversation_participants(conversation_id, user_id) VALUES(%s,%s)',
+                (conv_id, me_id),
+            )
+    return conv_id
+
 
 # ── Допоміжні функції ────────────────────────────────────────────────────────
 
@@ -975,7 +1022,10 @@ def list_conversations():
     )
     try:
         _ensure_bank_account_context(int(me_id))
-        assistant_conv_id, _assistant_id = _ensure_default_assistant_conversation(int(me_id))
+        assistant_conv_id = None
+        if _ASSISTANT_FEATURE_ENABLED:
+            assistant_conv_id, _assistant_id = _ensure_default_assistant_conversation(int(me_id))
+        general_conv_id = _ensure_general_conversation(int(me_id))
     except Exception as exc:
         return api_error(str(exc), 409)
     with get_connection() as conn:
@@ -991,6 +1041,7 @@ def list_conversations():
         ).fetchall()
 
     result = []
+    general_summary = None
     seen: set[int] = set()
     for row in rows:
         conv_id = int(row['conversation_id'])
@@ -998,13 +1049,24 @@ def list_conversations():
             continue
         seen.add(conv_id)
         summary = _conv_summary(conv_id, me_id, compact=compact)
-        if summary:
-            result.append(summary)
+        if not summary:
+            continue
+        partner_role = str((summary.get('partner') or {}).get('role') or '').lower()
+        if not _ASSISTANT_FEATURE_ENABLED and partner_role == _ASSISTANT_ROLE:
+            continue
+        if conv_id == general_conv_id:
+            general_summary = summary
+            continue
+        result.append(summary)
 
-    if assistant_conv_id not in seen:
+    if _ASSISTANT_FEATURE_ENABLED and assistant_conv_id and assistant_conv_id not in seen:
         summary = _conv_summary(assistant_conv_id, me_id, compact=compact)
         if summary:
             result.append(summary)
+
+    # Загальний чат завжди першим у списку.
+    if general_summary:
+        result.insert(0, general_summary)
 
     return jsonify({'ok': True, 'data': result})
 
@@ -1028,9 +1090,11 @@ def open_conversation():
         return api_error('Не можна писати самому собі.')
 
     with get_connection() as conn:
-        partner = conn.execute('SELECT id FROM users WHERE id = %s', (partner_id,)).fetchone()
+        partner = conn.execute('SELECT id, role FROM users WHERE id = %s', (partner_id,)).fetchone()
     if not partner:
         return api_error('Користувача не знайдено.', 404)
+    if not _ASSISTANT_FEATURE_ENABLED and str(partner.get('role') or '').lower() == _ASSISTANT_ROLE:
+        return api_error('Асистент тимчасово недоступний.', 404)
 
     conv_id = _get_or_create_conversation(me_id, partner_id)
     summary = _conv_summary(conv_id, me_id)
@@ -1228,7 +1292,7 @@ def send_message(conv_id: int):
             msg_push_type = 'message_image'
             msg_push_body = '🖼️ Фото'
 
-        msg_push_title = f'ARM Bank · {group_name}' if (is_group and group_name) else sender_name
+        msg_push_title = f'ARM CRM · {group_name}' if (is_group and group_name) else sender_name
         msg_push_meta = {
             'conversation_id': int(conv_id),
             'sender_id': int(me_id),

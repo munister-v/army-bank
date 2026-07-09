@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════
-   ARM Bank — Messenger PWA
+   ARM CRM — Messenger PWA
    groups · voice messages · WebRTC calls
 ════════════════════════════════════════════ */
 'use strict';
@@ -199,6 +199,7 @@ const recordingSwipeHint= $('recording-swipe-hint');
 const btnCancelRecord   = $('btn-cancel-record');
 const btnBack           = $('btn-back');
 const btnNewChat        = $('btn-new-chat');
+const btnLeads          = $('btn-leads');
 const btnLogout         = $('btn-logout');
 const btnSidebarLogout  = $('btn-sidebar-logout');
 const btnChatLogout     = $('btn-chat-logout');
@@ -298,6 +299,21 @@ const btnBankSendSummary = $('btn-bank-send-summary');
 const btnBankDownloadPdf = $('btn-bank-download-pdf');
 const btnBankDownloadCsv = $('btn-bank-download-csv');
 const btnBankSendOrderMsg = $('btn-bank-send-order-msg');
+
+const leadsModal = $('leads-modal');
+const btnCloseLeads = $('btn-close-leads');
+const leadsListView = $('leads-list-view');
+const leadsDetailView = $('leads-detail-view');
+const leadsStatsEl = $('leads-stats');
+const leadsSearchInput = $('leads-search');
+const leadsFilterOwner = $('leads-filter-owner');
+const leadsFilterStage = $('leads-filter-stage');
+const leadsFilterPriority = $('leads-filter-priority');
+const leadsListEl = $('leads-list');
+const leadsEmptyEl = $('leads-empty');
+const leadsPaginationEl = $('leads-pagination');
+const btnLeadsBack = $('btn-leads-back');
+const leadsDetailBody = $('leads-detail-body');
 
 // ════════════════════════════════════════════
 // API helper
@@ -529,12 +545,12 @@ function getPushSupportContext() {
   }
   if (!hasServiceWorker || !hasPushManager) {
     if (isIOS && !standalone) {
-      return { ok: false, message: 'На iPhone push працює лише у встановленій PWA. Відкрийте ARM Bank з іконки на Головному екрані.' };
+      return { ok: false, message: 'На iPhone push працює лише у встановленій PWA. Відкрийте ARM CRM з іконки на Головному екрані.' };
     }
     return { ok: false, message: 'Push API недоступний у поточному браузері.' };
   }
   if (isIOS && !standalone) {
-    return { ok: false, message: 'На iPhone push працює лише у встановленій PWA. Додайте ARM Bank на Головний екран і відкрийте з іконки.' };
+    return { ok: false, message: 'На iPhone push працює лише у встановленій PWA. Додайте ARM CRM на Головний екран і відкрийте з іконки.' };
   }
   return { ok: true, message: '' };
 }
@@ -656,7 +672,7 @@ async function notifyViaServiceWorker({ title, body = '', tag = '', data = {}, r
   try {
     const reg = await navigator.serviceWorker?.ready;
     if (!reg?.showNotification || Notification.permission !== 'granted') return false;
-    await reg.showNotification(String(title || 'ARM Bank'), {
+    await reg.showNotification(String(title || 'ARM CRM'), {
       body: String(body || ''),
       tag: tag || undefined,
       icon: '/icons/chat-icon-180.png',
@@ -979,6 +995,300 @@ async function openBankToolsModal() {
   }
 }
 
+// ════════════════════════════════════════════
+// Leads / CRM
+// ════════════════════════════════════════════
+const leadsState = {
+  page: 1,
+  perPage: 30,
+  totalPages: 1,
+  owner: '',
+  stage: '',
+  priority: '',
+  search: '',
+  filtersLoaded: false,
+  currentLeadId: null,
+};
+
+function leadsQueryString(extra = {}) {
+  const params = new URLSearchParams({
+    page: String(leadsState.page),
+    per_page: String(leadsState.perPage),
+  });
+  if (leadsState.owner) params.set('owner', leadsState.owner);
+  if (leadsState.stage) params.set('stage', leadsState.stage);
+  if (leadsState.priority) params.set('priority', leadsState.priority);
+  if (leadsState.search) params.set('search', leadsState.search);
+  Object.entries(extra).forEach(([k, v]) => params.set(k, String(v)));
+  return params.toString();
+}
+
+function fillLeadsSelect(select, values, currentValue) {
+  if (!select) return;
+  const placeholder = select.options[0];
+  select.innerHTML = '';
+  select.appendChild(placeholder);
+  values.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v;
+    select.appendChild(opt);
+  });
+  select.value = currentValue || '';
+}
+
+async function loadLeadsStats() {
+  if (!leadsStatsEl) return;
+  try {
+    const data = await api('GET', '/leads/stats');
+    const chips = [
+      { key: 'total', label: 'Всього', value: data.total },
+      { key: 'not_contacted', label: 'Не звʼязались', value: data.not_contacted },
+      ...(data.by_owner || []).map(o => ({ key: 'owner:' + o.owner, label: o.owner, value: o.count })),
+    ];
+    leadsStatsEl.innerHTML = chips.map(c => `
+      <div class="leads-stat-chip" data-chip="${escHtml(c.key)}">
+        <div class="leads-stat-value">${c.value}</div>
+        <div class="leads-stat-label">${escHtml(c.label)}</div>
+      </div>
+    `).join('');
+    leadsStatsEl.querySelectorAll('.leads-stat-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const key = chip.dataset.chip;
+        if (key === 'total') {
+          leadsState.owner = ''; leadsState.stage = ''; leadsState.priority = '';
+          if (leadsFilterOwner) leadsFilterOwner.value = '';
+        } else if (key === 'not_contacted') {
+          // handled purely as a visual filter shortcut via search-free reload
+        } else if (key.startsWith('owner:')) {
+          leadsState.owner = key.slice(6);
+          if (leadsFilterOwner) leadsFilterOwner.value = leadsState.owner;
+        }
+        leadsState.page = 1;
+        loadLeadsList();
+      });
+    });
+    if (!leadsState.filtersLoaded) {
+      fillLeadsSelect(leadsFilterOwner, (data.by_owner || []).map(o => o.owner), leadsState.owner);
+      fillLeadsSelect(leadsFilterStage, (data.by_stage || []).map(o => o.stage), leadsState.stage);
+      fillLeadsSelect(leadsFilterPriority, (data.by_priority || []).map(o => o.priority), leadsState.priority);
+      leadsState.filtersLoaded = true;
+    }
+  } catch (err) {
+    showToast(err.message || 'Не вдалося завантажити статистику лідів.', true);
+  }
+}
+
+function leadCardHtml(lead) {
+  const loc = [lead.city_area, lead.country].filter(Boolean).join(', ');
+  return `
+    <div class="leads-card" data-lead-id="${lead.id}">
+      <div class="leads-card-top">
+        <span class="leads-card-name">${escHtml(lead.business_name || '')}</span>
+        <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(lead.priority || '')}</span>
+      </div>
+      <div class="leads-card-meta">${escHtml(lead.category || '')}${loc ? ' · ' + escHtml(loc) : ''}</div>
+      <div class="leads-card-bottom">
+        <span class="leads-badge leads-badge-stage">${escHtml(lead.stage || '')}</span>
+        <span class="leads-badge leads-badge-owner">${escHtml(lead.owner || '—')}</span>
+      </div>
+    </div>
+  `;
+}
+
+async function loadLeadsList() {
+  if (!leadsListEl) return;
+  try {
+    const res = await api('GET', '/leads?' + leadsQueryString());
+    const items = res?.items || [];
+    leadsState.totalPages = res?.pages || 1;
+    leadsListEl.querySelectorAll('.leads-card').forEach(el => el.remove());
+    if (!items.length) {
+      if (leadsEmptyEl) leadsEmptyEl.hidden = false;
+    } else {
+      if (leadsEmptyEl) leadsEmptyEl.hidden = true;
+      const frag = document.createElement('div');
+      frag.innerHTML = items.map(leadCardHtml).join('');
+      Array.from(frag.children).forEach(card => {
+        card.addEventListener('click', () => openLeadDetail(Number(card.dataset.leadId)));
+        leadsListEl.appendChild(card);
+      });
+    }
+    renderLeadsPagination();
+  } catch (err) {
+    showToast(err.message || 'Не вдалося завантажити ліди.', true);
+  }
+}
+
+function renderLeadsPagination() {
+  if (!leadsPaginationEl) return;
+  leadsPaginationEl.innerHTML = `
+    <button id="leads-prev" ${leadsState.page <= 1 ? 'disabled' : ''}>←</button>
+    <span>стор. ${leadsState.page} / ${leadsState.totalPages}</span>
+    <button id="leads-next" ${leadsState.page >= leadsState.totalPages ? 'disabled' : ''}>→</button>
+  `;
+  document.getElementById('leads-prev')?.addEventListener('click', () => {
+    if (leadsState.page > 1) { leadsState.page--; loadLeadsList(); }
+  });
+  document.getElementById('leads-next')?.addEventListener('click', () => {
+    if (leadsState.page < leadsState.totalPages) { leadsState.page++; loadLeadsList(); }
+  });
+}
+
+const LEADS_STAGE_OPTIONS = ['New', 'Contacted', 'Replied', 'Qualified', 'Proposal Sent', 'Won', 'Lost'];
+const LEADS_OUTREACH_OPTIONS = ['Not contacted', 'Message sent', 'Follow-up sent', 'Call made', 'No reply', 'Replied'];
+const LEADS_PRIORITY_OPTIONS = ['Hot', 'High', 'Medium', 'Low', 'Watch'];
+
+function leadDetailHtml(lead) {
+  const contacts = [
+    lead.email ? { label: 'Email', value: lead.email, href: 'mailto:' + lead.email.split(';')[0].trim() } : null,
+    lead.phone ? { label: 'Телефон', value: lead.phone, href: 'tel:' + lead.phone } : null,
+    lead.whatsapp_viber ? { label: 'WhatsApp/Viber', value: lead.whatsapp_viber } : null,
+    lead.instagram ? { label: 'Instagram', value: lead.instagram, href: 'https://instagram.com/' + String(lead.instagram).replace('@', '') } : null,
+    lead.website_url ? { label: 'Сайт', value: lead.website_url, href: lead.website_url } : null,
+    lead.source_url ? { label: 'Джерело', value: 'посилання', href: lead.source_url } : null,
+  ].filter(Boolean);
+
+  const optSel = (options, current) => options.map(o =>
+    `<option value="${escHtml(o)}" ${o === current ? 'selected' : ''}>${escHtml(o)}</option>`
+  ).join('');
+  const ownerOptions = ['Manager 1', 'Manager 2'];
+
+  return `
+    <div class="leads-detail-title">${escHtml(lead.business_name || '')}</div>
+    <div class="leads-detail-sub">${escHtml(lead.category || '')} · ${escHtml([lead.city_area, lead.country].filter(Boolean).join(', '))}</div>
+
+    <div class="leads-detail-section">
+      <h4>Контакти</h4>
+      ${contacts.map(c => `
+        <div class="leads-detail-row">
+          <span>${escHtml(c.label)}</span>
+          <span>${c.href ? `<a href="${escHtml(c.href)}" target="_blank" rel="noopener">${escHtml(c.value)}</a>` : escHtml(c.value)}</span>
+        </div>
+      `).join('') || '<div class="leads-detail-row"><span>Немає контактів</span><span>—</span></div>'}
+      <div class="leads-detail-row"><span>Канал</span><span>${escHtml(lead.primary_channel || '—')}</span></div>
+      <div class="leads-detail-row"><span>Відкриття</span><span>${escHtml(lead.opening_date || lead.opening_window || '—')}</span></div>
+    </div>
+
+    <div class="leads-detail-section">
+      <h4>Керування</h4>
+      <div class="leads-edit-grid">
+        <label>Власник<select id="lead-edit-owner">${optSel(ownerOptions, lead.owner)}</select></label>
+        <label>Пріоритет<select id="lead-edit-priority">${optSel(LEADS_PRIORITY_OPTIONS, lead.priority)}</select></label>
+        <label>Стадія<select id="lead-edit-stage">${optSel(LEADS_STAGE_OPTIONS, lead.stage)}</select></label>
+        <label>Статус контакту<select id="lead-edit-outreach">${optSel(LEADS_OUTREACH_OPTIONS, lead.outreach_status)}</select></label>
+      </div>
+      <label>Наступний контакт <input id="lead-edit-followup" type="date" value="${escHtml(lead.next_followup_date || '')}"/></label>
+      <label>Нотатки<textarea id="lead-edit-notes" placeholder="Нотатки менеджера...">${escHtml(lead.notes || '')}</textarea></label>
+      <button class="btn-primary" id="btn-lead-save" type="button">Зберегти</button>
+    </div>
+
+    ${lead.first_message_en ? `
+    <div class="leads-detail-section">
+      <h4>Заготовка першого повідомлення</h4>
+      <div class="leads-first-message">${escHtml(lead.first_message_en)}</div>
+      <button class="btn-primary btn-secondary" id="btn-lead-copy-msg" type="button">Скопіювати</button>
+    </div>` : ''}
+
+    ${lead.why_help_fits ? `
+    <div class="leads-detail-section">
+      <h4>Чому підходить</h4>
+      <div class="leads-first-message">${escHtml(lead.why_help_fits)}</div>
+    </div>` : ''}
+  `;
+}
+
+async function openLeadDetail(leadId) {
+  if (!leadsDetailBody) return;
+  leadsState.currentLeadId = leadId;
+  leadsListView.hidden = true;
+  leadsDetailView.hidden = false;
+  leadsDetailBody.innerHTML = '<p class="leads-empty">Завантаження…</p>';
+  try {
+    const lead = await api('GET', `/leads/${leadId}`);
+    leadsDetailBody.innerHTML = leadDetailHtml(lead);
+    document.getElementById('btn-lead-save')?.addEventListener('click', () => saveLeadEdits(leadId));
+    document.getElementById('btn-lead-copy-msg')?.addEventListener('click', () => {
+      const text = lead.first_message_en || '';
+      navigator.clipboard?.writeText(text).then(
+        () => showToast('Скопійовано.'),
+        () => showToast('Не вдалося скопіювати.', true)
+      );
+    });
+  } catch (err) {
+    leadsDetailBody.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Помилка завантаження ліда.')}</p>`;
+  }
+}
+
+async function saveLeadEdits(leadId) {
+  const payload = {
+    owner: document.getElementById('lead-edit-owner')?.value,
+    priority: document.getElementById('lead-edit-priority')?.value,
+    stage: document.getElementById('lead-edit-stage')?.value,
+    outreach_status: document.getElementById('lead-edit-outreach')?.value,
+    next_followup_date: document.getElementById('lead-edit-followup')?.value || null,
+    notes: document.getElementById('lead-edit-notes')?.value || '',
+  };
+  try {
+    await api('PATCH', `/leads/${leadId}`, payload);
+    showToast('Лід оновлено.');
+    loadLeadsStats();
+  } catch (err) {
+    showToast(err.message || 'Не вдалося зберегти зміни.', true);
+  }
+}
+
+function closeLeadDetail() {
+  leadsDetailView.hidden = true;
+  leadsListView.hidden = false;
+  leadsState.currentLeadId = null;
+  loadLeadsList();
+}
+
+function openLeadsModal() {
+  if (!leadsModal) return;
+  if (!token) { showToast('Спочатку виконайте вхід.', true); return; }
+  leadsModal.hidden = false;
+  syncOverlayLock();
+  leadsListView.hidden = false;
+  leadsDetailView.hidden = true;
+  loadLeadsStats();
+  loadLeadsList();
+}
+
+function closeLeadsModal() {
+  if (!leadsModal) return;
+  leadsModal.hidden = true;
+  syncOverlayLock();
+}
+
+if (btnLeads) btnLeads.addEventListener('click', openLeadsModal);
+if (btnCloseLeads) btnCloseLeads.addEventListener('click', closeLeadsModal);
+if (btnLeadsBack) btnLeadsBack.addEventListener('click', closeLeadDetail);
+if (leadsModal) {
+  leadsModal.addEventListener('click', e => { if (e.target === leadsModal) closeLeadsModal(); });
+}
+let leadsSearchTimer = null;
+if (leadsSearchInput) {
+  leadsSearchInput.addEventListener('input', () => {
+    clearTimeout(leadsSearchTimer);
+    leadsSearchTimer = setTimeout(() => {
+      leadsState.search = leadsSearchInput.value.trim();
+      leadsState.page = 1;
+      loadLeadsList();
+    }, 350);
+  });
+}
+if (leadsFilterOwner) leadsFilterOwner.addEventListener('change', () => {
+  leadsState.owner = leadsFilterOwner.value; leadsState.page = 1; loadLeadsList();
+});
+if (leadsFilterStage) leadsFilterStage.addEventListener('change', () => {
+  leadsState.stage = leadsFilterStage.value; leadsState.page = 1; loadLeadsList();
+});
+if (leadsFilterPriority) leadsFilterPriority.addEventListener('change', () => {
+  leadsState.priority = leadsFilterPriority.value; leadsState.page = 1; loadLeadsList();
+});
+
 function parseFilenameFromDisposition(disposition, fallbackName) {
   const raw = String(disposition || '');
   const utf8Match = raw.match(/filename\*=UTF-8''([^;]+)/i);
@@ -1070,6 +1380,8 @@ function syncOverlayLock() {
     !!newChatModal && !newChatModal.hidden
   ) || (
     !!bankToolsModal && !bankToolsModal.hidden
+  ) || (
+    !!leadsModal && !leadsModal.hidden
   ) || (
     !!callSettingsModal && !callSettingsModal.hidden
   ) || (
@@ -1233,6 +1545,7 @@ function showApp() {
   authScreen.hidden = true;
   appEl.hidden = false;
   if (me && topbarAvatar) topbarAvatar.textContent = initial(me.full_name);
+  if (btnLeads) btnLeads.hidden = !['admin', 'platform_admin'].includes(me?.role);
   updateNetworkPill();
   ensureMessengerBankStatus().catch(() => {});
   loadConversations();
@@ -3346,6 +3659,38 @@ async function releaseCallWakeLock() {
   callWakeLock = null;
 }
 
+// Lock-screen / OS media-control integration for active calls (matches the
+// pattern used by radio.munister.com.ua's useVoice.ts). Wires the real
+// 'hangup' action where supported so a call can be ended from the lock
+// screen without opening the app.
+function setupCallMediaSession(partnerName) {
+  if (!('mediaSession' in navigator)) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: partnerName || 'Голосовий дзвінок',
+      artist: 'ARM CRM',
+    });
+    navigator.mediaSession.playbackState = 'playing';
+    try {
+      navigator.mediaSession.setActionHandler('hangup', () => { hangupCall(true, 'ended'); });
+    } catch (_) { /* not supported on this platform */ }
+    const resist = () => { navigator.mediaSession.playbackState = 'playing'; };
+    navigator.mediaSession.setActionHandler('play', resist);
+    navigator.mediaSession.setActionHandler('pause', resist);
+  } catch (_) { /* ignore */ }
+}
+
+function teardownCallMediaSession() {
+  if (!('mediaSession' in navigator)) return;
+  try {
+    navigator.mediaSession.metadata = null;
+    navigator.mediaSession.playbackState = 'none';
+    navigator.mediaSession.setActionHandler('hangup', null);
+    navigator.mediaSession.setActionHandler('play', null);
+    navigator.mediaSession.setActionHandler('pause', null);
+  } catch (_) { /* ignore */ }
+}
+
 async function getCallAudioStream() {
   const advanced = {
     audio: {
@@ -4442,7 +4787,7 @@ function showCallScreen(name, status) {
   callScreenAvatar.textContent = initial(name);
   callScreenName.textContent   = name;
   if (callScreenChip) {
-    callScreenChip.textContent = activeCallIsGroup ? 'ARM BANK GROUP CALL' : 'ARM BANK SECURE CALL';
+    callScreenChip.textContent = activeCallIsGroup ? 'ARM CRM GROUP CALL' : 'ARM CRM SECURE CALL';
   }
   callStatusBase = String(status || 'З\'єднання...');
   callQualityLabel = '';
@@ -4466,6 +4811,7 @@ function showCallScreen(name, status) {
   syncMuteUi();
   syncCallButtonState();
   requestCallWakeLock().catch(() => {});
+  setupCallMediaSession(name);
   syncOverlayLock();
 }
 
@@ -4505,6 +4851,7 @@ async function hangupCall(notify = true, reason = 'ended') {
   callWallTimer    = null;
   stopCallQualityMonitor();
   releaseCallWakeLock().catch(() => {});
+  teardownCallMediaSession();
   cleanupPeer();
   cleanupGroupCallPeers();
   activeCallId          = null;
@@ -5006,6 +5353,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (photoViewer && !photoViewer.hidden) { closePhotoViewer(); return; }
     if (bankToolsModal && !bankToolsModal.hidden) { closeBankToolsModal(); return; }
+    if (leadsModal && !leadsModal.hidden) { closeLeadsModal(); return; }
     if (callSettingsModal && !callSettingsModal.hidden) { closeCallSettingsModal(); return; }
     closeNewChatModal();
     return;
