@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '49';
+const MESSENGER_ASSET_VERSION = '52';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const BANK_TOKEN_KEY = 'army_bank_token';
