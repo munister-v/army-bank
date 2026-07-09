@@ -5,10 +5,13 @@ marketplace_routes.py, без змін до database.py/schema.sql.
 """
 from __future__ import annotations
 
+import csv
+import io
 import math
+from datetime import date
 from typing import Any
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, Response, g, jsonify, request
 
 from ..database import get_connection, get_returning_id_suffix, insert_last_id
 from .helpers import api_error, auth_required, role_required
@@ -122,20 +125,15 @@ def _row_to_payload(row: dict[str, Any]) -> dict[str, Any]:
     return {col: row.get(col) for col in _COLUMNS}
 
 
-@leads_bp.get('')
-@leads_bp.get('/')
-@auth_required
-@role_required(*_ADMIN_ROLES)
-def list_leads():
-    _ensure_schema()
+def _build_leads_filter() -> tuple[str, list]:
+    """Читає owner/stage/pipeline/priority/search з query-параметрів запиту
+    та повертає (WHERE ..., params) — спільне для list/export."""
     owner = (request.args.get('owner') or '').strip()
     stage = (request.args.get('stage') or '').strip()
     pipeline = (request.args.get('pipeline') or '').strip()
     priority = (request.args.get('priority') or '').strip()
     search = (request.args.get('search') or '').strip()
-    page = max(1, int(request.args.get('page') or 1))
-    per_page = min(200, max(1, int(request.args.get('per_page') or 50)))
-    offset = (page - 1) * per_page
+    due_today = request.args.get('due_today') in ('1', 'true', 'yes')
 
     where = []
     params: list = []
@@ -151,6 +149,9 @@ def list_leads():
     if priority:
         where.append('priority = %s')
         params.append(priority)
+    if due_today:
+        where.append("next_followup_date IS NOT NULL AND next_followup_date != '' AND next_followup_date <= %s")
+        params.append(date.today().isoformat())
     if search:
         where.append(
             '(business_name ILIKE %s OR category ILIKE %s OR city_area ILIKE %s OR country ILIKE %s)'
@@ -160,6 +161,19 @@ def list_leads():
         like = f'%{search}%'
         params.extend([like, like, like, like])
     where_sql = ('WHERE ' + ' AND '.join(where)) if where else ''
+    return where_sql, params
+
+
+@leads_bp.get('')
+@leads_bp.get('/')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def list_leads():
+    _ensure_schema()
+    page = max(1, int(request.args.get('page') or 1))
+    per_page = min(200, max(1, int(request.args.get('per_page') or 50)))
+    offset = (page - 1) * per_page
+    where_sql, params = _build_leads_filter()
 
     with get_connection() as conn:
         total = (conn.execute(
@@ -213,10 +227,16 @@ def leads_stats():
         not_contacted = (conn.execute(
             "SELECT COUNT(*) AS n FROM leads WHERE outreach_status = 'Not contacted'"
         ).fetchone() or {}).get('n') or 0
+        due_today = (conn.execute(
+            "SELECT COUNT(*) AS n FROM leads WHERE next_followup_date IS NOT NULL "
+            "AND next_followup_date != '' AND next_followup_date <= %s",
+            (date.today().isoformat(),),
+        ).fetchone() or {}).get('n') or 0
 
     return jsonify({'ok': True, 'data': {
         'total': int(total),
         'not_contacted': int(not_contacted),
+        'due_today': int(due_today),
         'by_owner': [{'owner': r['owner'], 'count': int(r['n'])} for r in (by_owner or [])],
         'by_stage': [{'stage': r['stage'], 'count': int(r['n'])} for r in (by_stage or [])],
         'by_priority': [{'priority': r['priority'], 'count': int(r['n'])} for r in (by_priority or [])],
@@ -302,3 +322,86 @@ def import_leads():
                 created += 1
 
     return jsonify({'ok': True, 'data': {'created': created, 'updated': updated}})
+
+
+def _next_lead_id(conn) -> str:
+    """Наступний CRM-XXXX з урахуванням найбільшого існуючого номера."""
+    rows = conn.execute("SELECT lead_id FROM leads WHERE lead_id LIKE 'CRM-%'").fetchall()
+    max_n = 0
+    for r in (rows or []):
+        raw = str(r['lead_id'] or '')
+        suffix = raw.split('-', 1)[-1]
+        if suffix.isdigit():
+            max_n = max(max_n, int(suffix))
+    return f'CRM-{max_n + 1:04d}'
+
+
+_CREATE_REQUIRED = ('business_name',)
+_CREATE_FIELDS = (
+    'business_name', 'category', 'country', 'city_area', 'owner', 'pipeline',
+    'stage', 'priority', 'outreach_status', 'phone', 'whatsapp_viber', 'email',
+    'instagram', 'website_url', 'source_url', 'need_type', 'notes',
+)
+
+
+@leads_bp.post('')
+@leads_bp.post('/')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def create_lead():
+    """Ручне створення ліда з UI (на відміну від /import — масового)."""
+    _ensure_schema()
+    body = request.get_json(silent=True) or {}
+    for field in _CREATE_REQUIRED:
+        if not str(body.get(field) or '').strip():
+            return api_error(f"Поле '{field}' обов'язкове.", 400)
+
+    data = {k: body.get(k) for k in _CREATE_FIELDS if body.get(k) not in (None, '')}
+    data.setdefault('pipeline', 'Opening leads')
+    data.setdefault('stage', 'New')
+    data.setdefault('priority', 'Medium')
+    data.setdefault('outreach_status', 'Not contacted')
+
+    with get_connection() as conn:
+        lead_id = _next_lead_id(conn)
+        data['lead_id'] = lead_id
+        cols = list(data.keys())
+        cols_sql = ', '.join(cols)
+        placeholders = ', '.join(['%s'] * len(cols))
+        cur = conn.execute(
+            f'INSERT INTO leads ({cols_sql}) VALUES ({placeholders})' + get_returning_id_suffix(),
+            [data[c] for c in cols],
+        )
+        new_id = insert_last_id(cur)
+        row = conn.execute('SELECT * FROM leads WHERE id = %s', (new_id,)).fetchone()
+
+    return jsonify({'ok': True, 'data': _row_to_payload(dict(row))})
+
+
+@leads_bp.get('/export')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def export_leads():
+    """CSV-експорт з тими самими owner/stage/pipeline/priority/search
+    фільтрами, що й список — без пагінації (усі співпадіння)."""
+    _ensure_schema()
+    where_sql, params = _build_leads_filter()
+    with get_connection() as conn:
+        rows = conn.execute(
+            f'SELECT * FROM leads {where_sql} ORDER BY lead_score DESC, id ASC',
+            params,
+        ).fetchall()
+
+    export_cols = [c for c in _COLUMNS if c not in ('id',)]
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(export_cols)
+    for r in (rows or []):
+        row = dict(r)
+        writer.writerow([row.get(c) if row.get(c) is not None else '' for c in export_cols])
+
+    return Response(
+        buf.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename="leads_export.csv"'},
+    )

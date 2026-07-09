@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '47';
+const MESSENGER_ASSET_VERSION = '48';
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const BANK_TOKEN_KEY = 'army_bank_token';
@@ -314,6 +314,13 @@ const leadsEmptyEl = $('leads-empty');
 const leadsPaginationEl = $('leads-pagination');
 const btnLeadsBack = $('btn-leads-back');
 const leadsDetailBody = $('leads-detail-body');
+const leadsDueBadge = $('leads-due-badge');
+const btnLeadsExport = $('btn-leads-export');
+const btnLeadsAdd = $('btn-leads-add');
+const leadsCreateView = $('leads-create-view');
+const btnLeadsCreateBack = $('btn-leads-create-back');
+const btnLeadCreateSave = $('btn-lead-create-save');
+const leadNewPriority = $('lead-new-priority');
 
 // ════════════════════════════════════════════
 // API helper
@@ -998,17 +1005,25 @@ async function openBankToolsModal() {
 // ════════════════════════════════════════════
 // Leads / CRM
 // ════════════════════════════════════════════
+const LEADS_OWNER_FILTER_KEY = 'msng_leads_owner_filter';
 const leadsState = {
   page: 1,
   perPage: 30,
   totalPages: 1,
-  owner: '',
+  owner: localStorage.getItem(LEADS_OWNER_FILTER_KEY) || '',
   stage: '',
   priority: '',
   search: '',
+  dueToday: false,
   filtersLoaded: false,
   currentLeadId: null,
 };
+
+function setLeadsOwnerFilter(owner) {
+  leadsState.owner = owner || '';
+  if (owner) localStorage.setItem(LEADS_OWNER_FILTER_KEY, owner);
+  else localStorage.removeItem(LEADS_OWNER_FILTER_KEY);
+}
 
 function leadsQueryString(extra = {}) {
   const params = new URLSearchParams({
@@ -1019,6 +1034,7 @@ function leadsQueryString(extra = {}) {
   if (leadsState.stage) params.set('stage', leadsState.stage);
   if (leadsState.priority) params.set('priority', leadsState.priority);
   if (leadsState.search) params.set('search', leadsState.search);
+  if (leadsState.dueToday) params.set('due_today', '1');
   Object.entries(extra).forEach(([k, v]) => params.set(k, String(v)));
   return params.toString();
 }
@@ -1044,8 +1060,10 @@ async function loadLeadsStats() {
     const chips = [
       { key: 'total', label: 'Всього', value: data.total },
       { key: 'not_contacted', label: 'Не звʼязались', value: data.not_contacted },
+      { key: 'due_today', label: 'На сьогодні', value: data.due_today },
       ...(data.by_owner || []).map(o => ({ key: 'owner:' + o.owner, label: o.owner, value: o.count })),
     ];
+    if (leadsDueBadge) leadsDueBadge.hidden = !(data.due_today > 0);
     leadsStatsEl.innerHTML = chips.map(c => `
       <div class="leads-stat-chip" data-chip="${escHtml(c.key)}">
         <div class="leads-stat-value">${c.value}</div>
@@ -1055,13 +1073,16 @@ async function loadLeadsStats() {
     leadsStatsEl.querySelectorAll('.leads-stat-chip').forEach(chip => {
       chip.addEventListener('click', () => {
         const key = chip.dataset.chip;
+        leadsState.dueToday = false;
         if (key === 'total') {
-          leadsState.owner = ''; leadsState.stage = ''; leadsState.priority = '';
+          setLeadsOwnerFilter(''); leadsState.stage = ''; leadsState.priority = '';
           if (leadsFilterOwner) leadsFilterOwner.value = '';
         } else if (key === 'not_contacted') {
           // handled purely as a visual filter shortcut via search-free reload
+        } else if (key === 'due_today') {
+          leadsState.dueToday = true;
         } else if (key.startsWith('owner:')) {
-          leadsState.owner = key.slice(6);
+          setLeadsOwnerFilter(key.slice(6));
           if (leadsFilterOwner) leadsFilterOwner.value = leadsState.owner;
         }
         leadsState.page = 1;
@@ -1081,6 +1102,13 @@ async function loadLeadsStats() {
 
 function leadCardHtml(lead) {
   const loc = [lead.city_area, lead.country].filter(Boolean).join(', ');
+  const firstPhone = (lead.phone || lead.whatsapp_viber || '').split(/[;,]/)[0].trim();
+  const firstEmail = (lead.email || '').split(/[;,]/)[0].trim();
+  const quick = [
+    firstPhone ? { href: 'tel:' + firstPhone.replace(/[^\d+]/g, ''), label: '📞' } : null,
+    firstPhone ? { href: 'https://wa.me/' + firstPhone.replace(/[^\d]/g, ''), label: '💬' } : null,
+    firstEmail ? { href: 'mailto:' + firstEmail, label: '✉️' } : null,
+  ].filter(Boolean);
   return `
     <div class="leads-card" data-lead-id="${lead.id}">
       <div class="leads-card-top">
@@ -1092,6 +1120,9 @@ function leadCardHtml(lead) {
         <span class="leads-badge leads-badge-stage">${escHtml(lead.stage || '')}</span>
         <span class="leads-badge leads-badge-owner">${escHtml(lead.owner || '—')}</span>
       </div>
+      ${quick.length ? `<div class="leads-card-quick">${quick.map(q =>
+        `<a class="leads-quick-btn" href="${escHtml(q.href)}" target="_blank" rel="noopener" data-quick-action="1" title="${escHtml(q.href)}">${q.label}</a>`
+      ).join('')}</div>` : ''}
     </div>
   `;
 }
@@ -1110,7 +1141,10 @@ async function loadLeadsList() {
       const frag = document.createElement('div');
       frag.innerHTML = items.map(leadCardHtml).join('');
       Array.from(frag.children).forEach(card => {
-        card.addEventListener('click', () => openLeadDetail(Number(card.dataset.leadId)));
+        card.addEventListener('click', e => {
+          if (e.target.closest('[data-quick-action]')) return;
+          openLeadDetail(Number(card.dataset.leadId));
+        });
         leadsListEl.appendChild(card);
       });
     }
@@ -1252,8 +1286,63 @@ function openLeadsModal() {
   syncOverlayLock();
   leadsListView.hidden = false;
   leadsDetailView.hidden = true;
+  if (leadsCreateView) leadsCreateView.hidden = true;
   loadLeadsStats();
   loadLeadsList();
+}
+
+function openLeadsCreateView() {
+  if (!leadsCreateView) return;
+  leadsListView.hidden = true;
+  leadsDetailView.hidden = true;
+  leadsCreateView.hidden = false;
+  ['lead-new-name', 'lead-new-country', 'lead-new-city', 'lead-new-phone', 'lead-new-email', 'lead-new-instagram', 'lead-new-notes']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const ownerSel = document.getElementById('lead-new-owner');
+  if (ownerSel) ownerSel.value = leadsState.owner || 'Manager 1';
+  if (leadNewPriority && !leadNewPriority.options.length) {
+    leadNewPriority.innerHTML = LEADS_PRIORITY_OPTIONS.map(p => `<option value="${escHtml(p)}">${escHtml(p)}</option>`).join('');
+  }
+  if (leadNewPriority) leadNewPriority.value = 'Medium';
+}
+
+function closeLeadsCreateView() {
+  if (!leadsCreateView) return;
+  leadsCreateView.hidden = true;
+  leadsListView.hidden = false;
+}
+
+async function saveNewLead() {
+  const name = document.getElementById('lead-new-name')?.value.trim();
+  if (!name) { showToast("Вкажіть назву бізнесу.", true); return; }
+  const payload = {
+    business_name: name,
+    country: document.getElementById('lead-new-country')?.value.trim() || '',
+    city_area: document.getElementById('lead-new-city')?.value.trim() || '',
+    owner: document.getElementById('lead-new-owner')?.value || 'Manager 1',
+    priority: leadNewPriority?.value || 'Medium',
+    phone: document.getElementById('lead-new-phone')?.value.trim() || '',
+    email: document.getElementById('lead-new-email')?.value.trim() || '',
+    instagram: document.getElementById('lead-new-instagram')?.value.trim() || '',
+    notes: document.getElementById('lead-new-notes')?.value.trim() || '',
+  };
+  try {
+    await api('POST', '/leads', payload);
+    showToast('Лід створено.');
+    closeLeadsCreateView();
+    loadLeadsStats();
+    loadLeadsList();
+  } catch (err) {
+    showToast(err.message || 'Не вдалося створити лід.', true);
+  }
+}
+
+async function exportLeadsCsv() {
+  try {
+    await downloadProtectedFile(`${API}/leads/export?${leadsQueryString()}`, 'leads_export.csv');
+  } catch (err) {
+    showToast(err.message || 'Не вдалося експортувати CSV.', true);
+  }
 }
 
 function closeLeadsModal() {
@@ -1265,6 +1354,10 @@ function closeLeadsModal() {
 if (btnLeads) btnLeads.addEventListener('click', openLeadsModal);
 if (btnCloseLeads) btnCloseLeads.addEventListener('click', closeLeadsModal);
 if (btnLeadsBack) btnLeadsBack.addEventListener('click', closeLeadDetail);
+if (btnLeadsAdd) btnLeadsAdd.addEventListener('click', openLeadsCreateView);
+if (btnLeadsCreateBack) btnLeadsCreateBack.addEventListener('click', closeLeadsCreateView);
+if (btnLeadCreateSave) btnLeadCreateSave.addEventListener('click', saveNewLead);
+if (btnLeadsExport) btnLeadsExport.addEventListener('click', exportLeadsCsv);
 if (leadsModal) {
   leadsModal.addEventListener('click', e => { if (e.target === leadsModal) closeLeadsModal(); });
 }
@@ -1280,7 +1373,7 @@ if (leadsSearchInput) {
   });
 }
 if (leadsFilterOwner) leadsFilterOwner.addEventListener('change', () => {
-  leadsState.owner = leadsFilterOwner.value; leadsState.page = 1; loadLeadsList();
+  setLeadsOwnerFilter(leadsFilterOwner.value); leadsState.page = 1; loadLeadsList();
 });
 if (leadsFilterStage) leadsFilterStage.addEventListener('change', () => {
   leadsState.stage = leadsFilterStage.value; leadsState.page = 1; loadLeadsList();
@@ -1545,7 +1638,9 @@ function showApp() {
   authScreen.hidden = true;
   appEl.hidden = false;
   if (me && topbarAvatar) topbarAvatar.textContent = initial(me.full_name);
-  if (btnLeads) btnLeads.hidden = !['admin', 'platform_admin'].includes(me?.role);
+  const isLeadsAdmin = ['admin', 'platform_admin'].includes(me?.role);
+  if (btnLeads) btnLeads.hidden = !isLeadsAdmin;
+  if (isLeadsAdmin) loadLeadsStats().catch(() => {});
   updateNetworkPill();
   ensureMessengerBankStatus().catch(() => {});
   loadConversations();

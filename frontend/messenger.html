@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=46"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=48"/>
 </head>
 <body>
 
@@ -136,6 +136,7 @@
             <line x1="7" y1="13" x2="13" y2="13"/>
             <line x1="7" y1="16.5" x2="11" y2="16.5"/>
           </svg>
+          <span class="badge" id="leads-due-badge" hidden></span>
         </button>
         <button class="icon-btn" id="btn-new-chat" title="Новий чат">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
@@ -592,11 +593,23 @@
   <div class="modal leads-modal" role="dialog" aria-modal="true" aria-label="Ліди · CRM">
     <div class="modal-header">
       <h2 class="modal-title">Ліди · ARM CRM</h2>
-      <button class="icon-btn modal-close" id="btn-close-leads">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
-      </button>
+      <div class="leads-header-actions">
+        <button class="icon-btn" id="btn-leads-export" title="Експорт CSV" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="18" height="18">
+            <path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M4 19h16"/>
+          </svg>
+        </button>
+        <button class="icon-btn" id="btn-leads-add" title="Додати лід" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+        <button class="icon-btn modal-close" id="btn-close-leads">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <!-- List sub-view -->
@@ -623,6 +636,33 @@
         До списку
       </button>
       <div id="leads-detail-body"></div>
+    </div>
+
+    <!-- Create sub-view -->
+    <div id="leads-create-view" hidden>
+      <button class="leads-back-btn" id="btn-leads-create-back" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        До списку
+      </button>
+      <div class="leads-detail-section" style="margin: 0 16px 16px;">
+        <h4>Новий лід</h4>
+        <label>Назва бізнесу *<input id="lead-new-name" type="text" placeholder="Назва"/></label>
+        <div class="leads-edit-grid">
+          <label>Країна<input id="lead-new-country" type="text"/></label>
+          <label>Місто<input id="lead-new-city" type="text"/></label>
+        </div>
+        <div class="leads-edit-grid">
+          <label>Власник<select id="lead-new-owner"><option>Manager 1</option><option>Manager 2</option></select></label>
+          <label>Пріоритет<select id="lead-new-priority"></select></label>
+        </div>
+        <label>Телефон<input id="lead-new-phone" type="text"/></label>
+        <label>Email<input id="lead-new-email" type="text"/></label>
+        <label>Instagram<input id="lead-new-instagram" type="text" placeholder="@handle"/></label>
+        <label>Нотатки<textarea id="lead-new-notes"></textarea></label>
+        <button class="btn-primary" id="btn-lead-create-save" type="button">Створити</button>
+      </div>
     </div>
   </div>
 </div>
@@ -743,6 +783,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=47"></script>
+<script src="/js/messenger.js?v=48"></script>
 </body>
 </html>
