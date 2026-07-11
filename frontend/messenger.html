@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=57"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=59"/>
 </head>
 <body>
 
@@ -108,12 +108,13 @@
           <text x="57" y="65" text-anchor="middle" font-size="19" font-family="Manrope, Arial, sans-serif" font-weight="800" fill="#1d5a40">CRM</text>
         </svg>
       </div>
-      <div class="auth-brand-name">ARM CRM</div>
-      <p class="auth-brand-sub">Захищений корпоративний месенджер та CRM: повідомлення, голосові, фото, ліди та службова підтримка.</p>
+      <div class="auth-brand-kicker">ARM · CRM</div>
+      <h2 class="auth-brand-name">Увесь відділ —<br/><em>в одному вікні</em></h2>
+      <p class="auth-brand-sub">Захищений месенджер і CRM: чати, голосові, фото, ліди та угоди — усе в одному просторі.</p>
       <div class="auth-brand-pills">
-        <span>Шифрування повідомлень</span>
+        <span>Шифрування</span>
         <span>Голосові та фото</span>
-        <span>Єдина авторизація</span>
+        <span>Ліди · Канбан</span>
       </div>
     </div>
   </div>
@@ -131,7 +132,10 @@
         <div class="sidebar-logo-icon" aria-hidden="true">
           <img src="/icons/chat-icon-32.png" alt="" width="24" height="24"/>
         </div>
-        <span class="sidebar-title" id="sidebar-title">Чати</span>
+        <div class="sidebar-header-titles">
+          <span class="sidebar-title" id="sidebar-title">Чати</span>
+          <span class="mono-label sidebar-kicker">ARM · CRM</span>
+        </div>
       </div>
       <div class="sidebar-header-right">
         <button class="icon-btn" id="btn-leads" title="Ліди · CRM" hidden>
@@ -772,6 +776,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=57"></script>
+<script src="/js/messenger.js?v=59"></script>
 </body>
 </html>
