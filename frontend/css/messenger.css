@@ -2934,6 +2934,16 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 .integration-card-display { font-size: 13px; font-weight: 700; color: var(--text); }
 .integration-card-token { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-2); }
 .integration-card-error { font-size: 11.5px; color: #b43646; margin-top: 4px; }
+.integration-card-sig { font-size: 11px; margin-top: 6px; }
+.integration-card-sig.ok { color: #2e8a5f; }
+.integration-card-sig.warn { color: #a8792f; }
+.integration-input-secret {
+  width: 100%; background: #f7f5f0; border: 1.5px solid transparent; border-radius: 10px;
+  padding: 9px 11px; color: var(--ink); font-family: var(--font); font-size: 12.5px; font-weight: 600; outline: none;
+  transition: border-color .15s, background .15s;
+}
+.integration-input-secret::placeholder { color: var(--muted); font-weight: 500; }
+.integration-input-secret:focus { background: #fff; border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-dim); }
 .integration-card-actions { display: flex; gap: 8px; }
 .integration-check-btn {
   flex: 1; border: 1px solid var(--border); background: #fff; color: var(--ink);

@@ -9,6 +9,8 @@ App/Business кабінеті (див. ARM CRM → «Інтеграції» → 
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 from datetime import date
 from typing import Any
 
@@ -18,7 +20,7 @@ from ..database import get_connection
 from ..services.messenger_crypto import encrypt_message
 from ..utils.security import hash_password
 from .helpers import api_error
-from .integrations_routes import find_integration, webhook_verify_token
+from .integrations_routes import find_integration, get_app_secret, mark_message_seen, webhook_verify_token
 from .leads_routes import _ensure_schema as _ensure_leads_schema
 from .leads_routes import _get_or_create_lead_conversation, _log_activity, _next_lead_id
 
@@ -64,6 +66,20 @@ def _get_or_create_contact_user(conn) -> int:
         (_CONTACT_NAME, _CONTACT_PHONE, _CONTACT_EMAIL, pwd_hash, _CONTACT_ROLE),
     )
     return int(conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id'])
+
+
+def _signature_ok(app_secret: str, raw_body: bytes, signature_header: str) -> bool:
+    """Перевіряє X-Hub-Signature-256 (HMAC-SHA256 тіла запиту на App Secret) —
+    так Meta підписує кожну вебхук-доставку. Без цього будь-хто, хто вгадає
+    чийсь phone_number_id/ig_user_id, міг би підробити «вхідне повідомлення»
+    і воно б стало реальним лідом. Якщо app_secret для інтеграції не заданий
+    (менеджер не вказав його при підключенні) — пропускаємо перевірку."""
+    if not app_secret:
+        return True
+    if not signature_header.startswith('sha256='):
+        return False
+    expected = hmac.new(app_secret.encode('utf-8'), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature_header[len('sha256='):])
 
 
 def _first_admin_id(conn) -> int | None:
@@ -135,7 +151,7 @@ def _ingest_inbound_text(conn, *, manager: str, channel_field: str, contact_valu
     _log_activity(conn, lead_id, f'Клієнт ({channel_label})', 'note', text)
 
 
-def _process_whatsapp_change(conn, value: dict[str, Any]) -> None:
+def _process_whatsapp_change(conn, value: dict[str, Any], raw_body: bytes, signature_header: str) -> None:
     messages = value.get('messages') or []
     if not messages:
         return
@@ -145,6 +161,8 @@ def _process_whatsapp_change(conn, value: dict[str, Any]) -> None:
     integration = find_integration(conn, 'whatsapp', phone_number_id)
     if not integration:
         return
+    if not _signature_ok(get_app_secret(integration), raw_body, signature_header):
+        return
     contacts = value.get('contacts') or []
     contact_name = ''
     if contacts and isinstance(contacts[0], dict):
@@ -152,6 +170,8 @@ def _process_whatsapp_change(conn, value: dict[str, Any]) -> None:
 
     for msg in messages:
         if not isinstance(msg, dict) or msg.get('type') != 'text':
+            continue
+        if not mark_message_seen(conn, str(msg.get('id') or '')):
             continue
         text = str((msg.get('text') or {}).get('body') or '').strip()
         wa_id = str(msg.get('from') or '').strip()
@@ -164,18 +184,22 @@ def _process_whatsapp_change(conn, value: dict[str, Any]) -> None:
         )
 
 
-def _process_instagram_entry(conn, entry: dict[str, Any]) -> None:
+def _process_instagram_entry(conn, entry: dict[str, Any], raw_body: bytes, signature_header: str) -> None:
     ig_account_id = str(entry.get('id') or '')
     if not ig_account_id:
         return
     integration = find_integration(conn, 'instagram', ig_account_id)
     if not integration:
         return
+    if not _signature_ok(get_app_secret(integration), raw_body, signature_header):
+        return
     for event in (entry.get('messaging') or []):
         if not isinstance(event, dict):
             continue
         message = event.get('message') or {}
         if not isinstance(message, dict) or message.get('is_echo'):
+            continue
+        if not mark_message_seen(conn, str(message.get('mid') or '')):
             continue
         text = str(message.get('text') or '').strip()
         sender_id = str((event.get('sender') or {}).get('id') or '').strip()
@@ -200,6 +224,8 @@ def verify_meta_webhook():
 
 @webhook_bp.post('/meta')
 def receive_meta_webhook():
+    raw_body = request.get_data()
+    signature_header = request.headers.get('X-Hub-Signature-256', '')
     payload = request.get_json(silent=True) or {}
     object_type = payload.get('object')
     entries = payload.get('entry') or []
@@ -212,9 +238,9 @@ def receive_meta_webhook():
                 if object_type == 'whatsapp_business_account':
                     for change in (entry.get('changes') or []):
                         if isinstance(change, dict):
-                            _process_whatsapp_change(conn, change.get('value') or {})
+                            _process_whatsapp_change(conn, change.get('value') or {}, raw_body, signature_header)
                 elif object_type == 'instagram':
-                    _process_instagram_entry(conn, entry)
+                    _process_instagram_entry(conn, entry, raw_body, signature_header)
             except Exception:
                 # Best-effort: одна зіпсована подія не повинна валити решту
                 # вебхука (Meta ретраїть non-200 відповіді — тут завжди 200).

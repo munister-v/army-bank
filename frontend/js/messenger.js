@@ -1452,6 +1452,9 @@ function integrationCardHtml(item) {
           <div class="integration-card-display">${escHtml(item.display_label || item.external_id)}</div>
           <div class="integration-card-token">Token: ${escHtml(item.token_preview)}</div>
           ${hasError ? '<div class="integration-card-error">Останню перевірку не пройдено — перевірте токен.</div>' : ''}
+          <div class="integration-card-sig ${item.signature_verified ? 'ok' : 'warn'}">
+            ${item.signature_verified ? '🔒 Підпис вебхука перевіряється' : '⚠️ Підпис не перевіряється — додайте App Secret'}
+          </div>
         </div>
         <div class="integration-card-actions">
           <button type="button" class="integration-check-btn">Перевірити</button>
@@ -1461,6 +1464,7 @@ function integrationCardHtml(item) {
         <form class="integration-connect-form">
           <input class="integration-input-id" placeholder="${meta.idLabel}" autocomplete="off" required/>
           <input class="integration-input-token" type="password" placeholder="Access Token" autocomplete="off" required/>
+          <input class="integration-input-secret" type="password" placeholder="App Secret (опційно, для перевірки підпису)" autocomplete="off"/>
           <button type="submit" class="btn-primary">Підключити</button>
         </form>
       `}
@@ -1487,6 +1491,7 @@ function renderIntegrationsGrid(items) {
         e.preventDefault();
         const idVal = card.querySelector('.integration-input-id')?.value.trim();
         const tokenVal = card.querySelector('.integration-input-token')?.value.trim();
+        const secretVal = card.querySelector('.integration-input-secret')?.value.trim();
         if (!idVal || !tokenVal) return;
         const submitBtn = form.querySelector('button[type="submit"]');
         if (submitBtn) submitBtn.disabled = true;
@@ -1495,6 +1500,7 @@ function renderIntegrationsGrid(items) {
             manager,
             [meta.idField]: idVal,
             access_token: tokenVal,
+            app_secret: secretVal || '',
           });
           showToast(`${meta.label} підключено для ${card.querySelector('.integration-card-manager')?.textContent || manager}.`);
           openIntegrationsView();

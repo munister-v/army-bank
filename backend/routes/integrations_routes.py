@@ -61,6 +61,31 @@ def _ensure_schema() -> None:
             'CREATE INDEX IF NOT EXISTS idx_manager_integrations_lookup '
             'ON manager_integrations(channel, external_id)'
         )
+        # app_secret (Meta App Secret) — потрібен для перевірки підпису вхідних
+        # вебхуків (X-Hub-Signature-256). Опційний: без нього вебхук продовжує
+        # приймати повідомлення для цього підключення, але без криптографічної
+        # гарантії, що вони справді від Meta, а не від когось, хто вгадав
+        # phone_number_id/ig_user_id.
+        # SQLite's ALTER TABLE ADD COLUMN has no IF NOT EXISTS clause (unlike
+        # Postgres) — guard manually via PRAGMA table_info.
+        if USE_PG:
+            conn.execute('ALTER TABLE manager_integrations ADD COLUMN IF NOT EXISTS app_secret TEXT')
+        else:
+            existing_cols = {r['name'] for r in conn.execute('PRAGMA table_info(manager_integrations)').fetchall()}
+            if 'app_secret' not in existing_cols:
+                conn.execute('ALTER TABLE manager_integrations ADD COLUMN app_secret TEXT')
+
+        # Дедуп вхідних подій вебхука: Meta повторно доставляє подію, якщо ми
+        # не встигли відповісти 200 вчасно — без цього повторна доставка
+        # створювала б дублікат повідомлення в чаті ліда.
+        conn.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS webhook_seen_messages (
+                message_id VARCHAR(120) PRIMARY KEY,
+                created_at TIMESTAMP NOT NULL DEFAULT {now_sql}
+            )
+            """
+        )
 
 
 def webhook_verify_token() -> str:
@@ -104,7 +129,29 @@ def _row_payload(row: dict[str, Any]) -> dict[str, Any]:
         'status': row['status'],
         'token_preview': _mask_token(row['access_token']),
         'connected_at': str(row.get('connected_at') or ''),
+        'signature_verified': bool(row.get('app_secret')),
     }
+
+
+def get_app_secret(row: dict[str, Any]) -> str:
+    return decrypt_message(row.get('app_secret') or '', fallback='')
+
+
+def mark_message_seen(conn, message_id: str) -> bool:
+    """Перевіряє й позначає подію оброблено. True — вперше (обробляти), False —
+    вже бачили (Meta ретраїть недоставлені 200 — просто ігноруємо повторно).
+
+    Check-then-insert замість INSERT + ловити UniqueViolation: у Postgres
+    невіловлений constraint-error псує решту транзакції вебхука."""
+    if not message_id:
+        return True
+    existing = conn.execute(
+        'SELECT 1 FROM webhook_seen_messages WHERE message_id = %s', (message_id,)
+    ).fetchone()
+    if existing:
+        return False
+    conn.execute('INSERT INTO webhook_seen_messages (message_id) VALUES (%s)', (message_id,))
+    return True
 
 
 @integrations_bp.get('')
@@ -161,6 +208,7 @@ def connect_whatsapp():
     manager = str(body.get('manager') or '').strip()
     phone_number_id = str(body.get('phone_number_id') or '').strip()
     access_token = str(body.get('access_token') or '').strip()
+    app_secret = str(body.get('app_secret') or '').strip()
 
     if manager not in MANAGERS:
         return api_error('Невідомий менеджер.', 400)
@@ -173,7 +221,7 @@ def connect_whatsapp():
         return api_error(f'Не вдалося підключити WhatsApp: {exc.message}', 400)
 
     display_label = info.get('verified_name') or info.get('display_phone_number') or phone_number_id
-    _upsert(manager, 'whatsapp', phone_number_id, access_token, display_label)
+    _upsert(manager, 'whatsapp', phone_number_id, access_token, display_label, app_secret)
     with get_connection() as conn:
         row = get_integration(conn, manager, 'whatsapp')
     return jsonify({'ok': True, 'data': _row_payload(row)})
@@ -188,6 +236,7 @@ def connect_instagram():
     manager = str(body.get('manager') or '').strip()
     ig_user_id = str(body.get('ig_user_id') or '').strip()
     access_token = str(body.get('access_token') or '').strip()
+    app_secret = str(body.get('app_secret') or '').strip()
 
     if manager not in MANAGERS:
         return api_error('Невідомий менеджер.', 400)
@@ -200,14 +249,16 @@ def connect_instagram():
         return api_error(f'Не вдалося підключити Instagram: {exc.message}', 400)
 
     display_label = (f"@{info['username']}" if info.get('username') else '') or info.get('name') or ig_user_id
-    _upsert(manager, 'instagram', ig_user_id, access_token, display_label)
+    _upsert(manager, 'instagram', ig_user_id, access_token, display_label, app_secret)
     with get_connection() as conn:
         row = get_integration(conn, manager, 'instagram')
     return jsonify({'ok': True, 'data': _row_payload(row)})
 
 
-def _upsert(manager: str, channel: str, external_id: str, access_token: str, display_label: str) -> None:
+def _upsert(manager: str, channel: str, external_id: str, access_token: str, display_label: str,
+            app_secret: str = '') -> None:
     encrypted = encrypt_message(access_token)
+    encrypted_secret = encrypt_message(app_secret) if app_secret else None
     with get_connection() as conn:
         existing = conn.execute(
             'SELECT id FROM manager_integrations WHERE manager = %s AND channel = %s',
@@ -218,18 +269,18 @@ def _upsert(manager: str, channel: str, external_id: str, access_token: str, dis
                 f"""
                 UPDATE manager_integrations
                 SET external_id = %s, access_token = %s, display_label = %s,
-                    status = 'connected', updated_at = {_now_sql()}
+                    app_secret = %s, status = 'connected', updated_at = {_now_sql()}
                 WHERE id = %s
                 """,
-                (external_id, encrypted, display_label, existing['id']),
+                (external_id, encrypted, display_label, encrypted_secret, existing['id']),
             )
         else:
             conn.execute(
                 'INSERT INTO manager_integrations '
-                '(manager, channel, external_id, access_token, display_label, status) '
-                "VALUES (%s, %s, %s, %s, %s, 'connected')"
+                '(manager, channel, external_id, access_token, display_label, app_secret, status) '
+                "VALUES (%s, %s, %s, %s, %s, %s, 'connected')"
                 + get_returning_id_suffix(),
-                (manager, channel, external_id, encrypted, display_label),
+                (manager, channel, external_id, encrypted, display_label, encrypted_secret),
             )
 
 
