@@ -1,0 +1,224 @@
+"""Публічний вебхук для вхідних подій Meta (WhatsApp Cloud API / Instagram
+Messaging). Кожен менеджер сам реєструє цей URL + verify-token у своєму Meta
+App/Business кабінеті (див. ARM CRM → «Інтеграції» → «Webhook»); ARM CRM сам
+приймає та розкладає вхідні повідомлення по відповідних лідах.
+
+Без @auth_required — Meta не має Bearer-токена ARM CRM. Захист — verify-token
+на GET-хендшейку (Meta вимагає його один раз при підписці) та те, що ми лише
+читаємо/створюємо ліди, нічого руйнівного тут немає.
+"""
+from __future__ import annotations
+
+from datetime import date
+from typing import Any
+
+from flask import Blueprint, Response, jsonify, request
+
+from ..database import get_connection
+from ..services.messenger_crypto import encrypt_message
+from ..utils.security import hash_password
+from .helpers import api_error
+from .integrations_routes import find_integration, webhook_verify_token
+from .leads_routes import _ensure_schema as _ensure_leads_schema
+from .leads_routes import _get_or_create_lead_conversation, _log_activity, _next_lead_id
+
+webhook_bp = Blueprint('webhooks', __name__, url_prefix='/api/webhooks')
+
+_CONTACT_ROLE = 'channel_contact'
+_CONTACT_PHONE = '+380990000002'
+_CONTACT_EMAIL = 'channel.contact@army-bank.bot'
+_CONTACT_NAME = 'Клієнт (месенджер)'
+_CONTACT_PASSWORD = 'army-bank-channel-contact-system-only'
+
+
+def _now_sql() -> str:
+    from ..config import USE_PG
+    return 'NOW()' if USE_PG else 'CURRENT_TIMESTAMP'
+
+
+def _get_or_create_contact_user(conn) -> int:
+    """Один спільний синтетичний користувач-«клієнт» для всіх вхідних
+    WhatsApp/Instagram повідомлень — той самий трюк, що й Army Bank Assistant
+    у messenger_routes.py: інший users.id => рендериться як «them»-бульбашка."""
+    existing = conn.execute(
+        'SELECT id FROM users WHERE role = %s OR phone = %s OR LOWER(email) = LOWER(%s) LIMIT 1',
+        (_CONTACT_ROLE, _CONTACT_PHONE, _CONTACT_EMAIL),
+    ).fetchone()
+    if existing:
+        return int(existing['id'])
+
+    from ..config import USE_PG
+    pwd_hash = hash_password(_CONTACT_PASSWORD)
+    if USE_PG:
+        row = conn.execute(
+            """
+            INSERT INTO users(full_name, phone, email, password_hash, role)
+            VALUES(%s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (_CONTACT_NAME, _CONTACT_PHONE, _CONTACT_EMAIL, pwd_hash, _CONTACT_ROLE),
+        ).fetchone()
+        return int(row['id'])
+    conn.execute(
+        'INSERT INTO users(full_name, phone, email, password_hash, role) VALUES(%s, %s, %s, %s, %s)',
+        (_CONTACT_NAME, _CONTACT_PHONE, _CONTACT_EMAIL, pwd_hash, _CONTACT_ROLE),
+    )
+    return int(conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id'])
+
+
+def _first_admin_id(conn) -> int | None:
+    row = conn.execute(
+        "SELECT id FROM users WHERE role IN ('admin', 'platform_admin') ORDER BY id ASC LIMIT 1"
+    ).fetchone()
+    return int(row['id']) if row else None
+
+
+def _find_or_create_lead(conn, *, manager: str, channel_field: str, contact_value: str,
+                          contact_name: str, primary_channel: str) -> int:
+    row = conn.execute(
+        f'SELECT id FROM leads WHERE {channel_field} = %s AND owner = %s LIMIT 1',
+        (contact_value, manager),
+    ).fetchone()
+    if row:
+        return int(row['id'])
+
+    lead_id = _next_lead_id(conn)
+    business_name = contact_name.strip() or contact_value
+    from ..config import USE_PG
+    cols = [
+        'lead_id', 'business_name', 'owner', 'pipeline', 'stage', 'priority',
+        'outreach_status', 'reply_status', 'primary_channel', channel_field,
+        'source_bucket', 'messenger_note',
+    ]
+    values = [
+        lead_id, business_name, manager, 'Inbound', 'New', 'Medium',
+        'Message sent', 'Replied', primary_channel, contact_value,
+        f'inbound_{channel_field}', f'Вхідне звернення через {primary_channel}',
+    ]
+    placeholders = ', '.join(['%s'] * len(cols))
+    if USE_PG:
+        cur = conn.execute(
+            f"INSERT INTO leads ({', '.join(cols)}) VALUES ({placeholders}) RETURNING id",
+            values,
+        )
+        return int(cur.fetchone()['id'])
+    conn.execute(f"INSERT INTO leads ({', '.join(cols)}) VALUES ({placeholders})", values)
+    return int(conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id'])
+
+
+def _ingest_inbound_text(conn, *, manager: str, channel_field: str, contact_value: str,
+                          contact_name: str, primary_channel: str, text: str, channel_label: str) -> None:
+    _ensure_leads_schema()
+    admin_id = _first_admin_id(conn)
+    if not admin_id:
+        return
+    lead_id = _find_or_create_lead(
+        conn, manager=manager, channel_field=channel_field, contact_value=contact_value,
+        contact_name=contact_name, primary_channel=primary_channel,
+    )
+    conv_id = _get_or_create_lead_conversation(conn, lead_id, admin_id)
+    contact_user_id = _get_or_create_contact_user(conn)
+
+    conn.execute(
+        'INSERT INTO messages (conversation_id, sender_id, text, msg_type) VALUES (%s, %s, %s, %s)',
+        (conv_id, contact_user_id, encrypt_message(text), 'text'),
+    )
+    conn.execute(
+        f'UPDATE conversations SET last_message_at = {_now_sql()}, last_message_text = %s WHERE id = %s',
+        (text[:180], conv_id),
+    )
+    conn.execute(
+        f"UPDATE leads SET outreach_status = 'Replied', reply_status = 'Replied', "
+        f'last_touch_date = %s, updated_at = {_now_sql()} WHERE id = %s',
+        (date.today().isoformat(), lead_id),
+    )
+    _log_activity(conn, lead_id, f'Клієнт ({channel_label})', 'note', text)
+
+
+def _process_whatsapp_change(conn, value: dict[str, Any]) -> None:
+    messages = value.get('messages') or []
+    if not messages:
+        return
+    phone_number_id = str((value.get('metadata') or {}).get('phone_number_id') or '')
+    if not phone_number_id:
+        return
+    integration = find_integration(conn, 'whatsapp', phone_number_id)
+    if not integration:
+        return
+    contacts = value.get('contacts') or []
+    contact_name = ''
+    if contacts and isinstance(contacts[0], dict):
+        contact_name = str((contacts[0].get('profile') or {}).get('name') or '')
+
+    for msg in messages:
+        if not isinstance(msg, dict) or msg.get('type') != 'text':
+            continue
+        text = str((msg.get('text') or {}).get('body') or '').strip()
+        wa_id = str(msg.get('from') or '').strip()
+        if not text or not wa_id:
+            continue
+        _ingest_inbound_text(
+            conn, manager=integration['manager'], channel_field='whatsapp_viber',
+            contact_value=wa_id, contact_name=contact_name, primary_channel='WhatsApp',
+            text=text, channel_label='WhatsApp',
+        )
+
+
+def _process_instagram_entry(conn, entry: dict[str, Any]) -> None:
+    ig_account_id = str(entry.get('id') or '')
+    if not ig_account_id:
+        return
+    integration = find_integration(conn, 'instagram', ig_account_id)
+    if not integration:
+        return
+    for event in (entry.get('messaging') or []):
+        if not isinstance(event, dict):
+            continue
+        message = event.get('message') or {}
+        if not isinstance(message, dict) or message.get('is_echo'):
+            continue
+        text = str(message.get('text') or '').strip()
+        sender_id = str((event.get('sender') or {}).get('id') or '').strip()
+        if not text or not sender_id:
+            continue
+        _ingest_inbound_text(
+            conn, manager=integration['manager'], channel_field='instagram',
+            contact_value=sender_id, contact_name='', primary_channel='Instagram',
+            text=text, channel_label='Instagram',
+        )
+
+
+@webhook_bp.get('/meta')
+def verify_meta_webhook():
+    mode = request.args.get('hub.mode')
+    token = request.args.get('hub.verify_token')
+    challenge = request.args.get('hub.challenge', '')
+    if mode == 'subscribe' and token == webhook_verify_token():
+        return Response(challenge, status=200, mimetype='text/plain')
+    return api_error('Verify token mismatch.', 403)
+
+
+@webhook_bp.post('/meta')
+def receive_meta_webhook():
+    payload = request.get_json(silent=True) or {}
+    object_type = payload.get('object')
+    entries = payload.get('entry') or []
+
+    with get_connection() as conn:
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            try:
+                if object_type == 'whatsapp_business_account':
+                    for change in (entry.get('changes') or []):
+                        if isinstance(change, dict):
+                            _process_whatsapp_change(conn, change.get('value') or {})
+                elif object_type == 'instagram':
+                    _process_instagram_entry(conn, entry)
+            except Exception:
+                # Best-effort: одна зіпсована подія не повинна валити решту
+                # вебхука (Meta ретраїть non-200 відповіді — тут завжди 200).
+                continue
+
+    # Meta вимагає швидку відповідь 200, інакше повторюватиме доставку.
+    return jsonify({'ok': True})

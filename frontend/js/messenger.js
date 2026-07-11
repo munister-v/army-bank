@@ -331,6 +331,12 @@ const leadsKanbanColumnsEl = $('leads-kanban-columns');
 const btnKanbanBack = $('btn-kanban-back');
 const leadsKanbanEntry = $('leads-kanban-entry');
 
+const btnIntegrations = $('btn-integrations');
+const integrationsView = $('integrations-view');
+const btnIntegrationsBack = $('btn-integrations-back');
+const integrationsWebhookCard = $('integrations-webhook-card');
+const integrationsGridEl = $('integrations-grid');
+
 // ════════════════════════════════════════════
 // API helper
 // ════════════════════════════════════════════
@@ -1356,6 +1362,153 @@ function closeLeadsKanban() {
   if (chatEmpty) chatEmpty.hidden = false;
 }
 
+// ════════════════════════════════════════════
+// Integrations: self-serve WhatsApp/Instagram per manager
+// ════════════════════════════════════════════
+const INTEGRATIONS_CHANNEL_META = {
+  whatsapp: { label: 'WhatsApp', icon: '💬', idLabel: 'Phone Number ID', idField: 'phone_number_id', idPlaceholder: 'Напр. 109876543210987' },
+  instagram: { label: 'Instagram', icon: '📷', idLabel: 'Instagram User ID', idField: 'ig_user_id', idPlaceholder: 'Напр. 178414...' },
+};
+
+async function openIntegrationsView() {
+  if (!integrationsView) return;
+  if (window.innerWidth <= 720) sidebar.classList.add('hidden');
+  activeConvId = null;
+  activePartner = null;
+  clearInterval(convPollTimer);
+  if (chatEmpty) chatEmpty.hidden = true;
+  if (chatView) chatView.hidden = true;
+  if (leadInfoBanner) leadInfoBanner.hidden = true;
+  if (leadsKanbanView) leadsKanbanView.hidden = true;
+  integrationsView.hidden = false;
+  if (integrationsGridEl) integrationsGridEl.innerHTML = '<p class="leads-empty">Завантаження…</p>';
+  try {
+    const [list, webhook] = await Promise.all([
+      api('GET', '/integrations'),
+      api('GET', '/integrations/webhook-info'),
+    ]);
+    renderIntegrationsWebhookCard(webhook);
+    renderIntegrationsGrid(list);
+  } catch (err) {
+    if (integrationsGridEl) integrationsGridEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Не вдалося завантажити інтеграції.')}</p>`;
+  }
+}
+
+function closeIntegrationsView() {
+  if (window.innerWidth <= 720) sidebar.classList.remove('hidden');
+  if (integrationsView) integrationsView.hidden = true;
+  if (chatEmpty) chatEmpty.hidden = false;
+}
+
+function renderIntegrationsWebhookCard(info) {
+  if (!integrationsWebhookCard) return;
+  integrationsWebhookCard.innerHTML = `
+    <div class="mono-label">Webhook для Meta (WhatsApp/Instagram)</div>
+    <div class="integrations-webhook-row">
+      <span class="integrations-webhook-label">Callback URL</span>
+      <code class="integrations-webhook-value">${escHtml(info.webhook_url)}</code>
+      <button type="button" class="integrations-copy-btn" data-copy="${escHtml(info.webhook_url)}">Копіювати</button>
+    </div>
+    <div class="integrations-webhook-row">
+      <span class="integrations-webhook-label">Verify token</span>
+      <code class="integrations-webhook-value">${escHtml(info.verify_token)}</code>
+      <button type="button" class="integrations-copy-btn" data-copy="${escHtml(info.verify_token)}">Копіювати</button>
+    </div>
+    <p class="integrations-webhook-hint">Ці два значення менеджер вставляє у свій Meta App → Webhooks при підписці на WhatsApp/Instagram.</p>
+  `;
+  integrationsWebhookCard.querySelectorAll('.integrations-copy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copy || '');
+        showToast('Скопійовано.');
+      } catch {
+        showToast('Не вдалося скопіювати.', true);
+      }
+    });
+  });
+}
+
+function integrationCardHtml(item) {
+  const meta = INTEGRATIONS_CHANNEL_META[item.channel];
+  const connected = item.status === 'connected';
+  return `
+    <div class="integration-card" data-manager="${escHtml(item.manager)}" data-channel="${escHtml(item.channel)}">
+      <div class="integration-card-top">
+        <span class="mono-label">${meta.icon} ${meta.label}</span>
+        <span class="integration-status-dot ${connected ? 'on' : 'off'}" title="${connected ? 'Підключено' : 'Не підключено'}"></span>
+      </div>
+      <div class="integration-card-manager">${escHtml(item.manager_label)}</div>
+      ${connected ? `
+        <div class="integration-card-connected">
+          <div class="integration-card-display">${escHtml(item.display_label || item.external_id)}</div>
+          <div class="integration-card-token">Token: ${escHtml(item.token_preview)}</div>
+        </div>
+        <button type="button" class="integration-disconnect-btn">Відключити</button>
+      ` : `
+        <form class="integration-connect-form">
+          <input class="integration-input-id" placeholder="${meta.idLabel}" autocomplete="off" required/>
+          <input class="integration-input-token" type="password" placeholder="Access Token" autocomplete="off" required/>
+          <button type="submit" class="btn-primary">Підключити</button>
+        </form>
+      `}
+    </div>
+  `;
+}
+
+function renderIntegrationsGrid(items) {
+  if (!integrationsGridEl) return;
+  if (!items || !items.length) {
+    integrationsGridEl.innerHTML = '<p class="leads-empty">Немає даних.</p>';
+    return;
+  }
+  integrationsGridEl.innerHTML = items.map(integrationCardHtml).join('');
+
+  integrationsGridEl.querySelectorAll('.integration-card').forEach(card => {
+    const manager = card.dataset.manager;
+    const channel = card.dataset.channel;
+    const meta = INTEGRATIONS_CHANNEL_META[channel];
+
+    const form = card.querySelector('.integration-connect-form');
+    if (form) {
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+        const idVal = card.querySelector('.integration-input-id')?.value.trim();
+        const tokenVal = card.querySelector('.integration-input-token')?.value.trim();
+        if (!idVal || !tokenVal) return;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
+        try {
+          await api('POST', `/integrations/${channel}`, {
+            manager,
+            [meta.idField]: idVal,
+            access_token: tokenVal,
+          });
+          showToast(`${meta.label} підключено для ${card.querySelector('.integration-card-manager')?.textContent || manager}.`);
+          openIntegrationsView();
+        } catch (err) {
+          showToast(err.message || 'Не вдалося підключити.', true);
+          if (submitBtn) submitBtn.disabled = false;
+        }
+      });
+    }
+
+    const disconnectBtn = card.querySelector('.integration-disconnect-btn');
+    if (disconnectBtn) {
+      disconnectBtn.addEventListener('click', async () => {
+        disconnectBtn.disabled = true;
+        try {
+          await api('DELETE', `/integrations/${manager}/${channel}`);
+          showToast('Відключено.');
+          openIntegrationsView();
+        } catch (err) {
+          showToast(err.message || 'Не вдалося відключити.', true);
+          disconnectBtn.disabled = false;
+        }
+      });
+    }
+  });
+}
+
 function leadsKanbanCardHtml(lead, stageOptions) {
   const optSel = stageOptions.map(s =>
     `<option value="${escHtml(s)}" ${s === lead.stage ? 'selected' : ''}>${escHtml(leadsLabel(LEADS_STAGE_LABELS, s))}</option>`
@@ -1508,6 +1661,11 @@ if (btnLeadCreateSave) btnLeadCreateSave.addEventListener('click', saveNewLead);
 if (btnLeadsExport) btnLeadsExport.addEventListener('click', exportLeadsCsv);
 if (leadsKanbanEntry) leadsKanbanEntry.addEventListener('click', openLeadsKanban);
 if (btnKanbanBack) btnKanbanBack.addEventListener('click', closeLeadsKanban);
+if (btnIntegrations) btnIntegrations.addEventListener('click', () => {
+  if (integrationsView && !integrationsView.hidden) closeIntegrationsView();
+  else openIntegrationsView();
+});
+if (btnIntegrationsBack) btnIntegrationsBack.addEventListener('click', closeIntegrationsView);
 if (leadCreateModal) {
   leadCreateModal.addEventListener('click', e => { if (e.target === leadCreateModal) closeLeadCreateModal(); });
 }
@@ -1800,6 +1958,7 @@ function showApp() {
   if (me && topbarAvatar) topbarAvatar.textContent = initial(me.full_name);
   const isLeadsAdmin = ['admin', 'platform_admin'].includes(me?.role);
   if (btnLeads) btnLeads.hidden = !isLeadsAdmin;
+  if (btnIntegrations) btnIntegrations.hidden = !isLeadsAdmin;
   if (isLeadsAdmin) loadLeadsStats().catch(() => {});
   updateNetworkPill();
   ensureMessengerBankStatus().catch(() => {});
@@ -2049,6 +2208,7 @@ async function openChat(conv) {
   // (the chat input bar floating above the board).
   if (leadsKanbanView) leadsKanbanView.hidden = true;
   if (leadsKanbanEntry) leadsKanbanEntry.classList.remove('active');
+  if (integrationsView) integrationsView.hidden = true;
 
   chatEmpty.hidden = true;
   chatView.hidden  = false;

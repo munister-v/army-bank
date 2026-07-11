@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=59"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=61"/>
 </head>
 <body>
 
@@ -146,6 +146,13 @@
             <line x1="7" y1="16.5" x2="11" y2="16.5"/>
           </svg>
           <span class="badge" id="leads-due-badge" hidden></span>
+        </button>
+        <button class="icon-btn" id="btn-integrations" title="Інтеграції · WhatsApp/Instagram" type="button" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="20" height="20">
+            <path d="M12 2a5 5 0 015 5v2a5 5 0 01-10 0V7a5 5 0 015-5z"/>
+            <path d="M4.5 10.5v1a7.5 7.5 0 0015 0v-1"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
         </button>
         <button class="icon-btn" id="btn-leads-export" title="Експорт CSV" type="button" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="18" height="18">
@@ -407,6 +414,25 @@
         </div>
       </div>
       <div class="leads-kanban-columns" id="leads-kanban-columns"></div>
+    </div>
+
+    <!-- Integrations: self-serve WhatsApp/Instagram connection per manager -->
+    <div id="integrations-view" hidden>
+      <div class="leads-thread-header">
+        <button class="icon-btn back-btn" id="btn-integrations-back" title="Назад" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <div class="leads-thread-info">
+          <div class="leads-thread-name">🔌 Інтеграції</div>
+          <div class="leads-thread-sub">Кожен менеджер підключає свій WhatsApp Business / Instagram</div>
+        </div>
+      </div>
+      <div class="integrations-body" id="integrations-body">
+        <div class="integrations-webhook-card" id="integrations-webhook-card"></div>
+        <div class="integrations-grid" id="integrations-grid"></div>
+      </div>
     </div>
 
   </main>
@@ -776,6 +802,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=59"></script>
+<script src="/js/messenger.js?v=61"></script>
 </body>
 </html>

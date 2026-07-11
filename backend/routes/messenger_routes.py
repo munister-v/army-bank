@@ -21,8 +21,10 @@ from ..services.messenger_crypto import (
     deleted_message_text,
     encrypt_message,
 )
+from ..services.meta_api import MetaApiError, send_instagram_text, send_whatsapp_text
 from ..utils.security import hash_password
 from .helpers import api_error, auth_required
+from .integrations_routes import get_integration
 from .leads_routes import _log_activity as _log_lead_activity
 from .push_routes import send_push
 
@@ -355,6 +357,47 @@ def _money_fmt(amount: float) -> str:
 
 def _period_label(from_date: str, to_date: str) -> str:
     return f'{from_date} → {to_date}'
+
+
+def _try_send_via_channel(conn, lead_id: int, text: str) -> None:
+    """Якщо лід прийшов через WhatsApp/Instagram і менеджер-власник ліда
+    підключив свій канал у «Інтеграції» — реально надсилає відповідь через
+    Meta Graph API від його імені. Best-effort: збій відправки не повинен
+    ламати сам чат, лише лишає слід у лог ліда."""
+    lead = conn.execute(
+        'SELECT owner, primary_channel, phone, whatsapp_viber, instagram FROM leads WHERE id = %s',
+        (lead_id,),
+    ).fetchone()
+    if not lead:
+        return
+    lead = dict(lead)
+    channel = (lead.get('primary_channel') or '').strip().lower()
+    owner = lead.get('owner') or ''
+
+    if channel == 'whatsapp':
+        to = (lead.get('whatsapp_viber') or lead.get('phone') or '').strip()
+        if not to:
+            return
+        integration = get_integration(conn, owner, 'whatsapp')
+        if not integration:
+            return
+        token = decrypt_message(integration['access_token'], fallback='')
+        try:
+            send_whatsapp_text(integration['external_id'], token, to, text)
+        except MetaApiError as exc:
+            _log_lead_activity(conn, lead_id, 'ARM CRM', 'system', f'Не вдалося надіслати у WhatsApp: {exc.message}')
+    elif channel == 'instagram':
+        to = (lead.get('instagram') or '').strip()
+        if not to:
+            return
+        integration = get_integration(conn, owner, 'instagram')
+        if not integration:
+            return
+        token = decrypt_message(integration['access_token'], fallback='')
+        try:
+            send_instagram_text(integration['external_id'], token, to, text)
+        except MetaApiError as exc:
+            _log_lead_activity(conn, lead_id, 'ARM CRM', 'system', f'Не вдалося надіслати в Instagram: {exc.message}')
 
 
 def _get_or_create_assistant_user(conn) -> int:
@@ -1405,6 +1448,8 @@ def send_message(conv_id: int):
                 f'UPDATE leads SET last_touch_date = %s, updated_at = {_now_sql()} WHERE id = %s',
                 (date.today().isoformat(), int(lead_id)),
             )
+            if msg_type == 'text':
+                _try_send_via_channel(conn, int(lead_id), text)
 
         participant_rows = conn.execute(
             """

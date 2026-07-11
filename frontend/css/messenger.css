@@ -2883,3 +2883,66 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 .leads-card-name-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .leads-card-preview { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
 .leads-card-badges { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+
+/* ════════════════════════════════════════════
+   Integrations: self-serve WhatsApp/Instagram per manager
+════════════════════════════════════════════ */
+#integrations-view { display: flex; flex-direction: column; height: 100%; }
+.integrations-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+.integrations-webhook-card {
+  background: var(--surface-2); border: 1px solid var(--border-soft); border-radius: 16px;
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow-soft);
+}
+.integrations-webhook-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: #fff; border: 1px solid var(--border-soft); border-radius: 10px; padding: 8px 10px;
+}
+.integrations-webhook-label { font-size: 11.5px; font-weight: 700; color: var(--text-2); flex-shrink: 0; min-width: 96px; }
+.integrations-webhook-value {
+  flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 12px; color: var(--ink);
+  overflow-x: auto; white-space: nowrap;
+}
+.integrations-copy-btn {
+  flex-shrink: 0; border: 1px solid var(--border); background: #fff; color: var(--ink);
+  border-radius: var(--radius-pill); padding: 5px 12px; font-size: 11.5px; font-weight: 700; cursor: pointer;
+  transition: background .15s;
+}
+.integrations-copy-btn:hover { background: var(--blue-light); }
+.integrations-webhook-hint { font-size: 12px; color: var(--text-2); line-height: 1.5; margin: 0; }
+
+.integrations-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px;
+}
+.integration-card {
+  background: #fff; border: 1px solid var(--border-soft); border-radius: 16px; padding: 14px;
+  display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow-soft);
+  transition: box-shadow .15s, transform .12s;
+}
+.integration-card:hover { box-shadow: var(--shadow-pop); transform: translateY(-1px); }
+.integration-card-top { display: flex; align-items: center; justify-content: space-between; }
+.integration-status-dot {
+  width: 9px; height: 9px; border-radius: 999px; background: #cbd5c9;
+  box-shadow: 0 0 0 3px rgba(148,163,184,.16);
+}
+.integration-status-dot.on { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,.16); }
+.integration-status-dot.off { background: #94a3b8; }
+.integration-card-manager { font-size: 15px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); }
+.integration-card-connected { display: flex; flex-direction: column; gap: 2px; }
+.integration-card-display { font-size: 13px; font-weight: 700; color: var(--text); }
+.integration-card-token { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-2); }
+.integration-connect-form { display: flex; flex-direction: column; gap: 8px; }
+.integration-input-id, .integration-input-token {
+  width: 100%; background: #f7f5f0; border: 1.5px solid transparent; border-radius: 10px;
+  padding: 9px 11px; color: var(--ink); font-family: var(--font); font-size: 13px; font-weight: 600; outline: none;
+  transition: border-color .15s, background .15s;
+}
+.integration-input-id::placeholder, .integration-input-token::placeholder { color: var(--muted); font-weight: 500; }
+.integration-input-id:focus, .integration-input-token:focus { background: #fff; border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-dim); }
+.integration-connect-form .btn-primary { padding: 10px; font-size: 13.5px; }
+.integration-disconnect-btn {
+  border: 1px solid rgba(220,38,38,.25); background: rgba(220,38,38,.06); color: #b43646;
+  border-radius: var(--radius-pill); padding: 9px; font-size: 13px; font-weight: 700; cursor: pointer;
+  box-shadow: none; transition: background .15s;
+}
+.integration-disconnect-btn:hover { background: rgba(220,38,38,.12); }
