@@ -2883,6 +2883,7 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 .leads-card-name-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .leads-card-preview { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
 .leads-card-badges { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+.lead-channel-icon { margin-right: 5px; font-size: 12px; vertical-align: -1px; }
 
 /* ════════════════════════════════════════════
    Integrations: self-serve WhatsApp/Instagram per manager
@@ -2927,10 +2928,20 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 }
 .integration-status-dot.on { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,.16); }
 .integration-status-dot.off { background: #94a3b8; }
+.integration-status-dot.error { background: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.16); }
 .integration-card-manager { font-size: 15px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); }
 .integration-card-connected { display: flex; flex-direction: column; gap: 2px; }
 .integration-card-display { font-size: 13px; font-weight: 700; color: var(--text); }
 .integration-card-token { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-2); }
+.integration-card-error { font-size: 11.5px; color: #b43646; margin-top: 4px; }
+.integration-card-actions { display: flex; gap: 8px; }
+.integration-check-btn {
+  flex: 1; border: 1px solid var(--border); background: #fff; color: var(--ink);
+  border-radius: var(--radius-pill); padding: 9px; font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: background .15s;
+}
+.integration-check-btn:hover { background: var(--blue-light); }
+.integration-card-actions .integration-disconnect-btn { flex: 1; }
 .integration-connect-form { display: flex; flex-direction: column; gap: 8px; }
 .integration-input-id, .integration-input-token {
   width: 100%; background: #f7f5f0; border: 1.5px solid transparent; border-radius: 10px;

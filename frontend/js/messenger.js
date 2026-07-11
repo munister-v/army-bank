@@ -1115,6 +1115,13 @@ async function loadLeadsStats() {
   }
 }
 
+function channelIcon(primaryChannel) {
+  const ch = (primaryChannel || '').trim().toLowerCase();
+  if (ch === 'whatsapp') return '<span class="lead-channel-icon" title="WhatsApp">💬</span>';
+  if (ch === 'instagram') return '<span class="lead-channel-icon" title="Instagram">📷</span>';
+  return '';
+}
+
 function leadCardHtml(lead) {
   const loc = [lead.city_area, lead.country].filter(Boolean).join(', ');
   const preview = [lead.category, loc].filter(Boolean).join(' · ') || 'Немає деталей';
@@ -1130,7 +1137,7 @@ function leadCardHtml(lead) {
       <div class="conv-avatar">${escHtml(initial(lead.business_name || '?'))}</div>
       <div class="leads-card-body">
         <div class="leads-card-name-row">
-          <span class="conv-name">${escHtml(lead.business_name || '')}</span>
+          <span class="conv-name">${channelIcon(lead.primary_channel)}${escHtml(lead.business_name || '')}</span>
           <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority))}</span>
         </div>
         <div class="leads-card-preview">${escHtml(preview)}</div>
@@ -1430,20 +1437,26 @@ function renderIntegrationsWebhookCard(info) {
 
 function integrationCardHtml(item) {
   const meta = INTEGRATIONS_CHANNEL_META[item.channel];
-  const connected = item.status === 'connected';
+  const hasError = item.status === 'error';
+  const connected = item.status === 'connected' || hasError;
+  const dotTitle = hasError ? 'Помилка — токен міг протухнути' : (connected ? 'Підключено' : 'Не підключено');
   return `
     <div class="integration-card" data-manager="${escHtml(item.manager)}" data-channel="${escHtml(item.channel)}">
       <div class="integration-card-top">
         <span class="mono-label">${meta.icon} ${meta.label}</span>
-        <span class="integration-status-dot ${connected ? 'on' : 'off'}" title="${connected ? 'Підключено' : 'Не підключено'}"></span>
+        <span class="integration-status-dot ${hasError ? 'error' : (connected ? 'on' : 'off')}" title="${dotTitle}"></span>
       </div>
       <div class="integration-card-manager">${escHtml(item.manager_label)}</div>
       ${connected ? `
         <div class="integration-card-connected">
           <div class="integration-card-display">${escHtml(item.display_label || item.external_id)}</div>
           <div class="integration-card-token">Token: ${escHtml(item.token_preview)}</div>
+          ${hasError ? '<div class="integration-card-error">Останню перевірку не пройдено — перевірте токен.</div>' : ''}
         </div>
-        <button type="button" class="integration-disconnect-btn">Відключити</button>
+        <div class="integration-card-actions">
+          <button type="button" class="integration-check-btn">Перевірити</button>
+          <button type="button" class="integration-disconnect-btn">Відключити</button>
+        </div>
       ` : `
         <form class="integration-connect-form">
           <input class="integration-input-id" placeholder="${meta.idLabel}" autocomplete="off" required/>
@@ -1492,6 +1505,22 @@ function renderIntegrationsGrid(items) {
       });
     }
 
+    const checkBtn = card.querySelector('.integration-check-btn');
+    if (checkBtn) {
+      checkBtn.addEventListener('click', async () => {
+        checkBtn.disabled = true;
+        checkBtn.textContent = 'Перевіряю…';
+        try {
+          await api('POST', `/integrations/${manager}/${channel}/check`);
+          showToast('Підключення робоче.');
+          openIntegrationsView();
+        } catch (err) {
+          showToast(err.message || 'Перевірка не пройшла.', true);
+          openIntegrationsView();
+        }
+      });
+    }
+
     const disconnectBtn = card.querySelector('.integration-disconnect-btn');
     if (disconnectBtn) {
       disconnectBtn.addEventListener('click', async () => {
@@ -1515,7 +1544,7 @@ function leadsKanbanCardHtml(lead, stageOptions) {
   ).join('');
   return `
     <div class="leads-kanban-card" data-lead-id="${lead.id}">
-      <div class="leads-kanban-card-name">${escHtml(lead.business_name || '')}</div>
+      <div class="leads-kanban-card-name">${channelIcon(lead.primary_channel)}${escHtml(lead.business_name || '')}</div>
       <div class="leads-kanban-card-owner">
         <span class="leads-badge leads-badge-owner-${escHtml(leadsSlug(lead.owner))}">${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner) || '—')}</span>
         <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority))}</span>

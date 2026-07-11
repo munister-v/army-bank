@@ -233,6 +233,51 @@ def _upsert(manager: str, channel: str, external_id: str, access_token: str, dis
             )
 
 
+@integrations_bp.post('/<manager>/<channel>/check')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def check_connection(manager: str, channel: str):
+    """Повторно перевіряє вже збережений токен реальним запитом до Meta —
+    для випадку, коли токен протух (тимчасові токени живуть 24 год)."""
+    _ensure_schema()
+    if manager not in MANAGERS or channel not in CHANNELS:
+        return api_error('Невідомий менеджер/канал.', 400)
+    with get_connection() as conn:
+        row = conn.execute(
+            'SELECT * FROM manager_integrations WHERE manager = %s AND channel = %s',
+            (manager, channel),
+        ).fetchone()
+    if not row:
+        return api_error('Підключення не знайдено.', 404)
+    row = dict(row)
+    token = decrypt_message(row['access_token'], fallback='')
+
+    try:
+        if channel == 'whatsapp':
+            info = verify_whatsapp_number(row['external_id'], token)
+            display_label = info.get('verified_name') or info.get('display_phone_number') or row['external_id']
+        else:
+            info = verify_instagram_account(row['external_id'], token)
+            display_label = (f"@{info['username']}" if info.get('username') else '') or info.get('name') or row['external_id']
+    except MetaApiError as exc:
+        with get_connection() as conn:
+            conn.execute(
+                f"UPDATE manager_integrations SET status = 'error', updated_at = {_now_sql()} "
+                'WHERE manager = %s AND channel = %s',
+                (manager, channel),
+            )
+        return api_error(f'Перевірка не пройшла: {exc.message}', 400)
+
+    with get_connection() as conn:
+        conn.execute(
+            f"UPDATE manager_integrations SET display_label = %s, status = 'connected', updated_at = {_now_sql()} "
+            'WHERE manager = %s AND channel = %s',
+            (display_label, manager, channel),
+        )
+        updated = get_integration(conn, manager, channel)
+    return jsonify({'ok': True, 'data': _row_payload(updated)})
+
+
 @integrations_bp.delete('/<manager>/<channel>')
 @auth_required
 @role_required(*_ADMIN_ROLES)
