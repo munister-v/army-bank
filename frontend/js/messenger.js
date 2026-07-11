@@ -6,7 +6,11 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '55';
+const MESSENGER_ASSET_VERSION = '56';
+// Мають точно збігатися з _SAVED_MESSAGES_NAME/_SCHEDULER_NAME у backend/routes/messenger_routes.py
+const SAVED_MESSAGES_NAME = '🔖 Збережені повідомлення';
+const SCHEDULER_NAME = '📅 Планувальник';
+const SELF_CHAT_NAMES = [SAVED_MESSAGES_NAME, SCHEDULER_NAME];
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const BANK_TOKEN_KEY = 'army_bank_token';
@@ -24,9 +28,11 @@ const DEFAULT_CALL_PREFS = Object.freeze({
 });
 
 // ── Auth state ─────────────────────────────
-let token = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(BANK_TOKEN_KEY) || null;
-let me    = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
-if (token && !localStorage.getItem(TOKEN_KEY)) {
+// "Запам'ятати пароль" вимкнено → сесія лежить у sessionStorage (зникає з
+// закриттям вкладки), увімкнено (за замовчуванням) → у localStorage, як і раніше.
+let token = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(BANK_TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || null;
+let me    = JSON.parse(localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY) || 'null');
+if (token && !localStorage.getItem(TOKEN_KEY) && !sessionStorage.getItem(TOKEN_KEY)) {
   localStorage.setItem(TOKEN_KEY, token);
 }
 if (token) {
@@ -166,6 +172,7 @@ const appEl             = $('app');
 const loginForm         = $('login-form');
 const authIdentity      = $('auth-identity');
 const authPassword      = $('auth-password');
+const authRememberMe    = $('auth-remember');
 const authError         = $('auth-error');
 const btnLogin          = $('btn-login');
 const btnLoginText      = $('btn-login-text');
@@ -1662,9 +1669,16 @@ function applyAuthPayload(data) {
   token = data?.token || null;
   me = data?.user || null;
   if (!token || !me) throw new Error('Некоректна відповідь сервера авторизації.');
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(BANK_TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(me));
+  const remember = !authRememberMe || authRememberMe.checked;
+  const store = remember ? localStorage : sessionStorage;
+  const other = remember ? sessionStorage : localStorage;
+  store.setItem(TOKEN_KEY, token);
+  store.setItem(BANK_TOKEN_KEY, token);
+  store.setItem(USER_KEY, JSON.stringify(me));
+  // Прибираємо сліди з іншого сховища, щоб не лишався застарілий токен від попереднього вибору.
+  other.removeItem(TOKEN_KEY);
+  other.removeItem(BANK_TOKEN_KEY);
+  other.removeItem(USER_KEY);
   const linked = me?.bank_account_linked !== false;
   bankProfileLinked = linked;
   if (data?.bank_notice) showToast(data.bank_notice);
@@ -1750,6 +1764,9 @@ function doLogout() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(BANK_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(BANK_TOKEN_KEY);
+  sessionStorage.removeItem(USER_KEY);
   clearPolling();
   clearInterval(incomingCheckTimer);
   hideIncoming();
@@ -2005,12 +2022,15 @@ async function openChat(conv) {
 
   const isGroup = !!conv.is_group;
   const isAssistant = !isGroup && isAssistantPartner(conv.partner);
+  const isSelfChat = SELF_CHAT_NAMES.includes(conv.group_name);
   const name    = convName(conv);
   chatAvatar.innerHTML = isAssistant ? assistantGlyphMarkup() : esc(initial(name));
   chatAvatar.className = 'chat-header-avatar' + (isGroup ? ' group' : '') + (isAssistant ? ' assistant' : '');
   chatPartnerName.classList.toggle('with-verified', isAssistant);
   chatPartnerName.innerHTML = renderNameWithVerified(name, isAssistant);
-  if (isGroup) {
+  if (isSelfChat) {
+    setChatHeaderStatus('Особисті нотатки · тільки ви');
+  } else if (isGroup) {
     setChatHeaderStatus('Групова розмова');
   } else if (isAssistant) {
     setChatHeaderStatus('Банківський асистент · Швидкі дії зверху');
@@ -2018,10 +2038,10 @@ async function openChat(conv) {
     updateActivePartnerPresenceStatus();
   }
   syncAssistantUi(isAssistant);
-  if (btnCall) btnCall.hidden = isAssistant;
+  if (btnCall) btnCall.hidden = isAssistant || isSelfChat;
   if (btnCall) btnCall.title = isGroup ? 'Груповий дзвінок' : 'Голосовий дзвінок';
   const groupInfoBtn = document.getElementById('group-info-btn');
-  if (groupInfoBtn) groupInfoBtn.hidden = !isGroup;
+  if (groupInfoBtn) groupInfoBtn.hidden = !isGroup || isSelfChat;
   if (groupPanelOpen) closeGroupPanel();
 
   chatEmpty.hidden = true;

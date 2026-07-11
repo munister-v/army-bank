@@ -88,6 +88,111 @@ def _ensure_general_conversation(me_id: int) -> int:
     return conv_id
 
 
+# Особисті "чати-нотатники": лише сам користувач як учасник. Один і той самий
+# механізм використовується і для "Збережених повідомлень" (як Saved Messages
+# у Telegram), і для "Планувальника" — розпізнаються за назвою групи + рівно
+# одним учасником, щоб не перетнутись з якоюсь чужою групою з такою ж назвою.
+_SAVED_MESSAGES_NAME = '🔖 Збережені повідомлення'
+_SCHEDULER_NAME = '📅 Планувальник'
+_SCHEDULER_DIGEST_TAG = '📋 Нагадування на '
+
+
+def _ensure_self_conversation(me_id: int, name: str) -> int:
+    _true = True if USE_PG else 1
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT c.id FROM conversations c
+            JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = %s
+            WHERE c.is_group = %s AND c.group_name = %s
+              AND (SELECT COUNT(*) FROM conversation_participants cp2 WHERE cp2.conversation_id = c.id) = 1
+            LIMIT 1
+            """,
+            (me_id, _true, name),
+        ).fetchone()
+        if row:
+            return int(row['id'])
+
+        if USE_PG:
+            cur = conn.execute(
+                'INSERT INTO conversations(is_group, group_name) VALUES(%s,%s) RETURNING id',
+                (_true, name),
+            )
+            conv_id = int(cur.fetchone()['id'])
+        else:
+            conn.execute(
+                'INSERT INTO conversations(is_group, group_name) VALUES(%s,%s)',
+                (1, name),
+            )
+            conv_id = int(conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id'])
+        conn.execute(
+            'INSERT INTO conversation_participants(conversation_id, user_id) VALUES(%s,%s)',
+            (conv_id, me_id),
+        )
+    return conv_id
+
+
+# list_conversations() опитується фронтендом кожні ~20-30с; без цього кешу
+# _maybe_post_scheduler_digest бив би в БД (messages + leads) щоразу, хоча
+# реально постити треба один раз на день. gunicorn тут піднято з -w 1
+# (один воркер), тому простий процесний dict безпечний.
+_scheduler_digest_checked_on: dict[int, str] = {}
+
+
+def _maybe_post_scheduler_digest(me_id: int, conv_id: int, role: str) -> None:
+    """Раз на день підкидає в 'Планувальник' нагадування про прострочені
+    фоллоу-апи лідів. Лише для admin/platform_admin — у інших немає доступу
+    до CRM-лідів. Ідемпотентно: перевіряє, чи вже постили сьогодні."""
+    if role not in ('admin', 'platform_admin'):
+        return
+    from datetime import date
+    today_iso = date.today().isoformat()
+    if _scheduler_digest_checked_on.get(me_id) == today_iso:
+        return
+    from .leads_routes import _ensure_schema as _ensure_leads_schema
+    _ensure_leads_schema()
+    with get_connection() as conn:
+        # Дивимось на останні N повідомлень, а не лише останнє — інакше якщо
+        # менеджер щось напише в Планувальнику ПІСЛЯ дайджесту, наступне
+        # відкриття месенджера того ж дня продублює дайджест.
+        recent = conn.execute(
+            'SELECT text, created_at FROM messages WHERE conversation_id = %s ORDER BY id DESC LIMIT 20',
+            (conv_id,),
+        ).fetchall()
+        already_posted_today = any(
+            str(r.get('created_at') or '')[:10] == today_iso
+            and str(r.get('text') or '').startswith(_SCHEDULER_DIGEST_TAG)
+            for r in (recent or [])
+        )
+        if already_posted_today:
+            _scheduler_digest_checked_on[me_id] = today_iso
+            return
+
+        due = conn.execute(
+            "SELECT business_name, next_followup_date FROM leads "
+            "WHERE next_followup_date IS NOT NULL AND next_followup_date != '' AND next_followup_date <= %s "
+            "ORDER BY next_followup_date ASC LIMIT 25",
+            (today_iso,),
+        ).fetchall()
+        if due:
+            lines = [f'{_SCHEDULER_DIGEST_TAG}{today_iso}:'] + [
+                f"• {d['business_name']} — фоллоу-ап {d['next_followup_date']}" for d in due
+            ]
+        else:
+            lines = [f'{_SCHEDULER_DIGEST_TAG}{today_iso}: прострочених фоллоу-апів немає 🎉']
+        digest_text = '\n'.join(lines)
+
+        conn.execute(
+            'INSERT INTO messages (conversation_id, sender_id, text, msg_type) VALUES (%s, %s, %s, %s)',
+            (conv_id, me_id, digest_text, 'text'),
+        )
+        conn.execute(
+            f'UPDATE conversations SET last_message_at = {_now_sql()}, last_message_text = %s WHERE id = %s',
+            (lines[0][:180], conv_id),
+        )
+    _scheduler_digest_checked_on[me_id] = today_iso
+
+
 # ── Допоміжні функції ────────────────────────────────────────────────────────
 
 def _now_sql():
@@ -1027,6 +1132,9 @@ def list_conversations():
         if _ASSISTANT_FEATURE_ENABLED:
             assistant_conv_id, _assistant_id = _ensure_default_assistant_conversation(int(me_id))
         general_conv_id = _ensure_general_conversation(int(me_id))
+        saved_conv_id = _ensure_self_conversation(int(me_id), _SAVED_MESSAGES_NAME)
+        scheduler_conv_id = _ensure_self_conversation(int(me_id), _SCHEDULER_NAME)
+        _maybe_post_scheduler_digest(int(me_id), scheduler_conv_id, str(g.current_user.get('role') or '').lower())
     except Exception as exc:
         return api_error(str(exc), 409)
     with get_connection() as conn:
@@ -1043,6 +1151,8 @@ def list_conversations():
 
     result = []
     general_summary = None
+    saved_summary = None
+    scheduler_summary = None
     seen: set[int] = set()
     for row in rows:
         conv_id = int(row['conversation_id'])
@@ -1058,6 +1168,12 @@ def list_conversations():
         if conv_id == general_conv_id:
             general_summary = summary
             continue
+        if conv_id == saved_conv_id:
+            saved_summary = summary
+            continue
+        if conv_id == scheduler_conv_id:
+            scheduler_summary = summary
+            continue
         result.append(summary)
 
     if _ASSISTANT_FEATURE_ENABLED and assistant_conv_id and assistant_conv_id not in seen:
@@ -1065,7 +1181,12 @@ def list_conversations():
         if summary:
             result.append(summary)
 
-    # Загальний чат завжди першим у списку.
+    # Фіксований порядок закріплених системних чатів: Загальний чат, Збережені
+    # повідомлення, Планувальник — решта за часом останнього повідомлення.
+    if scheduler_summary:
+        result.insert(0, scheduler_summary)
+    if saved_summary:
+        result.insert(0, saved_summary)
     if general_summary:
         result.insert(0, general_summary)
 

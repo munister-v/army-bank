@@ -158,6 +158,12 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 .field-input::placeholder { color: var(--muted); }
 .field-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-dim); }
 
+.field-checkbox-row {
+  display: flex; align-items: center; gap: 8px; margin: -8px 0 18px;
+  font-size: 13.5px; color: var(--text-2); cursor: pointer; user-select: none;
+}
+.field-checkbox-row input { width: 16px; height: 16px; accent-color: var(--blue); cursor: pointer; }
+
 .field-password-wrap { position: relative; }
 .field-password-wrap .field-input { padding-right: 48px; }
 .btn-eye {
