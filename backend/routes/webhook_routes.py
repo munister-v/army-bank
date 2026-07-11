@@ -124,7 +124,6 @@ def _find_or_create_lead(conn, *, manager: str, channel_field: str, contact_valu
 
 def _ingest_inbound_text(conn, *, manager: str, channel_field: str, contact_value: str,
                           contact_name: str, primary_channel: str, text: str, channel_label: str) -> None:
-    _ensure_leads_schema()
     admin_id = _first_admin_id(conn)
     if not admin_id:
         return
@@ -224,6 +223,12 @@ def verify_meta_webhook():
 
 @webhook_bp.post('/meta')
 def receive_meta_webhook():
+    # Ensure the leads schema exists BEFORE opening our own connection below —
+    # _ensure_leads_schema() opens its own `with get_connection()` internally,
+    # and SQLite doesn't like a second write connection while the first is
+    # still mid-transaction (raises "database is locked").
+    _ensure_leads_schema()
+
     raw_body = request.get_data()
     signature_header = request.headers.get('X-Hub-Signature-256', '')
     payload = request.get_json(silent=True) or {}
