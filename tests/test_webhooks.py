@@ -14,6 +14,7 @@ import pytest
 
 from backend.repositories.user_repository import UserRepository
 import backend.routes.integrations_routes as integrations_routes
+import backend.routes.webhook_routes as webhook_routes
 
 
 def _rand_uid():
@@ -180,3 +181,62 @@ def test_inbound_for_unknown_phone_number_id_is_ignored(client):
     payload = _wa_payload('9999999999', '380990009999', 'wamid.Z1', 'Хто це?')
     r = client.post('/api/webhooks/meta', json=payload)
     assert r.status_code == 200
+
+
+# ── Inbound image messages ──────────────────────────────────────────────────
+
+def _wa_image_payload(phone_number_id: str, wa_id: str, msg_id: str, media_id: str,
+                       name: str = 'Клієнт Тест') -> dict:
+    return {
+        'object': 'whatsapp_business_account',
+        'entry': [{
+            'id': 'WABA_ID',
+            'changes': [{
+                'value': {
+                    'messaging_product': 'whatsapp',
+                    'metadata': {'display_phone_number': '+1', 'phone_number_id': phone_number_id},
+                    'contacts': [{'profile': {'name': name}, 'wa_id': wa_id}],
+                    'messages': [{'from': wa_id, 'id': msg_id, 'timestamp': '1', 'type': 'image',
+                                  'image': {'id': media_id, 'mime_type': 'image/jpeg'}}],
+                },
+                'field': 'messages',
+            }],
+        }],
+    }
+
+
+def test_inbound_image_downloads_and_stores_as_image_message(client, admin_headers, monkeypatch):
+    _connect_whatsapp(client, admin_headers, monkeypatch, phone_number_id='7000006')
+    monkeypatch.setattr(
+        webhook_routes, 'fetch_whatsapp_media',
+        lambda media_id, token: (b'\xff\xd8\xff-fake-jpeg-bytes', 'image/jpeg'),
+    )
+    payload = _wa_image_payload('7000006', '380990006666', 'wamid.F1', 'media-abc123')
+
+    r = client.post('/api/webhooks/meta', json=payload)
+    assert r.status_code == 200
+
+    lead = _lead_exists(client, admin_headers, whatsapp_viber='380990006666')
+    assert lead is not None
+
+    thread = client.get(f"/api/leads/{lead['id']}/conversation", headers=admin_headers).get_json()['data']
+    conv_id = thread['conversation_id']
+    messages = client.get(f'/api/messenger/conversations/{conv_id}/messages', headers=admin_headers).get_json()['data']
+    image_msgs = [m for m in messages if m.get('msg_type') == 'image']
+    assert len(image_msgs) == 1
+    body = json.loads(image_msgs[0]['text'])
+    assert body['items'][0]['mime'] == 'image/jpeg'
+    assert body['items'][0]['data']  # base64 payload present
+
+
+def test_inbound_image_download_failure_does_not_crash_webhook(client, admin_headers, monkeypatch):
+    _connect_whatsapp(client, admin_headers, monkeypatch, phone_number_id='7000007')
+
+    def fail(media_id, token):
+        raise webhook_routes.MetaApiError('media expired')
+    monkeypatch.setattr(webhook_routes, 'fetch_whatsapp_media', fail)
+
+    payload = _wa_image_payload('7000007', '380990007777', 'wamid.G1', 'media-expired')
+    r = client.post('/api/webhooks/meta', json=payload)
+    assert r.status_code == 200
+    assert _lead_exists(client, admin_headers, whatsapp_viber='380990007777') is None

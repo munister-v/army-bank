@@ -97,6 +97,32 @@ def send_whatsapp_text(phone_number_id: str, access_token: str, to: str, text: s
     return _graph_post(f'{phone_number_id.strip()}/messages', access_token.strip(), payload)
 
 
+def fetch_whatsapp_media(media_id: str, access_token: str, max_bytes: int = 1_000_000) -> tuple[bytes, str]:
+    """Завантажує медіафайл (фото тощо), на яке лише посилається вебхук
+    (msg.image.id) — Meta не надсилає байти файлу напряму. Два кроки:
+    1) дізнатись тимчасовий url+mime_type за media_id, 2) завантажити url
+    з тим самим access_token в заголовку Authorization (не query-параметром).
+
+    max_bytes захищає чат від збереження величезних файлів (той самий ліміт
+    за духом, що й у ручному завантаженні фото через messenger_routes.py).
+    """
+    info = _graph_get(media_id.strip(), access_token.strip(), params={'fields': 'url,mime_type'})
+    url = info.get('url')
+    mime_type = info.get('mime_type') or 'application/octet-stream'
+    if not url:
+        raise MetaApiError('Медіафайл не знайдено (Meta не повернула url).')
+    try:
+        resp = requests.get(url, headers={'Authorization': f'Bearer {access_token.strip()}'}, timeout=_TIMEOUT)
+    except requests.RequestException as exc:
+        raise MetaApiError(f"Не вдалося завантажити медіафайл: {exc}") from exc
+    if resp.status_code >= 400:
+        raise MetaApiError(f'Не вдалося завантажити медіафайл (HTTP {resp.status_code}).')
+    content = resp.content
+    if len(content) > max_bytes:
+        raise MetaApiError('Медіафайл завеликий для збереження в чаті.')
+    return content, mime_type
+
+
 def send_instagram_text(ig_user_id: str, access_token: str, recipient_id: str, text: str) -> dict:
     """Надсилає текстове повідомлення через Instagram Messaging API."""
     payload = {

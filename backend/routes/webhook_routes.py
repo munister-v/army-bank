@@ -9,15 +9,18 @@ App/Business кабінеті (див. ARM CRM → «Інтеграції» → 
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
+import json
 from datetime import date
 from typing import Any
 
 from flask import Blueprint, Response, jsonify, request
 
 from ..database import get_connection
-from ..services.messenger_crypto import encrypt_message
+from ..services.messenger_crypto import decrypt_message, encrypt_message
+from ..services.meta_api import MetaApiError, fetch_whatsapp_media
 from ..utils.security import hash_password
 from .helpers import api_error
 from .integrations_routes import find_integration, get_app_secret, mark_message_seen, webhook_verify_token
@@ -122,8 +125,11 @@ def _find_or_create_lead(conn, *, manager: str, channel_field: str, contact_valu
     return int(conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id'])
 
 
-def _ingest_inbound_text(conn, *, manager: str, channel_field: str, contact_value: str,
-                          contact_name: str, primary_channel: str, text: str, channel_label: str) -> None:
+def _ingest_inbound_message(conn, *, manager: str, channel_field: str, contact_value: str,
+                             contact_name: str, primary_channel: str, msg_type: str,
+                             stored_text: str, preview: str, channel_label: str) -> None:
+    """Спільна частина для текстових і медіа-повідомлень: знайти/створити ліда,
+    його розмову, синтетичного «клієнта»-відправника, вставити повідомлення."""
     admin_id = _first_admin_id(conn)
     if not admin_id:
         return
@@ -136,18 +142,41 @@ def _ingest_inbound_text(conn, *, manager: str, channel_field: str, contact_valu
 
     conn.execute(
         'INSERT INTO messages (conversation_id, sender_id, text, msg_type) VALUES (%s, %s, %s, %s)',
-        (conv_id, contact_user_id, encrypt_message(text), 'text'),
+        (conv_id, contact_user_id, stored_text, msg_type),
     )
     conn.execute(
         f'UPDATE conversations SET last_message_at = {_now_sql()}, last_message_text = %s WHERE id = %s',
-        (text[:180], conv_id),
+        (preview[:180], conv_id),
     )
     conn.execute(
         f"UPDATE leads SET outreach_status = 'Replied', reply_status = 'Replied', "
         f'last_touch_date = %s, updated_at = {_now_sql()} WHERE id = %s',
         (date.today().isoformat(), lead_id),
     )
-    _log_activity(conn, lead_id, f'Клієнт ({channel_label})', 'note', text)
+    _log_activity(conn, lead_id, f'Клієнт ({channel_label})', 'note', preview)
+
+
+def _ingest_inbound_text(conn, *, manager: str, channel_field: str, contact_value: str,
+                          contact_name: str, primary_channel: str, text: str, channel_label: str) -> None:
+    _ingest_inbound_message(
+        conn, manager=manager, channel_field=channel_field, contact_value=contact_value,
+        contact_name=contact_name, primary_channel=primary_channel, msg_type='text',
+        stored_text=encrypt_message(text), preview=text, channel_label=channel_label,
+    )
+
+
+def _ingest_inbound_image(conn, *, manager: str, channel_field: str, contact_value: str,
+                           contact_name: str, primary_channel: str, image_bytes: bytes,
+                           mime_type: str, channel_label: str) -> None:
+    payload = json.dumps({
+        'v': 1,
+        'items': [{'mime': mime_type, 'data': base64.b64encode(image_bytes).decode('ascii')}],
+    }, ensure_ascii=False, separators=(',', ':'))
+    _ingest_inbound_message(
+        conn, manager=manager, channel_field=channel_field, contact_value=contact_value,
+        contact_name=contact_name, primary_channel=primary_channel, msg_type='image',
+        stored_text=encrypt_message(payload), preview='🖼️ Фото', channel_label=channel_label,
+    )
 
 
 def _process_whatsapp_change(conn, value: dict[str, Any], raw_body: bytes, signature_header: str) -> None:
@@ -168,13 +197,34 @@ def _process_whatsapp_change(conn, value: dict[str, Any], raw_body: bytes, signa
         contact_name = str((contacts[0].get('profile') or {}).get('name') or '')
 
     for msg in messages:
-        if not isinstance(msg, dict) or msg.get('type') != 'text':
+        if not isinstance(msg, dict) or msg.get('type') not in ('text', 'image'):
             continue
         if not mark_message_seen(conn, str(msg.get('id') or '')):
             continue
-        text = str((msg.get('text') or {}).get('body') or '').strip()
         wa_id = str(msg.get('from') or '').strip()
-        if not text or not wa_id:
+        if not wa_id:
+            continue
+
+        if msg.get('type') == 'image':
+            media_id = str((msg.get('image') or {}).get('id') or '')
+            if not media_id:
+                continue
+            token = decrypt_message(integration['access_token'], fallback='')
+            try:
+                image_bytes, mime_type = fetch_whatsapp_media(media_id, token)
+            except MetaApiError:
+                # Медіа не вдалося завантажити (протух токен, файл видалено
+                # тощо) — краще пропустити цю подію, ніж завалити весь вебхук.
+                continue
+            _ingest_inbound_image(
+                conn, manager=integration['manager'], channel_field='whatsapp_viber',
+                contact_value=wa_id, contact_name=contact_name, primary_channel='WhatsApp',
+                image_bytes=image_bytes, mime_type=mime_type, channel_label='WhatsApp',
+            )
+            continue
+
+        text = str((msg.get('text') or {}).get('body') or '').strip()
+        if not text:
             continue
         _ingest_inbound_text(
             conn, manager=integration['manager'], channel_field='whatsapp_viber',
