@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '56';
+const MESSENGER_ASSET_VERSION = '57';
 // Мають точно збігатися з _SAVED_MESSAGES_NAME/_SCHEDULER_NAME у backend/routes/messenger_routes.py
 const SAVED_MESSAGES_NAME = '🔖 Збережені повідомлення';
 const SCHEDULER_NAME = '📅 Планувальник';
@@ -2043,6 +2043,12 @@ async function openChat(conv) {
   const groupInfoBtn = document.getElementById('group-info-btn');
   if (groupInfoBtn) groupInfoBtn.hidden = !isGroup || isSelfChat;
   if (groupPanelOpen) closeGroupPanel();
+
+  // Opening any chat must dismiss the Kanban board — otherwise tapping a lead
+  // card while the board is open leaves both stacked in the flex column
+  // (the chat input bar floating above the board).
+  if (leadsKanbanView) leadsKanbanView.hidden = true;
+  if (leadsKanbanEntry) leadsKanbanEntry.classList.remove('active');
 
   chatEmpty.hidden = true;
   chatView.hidden  = false;
