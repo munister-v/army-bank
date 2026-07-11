@@ -20,7 +20,7 @@ from flask import Blueprint, Response, jsonify, request
 
 from ..database import get_connection
 from ..services.messenger_crypto import decrypt_message, encrypt_message
-from ..services.meta_api import MetaApiError, fetch_whatsapp_media
+from ..services.meta_api import MetaApiError, fetch_attachment_url, fetch_whatsapp_media
 from ..utils.security import hash_password
 from .helpers import api_error
 from .integrations_routes import find_integration, get_app_secret, mark_message_seen, webhook_verify_token
@@ -250,9 +250,31 @@ def _process_instagram_entry(conn, entry: dict[str, Any], raw_body: bytes, signa
             continue
         if not mark_message_seen(conn, str(message.get('mid') or '')):
             continue
-        text = str(message.get('text') or '').strip()
         sender_id = str((event.get('sender') or {}).get('id') or '').strip()
-        if not text or not sender_id:
+        if not sender_id:
+            continue
+
+        attachments = message.get('attachments') or []
+        image_attachment = next(
+            (a for a in attachments if isinstance(a, dict) and a.get('type') == 'image'), None,
+        )
+        if image_attachment:
+            url = str((image_attachment.get('payload') or {}).get('url') or '')
+            if not url:
+                continue
+            try:
+                image_bytes, mime_type = fetch_attachment_url(url)
+            except MetaApiError:
+                continue
+            _ingest_inbound_image(
+                conn, manager=integration['manager'], channel_field='instagram',
+                contact_value=sender_id, contact_name='', primary_channel='Instagram',
+                image_bytes=image_bytes, mime_type=mime_type, channel_label='Instagram',
+            )
+            continue
+
+        text = str(message.get('text') or '').strip()
+        if not text:
             continue
         _ingest_inbound_text(
             conn, manager=integration['manager'], channel_field='instagram',

@@ -54,6 +54,33 @@ def _connect_whatsapp(client, admin_headers, monkeypatch, *, phone_number_id, ma
     assert r.status_code == 200, r.get_json()
 
 
+def _connect_instagram(client, admin_headers, monkeypatch, *, ig_user_id, manager='Manager 1', app_secret=''):
+    monkeypatch.setattr(
+        integrations_routes, 'verify_instagram_account',
+        lambda uid, tok: {'username': 'test.shop', 'name': 'Test Shop'},
+    )
+    body = {'manager': manager, 'ig_user_id': ig_user_id, 'access_token': 'ig-tok-123'}
+    if app_secret:
+        body['app_secret'] = app_secret
+    r = client.post('/api/integrations/instagram', headers=admin_headers, json=body)
+    assert r.status_code == 200, r.get_json()
+
+
+def _ig_payload(ig_account_id: str, sender_id: str, mid: str, *, text: str = '', image_url: str = '') -> dict:
+    message: dict = {'mid': mid}
+    if image_url:
+        message['attachments'] = [{'type': 'image', 'payload': {'url': image_url}}]
+    else:
+        message['text'] = text
+    return {
+        'object': 'instagram',
+        'entry': [{
+            'id': ig_account_id,
+            'messaging': [{'sender': {'id': sender_id}, 'recipient': {'id': ig_account_id}, 'message': message}],
+        }],
+    }
+
+
 def _wa_payload(phone_number_id: str, wa_id: str, msg_id: str, text: str, name: str = 'Клієнт Тест') -> dict:
     return {
         'object': 'whatsapp_business_account',
@@ -82,6 +109,12 @@ def _lead_exists(client, admin_headers, *, whatsapp_viber):
     r = client.get('/api/leads?per_page=200', headers=admin_headers)
     items = r.get_json()['data']['items']
     return next((i for i in items if i['whatsapp_viber'] == whatsapp_viber), None)
+
+
+def _lead_exists_by_instagram(client, admin_headers, *, instagram):
+    r = client.get('/api/leads?per_page=200', headers=admin_headers)
+    items = r.get_json()['data']['items']
+    return next((i for i in items if i['instagram'] == instagram), None)
 
 
 # ── GET handshake ────────────────────────────────────────────────────────────
@@ -240,3 +273,55 @@ def test_inbound_image_download_failure_does_not_crash_webhook(client, admin_hea
     r = client.post('/api/webhooks/meta', json=payload)
     assert r.status_code == 200
     assert _lead_exists(client, admin_headers, whatsapp_viber='380990007777') is None
+
+
+# ── Instagram text + image ──────────────────────────────────────────────────
+
+def test_instagram_text_creates_lead(client, admin_headers, monkeypatch):
+    _connect_instagram(client, admin_headers, monkeypatch, ig_user_id='ig-1000001')
+    payload = _ig_payload('ig-1000001', 'psid-2000001', 'mid.A1', text='Скільки коштує доставка?')
+
+    r = client.post('/api/webhooks/meta', json=payload)
+    assert r.status_code == 200
+
+    lead = _lead_exists_by_instagram(client, admin_headers, instagram='psid-2000001')
+    assert lead is not None
+    assert lead['owner'] == 'Manager 1'
+    assert lead['primary_channel'] == 'Instagram'
+
+
+def test_instagram_image_attachment_downloads_and_stores(client, admin_headers, monkeypatch):
+    _connect_instagram(client, admin_headers, monkeypatch, ig_user_id='ig-1000002', manager='Manager 2')
+    monkeypatch.setattr(
+        webhook_routes, 'fetch_attachment_url',
+        lambda url, max_bytes=1_000_000: (b'\x89PNG-fake-bytes', 'image/png'),
+    )
+    payload = _ig_payload('ig-1000002', 'psid-2000002', 'mid.B1',
+                           image_url='https://cdn.example.com/fake-photo.png')
+
+    r = client.post('/api/webhooks/meta', json=payload)
+    assert r.status_code == 200
+
+    lead = _lead_exists_by_instagram(client, admin_headers, instagram='psid-2000002')
+    assert lead is not None
+    assert lead['owner'] == 'Manager 2'
+
+    thread = client.get(f"/api/leads/{lead['id']}/conversation", headers=admin_headers).get_json()['data']
+    conv_id = thread['conversation_id']
+    messages = client.get(f'/api/messenger/conversations/{conv_id}/messages', headers=admin_headers).get_json()['data']
+    image_msgs = [m for m in messages if m.get('msg_type') == 'image']
+    assert len(image_msgs) == 1
+    body = json.loads(image_msgs[0]['text'])
+    assert body['items'][0]['mime'] == 'image/png'
+
+
+def test_instagram_echo_messages_are_ignored(client, admin_headers, monkeypatch):
+    """Instagram/Messenger echoes back the manager's own outbound sends —
+    these must not be re-ingested as if the customer said them."""
+    _connect_instagram(client, admin_headers, monkeypatch, ig_user_id='ig-1000003')
+    payload = _ig_payload('ig-1000003', 'psid-2000003', 'mid.C1', text='Дякую!')
+    payload['entry'][0]['messaging'][0]['message']['is_echo'] = True
+
+    r = client.post('/api/webhooks/meta', json=payload)
+    assert r.status_code == 200
+    assert _lead_exists_by_instagram(client, admin_headers, instagram='psid-2000003') is None

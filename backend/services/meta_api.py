@@ -123,6 +123,24 @@ def fetch_whatsapp_media(media_id: str, access_token: str, max_bytes: int = 1_00
     return content, mime_type
 
 
+def fetch_attachment_url(url: str, max_bytes: int = 1_000_000) -> tuple[bytes, str]:
+    """Завантажує вкладення за прямим CDN-посиланням — так Instagram Messaging
+    API віддає фото (message.attachments[].payload.url), на відміну від
+    WhatsApp, де спершу треба резолвити media_id через Graph API. Посилання
+    вже підписане Meta, окремий Authorization-заголовок не потрібен."""
+    try:
+        resp = requests.get(url, timeout=_TIMEOUT)
+    except requests.RequestException as exc:
+        raise MetaApiError(f"Не вдалося завантажити вкладення: {exc}") from exc
+    if resp.status_code >= 400:
+        raise MetaApiError(f'Не вдалося завантажити вкладення (HTTP {resp.status_code}).')
+    content = resp.content
+    if len(content) > max_bytes:
+        raise MetaApiError('Вкладення завелике для збереження в чаті.')
+    mime_type = (resp.headers.get('Content-Type') or 'image/jpeg').split(';')[0].strip()
+    return content, mime_type
+
+
 def send_instagram_text(ig_user_id: str, access_token: str, recipient_id: str, text: str) -> dict:
     """Надсилає текстове повідомлення через Instagram Messaging API."""
     payload = {
