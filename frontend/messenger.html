@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=65"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=66"/>
 </head>
 <body>
 
@@ -164,6 +164,15 @@
             <path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M4 19h16"/>
           </svg>
         </button>
+        <button class="icon-btn" id="btn-leads-select" title="Вибрати кілька" type="button" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="19" height="19">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+            <path d="M5.3 6.3l1 1 2-2"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+          </svg>
+        </button>
         <button class="icon-btn" id="btn-new-chat" title="Новий чат">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -217,6 +226,19 @@
           </div>
         </div>
         <div class="leads-empty" id="leads-empty" hidden>Лідів не знайдено.</div>
+      </div>
+      <div class="leads-bulk-bar" id="leads-bulk-bar" hidden>
+        <span class="leads-bulk-count" id="leads-bulk-count">Обрано: 0</span>
+        <select id="leads-bulk-stage">
+          <option value="">Стадія — без змін</option>
+        </select>
+        <select id="leads-bulk-owner">
+          <option value="">Власник — без змін</option>
+        </select>
+        <div class="leads-bulk-actions">
+          <button type="button" class="btn-secondary" id="btn-leads-bulk-cancel">Скасувати</button>
+          <button type="button" class="btn-primary" id="btn-leads-bulk-apply">Застосувати</button>
+        </div>
       </div>
       <div class="leads-pagination" id="leads-pagination"></div>
     </div>
@@ -867,6 +889,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=65"></script>
+<script src="/js/messenger.js?v=66"></script>
 </body>
 </html>

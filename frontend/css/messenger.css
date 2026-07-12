@@ -3063,6 +3063,7 @@ a.prosp-contact { color: var(--blue); }
 .prospecting-import-bar {
   display: flex; align-items: center; gap: 12px; padding: 12px 16px;
   border-top: 1px solid var(--border-soft); background: var(--surface-2); flex-shrink: 0;
+  flex-wrap: wrap;
 }
 .prospecting-selected-count { font-size: 13px; font-weight: 700; color: var(--ink); }
 .prospecting-import-bar select {
@@ -3070,3 +3071,44 @@ a.prosp-contact { color: var(--blue); }
   font-size: 13px; padding: 8px 10px; outline: none;
 }
 .prospecting-import-bar .btn-primary { width: auto; padding: 10px 20px; margin-left: auto; }
+
+/* На вузькому екрані рядок "Обрано: N / вибір менеджера / кнопка" не влазить
+   в один флекс-рядок — кнопка стискається до 3 рядків тексту. Розкладаємо
+   у дві повноширинні смуги замість одного тісного ряду. */
+@media (max-width: 480px) {
+  .prospecting-import-bar { flex-direction: column; align-items: stretch; }
+  .prospecting-selected-count { text-align: center; }
+  .prospecting-import-bar select { width: 100%; }
+  .prospecting-import-bar .btn-primary { width: 100%; margin-left: 0; }
+}
+
+/* ════════════════════════════════════════════
+   Ліди: масові дії (вибір кількох карток)
+════════════════════════════════════════════ */
+#btn-leads-select.active-mode { background: var(--ink); color: #fff; }
+
+.leads-select-check {
+  display: none; align-items: flex-start; padding-top: 2px; flex-shrink: 0; cursor: pointer;
+}
+.leads-list.select-mode .leads-select-check { display: flex; }
+.leads-list.select-mode .leads-card { cursor: pointer; }
+.leads-select-input { width: 18px; height: 18px; accent-color: var(--blue); cursor: pointer; }
+
+.leads-bulk-bar {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px; flex-wrap: wrap;
+  border-top: 1px solid var(--border-soft); background: var(--surface-2); flex-shrink: 0;
+}
+.leads-bulk-count { font-size: 13px; font-weight: 700; color: var(--ink); flex-shrink: 0; }
+.leads-bulk-bar select {
+  border: 1.5px solid var(--border); border-radius: 10px; background: #fff; color: var(--text);
+  font-size: 13px; padding: 8px 10px; outline: none; flex: 1; min-width: 140px;
+}
+.leads-bulk-actions { display: flex; gap: 8px; width: 100%; }
+.leads-bulk-actions .btn-primary { width: auto; flex: 1; padding: 10px 16px; }
+.leads-bulk-actions .btn-secondary { flex: 1; }
+
+@media (max-width: 480px) {
+  .leads-bulk-bar { flex-direction: column; align-items: stretch; }
+  .leads-bulk-count { text-align: center; }
+  .leads-bulk-bar select { width: 100%; min-width: 0; }
+}

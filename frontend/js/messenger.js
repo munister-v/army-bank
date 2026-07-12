@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '58';
+const MESSENGER_ASSET_VERSION = '66';
 // Мають точно збігатися з _SAVED_MESSAGES_NAME/_SCHEDULER_NAME у backend/routes/messenger_routes.py
 const SAVED_MESSAGES_NAME = '🔖 Збережені повідомлення';
 const SCHEDULER_NAME = '📅 Планувальник';
@@ -321,6 +321,14 @@ const leadsPaginationEl = $('leads-pagination');
 const leadsDueBadge = $('leads-due-badge');
 const btnLeadsExport = $('btn-leads-export');
 const btnLeadsAdd = $('btn-leads-add');
+const btnLeadsSelect = $('btn-leads-select');
+const leadsBulkBar = $('leads-bulk-bar');
+const leadsBulkCount = $('leads-bulk-count');
+const leadsBulkStageEl = $('leads-bulk-stage');
+const leadsBulkOwnerEl = $('leads-bulk-owner');
+const btnLeadsBulkCancel = $('btn-leads-bulk-cancel');
+const btnLeadsBulkApply = $('btn-leads-bulk-apply');
+let leadsSelectMode = false;
 const leadInfoBanner = $('lead-info-banner');
 const leadCreateModal = $('leads-modal');
 const btnCloseLeadCreate = $('btn-close-leads');
@@ -1151,6 +1159,9 @@ function leadCardHtml(lead) {
   ].filter(Boolean);
   return `
     <div class="leads-card conv-style" data-lead-id="${lead.id}">
+      <label class="leads-select-check" onclick="event.stopPropagation()">
+        <input type="checkbox" class="leads-select-input" data-lead-id="${lead.id}"/>
+      </label>
       <div class="conv-avatar">${escHtml(initial(lead.business_name || '?'))}</div>
       <div class="leads-card-body">
         <div class="leads-card-name-row">
@@ -1186,6 +1197,11 @@ async function loadLeadsList() {
       Array.from(frag.children).forEach(card => {
         card.addEventListener('click', e => {
           if (e.target.closest('[data-quick-action]')) return;
+          if (leadsSelectMode) {
+            const cb = card.querySelector('.leads-select-input');
+            if (cb) { cb.checked = !cb.checked; updateLeadsBulkBar(); }
+            return;
+          }
           openLeadDetail(Number(card.dataset.leadId));
         });
         leadsListEl.appendChild(card);
@@ -1239,6 +1255,77 @@ function leadsLabel(map, value) {
 }
 function leadsSlug(value) {
   return String(value || '').trim().replace(/\s+/g, '-');
+}
+
+// ── Bulk actions: обрати кілька лідів у списку й змінити стадію/власника одразу ──
+function populateLeadsBulkSelects() {
+  if (leadsBulkStageEl && leadsBulkStageEl.options.length <= 1) {
+    leadsBulkStageEl.innerHTML = '<option value="">Стадія — без змін</option>' +
+      LEADS_STAGE_OPTIONS.map(s => `<option value="${escHtml(s)}">${escHtml(leadsLabel(LEADS_STAGE_LABELS, s))}</option>`).join('');
+  }
+  if (leadsBulkOwnerEl && leadsBulkOwnerEl.options.length <= 1) {
+    leadsBulkOwnerEl.innerHTML = '<option value="">Власник — без змін</option>' +
+      LEADS_OWNER_OPTIONS.map(o => `<option value="${escHtml(o)}">${escHtml(leadsLabel(LEADS_OWNER_LABELS, o))}</option>`).join('');
+  }
+}
+populateLeadsBulkSelects();
+
+function setLeadsSelectMode(on) {
+  leadsSelectMode = on;
+  if (leadsListEl) leadsListEl.classList.toggle('select-mode', on);
+  if (btnLeadsSelect) btnLeadsSelect.classList.toggle('active-mode', on);
+  if (!on) {
+    leadsListEl?.querySelectorAll('.leads-select-input').forEach(cb => { cb.checked = false; });
+  }
+  updateLeadsBulkBar();
+}
+
+function selectedLeadIds() {
+  return Array.from(leadsListEl?.querySelectorAll('.leads-select-input:checked') || [])
+    .map(cb => Number(cb.dataset.leadId))
+    .filter(Boolean);
+}
+
+function updateLeadsBulkBar() {
+  const ids = selectedLeadIds();
+  if (leadsBulkCount) leadsBulkCount.textContent = `Обрано: ${ids.length}`;
+  if (leadsBulkBar) leadsBulkBar.hidden = !leadsSelectMode || ids.length === 0;
+}
+
+async function applyLeadsBulkAction() {
+  const ids = selectedLeadIds();
+  if (!ids.length) return;
+  const payload = {};
+  if (leadsBulkStageEl?.value) payload.stage = leadsBulkStageEl.value;
+  if (leadsBulkOwnerEl?.value) payload.owner = leadsBulkOwnerEl.value;
+  if (!Object.keys(payload).length) { showToast('Оберіть стадію або власника для зміни.', true); return; }
+
+  if (btnLeadsBulkApply) { btnLeadsBulkApply.disabled = true; btnLeadsBulkApply.textContent = 'Застосовую…'; }
+  try {
+    const results = await Promise.allSettled(ids.map(id => api('PATCH', `/leads/${id}`, payload)));
+    const failed = results.filter(r => r.status === 'rejected').length;
+    showToast(
+      failed ? `Оновлено ${ids.length - failed} з ${ids.length}, помилок: ${failed}.` : `Оновлено ${ids.length} лід(ів).`,
+      !!failed
+    );
+    if (leadsBulkStageEl) leadsBulkStageEl.value = '';
+    if (leadsBulkOwnerEl) leadsBulkOwnerEl.value = '';
+    setLeadsSelectMode(false);
+    loadLeadsList();
+    loadLeadsStats().catch(() => {});
+  } finally {
+    if (btnLeadsBulkApply) { btnLeadsBulkApply.disabled = false; btnLeadsBulkApply.textContent = 'Застосувати'; }
+  }
+}
+
+if (btnLeadsSelect) btnLeadsSelect.addEventListener('click', () => setLeadsSelectMode(!leadsSelectMode));
+if (btnLeadsBulkCancel) btnLeadsBulkCancel.addEventListener('click', () => setLeadsSelectMode(false));
+if (btnLeadsBulkApply) btnLeadsBulkApply.addEventListener('click', applyLeadsBulkAction);
+// Делегування на контейнер — картки перерендерюються при кожному loadLeadsList().
+if (leadsListEl) {
+  leadsListEl.addEventListener('change', e => {
+    if (e.target.classList.contains('leads-select-input')) updateLeadsBulkBar();
+  });
 }
 
 function leadThreadContactIcons(lead) {
@@ -1905,6 +1992,7 @@ function openLeadsSidebar() {
   if (sidebarTitleEl) sidebarTitleEl.textContent = 'Ліди';
   if (btnLeadsExport) btnLeadsExport.hidden = false;
   if (btnLeadsAdd) btnLeadsAdd.hidden = false;
+  if (btnLeadsSelect) btnLeadsSelect.hidden = false;
   if (btnNewChat) btnNewChat.hidden = true;
   if (btnLeads) btnLeads.classList.add('active-mode');
   loadLeadsStats();
@@ -1919,8 +2007,10 @@ function closeLeadsSidebar() {
   if (sidebarTitleEl) sidebarTitleEl.textContent = 'Чати';
   if (btnLeadsExport) btnLeadsExport.hidden = true;
   if (btnLeadsAdd) btnLeadsAdd.hidden = true;
+  if (btnLeadsSelect) btnLeadsSelect.hidden = true;
   if (btnNewChat) btnNewChat.hidden = false;
   if (btnLeads) btnLeads.classList.remove('active-mode');
+  setLeadsSelectMode(false);
   closeLeadDetail();
 }
 
