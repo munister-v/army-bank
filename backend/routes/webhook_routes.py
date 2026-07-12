@@ -26,6 +26,7 @@ from .helpers import api_error
 from .integrations_routes import find_integration, get_app_secret, mark_message_seen, webhook_verify_token
 from .leads_routes import _ensure_schema as _ensure_leads_schema
 from .leads_routes import _get_or_create_lead_conversation, _log_activity, _next_lead_id
+from .push_routes import send_push
 
 webhook_bp = Blueprint('webhooks', __name__, url_prefix='/api/webhooks')
 
@@ -148,12 +149,36 @@ def _ingest_inbound_message(conn, *, manager: str, channel_field: str, contact_v
         f'UPDATE conversations SET last_message_at = {_now_sql()}, last_message_text = %s WHERE id = %s',
         (preview[:180], conv_id),
     )
+    lead_row = conn.execute('SELECT business_name FROM leads WHERE id = %s', (lead_id,)).fetchone()
+    business_name = (lead_row or {}).get('business_name') or contact_name or contact_value
     conn.execute(
         f"UPDATE leads SET outreach_status = 'Replied', reply_status = 'Replied', "
         f'last_touch_date = %s, updated_at = {_now_sql()} WHERE id = %s',
         (date.today().isoformat(), lead_id),
     )
     _log_activity(conn, lead_id, f'Клієнт ({channel_label})', 'note', preview)
+
+    # Досі жоден вхідний webhook (WhatsApp/Instagram) не будив менеджера — лід
+    # тихо оновлювався в БД, і про відповідь клієнта дізнавались лише
+    # відкривши CRM вручну. Пушимо тим самим шляхом, що й звичайні
+    # повідомлення месенджера (send_message() у messenger_routes.py).
+    push_body = '🖼️ Фото' if msg_type == 'image' else preview[:140]
+    participant_rows = conn.execute(
+        'SELECT user_id FROM conversation_participants WHERE conversation_id = %s AND user_id != %s',
+        (conv_id, contact_user_id),
+    ).fetchall()
+    for row in participant_rows:
+        try:
+            send_push(
+                int(row['user_id']),
+                f'{channel_label} · {business_name}',
+                push_body,
+                f'/messenger?conv={conv_id}',
+                'message_text',
+                {'conversation_id': int(conv_id), 'sender_name': business_name, 'msg_type': msg_type},
+            )
+        except Exception:
+            pass  # push — best-effort, ніколи не має ламати обробку вебхука
 
 
 def _ingest_inbound_text(conn, *, manager: str, channel_field: str, contact_value: str,
