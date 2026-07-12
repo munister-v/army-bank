@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import json
 import re
 
 from flask import Blueprint, g, jsonify, request
@@ -24,6 +25,30 @@ prospecting_bp = Blueprint('prospecting', __name__, url_prefix='/api/prospecting
 
 _ADMIN_ROLES = ('admin', 'platform_admin')
 _MANAGERS = ('Manager 1', 'Manager 2')
+
+
+def _ensure_prospecting_schema() -> None:
+    """Окрема, самодостатня таблиця збережених пошуків — той самий патерн
+    self-contained _ensure_schema(), що й у leads_routes.py, без змін до
+    database.py. `params` — JSON-блоб усього payload'у форми пошуку (щоб
+    один клік «Завантажити» відновлював джерело + всі фільтри як є)."""
+    from ..config import USE_PG
+    pk_sql = 'SERIAL PRIMARY KEY' if USE_PG else 'INTEGER PRIMARY KEY'
+    now_sql = 'NOW()' if USE_PG else 'CURRENT_TIMESTAMP'
+    with get_connection() as conn:
+        conn.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS prospecting_saved_searches (
+                id {pk_sql},
+                name VARCHAR(120) NOT NULL,
+                source VARCHAR(20) NOT NULL DEFAULT 'osm',
+                params TEXT NOT NULL DEFAULT '{{}}',
+                created_by VARCHAR(80) NOT NULL DEFAULT '',
+                created_at TIMESTAMP NOT NULL DEFAULT {now_sql}
+            )
+            """
+        )
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_prosp_saved_created ON prospecting_saved_searches(created_at)')
 
 
 @prospecting_bp.get('/categories')
@@ -82,12 +107,13 @@ def search_google():
     country = str(body.get('country') or '').strip()
     city = str(body.get('city') or '').strip()
 
-    if not category_label:
-        return api_error('Оберіть категорію або вкажіть запит.', 400)
-    if not country and not city:
+    custom_query = str(body.get('custom_query') or '').strip()
+    if not custom_query and not category_label:
+        return api_error('Оберіть категорію, або вкажіть власний запит.', 400)
+    if not custom_query and not country and not city:
         return api_error('Вкажіть країну або місто.', 400)
 
-    query_text = ' '.join(p for p in (category_label, city, country) if p)
+    query_text = custom_query or ' '.join(p for p in (category_label, city, country) if p)
 
     try:
         result = google_search_service.search_businesses(
@@ -108,6 +134,67 @@ def search_google():
         return api_error(exc.message, 502 if google_search_service.is_configured() else 503)
 
     return jsonify({'ok': True, 'data': result})
+
+
+@prospecting_bp.get('/saved-searches')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def list_saved_searches():
+    """Збережені пошуки — спільні для всіх адмінів/менеджерів (як і ліди),
+    щоб не дублювати ту саму комбінацію фільтрів для кожного окремо."""
+    _ensure_prospecting_schema()
+    with get_connection() as conn:
+        rows = conn.execute(
+            'SELECT id, name, source, params, created_by, created_at '
+            'FROM prospecting_saved_searches ORDER BY created_at DESC'
+        ).fetchall()
+    data = []
+    for r in (rows or []):
+        r = dict(r)
+        try:
+            r['params'] = json.loads(r.get('params') or '{}')
+        except (TypeError, ValueError):
+            r['params'] = {}
+        data.append(r)
+    return jsonify({'ok': True, 'data': data})
+
+
+@prospecting_bp.post('/saved-searches')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def create_saved_search():
+    _ensure_prospecting_schema()
+    body = request.get_json(silent=True) or {}
+    name = str(body.get('name') or '').strip()
+    source = str(body.get('source') or 'osm').strip()
+    params = body.get('params')
+
+    if not name:
+        return api_error('Вкажіть назву збереженого пошуку.', 400)
+    if source not in ('osm', 'google'):
+        return api_error('Невідоме джерело.', 400)
+    if not isinstance(params, dict):
+        return api_error('Некоректні параметри пошуку.', 400)
+
+    author = str(g.current_user.get('full_name') or 'Адмін')
+    with get_connection() as conn:
+        cur = conn.execute(
+            'INSERT INTO prospecting_saved_searches (name, source, params, created_by) '
+            'VALUES (%s, %s, %s, %s)' + get_returning_id_suffix(),
+            (name, source, json.dumps(params), author),
+        )
+        new_id = int(insert_last_id(cur))
+    return jsonify({'ok': True, 'data': {'id': new_id}})
+
+
+@prospecting_bp.delete('/saved-searches/<int:search_id>')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def delete_saved_search(search_id: int):
+    _ensure_prospecting_schema()
+    with get_connection() as conn:
+        conn.execute('DELETE FROM prospecting_saved_searches WHERE id = %s', (search_id,))
+    return jsonify({'ok': True})
 
 
 def _normalize_phone(phone: str) -> str:

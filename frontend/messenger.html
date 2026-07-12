@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=71"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=72"/>
 </head>
 <body>
 
@@ -491,6 +491,12 @@
             <button type="button" class="prosp-source-tab active" data-source="osm" id="prosp-tab-osm">🗺️ OpenStreetMap</button>
             <button type="button" class="prosp-source-tab" data-source="google" id="prosp-tab-google">🔍 Google</button>
           </div>
+
+          <div class="prosp-saved-row" id="prosp-saved-row" hidden>
+            <span class="mono-label">Збережені пошуки</span>
+            <div class="prosp-saved-chips" id="prosp-saved-chips"></div>
+          </div>
+
           <div class="prospecting-row">
             <label class="prospecting-field">
               <span class="mono-label">Категорія</span>
@@ -506,15 +512,47 @@
             </label>
           </div>
           <div class="prospecting-qualifiers" id="prosp-qualifiers"></div>
+
+          <div class="prosp-osm-filters" id="prosp-osm-filters">
+            <div class="prospecting-row">
+              <label class="prospecting-field">
+                <span class="mono-label">Ліміт результатів</span>
+                <select id="prosp-limit">
+                  <option value="20">20</option>
+                  <option value="30" selected>30</option>
+                  <option value="40">40</option>
+                  <option value="60">60</option>
+                </select>
+              </label>
+              <label class="prospecting-field">
+                <span class="mono-label">Сортування</span>
+                <select id="prosp-sort">
+                  <option value="default">За замовчуванням</option>
+                  <option value="name">За алфавітом (А→Я)</option>
+                  <option value="newest">Спершу найновіші</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
           <div class="prospecting-row prospecting-row-controls">
             <label class="prospecting-checkbox">
               <input type="checkbox" id="prosp-recent"/>
               <span>Тільки щойно відкриті (≤12 міс, де відомо)</span>
             </label>
-            <button type="submit" class="btn-primary prospecting-search-btn" id="btn-prosp-search">Шукати</button>
+            <div class="prosp-search-actions">
+              <button type="button" class="btn-secondary prosp-save-btn" id="btn-prosp-save" title="Зберегти цей пошук">💾 Зберегти</button>
+              <button type="submit" class="btn-primary prospecting-search-btn" id="btn-prosp-search">Шукати</button>
+            </div>
           </div>
 
           <div class="prosp-google-filters" id="prosp-google-filters" hidden>
+            <div class="prospecting-row">
+              <label class="prospecting-field prospecting-field-wide">
+                <span class="mono-label">Власний запит (замість категорії)</span>
+                <input id="prosp-g-custom" type="text" placeholder="напр. найкращі перукарні Кракова -reddit" autocomplete="off"/>
+              </label>
+            </div>
             <div class="prospecting-row">
               <label class="prospecting-field">
                 <span class="mono-label">Обов'язкове слово</span>
@@ -550,7 +588,17 @@
                   <option value="y1">За рік</option>
                 </select>
               </label>
-              <label class="prospecting-checkbox" style="align-self:center; margin-top:18px;">
+              <label class="prospecting-field">
+                <span class="mono-label">К-сть результатів</span>
+                <select id="prosp-g-num">
+                  <option value="10">10</option>
+                  <option value="20" selected>20</option>
+                  <option value="30">30</option>
+                </select>
+              </label>
+            </div>
+            <div class="prospecting-row">
+              <label class="prospecting-checkbox">
                 <input type="checkbox" id="prosp-g-exclude-platforms" checked/>
                 <span>Приховати соцмережі/довідники з видачі</span>
               </label>
@@ -938,6 +986,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=71"></script>
+<script src="/js/messenger.js?v=72"></script>
 </body>
 </html>
