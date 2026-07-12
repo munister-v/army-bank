@@ -36,6 +36,11 @@ BOOTSTRAP_TOKEN = os.getenv('BOOTSTRAP_TOKEN', '').strip()
 # (cold-outreach драфти та підказки відповідей у WhatsApp/Instagram-чатах).
 OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY', '').strip()
 
+# Google Programmable Search (Custom Search JSON API) — другий канал пошуку
+# лідів у Prospecting поруч з OpenStreetMap: https://developers.google.com/custom-search
+GOOGLE_CSE_API_KEY = os.getenv('GOOGLE_CSE_API_KEY', '').strip()
+GOOGLE_CSE_CX = os.getenv('GOOGLE_CSE_CX', '').strip()
+
 # Messenger at-rest encryption keys (Fernet, base64 urlsafe, 32-byte).
 # Multiple keys allowed for rotation: "new_key,old_key".
 MESSENGER_ENCRYPTION_KEYS = os.getenv('MESSENGER_ENCRYPTION_KEYS', '').strip()

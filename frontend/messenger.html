@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=69"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=71"/>
 </head>
 <body>
 
@@ -482,11 +482,15 @@
         </button>
         <div class="leads-thread-info">
           <div class="leads-thread-name">🔎 Пошук клієнтів</div>
-          <div class="leads-thread-sub">Знаходьте бізнеси по світу та додавайте в роботу · дані OpenStreetMap</div>
+          <div class="leads-thread-sub" id="prospecting-source-sub">Знаходьте бізнеси по світу та додавайте в роботу · дані OpenStreetMap</div>
         </div>
       </div>
       <div class="prospecting-body">
         <form class="prospecting-form" id="prospecting-form">
+          <div class="prosp-source-tabs" id="prosp-source-tabs" role="tablist">
+            <button type="button" class="prosp-source-tab active" data-source="osm" id="prosp-tab-osm">🗺️ OpenStreetMap</button>
+            <button type="button" class="prosp-source-tab" data-source="google" id="prosp-tab-google">🔍 Google</button>
+          </div>
           <div class="prospecting-row">
             <label class="prospecting-field">
               <span class="mono-label">Категорія</span>
@@ -494,7 +498,7 @@
             </label>
             <label class="prospecting-field">
               <span class="mono-label">Країна</span>
-              <input id="prosp-country" type="text" placeholder="Напр. Poland" autocomplete="off" required/>
+              <input id="prosp-country" type="text" placeholder="Напр. Poland" autocomplete="off"/>
             </label>
             <label class="prospecting-field">
               <span class="mono-label">Місто (необов'язково)</span>
@@ -509,7 +513,51 @@
             </label>
             <button type="submit" class="btn-primary prospecting-search-btn" id="btn-prosp-search">Шукати</button>
           </div>
-          <p class="prospecting-hint">Дані OpenStreetMap — community-джерело. Покриття краще в Європі; телефон/сайт присутні не завжди. Сигнали «схоже, немає…» орієнтовні.</p>
+
+          <div class="prosp-google-filters" id="prosp-google-filters" hidden>
+            <div class="prospecting-row">
+              <label class="prospecting-field">
+                <span class="mono-label">Обов'язкове слово</span>
+                <input id="prosp-g-exact" type="text" placeholder="напр. салон" autocomplete="off"/>
+              </label>
+              <label class="prospecting-field">
+                <span class="mono-label">Виключити слова</span>
+                <input id="prosp-g-exclude" type="text" placeholder="напр. вакансія оренда" autocomplete="off"/>
+              </label>
+              <label class="prospecting-field">
+                <span class="mono-label">Код країни (gl)</span>
+                <input id="prosp-g-gl" type="text" placeholder="напр. pl, de, ua" autocomplete="off" maxlength="2"/>
+              </label>
+            </div>
+            <div class="prospecting-row">
+              <label class="prospecting-field">
+                <span class="mono-label">Мова</span>
+                <select id="prosp-g-lang">
+                  <option value="">Будь-яка</option>
+                  <option value="uk">Українська</option>
+                  <option value="en">English</option>
+                  <option value="pl">Polski</option>
+                  <option value="de">Deutsch</option>
+                  <option value="ru">Русский</option>
+                </select>
+              </label>
+              <label class="prospecting-field">
+                <span class="mono-label">Свіжість</span>
+                <select id="prosp-g-date">
+                  <option value="">Будь-коли</option>
+                  <option value="w1">За тиждень</option>
+                  <option value="m1">За місяць</option>
+                  <option value="y1">За рік</option>
+                </select>
+              </label>
+              <label class="prospecting-checkbox" style="align-self:center; margin-top:18px;">
+                <input type="checkbox" id="prosp-g-exclude-platforms" checked/>
+                <span>Приховати соцмережі/довідники з видачі</span>
+              </label>
+            </div>
+          </div>
+
+          <p class="prospecting-hint" id="prosp-hint">Дані OpenStreetMap — community-джерело. Покриття краще в Європі; телефон/сайт присутні не завжди. Сигнали «схоже, немає…» орієнтовні.</p>
         </form>
         <div class="prospecting-results" id="prosp-results"></div>
         <div class="prospecting-import-bar" id="prosp-import-bar" hidden>
@@ -890,6 +938,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=69"></script>
+<script src="/js/messenger.js?v=71"></script>
 </body>
 </html>

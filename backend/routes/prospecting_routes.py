@@ -12,7 +12,8 @@ import re
 from flask import Blueprint, g, jsonify, request
 
 from ..database import get_connection, get_returning_id_suffix, insert_last_id
-from ..services import prospecting_service
+from ..services import google_search_service, prospecting_service
+from ..services.google_search_service import GoogleSearchError
 from ..services.prospecting_categories import CATEGORIES, QUALIFIERS
 from ..services.prospecting_service import ProspectingError
 from .helpers import api_error, auth_required, role_required
@@ -33,6 +34,7 @@ def list_categories():
     return jsonify({'ok': True, 'data': {
         'categories': [{'key': k, 'label': v['label']} for k, v in CATEGORIES.items()],
         'qualifiers': [{'key': k, 'label': v['label'], 'offer': v['offer']} for k, v in QUALIFIERS.items()],
+        'google_configured': google_search_service.is_configured(),
     }})
 
 
@@ -62,6 +64,48 @@ def search():
         )
     except ProspectingError as exc:
         return api_error(exc.message, 502)
+
+    return jsonify({'ok': True, 'data': result})
+
+
+@prospecting_bp.post('/search-google')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def search_google():
+    """Другий канал пошуку — Google Custom Search. На відміну від /search
+    (OSM, структурований реєстр бізнесів), тут повертаються веб-сторінки за
+    запитом: корисно там, де покриття OSM слабке, або щоб перевірити, чи
+    бізнес взагалі присутній онлайн поза власним сайтом."""
+    body = request.get_json(silent=True) or {}
+    category_key = str(body.get('category_key') or '').strip()
+    category_label = CATEGORIES.get(category_key, {}).get('label', '') or str(body.get('query') or '').strip()
+    country = str(body.get('country') or '').strip()
+    city = str(body.get('city') or '').strip()
+
+    if not category_label:
+        return api_error('Оберіть категорію або вкажіть запит.', 400)
+    if not country and not city:
+        return api_error('Вкажіть країну або місто.', 400)
+
+    query_text = ' '.join(p for p in (category_label, city, country) if p)
+
+    try:
+        result = google_search_service.search_businesses(
+            query_text=query_text,
+            category_label=category_label,
+            category_key=category_key,
+            country=country,
+            city=city,
+            lang=str(body.get('lang') or '').strip(),
+            gl=str(body.get('gl') or '').strip(),
+            date_restrict=str(body.get('date_restrict') or '').strip(),
+            exact_terms=str(body.get('exact_terms') or '').strip(),
+            exclude_terms=str(body.get('exclude_terms') or '').strip(),
+            exclude_platforms=bool(body.get('exclude_platforms', True)),
+            limit=int(body.get('limit') or 20),
+        )
+    except GoogleSearchError as exc:
+        return api_error(exc.message, 502 if google_search_service.is_configured() else 503)
 
     return jsonify({'ok': True, 'data': result})
 
@@ -143,6 +187,9 @@ def import_candidates():
                 skipped += 1
                 continue
 
+            is_google = str(cand.get('source') or '').strip() == 'google'
+            source_label = 'Google' if is_google else 'OSM'
+
             data = {
                 'lead_id': _next_lead_id(conn),
                 'business_name': name,
@@ -155,8 +202,8 @@ def import_candidates():
                 'instagram': str(cand.get('instagram') or ''),
                 'source_url': str(cand.get('source_url') or ''),
                 'suggested_first_offer': str(cand.get('suggested_first_offer') or ''),
-                'source_bucket': 'prospecting_osm',
-                'messenger_note': 'Знайдено через пошук клієнтів (OSM)',
+                'source_bucket': 'prospecting_google' if is_google else 'prospecting_osm',
+                'messenger_note': f'Знайдено через пошук клієнтів ({source_label})',
                 'owner': owner,
                 'pipeline': 'Prospecting',
                 'stage': 'New',
@@ -170,7 +217,7 @@ def import_candidates():
                 [data[c] for c in cols],
             )
             new_id = int(insert_last_id(cur))
-            _log_activity(conn, new_id, author, 'system', f'Додано через пошук клієнтів (OSM), власник: {owner}')
+            _log_activity(conn, new_id, author, 'system', f'Додано через пошук клієнтів ({source_label}), власник: {owner}')
             created_ids.append(new_id)
             created += 1
 

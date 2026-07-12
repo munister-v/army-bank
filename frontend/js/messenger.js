@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '69';
+const MESSENGER_ASSET_VERSION = '71';
 // Мають точно збігатися з _SAVED_MESSAGES_NAME/_SCHEDULER_NAME у backend/routes/messenger_routes.py
 const SAVED_MESSAGES_NAME = '🔖 Збережені повідомлення';
 const SCHEDULER_NAME = '📅 Планувальник';
@@ -360,8 +360,16 @@ const prospResultsEl = $('prosp-results');
 const prospImportBar = $('prosp-import-bar');
 const prospSelectedCount = $('prosp-selected-count');
 const btnProspImport = $('btn-prosp-import');
+const prospTabOsm = $('prosp-tab-osm');
+const prospTabGoogle = $('prosp-tab-google');
+const prospGoogleFiltersEl = $('prosp-google-filters');
+const prospHintEl = $('prosp-hint');
+const prospSourceSubEl = $('prospecting-source-sub');
+const prospCountryEl = $('prosp-country');
 let prospCandidates = [];
 let prospCatalogLoaded = false;
+let prospSource = 'osm';
+let prospGoogleConfigured = false;
 
 // ════════════════════════════════════════════
 // API helper
@@ -1732,6 +1740,10 @@ async function loadProspectingCatalog() {
         </label>
       `).join('');
     }
+    prospGoogleConfigured = !!data.google_configured;
+    if (prospTabGoogle && !prospGoogleConfigured) {
+      prospTabGoogle.innerHTML = '🔍 Google <span class="prosp-tab-badge">потрібен ключ</span>';
+    }
     prospCatalogLoaded = true;
   } catch (err) {
     if (prospResultsEl) prospResultsEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Не вдалося завантажити категорії.')}</p>`;
@@ -1740,6 +1752,15 @@ async function loadProspectingCatalog() {
 
 function prospSignalBadges(cand) {
   const badges = [];
+  if (cand.source === 'google') {
+    const sig = cand.signals || {};
+    if (sig.platform_only) {
+      badges.push('<span class="prosp-badge prosp-badge-gap">Тільки платформа, не власний сайт</span>');
+    } else if (cand.website_url) {
+      badges.push('<span class="prosp-badge prosp-badge-new">🌐 Власний сайт знайдено</span>');
+    }
+    return badges.join('');
+  }
   if (cand.opened) {
     const m = cand.opened.months_ago;
     const label = m < 12 ? `Відкрито ${m} міс тому` : `Відкрито ${Math.floor(m / 12)} р тому`;
@@ -1764,26 +1785,36 @@ function renderProspResults(result) {
     return;
   }
   const head = `<div class="prosp-results-head">Знайдено <b>${prospCandidates.length}</b> · усього в області: ${result.total_found} · ${escHtml(result.area || '')}</div>`;
-  const rows = prospCandidates.map((c, i) => `
+  const rows = prospCandidates.map((c, i) => {
+    const isGoogle = c.source === 'google';
+    const metaLine = isGoogle
+      ? escHtml(c.snippet || c.domain || '')
+      : escHtml([c.category, c.city_area].filter(Boolean).join(' · '));
+    const avatar = (isGoogle && c.thumbnail)
+      ? `<img class="prosp-card-avatar prosp-card-avatar-img" src="${escHtml(c.thumbnail)}" alt=""/>`
+      : `<div class="prosp-card-avatar">${escHtml((c.business_name || '?').trim().charAt(0) || '?')}</div>`;
+    return `
     <div class="prosp-card">
       <label class="prosp-card-check">
         <input type="checkbox" class="prosp-select" data-idx="${i}"/>
       </label>
-      <div class="prosp-card-avatar">${escHtml((c.business_name || '?').trim().charAt(0) || '?')}</div>
+      ${avatar}
       <div class="prosp-card-body">
-        <div class="prosp-card-name">${escHtml(c.business_name)}</div>
-        <div class="prosp-card-meta">${escHtml([c.category, c.city_area].filter(Boolean).join(' · '))}</div>
+        <div class="prosp-card-name">${escHtml(c.business_name)}${isGoogle ? ' <span class="prosp-badge prosp-badge-google">G</span>' : ''}</div>
+        <div class="prosp-card-meta">${metaLine}</div>
         <div class="prosp-card-contacts">
           ${c.phone ? `<span class="prosp-contact">📞 ${escHtml(c.phone)}</span>` : ''}
-          ${c.website_url ? `<a class="prosp-contact" href="${escHtml(c.website_url)}" target="_blank" rel="noopener">🌐 сайт</a>` : ''}
+          ${c.website_url ? `<a class="prosp-contact" href="${escHtml(c.website_url)}" target="_blank" rel="noopener">🌐 ${isGoogle ? escHtml(c.domain || 'сайт') : 'сайт'}</a>` : ''}
           ${c.instagram ? `<span class="prosp-contact">📷 ${escHtml(c.instagram)}</span>` : ''}
-          ${c.source_url ? `<a class="prosp-contact" href="${escHtml(c.source_url)}" target="_blank" rel="noopener">OSM</a>` : ''}
+          ${c.source_url && !isGoogle ? `<a class="prosp-contact" href="${escHtml(c.source_url)}" target="_blank" rel="noopener">OSM</a>` : ''}
+          ${c.source_url && isGoogle && !c.website_url ? `<a class="prosp-contact" href="${escHtml(c.source_url)}" target="_blank" rel="noopener">↗ переглянути</a>` : ''}
         </div>
         <div class="prosp-card-badges">${prospSignalBadges(c)}</div>
         ${c.suggested_first_offer ? `<div class="prosp-card-offer">💡 ${escHtml(c.suggested_first_offer)}</div>` : ''}
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
   prospResultsEl.innerHTML = head + `<div class="prosp-cards">${rows}</div>`;
   prospResultsEl.querySelectorAll('.prosp-select').forEach(cb => {
     cb.addEventListener('change', updateProspImportBar);
@@ -1804,19 +1835,65 @@ function updateProspImportBar() {
   if (prospImportBar) prospImportBar.hidden = selected.length === 0;
 }
 
+function setProspSource(source) {
+  prospSource = source === 'google' ? 'google' : 'osm';
+  if (prospTabOsm) prospTabOsm.classList.toggle('active', prospSource === 'osm');
+  if (prospTabGoogle) prospTabGoogle.classList.toggle('active', prospSource === 'google');
+  if (prospGoogleFiltersEl) prospGoogleFiltersEl.hidden = prospSource !== 'google';
+  const recentRow = document.getElementById('prosp-recent')?.closest('.prospecting-checkbox');
+  if (recentRow) recentRow.hidden = prospSource === 'google';
+  if (prospCountryEl) prospCountryEl.required = prospSource === 'osm';
+  if (prospSourceSubEl) {
+    prospSourceSubEl.textContent = prospSource === 'google'
+      ? 'Знаходьте бізнеси через веб-пошук Google · корисно там, де OSM бідний на дані'
+      : "Знаходьте бізнеси по світу та додавайте в роботу · дані OpenStreetMap";
+  }
+  if (prospHintEl) {
+    prospHintEl.textContent = prospSource === 'google'
+      ? 'Google-пошук повертає веб-сторінки, а не готовий реєстр бізнесів — назва підбирається евристично з заголовка сторінки. «Тільки платформа» = знайдено лише профіль на Facebook/Instagram/довіднику, власного сайту не видно.'
+      : 'Дані OpenStreetMap — community-джерело. Покриття краще в Європі; телефон/сайт присутні не завжди. Сигнали «схоже, немає…» орієнтовні.';
+  }
+}
+if (prospTabOsm) prospTabOsm.addEventListener('click', () => setProspSource('osm'));
+if (prospTabGoogle) prospTabGoogle.addEventListener('click', () => setProspSource('google'));
+
 async function runProspectingSearch(e) {
   if (e) e.preventDefault();
   const categoryKey = prospCategoryEl?.value || '';
   const country = document.getElementById('prosp-country')?.value.trim() || '';
   const city = document.getElementById('prosp-city')?.value.trim() || '';
-  const recentOnly = document.getElementById('prosp-recent')?.checked;
-  const qualifiers = Array.from(prospQualifiersEl?.querySelectorAll('.prosp-qualifier:checked') || [])
-    .map(cb => cb.value);
   if (!categoryKey) { showToast('Оберіть категорію.', true); return; }
-  if (!country) { showToast('Вкажіть країну.', true); return; }
 
   const btn = document.getElementById('btn-prosp-search');
   if (btn) { btn.disabled = true; btn.textContent = 'Шукаю…'; }
+
+  if (prospSource === 'google') {
+    if (!country && !city) { showToast('Вкажіть країну або місто.', true); if (btn) { btn.disabled = false; btn.textContent = 'Шукати'; } return; }
+    if (prospResultsEl) prospResultsEl.innerHTML = '<p class="leads-empty">Шукаю через Google Custom Search…</p>';
+    try {
+      const result = await api('POST', '/prospecting/search-google', {
+        category_key: categoryKey, country, city,
+        exact_terms: document.getElementById('prosp-g-exact')?.value.trim() || '',
+        exclude_terms: document.getElementById('prosp-g-exclude')?.value.trim() || '',
+        gl: document.getElementById('prosp-g-gl')?.value.trim().toLowerCase() || '',
+        lang: document.getElementById('prosp-g-lang')?.value || '',
+        date_restrict: document.getElementById('prosp-g-date')?.value || '',
+        exclude_platforms: document.getElementById('prosp-g-exclude-platforms')?.checked !== false,
+        limit: 20,
+      }, { timeoutMs: 30000 });
+      renderProspResults(result);
+    } catch (err) {
+      if (prospResultsEl) prospResultsEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Помилка пошуку.')}</p>`;
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Шукати'; }
+    }
+    return;
+  }
+
+  if (!country) { showToast('Вкажіть країну.', true); if (btn) { btn.disabled = false; btn.textContent = 'Шукати'; } return; }
+  const recentOnly = document.getElementById('prosp-recent')?.checked;
+  const qualifiers = Array.from(prospQualifiersEl?.querySelectorAll('.prosp-qualifier:checked') || [])
+    .map(cb => cb.value);
   if (prospResultsEl) prospResultsEl.innerHTML = '<p class="leads-empty">Шукаю в OpenStreetMap… (може зайняти до хвилини)</p>';
   try {
     const result = await api('POST', '/prospecting/search', {
