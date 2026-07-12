@@ -69,6 +69,43 @@ Output EXACTLY in this tagged format, nothing else:
     return [{'role': 'system', 'content': _BASE_SYSTEM}, {'role': 'user', 'content': user}]
 
 
+def build_nudge_prompt(lead: dict, days_overdue: int) -> list[dict]:
+    """Follow-up nudge: ліда, на якого чекав контакт до `next_followup_date`
+    і термін минув. Використовує ту саму EN1/EN2/LOCAL-розмітку й parse_draft_response,
+    що й cold-outreach чернетка — формат ідентичний, різниться лише сам промпт."""
+    facts = []
+
+    def add(label: str, key: str) -> None:
+        val = str(lead.get(key) or '').strip()
+        if val:
+            facts.append(f'{label}: {val}')
+
+    add('Business name', 'business_name')
+    add('Category', 'category')
+    add('Our first message to them', 'first_message_en')
+    add('Suggested offer', 'suggested_first_offer')
+    add('Current outreach status', 'outreach_status')
+    facts_block = '\n'.join(facts) if facts else 'No further details available.'
+
+    user = f"""We reached out to this business lead earlier and haven't heard back. \
+It has now been {days_overdue} day(s) past the planned follow-up date. Write a short, \
+warm, low-pressure follow-up nudge (1-3 sentences) — NOT pushy or salesy, just a gentle \
+"still thinking of you, happy to help whenever you're ready" check-in. Reference the \
+earlier contact briefly if useful context is available below, but don't repeat the full \
+pitch.
+
+{facts_block}
+
+Output EXACTLY in this tagged format, nothing else:
+###EN1
+<first English variant>
+###EN2
+<second English variant, different tone/angle>
+###LOCAL:<name of the primary business language of the lead's country, e.g. Ukrainian, Polish, German>
+<one variant written in that local language, adapted for local tone, not a literal translation>"""
+    return [{'role': 'system', 'content': _BASE_SYSTEM}, {'role': 'user', 'content': user}]
+
+
 def parse_draft_response(text: str) -> dict:
     sections = parse_tagged_sections(text)
     variants_en: list[str] = []

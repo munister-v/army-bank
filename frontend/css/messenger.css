@@ -2997,6 +2997,14 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 .ai-suggest-btn { color: #a8792f; }
 .ai-suggest-btn:hover { background: var(--gold-dim, #f4ead4); }
 
+.lead-nudge-panel { padding: 0 16px 10px; }
+.lead-nudge-warn {
+  display: inline-flex; align-items: center; gap: 6px; margin-bottom: 8px;
+  padding: 5px 12px; border-radius: var(--radius-pill);
+  background: rgba(210,90,40,.12); border: 1px solid rgba(210,90,40,.35);
+  color: #b3441c; font-size: 12.5px; font-weight: 700;
+}
+
 .ai-reply-suggestions {
   display: flex; flex-direction: column; gap: 6px; padding: 10px 16px 0;
   max-height: 260px; overflow-y: auto; flex-shrink: 0;

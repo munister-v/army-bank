@@ -440,6 +440,48 @@ def generate_ai_draft(lead_id: int):
     return jsonify({'ok': True, 'data': data})
 
 
+@leads_bp.post('/<int:lead_id>/ai-nudge')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def generate_ai_nudge(lead_id: int):
+    """Follow-up-нагадування для простроченого ліда (next_followup_date у
+    минулому). Той самий EN1/EN2/LOCAL формат і парсер, що й cold-outreach
+    чернетка — фронтенд підставляє обраний варіант у звичайне поле вводу
+    чату, менеджер сам вичитує/редагує і тисне Надіслати (нічого не йде
+    клієнту автоматично)."""
+    if not openrouter_service.is_configured():
+        return api_error('AI-чернетки не налаштовані (немає OPENROUTER_API_KEY).', 503)
+    _ensure_schema()
+    with get_connection() as conn:
+        lead = conn.execute('SELECT * FROM leads WHERE id = %s', (lead_id,)).fetchone()
+    if not lead:
+        return api_error('Лід не знайдено.', 404)
+    lead = dict(lead)
+
+    days_overdue = 0
+    raw_date = str(lead.get('next_followup_date') or '').strip()
+    if raw_date:
+        try:
+            days_overdue = (date.today() - date.fromisoformat(raw_date)).days
+        except ValueError:
+            days_overdue = 0
+    days_overdue = max(0, days_overdue)
+
+    prompt = ai_drafts.build_nudge_prompt(lead, days_overdue)
+    try:
+        text, model_used = openrouter_service.generate(prompt)
+    except OpenRouterError as exc:
+        return api_error(f'Не вдалося згенерувати нагадування: {exc.message}', 502)
+
+    data = ai_drafts.parse_draft_response(text)
+    if not data['variants_en'] and not data['local']:
+        return api_error('Не вдалося згенерувати нагадування: модель не повернула розпізнаваний текст.', 502)
+
+    data['model_used'] = model_used
+    data['days_overdue'] = days_overdue
+    return jsonify({'ok': True, 'data': data})
+
+
 @leads_bp.post('/<int:lead_id>/ai-reply-suggestions')
 @auth_required
 @role_required(*_ADMIN_ROLES)

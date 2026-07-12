@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '66';
+const MESSENGER_ASSET_VERSION = '67';
 // Мають точно збігатися з _SAVED_MESSAGES_NAME/_SCHEDULER_NAME у backend/routes/messenger_routes.py
 const SAVED_MESSAGES_NAME = '🔖 Збережені повідомлення';
 const SCHEDULER_NAME = '📅 Планувальник';
@@ -342,6 +342,7 @@ const leadsKanbanEntry = $('leads-kanban-entry');
 const aiDraftPanelEl = $('ai-draft-panel');
 const btnAiSuggest = $('btn-ai-suggest');
 const aiReplySuggestionsEl = $('ai-reply-suggestions');
+const leadNudgePanelEl = $('lead-nudge-panel');
 
 const btnIntegrations = $('btn-integrations');
 const integrationsView = $('integrations-view');
@@ -1409,7 +1410,19 @@ function renderLeadInfoBanner(lead) {
     });
   }
   renderAiDraftPanel(lead);
+  renderLeadNudgePanel(lead);
   if (btnAiSuggest) btnAiSuggest.hidden = false;
+}
+
+// Дні від next_followup_date до сьогодні; null якщо дата не задана або ще не настала.
+function leadOverdueDays(lead) {
+  const raw = (lead.next_followup_date || '').trim();
+  if (!raw) return null;
+  const due = new Date(raw + 'T00:00:00');
+  if (Number.isNaN(due.getTime())) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = Math.round((today - due) / 86400000);
+  return days >= 0 ? days : null;
 }
 
 function renderAiDraftPanel(lead) {
@@ -1465,6 +1478,69 @@ async function generateAiDraft(lead) {
   } catch (err) {
     showToast(err.message || 'Не вдалося згенерувати чернетку.', true);
     renderAiDraftPanel(lead);
+  }
+}
+
+// Прострочений follow-up: пропонуємо нагадування, але НІЧОГО не надсилається
+// автоматично — обраний варіант лише підставляється в звичайний чат-інпут,
+// відправка — завжди ручна дія менеджера (btn-send / sendMessage()).
+function renderLeadNudgePanel(lead) {
+  if (!leadNudgePanelEl) return;
+  const days = leadOverdueDays(lead);
+  if (days === null) { leadNudgePanelEl.hidden = true; leadNudgePanelEl.innerHTML = ''; return; }
+  leadNudgePanelEl.hidden = false;
+  const daysLabel = days === 0 ? 'сьогодні' : `${days} дн. тому`;
+  leadNudgePanelEl.innerHTML = `
+    <div class="lead-nudge-warn">⏰ Follow-up прострочено — ${escHtml(daysLabel)}</div>
+    <button type="button" class="ai-draft-generate-btn" id="btn-lead-nudge-gen">🔔 Запропонувати нагадування</button>
+  `;
+  document.getElementById('btn-lead-nudge-gen')?.addEventListener('click', () => generateLeadNudge(lead));
+}
+
+async function generateLeadNudge(lead) {
+  const btn = document.getElementById('btn-lead-nudge-gen');
+  if (btn) { btn.disabled = true; btn.textContent = 'Генерую…'; }
+  try {
+    const data = await api('POST', `/leads/${lead.id}/ai-nudge`, undefined, { timeoutMs: 60000 });
+    const variants = [
+      ...(data.variants_en || []).map((text, i) => ({ label: `EN — варіант ${i + 1}`, text })),
+      ...(data.local ? [{ label: data.local.lang, text: data.local.text }] : []),
+    ];
+    if (!variants.length) {
+      showToast('AI не повернув варіантів. Спробуйте ще раз.', true);
+      renderLeadNudgePanel(lead);
+      return;
+    }
+    const daysLabel = data.days_overdue === 0 ? 'сьогодні' : `${data.days_overdue} дн. тому`;
+    leadNudgePanelEl.innerHTML = `
+      <div class="lead-nudge-warn">⏰ Follow-up прострочено — ${escHtml(daysLabel)}</div>
+      <div class="ai-draft-variants">
+        ${variants.map((v, i) => `
+          <div class="ai-draft-variant">
+            <div class="ai-draft-variant-label mono-label">${escHtml(v.label)}</div>
+            <div class="ai-draft-variant-text">${escHtml(v.text)}</div>
+            <button type="button" class="ai-draft-use-btn" data-variant-idx="${i}">Підставити в чат</button>
+          </div>
+        `).join('')}
+      </div>
+      <button type="button" class="ai-draft-generate-btn" id="btn-lead-nudge-regen">🔄 Ще варіанти</button>
+    `;
+    leadNudgePanelEl.querySelectorAll('.ai-draft-use-btn').forEach(useBtn => {
+      useBtn.addEventListener('click', () => {
+        const idx = Number(useBtn.dataset.variantIdx);
+        const chosen = variants[idx];
+        if (!msgInput) return;
+        msgInput.value = chosen.text;
+        autoResizeInput();
+        updateSendBtn();
+        msgInput.focus();
+        showToast('Текст підставлено в поле — перевірте й натисніть Надіслати.');
+      });
+    });
+    document.getElementById('btn-lead-nudge-regen')?.addEventListener('click', () => generateLeadNudge(lead));
+  } catch (err) {
+    showToast(err.message || 'Не вдалося згенерувати нагадування.', true);
+    renderLeadNudgePanel(lead);
   }
 }
 
