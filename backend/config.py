@@ -32,6 +32,10 @@ ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', '').strip()
 # One-time bootstrap hardening: якщо задано, /api/bootstrap вимагає X-Bootstrap-Token
 BOOTSTRAP_TOKEN = os.getenv('BOOTSTRAP_TOKEN', '').strip()
 
+# OpenRouter (openrouter.ai) — безкоштовні LLM-моделі для AI-чернеток лідів
+# (cold-outreach драфти та підказки відповідей у WhatsApp/Instagram-чатах).
+OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY', '').strip()
+
 # Messenger at-rest encryption keys (Fernet, base64 urlsafe, 32-byte).
 # Multiple keys allowed for rotation: "new_key,old_key".
 MESSENGER_ENCRYPTION_KEYS = os.getenv('MESSENGER_ENCRYPTION_KEYS', '').strip()

@@ -331,6 +331,10 @@ const leadsKanbanColumnsEl = $('leads-kanban-columns');
 const btnKanbanBack = $('btn-kanban-back');
 const leadsKanbanEntry = $('leads-kanban-entry');
 
+const aiDraftPanelEl = $('ai-draft-panel');
+const btnAiSuggest = $('btn-ai-suggest');
+const aiReplySuggestionsEl = $('ai-reply-suggestions');
+
 const btnIntegrations = $('btn-integrations');
 const integrationsView = $('integrations-view');
 const btnIntegrationsBack = $('btn-integrations-back');
@@ -1304,7 +1308,111 @@ function renderLeadInfoBanner(lead) {
       );
     });
   }
+  renderAiDraftPanel(lead);
+  if (btnAiSuggest) btnAiSuggest.hidden = false;
 }
+
+function renderAiDraftPanel(lead) {
+  if (!aiDraftPanelEl) return;
+  aiDraftPanelEl.hidden = false;
+  aiDraftPanelEl.innerHTML = `<button type="button" class="ai-draft-generate-btn" id="btn-ai-draft-gen">✨ AI-чернетка першого контакту</button>`;
+  document.getElementById('btn-ai-draft-gen')?.addEventListener('click', () => generateAiDraft(lead));
+}
+
+async function generateAiDraft(lead) {
+  const btn = document.getElementById('btn-ai-draft-gen');
+  if (btn) { btn.disabled = true; btn.textContent = 'Генерую…'; }
+  try {
+    const data = await api('POST', `/leads/${lead.id}/ai-draft`, undefined, { timeoutMs: 60000 });
+    const variants = [
+      ...(data.variants_en || []).map((text, i) => ({ label: `EN — варіант ${i + 1}`, text })),
+      ...(data.local ? [{ label: data.local.lang, text: data.local.text }] : []),
+    ];
+    if (!variants.length) {
+      showToast('AI не повернув варіантів. Спробуйте ще раз.', true);
+      renderAiDraftPanel(lead);
+      return;
+    }
+    aiDraftPanelEl.innerHTML = `
+      <div class="ai-draft-variants">
+        ${variants.map((v, i) => `
+          <div class="ai-draft-variant">
+            <div class="ai-draft-variant-label mono-label">${escHtml(v.label)}</div>
+            <div class="ai-draft-variant-text">${escHtml(v.text)}</div>
+            <button type="button" class="ai-draft-use-btn" data-variant-idx="${i}">Використати</button>
+          </div>
+        `).join('')}
+      </div>
+      <button type="button" class="ai-draft-generate-btn" id="btn-ai-draft-regen">🔄 Ще варіанти</button>
+    `;
+    aiDraftPanelEl.querySelectorAll('.ai-draft-use-btn').forEach(useBtn => {
+      useBtn.addEventListener('click', async () => {
+        const idx = Number(useBtn.dataset.variantIdx);
+        const chosen = variants[idx];
+        useBtn.disabled = true;
+        try {
+          await api('PATCH', `/leads/${lead.id}`, { first_message_en: chosen.text });
+          showToast('Заготовку збережено.');
+          const fresh = await api('GET', `/leads/${lead.id}`);
+          renderLeadInfoBanner(fresh);
+        } catch (err) {
+          showToast(err.message || 'Не вдалося зберегти.', true);
+          useBtn.disabled = false;
+        }
+      });
+    });
+    document.getElementById('btn-ai-draft-regen')?.addEventListener('click', () => generateAiDraft(lead));
+  } catch (err) {
+    showToast(err.message || 'Не вдалося згенерувати чернетку.', true);
+    renderAiDraftPanel(lead);
+  }
+}
+
+async function toggleAiReplySuggestions() {
+  if (!aiReplySuggestionsEl || !leadsState.currentLeadId) return;
+  const leadId = leadsState.currentLeadId;
+  if (!aiReplySuggestionsEl.hidden) {
+    aiReplySuggestionsEl.hidden = true;
+    aiReplySuggestionsEl.innerHTML = '';
+    return;
+  }
+  aiReplySuggestionsEl.hidden = false;
+  aiReplySuggestionsEl.innerHTML = '<div class="ai-reply-loading">Підбираю варіанти відповіді…</div>';
+  if (btnAiSuggest) btnAiSuggest.disabled = true;
+  try {
+    const data = await api('POST', `/leads/${leadId}/ai-reply-suggestions`, { count: 2 }, { timeoutMs: 60000 });
+    const variants = data.variants || [];
+    if (!variants.length) {
+      aiReplySuggestionsEl.innerHTML = '<div class="ai-reply-loading">Немає варіантів — спробуйте ще раз.</div>';
+      return;
+    }
+    aiReplySuggestionsEl.innerHTML = variants.map((v, i) => `
+      <button type="button" class="ai-reply-chip" data-idx="${i}">
+        <span class="ai-reply-chip-lang mono-label">${escHtml(v.lang)}</span>
+        <span class="ai-reply-chip-text">${escHtml(v.text)}</span>
+        ${v.gloss ? `<span class="ai-reply-chip-gloss">${escHtml(v.gloss)}</span>` : ''}
+      </button>
+    `).join('');
+    aiReplySuggestionsEl.querySelectorAll('.ai-reply-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const v = variants[Number(chip.dataset.idx)];
+        if (msgInput) {
+          msgInput.value = v.text;
+          msgInput.dispatchEvent(new Event('input'));
+          msgInput.focus();
+        }
+        aiReplySuggestionsEl.hidden = true;
+        aiReplySuggestionsEl.innerHTML = '';
+      });
+    });
+  } catch (err) {
+    aiReplySuggestionsEl.innerHTML = `<div class="ai-reply-loading">${escHtml(err.message || 'Помилка генерації.')}</div>`;
+  } finally {
+    if (btnAiSuggest) btnAiSuggest.disabled = false;
+  }
+}
+
+if (btnAiSuggest) btnAiSuggest.addEventListener('click', toggleAiReplySuggestions);
 
 async function saveLeadPillEdit(leadId) {
   const payload = {
@@ -1327,6 +1435,8 @@ async function saveLeadPillEdit(leadId) {
 function closeLeadDetail() {
   if (window.innerWidth <= 720) sidebar.classList.remove('hidden');
   if (leadInfoBanner) leadInfoBanner.hidden = true;
+  if (btnAiSuggest) btnAiSuggest.hidden = true;
+  if (aiReplySuggestionsEl) { aiReplySuggestionsEl.hidden = true; aiReplySuggestionsEl.innerHTML = ''; }
   leadsState.currentLeadId = null;
   document.querySelectorAll('.leads-card').forEach(el => el.classList.remove('active'));
   activeConvId = null;

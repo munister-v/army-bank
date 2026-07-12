@@ -14,7 +14,9 @@ from typing import Any
 from flask import Blueprint, Response, g, jsonify, request
 
 from ..database import get_connection, get_returning_id_suffix, insert_last_id
-from ..services.messenger_crypto import encrypt_message
+from ..services import ai_drafts, openrouter_service
+from ..services.messenger_crypto import decrypt_message, encrypt_message
+from ..services.openrouter_service import OpenRouterError
 from .helpers import api_error, auth_required, role_required
 
 leads_bp = Blueprint('leads', __name__, url_prefix='/api/leads')
@@ -26,6 +28,7 @@ _EDITABLE_FIELDS = (
     'owner', 'pipeline', 'stage', 'outreach_status', 'priority',
     'next_followup_date', 'last_touch_date', 'reply_status',
     'crm_record_id', 'sync_status', 'notes', 'manager_private_notes',
+    'first_message_en',
 )
 
 _COLUMNS = (
@@ -401,6 +404,91 @@ def get_lead_conversation(lead_id: int):
             return api_error('Лід не знайдено.', 404)
         conv_id = _get_or_create_lead_conversation(conn, lead_id, g.current_user['id'])
     return jsonify({'ok': True, 'data': {'conversation_id': conv_id}})
+
+
+@leads_bp.post('/<int:lead_id>/ai-draft')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def generate_ai_draft(lead_id: int):
+    """Cold-outreach чернетка першого контакту на основі даних ліда —
+    безкоштовна LLM-модель через OpenRouter (fallback-ланцюжок)."""
+    if not openrouter_service.is_configured():
+        return api_error('AI-чернетки не налаштовані (немає OPENROUTER_API_KEY).', 503)
+    _ensure_schema()
+    with get_connection() as conn:
+        lead = conn.execute('SELECT * FROM leads WHERE id = %s', (lead_id,)).fetchone()
+    if not lead:
+        return api_error('Лід не знайдено.', 404)
+
+    prompt = ai_drafts.build_draft_prompt(dict(lead))
+    try:
+        text, model_used = openrouter_service.generate(prompt)
+    except OpenRouterError as exc:
+        return api_error(f'Не вдалося згенерувати чернетку: {exc.message}', 502)
+
+    # Слабкі безкоштовні моделі інколи ігнорують частину тегованого формату
+    # (напр. видають LOCAL, але забувають EN2) — НЕ ретраїмо іншою моделлю
+    # заради повноти: generate() вже пробує до _MAX_ATTEMPTS моделей саме на
+    # мережеві/HTTP збої, а ще один повний прохід подвоїв би найгірший час
+    # відповіді за 60-секундний таймаут gunicorn-воркера (deploy/gunicorn.conf.py).
+    # Часткова відповідь (лише EN або лише LOCAL) — все одно корисна, не помилка.
+    data = ai_drafts.parse_draft_response(text)
+    if not data['variants_en'] and not data['local']:
+        return api_error('Не вдалося згенерувати чернетку: модель не повернула розпізнаваний текст.', 502)
+
+    data['model_used'] = model_used
+    return jsonify({'ok': True, 'data': data})
+
+
+@leads_bp.post('/<int:lead_id>/ai-reply-suggestions')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def generate_ai_reply_suggestions(lead_id: int):
+    """Підказки відповіді в живому чаті ліда — мовою клієнта (готово до
+    відправки) + короткий англійський глос для менеджера."""
+    if not openrouter_service.is_configured():
+        return api_error('AI-підказки не налаштовані (немає OPENROUTER_API_KEY).', 503)
+    _ensure_schema()
+    body = request.get_json(silent=True) or {}
+    variant_count = min(3, max(1, int(body.get('count') or 2)))
+
+    with get_connection() as conn:
+        lead = conn.execute('SELECT * FROM leads WHERE id = %s', (lead_id,)).fetchone()
+        if not lead:
+            return api_error('Лід не знайдено.', 404)
+        conv_id = _get_or_create_lead_conversation(conn, lead_id, g.current_user['id'])
+        rows = conn.execute(
+            'SELECT sender_id, text, msg_type, is_deleted FROM messages '
+            'WHERE conversation_id = %s ORDER BY id DESC LIMIT 10',
+            (conv_id,),
+        ).fetchall()
+
+    me_id = g.current_user['id']
+    history = []
+    for r in reversed(rows or []):
+        r = dict(r)
+        if r.get('is_deleted') or r.get('msg_type') != 'text':
+            continue
+        text = decrypt_message(r.get('text') or '', fallback='')
+        if not text:
+            continue
+        role = 'assistant' if int(r['sender_id']) == int(me_id) else 'user'
+        history.append({'role': role, 'text': text})
+
+    if not history:
+        return api_error('У цього ліда ще немає повідомлень для контексту.', 400)
+
+    prompt = ai_drafts.build_reply_prompt(dict(lead), history, variant_count)
+    try:
+        text, model_used = openrouter_service.generate(prompt)
+    except OpenRouterError as exc:
+        return api_error(f'Не вдалося згенерувати підказки: {exc.message}', 502)
+
+    variants = ai_drafts.parse_reply_response(text)
+    if not variants:
+        return api_error('Не вдалося згенерувати підказки: модель не повернула розпізнаваний текст.', 502)
+
+    return jsonify({'ok': True, 'data': {'variants': variants, 'model_used': model_used}})
 
 
 @leads_bp.get('/<int:lead_id>/activity')
