@@ -5,7 +5,7 @@
 ════════════════════════════════════════════ */
 
 :root {
-  /* ── Bank palette ─────────────────────── */
+  /* ── Bank palette (secondary/trust accent — brand mark, verified badges, sent bubbles) ── */
   --blue:        #1f6b4c;
   --blue-hover:  #18553d;
   --blue-light:  #e7f2ec;
@@ -14,22 +14,22 @@
   --sand:        #c4a064;
   --sand-light:  #f1e7d4;
 
-  /* Surfaces */
-  --sidebar-bg:  #edf2ef;
+  /* Surfaces — cream/warm-neutral (TeachEd) */
+  --sidebar-bg:  #ede8e0;
   --sidebar-active: #ffffff;
-  --sidebar-text: #5f7267;
+  --sidebar-text: #7a7a64;
   --sidebar-text-active: #1f6b4c;
 
-  --bg:          #f3f7f3;
+  --bg:          #f5f0e8;
   --surface:     #ffffff;
-  --surface-2:   #f6faf7;
-  --border:      #d8e4dd;
-  --border-soft: #e7efe9;
+  --surface-2:   #fafaf4;
+  --border:      #e3e0d2;
+  --border-soft: #ede9dd;
 
-  /* Text */
-  --text:        #122419;
-  --text-2:      #4f6558;
-  --muted:       #8ea194;
+  /* Text — true ink, no green tint */
+  --text:        #1c1c1e;
+  --text-2:      #3a3a2e;
+  --muted:       #7a7a64;
 
   /* Status */
   --green:       #22c55e;
@@ -59,12 +59,16 @@
   --font:        'Manrope', system-ui, -apple-system, sans-serif;
   --font-mono:   'JetBrains Mono', ui-monospace, monospace;
 
-  /* Editorial redesign tokens (TeachEd-inspired: ink, pills, warm depth) */
-  --ink:         #0b1712;
-  --sand-bright: #d8b877;
+  /* Editorial redesign tokens (TeachEd: black ink, lime pop-accent, warm depth) */
+  --ink:         #1c1c1e;
+  --sand-bright: #c8e632;
+  --lime:        #c8e632;
+  --lime-dim:    rgba(200,230,50,.14);
+  --lime-border: rgba(200,230,50,.34);
+  --lime-glow:   rgba(200,230,50,.28);
   --radius-pill: 999px;
-  --shadow-soft: 0 1px 2px rgba(16,40,30,.05), 0 8px 24px rgba(16,40,30,.06);
-  --shadow-pop:  0 2px 6px rgba(16,40,30,.06), 0 24px 60px rgba(16,40,30,.14);
+  --shadow-soft: 0 1px 2px rgba(28,28,30,.05), 0 8px 24px rgba(28,28,30,.06);
+  --shadow-pop:  0 2px 6px rgba(28,28,30,.06), 0 24px 60px rgba(28,28,30,.14);
 }
 
 /* Signature monospace micro-label (uppercase, wide-tracked) — reused across the app */
@@ -188,10 +192,10 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   border-radius: var(--radius-pill); padding: 15px;
   font-family: var(--font); font-size: 15px; font-weight: 800; letter-spacing: -.01em; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  box-shadow: 0 6px 18px rgba(11,23,18,.22);
+  box-shadow: 0 6px 18px rgba(28,28,30,.22);
   transition: background .15s, transform .12s, box-shadow .15s;
 }
-.btn-primary:hover { background: #16261d; transform: translateY(-1px); box-shadow: 0 10px 26px rgba(11,23,18,.28); }
+.btn-primary:hover { background: #2c2c2e; transform: translateY(-1px); box-shadow: 0 10px 26px rgba(28,28,30,.28); }
 .btn-primary:active { transform: translateY(0) scale(.99); }
 .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
 
@@ -213,7 +217,7 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 .auth-brand-panel {
   flex: 1;
   background:
-    radial-gradient(ellipse 90% 60% at 80% 8%, rgba(216,184,119,.22), transparent 60%),
+    radial-gradient(ellipse 90% 60% at 80% 8%, rgba(200,230,50,.20), transparent 60%),
     linear-gradient(160deg, #0d3325 0%, #145038 52%, #0f3b2d 100%);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   position: relative; overflow: hidden;
@@ -2973,11 +2977,11 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 ════════════════════════════════════════════ */
 .ai-draft-panel { padding: 0 16px 10px; }
 .ai-draft-generate-btn {
-  border: 1px solid rgba(200,155,60,.35); background: var(--gold-dim, #f4ead4);
+  border: 1px solid var(--lime-border); background: var(--lime-dim);
   color: var(--ink); border-radius: var(--radius-pill); padding: 8px 14px;
   font-size: 12.5px; font-weight: 700; cursor: pointer; transition: background .15s, transform .12s;
 }
-.ai-draft-generate-btn:hover { background: rgba(200,155,60,.22); transform: translateY(-1px); }
+.ai-draft-generate-btn:hover { background: rgba(200,230,50,.24); transform: translateY(-1px); }
 .ai-draft-generate-btn:disabled { opacity: .6; cursor: default; transform: none; }
 .ai-draft-variants { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
 .ai-draft-variant {
@@ -2991,11 +2995,11 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   border-radius: var(--radius-pill); padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
   transition: background .15s;
 }
-.ai-draft-use-btn:hover { background: #16261d; }
+.ai-draft-use-btn:hover { background: #2c2c2e; }
 .ai-draft-use-btn:disabled { opacity: .6; cursor: default; }
 
-.ai-suggest-btn { color: #a8792f; }
-.ai-suggest-btn:hover { background: var(--gold-dim, #f4ead4); }
+.ai-suggest-btn { color: #5c6b0a; }
+.ai-suggest-btn:hover { background: var(--lime-dim); }
 
 .lead-nudge-panel { padding: 0 16px 10px; }
 .lead-nudge-warn {
@@ -3065,7 +3069,7 @@ a.prosp-contact { color: var(--blue); }
   letter-spacing: .04em; border-radius: var(--radius-pill); padding: 3px 9px;
 }
 .prosp-badge-new { background: #dcfce7; color: #166534; }
-.prosp-badge-gap { background: var(--gold-dim, #f4ead4); color: #8a6a2a; }
+.prosp-badge-gap { background: #f4ead4; color: #8a6a2a; }
 .prosp-card-offer { font-size: 12px; color: var(--blue); font-weight: 600; margin-top: 2px; }
 
 .prospecting-import-bar {
