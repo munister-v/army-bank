@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '68';
+const MESSENGER_ASSET_VERSION = '69';
 // Мають точно збігатися з _SAVED_MESSAGES_NAME/_SCHEDULER_NAME у backend/routes/messenger_routes.py
 const SAVED_MESSAGES_NAME = '🔖 Збережені повідомлення';
 const SCHEDULER_NAME = '📅 Планувальник';
@@ -1763,12 +1763,13 @@ function renderProspResults(result) {
     updateProspImportBar();
     return;
   }
-  const head = `<div class="prosp-results-head">Знайдено ${prospCandidates.length} (усього в області: ${result.total_found}) · ${escHtml(result.area || '')}</div>`;
+  const head = `<div class="prosp-results-head">Знайдено <b>${prospCandidates.length}</b> · усього в області: ${result.total_found} · ${escHtml(result.area || '')}</div>`;
   const rows = prospCandidates.map((c, i) => `
     <div class="prosp-card">
       <label class="prosp-card-check">
         <input type="checkbox" class="prosp-select" data-idx="${i}"/>
       </label>
+      <div class="prosp-card-avatar">${escHtml((c.business_name || '?').trim().charAt(0) || '?')}</div>
       <div class="prosp-card-body">
         <div class="prosp-card-name">${escHtml(c.business_name)}</div>
         <div class="prosp-card-meta">${escHtml([c.category, c.city_area].filter(Boolean).join(' · '))}</div>
@@ -1779,7 +1780,7 @@ function renderProspResults(result) {
           ${c.source_url ? `<a class="prosp-contact" href="${escHtml(c.source_url)}" target="_blank" rel="noopener">OSM</a>` : ''}
         </div>
         <div class="prosp-card-badges">${prospSignalBadges(c)}</div>
-        ${c.suggested_first_offer ? `<div class="prosp-card-offer">Пропозиція: ${escHtml(c.suggested_first_offer)}</div>` : ''}
+        ${c.suggested_first_offer ? `<div class="prosp-card-offer">💡 ${escHtml(c.suggested_first_offer)}</div>` : ''}
       </div>
     </div>
   `).join('');

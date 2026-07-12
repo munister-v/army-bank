@@ -2801,8 +2801,8 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   font-size: 15px; font-weight: 700; color: var(--blue); text-transform: uppercase; flex-shrink: 0;
 }
 .leads-thread-info { flex: 1; min-width: 0; }
-.leads-thread-name { font-size: 15px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.leads-thread-sub { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leads-thread-name { font-size: 17px; font-weight: 800; letter-spacing: -.015em; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leads-thread-sub { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .leads-thread-contacts { display: flex; gap: 6px; flex-shrink: 0; }
 
 .leads-thread-pills {
@@ -3049,28 +3049,46 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 .prospecting-hint { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin: 0; }
 
 .prospecting-results { flex: 1; overflow-y: auto; padding: 12px 16px; }
-.prosp-results-head { font-size: 12px; color: var(--text-2); margin-bottom: 10px; font-family: var(--font-mono); }
-.prosp-cards { display: flex; flex-direction: column; gap: 8px; }
+.prosp-results-head {
+  display: inline-flex; align-items: center; gap: 6px; margin-bottom: 12px;
+  padding: 5px 12px; border-radius: var(--radius-pill); background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--text-2);
+}
+.prosp-results-head b { color: var(--ink); font-weight: 800; }
+.prosp-cards { display: flex; flex-direction: column; gap: 10px; }
 .prosp-card {
   display: flex; gap: 12px; background: #fff; border: 1px solid var(--border-soft);
-  border-radius: 14px; padding: 12px; box-shadow: var(--shadow-soft);
+  border-radius: 16px; padding: 14px; box-shadow: var(--shadow-soft);
+  transition: transform .12s, box-shadow .15s, border-color .15s;
 }
+.prosp-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-pop); border-color: var(--border); }
 .prosp-card-check { display: flex; align-items: flex-start; padding-top: 2px; }
 .prosp-card-check input { width: 18px; height: 18px; accent-color: var(--blue); cursor: pointer; }
+.prosp-card-avatar {
+  width: 40px; height: 40px; border-radius: 12px; background: var(--blue-light);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  font-size: 15px; font-weight: 800; color: var(--blue); text-transform: uppercase;
+}
 .prosp-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.prosp-card-name { font-size: 14.5px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); }
+.prosp-card-name { font-size: 15px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); }
 .prosp-card-meta { font-size: 12.5px; color: var(--text-2); }
 .prosp-card-contacts { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 2px; }
 .prosp-contact { font-size: 12.5px; color: var(--text-2); text-decoration: none; }
-a.prosp-contact { color: var(--blue); }
+a.prosp-contact { color: var(--blue); font-weight: 600; }
+a.prosp-contact:hover { text-decoration: underline; }
 .prosp-card-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
 .prosp-badge {
   font-family: var(--font-mono); font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .04em; border-radius: var(--radius-pill); padding: 3px 9px;
+  letter-spacing: .04em; border-radius: var(--radius-pill); padding: 3px 9px; border: 1px solid transparent;
 }
-.prosp-badge-new { background: #dcfce7; color: #166534; }
-.prosp-badge-gap { background: #f4ead4; color: #8a6a2a; }
-.prosp-card-offer { font-size: 12px; color: var(--blue); font-weight: 600; margin-top: 2px; }
+.prosp-badge-new { background: #dcfce7; color: #166534; border-color: rgba(22,101,52,.18); }
+.prosp-badge-gap { background: rgba(245,158,11,.12); color: #92400e; border-color: rgba(245,158,11,.32); }
+.prosp-card-offer {
+  display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; margin-top: 6px;
+  background: var(--lime-dim); border: 1px solid var(--lime-border); border-radius: var(--radius-pill);
+  padding: 4px 11px; font-size: 12px; color: var(--ink); font-weight: 700;
+}
 
 .prospecting-import-bar {
   display: flex; align-items: center; gap: 12px; padding: 12px 16px;
