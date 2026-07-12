@@ -1,6 +1,18 @@
 """Тести дефолтного чату Army Bank Assistant."""
 from __future__ import annotations
 
+import pytest
+
+from backend.routes.messenger_routes import _ASSISTANT_FEATURE_ENABLED
+
+# Асистент навмисно вимкнено прапорцем _ASSISTANT_FEATURE_ENABLED; ці тести
+# описують УВІМКНЕНУ поведінку, тож пропускаємо їх, поки фіча off (інакше
+# вони червоніють без причини й ховають реальні регресії в шумі).
+pytestmark = pytest.mark.skipif(
+    not _ASSISTANT_FEATURE_ENABLED,
+    reason='Army Bank Assistant вимкнено (_ASSISTANT_FEATURE_ENABLED = False)',
+)
+
 
 def _register(client, uid: str = '8101') -> tuple[int, str]:
     phone = f'+38098{int(uid) % 10_000_000:07d}'

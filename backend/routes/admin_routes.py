@@ -31,7 +31,10 @@ account_repo = AccountRepository()
 feature_repo = FeatureRepository()
 idempotency_service = IdempotencyService()
 
-_ALLOWED_ROLES = ('soldier', 'operator', 'admin', 'platform_admin')
+# 'manager' — доступ до CRM (Ліди/Пошук клієнтів/Інтеграції) БЕЗ банківської
+# адмінки (/api/admin/*). Публічна реєстрація створює 'soldier' (звичайний
+# клієнт банку); підвищити до 'manager' може лише адмін через цю ручку.
+_ALLOWED_ROLES = ('soldier', 'manager', 'operator', 'admin', 'platform_admin')
 
 
 def _as_bool(value, default: bool = False) -> bool:

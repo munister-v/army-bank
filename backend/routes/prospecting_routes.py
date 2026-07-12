@@ -23,7 +23,9 @@ from .leads_routes import _log_activity, _next_lead_id
 
 prospecting_bp = Blueprint('prospecting', __name__, url_prefix='/api/prospecting')
 
-_ADMIN_ROLES = ('admin', 'platform_admin')
+# Ролі з доступом до CRM (Пошук клієнтів). 'manager' — CRM-менеджер без
+# банківської адмінки (див. leads_routes._ADMIN_ROLES).
+_ADMIN_ROLES = ('admin', 'platform_admin', 'manager')
 _MANAGERS = ('Manager 1', 'Manager 2')
 
 

@@ -88,7 +88,7 @@ def _signature_ok(app_secret: str, raw_body: bytes, signature_header: str) -> bo
 
 def _first_admin_id(conn) -> int | None:
     row = conn.execute(
-        "SELECT id FROM users WHERE role IN ('admin', 'platform_admin') ORDER BY id ASC LIMIT 1"
+        "SELECT id FROM users WHERE role IN ('admin', 'platform_admin', 'manager') ORDER BY id ASC LIMIT 1"
     ).fetchone()
     return int(row['id']) if row else None
 

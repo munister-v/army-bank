@@ -11,7 +11,7 @@ from .base import BaseRepository
 
 
 class UserRepository(BaseRepository):
-    def create_user(self, full_name: str, phone: str, email: str, password_hash: str, role: str = 'admin') -> int:
+    def create_user(self, full_name: str, phone: str, email: str, password_hash: str, role: str = 'soldier') -> int:
         """Створює користувача. Зберігається ХЕШ пароля (не сам пароль). Повертає id нового рядка."""
         with self.connection() as conn:
             cursor = conn.execute(

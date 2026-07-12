@@ -25,7 +25,9 @@ from .helpers import api_error, auth_required, role_required
 
 integrations_bp = Blueprint('integrations', __name__, url_prefix='/api/integrations')
 
-_ADMIN_ROLES = ('admin', 'platform_admin')
+# Ролі з доступом до CRM (Інтеграції). 'manager' — CRM-менеджер без
+# банківської адмінки (див. leads_routes._ADMIN_ROLES).
+_ADMIN_ROLES = ('admin', 'platform_admin', 'manager')
 
 MANAGERS: dict[str, str] = {'Manager 1': 'Менеджер Миша', 'Manager 2': 'Менеджер Едуард'}
 CHANNELS = ('whatsapp', 'instagram')

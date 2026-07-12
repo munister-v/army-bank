@@ -143,9 +143,10 @@ _scheduler_digest_checked_on: dict[int, str] = {}
 
 def _maybe_post_scheduler_digest(me_id: int, conv_id: int, role: str) -> None:
     """Раз на день підкидає в 'Планувальник' нагадування про прострочені
-    фоллоу-апи лідів. Лише для admin/platform_admin — у інших немає доступу
-    до CRM-лідів. Ідемпотентно: перевіряє, чи вже постили сьогодні."""
-    if role not in ('admin', 'platform_admin'):
+    фоллоу-апи лідів. Лише для ролей з доступом до CRM (admin/platform_admin/
+    manager) — у інших немає доступу до лідів. Ідемпотентно: перевіряє, чи вже
+    постили сьогодні."""
+    if role not in ('admin', 'platform_admin', 'manager'):
         return
     from datetime import date
     today_iso = date.today().isoformat()

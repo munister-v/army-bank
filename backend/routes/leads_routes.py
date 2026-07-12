@@ -21,7 +21,9 @@ from .helpers import api_error, auth_required, role_required
 
 leads_bp = Blueprint('leads', __name__, url_prefix='/api/leads')
 
-_ADMIN_ROLES = ('admin', 'platform_admin')
+# Ролі з доступом до CRM (Ліди). 'manager' — CRM-менеджер БЕЗ доступу до
+# банківської адмінки (/api/admin/*, яка лишається на 'admin'/'platform_admin').
+_ADMIN_ROLES = ('admin', 'platform_admin', 'manager')
 
 # Поля, які менеджер/адмін реально редагує з UI (решта — імпортовані дані).
 _EDITABLE_FIELDS = (

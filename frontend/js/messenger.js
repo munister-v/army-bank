@@ -2667,7 +2667,7 @@ function showApp() {
   authScreen.hidden = true;
   appEl.hidden = false;
   if (me && topbarAvatar) topbarAvatar.textContent = initial(me.full_name);
-  const isLeadsAdmin = ['admin', 'platform_admin'].includes(me?.role);
+  const isLeadsAdmin = ['admin', 'platform_admin', 'manager'].includes(me?.role);
   if (btnLeads) btnLeads.hidden = !isLeadsAdmin;
   if (btnIntegrations) btnIntegrations.hidden = !isLeadsAdmin;
   if (btnProspecting) btnProspecting.hidden = !isLeadsAdmin;
