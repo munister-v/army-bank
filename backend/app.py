@@ -54,6 +54,7 @@ from .routes.agent_routes import agent_bp
 from .routes.leads_routes import leads_bp
 from .routes.integrations_routes import integrations_bp
 from .routes.webhook_routes import webhook_bp
+from .routes.prospecting_routes import prospecting_bp
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / 'frontend'
@@ -282,6 +283,7 @@ def create_app() -> Flask:
     app.register_blueprint(leads_bp,   url_prefix=prefix + '/api/leads')
     app.register_blueprint(integrations_bp, url_prefix=prefix + '/api/integrations')
     app.register_blueprint(webhook_bp, url_prefix=prefix + '/api/webhooks')
+    app.register_blueprint(prospecting_bp, url_prefix=prefix + '/api/prospecting')
 
     @app.get(prefix + '/api' if prefix else '/api')
     @app.get(prefix + '/api/' if prefix else '/api/')

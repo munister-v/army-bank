@@ -341,6 +341,19 @@ const btnIntegrationsBack = $('btn-integrations-back');
 const integrationsWebhookCard = $('integrations-webhook-card');
 const integrationsGridEl = $('integrations-grid');
 
+const btnProspecting = $('btn-prospecting');
+const prospectingView = $('prospecting-view');
+const btnProspectingBack = $('btn-prospecting-back');
+const prospectingForm = $('prospecting-form');
+const prospCategoryEl = $('prosp-category');
+const prospQualifiersEl = $('prosp-qualifiers');
+const prospResultsEl = $('prosp-results');
+const prospImportBar = $('prosp-import-bar');
+const prospSelectedCount = $('prosp-selected-count');
+const btnProspImport = $('btn-prosp-import');
+let prospCandidates = [];
+let prospCatalogLoaded = false;
+
 // ════════════════════════════════════════════
 // API helper
 // ════════════════════════════════════════════
@@ -1517,6 +1530,174 @@ function closeIntegrationsView() {
   if (chatEmpty) chatEmpty.hidden = false;
 }
 
+// ════════════════════════════════════════════
+// Prospecting: конструктор пошуку клієнтів (OpenStreetMap)
+// ════════════════════════════════════════════
+async function openProspectingView() {
+  if (!prospectingView) return;
+  if (window.innerWidth <= 720) sidebar.classList.add('hidden');
+  activeConvId = null;
+  activePartner = null;
+  clearInterval(convPollTimer);
+  if (chatEmpty) chatEmpty.hidden = true;
+  if (chatView) chatView.hidden = true;
+  if (leadInfoBanner) leadInfoBanner.hidden = true;
+  if (leadsKanbanView) leadsKanbanView.hidden = true;
+  if (integrationsView) integrationsView.hidden = true;
+  prospectingView.hidden = false;
+  if (!prospCatalogLoaded) await loadProspectingCatalog();
+}
+
+function closeProspectingView() {
+  if (window.innerWidth <= 720) sidebar.classList.remove('hidden');
+  if (prospectingView) prospectingView.hidden = true;
+  if (chatEmpty) chatEmpty.hidden = false;
+}
+
+async function loadProspectingCatalog() {
+  try {
+    const data = await api('GET', '/prospecting/categories');
+    if (prospCategoryEl) {
+      prospCategoryEl.innerHTML = '<option value="">— оберіть —</option>' +
+        (data.categories || []).map(c => `<option value="${escHtml(c.key)}">${escHtml(c.label)}</option>`).join('');
+    }
+    if (prospQualifiersEl) {
+      prospQualifiersEl.innerHTML = (data.qualifiers || []).map(q => `
+        <label class="prospecting-checkbox">
+          <input type="checkbox" class="prosp-qualifier" value="${escHtml(q.key)}"/>
+          <span>${escHtml(q.label)}</span>
+        </label>
+      `).join('');
+    }
+    prospCatalogLoaded = true;
+  } catch (err) {
+    if (prospResultsEl) prospResultsEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Не вдалося завантажити категорії.')}</p>`;
+  }
+}
+
+function prospSignalBadges(cand) {
+  const badges = [];
+  if (cand.opened) {
+    const m = cand.opened.months_ago;
+    const label = m < 12 ? `Відкрито ${m} міс тому` : `Відкрито ${Math.floor(m / 12)} р тому`;
+    badges.push(`<span class="prosp-badge prosp-badge-new">🆕 ${escHtml(label)}</span>`);
+  }
+  const sig = cand.signals || {};
+  if (sig.no_website) badges.push('<span class="prosp-badge prosp-badge-gap">Немає сайту</span>');
+  if (sig.no_instagram) badges.push('<span class="prosp-badge prosp-badge-gap">Немає Instagram</span>');
+  if (sig.no_facebook) badges.push('<span class="prosp-badge prosp-badge-gap">Немає Facebook</span>');
+  return badges.join('');
+}
+
+function renderProspResults(result) {
+  prospCandidates = result.candidates || [];
+  if (!prospResultsEl) return;
+  if (!prospCandidates.length) {
+    const note = result.recent_filter_applied
+      ? 'Не знайдено бізнесів із відомою датою відкриття в цьому вікні. Спробуйте без фільтра «щойно відкриті» — OSM рідко має дату.'
+      : 'Нічого не знайдено. Спробуйте іншу категорію, місто, або зніміть частину фільтрів.';
+    prospResultsEl.innerHTML = `<p class="leads-empty">${escHtml(note)}</p>`;
+    updateProspImportBar();
+    return;
+  }
+  const head = `<div class="prosp-results-head">Знайдено ${prospCandidates.length} (усього в області: ${result.total_found}) · ${escHtml(result.area || '')}</div>`;
+  const rows = prospCandidates.map((c, i) => `
+    <div class="prosp-card">
+      <label class="prosp-card-check">
+        <input type="checkbox" class="prosp-select" data-idx="${i}"/>
+      </label>
+      <div class="prosp-card-body">
+        <div class="prosp-card-name">${escHtml(c.business_name)}</div>
+        <div class="prosp-card-meta">${escHtml([c.category, c.city_area].filter(Boolean).join(' · '))}</div>
+        <div class="prosp-card-contacts">
+          ${c.phone ? `<span class="prosp-contact">📞 ${escHtml(c.phone)}</span>` : ''}
+          ${c.website_url ? `<a class="prosp-contact" href="${escHtml(c.website_url)}" target="_blank" rel="noopener">🌐 сайт</a>` : ''}
+          ${c.instagram ? `<span class="prosp-contact">📷 ${escHtml(c.instagram)}</span>` : ''}
+          ${c.source_url ? `<a class="prosp-contact" href="${escHtml(c.source_url)}" target="_blank" rel="noopener">OSM</a>` : ''}
+        </div>
+        <div class="prosp-card-badges">${prospSignalBadges(c)}</div>
+        ${c.suggested_first_offer ? `<div class="prosp-card-offer">Пропозиція: ${escHtml(c.suggested_first_offer)}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+  prospResultsEl.innerHTML = head + `<div class="prosp-cards">${rows}</div>`;
+  prospResultsEl.querySelectorAll('.prosp-select').forEach(cb => {
+    cb.addEventListener('change', updateProspImportBar);
+  });
+  updateProspImportBar();
+}
+
+function selectedProspCandidates() {
+  if (!prospResultsEl) return [];
+  return Array.from(prospResultsEl.querySelectorAll('.prosp-select:checked'))
+    .map(cb => prospCandidates[Number(cb.dataset.idx)])
+    .filter(Boolean);
+}
+
+function updateProspImportBar() {
+  const selected = selectedProspCandidates();
+  if (prospSelectedCount) prospSelectedCount.textContent = `Обрано: ${selected.length}`;
+  if (prospImportBar) prospImportBar.hidden = selected.length === 0;
+}
+
+async function runProspectingSearch(e) {
+  if (e) e.preventDefault();
+  const categoryKey = prospCategoryEl?.value || '';
+  const country = document.getElementById('prosp-country')?.value.trim() || '';
+  const city = document.getElementById('prosp-city')?.value.trim() || '';
+  const recentOnly = document.getElementById('prosp-recent')?.checked;
+  const qualifiers = Array.from(prospQualifiersEl?.querySelectorAll('.prosp-qualifier:checked') || [])
+    .map(cb => cb.value);
+  if (!categoryKey) { showToast('Оберіть категорію.', true); return; }
+  if (!country) { showToast('Вкажіть країну.', true); return; }
+
+  const btn = document.getElementById('btn-prosp-search');
+  if (btn) { btn.disabled = true; btn.textContent = 'Шукаю…'; }
+  if (prospResultsEl) prospResultsEl.innerHTML = '<p class="leads-empty">Шукаю в OpenStreetMap… (може зайняти до хвилини)</p>';
+  try {
+    const result = await api('POST', '/prospecting/search', {
+      category_key: categoryKey, country, city, qualifiers,
+      recent_months: recentOnly ? 12 : 0, limit: 50,
+    }, { timeoutMs: 70000 });
+    renderProspResults(result);
+  } catch (err) {
+    if (prospResultsEl) prospResultsEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Помилка пошуку.')}</p>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Шукати'; }
+  }
+}
+
+async function importProspCandidates() {
+  const selected = selectedProspCandidates();
+  if (!selected.length) return;
+  const owner = document.getElementById('prosp-owner')?.value || 'Manager 1';
+  const country = document.getElementById('prosp-country')?.value.trim() || '';
+  const payload = selected.map(c => ({ ...c, country }));
+  if (btnProspImport) { btnProspImport.disabled = true; btnProspImport.textContent = 'Додаю…'; }
+  try {
+    const res = await api('POST', '/prospecting/import', { candidates: payload, owner });
+    let msg = `Додано ${res.created} лід(ів).`;
+    if (res.skipped) msg += ` Пропущено дублікатів: ${res.skipped}.`;
+    showToast(msg);
+    // Uncheck imported rows and refresh the leads badge count.
+    prospResultsEl?.querySelectorAll('.prosp-select:checked').forEach(cb => { cb.checked = false; });
+    updateProspImportBar();
+    loadLeadsStats().catch(() => {});
+  } catch (err) {
+    showToast(err.message || 'Не вдалося додати лідів.', true);
+  } finally {
+    if (btnProspImport) { btnProspImport.disabled = false; btnProspImport.textContent = 'Додати обраних у роботу'; }
+  }
+}
+
+if (btnProspecting) btnProspecting.addEventListener('click', () => {
+  if (prospectingView && !prospectingView.hidden) closeProspectingView();
+  else openProspectingView();
+});
+if (btnProspectingBack) btnProspectingBack.addEventListener('click', closeProspectingView);
+if (prospectingForm) prospectingForm.addEventListener('submit', runProspectingSearch);
+if (btnProspImport) btnProspImport.addEventListener('click', importProspCandidates);
+
 function renderIntegrationsWebhookCard(info) {
   if (!integrationsWebhookCard) return;
   integrationsWebhookCard.innerHTML = `
@@ -2104,6 +2285,7 @@ function showApp() {
   const isLeadsAdmin = ['admin', 'platform_admin'].includes(me?.role);
   if (btnLeads) btnLeads.hidden = !isLeadsAdmin;
   if (btnIntegrations) btnIntegrations.hidden = !isLeadsAdmin;
+  if (btnProspecting) btnProspecting.hidden = !isLeadsAdmin;
   if (isLeadsAdmin) loadLeadsStats().catch(() => {});
   updateNetworkPill();
   ensureMessengerBankStatus().catch(() => {});
@@ -2354,6 +2536,7 @@ async function openChat(conv) {
   if (leadsKanbanView) leadsKanbanView.hidden = true;
   if (leadsKanbanEntry) leadsKanbanEntry.classList.remove('active');
   if (integrationsView) integrationsView.hidden = true;
+  if (prospectingView) prospectingView.hidden = true;
 
   chatEmpty.hidden = true;
   chatView.hidden  = false;
