@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=75"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=76"/>
 </head>
 <body>
 
@@ -467,6 +467,7 @@
         </div>
       </div>
       <div class="integrations-body" id="integrations-body">
+        <div class="google-key-card" id="google-key-card"></div>
         <div class="integrations-webhook-card" id="integrations-webhook-card"></div>
         <div class="integrations-grid" id="integrations-grid"></div>
       </div>
@@ -610,6 +611,10 @@
             </div>
           </div>
 
+          <div class="prosp-google-setup" id="prosp-google-setup" hidden>
+            <span>🔑 Google-пошук потребує вашого ключа.</span>
+            <button type="button" class="prosp-setup-link" id="btn-prosp-setup-key">Налаштувати ключ →</button>
+          </div>
           <p class="prospecting-hint" id="prosp-hint">Дані OpenStreetMap — community-джерело. Покриття краще в Європі; телефон/сайт присутні не завжди. Сигнали «схоже, немає…» орієнтовні.</p>
         </form>
         <div class="prosp-quick-filter-row" id="prosp-quick-filter-row" hidden>
@@ -994,6 +999,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=75"></script>
+<script src="/js/messenger.js?v=76"></script>
 </body>
 </html>

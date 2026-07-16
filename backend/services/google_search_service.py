@@ -83,8 +83,47 @@ class GoogleSearchError(Exception):
         self.message = message
 
 
-def is_configured() -> bool:
-    return bool(config.GOOGLE_CSE_API_KEY and config.GOOGLE_CSE_CX)
+def is_configured(api_key: str = '', cx: str = '') -> bool:
+    """Налаштовано, якщо передані власні ключі менеджера АБО є глобальні у .env.
+    Порожні аргументи → перевіряємо лише глобальний .env-fallback."""
+    return bool((api_key or config.GOOGLE_CSE_API_KEY) and (cx or config.GOOGLE_CSE_CX))
+
+
+def verify_credentials(api_key: str, cx: str) -> dict:
+    """Робить мінімальний тестовий запит (1 результат), щоб переконатися, що
+    пара API key + Search Engine ID (cx) справді робоча — для кнопки
+    «Перевірити» в налаштуваннях. Кидає GoogleSearchError з людською причиною,
+    якщо ні; повертає {'total_results': N} при успіху."""
+    api_key = (api_key or '').strip()
+    cx = (cx or '').strip()
+    if not api_key or not cx:
+        raise GoogleSearchError('Вкажіть і API key, і Search Engine ID (cx).')
+    try:
+        resp = requests.get(
+            SEARCH_URL,
+            params={'key': api_key, 'cx': cx, 'q': 'coffee shop', 'num': 1},
+            timeout=_TIMEOUT,
+        )
+    except requests.RequestException as exc:
+        raise GoogleSearchError(f'Не вдалося звʼязатися з Google: {exc}') from exc
+    if resp.status_code == 200:
+        try:
+            total = int((resp.json().get('searchInformation') or {}).get('totalResults') or 0)
+        except (ValueError, AttributeError):
+            total = 0
+        return {'total_results': total}
+    detail = ''
+    try:
+        detail = resp.json().get('error', {}).get('message', '')
+    except ValueError:
+        pass
+    if resp.status_code == 400:
+        raise GoogleSearchError(f'Google відхилив запит (перевірте cx/Search Engine ID). {detail}'.strip())
+    if resp.status_code == 403:
+        raise GoogleSearchError(f'Google відхилив ключ (403 — перевірте API key і що Custom Search API увімкнено). {detail}'.strip())
+    if resp.status_code == 429:
+        raise GoogleSearchError('Денну квоту цього ключа вичерпано (429) — ключ робочий, але спробуйте завтра.')
+    raise GoogleSearchError(f'Google повернув HTTP {resp.status_code}. {detail}'.strip())
 
 
 def _domain(url: str) -> str:
@@ -151,10 +190,14 @@ def _build_query(query_text: str, exact_terms: str, exclude_terms: str, exclude_
 def search_businesses(*, query_text: str, category_label: str = '', category_key: str = '',
                        country: str = '', city: str = '', lang: str = '', gl: str = '',
                        date_restrict: str = '', exact_terms: str = '', exclude_terms: str = '',
-                       exclude_platforms: bool = True, limit: int = 20) -> dict:
-    if not is_configured():
+                       exclude_platforms: bool = True, limit: int = 20,
+                       api_key: str = '', cx: str = '') -> dict:
+    # Власні ключі менеджера мають пріоритет; порожні → глобальний .env-fallback.
+    key = (api_key or config.GOOGLE_CSE_API_KEY or '').strip()
+    engine_id = (cx or config.GOOGLE_CSE_CX or '').strip()
+    if not (key and engine_id):
         raise GoogleSearchError(
-            'Google-пошук ще не налаштований на сервері (немає GOOGLE_CSE_API_KEY / GOOGLE_CSE_CX у .env).'
+            'Google-пошук ще не налаштований: додайте власний ключ у 🔌 Інтеграції → Google-пошук.'
         )
     if not query_text.strip():
         raise GoogleSearchError('Вкажіть категорію або пошуковий запит.')
@@ -163,8 +206,8 @@ def search_businesses(*, query_text: str, category_label: str = '', category_key
     q = _build_query(query_text, exact_terms, exclude_terms, exclude_platforms)
 
     params = {
-        'key': config.GOOGLE_CSE_API_KEY,
-        'cx': config.GOOGLE_CSE_CX,
+        'key': key,
+        'cx': engine_id,
         'q': q,
         'num': _RESULTS_PER_PAGE,
     }
@@ -272,7 +315,8 @@ def _lead_score(is_platform: bool, is_listicle: bool, has_phone: bool) -> int:
     return score
 
 
-def enrich_business(*, business_name: str, city: str = '', country: str = '') -> dict:
+def enrich_business(*, business_name: str, city: str = '', country: str = '',
+                     api_key: str = '', cx: str = '') -> dict:
     """Точковий пошук контактів для ОДНОГО вже відомого бізнесу (напр. кандидат
     з OSM без телефону/email) — вужчий запит (точна назва в лапках) замість
     категорії, менше результатів, платформи НЕ виключаємо (Facebook-сторінка
@@ -283,7 +327,7 @@ def enrich_business(*, business_name: str, city: str = '', country: str = '') ->
     query_text = f'"{business_name}"'
     result = search_businesses(
         query_text=query_text, city=city, country=country,
-        exclude_platforms=False, limit=5,
+        exclude_platforms=False, limit=5, api_key=api_key, cx=cx,
     )
     phone = email = website = ''
     for c in result['candidates']:

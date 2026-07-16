@@ -180,7 +180,7 @@ def test_search_both_merges_and_dedups_across_sources(client, admin_headers, mon
     }
     monkeypatch.setattr(prospecting_routes.prospecting_service, 'search_businesses', lambda *a, **kw: osm_fake)
     monkeypatch.setattr(prospecting_routes.google_search_service, 'search_businesses', lambda *a, **kw: google_fake)
-    monkeypatch.setattr(prospecting_routes.google_search_service, 'is_configured', lambda: True)
+    monkeypatch.setattr(prospecting_routes.google_search_service, 'is_configured', lambda *a, **k: True)
 
     r = client.post('/api/prospecting/search-both', headers=admin_headers, json={
         'category_key': 'bakery', 'country': 'Poland', 'city': 'Krakow',
@@ -199,7 +199,7 @@ def test_search_both_works_when_google_not_configured(client, admin_headers, mon
         'total_found': 1, 'recent_filter_applied': False,
     }
     monkeypatch.setattr(prospecting_routes.prospecting_service, 'search_businesses', lambda *a, **kw: osm_fake)
-    monkeypatch.setattr(prospecting_routes.google_search_service, 'is_configured', lambda: False)
+    monkeypatch.setattr(prospecting_routes.google_search_service, 'is_configured', lambda *a, **k: False)
     r = client.post('/api/prospecting/search-both', headers=admin_headers, json={
         'category_key': 'bakery', 'country': 'Poland',
     })
@@ -233,9 +233,70 @@ def test_enrich_not_configured_returns_503(client, admin_headers, monkeypatch):
     def fail(**kw):
         raise GoogleSearchError('Google-пошук ще не налаштований на сервері')
     monkeypatch.setattr(prospecting_routes.google_search_service, 'enrich_business', fail)
-    monkeypatch.setattr(prospecting_routes.google_search_service, 'is_configured', lambda: False)
+    monkeypatch.setattr(prospecting_routes.google_search_service, 'is_configured', lambda *a, **k: False)
     r = client.post('/api/prospecting/enrich', headers=admin_headers, json={'business_name': 'X'})
     assert r.status_code == 503
+
+
+# ── /google-key (per-user Google Custom Search credentials) ────────────────
+
+def test_google_key_status_empty_by_default(client, admin_headers, monkeypatch):
+    monkeypatch.setattr(prospecting_routes, '_user_google_creds', lambda uid: ('', ''))
+    r = client.get('/api/prospecting/google-key', headers=admin_headers)
+    assert r.status_code == 200
+    assert r.get_json()['data']['has_own_key'] is False
+
+
+def test_google_key_save_requires_both_fields(client, admin_headers):
+    r = client.post('/api/prospecting/google-key', headers=admin_headers, json={'api_key': 'onlykey'})
+    assert r.status_code == 400
+
+
+def test_google_key_save_verifies_before_storing(client, admin_headers, monkeypatch):
+    # Невалідний ключ — verify_credentials кидає → 400, нічого не зберігається.
+    from backend.services.google_search_service import GoogleSearchError
+
+    def bad_verify(k, cx):
+        raise GoogleSearchError('Google відхилив ключ (403)')
+    monkeypatch.setattr(prospecting_routes.google_search_service, 'verify_credentials', bad_verify)
+    r = client.post('/api/prospecting/google-key', headers=admin_headers, json={'api_key': 'k', 'cx': 'cx'})
+    assert r.status_code == 400
+    assert '403' in r.get_json()['error']
+
+
+def test_google_key_save_and_status_roundtrip(client, admin_headers, monkeypatch):
+    monkeypatch.setattr(prospecting_routes.google_search_service, 'verify_credentials', lambda k, cx: {'total_results': 5})
+    r = client.post('/api/prospecting/google-key', headers=admin_headers, json={
+        'api_key': 'AIzaSyTESTKEY1234567890', 'cx': 'abc123:def',
+    })
+    assert r.status_code == 200
+    data = r.get_json()['data']
+    assert data['has_own_key'] is True
+    assert data['cx'] == 'abc123:def'
+    assert '••••' in data['key_preview']  # ключ маскується, не віддається повністю
+
+    # GET підтверджує збережений стан
+    r2 = client.get('/api/prospecting/google-key', headers=admin_headers)
+    assert r2.get_json()['data']['has_own_key'] is True
+
+    # DELETE прибирає
+    r3 = client.delete('/api/prospecting/google-key', headers=admin_headers)
+    assert r3.status_code == 200
+    assert r3.get_json()['data']['has_own_key'] is False
+
+
+def test_google_key_is_per_user(client, monkeypatch):
+    monkeypatch.setattr(prospecting_routes.google_search_service, 'verify_credentials', lambda k, cx: {'total_results': 1})
+    # Два різні адміни — ключ одного не має бути видним іншому.
+    uid_a, tok_a = _register(client)
+    UserRepository().update_role(uid_a, 'admin')
+    uid_b, tok_b = _register(client)
+    UserRepository().update_role(uid_b, 'admin')
+
+    client.post('/api/prospecting/google-key', headers={'Authorization': f'Bearer {tok_a}'},
+                json={'api_key': 'KEY-OF-A-1234567890', 'cx': 'cx-a'})
+    rb = client.get('/api/prospecting/google-key', headers={'Authorization': f'Bearer {tok_b}'})
+    assert rb.get_json()['data']['has_own_key'] is False
 
 
 # ── /import ──────────────────────────────────────────────────────────────────

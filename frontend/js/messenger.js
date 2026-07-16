@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '75';
+const MESSENGER_ASSET_VERSION = '76';
 // Мають точно збігатися з _SAVED_MESSAGES_NAME/_SCHEDULER_NAME у backend/routes/messenger_routes.py
 const SAVED_MESSAGES_NAME = '🔖 Збережені повідомлення';
 const SCHEDULER_NAME = '📅 Планувальник';
@@ -349,6 +349,7 @@ const integrationsView = $('integrations-view');
 const btnIntegrationsBack = $('btn-integrations-back');
 const integrationsWebhookCard = $('integrations-webhook-card');
 const integrationsGridEl = $('integrations-grid');
+const googleKeyCardEl = $('google-key-card');
 
 const btnProspecting = $('btn-prospecting');
 const prospectingView = $('prospecting-view');
@@ -1691,8 +1692,10 @@ async function openIntegrationsView() {
   if (chatView) chatView.hidden = true;
   if (leadInfoBanner) leadInfoBanner.hidden = true;
   if (leadsKanbanView) leadsKanbanView.hidden = true;
+  if (prospectingView) prospectingView.hidden = true;
   integrationsView.hidden = false;
   if (integrationsGridEl) integrationsGridEl.innerHTML = '<p class="leads-empty">Завантаження…</p>';
+  loadGoogleKeyCard();
   try {
     const [list, webhook] = await Promise.all([
       api('GET', '/integrations'),
@@ -1702,6 +1705,105 @@ async function openIntegrationsView() {
     renderIntegrationsGrid(list);
   } catch (err) {
     if (integrationsGridEl) integrationsGridEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Не вдалося завантажити інтеграції.')}</p>`;
+  }
+}
+
+async function loadGoogleKeyCard() {
+  if (!googleKeyCardEl) return;
+  googleKeyCardEl.innerHTML = '<p class="leads-empty">Завантаження…</p>';
+  try {
+    const status = await api('GET', '/prospecting/google-key');
+    renderGoogleKeyCard(status);
+  } catch (err) {
+    googleKeyCardEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Не вдалося завантажити налаштування.')}</p>`;
+  }
+}
+
+function renderGoogleKeyCard(status) {
+  if (!googleKeyCardEl) return;
+  const hasOwn = !!status.has_own_key;
+  const activeVia = hasOwn ? 'власний ключ' : (status.has_global_fallback ? 'спільний серверний ключ' : '');
+  const statusLine = status.active
+    ? `<span class="gkey-dot on"></span> Активно${activeVia ? ` · ${escHtml(activeVia)}` : ''}`
+    : `<span class="gkey-dot off"></span> Не налаштовано — Google-пошук вимкнено`;
+  googleKeyCardEl.innerHTML = `
+    <div class="gkey-head">
+      <span class="mono-label">🔎 Google Custom Search — власний ключ</span>
+      <span class="gkey-status">${statusLine}</span>
+    </div>
+    <p class="gkey-hint">Кожен менеджер може підключити свій Google-ключ, щоб шукати клієнтів через Google.
+      Створіть <b>API key</b> (Cloud Console → Custom Search API) і <b>Search Engine ID (cx)</b>
+      (programmablesearchengine.google.com, шукати «весь інтернет»). Ключ зберігається зашифрованим і видно лише вам.</p>
+    ${hasOwn ? `
+      <div class="gkey-saved">
+        <div class="gkey-saved-row"><span class="gkey-saved-label">API key</span><code>${escHtml(status.key_preview)}</code></div>
+        <div class="gkey-saved-row"><span class="gkey-saved-label">cx</span><code>${escHtml(status.cx)}</code></div>
+        ${status.verified_at ? `<div class="gkey-saved-verified">✓ Перевірено: ${escHtml(String(status.verified_at).slice(0, 16).replace('T', ' '))}</div>` : ''}
+      </div>
+      <div class="gkey-actions">
+        <button type="button" class="integration-check-btn" id="btn-gkey-recheck">Перевірити ще раз</button>
+        <button type="button" class="integration-disconnect-btn" id="btn-gkey-delete">Видалити ключ</button>
+      </div>
+    ` : `
+      <form class="gkey-form" id="gkey-form">
+        <input class="gkey-input" id="gkey-api-key" type="password" placeholder="Google API key" autocomplete="off" required/>
+        <input class="gkey-input" id="gkey-cx" type="text" placeholder="Search Engine ID (cx)" autocomplete="off" required/>
+        <button type="submit" class="btn-primary" id="btn-gkey-save">Перевірити й зберегти</button>
+      </form>
+    `}
+  `;
+
+  const form = document.getElementById('gkey-form');
+  if (form) {
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const apiKey = document.getElementById('gkey-api-key')?.value.trim();
+      const cx = document.getElementById('gkey-cx')?.value.trim();
+      if (!apiKey || !cx) return;
+      const saveBtn = document.getElementById('btn-gkey-save');
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Перевіряю…'; }
+      try {
+        const status2 = await api('POST', '/prospecting/google-key', { api_key: apiKey, cx }, { timeoutMs: 20000 });
+        showToast('Ключ перевірено й збережено — Google-пошук увімкнено.');
+        renderGoogleKeyCard(status2);
+      } catch (err) {
+        showToast(err.message || 'Ключ не пройшов перевірку.', true);
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Перевірити й зберегти'; }
+      }
+    });
+  }
+
+  const recheckBtn = document.getElementById('btn-gkey-recheck');
+  if (recheckBtn) {
+    recheckBtn.addEventListener('click', async () => {
+      recheckBtn.disabled = true;
+      recheckBtn.textContent = 'Перевіряю…';
+      try {
+        // Re-run a live enrich as a cheap connectivity probe against the saved key.
+        await api('POST', '/prospecting/enrich', { business_name: 'coffee shop' }, { timeoutMs: 20000 });
+        showToast('Ключ робочий.');
+      } catch (err) {
+        showToast(err.message || 'Перевірка не пройшла — можливо, вичерпано квоту.', true);
+      } finally {
+        recheckBtn.disabled = false;
+        recheckBtn.textContent = 'Перевірити ще раз';
+      }
+    });
+  }
+
+  const delBtn = document.getElementById('btn-gkey-delete');
+  if (delBtn) {
+    delBtn.addEventListener('click', async () => {
+      delBtn.disabled = true;
+      try {
+        const status2 = await api('DELETE', '/prospecting/google-key');
+        showToast('Ключ видалено.');
+        renderGoogleKeyCard(status2);
+      } catch (err) {
+        showToast(err.message || 'Не вдалося видалити.', true);
+        delBtn.disabled = false;
+      }
+    });
   }
 }
 
@@ -1909,10 +2011,17 @@ function setProspSource(source) {
       ? 'Обидва джерела одночасно: результати об’єднуються і дедупляться (телефон → домен → назва+місто), сортуються за «гарячістю». Google-частина використовує типові налаштування (без розширених фільтрів нижче).'
       : 'Дані OpenStreetMap — community-джерело. Покриття краще в Європі; телефон/сайт присутні не завжди. Сигнали «схоже, немає…» орієнтовні.';
   }
+  // Підказка «налаштувати ключ» — коли обрано Google/Обидва, але ключа немає.
+  const setupEl = document.getElementById('prosp-google-setup');
+  if (setupEl) setupEl.hidden = !((prospSource === 'google' || prospSource === 'both') && !prospGoogleConfigured);
 }
 if (prospTabOsm) prospTabOsm.addEventListener('click', () => setProspSource('osm'));
 if (prospTabGoogle) prospTabGoogle.addEventListener('click', () => setProspSource('google'));
 if (prospTabBoth) prospTabBoth.addEventListener('click', () => setProspSource('both'));
+{
+  const setupKeyBtn = document.getElementById('btn-prosp-setup-key');
+  if (setupKeyBtn) setupKeyBtn.addEventListener('click', () => openIntegrationsView());
+}
 
 function sortProspCandidates(list, sortMode) {
   const arr = list.slice();

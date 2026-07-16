@@ -134,4 +134,60 @@ def test_search_businesses_requires_configuration(monkeypatch):
         gs.search_businesses(query_text='test')
         assert False, 'expected GoogleSearchError'
     except gs.GoogleSearchError as exc:
-        assert 'GOOGLE_CSE_API_KEY' in exc.message
+        assert 'не налаштован' in exc.message.lower()
+
+
+def test_search_businesses_uses_per_user_key_over_global(monkeypatch):
+    # Глобального ключа немає, але передано власний — має піти в запит.
+    monkeypatch.setattr(gs.config, 'GOOGLE_CSE_API_KEY', '')
+    monkeypatch.setattr(gs.config, 'GOOGLE_CSE_CX', '')
+    captured = {}
+
+    class _FakeResp:
+        status_code = 200
+
+        def json(self):
+            return {'searchInformation': {'totalResults': '0'}, 'items': []}
+
+    def fake_get(url, params=None, timeout=None):
+        captured['params'] = params
+        return _FakeResp()
+
+    monkeypatch.setattr(gs.requests, 'get', fake_get)
+    gs.search_businesses(query_text='cafe', api_key='USER-KEY', cx='USER-CX')
+    assert captured['params']['key'] == 'USER-KEY'
+    assert captured['params']['cx'] == 'USER-CX'
+
+
+def test_verify_credentials_rejects_empty():
+    try:
+        gs.verify_credentials('', '')
+        assert False, 'expected error'
+    except gs.GoogleSearchError as exc:
+        assert 'cx' in exc.message.lower()
+
+
+def test_verify_credentials_success(monkeypatch):
+    class _FakeResp:
+        status_code = 200
+
+        def json(self):
+            return {'searchInformation': {'totalResults': '42'}}
+
+    monkeypatch.setattr(gs.requests, 'get', lambda *a, **k: _FakeResp())
+    assert gs.verify_credentials('k', 'cx')['total_results'] == 42
+
+
+def test_verify_credentials_maps_403(monkeypatch):
+    class _FakeResp:
+        status_code = 403
+
+        def json(self):
+            return {'error': {'message': 'API not enabled'}}
+
+    monkeypatch.setattr(gs.requests, 'get', lambda *a, **k: _FakeResp())
+    try:
+        gs.verify_credentials('k', 'cx')
+        assert False, 'expected error'
+    except gs.GoogleSearchError as exc:
+        assert '403' in exc.message

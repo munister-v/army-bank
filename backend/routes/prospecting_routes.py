@@ -15,6 +15,7 @@ from flask import Blueprint, g, jsonify, request
 from ..database import get_connection, get_returning_id_suffix, insert_last_id
 from ..services import google_search_service, prospecting_service
 from ..services.google_search_service import GoogleSearchError
+from ..services.messenger_crypto import decrypt_message, encrypt_message
 from ..services.prospecting_categories import CATEGORIES, QUALIFIERS
 from ..services.prospecting_service import ProspectingError
 from .helpers import api_error, auth_required, role_required
@@ -72,17 +73,138 @@ def _ensure_prospecting_schema() -> None:
             if 'seen_keys' not in existing_cols:
                 conn.execute("ALTER TABLE prospecting_saved_searches ADD COLUMN seen_keys TEXT NOT NULL DEFAULT '[]'")
 
+        # Власні Google Custom Search ключі — по одному запису на користувача
+        # (кожен менеджер/адмін налаштовує СВІЙ ключ у 🔌 Інтеграції). Токен
+        # зашифрований тим самим at-rest шифруванням, що й у integrations.
+        conn.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS prospecting_api_keys (
+                user_id INTEGER PRIMARY KEY,
+                api_key TEXT NOT NULL DEFAULT '',
+                cx VARCHAR(120) NOT NULL DEFAULT '',
+                verified_at TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT {now_sql}
+            )
+            """
+        )
+
+
+def _user_google_creds(user_id: int) -> tuple[str, str]:
+    """Власні (розшифровані) ключі користувача, або ('','') якщо не задані."""
+    if not user_id:
+        return '', ''
+    _ensure_prospecting_schema()
+    with get_connection() as conn:
+        row = conn.execute(
+            'SELECT api_key, cx FROM prospecting_api_keys WHERE user_id = %s', (user_id,)
+        ).fetchone()
+    if not row:
+        return '', ''
+    row = dict(row)
+    return decrypt_message(row.get('api_key') or '', fallback=''), (row.get('cx') or '')
+
+
+def _resolve_google_creds(user_id: int) -> tuple[str, str]:
+    """Ключі для реального пошуку: власні користувача → інакше глобальний .env."""
+    from ..config import GOOGLE_CSE_API_KEY, GOOGLE_CSE_CX
+    key, cx = _user_google_creds(user_id)
+    return (key or GOOGLE_CSE_API_KEY or ''), (cx or GOOGLE_CSE_CX or '')
+
 
 @prospecting_bp.get('/categories')
 @auth_required
 @role_required(*_ADMIN_ROLES)
 def list_categories():
     """Словник категорій + квaліфікаторів для конструктора в UI."""
+    key, cx = _resolve_google_creds(int(g.current_user.get('id') or 0))
     return jsonify({'ok': True, 'data': {
         'categories': [{'key': k, 'label': v['label']} for k, v in CATEGORIES.items()],
         'qualifiers': [{'key': k, 'label': v['label'], 'offer': v['offer']} for k, v in QUALIFIERS.items()],
-        'google_configured': google_search_service.is_configured(),
+        'google_configured': google_search_service.is_configured(key, cx),
     }})
+
+
+# ── Власний Google Custom Search ключ (self-serve, per-user) ────────────────
+
+def _google_key_status(user_id: int) -> dict:
+    from ..config import GOOGLE_CSE_API_KEY, GOOGLE_CSE_CX
+    key, cx = _user_google_creds(user_id)
+    has_global = bool(GOOGLE_CSE_API_KEY and GOOGLE_CSE_CX)
+    verified_at = ''
+    if key or cx:
+        _ensure_prospecting_schema()
+        with get_connection() as conn:
+            row = conn.execute(
+                'SELECT verified_at FROM prospecting_api_keys WHERE user_id = %s', (user_id,)
+            ).fetchone()
+        verified_at = str(dict(row).get('verified_at') or '') if row else ''
+    preview = ''
+    if key:
+        preview = f'{key[:6]}••••{key[-4:]}' if len(key) >= 12 else '••••••'
+    return {
+        'has_own_key': bool(key and cx),
+        'key_preview': preview,
+        'cx': cx,
+        'verified_at': verified_at,
+        'has_global_fallback': has_global,
+        'active': bool((key and cx) or has_global),
+    }
+
+
+@prospecting_bp.get('/google-key')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def get_google_key():
+    return jsonify({'ok': True, 'data': _google_key_status(int(g.current_user.get('id') or 0))})
+
+
+@prospecting_bp.post('/google-key')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def set_google_key():
+    """Зберігає власний ключ користувача ПІСЛЯ реальної перевірки тестовим
+    запитом — щоб не зберегти явно неробочу пару."""
+    _ensure_prospecting_schema()
+    body = request.get_json(silent=True) or {}
+    api_key = str(body.get('api_key') or '').strip()
+    cx = str(body.get('cx') or '').strip()
+    if not api_key or not cx:
+        return api_error('Вкажіть і API key, і Search Engine ID (cx).', 400)
+    try:
+        google_search_service.verify_credentials(api_key, cx)
+    except GoogleSearchError as exc:
+        return api_error(exc.message, 400)
+
+    user_id = int(g.current_user.get('id') or 0)
+    from ..config import USE_PG
+    now_sql = 'NOW()' if USE_PG else "datetime('now')"
+    enc = encrypt_message(api_key)
+    with get_connection() as conn:
+        existing = conn.execute(
+            'SELECT user_id FROM prospecting_api_keys WHERE user_id = %s', (user_id,)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                f'UPDATE prospecting_api_keys SET api_key = %s, cx = %s, verified_at = {now_sql}, updated_at = {now_sql} WHERE user_id = %s',
+                (enc, cx, user_id),
+            )
+        else:
+            conn.execute(
+                f'INSERT INTO prospecting_api_keys (user_id, api_key, cx, verified_at) VALUES (%s, %s, %s, {now_sql})',
+                (user_id, enc, cx),
+            )
+    return jsonify({'ok': True, 'data': _google_key_status(user_id)})
+
+
+@prospecting_bp.delete('/google-key')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def delete_google_key():
+    _ensure_prospecting_schema()
+    user_id = int(g.current_user.get('id') or 0)
+    with get_connection() as conn:
+        conn.execute('DELETE FROM prospecting_api_keys WHERE user_id = %s', (user_id,))
+    return jsonify({'ok': True, 'data': _google_key_status(user_id)})
 
 
 def _perform_osm_search(body: dict) -> dict:
@@ -131,9 +253,10 @@ def search():
     return jsonify({'ok': True, 'data': result})
 
 
-def _perform_google_search(body: dict) -> dict:
+def _perform_google_search(body: dict, creds: tuple[str, str] = ('', '')) -> dict:
     """Спільна логіка для POST /search-google і запланованих пошуків
-    (див. _perform_osm_search)."""
+    (див. _perform_osm_search). `creds` — (api_key, cx) поточного користувача;
+    порожні → глобальний .env-fallback у самому сервісі."""
     category_keys = body.get('category_keys')
     if isinstance(category_keys, list) and category_keys:
         category_keys = [str(k).strip() for k in category_keys if str(k).strip()]
@@ -156,6 +279,7 @@ def _perform_google_search(body: dict) -> dict:
         raise ValueError('Вкажіть країну або місто.')
 
     query_text = custom_query or ' '.join(p for p in (category_label, city, country) if p)
+    api_key, cx = creds
 
     result = google_search_service.search_businesses(
         query_text=query_text,
@@ -170,6 +294,7 @@ def _perform_google_search(body: dict) -> dict:
         exclude_terms=str(body.get('exclude_terms') or '').strip(),
         exclude_platforms=bool(body.get('exclude_platforms', True)),
         limit=int(body.get('limit') or 20),
+        api_key=api_key, cx=cx,
     )
     if bool(body.get('exclude_existing')):
         result['candidates'], result['excluded_existing'] = _filter_existing_candidates(result['candidates'])
@@ -185,16 +310,18 @@ def search_google():
     запитом: корисно там, де покриття OSM слабке, або щоб перевірити, чи
     бізнес взагалі присутній онлайн поза власним сайтом."""
     body = request.get_json(silent=True) or {}
+    creds = _resolve_google_creds(int(g.current_user.get('id') or 0))
     try:
-        result = _perform_google_search(body)
+        result = _perform_google_search(body, creds)
     except ValueError as exc:
         return api_error(str(exc), 400)
     except GoogleSearchError as exc:
-        return api_error(exc.message, 502 if google_search_service.is_configured() else 503)
+        configured = google_search_service.is_configured(*creds)
+        return api_error(exc.message, 502 if configured else 503)
     return jsonify({'ok': True, 'data': result})
 
 
-def _perform_both_search(body: dict) -> dict:
+def _perform_both_search(body: dict, creds: tuple[str, str] = ('', '')) -> dict:
     """Об'єднаний режим: OSM + Google за один виклик, дедуп між джерелами (той
     самий сигнал, що й /import: телефон → домен сайту → назва+місто), єдиний
     відсортований за score список. Спільна логіка для /search-both і
@@ -210,9 +337,9 @@ def _perform_both_search(body: dict) -> dict:
     except ProspectingError as exc:
         osm_error = exc.message
 
-    if google_search_service.is_configured():
+    if google_search_service.is_configured(*creds):
         try:
-            google_result = _perform_google_search(body)
+            google_result = _perform_google_search(body, creds)
         except ValueError:
             pass  # Google не обов'язковий у "обидва" — просто бракує його полів (custom_query тощо)
         except GoogleSearchError as exc:
@@ -260,8 +387,9 @@ def _perform_both_search(body: dict) -> dict:
 @role_required(*_ADMIN_ROLES)
 def search_both():
     body = request.get_json(silent=True) or {}
+    creds = _resolve_google_creds(int(g.current_user.get('id') or 0))
     try:
-        result = _perform_both_search(body)
+        result = _perform_both_search(body, creds)
     except ValueError as exc:
         return api_error(str(exc), 502)
     return jsonify({'ok': True, 'data': result})
@@ -277,14 +405,16 @@ def enrich():
     business_name = str(body.get('business_name') or '').strip()
     if not business_name:
         return api_error('Вкажіть назву бізнесу.', 400)
+    key, cx = _resolve_google_creds(int(g.current_user.get('id') or 0))
     try:
         data = google_search_service.enrich_business(
             business_name=business_name,
             city=str(body.get('city') or '').strip(),
             country=str(body.get('country') or '').strip(),
+            api_key=key, cx=cx,
         )
     except GoogleSearchError as exc:
-        return api_error(exc.message, 502 if google_search_service.is_configured() else 503)
+        return api_error(exc.message, 502 if google_search_service.is_configured(key, cx) else 503)
     return jsonify({'ok': True, 'data': data})
 
 
