@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '74';
+const MESSENGER_ASSET_VERSION = '75';
 // Мають точно збігатися з _SAVED_MESSAGES_NAME/_SCHEDULER_NAME у backend/routes/messenger_routes.py
 const SAVED_MESSAGES_NAME = '🔖 Збережені повідомлення';
 const SCHEDULER_NAME = '📅 Планувальник';
@@ -362,6 +362,7 @@ const prospSelectedCount = $('prosp-selected-count');
 const btnProspImport = $('btn-prosp-import');
 const prospTabOsm = $('prosp-tab-osm');
 const prospTabGoogle = $('prosp-tab-google');
+const prospTabBoth = $('prosp-tab-both');
 const prospGoogleFiltersEl = $('prosp-google-filters');
 const prospOsmFiltersEl = $('prosp-osm-filters');
 const prospHintEl = $('prosp-hint');
@@ -373,6 +374,7 @@ const btnProspSave = $('btn-prosp-save');
 const prospQuickFilterRow = $('prosp-quick-filter-row');
 const prospQuickFilterEl = $('prosp-quick-filter');
 let prospCandidates = [];
+let prospLastResult = null;
 let prospCatalogLoaded = false;
 let prospSource = 'osm';
 let prospGoogleConfigured = false;
@@ -1786,6 +1788,7 @@ function prospSignalBadges(cand) {
 }
 
 function renderProspResults(result) {
+  prospLastResult = result;
   prospCandidates = result.candidates || [];
   if (!prospResultsEl) return;
   if (prospQuickFilterRow) prospQuickFilterRow.hidden = !prospCandidates.length;
@@ -1818,7 +1821,7 @@ function renderProspResults(result) {
       </label>
       ${avatar}
       <div class="prosp-card-body">
-        <div class="prosp-card-name">${escHtml(c.business_name)}${isGoogle ? ' <span class="prosp-badge prosp-badge-google">G</span>' : ''}</div>
+        <div class="prosp-card-name">${escHtml(c.business_name)}${isGoogle ? ' <span class="prosp-badge prosp-badge-google">G</span>' : ''}${(c.score > 0 && !isListicle) ? ` <span class="prosp-score" title="Орієнтовна гарячість ліда">🔥${c.score}</span>` : ''}</div>
         <div class="prosp-card-meta">${metaLine}</div>
         <div class="prosp-card-contacts">
           ${c.phone ? `<span class="prosp-contact">📞 ${escHtml(c.phone)}</span>` : ''}
@@ -1829,6 +1832,7 @@ function renderProspResults(result) {
         </div>
         <div class="prosp-card-badges">${prospSignalBadges(c)}</div>
         ${c.suggested_first_offer ? `<div class="prosp-card-offer">💡 ${escHtml(c.suggested_first_offer)}</div>` : ''}
+        ${(!isListicle && !c.phone && !c.email) ? `<button type="button" class="prosp-enrich-btn" data-idx="${i}">🔍 Знайти контакти</button>` : ''}
       </div>
     </div>
   `;
@@ -1837,7 +1841,35 @@ function renderProspResults(result) {
   prospResultsEl.querySelectorAll('.prosp-select').forEach(cb => {
     cb.addEventListener('change', updateProspImportBar);
   });
+  prospResultsEl.querySelectorAll('.prosp-enrich-btn').forEach(btnEl => {
+    btnEl.addEventListener('click', () => enrichProspCandidate(Number(btnEl.dataset.idx)));
+  });
   updateProspImportBar();
+}
+
+async function enrichProspCandidate(idx) {
+  const cand = prospCandidates[idx];
+  if (!cand) return;
+  const btnEl = prospResultsEl?.querySelector(`.prosp-enrich-btn[data-idx="${idx}"]`);
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Шукаю…'; }
+  try {
+    const data = await api('POST', '/prospecting/enrich', {
+      business_name: cand.business_name, city: cand.city_area, country: cand.country || document.getElementById('prosp-country')?.value.trim() || '',
+    }, { timeoutMs: 20000 });
+    if (!data.phone && !data.email && !data.website_url) {
+      showToast('Нічого не знайдено в цьому запиті.');
+      if (btnEl) { btnEl.disabled = false; btnEl.textContent = '🔍 Знайти контакти'; }
+      return;
+    }
+    if (data.phone) cand.phone = data.phone;
+    if (data.email) cand.email = data.email;
+    if (data.website_url && !cand.website_url) cand.website_url = data.website_url;
+    showToast('Контакти оновлено.');
+    if (prospLastResult) renderProspResults({ ...prospLastResult, candidates: prospCandidates });
+  } catch (err) {
+    showToast(err.message || 'Не вдалося знайти контакти.', true);
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = '🔍 Знайти контакти'; }
+  }
 }
 
 function selectedProspCandidates() {
@@ -1854,27 +1886,33 @@ function updateProspImportBar() {
 }
 
 function setProspSource(source) {
-  prospSource = source === 'google' ? 'google' : 'osm';
+  prospSource = (source === 'google' || source === 'both') ? source : 'osm';
   if (prospTabOsm) prospTabOsm.classList.toggle('active', prospSource === 'osm');
   if (prospTabGoogle) prospTabGoogle.classList.toggle('active', prospSource === 'google');
+  if (prospTabBoth) prospTabBoth.classList.toggle('active', prospSource === 'both');
   if (prospGoogleFiltersEl) prospGoogleFiltersEl.hidden = prospSource !== 'google';
   if (prospOsmFiltersEl) prospOsmFiltersEl.hidden = prospSource === 'google';
   const recentRow = document.getElementById('prosp-recent')?.closest('.prospecting-checkbox');
   if (recentRow) recentRow.hidden = prospSource === 'google';
-  if (prospCountryEl) prospCountryEl.required = prospSource === 'osm';
+  if (prospCountryEl) prospCountryEl.required = prospSource !== 'google';
   if (prospSourceSubEl) {
     prospSourceSubEl.textContent = prospSource === 'google'
       ? 'Знаходьте бізнеси через веб-пошук Google · корисно там, де OSM бідний на дані'
+      : prospSource === 'both'
+      ? 'Одночасно OSM + Google, з дедупом між джерелами · найповніший результат'
       : "Знаходьте бізнеси по світу та додавайте в роботу · дані OpenStreetMap";
   }
   if (prospHintEl) {
     prospHintEl.textContent = prospSource === 'google'
       ? 'Google-пошук повертає веб-сторінки, а не готовий реєстр бізнесів — назва підбирається евристично з заголовка сторінки. «Тільки платформа» = знайдено лише профіль на Facebook/Instagram/довіднику, власного сайту не видно.'
+      : prospSource === 'both'
+      ? 'Обидва джерела одночасно: результати об’єднуються і дедупляться (телефон → домен → назва+місто), сортуються за «гарячістю». Google-частина використовує типові налаштування (без розширених фільтрів нижче).'
       : 'Дані OpenStreetMap — community-джерело. Покриття краще в Європі; телефон/сайт присутні не завжди. Сигнали «схоже, немає…» орієнтовні.';
   }
 }
 if (prospTabOsm) prospTabOsm.addEventListener('click', () => setProspSource('osm'));
 if (prospTabGoogle) prospTabGoogle.addEventListener('click', () => setProspSource('google'));
+if (prospTabBoth) prospTabBoth.addEventListener('click', () => setProspSource('both'));
 
 function sortProspCandidates(list, sortMode) {
   const arr = list.slice();
@@ -1940,6 +1978,26 @@ async function runProspectingSearch(e) {
     .map(cb => cb.value);
   const limit = Number(document.getElementById('prosp-limit')?.value || 30);
   const sortMode = document.getElementById('prosp-sort')?.value || 'default';
+
+  if (prospSource === 'both') {
+    if (prospResultsEl) prospResultsEl.innerHTML = '<p class="leads-empty">Шукаю одночасно в OpenStreetMap і Google…</p>';
+    try {
+      const result = await api('POST', '/prospecting/search-both', {
+        category_keys: categoryKeys, country, city, qualifiers,
+        recent_months: recentOnly ? 12 : 0, limit, exclude_existing: excludeExisting,
+      }, { timeoutMs: 70000 });
+      if (result.osm_error) showToast(`OSM: ${result.osm_error}`, true);
+      if (result.google_error) showToast(`Google: ${result.google_error}`, true);
+      renderProspResults(result);
+      saveLastProspSearch();
+    } catch (err) {
+      if (prospResultsEl) prospResultsEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Помилка пошуку.')}</p>`;
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Шукати'; }
+    }
+    return;
+  }
+
   if (prospResultsEl) prospResultsEl.innerHTML = '<p class="leads-empty">Шукаю в OpenStreetMap… (може зайняти до хвилини)</p>';
   try {
     const result = await api('POST', '/prospecting/search', {
@@ -2043,22 +2101,43 @@ async function loadSavedSearches() {
   renderSavedChips();
 }
 
+const PROSP_SOURCE_ICONS = { google: '🔍', both: '🔀', osm: '🗺️' };
+const PROSP_SCHEDULE_CYCLE = { off: 'daily', daily: 'weekly', weekly: 'off' };
+const PROSP_SCHEDULE_LABEL = { off: '⏰ Вимкн.', daily: '📅 Щодня', weekly: '🗓️ Щотижня' };
+
 function renderSavedChips() {
   if (!prospSavedRowEl || !prospSavedChipsEl) return;
   if (!prospSavedSearches.length) { prospSavedRowEl.hidden = true; prospSavedChipsEl.innerHTML = ''; return; }
   prospSavedRowEl.hidden = false;
-  prospSavedChipsEl.innerHTML = prospSavedSearches.map(s => `
+  prospSavedChipsEl.innerHTML = prospSavedSearches.map(s => {
+    const schedule = s.schedule || 'off';
+    return `
     <span class="prosp-saved-chip" data-id="${s.id}">
-      <button type="button" class="prosp-saved-chip-load" data-id="${s.id}">${s.source === 'google' ? '🔍' : '🗺️'} ${escHtml(s.name)}</button>
+      <button type="button" class="prosp-saved-chip-load" data-id="${s.id}">${PROSP_SOURCE_ICONS[s.source] || '🗺️'} ${escHtml(s.name)}</button>
+      <button type="button" class="prosp-saved-chip-schedule" data-id="${s.id}" data-schedule="${schedule}" title="Авто-перезапуск і сповіщення про нові результати — клік перемикає режим">${PROSP_SCHEDULE_LABEL[schedule]}</button>
       <button type="button" class="prosp-saved-chip-del" data-id="${s.id}" title="Видалити">✕</button>
     </span>
-  `).join('');
+  `;
+  }).join('');
   prospSavedChipsEl.querySelectorAll('.prosp-saved-chip-load').forEach(btnEl => {
     btnEl.addEventListener('click', () => {
       const saved = prospSavedSearches.find(s => String(s.id) === btnEl.dataset.id);
       if (!saved) return;
       applyProspFilters(saved.source, saved.params || {});
       runProspectingSearch();
+    });
+  });
+  prospSavedChipsEl.querySelectorAll('.prosp-saved-chip-schedule').forEach(btnEl => {
+    btnEl.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      const next = PROSP_SCHEDULE_CYCLE[btnEl.dataset.schedule] || 'off';
+      try {
+        await api('PATCH', `/prospecting/saved-searches/${btnEl.dataset.id}`, { schedule: next });
+        if (next !== 'off') showToast(`Авто-перезапуск: ${next === 'daily' ? 'щодня' : 'щотижня'}. Нові результати з'являться в «Планувальнику».`);
+        await loadSavedSearches();
+      } catch (err) {
+        showToast(err.message || 'Не вдалося змінити розклад.', true);
+      }
     });
   });
   prospSavedChipsEl.querySelectorAll('.prosp-saved-chip-del').forEach(btnEl => {

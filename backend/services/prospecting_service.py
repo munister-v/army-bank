@@ -218,6 +218,7 @@ def _parse_element(el: dict, category_keys: list[str]) -> dict | None:
     osm_type = el.get('type')
     osm_id = el.get('id')
     category_key, category_label = _match_category(tags, category_keys)
+    opened = _opened_info(tags)
 
     return {
         'business_name': name,
@@ -231,9 +232,20 @@ def _parse_element(el: dict, category_keys: list[str]) -> dict | None:
         'source_url': f'https://www.openstreetmap.org/{osm_type}/{osm_id}' if osm_type and osm_id else '',
         'osm_ref': f'{osm_type}/{osm_id}' if osm_type and osm_id else '',
         'signals': signals,
-        'opened': _opened_info(tags),
+        'opened': opened,
         'suggested_first_offer': suggested_offer_for(signals),
+        'score': _lead_score(signals, opened),
     }
+
+
+def _lead_score(signals: dict, opened: dict | None) -> int:
+    """Орієнтовна «гарячість» ліда для агенції: більше відсутніх каналів
+    присутності = більше причин достукатись. Свіжо відкритий бізнес — бонус
+    (ще не встиг обрости підрядниками)."""
+    score = 3 * bool(signals.get('no_website')) + bool(signals.get('no_instagram')) + bool(signals.get('no_facebook'))
+    if opened and opened.get('months_ago', 999) <= 6:
+        score += 2
+    return score
 
 
 def _passes_qualifiers(candidate: dict, required: list[str]) -> bool:
@@ -298,11 +310,13 @@ def search_businesses(category_key: str | list[str], country: str, city: str = '
             if c.get('opened') and c['opened']['months_ago'] <= recent_months
         ]
 
-    # Сортування: спершу бізнеси з відомою датою відкриття (найновіші зверху),
-    # потім решта — так «щойно відкриті» видно одразу, коли дані є.
+    # Сортування за замовчуванням: найгарячіші (score) спершу, тай-брейк —
+    # свіжовідкриті. Менеджер може перемкнути на «за алфавітом»/«найновіші»
+    # на фронтенді (sortProspCandidates) — це лише початковий порядок.
     def _sort_key(c):
         opened = c.get('opened')
-        return (0, opened['months_ago']) if opened else (1, 0)
+        recency = opened['months_ago'] if opened else 9999
+        return (-c.get('score', 0), recency)
     candidates.sort(key=_sort_key)
 
     return {

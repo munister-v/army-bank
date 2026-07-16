@@ -150,6 +150,94 @@ def test_search_propagates_prospecting_error_as_502(client, admin_headers, monke
     assert 'Overpass' in r.get_json()['error']
 
 
+# ── /search-both (merged OSM + Google) ─────────────────────────────────────
+
+def test_search_both_merges_and_dedups_across_sources(client, admin_headers, monkeypatch):
+    osm_fake = {
+        'area': 'Kraków, Polska',
+        'candidates': [
+            {**_fake_candidate('Shared Biz', website='https://shared.example.com'), 'score': 3},
+            {**_fake_candidate('OSM Only Biz'), 'score': 1},
+        ],
+        'total_found': 2, 'recent_filter_applied': False,
+    }
+    google_fake = {
+        'area': 'Kraków, Poland',
+        'candidates': [
+            # той самий бізнес, знайдений через Google (той самий домен) — має злитись в один
+            {'business_name': 'Shared Biz (Google)', 'category': '', 'city_area': 'Krakow', 'country': '',
+             'phone': '', 'website_url': 'https://www.shared.example.com/', 'email': '', 'instagram': '',
+             'source_url': 'https://www.shared.example.com/', 'source': 'google', 'domain': 'shared.example.com',
+             'snippet': '', 'thumbnail': '', 'signals': {'platform_only': False, 'is_listicle': False},
+             'opened': None, 'suggested_first_offer': '', 'score': 0},
+            {'business_name': 'Google Only Biz', 'category': '', 'city_area': 'Krakow', 'country': '',
+             'phone': '', 'website_url': 'https://googleonly.example.com', 'email': '', 'instagram': '',
+             'source_url': 'https://googleonly.example.com', 'source': 'google', 'domain': 'googleonly.example.com',
+             'snippet': '', 'thumbnail': '', 'signals': {'platform_only': False, 'is_listicle': False},
+             'opened': None, 'suggested_first_offer': '', 'score': 2},
+        ],
+        'total_found': 2, 'query_used': 'test',
+    }
+    monkeypatch.setattr(prospecting_routes.prospecting_service, 'search_businesses', lambda *a, **kw: osm_fake)
+    monkeypatch.setattr(prospecting_routes.google_search_service, 'search_businesses', lambda *a, **kw: google_fake)
+    monkeypatch.setattr(prospecting_routes.google_search_service, 'is_configured', lambda: True)
+
+    r = client.post('/api/prospecting/search-both', headers=admin_headers, json={
+        'category_key': 'bakery', 'country': 'Poland', 'city': 'Krakow',
+    })
+    assert r.status_code == 200
+    data = r.get_json()['data']
+    names = {c['business_name'] for c in data['candidates']}
+    # "Shared Biz (Google)" прибрано дедупом за доменом — лишається лише перше входження (OSM).
+    assert names == {'Shared Biz', 'OSM Only Biz', 'Google Only Biz'}
+    assert data['candidates'][0]['business_name'] == 'Shared Biz'  # найвищий score (3) — перший
+
+
+def test_search_both_works_when_google_not_configured(client, admin_headers, monkeypatch):
+    osm_fake = {
+        'area': 'Kraków, Polska', 'candidates': [{**_fake_candidate('Solo Biz'), 'score': 1}],
+        'total_found': 1, 'recent_filter_applied': False,
+    }
+    monkeypatch.setattr(prospecting_routes.prospecting_service, 'search_businesses', lambda *a, **kw: osm_fake)
+    monkeypatch.setattr(prospecting_routes.google_search_service, 'is_configured', lambda: False)
+    r = client.post('/api/prospecting/search-both', headers=admin_headers, json={
+        'category_key': 'bakery', 'country': 'Poland',
+    })
+    assert r.status_code == 200
+    data = r.get_json()['data']
+    assert [c['business_name'] for c in data['candidates']] == ['Solo Biz']
+
+
+# ── /enrich ──────────────────────────────────────────────────────────────────
+
+def test_enrich_requires_business_name(client, admin_headers):
+    r = client.post('/api/prospecting/enrich', headers=admin_headers, json={})
+    assert r.status_code == 400
+
+
+def test_enrich_returns_contacts(client, admin_headers, monkeypatch):
+    monkeypatch.setattr(
+        prospecting_routes.google_search_service, 'enrich_business',
+        lambda **kw: {'phone': '+48 111 222 333', 'email': 'a@b.com', 'website_url': 'https://a.example.com', 'checked': 3},
+    )
+    r = client.post('/api/prospecting/enrich', headers=admin_headers, json={
+        'business_name': 'Cleo Beauty Studio', 'city': 'Krakow', 'country': 'Poland',
+    })
+    assert r.status_code == 200
+    assert r.get_json()['data']['phone'] == '+48 111 222 333'
+
+
+def test_enrich_not_configured_returns_503(client, admin_headers, monkeypatch):
+    from backend.services.google_search_service import GoogleSearchError
+
+    def fail(**kw):
+        raise GoogleSearchError('Google-пошук ще не налаштований на сервері')
+    monkeypatch.setattr(prospecting_routes.google_search_service, 'enrich_business', fail)
+    monkeypatch.setattr(prospecting_routes.google_search_service, 'is_configured', lambda: False)
+    r = client.post('/api/prospecting/enrich', headers=admin_headers, json={'business_name': 'X'})
+    assert r.status_code == 503
+
+
 # ── /import ──────────────────────────────────────────────────────────────────
 
 def test_import_requires_valid_owner(client, admin_headers):

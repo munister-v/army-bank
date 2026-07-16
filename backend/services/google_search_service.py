@@ -251,7 +251,11 @@ def search_businesses(*, query_text: str, category_label: str = '', category_key
             'signals': {'platform_only': is_platform, 'is_listicle': is_listicle},
             'opened': None,
             'suggested_first_offer': offer,
+            'score': _lead_score(is_platform, is_listicle, bool(phone)),
         })
+
+    # Найгарячіші спершу (listicle-сторінки завжди в кінці — вони не бізнес-картки).
+    candidates.sort(key=lambda c: -c['score'])
 
     return {
         'area': ', '.join(p for p in (city, country) if p),
@@ -259,3 +263,31 @@ def search_businesses(*, query_text: str, category_label: str = '', category_key
         'total_found': total_results,
         'query_used': q,
     }
+
+
+def _lead_score(is_platform: bool, is_listicle: bool, has_phone: bool) -> int:
+    if is_listicle:
+        return -10
+    score = (3 if is_platform else 0) + (1 if has_phone else 0)
+    return score
+
+
+def enrich_business(*, business_name: str, city: str = '', country: str = '') -> dict:
+    """Точковий пошук контактів для ОДНОГО вже відомого бізнесу (напр. кандидат
+    з OSM без телефону/email) — вужчий запит (точна назва в лапках) замість
+    категорії, менше результатів, платформи НЕ виключаємо (Facebook-сторінка
+    теж часто містить телефон у сніпеті)."""
+    business_name = business_name.strip()
+    if not business_name:
+        raise GoogleSearchError('Вкажіть назву бізнесу.')
+    query_text = f'"{business_name}"'
+    result = search_businesses(
+        query_text=query_text, city=city, country=country,
+        exclude_platforms=False, limit=5,
+    )
+    phone = email = website = ''
+    for c in result['candidates']:
+        phone = phone or c.get('phone') or ''
+        email = email or c.get('email') or ''
+        website = website or c.get('website_url') or ''
+    return {'phone': phone, 'email': email, 'website_url': website, 'checked': len(result['candidates'])}

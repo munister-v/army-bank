@@ -1179,6 +1179,15 @@ def list_conversations():
         saved_conv_id = _ensure_self_conversation(int(me_id), _SAVED_MESSAGES_NAME)
         scheduler_conv_id = _ensure_self_conversation(int(me_id), _SCHEDULER_NAME)
         _maybe_post_scheduler_digest(int(me_id), scheduler_conv_id, str(g.current_user.get('role') or '').lower())
+        if str(g.current_user.get('role') or '').lower() in ('admin', 'platform_admin', 'manager'):
+            try:
+                from .prospecting_routes import maybe_run_scheduled_searches
+                maybe_run_scheduled_searches()
+            except Exception:
+                # Заплановані пошуки — best-effort фонова робота; збій тут
+                # (напр. Overpass/Google тимчасово недоступні) не має класти
+                # опитування месенджера для користувача.
+                pass
     except Exception as exc:
         return api_error(str(exc), 409)
     with get_connection() as conn:

@@ -3105,6 +3105,12 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   transition: background .15s, color .15s;
 }
 .prosp-saved-chip-del:hover { background: rgba(239,68,68,.12); color: var(--red); }
+.prosp-saved-chip-schedule {
+  border: none; background: transparent; cursor: pointer; padding: 6px 9px;
+  color: var(--text-2); font-size: 11px; font-weight: 600; border-left: 1px solid var(--border-soft);
+  transition: background .15s, color .15s; white-space: nowrap;
+}
+.prosp-saved-chip-schedule:hover { background: var(--lime-dim); color: var(--ink); }
 
 .prosp-search-actions { display: flex; gap: 8px; }
 .prosp-save-btn { width: auto; padding: 11px 16px; font-size: 13px; }
@@ -3168,6 +3174,17 @@ a.prosp-contact:hover { text-decoration: underline; }
   background: var(--lime-dim); border: 1px solid var(--lime-border); border-radius: var(--radius-pill);
   padding: 4px 11px; font-size: 12px; color: var(--ink); font-weight: 700;
 }
+.prosp-score {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: #b3441c;
+  vertical-align: middle;
+}
+.prosp-enrich-btn {
+  align-self: flex-start; margin-top: 6px; border: 1px solid var(--border); background: #fff;
+  border-radius: var(--radius-pill); padding: 4px 12px; font-size: 12px; font-weight: 600;
+  color: var(--text-2); cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+}
+.prosp-enrich-btn:hover { background: var(--lime-dim); color: var(--ink); border-color: var(--lime-border); }
+.prosp-enrich-btn:disabled { opacity: .6; cursor: default; }
 
 .prospecting-import-bar {
   display: flex; align-items: center; gap: 12px; padding: 12px 16px;
