@@ -104,16 +104,21 @@ def geocode_area(country: str, city: str = '') -> dict | None:
     return area
 
 
-def _build_overpass_query(area_id: int, category_key: str, limit: int) -> str:
-    cat = CATEGORIES.get(category_key)
-    if not cat:
-        raise ProspectingError('Невідома категорія.')
-    # Кожен OSM-фільтр категорії шукаємо і як node, і як way (багато бізнесів
-    # у OSM — це будівлі-way, а не точки-node).
+def _build_overpass_query(area_id: int, category_keys: list[str], limit: int) -> str:
+    """Об'єднує OSM-фільтри ВСІХ обраних категорій в один запит (менеджер може
+    шукати, напр., салони краси + спортзали одночасно — один Overpass-виклик
+    замість кількох). Кожен фільтр шукаємо і як node, і як way (багато
+    бізнесів у OSM — це будівлі-way, а не точки-node)."""
     parts = []
-    for f in cat['filters']:
-        parts.append(f'  node[{f}](area.searchArea);')
-        parts.append(f'  way[{f}](area.searchArea);')
+    for key in category_keys:
+        cat = CATEGORIES.get(key)
+        if not cat:
+            continue
+        for f in cat['filters']:
+            parts.append(f'  node[{f}](area.searchArea);')
+            parts.append(f'  way[{f}](area.searchArea);')
+    if not parts:
+        raise ProspectingError('Невідома категорія.')
     union = '\n'.join(parts)
     return (
         f'[out:json][timeout:{_OVERPASS_TIMEOUT - 5}];\n'
@@ -178,7 +183,23 @@ def _opened_info(tags: dict) -> dict | None:
     return {'date': raw, 'months_ago': max(0, months_ago)}
 
 
-def _parse_element(el: dict, category_key: str) -> dict | None:
+def _match_category(tags: dict, category_keys: list[str]) -> tuple[str, str]:
+    """При мультикатегорійному пошуку визначає, ЯКА саме з обраних категорій
+    спрацювала для цього елемента (по тегу, що реально збігся), щоб картка
+    показувала точну категорію, а не просто перелік усіх обраних."""
+    for key in category_keys:
+        cat = CATEGORIES.get(key)
+        if not cat:
+            continue
+        for f in cat['filters']:
+            tag_key, _, tag_val = f.partition('=')
+            if tags.get(tag_key) == tag_val:
+                return key, cat['label']
+    key = category_keys[0] if category_keys else ''
+    return key, CATEGORIES.get(key, {}).get('label', '')
+
+
+def _parse_element(el: dict, category_keys: list[str]) -> dict | None:
     tags = el.get('tags') or {}
     name = (tags.get('name') or '').strip()
     if not name:
@@ -196,10 +217,11 @@ def _parse_element(el: dict, category_key: str) -> dict | None:
     signals = qualifier_signals(tags)
     osm_type = el.get('type')
     osm_id = el.get('id')
+    category_key, category_label = _match_category(tags, category_keys)
 
     return {
         'business_name': name,
-        'category': CATEGORIES[category_key]['label'],
+        'category': category_label,
         'category_key': category_key,
         'city_area': ' · '.join(p for p in (city_area, street) if p),
         'phone': phone,
@@ -221,10 +243,14 @@ def _passes_qualifiers(candidate: dict, required: list[str]) -> bool:
     return all(candidate['signals'].get(q) for q in required)
 
 
-def search_businesses(category_key: str, country: str, city: str = '',
+def search_businesses(category_key: str | list[str], country: str, city: str = '',
                       qualifiers: list[str] | None = None, limit: int = 30,
                       recent_months: int = 0) -> dict:
     """Основна точка входу: геокодить область, шукає бізнеси, парсить і фільтрує.
+
+    `category_key` приймає одну категорію (рядок) або кілька одразу (список —
+    менеджер може шукати, напр., "салони краси" + "спортзали" за один пошук;
+    кожна картка позначається ТІЄЮ категорією, яка реально збіглась).
 
     recent_months > 0 — залишити ЛИШЕ бізнеси з відомою датою відкриття не
     старшою за N місяців (OSM start_date/opening_date; заповнено рідко, тому
@@ -232,8 +258,10 @@ def search_businesses(category_key: str, country: str, city: str = '',
 
     Повертає {'area', 'candidates', 'total_found', 'recent_filter_applied'}.
     """
-    if category_key not in CATEGORIES:
-        raise ProspectingError('Невідома категорія.')
+    category_keys = [category_key] if isinstance(category_key, str) else list(category_key or [])
+    category_keys = [k for k in category_keys if k in CATEGORIES]
+    if not category_keys:
+        raise ProspectingError('Оберіть хоча б одну категорію.')
     limit = max(1, min(_MAX_LIMIT, int(limit or 30)))
     qualifiers = [q for q in (qualifiers or []) if q]
     recent_months = max(0, int(recent_months or 0))
@@ -242,20 +270,21 @@ def search_businesses(category_key: str, country: str, city: str = '',
     if not area:
         raise ProspectingError('Не вдалося знайти таку країну/місто. Спробуйте уточнити.')
 
-    # Кеш пошуку: area + категорія + ліміт (квaліфікатори фільтруємо вже після,
-    # щоб не робити окремий Overpass-запит під кожну комбінацію чекбоксів).
-    cache_key = f'{area["area_id"]}:{category_key}:{limit}'
+    # Кеш пошуку: area + категорії (відсортовані, щоб порядок вибору не
+    # впливав на ключ) + ліміт. Квaліфікатори фільтруємо вже після, щоб не
+    # робити окремий Overpass-запит під кожну комбінацію чекбоксів.
+    cache_key = f'{area["area_id"]}:{"+".join(sorted(category_keys))}:{limit}'
     now = time.time()
     with _cache_lock:
         cached = _search_cache.get(cache_key)
         raw = cached[1] if cached and (now - cached[0]) < _CACHE_TTL else None
 
     if raw is None:
-        overpass_query = _build_overpass_query(area['area_id'], category_key, limit)
+        overpass_query = _build_overpass_query(area['area_id'], category_keys, limit)
         elements = _run_overpass(overpass_query)
         raw = []
         for el in elements:
-            parsed = _parse_element(el, category_key)
+            parsed = _parse_element(el, category_keys)
             if parsed:
                 raw.append(parsed)
         with _cache_lock:

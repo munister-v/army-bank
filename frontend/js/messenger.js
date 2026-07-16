@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '73';
+const MESSENGER_ASSET_VERSION = '74';
 // Мають точно збігатися з _SAVED_MESSAGES_NAME/_SCHEDULER_NAME у backend/routes/messenger_routes.py
 const SAVED_MESSAGES_NAME = '🔖 Збережені повідомлення';
 const SCHEDULER_NAME = '📅 Планувальник';
@@ -370,11 +370,14 @@ const prospCountryEl = $('prosp-country');
 const prospSavedRowEl = $('prosp-saved-row');
 const prospSavedChipsEl = $('prosp-saved-chips');
 const btnProspSave = $('btn-prosp-save');
+const prospQuickFilterRow = $('prosp-quick-filter-row');
+const prospQuickFilterEl = $('prosp-quick-filter');
 let prospCandidates = [];
 let prospCatalogLoaded = false;
 let prospSource = 'osm';
 let prospGoogleConfigured = false;
 let prospSavedSearches = [];
+const PROSP_LAST_SEARCH_KEY = 'prosp_last_search';
 
 // ════════════════════════════════════════════
 // API helper
@@ -1734,8 +1737,7 @@ async function loadProspectingCatalog() {
   try {
     const data = await api('GET', '/prospecting/categories');
     if (prospCategoryEl) {
-      prospCategoryEl.innerHTML = '<option value="">— оберіть —</option>' +
-        (data.categories || []).map(c => `<option value="${escHtml(c.key)}">${escHtml(c.label)}</option>`).join('');
+      prospCategoryEl.innerHTML = (data.categories || []).map(c => `<option value="${escHtml(c.key)}">${escHtml(c.label)}</option>`).join('');
     }
     if (prospQualifiersEl) {
       prospQualifiersEl.innerHTML = (data.qualifiers || []).map(q => `
@@ -1751,6 +1753,7 @@ async function loadProspectingCatalog() {
     }
     prospCatalogLoaded = true;
     loadSavedSearches().catch(() => {});
+    restoreLastProspSearch();
   } catch (err) {
     if (prospResultsEl) prospResultsEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Не вдалося завантажити категорії.')}</p>`;
   }
@@ -1785,6 +1788,7 @@ function prospSignalBadges(cand) {
 function renderProspResults(result) {
   prospCandidates = result.candidates || [];
   if (!prospResultsEl) return;
+  if (prospQuickFilterRow) prospQuickFilterRow.hidden = !prospCandidates.length;
   if (!prospCandidates.length) {
     const note = result.recent_filter_applied
       ? 'Не знайдено бізнесів із відомою датою відкриття в цьому вікні. Спробуйте без фільтра «щойно відкриті» — OSM рідко має дату.'
@@ -1793,7 +1797,10 @@ function renderProspResults(result) {
     updateProspImportBar();
     return;
   }
-  const head = `<div class="prosp-results-head">Знайдено <b>${prospCandidates.length}</b> · усього в області: ${result.total_found} · ${escHtml(result.area || '')}</div>`;
+  const excludedNote = result.excluded_existing
+    ? ` · приховано вже в CRM: <b>${result.excluded_existing}</b>`
+    : '';
+  const head = `<div class="prosp-results-head">Знайдено <b>${prospCandidates.length}</b> · усього в області: ${result.total_found}${excludedNote} · ${escHtml(result.area || '')}</div>`;
   const rows = prospCandidates.map((c, i) => {
     const isGoogle = c.source === 'google';
     const isListicle = isGoogle && !!(c.signals || {}).is_listicle;
@@ -1803,8 +1810,9 @@ function renderProspResults(result) {
     const avatar = (isGoogle && c.thumbnail)
       ? `<img class="prosp-card-avatar prosp-card-avatar-img" src="${escHtml(c.thumbnail)}" alt=""/>`
       : `<div class="prosp-card-avatar">${escHtml((c.business_name || '?').trim().charAt(0) || '?')}</div>`;
+    const searchBlob = escHtml([c.business_name, c.domain, c.snippet, c.category, c.city_area].filter(Boolean).join(' ').toLowerCase());
     return `
-    <div class="prosp-card${isListicle ? ' prosp-card-disabled' : ''}">
+    <div class="prosp-card${isListicle ? ' prosp-card-disabled' : ''}" data-search="${searchBlob}">
       <label class="prosp-card-check" title="${isListicle ? 'Це сторінка-огляд кількох бізнесів, а не один — виберіть конкретну назву самостійно за посиланням' : ''}">
         <input type="checkbox" class="prosp-select" data-idx="${i}" ${isListicle ? 'disabled' : ''}/>
       </label>
@@ -1882,34 +1890,42 @@ function sortProspCandidates(list, sortMode) {
   return arr;
 }
 
+function selectedProspCategoryKeys() {
+  return Array.from(prospCategoryEl?.selectedOptions || []).map(o => o.value).filter(Boolean);
+}
+
 async function runProspectingSearch(e) {
   if (e) e.preventDefault();
-  const categoryKey = prospCategoryEl?.value || '';
+  const categoryKeys = selectedProspCategoryKeys();
   const country = document.getElementById('prosp-country')?.value.trim() || '';
   const city = document.getElementById('prosp-city')?.value.trim() || '';
   const customQuery = document.getElementById('prosp-g-custom')?.value.trim() || '';
   if (prospSource !== 'google' || !customQuery) {
-    if (!categoryKey) { showToast('Оберіть категорію.', true); return; }
+    if (!categoryKeys.length) { showToast('Оберіть хоча б одну категорію.', true); return; }
   }
+  const excludeExisting = !!document.getElementById('prosp-exclude-existing')?.checked;
 
   const btn = document.getElementById('btn-prosp-search');
   if (btn) { btn.disabled = true; btn.textContent = 'Шукаю…'; }
+  if (prospQuickFilterEl) prospQuickFilterEl.value = '';
 
   if (prospSource === 'google') {
     if (!customQuery && !country && !city) { showToast('Вкажіть країну або місто.', true); if (btn) { btn.disabled = false; btn.textContent = 'Шукати'; } return; }
     if (prospResultsEl) prospResultsEl.innerHTML = '<p class="leads-empty">Шукаю через Google Custom Search…</p>';
     try {
       const result = await api('POST', '/prospecting/search-google', {
-        category_key: categoryKey, country, city, custom_query: customQuery,
+        category_keys: categoryKeys, country, city, custom_query: customQuery,
         exact_terms: document.getElementById('prosp-g-exact')?.value.trim() || '',
         exclude_terms: document.getElementById('prosp-g-exclude')?.value.trim() || '',
         gl: document.getElementById('prosp-g-gl')?.value.trim().toLowerCase() || '',
         lang: document.getElementById('prosp-g-lang')?.value || '',
         date_restrict: document.getElementById('prosp-g-date')?.value || '',
         exclude_platforms: document.getElementById('prosp-g-exclude-platforms')?.checked !== false,
+        exclude_existing: excludeExisting,
         limit: Number(document.getElementById('prosp-g-num')?.value || 20),
       }, { timeoutMs: 30000 });
       renderProspResults(result);
+      saveLastProspSearch();
     } catch (err) {
       if (prospResultsEl) prospResultsEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Помилка пошуку.')}</p>`;
     } finally {
@@ -1927,11 +1943,12 @@ async function runProspectingSearch(e) {
   if (prospResultsEl) prospResultsEl.innerHTML = '<p class="leads-empty">Шукаю в OpenStreetMap… (може зайняти до хвилини)</p>';
   try {
     const result = await api('POST', '/prospecting/search', {
-      category_key: categoryKey, country, city, qualifiers,
-      recent_months: recentOnly ? 12 : 0, limit,
+      category_keys: categoryKeys, country, city, qualifiers,
+      recent_months: recentOnly ? 12 : 0, limit, exclude_existing: excludeExisting,
     }, { timeoutMs: 70000 });
     result.candidates = sortProspCandidates(result.candidates || [], sortMode);
     renderProspResults(result);
+    saveLastProspSearch();
   } catch (err) {
     if (prospResultsEl) prospResultsEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Помилка пошуку.')}</p>`;
   } finally {
@@ -1940,9 +1957,10 @@ async function runProspectingSearch(e) {
 }
 
 function gatherProspFilters() {
+  const excludeExisting = !!document.getElementById('prosp-exclude-existing')?.checked;
   if (prospSource === 'google') {
     return {
-      category_key: prospCategoryEl?.value || '',
+      category_keys: selectedProspCategoryKeys(),
       country: document.getElementById('prosp-country')?.value.trim() || '',
       city: document.getElementById('prosp-city')?.value.trim() || '',
       custom_query: document.getElementById('prosp-g-custom')?.value.trim() || '',
@@ -1952,15 +1970,17 @@ function gatherProspFilters() {
       lang: document.getElementById('prosp-g-lang')?.value || '',
       date_restrict: document.getElementById('prosp-g-date')?.value || '',
       exclude_platforms: document.getElementById('prosp-g-exclude-platforms')?.checked !== false,
+      exclude_existing: excludeExisting,
       num: document.getElementById('prosp-g-num')?.value || '20',
     };
   }
   return {
-    category_key: prospCategoryEl?.value || '',
+    category_keys: selectedProspCategoryKeys(),
     country: document.getElementById('prosp-country')?.value.trim() || '',
     city: document.getElementById('prosp-city')?.value.trim() || '',
     qualifiers: Array.from(prospQualifiersEl?.querySelectorAll('.prosp-qualifier:checked') || []).map(cb => cb.value),
     recent: !!document.getElementById('prosp-recent')?.checked,
+    exclude_existing: excludeExisting,
     limit: document.getElementById('prosp-limit')?.value || '30',
     sort: document.getElementById('prosp-sort')?.value || 'default',
   };
@@ -1968,11 +1988,16 @@ function gatherProspFilters() {
 
 function applyProspFilters(source, params) {
   setProspSource(source);
-  if (prospCategoryEl) prospCategoryEl.value = params.category_key || '';
+  if (prospCategoryEl) {
+    const keys = params.category_keys || (params.category_key ? [params.category_key] : []);
+    Array.from(prospCategoryEl.options).forEach(o => { o.selected = keys.includes(o.value); });
+  }
   const countryEl = document.getElementById('prosp-country');
   const cityEl = document.getElementById('prosp-city');
   if (countryEl) countryEl.value = params.country || '';
   if (cityEl) cityEl.value = params.city || '';
+  const exclExistingEl = document.getElementById('prosp-exclude-existing');
+  if (exclExistingEl) exclExistingEl.checked = !!params.exclude_existing;
   if (source === 'google') {
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? ''; };
     set('prosp-g-custom', params.custom_query);
@@ -1995,6 +2020,18 @@ function applyProspFilters(source, params) {
       cb.checked = (params.qualifiers || []).includes(cb.value);
     });
   }
+}
+
+function saveLastProspSearch() {
+  try {
+    localStorage.setItem(PROSP_LAST_SEARCH_KEY, JSON.stringify({ source: prospSource, params: gatherProspFilters() }));
+  } catch (err) { /* localStorage недоступний (приватний режим тощо) — не критично */ }
+}
+
+function restoreLastProspSearch() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(PROSP_LAST_SEARCH_KEY) || 'null'); } catch (err) { saved = null; }
+  if (saved && saved.params) applyProspFilters(saved.source || 'osm', saved.params);
 }
 
 async function loadSavedSearches() {
@@ -2052,6 +2089,13 @@ async function saveCurrentSearch() {
   }
 }
 if (btnProspSave) btnProspSave.addEventListener('click', saveCurrentSearch);
+
+if (prospQuickFilterEl) prospQuickFilterEl.addEventListener('input', () => {
+  const q = prospQuickFilterEl.value.trim().toLowerCase();
+  prospResultsEl?.querySelectorAll('.prosp-card').forEach(card => {
+    card.style.display = (!q || (card.dataset.search || '').includes(q)) ? '' : 'none';
+  });
+});
 
 async function importProspCandidates() {
   const selected = selectedProspCandidates();

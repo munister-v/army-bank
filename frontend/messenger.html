@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=73"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=74"/>
 </head>
 <body>
 
@@ -499,8 +499,8 @@
 
           <div class="prospecting-row">
             <label class="prospecting-field">
-              <span class="mono-label">Категорія</span>
-              <select id="prosp-category" required></select>
+              <span class="mono-label">Категорія (кілька — Cmd/Ctrl+клік)</span>
+              <select id="prosp-category" multiple size="5" required></select>
             </label>
             <label class="prospecting-field">
               <span class="mono-label">Країна</span>
@@ -539,6 +539,10 @@
             <label class="prospecting-checkbox">
               <input type="checkbox" id="prosp-recent"/>
               <span>Тільки щойно відкриті (≤12 міс, де відомо)</span>
+            </label>
+            <label class="prospecting-checkbox">
+              <input type="checkbox" id="prosp-exclude-existing"/>
+              <span>Приховати вже додані в CRM</span>
             </label>
             <div class="prosp-search-actions">
               <button type="button" class="btn-secondary prosp-save-btn" id="btn-prosp-save" title="Зберегти цей пошук">💾 Зберегти</button>
@@ -607,6 +611,9 @@
 
           <p class="prospecting-hint" id="prosp-hint">Дані OpenStreetMap — community-джерело. Покриття краще в Європі; телефон/сайт присутні не завжди. Сигнали «схоже, немає…» орієнтовні.</p>
         </form>
+        <div class="prosp-quick-filter-row" id="prosp-quick-filter-row" hidden>
+          <input type="text" id="prosp-quick-filter" class="prosp-quick-filter" placeholder="🔎 Швидкий фільтр по назві, домену, описі…" autocomplete="off"/>
+        </div>
         <div class="prospecting-results" id="prosp-results"></div>
         <div class="prospecting-import-bar" id="prosp-import-bar" hidden>
           <span class="prospecting-selected-count" id="prosp-selected-count">Обрано: 0</span>
@@ -986,6 +993,6 @@
 ════════════════════════════════════════════ -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
-<script src="/js/messenger.js?v=73"></script>
+<script src="/js/messenger.js?v=74"></script>
 </body>
 </html>

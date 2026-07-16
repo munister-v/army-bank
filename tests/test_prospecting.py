@@ -95,6 +95,48 @@ def test_search_success(client, admin_headers, monkeypatch):
     assert len(data['candidates']) == 2
 
 
+def test_search_accepts_multiple_category_keys(client, admin_headers, monkeypatch):
+    captured = {}
+
+    def fake_search(category_keys, *a, **kw):
+        captured['category_keys'] = category_keys
+        return {'area': 'Kraków, Polska', 'candidates': [], 'total_found': 0, 'recent_filter_applied': False}
+    monkeypatch.setattr(prospecting_routes.prospecting_service, 'search_businesses', fake_search)
+    r = client.post('/api/prospecting/search', headers=admin_headers, json={
+        'category_keys': ['bakery', 'gym'], 'country': 'Poland',
+    })
+    assert r.status_code == 200
+    assert captured['category_keys'] == ['bakery', 'gym']
+
+
+def test_search_exclude_existing_filters_out_known_leads(client, admin_headers, monkeypatch):
+    # "Excl Filter Original" уже в CRM (той самий сайт-домен) — має бути
+    # прибрана, "Brand New Excl Co" — новий кандидат, лишається. Ім'я/домен
+    # унікальні для цього тесту, щоб не конфліктувати з дедуп-станом інших
+    # тестів у файлі (спільна тестова БД у межах прогону — _find_duplicate
+    # також зіставляє за назва+місто, не лише за доменом).
+    client.post('/api/prospecting/import', headers=admin_headers, json={
+        'candidates': [_fake_candidate('Excl Filter Original', website='https://excl-filter-test.example.com')],
+        'owner': 'Manager 1',
+    })
+    fake_result = {
+        'area': 'Kraków, Polska',
+        'candidates': [
+            _fake_candidate('Excl Filter Original', website='https://www.excl-filter-test.example.com/'),
+            _fake_candidate('Brand New Excl Co', website='https://brandnew-excl-test.example.com'),
+        ],
+        'total_found': 2, 'recent_filter_applied': False,
+    }
+    monkeypatch.setattr(prospecting_routes.prospecting_service, 'search_businesses', lambda *a, **kw: fake_result)
+    r = client.post('/api/prospecting/search', headers=admin_headers, json={
+        'category_key': 'bakery', 'country': 'Poland', 'exclude_existing': True,
+    })
+    assert r.status_code == 200
+    data = r.get_json()['data']
+    assert data['excluded_existing'] == 1
+    assert [c['business_name'] for c in data['candidates']] == ['Brand New Excl Co']
+
+
 def test_search_propagates_prospecting_error_as_502(client, admin_headers, monkeypatch):
     from backend.services.prospecting_service import ProspectingError
 

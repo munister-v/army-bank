@@ -70,14 +70,19 @@ def list_categories():
 @role_required(*_ADMIN_ROLES)
 def search():
     body = request.get_json(silent=True) or {}
-    category_key = str(body.get('category_key') or '').strip()
+    category_keys = body.get('category_keys')
+    if isinstance(category_keys, list) and category_keys:
+        category_keys = [str(k).strip() for k in category_keys if str(k).strip()]
+    else:
+        single = str(body.get('category_key') or '').strip()
+        category_keys = [single] if single else []
     country = str(body.get('country') or '').strip()
     city = str(body.get('city') or '').strip()
     qualifiers = body.get('qualifiers') or []
     limit = body.get('limit') or 30
     recent_months = body.get('recent_months') or 0
 
-    if not category_key:
+    if not category_keys:
         return api_error('Оберіть категорію.', 400)
     if not country:
         return api_error('Вкажіть країну.', 400)
@@ -86,11 +91,14 @@ def search():
 
     try:
         result = prospecting_service.search_businesses(
-            category_key, country, city, [str(q) for q in qualifiers],
+            category_keys, country, city, [str(q) for q in qualifiers],
             int(limit), int(recent_months),
         )
     except ProspectingError as exc:
         return api_error(exc.message, 502)
+
+    if bool(body.get('exclude_existing')):
+        result['candidates'], result['excluded_existing'] = _filter_existing_candidates(result['candidates'])
 
     return jsonify({'ok': True, 'data': result})
 
@@ -104,8 +112,18 @@ def search_google():
     запитом: корисно там, де покриття OSM слабке, або щоб перевірити, чи
     бізнес взагалі присутній онлайн поза власним сайтом."""
     body = request.get_json(silent=True) or {}
-    category_key = str(body.get('category_key') or '').strip()
-    category_label = CATEGORIES.get(category_key, {}).get('label', '') or str(body.get('query') or '').strip()
+    category_keys = body.get('category_keys')
+    if isinstance(category_keys, list) and category_keys:
+        category_keys = [str(k).strip() for k in category_keys if str(k).strip()]
+    else:
+        single = str(body.get('category_key') or '').strip()
+        category_keys = [single] if single else []
+    category_labels = [CATEGORIES[k]['label'] for k in category_keys if k in CATEGORIES]
+    if len(category_labels) > 1:
+        category_label = '(' + ' OR '.join(category_labels) + ')'
+    else:
+        category_label = (category_labels[0] if category_labels else '') or str(body.get('query') or '').strip()
+    category_key = category_keys[0] if category_keys else ''
     country = str(body.get('country') or '').strip()
     city = str(body.get('city') or '').strip()
 
@@ -134,6 +152,9 @@ def search_google():
         )
     except GoogleSearchError as exc:
         return api_error(exc.message, 502 if google_search_service.is_configured() else 503)
+
+    if bool(body.get('exclude_existing')):
+        result['candidates'], result['excluded_existing'] = _filter_existing_candidates(result['candidates'])
 
     return jsonify({'ok': True, 'data': result})
 
@@ -238,6 +259,25 @@ def _find_duplicate(conn, *, phone: str, website: str, name: str, city: str) -> 
         if row:
             return True
     return False
+
+
+def _filter_existing_candidates(candidates: list[dict]) -> tuple[list[dict], int]:
+    """Прибирає з видачі кандидатів, які вже є лідами в CRM (той самий
+    дедуп-сигнал, що й при імпорті) — щоб не гортати список, який однаково
+    відсіється на кроці «Додати обраних у роботу». Повертає (лишились, скільки прибрано)."""
+    _ensure_leads_schema()
+    with get_connection() as conn:
+        kept = [
+            c for c in candidates
+            if not _find_duplicate(
+                conn,
+                phone=str(c.get('phone') or ''),
+                website=str(c.get('website_url') or ''),
+                name=str(c.get('business_name') or ''),
+                city=str(c.get('city_area') or ''),
+            )
+        ]
+    return kept, len(candidates) - len(kept)
 
 
 @prospecting_bp.post('/import')
