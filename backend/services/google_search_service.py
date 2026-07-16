@@ -35,6 +35,47 @@ KNOWN_PLATFORM_DOMAINS = (
     'indeed.com', 'houzz.com', 'thumbtack.com', 'yellowpages.com',
 )
 
+# Заголовки на кшталт "10 Best Hair Salons in Krakow" / «ТОП-10 перукарень» —
+# це сторінка-огляд БАГАТЬОХ бізнесів, а не картка одного. Якщо не відфільтрувати,
+# такий заголовок помилково стає "назвою бізнесу". Розпізнаємо і позначаємо
+# окремо (is_listicle), замість видавати за єдину компанію.
+_LISTICLE_RE = re.compile(
+    r'(\b(top|топ|тор)[\s\-]*\d+\b)'
+    r'|(\b\d+\s*(best|найкращ\w*|лучш\w*|top)\b)'
+    r'|(\bнайкращ\w*\s+\d+\b)'
+    r'|(\bлучш\w*\s+\d+\b)'
+    r'|(\branking\b)',
+    re.IGNORECASE,
+)
+
+# Досить широкий, але не надто жадібний патерн телефону: +код і/або дужки/
+# розділювачі, 9-15 цифр разом. Знаходимо в snippet (Google часто показує
+# телефон прямо у видачі для бізнес-сторінок) — це РЕАЛЬНО корисний сигнал,
+# а не просто оздоблення картки.
+_PHONE_RE = re.compile(
+    r'(?<!\d)(\+?\d{1,3}[\s.\-]?)?\(?\d{2,4}\)?[\s.\-]?\d{2,4}[\s.\-]?\d{2,4}(?:[\s.\-]?\d{2,4})?(?!\d)'
+)
+_EMAIL_RE = re.compile(r'[\w.\-+]+@[\w\-]+\.[a-zA-Z]{2,}')
+
+
+def _looks_like_listicle(title: str) -> bool:
+    return bool(_LISTICLE_RE.search(title or ''))
+
+
+def _extract_phone(text: str) -> str:
+    for m in _PHONE_RE.finditer(text or ''):
+        candidate = m.group(0)
+        digits = re.sub(r'\D', '', candidate)
+        # Відсікаємо явно не-телефонні збіги: роки, короткі числа, ціни без коду.
+        if 9 <= len(digits) <= 15:
+            return candidate.strip()
+    return ''
+
+
+def _extract_email(text: str) -> str:
+    m = _EMAIL_RE.search(text or '')
+    return m.group(0) if m else ''
+
 
 class GoogleSearchError(Exception):
     def __init__(self, message: str):
@@ -57,14 +98,31 @@ def _is_platform_domain(domain: str) -> bool:
 
 def _clean_business_name(title: str, domain: str) -> str:
     """Титул сторінки часто містить хвіст на кшталт ' - Home' / ' | Facebook'
-    — беремо перший сегмент до типового роздільника. Якщо після цього
-    порожньо, підставляємо домен як останній варіант."""
-    for sep in (' - ', ' – ', ' — ', ' | '):
-        if sep in title:
-            title = title.split(sep)[0]
-            break
-    title = title.strip()
-    return title or domain or 'Без назви'
+    — беремо СЕГМЕНТ, що найбільше схожий на назву бізнесу (не найкоротший
+    навмання, а перший "змістовний" — сайти-каталоги часто ставлять власний
+    бренд ПЕРШИМ: 'Yelp — Best Hairdresser in Krakow', тому відкидаємо
+    сегмент, що збігається з доменом чи відомим брендом-платформою)."""
+    raw = title.strip()
+    segments = re.split(r'\s[-–—|·»]\s', raw)
+    segments = [s.strip() for s in segments if s.strip()]
+    if not segments:
+        return domain or 'Без назви'
+
+    domain_root = domain.split('.')[0].lower() if domain else ''
+    platform_brands = {d.split('.')[0] for d in KNOWN_PLATFORM_DOMAINS}
+
+    def is_junk(seg: str) -> bool:
+        low = seg.lower().strip()
+        if not low:
+            return True
+        if domain_root and (low == domain_root or domain_root in low.replace(' ', '')):
+            return True
+        return low in platform_brands or low in ('home', 'homepage', 'головна', 'офіційний сайт', 'official site')
+
+    for seg in segments:
+        if not is_junk(seg):
+            return seg
+    return segments[0]
 
 
 def _extract_instagram_handle(url: str, domain: str) -> str:
@@ -143,34 +201,56 @@ def search_businesses(*, query_text: str, category_label: str = '', category_key
             break  # видача закінчилась раніше ліміту
 
     candidates = []
+    seen_keys: set[str] = set()
     for it in items[:limit]:
         link = it.get('link') or ''
         domain = _domain(link)
         is_platform = _is_platform_domain(domain)
+        title = it.get('title') or ''
+        snippet = it.get('snippet') or ''
+        is_listicle = _looks_like_listicle(title)
+
+        # Дедуп у межах самої видачі: та сама сторінка інколи трапляється
+        # двічі (напр. з www. і без) — беремо тільки перше входження.
+        dedup_key = domain + '|' + re.sub(r'\s+', ' ', title.lower()).strip()
+        if dedup_key in seen_keys:
+            continue
+        seen_keys.add(dedup_key)
+
         thumb = ''
         pagemap = it.get('pagemap') or {}
         cse_thumb = pagemap.get('cse_thumbnail') or pagemap.get('cse_image')
         if cse_thumb and isinstance(cse_thumb, list):
             thumb = (cse_thumb[0] or {}).get('src', '')
 
+        phone = _extract_phone(snippet)
+        email = _extract_email(snippet) or _extract_email(title)
+
+        if is_listicle:
+            offer = ''
+        elif is_platform:
+            offer = 'Розробка сайту / лендінгу'
+        else:
+            offer = ''
+
         candidates.append({
-            'business_name': _clean_business_name(it.get('title') or '', domain),
+            'business_name': _clean_business_name(title, domain),
             'category': category_label,
             'category_key': category_key,
             'city_area': city,
             'country': country,
-            'phone': '',
+            'phone': phone,
             'website_url': '' if is_platform else link,
-            'email': '',
+            'email': email,
             'instagram': _extract_instagram_handle(link, domain),
             'source_url': link,
             'source': 'google',
             'domain': domain,
-            'snippet': it.get('snippet') or '',
+            'snippet': snippet,
             'thumbnail': thumb,
-            'signals': {'platform_only': is_platform},
+            'signals': {'platform_only': is_platform, 'is_listicle': is_listicle},
             'opened': None,
-            'suggested_first_offer': 'Розробка сайту / лендінгу' if is_platform else '',
+            'suggested_first_offer': offer,
         })
 
     return {

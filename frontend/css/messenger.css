@@ -3117,6 +3117,8 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
   transition: transform .12s, box-shadow .15s, border-color .15s;
 }
 .prosp-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-pop); border-color: var(--border); }
+.prosp-card-disabled { opacity: .68; }
+.prosp-card-disabled .prosp-card-check { cursor: not-allowed; }
 .prosp-card-check { display: flex; align-items: flex-start; padding-top: 2px; }
 .prosp-card-check input { width: 18px; height: 18px; accent-color: var(--blue); cursor: pointer; }
 .prosp-card-avatar {
@@ -3144,6 +3146,7 @@ a.prosp-contact:hover { text-decoration: underline; }
 }
 .prosp-badge-new { background: #dcfce7; color: #166534; border-color: rgba(22,101,52,.18); }
 .prosp-badge-gap { background: rgba(245,158,11,.12); color: #92400e; border-color: rgba(245,158,11,.32); }
+.prosp-badge-listicle { background: rgba(94,94,74,.10); color: var(--text-2); border-color: var(--border); }
 .prosp-card-offer {
   display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; margin-top: 6px;
   background: var(--lime-dim); border: 1px solid var(--lime-border); border-radius: var(--radius-pill);

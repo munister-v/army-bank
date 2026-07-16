@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '72';
+const MESSENGER_ASSET_VERSION = '73';
 // Мають точно збігатися з _SAVED_MESSAGES_NAME/_SCHEDULER_NAME у backend/routes/messenger_routes.py
 const SAVED_MESSAGES_NAME = '🔖 Збережені повідомлення';
 const SCHEDULER_NAME = '📅 Планувальник';
@@ -1760,11 +1760,14 @@ function prospSignalBadges(cand) {
   const badges = [];
   if (cand.source === 'google') {
     const sig = cand.signals || {};
-    if (sig.platform_only) {
+    if (sig.is_listicle) {
+      badges.push('<span class="prosp-badge prosp-badge-listicle">📄 Огляд/список — не один бізнес</span>');
+    } else if (sig.platform_only) {
       badges.push('<span class="prosp-badge prosp-badge-gap">Тільки платформа, не власний сайт</span>');
     } else if (cand.website_url) {
       badges.push('<span class="prosp-badge prosp-badge-new">🌐 Власний сайт знайдено</span>');
     }
+    if (cand.phone) badges.push('<span class="prosp-badge prosp-badge-new">📞 Телефон у видачі</span>');
     return badges.join('');
   }
   if (cand.opened) {
@@ -1793,6 +1796,7 @@ function renderProspResults(result) {
   const head = `<div class="prosp-results-head">Знайдено <b>${prospCandidates.length}</b> · усього в області: ${result.total_found} · ${escHtml(result.area || '')}</div>`;
   const rows = prospCandidates.map((c, i) => {
     const isGoogle = c.source === 'google';
+    const isListicle = isGoogle && !!(c.signals || {}).is_listicle;
     const metaLine = isGoogle
       ? escHtml(c.snippet || c.domain || '')
       : escHtml([c.category, c.city_area].filter(Boolean).join(' · '));
@@ -1800,9 +1804,9 @@ function renderProspResults(result) {
       ? `<img class="prosp-card-avatar prosp-card-avatar-img" src="${escHtml(c.thumbnail)}" alt=""/>`
       : `<div class="prosp-card-avatar">${escHtml((c.business_name || '?').trim().charAt(0) || '?')}</div>`;
     return `
-    <div class="prosp-card">
-      <label class="prosp-card-check">
-        <input type="checkbox" class="prosp-select" data-idx="${i}"/>
+    <div class="prosp-card${isListicle ? ' prosp-card-disabled' : ''}">
+      <label class="prosp-card-check" title="${isListicle ? 'Це сторінка-огляд кількох бізнесів, а не один — виберіть конкретну назву самостійно за посиланням' : ''}">
+        <input type="checkbox" class="prosp-select" data-idx="${i}" ${isListicle ? 'disabled' : ''}/>
       </label>
       ${avatar}
       <div class="prosp-card-body">
