@@ -99,8 +99,9 @@ def create_app() -> Flask:
     app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path=BASE_PATH or '')
     from .config import SECRET_KEY
     app.secret_key = SECRET_KEY  # needed for Flask session (WebAuthn challenge storage)
-    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['SESSION_COOKIE_SECURE'] = True
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['DB_BOOT_OK'] = db_boot_ok
     app.config.setdefault('ENABLE_RATE_LIMIT_IN_TESTS', ENABLE_RATE_LIMIT_IN_TESTS)
     app.config.setdefault('ENFORCE_IDEMPOTENCY_HEADERS', ENFORCE_IDEMPOTENCY_HEADERS)
@@ -176,7 +177,7 @@ def create_app() -> Flask:
             resp.headers['Access-Control-Allow-Credentials'] = 'true'
             resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PATCH, PUT, DELETE, OPTIONS'
             resp.headers['Access-Control-Allow-Headers'] = (
-                'Content-Type, Authorization, X-Bootstrap-Token, Idempotency-Key, X-Request-Id'
+                'Content-Type, Authorization, X-CSRF-Token, X-Bootstrap-Token, Idempotency-Key, X-Request-Id'
             )
             _append_expose_header(resp, 'X-Refresh-Token', 'X-Request-Id')
             _append_vary(resp, 'Origin')
@@ -234,7 +235,7 @@ def create_app() -> Flask:
             r.headers['Access-Control-Allow-Credentials'] = 'true'
             r.headers['Access-Control-Allow-Methods'] = 'GET, POST, PATCH, PUT, DELETE, OPTIONS'
             r.headers['Access-Control-Allow-Headers'] = (
-                'Content-Type, Authorization, X-Bootstrap-Token, Idempotency-Key, X-Request-Id'
+                'Content-Type, Authorization, X-CSRF-Token, X-Bootstrap-Token, Idempotency-Key, X-Request-Id'
             )
             r.headers['Access-Control-Max-Age'] = '86400'
             _append_vary(r, 'Origin')

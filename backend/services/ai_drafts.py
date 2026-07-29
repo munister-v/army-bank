@@ -120,6 +120,89 @@ def parse_draft_response(text: str) -> dict:
     return {'variants_en': variants_en, 'local': local}
 
 
+def build_intelligence_prompt(lead: dict) -> list[dict]:
+    """Аналітика контакту: коротка, конкретна оцінка ліда для менеджера
+    перед першим/наступним контактом — на основі полів, вже наявних у CRM.
+    Той самий tagged-формат, що й інші AI-фічі (parse_intelligence_response)."""
+    facts = []
+
+    def add(label: str, key: str) -> None:
+        val = str(lead.get(key) or '').strip()
+        if val:
+            facts.append(f'{label}: {val}')
+
+    add('Business name', 'business_name')
+    add('Category', 'category')
+    add('Country', 'country')
+    add('City/area', 'city_area')
+    add('Opening window/date', 'opening_date')
+    add('Website signal', 'website_signal')
+    add('Website URL', 'website_url')
+    add('Phone', 'phone')
+    add('WhatsApp/Viber', 'whatsapp_viber')
+    add('Email', 'email')
+    add('Instagram', 'instagram')
+    add('Contact quality', 'contact_quality')
+    add('Source', 'status_source')
+    add('CRM lead score (0-100)', 'lead_score')
+    add('Need type', 'need_type')
+    add('Suggested first offer', 'suggested_first_offer')
+    add('Why we can help', 'why_help_fits')
+    add('Outreach status', 'outreach_status')
+    add('Manager notes', 'manager_private_notes')
+    facts_block = '\n'.join(facts) if facts else 'No further details available.'
+
+    user = f"""You are a sales analyst helping a manager at a small local-services \
+agency decide how to approach this business lead. Analyze ONLY the facts given below \
+— do not invent details (revenue, employee count, specific pain points) that aren't \
+stated or directly implied. If little is known, say so plainly instead of guessing.
+
+{facts_block}
+
+Output EXACTLY in this tagged format, nothing else:
+###DESC
+<1-2 sentence plain-language summary of who this lead is and what's known>
+###STRENGTH:<high, medium, or low — how promising this lead looks based on the facts>
+###REASON1:<short label, e.g. "Timing">
+<one specific, evidence-based reason, referencing an actual fact above>
+###REASON2:<short label>
+<second specific reason>
+###REASON3:<short label>
+<third specific reason, or a caution/thing to verify if you're short on strong reasons>
+###OFFER
+<the single most relevant offer to lead with, given what's known>
+###ANGLE
+<a concrete opening line or observation the manager could use to start the conversation — specific to this lead, not generic>
+###NEXT
+<one concrete next action for the manager>
+
+Write everything in Ukrainian."""
+    return [{'role': 'system', 'content': _BASE_SYSTEM}, {'role': 'user', 'content': user}]
+
+
+def parse_intelligence_response(text: str) -> dict:
+    sections = parse_tagged_sections(text)
+    result: dict = {'description': '', 'strength': 'medium', 'reasons': [], 'recommended_offer': '', 'outreach_angle': '', 'next_step': ''}
+    for tag, meta, body in sections:
+        if tag == 'DESC':
+            result['description'] = body
+        elif tag == 'STRENGTH':
+            val = (meta or body or '').strip().lower()
+            if val in ('high', 'medium', 'low'):
+                result['strength'] = val
+        elif tag.startswith('REASON'):
+            result['reasons'].append({'label': meta or 'Сигнал', 'text': body})
+        elif tag == 'OFFER':
+            result['recommended_offer'] = body
+        elif tag == 'ANGLE':
+            result['outreach_angle'] = body
+        elif tag == 'NEXT':
+            result['next_step'] = body
+        elif tag == 'RAW':
+            result['description'] = result['description'] or body
+    return result
+
+
 def build_reply_prompt(lead: dict, history: list[dict], variant_count: int = 2) -> list[dict]:
     """Live-chat: підказки відповіді мовою клієнта + англійський глос для
     менеджера, який може не знати цієї мови. `history` — [{'role': 'user'|'assistant', 'text': ...}],

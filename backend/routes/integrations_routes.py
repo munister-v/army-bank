@@ -15,7 +15,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, g, jsonify, request
 
 from ..config import SECRET_KEY
 from ..database import get_connection, get_returning_id_suffix
@@ -29,7 +29,24 @@ integrations_bp = Blueprint('integrations', __name__, url_prefix='/api/integrati
 # банківської адмінки (див. leads_routes._ADMIN_ROLES).
 _ADMIN_ROLES = ('admin', 'platform_admin', 'manager')
 
-MANAGERS: dict[str, str] = {'Manager 1': 'Менеджер Миша', 'Manager 2': 'Менеджер Едуард'}
+
+def _forced_manager() -> str | None:
+    """crm_owner поточного менеджера, або None для admin/platform_admin.
+
+    Доступи (WhatsApp/Instagram-токени) належать конкретній людині — сторінка
+    інтеграцій прямо це обіцяє. Без цієї перевірки будь-який менеджер бачив і
+    міг відключити чужий канал."""
+    user = getattr(g, 'current_user', None) or {}
+    if user.get('role') != 'manager':
+        return None
+    return (user.get('crm_owner') or '').strip() or '\x00__unassigned__'
+
+
+def _get_managers():
+    with get_connection() as conn:
+        rows = conn.execute("SELECT crm_owner, full_name FROM users WHERE role = 'manager' AND crm_owner IS NOT NULL").fetchall()
+        return {r['crm_owner']: r['full_name'] for r in rows}
+
 CHANNELS = ('whatsapp', 'instagram')
 
 
@@ -124,7 +141,7 @@ def _mask_token(token: str) -> str:
 def _row_payload(row: dict[str, Any]) -> dict[str, Any]:
     return {
         'manager': row['manager'],
-        'manager_label': MANAGERS.get(row['manager'], row['manager']),
+        'manager_label': _get_managers().get(row['manager'], row['manager']),
         'channel': row['channel'],
         'external_id': row['external_id'],
         'display_label': row['display_label'],
@@ -166,8 +183,11 @@ def list_integrations():
         rows = conn.execute('SELECT * FROM manager_integrations').fetchall()
     by_key = {(r['manager'], r['channel']): _row_payload(dict(r)) for r in (rows or [])}
 
+    mine = _forced_manager()
     items = []
-    for manager, manager_label in MANAGERS.items():
+    for manager, manager_label in _get_managers().items():
+        if mine is not None and manager != mine:
+            continue
         for channel in CHANNELS:
             existing = by_key.get((manager, channel))
             if existing:
@@ -208,11 +228,14 @@ def connect_whatsapp():
     _ensure_schema()
     body = request.get_json(silent=True) or {}
     manager = str(body.get('manager') or '').strip()
+    mine = _forced_manager()
+    if mine is not None:
+        manager = mine          # менеджер підключає лише свій канал
     phone_number_id = str(body.get('phone_number_id') or '').strip()
     access_token = str(body.get('access_token') or '').strip()
     app_secret = str(body.get('app_secret') or '').strip()
 
-    if manager not in MANAGERS:
+    if manager not in _get_managers():
         return api_error('Невідомий менеджер.', 400)
     if not phone_number_id or not access_token:
         return api_error('Потрібні Phone Number ID та Access Token.', 400)
@@ -236,11 +259,14 @@ def connect_instagram():
     _ensure_schema()
     body = request.get_json(silent=True) or {}
     manager = str(body.get('manager') or '').strip()
+    mine = _forced_manager()
+    if mine is not None:
+        manager = mine          # менеджер підключає лише свій канал
     ig_user_id = str(body.get('ig_user_id') or '').strip()
     access_token = str(body.get('access_token') or '').strip()
     app_secret = str(body.get('app_secret') or '').strip()
 
-    if manager not in MANAGERS:
+    if manager not in _get_managers():
         return api_error('Невідомий менеджер.', 400)
     if not ig_user_id or not access_token:
         return api_error('Потрібні Instagram User ID та Access Token.', 400)
@@ -293,8 +319,11 @@ def check_connection(manager: str, channel: str):
     """Повторно перевіряє вже збережений токен реальним запитом до Meta —
     для випадку, коли токен протух (тимчасові токени живуть 24 год)."""
     _ensure_schema()
-    if manager not in MANAGERS or channel not in CHANNELS:
+    if manager not in _get_managers() or channel not in CHANNELS:
         return api_error('Невідомий менеджер/канал.', 400)
+    mine = _forced_manager()
+    if mine is not None and manager != mine:
+        return api_error('Це підключення належить іншому менеджеру.', 403)
     with get_connection() as conn:
         row = conn.execute(
             'SELECT * FROM manager_integrations WHERE manager = %s AND channel = %s',
@@ -336,8 +365,11 @@ def check_connection(manager: str, channel: str):
 @role_required(*_ADMIN_ROLES)
 def disconnect(manager: str, channel: str):
     _ensure_schema()
-    if manager not in MANAGERS or channel not in CHANNELS:
+    if manager not in _get_managers() or channel not in CHANNELS:
         return api_error('Невідомий менеджер/канал.', 400)
+    mine = _forced_manager()
+    if mine is not None and manager != mine:
+        return api_error('Це підключення належить іншому менеджеру.', 403)
     with get_connection() as conn:
         conn.execute(
             'DELETE FROM manager_integrations WHERE manager = %s AND channel = %s',

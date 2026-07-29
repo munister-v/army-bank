@@ -9,6 +9,7 @@ import csv
 import io
 import math
 from datetime import date
+from functools import wraps
 from typing import Any
 
 from flask import Blueprint, Response, g, jsonify, request
@@ -16,6 +17,7 @@ from flask import Blueprint, Response, g, jsonify, request
 from ..database import get_connection, get_returning_id_suffix, insert_last_id
 from ..services import ai_drafts, openrouter_service
 from ..services.messenger_crypto import decrypt_message, encrypt_message
+from ..services.lead_exclusions import exclusion_reason
 from ..services.openrouter_service import OpenRouterError
 from .helpers import api_error, auth_required, role_required
 
@@ -24,6 +26,40 @@ leads_bp = Blueprint('leads', __name__, url_prefix='/api/leads')
 # Ролі з доступом до CRM (Ліди). 'manager' — CRM-менеджер БЕЗ доступу до
 # банківської адмінки (/api/admin/*, яка лишається на 'admin'/'platform_admin').
 _ADMIN_ROLES = ('admin', 'platform_admin', 'manager')
+
+# Менеджер бачить ТІЛЬКИ своїх лідів. Прив'язка — users.crm_owner <-> leads.owner.
+# Свідомо не збігається з жодним реальним owner: менеджер без crm_owner не
+# отримує доступу до всієї бази (fail closed), а не до нічого випадково.
+_NO_MATCH_OWNER = '\x00__unassigned__'
+
+
+def _forced_owner() -> str | None:
+    """crm_owner поточного менеджера, або None для admin/platform_admin.
+
+    None означає «без обмежень». Будь-який рядковий результат треба підставляти
+    у WHERE owner = ... — саме на цьому тримається розмежування доступу."""
+    user = getattr(g, 'current_user', None) or {}
+    if user.get('role') != 'manager':
+        return None
+    return (user.get('crm_owner') or '').strip() or _NO_MATCH_OWNER
+
+
+def own_lead_only(func):
+    """Забороняє менеджеру відкривати/редагувати чужого ліда за прямим id.
+
+    Ставиться ПІСЛЯ @auth_required/@role_required — потребує g.current_user.
+    Не підміняє 404: якщо ліда взагалі немає, рішення лишається за самим view."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        owner = _forced_owner()
+        lead_id = kwargs.get('lead_id')
+        if owner is not None and lead_id is not None:
+            with get_connection() as conn:
+                row = conn.execute('SELECT owner FROM leads WHERE id = %s', (lead_id,)).fetchone()
+            if row is not None and (row['owner'] or '') != owner:
+                return api_error('Цей лід закріплений за іншим менеджером.', 403)
+        return func(*args, **kwargs)
+    return wrapper
 
 # Поля, які менеджер/адмін реально редагує з UI (решта — імпортовані дані).
 _EDITABLE_FIELDS = (
@@ -142,16 +178,89 @@ def _require_admin():
 
 
 def _row_to_payload(row: dict[str, Any]) -> dict[str, Any]:
-    return {col: row.get(col) for col in _COLUMNS}
+    payload = {col: row.get(col) for col in _COLUMNS}
+    payload['intelligence'] = _lead_intelligence(payload)
+    return payload
+
+
+def _lead_intelligence(lead: dict[str, Any]) -> dict[str, Any]:
+    """Evidence-based manager hint built only from fields stored with the lead."""
+    category = str(lead.get('category') or 'Локальний бізнес').strip()
+    location = ', '.join(filter(None, (
+        str(lead.get('city_area') or '').strip(),
+        str(lead.get('country') or '').strip(),
+    )))
+    opening = str(lead.get('opening_date') or lead.get('opening_window') or '').strip()
+    score = max(0, min(100, int(lead.get('lead_score') or 0)))
+    website_signal = str(lead.get('website_signal') or '').lower()
+    source = str(lead.get('status_source') or lead.get('source_bucket') or '').strip()
+    contacts = [
+        label for label, value in (
+            ('email', lead.get('email')),
+            ('телефон', lead.get('phone') or lead.get('whatsapp_viber')),
+            ('Instagram', lead.get('instagram')),
+        ) if str(value or '').strip()
+    ]
+
+    description = category
+    if location:
+        description += f' у {location}'
+    if opening:
+        description += f'; у даних зазначено період відкриття {opening}'
+    description += '. Підказка сформована з полів CRM і потребує короткої перевірки перед контактом.'
+
+    reasons: list[dict[str, str]] = []
+    if opening:
+        reasons.append({'label': 'Таймінг', 'text': f'Є сигнал відкриття: {opening}. До запуску легше запропонувати базову цифрову інфраструктуру.'})
+    if 'no' in website_signal or 'нема' in website_signal or 'відсут' in website_signal:
+        reasons.append({'label': 'Слабкий сигнал', 'text': 'У джерелі не знайдено сайт. Це варто перевірити вручну перед згадкою у повідомленні.'})
+    elif lead.get('website_url'):
+        reasons.append({'label': 'Сайт знайдено', 'text': 'Можна швидко переглянути сайт і почати розмову з конкретного спостереження, а не загальної пропозиції.'})
+    if contacts:
+        reasons.append({'label': 'Контактність', 'text': f"Доступні канали: {', '.join(contacts)}. Оберіть один основний канал і не дублюйте перше звернення."})
+    else:
+        reasons.append({'label': 'Потрібна перевірка', 'text': 'Прямого контакту немає: спочатку знайдіть офіційний сайт або профіль власника.'})
+    if score:
+        reasons.append({'label': 'Оцінка CRM', 'text': f'{score}/100 — орієнтир для сортування, а не гарантія відповіді.'})
+    if source:
+        reasons.append({'label': 'Походження', 'text': f'Джерело: {source}. Відкрийте першоджерело перед персоналізацією.'})
+
+    offer = str(lead.get('suggested_first_offer') or lead.get('need_type') or '').strip()
+    why = str(lead.get('why_help_fits') or '').strip()
+    if not offer:
+        if 'no' in website_signal or 'нема' in website_signal or 'відсут' in website_signal:
+            offer = 'Швидкий сайт або сторінка запуску з контактами й аналітикою'
+        elif opening:
+            offer = 'Пакет цифрового запуску до дати відкриття'
+        else:
+            offer = 'Короткий аудит поточної цифрової присутності'
+    angle = why or f'Почніть із релевантного спостереження про {category.lower()}, а потім запропонуйте: {offer}.'
+    next_step = 'Перевірити джерело й один цифровий канал, знайти конкретну деталь, потім надіслати коротке персоналізоване повідомлення.'
+    strength = 'high' if score >= 70 and contacts else 'medium' if score >= 40 or contacts else 'low'
+    return {
+        'description': description,
+        'reasons': reasons[:5],
+        'recommended_offer': offer,
+        'outreach_angle': angle,
+        'next_step': next_step,
+        'strength': strength,
+        'score': score,
+    }
 
 
 def _build_leads_filter() -> tuple[str, list]:
-    """Читає owner/stage/pipeline/priority/search з query-параметрів запиту
+    """Читає owner/stage/pipeline/priority/outreach/country/channel/search
     та повертає (WHERE ..., params) — спільне для list/export."""
     owner = (request.args.get('owner') or '').strip()
+    forced = _forced_owner()
+    if forced is not None:
+        owner = forced          # ігноруємо ?owner= з клієнта — менеджер бачить лише своє
     stage = (request.args.get('stage') or '').strip()
     pipeline = (request.args.get('pipeline') or '').strip()
     priority = (request.args.get('priority') or '').strip()
+    outreach_status = (request.args.get('outreach_status') or '').strip()
+    country = (request.args.get('country') or '').strip()
+    channel = (request.args.get('channel') or '').strip()
     search = (request.args.get('search') or '').strip()
     due_today = request.args.get('due_today') in ('1', 'true', 'yes')
 
@@ -169,6 +278,15 @@ def _build_leads_filter() -> tuple[str, list]:
     if priority:
         where.append('priority = %s')
         params.append(priority)
+    if outreach_status:
+        where.append('outreach_status = %s')
+        params.append(outreach_status)
+    if country:
+        where.append('country = %s')
+        params.append(country)
+    if channel:
+        where.append('primary_channel = %s')
+        params.append(channel)
     if due_today:
         where.append("next_followup_date IS NOT NULL AND next_followup_date != '' AND next_followup_date <= %s")
         params.append(date.today().isoformat())
@@ -194,6 +312,16 @@ def list_leads():
     per_page = min(200, max(1, int(request.args.get('per_page') or 50)))
     offset = (page - 1) * per_page
     where_sql, params = _build_leads_filter()
+    sort = (request.args.get('sort') or 'score').strip().lower()
+    order_options = {
+        'score': 'lead_score DESC, id ASC',
+        'followup': "CASE WHEN next_followup_date IS NULL OR next_followup_date = '' THEN 1 ELSE 0 END, next_followup_date ASC, lead_score DESC, id ASC",
+        'newest': 'id DESC',
+        'name': 'business_name ASC, id ASC',
+    }
+    if sort not in order_options:
+        sort = 'score'
+    order_sql = order_options[sort]
 
     with get_connection() as conn:
         total = (conn.execute(
@@ -202,7 +330,7 @@ def list_leads():
         rows = conn.execute(
             f"""
             SELECT * FROM leads {where_sql}
-            ORDER BY lead_score DESC, id ASC
+            ORDER BY {order_sql}
             LIMIT %s OFFSET %s
             """,
             params + [per_page, offset],
@@ -215,7 +343,7 @@ def list_leads():
         'data': {
             'items': [_row_to_payload(dict(r)) for r in (rows or [])],
             'page': page, 'per_page': per_page, 'total': int(total),
-            'pages': max(1, math.ceil(int(total) / per_page)),
+            'pages': max(1, math.ceil(int(total) / per_page)), 'sort': sort,
         },
     })
 
@@ -230,27 +358,37 @@ def _use_pg() -> bool:
 @role_required(*_ADMIN_ROLES)
 def leads_stats():
     _ensure_schema()
+    forced = _forced_owner()
+    # для менеджера всі цифри рахуються лише по його лідах
+    scope = ' WHERE owner = %s' if forced is not None else ''
+    and_scope = ' AND owner = %s' if forced is not None else ''
+    sp: list[Any] = [forced] if forced is not None else []
     with get_connection() as conn:
-        total = (conn.execute('SELECT COUNT(*) AS n FROM leads').fetchone() or {}).get('n') or 0
+        total = (conn.execute(f'SELECT COUNT(*) AS n FROM leads{scope}', sp).fetchone() or {}).get('n') or 0
         by_owner = conn.execute(
-            'SELECT owner, COUNT(*) AS n FROM leads GROUP BY owner ORDER BY owner'
+            f'SELECT owner, COUNT(*) AS n FROM leads{scope} GROUP BY owner ORDER BY owner', sp
         ).fetchall()
         by_stage = conn.execute(
-            'SELECT stage, COUNT(*) AS n FROM leads GROUP BY stage ORDER BY n DESC'
+            f'SELECT stage, COUNT(*) AS n FROM leads{scope} GROUP BY stage ORDER BY n DESC', sp
         ).fetchall()
         by_priority = conn.execute(
-            'SELECT priority, COUNT(*) AS n FROM leads GROUP BY priority ORDER BY n DESC'
+            f'SELECT priority, COUNT(*) AS n FROM leads{scope} GROUP BY priority ORDER BY n DESC', sp
         ).fetchall()
         by_channel = conn.execute(
-            'SELECT primary_channel, COUNT(*) AS n FROM leads GROUP BY primary_channel ORDER BY n DESC'
+            f'SELECT primary_channel, COUNT(*) AS n FROM leads{scope} GROUP BY primary_channel ORDER BY n DESC', sp
+        ).fetchall()
+        # Країни віддаємо разом зі статистикою — селект фільтра будується з
+        # реальних значень БД, а не з хардкоду (в базі 37 країн і вони змінюються).
+        by_country = conn.execute(
+            f'SELECT country, COUNT(*) AS n FROM leads{scope} GROUP BY country ORDER BY n DESC', sp
         ).fetchall()
         not_contacted = (conn.execute(
-            "SELECT COUNT(*) AS n FROM leads WHERE outreach_status = 'Not contacted'"
+            f"SELECT COUNT(*) AS n FROM leads WHERE outreach_status = 'Not contacted'{and_scope}", sp
         ).fetchone() or {}).get('n') or 0
         due_today = (conn.execute(
             "SELECT COUNT(*) AS n FROM leads WHERE next_followup_date IS NOT NULL "
-            "AND next_followup_date != '' AND next_followup_date <= %s",
-            (date.today().isoformat(),),
+            f"AND next_followup_date != '' AND next_followup_date <= %s{and_scope}",
+            [date.today().isoformat()] + sp,
         ).fetchone() or {}).get('n') or 0
 
     return jsonify({'ok': True, 'data': {
@@ -261,12 +399,103 @@ def leads_stats():
         'by_stage': [{'stage': r['stage'], 'count': int(r['n'])} for r in (by_stage or [])],
         'by_priority': [{'priority': r['priority'], 'count': int(r['n'])} for r in (by_priority or [])],
         'by_channel': [{'channel': r['primary_channel'], 'count': int(r['n'])} for r in (by_channel or [])],
+        'by_country': [{'country': r['country'], 'count': int(r['n'])} for r in (by_country or []) if r['country']],
     }})
+
+
+def _lead_date_key(value: Any) -> str:
+    """Return an ISO date prefix for values stored as date or timestamp strings."""
+    raw = str(value or '').strip()
+    if len(raw) >= 10 and raw[4:5] == '-' and raw[7:8] == '-':
+        return raw[:10]
+    return ''
+
+
+def _build_work_queue(rows: list[dict[str, Any]], today: str) -> dict[str, Any]:
+    """Build an exclusive, manager-friendly action queue from active leads."""
+    groups = {
+        'overdue': [],
+        'today': [],
+        'hot_unscheduled': [],
+        'untouched': [],
+    }
+    priority_rank = {'Hot': 0, 'High': 1, 'Medium': 2, 'Low': 3, 'Watch': 4}
+
+    for row in rows:
+        lead = _row_to_payload(row)
+        due = _lead_date_key(lead.get('next_followup_date'))
+        priority = str(lead.get('priority') or '')
+        outreach = str(lead.get('outreach_status') or '')
+        if due and due < today:
+            key = 'overdue'
+        elif due == today:
+            key = 'today'
+        elif not due and priority in ('Hot', 'High'):
+            key = 'hot_unscheduled'
+        elif not due and outreach == 'Not contacted':
+            key = 'untouched'
+        else:
+            continue
+        lead['queue_reason'] = key
+        groups[key].append(lead)
+
+    def sort_key(lead: dict[str, Any]):
+        return (
+            _lead_date_key(lead.get('next_followup_date')) or '9999-12-31',
+            priority_rank.get(str(lead.get('priority') or ''), 9),
+            -int(lead.get('lead_score') or 0),
+            int(lead.get('id') or 0),
+        )
+
+    labels = {
+        'overdue': ('Прострочені', 'Контакти, які вже чекали на відповідь менеджера.'),
+        'today': ('На сьогодні', 'Заплановані дії, які потрібно закрити сьогодні.'),
+        'hot_unscheduled': ('Гарячі без дати', 'Високий пріоритет, але наступний крок ще не запланований.'),
+        'untouched': ('Ще не опрацьовані', 'Нові ліди без першого контакту та без дати.'),
+    }
+    result_groups = []
+    summary = {}
+    for key in ('overdue', 'today', 'hot_unscheduled', 'untouched'):
+        items = sorted(groups[key], key=sort_key)
+        summary[key] = len(items)
+        label, description = labels[key]
+        result_groups.append({
+            'key': key,
+            'label': label,
+            'description': description,
+            'count': len(items),
+            'items': items[:50],
+        })
+    summary['total_actionable'] = sum(summary.values())
+    return {'summary': summary, 'groups': result_groups, 'generated_on': today}
+
+
+@leads_bp.get('/work-queue')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def leads_work_queue():
+    _ensure_schema()
+    # "Мій день" мусить читати той самий набір фільтрів, що список і воронка
+    # (owner/stage/priority/outreach_status/search) — інакше вибраний у лідах
+    # статус не доїжджає сюди, і цифри розходяться між екранами.
+    # Власна база лишається: закриті ліди в робочий день не потрапляють ніколи.
+    filter_sql, params = _build_leads_filter()
+    where = "WHERE stage NOT IN ('Won', 'Lost')"
+    if filter_sql:
+        where += ' AND ' + filter_sql[len('WHERE '):]
+    with get_connection() as conn:
+        rows = conn.execute(
+            f'SELECT * FROM leads {where} ORDER BY lead_score DESC, id ASC LIMIT 1000',
+            params,
+        ).fetchall()
+    data = _build_work_queue([dict(r) for r in (rows or [])], date.today().isoformat())
+    return jsonify({'ok': True, 'data': data})
 
 
 @leads_bp.get('/<int:lead_id>')
 @auth_required
 @role_required(*_ADMIN_ROLES)
+@own_lead_only
 def get_lead(lead_id: int):
     _ensure_schema()
     with get_connection() as conn:
@@ -300,7 +529,7 @@ _VALUE_LABELS_RU = {
     'priority': {
         'Hot': 'Горячий', 'High': 'Высокий', 'Medium': 'Средний', 'Low': 'Низкий', 'Watch': 'Наблюдение',
     },
-    'owner': {'Manager 1': 'Менеджер Миша', 'Manager 2': 'Менеджер Едуард'},
+    'owner': {}, # populated dynamically on frontend
 }
 
 
@@ -351,6 +580,7 @@ def _get_or_create_lead_conversation(conn, lead_id: int, actor_user_id: int) -> 
 @leads_bp.patch('/<int:lead_id>')
 @auth_required
 @role_required(*_ADMIN_ROLES)
+@own_lead_only
 def update_lead(lead_id: int):
     _ensure_schema()
     body = request.get_json(silent=True) or {}
@@ -396,6 +626,7 @@ def update_lead(lead_id: int):
 @leads_bp.get('/<int:lead_id>/conversation')
 @auth_required
 @role_required(*_ADMIN_ROLES)
+@own_lead_only
 def get_lead_conversation(lead_id: int):
     """Повертає id реальної розмови месенджера, привʼязаної до ліда
     (створює за потреби) і приєднує поточного адміна до неї."""
@@ -411,6 +642,7 @@ def get_lead_conversation(lead_id: int):
 @leads_bp.post('/<int:lead_id>/ai-draft')
 @auth_required
 @role_required(*_ADMIN_ROLES)
+@own_lead_only
 def generate_ai_draft(lead_id: int):
     """Cold-outreach чернетка першого контакту на основі даних ліда —
     безкоштовна LLM-модель через OpenRouter (fallback-ланцюжок)."""
@@ -445,6 +677,7 @@ def generate_ai_draft(lead_id: int):
 @leads_bp.post('/<int:lead_id>/ai-nudge')
 @auth_required
 @role_required(*_ADMIN_ROLES)
+@own_lead_only
 def generate_ai_nudge(lead_id: int):
     """Follow-up-нагадування для простроченого ліда (next_followup_date у
     минулому). Той самий EN1/EN2/LOCAL формат і парсер, що й cold-outreach
@@ -484,9 +717,44 @@ def generate_ai_nudge(lead_id: int):
     return jsonify({'ok': True, 'data': data})
 
 
+@leads_bp.post('/<int:lead_id>/ai-analysis')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+@own_lead_only
+def generate_ai_analysis(lead_id: int):
+    """AI-аналітика контакту для панелі 'Аналітика контакту' — замінює
+    шаблонний rule-based _lead_intelligence() реальним аналізом від LLM
+    для конкретного відкритого ліда (той rule-based варіант лишається як
+    дешевий фолбек-прев'ю в самому списку лідів, де AI-виклик на кожен
+    з ~400 записів на кожен рендер списку був би неприйнятно повільним/дорогим)."""
+    if not openrouter_service.is_configured():
+        return api_error('AI-аналітика не налаштована (немає OPENROUTER_API_KEY).', 503)
+    _ensure_schema()
+    with get_connection() as conn:
+        lead = conn.execute('SELECT * FROM leads WHERE id = %s', (lead_id,)).fetchone()
+    if not lead:
+        return api_error('Лід не знайдено.', 404)
+    lead = dict(lead)
+
+    prompt = ai_drafts.build_intelligence_prompt(lead)
+    try:
+        text, model_used = openrouter_service.generate(prompt, temperature=0.4, max_tokens=600)
+    except OpenRouterError as exc:
+        return api_error(f'Не вдалося згенерувати аналітику: {exc.message}', 502)
+
+    data = ai_drafts.parse_intelligence_response(text)
+    if not data['description'] and not data['reasons']:
+        return api_error('Не вдалося згенерувати аналітику: модель не повернула розпізнаваний текст.', 502)
+
+    data['score'] = max(0, min(100, int(lead.get('lead_score') or 0)))
+    data['model_used'] = model_used
+    return jsonify({'ok': True, 'data': data})
+
+
 @leads_bp.post('/<int:lead_id>/ai-reply-suggestions')
 @auth_required
 @role_required(*_ADMIN_ROLES)
+@own_lead_only
 def generate_ai_reply_suggestions(lead_id: int):
     """Підказки відповіді в живому чаті ліда — мовою клієнта (готово до
     відправки) + короткий англійський глос для менеджера."""
@@ -538,6 +806,7 @@ def generate_ai_reply_suggestions(lead_id: int):
 @leads_bp.get('/<int:lead_id>/activity')
 @auth_required
 @role_required(*_ADMIN_ROLES)
+@own_lead_only
 def list_lead_activity(lead_id: int):
     _ensure_schema()
     with get_connection() as conn:
@@ -557,6 +826,7 @@ def list_lead_activity(lead_id: int):
 @leads_bp.post('/<int:lead_id>/activity')
 @auth_required
 @role_required(*_ADMIN_ROLES)
+@own_lead_only
 def add_lead_activity(lead_id: int):
     _ensure_schema()
     body = request.get_json(silent=True) or {}
@@ -601,7 +871,7 @@ def import_leads():
     with get_connection() as conn:
         for item in items:
             lead_id = item.get('lead_id')
-            if not lead_id:
+            if not lead_id or exclusion_reason(item):
                 continue
             existing = conn.execute(
                 'SELECT id FROM leads WHERE lead_id = %s', (lead_id,)
@@ -664,6 +934,9 @@ def create_lead():
     data.setdefault('stage', 'New')
     data.setdefault('priority', 'Medium')
     data.setdefault('outreach_status', 'Not contacted')
+    forced = _forced_owner()
+    if forced is not None:
+        data['owner'] = forced      # менеджер не може завести ліда на колегу
 
     with get_connection() as conn:
         lead_id = _next_lead_id(conn)
@@ -710,3 +983,488 @@ def export_leads():
         mimetype='text/csv',
         headers={'Content-Disposition': 'attachment; filename="leads_export.csv"'},
     )
+
+
+# ════════════════════════════════════════════════════════════
+# SALES WORKDAY SCHEDULER — 5 leads/day/manager on weekdays
+# ════════════════════════════════════════════════════════════
+import calendar as _calendar
+from datetime import date as _date, datetime as _datetime
+
+_SCHED_PERIODS = [
+    (2026, 8), (2026, 9), (2026, 10), (2026, 11), (2026, 12),
+    (2027, 1),
+]
+_DAILY_QUOTA = 5
+
+def _get_active_managers(conn) -> list[str]:
+    rows = conn.execute("SELECT crm_owner FROM users WHERE role = 'manager' AND crm_owner IS NOT NULL").fetchall()
+    return [r['crm_owner'] for r in rows]
+
+_PRIORITY_ORDER = {'Hot': 0, 'High': 1, 'Medium': 2, 'Low': 3, 'Watch': 4, '': 5}
+
+
+def _ensure_schedule_schema() -> None:
+    with get_connection() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS lead_schedule (
+                id INTEGER PRIMARY KEY,
+                lead_id INTEGER NOT NULL,
+                owner   VARCHAR(20) NOT NULL,
+                scheduled_date DATE NOT NULL,
+                slot_index INTEGER DEFAULT 1,
+                status VARCHAR(20) DEFAULT 'pending',
+                completed_at TIMESTAMP,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(lead_id)
+            )
+        """)
+
+
+def _get_august_workdays() -> list[str]:
+    """Повертає робочі дні (пн–пт) всього активного періоду."""
+    result = []
+    for year, month in _SCHED_PERIODS:
+        days_in_month = _calendar.monthrange(year, month)[1]
+        for d in range(1, days_in_month + 1):
+            dt = _date(year, month, d)
+            if dt.weekday() < 5:   # 0=пн … 4=пт
+                result.append(f'{year:04d}-{month:02d}-{d:02d}')
+    return result
+
+
+def _generate_for_owner(conn, owner: str, reset_future_only: bool = False) -> dict:
+    today = _date.today().isoformat()
+
+    # Видаляємо незавершені записи (pending) або всі якщо reset_future_only=False
+    if reset_future_only:
+        conn.execute(
+            "DELETE FROM lead_schedule WHERE owner=? AND status='pending' AND scheduled_date >= ?",
+            (owner, today)
+        )
+    else:
+        conn.execute("DELETE FROM lead_schedule WHERE owner=?", (owner,))
+
+    # Плануємо тільки нові, ще не опрацьовані ліди.
+    rows = conn.execute(
+        """SELECT id, priority, lead_score FROM leads
+           WHERE owner=? AND stage NOT IN ('Won','Lost')
+             AND outreach_status='Not contacted'
+           ORDER BY id ASC""",
+        (owner,)
+    ).fetchall()
+
+    # Сортуємо: priority → lead_score DESC
+    leads_sorted = sorted(
+        [dict(r) for r in (rows or [])],
+        key=lambda x: (_PRIORITY_ORDER.get(x.get('priority') or '', 5), -(x.get('lead_score') or 0))
+    )
+
+    # Робочі дні всього періоду.
+    august_days = _get_august_workdays()
+
+    inserted = 0
+    lead_idx = 0
+    scheduled_dates = {}  # date → count
+
+    for day_str in august_days:
+        if lead_idx >= len(leads_sorted):
+            break
+        # Перевіряємо чи є вже done-записи на цей день (якщо reset_future_only)
+        done_count = 0
+        if reset_future_only:
+            done_count_row = conn.execute(
+                "SELECT COUNT(*) as c FROM lead_schedule WHERE owner=? AND scheduled_date=? AND status='done'",
+                (owner, day_str)
+            ).fetchone()
+            done_count = done_count_row['c'] if done_count_row else 0
+        quota = _DAILY_QUOTA - done_count
+        if quota <= 0:
+            continue
+
+        day_leads = []
+        slots_used = 0
+        while slots_used < quota and lead_idx < len(leads_sorted):
+            lead = leads_sorted[lead_idx]
+            lead_idx += 1
+            # Пропускаємо ліди що вже в розкладі (UNIQUE(lead_id))
+            existing = conn.execute(
+                "SELECT id FROM lead_schedule WHERE lead_id=?", (lead['id'],)
+            ).fetchone()
+            if existing:
+                continue
+            day_leads.append((lead['id'], slots_used + 1))
+            slots_used += 1
+
+        for (lid, slot) in day_leads:
+            conn.execute(
+                """INSERT OR IGNORE INTO lead_schedule
+                   (lead_id, owner, scheduled_date, slot_index, status)
+                   VALUES (?, ?, ?, ?, 'pending')""",
+                (lid, owner, day_str, slot)
+            )
+            inserted += 1
+            scheduled_dates[day_str] = scheduled_dates.get(day_str, 0) + 1
+
+    return {
+        'owner': owner,
+        'total_leads': len(leads_sorted),
+        'scheduled': inserted,
+        'days_covered': len(scheduled_dates),
+    }
+
+
+@leads_bp.post('/schedule/generate')
+@auth_required
+@role_required('admin', 'platform_admin')
+def schedule_generate():
+    """Генерує або регенерує план по 5 нових лідів на будній день."""
+    _ensure_schedule_schema()
+    reset_future = request.json.get('reset_future_only', False) if request.is_json else False
+    results = []
+    with get_connection() as conn:
+        for owner in _get_active_managers(conn):
+            r = _generate_for_owner(conn, owner, reset_future_only=reset_future)
+            results.append(r)
+    return jsonify({'ok': True, 'data': {'results': results}})
+
+
+@leads_bp.get('/schedule/progress')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def schedule_progress():
+    """Зведений прогрес за активний період; менеджер бачить лише себе."""
+    _ensure_schedule_schema()
+    today = _date.today().isoformat()
+    with get_connection() as conn:
+        owners_data = {}
+        forced_owner = _forced_owner()
+        owners = [forced_owner] if forced_owner is not None else _get_active_managers(conn)
+        for owner in owners:
+            total_row = conn.execute(
+                "SELECT COUNT(*) as c FROM lead_schedule WHERE owner=?",
+                (owner,),
+            ).fetchone()
+            total = total_row['c'] if total_row else 0
+            
+            done_row = conn.execute(
+                "SELECT COUNT(*) as c FROM lead_schedule WHERE owner=? AND status='done'",
+                (owner,)
+            ).fetchone()
+            done = done_row['c'] if done_row else 0
+            
+            today_total_row = conn.execute(
+                "SELECT COUNT(*) as c FROM lead_schedule WHERE owner=? AND scheduled_date=?",
+                (owner, today)
+            ).fetchone()
+            today_total = today_total_row['c'] if today_total_row else 0
+            
+            today_done_row = conn.execute(
+                "SELECT COUNT(*) as c FROM lead_schedule WHERE owner=? AND scheduled_date=? AND status='done'",
+                (owner, today)
+            ).fetchone()
+            today_done = today_done_row['c'] if today_done_row else 0
+            owners_data[owner] = {
+                'total': total,
+                'done': done,
+                'pending': total - done,
+                'today_total': today_total,
+                'today_done': today_done,
+                'percent': round(done / total * 100, 1) if total else 0,
+            }
+        generated_row = conn.execute(
+            "SELECT COUNT(*) as c FROM lead_schedule"
+        ).fetchone()
+        generated = generated_row['c'] if generated_row else 0
+    return jsonify({'ok': True, 'data': {
+        'generated': generated > 0,
+        'owners': owners_data,
+        'today': today,
+        'daily_quota': _DAILY_QUOTA,
+        'months': [f'{year:04d}-{month:02d}' for year, month in _SCHED_PERIODS],
+    }})
+
+
+@leads_bp.get('/schedule/august')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def schedule_august():
+    """Повертає календар плану: {owner -> date -> [lead, ...]}."""
+    _ensure_schedule_schema()
+    owner_filter = request.args.get('owner', '').strip()
+    with get_connection() as conn:
+        forced_owner = _forced_owner()
+        q = """
+            SELECT s.id as sched_id, s.lead_id, s.owner, s.scheduled_date,
+                   s.slot_index, s.status, s.completed_at, s.notes,
+                   l.business_name, l.priority, l.lead_score, l.stage,
+                   l.outreach_status, l.phone, l.whatsapp_viber, l.email,
+                   l.instagram, l.city_area, l.country, l.category,
+                   l.primary_channel
+            FROM lead_schedule s
+            JOIN leads l ON l.id = s.lead_id
+            WHERE 1=1
+        """
+        params = []
+        if forced_owner is not None:
+            q += " AND s.owner = ?"
+            params.append(forced_owner)
+        elif owner_filter and owner_filter in _get_active_managers(conn):
+            q += " AND s.owner = ?"
+            params.append(owner_filter)
+        q += " ORDER BY s.scheduled_date ASC, s.slot_index ASC"
+        rows = conn.execute(q, params).fetchall()
+        result_owners = [forced_owner] if forced_owner is not None else _get_active_managers(conn)
+
+    # Group by owner → date → list
+    result = {}
+    for owner in result_owners:
+        result[owner] = {}
+    for r in (rows or []):
+        row = dict(r)
+        owner = row['owner']
+        day = row['scheduled_date']
+        if owner not in result:
+            result[owner] = {}
+        if day not in result[owner]:
+            result[owner][day] = []
+        result[owner][day].append({
+            'sched_id': row['sched_id'],
+            'lead_id': row['lead_id'],
+            'slot': row['slot_index'],
+            'status': row['status'],
+            'completed_at': row['completed_at'],
+            'notes': row['notes'],
+            'business_name': row['business_name'],
+            'priority': row['priority'],
+            'lead_score': row['lead_score'],
+            'stage': row['stage'],
+            'outreach_status': row['outreach_status'],
+            'phone': row['phone'] or row['whatsapp_viber'] or '',
+            'email': row['email'] or '',
+            'instagram': row['instagram'] or '',
+            'city_area': row['city_area'] or '',
+            'country': row['country'] or '',
+            'category': row['category'] or '',
+            'primary_channel': row['primary_channel'] or '',
+        })
+
+    return jsonify({'ok': True, 'data': result})
+
+
+@leads_bp.get('/schedule/day')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def schedule_day():
+    """Ліди конкретного дня для конкретного менеджера."""
+    _ensure_schedule_schema()
+    day = request.args.get('date', _date.today().isoformat()).strip()
+    owner = request.args.get('owner', '').strip()
+    with get_connection() as conn:
+        forced_owner = _forced_owner()
+        if forced_owner is not None:
+            owner = forced_owner
+        if not owner or owner not in _get_active_managers(conn):
+            return api_error('Вкажіть чинного менеджера', 400)
+        rows = conn.execute(
+            """SELECT s.id as sched_id, s.lead_id, s.slot_index, s.status,
+                      s.completed_at, s.notes,
+                      l.business_name, l.priority, l.lead_score, l.stage,
+                      l.outreach_status, l.phone, l.whatsapp_viber, l.email,
+                      l.instagram, l.city_area, l.country, l.category,
+                      l.primary_channel, l.website_url, l.source_url
+               FROM lead_schedule s
+               JOIN leads l ON l.id = s.lead_id
+               WHERE s.owner=? AND s.scheduled_date=?
+               ORDER BY s.slot_index ASC""",
+            (owner, day)
+        ).fetchall()
+    items = []
+    for r in (rows or []):
+        row = dict(r)
+        items.append({
+            'sched_id': row['sched_id'],
+            'lead_id': row['lead_id'],
+            'slot': row['slot_index'],
+            'status': row['status'],
+            'completed_at': row['completed_at'],
+            'notes': row['notes'],
+            'business_name': row['business_name'],
+            'priority': row['priority'] or 'Medium',
+            'lead_score': row['lead_score'] or 0,
+            'stage': row['stage'],
+            'outreach_status': row['outreach_status'] or '',
+            'phone': row['phone'] or row['whatsapp_viber'] or '',
+            'email': row['email'] or '',
+            'instagram': row['instagram'] or '',
+            'city_area': row['city_area'] or '',
+            'country': row['country'] or '',
+            'category': row['category'] or '',
+            'primary_channel': row['primary_channel'] or '',
+            'website_url': row['website_url'] or '',
+        })
+    return jsonify({'ok': True, 'data': {'date': day, 'owner': owner, 'items': items}})
+
+
+@leads_bp.patch('/schedule/<int:sched_id>/status')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def schedule_set_status(sched_id: int):
+    """Позначити лід у розкладі як done / skipped / pending."""
+    _ensure_schedule_schema()
+    body = request.get_json(silent=True) or {}
+    status = str(body.get('status', 'done')).strip()
+    notes  = str(body.get('notes', '') or '').strip()
+    if status not in ('done', 'skipped', 'pending'):
+        return api_error('status має бути done / skipped / pending', 400)
+    completed_at = _datetime.utcnow().isoformat() if status == 'done' else None
+    with get_connection() as conn:
+        row = conn.execute("SELECT id, owner FROM lead_schedule WHERE id=?", (sched_id,)).fetchone()
+        if not row:
+            return api_error('Запис не знайдено', 404)
+        forced_owner = _forced_owner()
+        if forced_owner is not None and row['owner'] != forced_owner:
+            return api_error('Цей пункт належить іншому менеджеру', 403)
+        conn.execute(
+            "UPDATE lead_schedule SET status=?, completed_at=?, notes=? WHERE id=?",
+            (status, completed_at, notes, sched_id)
+        )
+    return jsonify({'ok': True, 'data': {'sched_id': sched_id, 'status': status}})
+
+
+# ════════════════════════════════════════════════════════════
+
+# ════════════════════════════════════════════════════════════
+# ANALYTICS DASHBOARD — WOW Gamification 2.0
+# ════════════════════════════════════════════════════════════
+from datetime import datetime as _dt
+@leads_bp.get('/analytics/dashboard')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def analytics_dashboard():
+    _ensure_schema()
+    try:
+        _ensure_schedule_schema()
+    except Exception:
+        pass
+
+    stats = {}
+
+    with get_connection() as conn:
+        forced_owner = _forced_owner()
+        owners = [forced_owner] if forced_owner is not None else _get_active_managers(conn)
+        for owner in owners:
+            total_row = conn.execute(
+                "SELECT COUNT(*) as c FROM leads WHERE owner=? AND stage != 'Lost'", (owner,)
+            ).fetchone()
+            total = total_row['c'] if total_row else 0
+            
+            contacted_row = conn.execute(
+                "SELECT COUNT(*) as c FROM leads WHERE owner=? AND outreach_status != 'Not contacted' AND stage != 'Lost'", (owner,)
+            ).fetchone()
+            contacted = contacted_row['c'] if contacted_row else 0
+            
+            won_row = conn.execute(
+                "SELECT COUNT(*) as c FROM leads WHERE owner=? AND stage = 'Won'", (owner,)
+            ).fetchone()
+            won = won_row['c'] if won_row else 0
+            
+            activity_row = conn.execute(
+                "SELECT COUNT(*) as c FROM lead_activity la JOIN leads l ON l.id = la.lead_id WHERE l.owner=?", (owner,)
+            ).fetchone()
+            activity_count = activity_row['c'] if activity_row else 0
+            
+            try:
+                sched_total_row = conn.execute(
+                    "SELECT COUNT(*) as c FROM lead_schedule WHERE owner=?", (owner,)
+                ).fetchone()
+                sched_total = sched_total_row['c'] if sched_total_row else 0
+                
+                sched_done_row = conn.execute(
+                    "SELECT COUNT(*) as c FROM lead_schedule WHERE owner=? AND status='done'", (owner,)
+                ).fetchone()
+                sched_done = sched_done_row['c'] if sched_done_row else 0
+            except Exception:
+                sched_total, sched_done = 0, 0
+
+            speed_rows = conn.execute(
+                """SELECT la.created_at as act_time, l.created_at as lead_time 
+                   FROM lead_activity la JOIN leads l ON l.id = la.lead_id
+                   WHERE l.owner=? AND la.kind='system' AND la.text LIKE 'Статус контакту: Not contacted%'""",
+                (owner,)
+            ).fetchall()
+            
+            total_hours = 0
+            valid_speed_leads = 0
+            for r in (speed_rows or []):
+                try:
+                    fmt = '%Y-%m-%d %H:%M:%S'
+                    act_dt = _dt.strptime(r['act_time'][:19], fmt)
+                    lead_dt = _dt.strptime(r['lead_time'][:19], fmt)
+                    diff_hours = (act_dt - lead_dt).total_seconds() / 3600.0
+                    if diff_hours >= 0:
+                        total_hours += diff_hours
+                        valid_speed_leads += 1
+                except Exception:
+                    continue
+            avg_speed_hours = round(total_hours / valid_speed_leads, 1) if valid_speed_leads > 0 else None
+
+            contact_rate = round((contacted / total * 100), 1) if total > 0 else 0
+            win_rate = round((won / total * 100), 1) if total > 0 else 0
+            sched_rate = round((sched_done / sched_total * 100), 1) if sched_total > 0 else 0
+            
+            # POWER SCORE CALCULATION
+            speed_pts = 0
+            if avg_speed_hours is not None:
+                speed_pts = max(0, 30 - avg_speed_hours)
+            contact_pts = contact_rate * 0.3
+            sched_pts = sched_rate * 0.2
+            win_pts = min(20, win_rate * 2)
+            
+            power_score = int(speed_pts + contact_pts + sched_pts + win_pts)
+            if power_score > 100: power_score = 100
+            
+            if power_score <= 20: rank = 'Стартова позиція'
+            elif power_score <= 50: rank = 'Стабільний темп'
+            elif power_score <= 75: rank = 'Сильний результат'
+            else: rank = 'Лідер продажів'
+
+            stats[owner] = {
+                'total_leads': total,
+                'contacted': contacted,
+                'won': won,
+                'contact_rate': contact_rate,
+                'win_rate': win_rate,
+                'activity_count': activity_count,
+                'sched_total': sched_total,
+                'sched_done': sched_done,
+                'sched_rate': sched_rate,
+                'avg_speed_hours': avg_speed_hours,
+                'power_score': power_score,
+                'rank': rank
+            }
+
+    best_score = max((item['power_score'] for item in stats.values()), default=0)
+    speed_values = [
+        item['avg_speed_hours'] for item in stats.values()
+        if item['avg_speed_hours'] is not None
+    ]
+    best_speed = min(speed_values) if speed_values else None
+    for item in stats.values():
+        item['is_leader'] = best_score > 0 and item['power_score'] == best_score
+        item['is_winner_speed'] = (
+            best_speed is not None and item['avg_speed_hours'] == best_speed
+        )
+    
+    today_str = _dt.now().strftime('%Y-%m-%d')
+    for owner in owners:
+        with get_connection() as conn:
+            won_today_row = conn.execute(
+                "SELECT COUNT(*) as c FROM lead_activity WHERE author=? AND text LIKE 'Стадія:%Won%' AND created_at LIKE ?",
+                (owner, f"{today_str}%")
+            ).fetchone()
+            won_today = won_today_row['c'] if won_today_row else 0
+        stats[owner]['is_on_fire'] = (won_today > 0)
+
+    return jsonify({'ok': True, 'data': stats})

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import threading
 import time
+import hmac
 from collections import defaultdict, deque
 from functools import wraps
 from flask import jsonify, request, g, after_this_request, current_app
@@ -49,11 +50,19 @@ def auth_required(func):
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
-        # Очікуваний формат: "Authorization: Bearer <token>"
+        # API clients keep Bearer support. Browsers use an HttpOnly cookie.
         header = request.headers.get('Authorization', '')
-        if not header.startswith('Bearer '):
+        token = header.replace('Bearer ', '', 1).strip() if header.startswith('Bearer ') else ''
+        auth_via_cookie = not bool(token)
+        if not token:
+            token = (request.cookies.get('__Host-arm_session') or request.cookies.get('arm_session') or '').strip()
+        if not token:
             return api_error('Потрібна авторизація.', 401)
-        token = header.replace('Bearer ', '', 1).strip()
+        if auth_via_cookie and request.method in {'POST', 'PUT', 'PATCH', 'DELETE'}:
+            csrf_cookie = request.cookies.get('arm_csrf') or ''
+            csrf_header = request.headers.get('X-CSRF-Token') or ''
+            if not csrf_cookie or not csrf_header or not hmac.compare_digest(csrf_cookie, csrf_header):
+                return api_error('Захисний токен запиту відсутній або застарів.', 403)
         # get_user_by_token() звертається до таблиці sessions і одночасно
         # перевіряє, що сесія ще не прострочена (expires_at > now).
         user = auth_service.get_user_by_token(token)
@@ -62,6 +71,7 @@ def auth_required(func):
 
         g.current_user = user
         g.current_token = token
+        g.auth_via_cookie = auth_via_cookie
         # Зворотна сумісність: деякі (старіші) роути читають g.user_id напряму
         # замість g.current_user['id'].
         g.user_id = user.get('id')
@@ -78,6 +88,10 @@ def auth_required(func):
                     f"UPDATE users SET last_seen_at = {_now_sql} WHERE id = %s",
                     (user['id'],),
                 )
+        except Exception:
+            pass
+        try:
+            auth_service.users.touch_session(token)
         except Exception:
             pass
 
@@ -102,6 +116,12 @@ def auth_required(func):
                         if header_name not in parts:
                             parts.append(header_name)
                     response.headers['Access-Control-Expose-Headers'] = ', '.join(parts)
+                    if auth_via_cookie:
+                        try:
+                            from .auth_routes import set_auth_cookies
+                            set_auth_cookies(response, new_token, remember=True)
+                        except Exception:
+                            pass
                     return response
 
         return func(*args, **kwargs)

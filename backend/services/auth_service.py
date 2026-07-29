@@ -1,6 +1,7 @@
 """Сервіс автентифікації та реєстрації."""
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timezone
 
 from ..repositories.account_repository import AccountRepository
@@ -46,7 +47,7 @@ class AuthService:
         return account, True
 
     # ── Реєстрація ────────────────────────────────────────────────────────────
-    def register(self, data: dict) -> dict:
+    def register(self, data: dict, client_info: dict | None = None) -> dict:
         require_fields(data, ['full_name', 'phone', 'email', 'password'])
         validate_phone(data['phone'])
         validate_email(data['email'])
@@ -66,10 +67,14 @@ class AuthService:
         )
         self.ensure_user_bank_account(user_id)
         self.features.add_audit_log(user_id, 'register', 'Створено обліковий запис та основний рахунок.')
-        return self.login({'identity': phone, 'password': data['password']})
+        return self.login({
+            'identity': phone,
+            'password': data['password'],
+            'remember': data.get('remember', True),
+        }, client_info=client_info)
 
     # ── Вхід ──────────────────────────────────────────────────────────────────
-    def login(self, data: dict) -> dict:
+    def login(self, data: dict, client_info: dict | None = None) -> dict:
         require_fields(data, ['identity', 'password'])
         identity = data['identity'].strip()
         user = self.users.get_by_phone_or_email(identity)
@@ -81,7 +86,16 @@ class AuthService:
         account, auto_created = self.ensure_user_bank_account(user['id'])
 
         token = generate_token()
-        self.users.create_session(user['id'], token, token_expiration_iso())
+        client_info = client_info or {}
+        self.users.create_session(
+            user['id'],
+            token,
+            token_expiration_iso(),
+            user_agent=client_info.get('user_agent', ''),
+            ip_address=client_info.get('ip_address', ''),
+            auth_method='password',
+            remembered=bool(data.get('remember', True)),
+        )
         self.features.add_audit_log(user['id'], 'login', 'Успішний вхід у систему.')
 
         bank_notice = None
@@ -95,6 +109,7 @@ class AuthService:
                 'phone': user['phone'],
                 'email': user['email'],
                 'role': user['role'],
+                'crm_owner': user.get('crm_owner'),
                 'bank_account_linked': bool(account),
                 'bank_account_number': account.get('account_number') if account else None,
             },
@@ -145,13 +160,17 @@ class AuthService:
 
     def list_sessions(self, user_id: int, current_token: str) -> list:
         sessions = self.users.list_sessions(user_id)
+        current_fingerprint = 'sha256:' + hashlib.sha256(current_token.encode('utf-8')).hexdigest()
         result = []
         for s in sessions:
             d = dict(s)
-            d['is_current'] = d.get('token') == current_token
+            d['is_current'] = d.get('token') in (current_token, current_fingerprint)
             d.pop('token', None)  # don't expose token
             result.append(d)
         return result
+
+    def revoke_other_sessions(self, user_id: int, current_token: str) -> int:
+        return self.users.delete_other_sessions(user_id, current_token)
 
     def revoke_session(self, session_id: int, user_id: int) -> None:
         ok = self.users.delete_session_by_id(session_id, user_id)

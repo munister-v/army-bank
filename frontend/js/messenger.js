@@ -6,7 +6,7 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '76';
+const MESSENGER_ASSET_VERSION = '304';
 // Мають точно збігатися з _SAVED_MESSAGES_NAME/_SCHEDULER_NAME у backend/routes/messenger_routes.py
 const SAVED_MESSAGES_NAME = '🔖 Збережені повідомлення';
 const SCHEDULER_NAME = '📅 Планувальник';
@@ -14,6 +14,7 @@ const SELF_CHAT_NAMES = [SAVED_MESSAGES_NAME, SCHEDULER_NAME];
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
 const BANK_TOKEN_KEY = 'army_bank_token';
+const COOKIE_SESSION_TOKEN = '__http_only_cookie__';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
 const PERM_STATE_KEY = 'msng_permission_state_v1';
 const API_DEFAULT_TIMEOUT_MS = 12000;
@@ -35,8 +36,12 @@ let me    = JSON.parse(localStorage.getItem(USER_KEY) || sessionStorage.getItem(
 if (token && !localStorage.getItem(TOKEN_KEY) && !sessionStorage.getItem(TOKEN_KEY)) {
   localStorage.setItem(TOKEN_KEY, token);
 }
-if (token) {
+// BUG-009 FIX: Only sync BANK_TOKEN_KEY to the same store as TOKEN_KEY
+// Don't unconditionally write to localStorage — breaks "no remember" sessions
+if (token && localStorage.getItem(TOKEN_KEY)) {
   localStorage.setItem(BANK_TOKEN_KEY, token);
+} else if (token && sessionStorage.getItem(TOKEN_KEY)) {
+  sessionStorage.setItem(BANK_TOKEN_KEY, token);
 }
 
 // ── Chat state ─────────────────────────────
@@ -94,6 +99,18 @@ let recordCooldownToastAt = 0;
 let activePhotoItems = [];
 let activePhotoIndex = 0;
 const photosByMessageId = new Map();
+// BUG-016 FIX: Eviction limit to prevent memory leak in long sessions
+const PHOTO_MAP_MAX_SIZE = 200;
+function evictPhotoMap() {
+  if (photosByMessageId.size <= PHOTO_MAP_MAX_SIZE) return;
+  const toDelete = photosByMessageId.size - PHOTO_MAP_MAX_SIZE;
+  let count = 0;
+  for (const key of photosByMessageId.keys()) {
+    if (count >= toDelete) break;
+    photosByMessageId.delete(key);
+    count++;
+  }
+}
 let photoGestureMode = 'idle'; // idle | swipe | pan | pinch
 let photoSwipePointerId = null;
 let photoSwipeStartX = 0;
@@ -177,6 +194,7 @@ const authError         = $('auth-error');
 const btnLogin          = $('btn-login');
 const btnLoginText      = $('btn-login-text');
 const btnLoginSpin      = $('btn-login-spin');
+const btnPasskeyLogin   = $('btn-passkey-login');
 const btnTogglePw       = $('btn-toggle-pw');
 const sidebar           = $('sidebar');
 const sidebarSearchEl   = $('sidebar-search');
@@ -184,12 +202,20 @@ const convList          = $('conv-list');
 const convEmpty         = $('conv-empty');
 const convSearch        = $('conv-search');
 const chatEmpty         = $('chat-empty');
+const crmHomeLeads      = $('crm-home-leads');
+const crmHomeDay        = $('crm-home-day');
+const crmHomeKanban     = $('crm-home-kanban');
+const crmHomeSearch     = $('crm-home-search');
+const crmHomeLeadsCount = $('crm-home-leads-count');
+const crmHomeDayCount   = $('crm-home-day-count');
 const chatView          = $('chat-view');
 const chatAvatar        = $('chat-avatar');
 const chatPartnerName   = $('chat-partner-name');
 const chatPartnerRole   = $('chat-partner-role');
 const assistantPanel    = $('assistant-panel');
 const assistantQuickActions = $('assistant-quick-actions');
+const schedulerOverviewEl = $('scheduler-overview');
+const schedulerDashboardEl = $('scheduler-dashboard');
 const messagesWrap      = $('messages-wrap');
 const messagesList      = $('messages-list');
 const scrollAnchor      = $('scroll-anchor');
@@ -201,6 +227,11 @@ const btnVoice          = $('btn-voice');
 const btnAttachPhoto    = $('btn-attach-photo');
 const inputPhoto        = $('input-photo');
 const msgInputBar       = $('msg-input-bar');
+const chatChannelGate   = $('chat-channel-gate');
+const chatChannelGateMark = $('chat-channel-gate-mark');
+const chatChannelGateTitle = $('chat-channel-gate-title');
+const chatChannelGateText = $('chat-channel-gate-text');
+const chatChannelGateAction = $('chat-channel-gate-action');
 const recordingIndicator= $('recording-indicator');
 const recordingTime     = $('recording-time');
 const recordingSwipeHint= $('recording-swipe-hint');
@@ -209,6 +240,7 @@ const btnBack           = $('btn-back');
 const btnNewChat        = $('btn-new-chat');
 const btnLeads          = $('btn-leads');
 const btnLogout         = $('btn-logout');
+const btnSecurity       = $('btn-security');
 const btnSidebarLogout  = $('btn-sidebar-logout');
 const btnChatLogout     = $('btn-chat-logout');
 const btnCall           = $('btn-call');
@@ -239,6 +271,12 @@ const authFullName      = $('auth-full-name');
 const authPhone         = $('auth-phone');
 const authSwitchBtn     = $('auth-switch-btn');
 const authSwitchHint    = $('auth-switch-hint');
+const securityModal     = $('security-modal');
+const btnCloseSecurity  = $('btn-close-security');
+const btnPasskeyManage  = $('btn-passkey-manage');
+const passkeyStatusText = $('passkey-status-text');
+const securitySessionList = $('security-session-list');
+const btnRevokeOthers   = $('btn-revoke-others');
 // Call UI
 const callIncoming      = $('call-incoming');
 const callIncomingLabel = $('call-incoming-label');
@@ -309,12 +347,28 @@ const btnBankDownloadCsv = $('btn-bank-download-csv');
 const btnBankSendOrderMsg = $('btn-bank-send-order-msg');
 
 const leadsSidebarView = $('leads-sidebar-view');
+const leadsDirectoryView = $('leads-directory-view');
 const sidebarTitleEl = $('sidebar-title');
+const chatTopbarSectionEl = $('chat-topbar-section');
+const workspaceChatsEl = $('workspace-chats');
+const workspaceLeadsEntry = $('workspace-leads-entry');
+const workspaceDayEntry = $('workspace-day-entry');
+const workspaceKanbanEntry = $('workspace-kanban-entry');
+const workspaceSearchEntry = $('workspace-search-entry');
+const workspaceOpeningsEntry = $('workspace-openings-entry');
+const workspaceIntegrationsEntry = $('workspace-integrations-entry');
+const workspaceLeadsCount = $('workspace-leads-count');
+const workspaceDayCount = $('workspace-day-count');
 const leadsStatsEl = $('leads-stats');
 const leadsSearchInput = $('leads-search');
 const leadsFilterOwner = $('leads-filter-owner');
 const leadsFilterStage = $('leads-filter-stage');
 const leadsFilterPriority = $('leads-filter-priority');
+const leadsFilterCountry = $('leads-filter-country');
+const leadsFilterOutreach = $('leads-filter-outreach');
+const leadsFilterChannel = $('leads-filter-channel');
+const leadsSortEl = $('leads-sort');
+const leadsResultMeta = $('leads-result-meta');
 const leadsListEl = $('leads-list');
 const leadsEmptyEl = $('leads-empty');
 const leadsPaginationEl = $('leads-pagination');
@@ -328,6 +382,13 @@ const leadsBulkStageEl = $('leads-bulk-stage');
 const leadsBulkOwnerEl = $('leads-bulk-owner');
 const btnLeadsBulkCancel = $('btn-leads-bulk-cancel');
 const btnLeadsBulkApply = $('btn-leads-bulk-apply');
+const btnLeadsDirectoryBack = $('btn-leads-directory-back');
+const btnLeadsDirectoryExport = $('btn-leads-directory-export');
+const btnLeadsDirectoryAdd = $('btn-leads-directory-add');
+const btnLeadsDirectorySelect = $('btn-leads-directory-select');
+const leadsFilterStatus = $('leads-filter-status');
+const leadsFilterStatusText = $('leads-filter-status-text');
+const btnLeadsFilterReset = $('btn-leads-filter-reset');
 let leadsSelectMode = false;
 const leadInfoBanner = $('lead-info-banner');
 const leadCreateModal = $('leads-modal');
@@ -336,8 +397,22 @@ const btnLeadCreateSave = $('btn-lead-create-save');
 const leadNewPriority = $('lead-new-priority');
 const leadsKanbanView = $('leads-kanban-view');
 const leadsKanbanColumnsEl = $('leads-kanban-columns');
+const kanbanOverviewEl = $('kanban-overview');
+const kanbanHeaderSummaryEl = $('kanban-header-summary');
+const kanbanSearchEl = $('kanban-search');
+const kanbanOwnerFilterEl = $('kanban-owner-filter');
+const kanbanPriorityFilterEl = $('kanban-priority-filter');
 const btnKanbanBack = $('btn-kanban-back');
 const leadsKanbanEntry = $('leads-kanban-entry');
+const leadsWorkQueueView = $('leads-work-queue-view');
+const leadsWorkQueueEntry = $('workspace-day-entry');
+const leadsWorkQueueBadge = $('workspace-day-count');
+const workQueueOwnerEl = $('work-queue-owner');
+const workQueueDateEl = $('work-queue-date');
+const workQueueSummaryEl = $('work-queue-summary');
+const workQueueSectionsEl = $('work-queue-sections');
+const btnWorkQueueBack = $('btn-work-queue-back');
+const btnWorkQueueRefresh = $('btn-work-queue-refresh');
 
 const aiDraftPanelEl = $('ai-draft-panel');
 const btnAiSuggest = $('btn-ai-suggest');
@@ -350,6 +425,7 @@ const btnIntegrationsBack = $('btn-integrations-back');
 const integrationsWebhookCard = $('integrations-webhook-card');
 const integrationsGridEl = $('integrations-grid');
 const googleKeyCardEl = $('google-key-card');
+const integrationsReadinessEl = $('integrations-readiness');
 
 const btnProspecting = $('btn-prospecting');
 const prospectingView = $('prospecting-view');
@@ -361,6 +437,7 @@ const prospResultsEl = $('prosp-results');
 const prospImportBar = $('prosp-import-bar');
 const prospSelectedCount = $('prosp-selected-count');
 const btnProspImport = $('btn-prosp-import');
+const btnProspEnrichSelected = $('btn-prosp-enrich-selected');
 const prospTabOsm = $('prosp-tab-osm');
 const prospTabGoogle = $('prosp-tab-google');
 const prospTabBoth = $('prosp-tab-both');
@@ -370,7 +447,38 @@ const prospHintEl = $('prosp-hint');
 const prospSourceSubEl = $('prospecting-source-sub');
 const prospCountryEl = $('prosp-country');
 const prospSavedRowEl = $('prosp-saved-row');
+const openingsView = $('openings-view');
+const openingsEntry = $('workspace-openings-entry');
+const btnOpeningsBack = $('btn-openings-back');
+const openingsListEl = $('openings-list');
+const openingsFeedbackEl = $('openings-feedback');
+const openingsPaginationEl = $('openings-pagination');
+const openingsTotalEl = $('openings-total');
+const workspaceOpeningsCountEl = $('workspace-openings-count');
+const openingsSearchEl = $('openings-search');
+const openingsMonthEl = $('openings-month');
+const openingsCityTierEl = $('openings-city-tier');
+const openingsCountryEl = $('openings-country');
+const openingsCategoryEl = $('openings-category');
+const openingsVerificationEl = $('openings-verification');
+let openingsPage = 1;
+let openingsFiltersLoaded = false;
+let openingsSearchTimer = null;
+let openingsItemsById = new Map();
 const prospSavedChipsEl = $('prosp-saved-chips');
+const prospHistoryListEl = $('prosp-history-list');
+const prospHistoryCountEl = $('prosp-history-count');
+const prospJobPanelEl = $('prosp-job-panel');
+const prospJobKickerEl = $('prosp-job-kicker');
+const prospJobTitleEl = $('prosp-job-title');
+const prospJobDetailEl = $('prosp-job-detail');
+const prospJobProgressBarEl = $('prosp-job-progress-bar');
+const prospJobLocationsEl = $('prosp-job-locations');
+const prospJobResultsEl = $('prosp-job-results');
+const prospJobErrorsEl = $('prosp-job-errors');
+const btnProspJobCancel = $('btn-prosp-job-cancel');
+const btnProspJobRetry = $('btn-prosp-job-retry');
+const btnProspJobResults = $('btn-prosp-job-results');
 const btnProspSave = $('btn-prosp-save');
 const prospQuickFilterRow = $('prosp-quick-filter-row');
 const prospQuickFilterEl = $('prosp-quick-filter');
@@ -380,19 +488,56 @@ let prospCatalogLoaded = false;
 let prospSource = 'osm';
 let prospGoogleConfigured = false;
 let prospSavedSearches = [];
+let prospImportPreview = null;
+let prospResultMode = 'list';
+let prospMap = null;
 const PROSP_LAST_SEARCH_KEY = 'prosp_last_search';
+const PROSP_ACTIVE_JOB_KEY = 'prosp_active_job';
+let activeProspJob = null;
+let prospJobPollTimer = null;
 
 // ════════════════════════════════════════════
 // API helper
 // ════════════════════════════════════════════
+function stripHtmlForMessage(text) {
+  return String(text || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function friendlyApiMessage(err) {
+  const status = Number(err?.status || 0);
+  const raw = stripHtmlForMessage(err?.message || err || '');
+  const lower = raw.toLowerCase();
+  if (err?.code === 'timeout' || status === 504 || lower.includes('gateway time-out') || lower.includes('gateway timeout')) {
+    return 'Пошук зайняв більше часу, ніж очікувалось. Зменшіть ліміт, звузьте місто або повторіть запит.';
+  }
+  if (err?.code === 'network' || lower.includes('failed to fetch') || lower.includes('network')) {
+    return 'Не вдалося зʼєднатися з сервером. Перевірте інтернет або повторіть запит за хвилину.';
+  }
+  if (status === 429) return 'Сервіс тимчасово обмежив кількість запитів. Спробуйте ще раз трохи пізніше.';
+  if (status >= 500) return 'Сервер не встиг обробити запит. Спробуйте менший ліміт або іншу категорію.';
+  if (raw && raw.length <= 220) return raw;
+  if (raw) return raw.slice(0, 220) + '…';
+  return 'Запит не завершився. Спробуйте ще раз.';
+}
+
 async function api(method, path, body, options = {}) {
   const timeoutMs = Math.max(3000, Number(options?.timeoutMs || API_DEFAULT_TIMEOUT_MS));
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
     try { controller.abort('timeout'); } catch (_) {}
   }, timeoutMs);
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
-  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  const opts = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
+  if (token && token !== COOKIE_SESSION_TOKEN) opts.headers['Authorization'] = 'Bearer ' + token;
+  const unsafeMethod = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(String(method || '').toUpperCase());
+  if (unsafeMethod) {
+    const csrf = readCookie('arm_csrf');
+    if (csrf) opts.headers['X-CSRF-Token'] = csrf;
+  }
   if (String(method || '').toUpperCase() === 'GET' && isDataSaverEnabled()) {
     opts.headers['X-Data-Saver'] = '1';
   }
@@ -403,7 +548,7 @@ async function api(method, path, body, options = {}) {
     res = await fetch(API + path, opts);
   } catch (err) {
     if (err?.name === 'AbortError') {
-      const timeoutErr = new Error('Час очікування відповіді вичерпано. Спробуйте ще раз.');
+      const timeoutErr = new Error('Пошук зайняв більше часу, ніж очікувалось. Зменшіть ліміт або повторіть запит.');
       timeoutErr.code = 'timeout';
       timeoutErr.retryable = true;
       throw timeoutErr;
@@ -416,10 +561,13 @@ async function api(method, path, body, options = {}) {
     clearTimeout(timeoutId);
   }
   const newTok = res.headers.get('X-Refresh-Token');
-  if (newTok) {
+  if (newTok && token !== COOKIE_SESSION_TOKEN) {
     token = newTok;
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(BANK_TOKEN_KEY, token);
+    // BUG-009 FIX: Refresh token in the same storage where it was originally saved
+    const _isInSession = !!sessionStorage.getItem(TOKEN_KEY);
+    const _tokenStore = _isInSession ? sessionStorage : localStorage;
+    _tokenStore.setItem(TOKEN_KEY, token);
+    _tokenStore.setItem(BANK_TOKEN_KEY, token);
   }
   const contentType = (res.headers.get('Content-Type') || '').toLowerCase();
   let data = null;
@@ -428,7 +576,8 @@ async function api(method, path, body, options = {}) {
   } else {
     const text = await res.text().catch(() => '');
     if (!res.ok) {
-      const httpErr = new Error(text || `HTTP ${res.status}`);
+      const httpErr = new Error(friendlyApiMessage({ status: res.status, message: text || `HTTP ${res.status}` }));
+      httpErr.rawMessage = text;
       httpErr.status = res.status;
       httpErr.retryable = res.status === 429 || res.status >= 500;
       throw httpErr;
@@ -436,13 +585,27 @@ async function api(method, path, body, options = {}) {
     return null;
   }
   if (!res.ok) {
-    const httpErr = new Error(data?.error || `HTTP ${res.status}`);
+    const httpErr = new Error(friendlyApiMessage({ status: res.status, message: data?.error || `HTTP ${res.status}` }));
     httpErr.status = res.status;
     httpErr.retryable = res.status === 429 || res.status >= 500;
+    // BUG-005 FIX: Global 401 handler — auto logout on expired token
+    if (res.status === 401 && token && !path.includes('/auth/')) {
+      console.warn('[ARM CRM] Token expired (401). Auto logout.');
+      setTimeout(() => { try { doLogout(); } catch(_) {} }, 0);
+    }
     throw httpErr;
   }
   if (!data?.ok) throw new Error(data?.error || 'Помилка запиту');
   return data.data;
+}
+
+function readCookie(name) {
+  const prefix = `${encodeURIComponent(name)}=`;
+  for (const part of String(document.cookie || '').split(';')) {
+    const value = part.trim();
+    if (value.startsWith(prefix)) return decodeURIComponent(value.slice(prefix.length));
+  }
+  return '';
 }
 
 function isUnauthorizedError(err) {
@@ -1066,17 +1229,27 @@ async function openBankToolsModal() {
 // Leads / CRM
 // ════════════════════════════════════════════
 const LEADS_OWNER_FILTER_KEY = 'msng_leads_owner_filter';
+const LEADS_SORT_KEY = 'msng_leads_sort';
+const LAST_WORKSPACE_KEY = 'msng_last_workspace';
+const savedLeadsSort = localStorage.getItem(LEADS_SORT_KEY) || 'score';
 const leadsState = {
   page: 1,
   perPage: 30,
   totalPages: 1,
+  total: 0,
   owner: localStorage.getItem(LEADS_OWNER_FILTER_KEY) || '',
   stage: '',
   priority: '',
+  outreachStatus: '',
+  country: '',
+  channel: '',
+  sort: ['score', 'followup', 'newest', 'name'].includes(savedLeadsSort) ? savedLeadsSort : 'score',
   search: '',
   dueToday: false,
   filtersLoaded: false,
   currentLeadId: null,
+  currentLead: null,
+  channelReadiness: null,
 };
 
 function setLeadsOwnerFilter(owner) {
@@ -1089,14 +1262,107 @@ function leadsQueryString(extra = {}) {
   const params = new URLSearchParams({
     page: String(leadsState.page),
     per_page: String(leadsState.perPage),
+    sort: leadsState.sort,
   });
   if (leadsState.owner) params.set('owner', leadsState.owner);
   if (leadsState.stage) params.set('stage', leadsState.stage);
   if (leadsState.priority) params.set('priority', leadsState.priority);
+  if (leadsState.outreachStatus) params.set('outreach_status', leadsState.outreachStatus);
+  if (leadsState.country) params.set('country', leadsState.country);
+  if (leadsState.channel) params.set('channel', leadsState.channel);
   if (leadsState.search) params.set('search', leadsState.search);
   if (leadsState.dueToday) params.set('due_today', '1');
   Object.entries(extra).forEach(([k, v]) => params.set(k, String(v)));
   return params.toString();
+}
+
+function syncLeadsFilterStatus() {
+  const labels = [];
+  if (leadsState.search) labels.push(`Пошук: «${leadsState.search}»`);
+  if (leadsState.owner) labels.push(leadsLabel(LEADS_OWNER_LABELS, leadsState.owner));
+  if (leadsState.stage) labels.push(leadsLabel(LEADS_STAGE_LABELS, leadsState.stage));
+  if (leadsState.priority) labels.push(leadsLabel(LEADS_PRIORITY_LABELS, leadsState.priority));
+  if (leadsState.outreachStatus) labels.push(leadsLabel(LEADS_OUTREACH_LABELS, leadsState.outreachStatus));
+  if (leadsState.country) labels.push(leadsState.country);
+  if (leadsState.channel) labels.push(leadsState.channel);
+  if (leadsState.dueToday) labels.push('Контакт на сьогодні');
+  if (leadsFilterStatus) leadsFilterStatus.hidden = labels.length === 0;
+  if (leadsFilterStatusText) leadsFilterStatusText.textContent = labels.length ? `Активні фільтри (${labels.length}): ${labels.join(' · ')}` : '';
+}
+
+// Одна точка застосування фільтрів CRM: список, чіпи, бейдж "Мого дня" і
+// відкрита воронка мусять оновитись разом — інакше екрани розходяться між собою.
+// Після кожної перемальовки чіпів підсвітка активного фільтра губилась —
+// відновлюємо її з leadsState, щоб було видно, що список звужений.
+function markActiveLeadsChip() {
+  if (!leadsStatsEl) return;
+  let activeKey = '';
+  if (leadsState.dueToday) activeKey = 'due_today';
+  else if (leadsState.outreachStatus === 'Not contacted') activeKey = 'not_contacted';
+  else if (leadsState.owner) activeKey = 'owner:' + leadsState.owner;
+  else if (!leadsState.stage && !leadsState.priority && !leadsState.search
+           && !leadsState.country && !leadsState.channel) activeKey = 'total';
+  leadsStatsEl.querySelectorAll('.leads-stat-chip').forEach(item => {
+    const on = item.dataset.chip === activeKey;
+    item.classList.toggle('active', on);
+    item.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+
+function applyLeadsFilterChange() {
+  leadsState.page = 1;
+  syncLeadsFilterStatus();
+  loadLeadsList();
+  // /leads/stats рахує по всій базі й від фільтрів не залежить — перезапитувати
+  // його тут не треба (а перемальовка чіпів ще й гасила б активний чіп).
+  loadLeadsWorkQueueBadge().catch(() => {});
+  if (leadsWorkQueueView && !leadsWorkQueueView.hidden) loadLeadsWorkQueue().catch(() => {});
+  if (leadsKanbanView && !leadsKanbanView.hidden) {
+    kanbanState.owner = leadsState.owner || '';
+    kanbanState.priority = leadsState.priority || '';
+    kanbanState.search = (leadsState.search || '').toLowerCase();
+    if (kanbanOwnerFilterEl) kanbanOwnerFilterEl.value = kanbanState.owner;
+    if (kanbanPriorityFilterEl) kanbanPriorityFilterEl.value = kanbanState.priority;
+    if (kanbanSearchEl) kanbanSearchEl.value = leadsState.search || '';
+    resetKanbanStageLimits();
+    refreshKanbanFromFilters();
+  }
+}
+
+function resetLeadsFilters() {
+  leadsState.search = '';
+  leadsState.stage = '';
+  leadsState.priority = '';
+  leadsState.outreachStatus = '';
+  leadsState.country = '';
+  leadsState.channel = '';
+  leadsState.dueToday = false;
+  leadsState.page = 1;
+  setLeadsOwnerFilter('');
+  if (leadsSearchInput) leadsSearchInput.value = '';
+  if (leadsFilterOwner) leadsFilterOwner.value = '';
+  if (leadsFilterStage) leadsFilterStage.value = '';
+  if (leadsFilterPriority) leadsFilterPriority.value = '';
+  if (leadsFilterCountry) leadsFilterCountry.value = '';
+  if (leadsFilterOutreach) leadsFilterOutreach.value = '';
+  if (leadsFilterChannel) leadsFilterChannel.value = '';
+  leadsStatsEl?.querySelectorAll('.leads-stat-chip').forEach(item => {
+    item.classList.remove('active');
+    item.setAttribute('aria-pressed', 'false');
+  });
+  applyLeadsFilterChange();
+}
+
+function renderLeadsResultMeta() {
+  if (!leadsResultMeta) return;
+  const total = Number(leadsState.total || 0);
+  if (!total) {
+    leadsResultMeta.textContent = '0 результатів';
+    return;
+  }
+  const start = (leadsState.page - 1) * leadsState.perPage + 1;
+  const end = Math.min(total, start + leadsState.perPage - 1);
+  leadsResultMeta.textContent = `Показано ${start}–${end} із ${total}`;
 }
 
 function fillLeadsSelect(select, values, currentValue, labels) {
@@ -1124,47 +1390,127 @@ async function loadLeadsStats() {
       ...(data.by_owner || []).map(o => ({ key: 'owner:' + o.owner, label: leadsLabel(LEADS_OWNER_LABELS, o.owner), value: o.count })),
     ];
     if (leadsDueBadge) leadsDueBadge.hidden = !(data.due_today > 0);
+    if (workspaceLeadsCount) workspaceLeadsCount.textContent = String(data.total || 0);
+    if (crmHomeLeadsCount) crmHomeLeadsCount.textContent = String(data.total || 0);
+    if (crmHomeDayCount) crmHomeDayCount.textContent = String(data.due_today || 0);
+    if (workspaceDayCount) {
+      const actionable = Number(data.due_today || 0);
+      workspaceDayCount.textContent = actionable > 99 ? '99+' : String(actionable);
+      workspaceDayCount.hidden = actionable === 0;
+    }
     leadsStatsEl.innerHTML = chips.map(c => `
-      <div class="leads-stat-chip" data-chip="${escHtml(c.key)}">
+      <button type="button" class="leads-stat-chip" data-chip="${escHtml(c.key)}" aria-pressed="false">
         <div class="leads-stat-value">${c.value}</div>
         <div class="leads-stat-label">${escHtml(c.label)}</div>
-      </div>
+      </button>
     `).join('');
     leadsStatsEl.querySelectorAll('.leads-stat-chip').forEach(chip => {
       chip.addEventListener('click', () => {
+        leadsStatsEl.querySelectorAll('.leads-stat-chip').forEach(item => {
+          item.classList.toggle('active', item === chip);
+          item.setAttribute('aria-pressed', item === chip ? 'true' : 'false');
+        });
         const key = chip.dataset.chip;
         leadsState.dueToday = false;
+        leadsState.outreachStatus = '';
+        if (leadsFilterOutreach) leadsFilterOutreach.value = '';
         if (key === 'total') {
           setLeadsOwnerFilter(''); leadsState.stage = ''; leadsState.priority = '';
+          leadsState.country = ''; leadsState.channel = '';
           if (leadsFilterOwner) leadsFilterOwner.value = '';
+          if (leadsFilterStage) leadsFilterStage.value = '';
+          if (leadsFilterPriority) leadsFilterPriority.value = '';
+          if (leadsFilterCountry) leadsFilterCountry.value = '';
+          if (leadsFilterChannel) leadsFilterChannel.value = '';
         } else if (key === 'not_contacted') {
-          // handled purely as a visual filter shortcut via search-free reload
+          leadsState.outreachStatus = 'Not contacted';
+          if (leadsFilterOutreach) leadsFilterOutreach.value = 'Not contacted';
         } else if (key === 'due_today') {
           leadsState.dueToday = true;
         } else if (key.startsWith('owner:')) {
           setLeadsOwnerFilter(key.slice(6));
           if (leadsFilterOwner) leadsFilterOwner.value = leadsState.owner;
         }
-        leadsState.page = 1;
-        loadLeadsList();
+        applyLeadsFilterChange();
       });
     });
+    markActiveLeadsChip();
     if (!leadsState.filtersLoaded) {
       fillLeadsSelect(leadsFilterOwner, (data.by_owner || []).map(o => o.owner), leadsState.owner, LEADS_OWNER_LABELS);
       fillLeadsSelect(leadsFilterStage, (data.by_stage || []).map(o => o.stage), leadsState.stage, LEADS_STAGE_LABELS);
       fillLeadsSelect(leadsFilterPriority, (data.by_priority || []).map(o => o.priority), leadsState.priority, LEADS_PRIORITY_LABELS);
+      // Країни й канали беремо з реальних даних (37 країн і список змінюється
+      // після кожного імпорту), статуси контакту — з фіксованого набору воронки.
+      fillLeadsSelect(leadsFilterCountry, (data.by_country || []).map(o => o.country), leadsState.country, null);
+      fillLeadsSelect(leadsFilterChannel, (data.by_channel || []).map(o => o.channel).filter(Boolean), leadsState.channel, null);
+      fillLeadsSelect(leadsFilterOutreach, LEADS_OUTREACH_OPTIONS, leadsState.outreachStatus, LEADS_OUTREACH_LABELS);
       leadsState.filtersLoaded = true;
     }
+    loadLeadsWorkQueueBadge().catch(() => {});
   } catch (err) {
     showToast(err.message || 'Не вдалося завантажити статистику лідів.', true);
   }
 }
 
+async function loadLeadsWorkQueueBadge() {
+  if (!leadsWorkQueueBadge) return;
+  // Бейдж мусить рахувати те саме, що покаже сам екран "Мій день".
+  const data = await api('GET', '/leads/work-queue?' + workQueueQueryString());
+  const total = Number(data.summary?.total_actionable || 0);
+  leadsWorkQueueBadge.textContent = total > 99 ? '99+' : String(total);
+  leadsWorkQueueBadge.hidden = total === 0;
+  if (workspaceDayCount) {
+    workspaceDayCount.textContent = total > 99 ? '99+' : String(total);
+    workspaceDayCount.hidden = total === 0;
+  }
+}
+
 function channelIcon(primaryChannel) {
   const ch = (primaryChannel || '').trim().toLowerCase();
-  if (ch === 'whatsapp') return '<span class="lead-channel-icon" title="WhatsApp">💬</span>';
-  if (ch === 'instagram') return '<span class="lead-channel-icon" title="Instagram">📷</span>';
+  if (ch === 'whatsapp') return '<span class="lead-channel-icon" title="WhatsApp" aria-label="WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.6a8 8 0 0 1-11.8 7L4 20l1.4-4.1A8 8 0 1 1 20 11.6Z"/><path d="M9 8.5c.4 2 2 3.6 4 4l1-1c.2-.2.5-.3.8-.2l2 .7"/></svg></span>';
+  if (ch === 'instagram') return '<span class="lead-channel-icon" title="Instagram" aria-label="Instagram"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="12" cy="12" r="3.5"/><circle cx="17.3" cy="6.8" r=".8" class="fill-dot"/></svg></span>';
   return '';
+}
+
+function crmActionIcon(kind) {
+  const icons = {
+    phone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 3.8 10 7.6 8.5 9.2c1.1 2.4 3 4.3 5.4 5.4l1.6-1.5 3.8 2.8-.4 2.3c-.2 1-1.1 1.8-2.2 1.8C9.7 20 4 14.3 4 7.3c0-1.1.7-2 1.8-2.2l1.4-.3Z"/></svg>',
+    whatsapp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.6a8 8 0 0 1-11.8 7L4 20l1.4-4.1A8 8 0 1 1 20 11.6Z"/><path d="M9 8.5c.4 2 2 3.6 4 4l1-1c.2-.2.5-.3.8-.2l2 .7"/></svg>',
+    email: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="m5 7 7 5 7-5"/></svg>',
+    website: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9S14.5 18.3 12 21c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3Z"/></svg>',
+    source: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.1-1.1"/></svg>',
+  };
+  return icons[kind] || '';
+}
+
+function workspaceStateHtml(kind, title, detail = '', retry = '') {
+  const icon = kind === 'loading'
+    ? '<span class="workspace-state-spinner" aria-hidden="true"></span>'
+    : kind === 'error'
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16.5h.01"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 9.2 17 19 7"/></svg>';
+  return `<div class="workspace-state workspace-state-${escHtml(kind)}" role="${kind === 'error' ? 'alert' : 'status'}">
+    <span class="workspace-state-icon">${icon}</span>
+    <div><strong>${escHtml(title)}</strong>${detail ? `<span>${escHtml(detail)}</span>` : ''}${retry ? `<button type="button" class="workspace-state-retry" data-workspace-retry="${escHtml(retry)}">Спробувати ще раз</button>` : ''}</div>
+  </div>`;
+}
+
+function leadDateMeta(lead) {
+  const raw = String(lead.next_followup_date || '').slice(0, 10);
+  if (!raw) return '';
+  const today = localIsoDate(0);
+  const label = raw === today ? 'Сьогодні' : raw < today ? 'Прострочено' : new Intl.DateTimeFormat('uk-UA', { day: '2-digit', month: 'short' }).format(new Date(`${raw}T12:00:00`));
+  const tone = raw < today ? 'overdue' : raw === today ? 'today' : 'planned';
+  return `<span class="lead-next-action lead-next-action-${tone}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>${escHtml(label)}</span>`;
+}
+
+// Статус контакту прямо на картці: без нього не видно, писали вже ліду чи ні —
+// це було видно лише всередині відкритого ліда. CSS-бейджі вже існували.
+function leadOutreachBadgeHtml(lead) {
+  const st = lead.outreach_status || 'Not contacted';
+  const touch = String(lead.last_touch_date || '').slice(0, 10);
+  const title = touch ? `Останній контакт: ${touch}` : 'Контакту ще не було';
+  return `<span class="leads-badge leads-badge-outreach-${escHtml(leadsSlug(st))}" title="${escHtml(title)}">${escHtml(leadsLabel(LEADS_OUTREACH_LABELS, st))}</span>`;
 }
 
 function leadCardHtml(lead) {
@@ -1172,10 +1518,13 @@ function leadCardHtml(lead) {
   const preview = [lead.category, loc].filter(Boolean).join(' · ') || 'Немає деталей';
   const firstPhone = (lead.phone || lead.whatsapp_viber || '').split(/[;,]/)[0].trim();
   const firstEmail = (lead.email || '').split(/[;,]/)[0].trim();
+  const sourceLabel = String(lead.source_bucket || '').trim();
+  const intelligence = lead.intelligence || {};
+  const insightReason = (intelligence.reasons || [])[0]?.text || intelligence.recommended_offer || '';
   const quick = [
-    firstPhone ? { href: 'tel:' + firstPhone.replace(/[^\d+]/g, ''), label: '📞', title: 'Зателефонувати' } : null,
-    firstPhone ? { href: 'https://wa.me/' + firstPhone.replace(/[^\d]/g, ''), label: '💬', title: 'WhatsApp' } : null,
-    firstEmail ? { href: 'mailto:' + firstEmail, label: '✉️', title: 'Написати email' } : null,
+    firstPhone ? { href: 'tel:' + firstPhone.replace(/[^\d+]/g, ''), icon: 'phone', title: 'Зателефонувати' } : null,
+    firstPhone ? { href: 'https://wa.me/' + firstPhone.replace(/[^\d]/g, ''), icon: 'whatsapp', title: 'Відкрити WhatsApp' } : null,
+    firstEmail ? { href: 'mailto:' + firstEmail, icon: 'email', title: 'Написати email' } : null,
   ].filter(Boolean);
   return `
     <div class="leads-card conv-style" data-lead-id="${lead.id}">
@@ -1189,27 +1538,45 @@ function leadCardHtml(lead) {
           <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority))}</span>
         </div>
         <div class="leads-card-preview">${escHtml(preview)}</div>
+        ${insightReason ? `<div class="leads-card-insight" title="${escHtml(insightReason)}">Чому зараз · ${escHtml(insightReason)}</div>` : ''}
+        <div class="leads-card-context">
+          ${leadDateMeta(lead)}
+          ${sourceLabel ? `<span class="lead-source" title="Джерело ліда">${escHtml(sourceLabel)}</span>` : ''}
+        </div>
         <div class="leads-card-badges">
           <span class="leads-badge leads-badge-stage-${escHtml(leadsSlug(lead.stage))}">${escHtml(leadsLabel(LEADS_STAGE_LABELS, lead.stage))}</span>
           <span class="leads-badge leads-badge-owner-${escHtml(leadsSlug(lead.owner))}">${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner) || '—')}</span>
+          ${leadOutreachBadgeHtml(lead)}
         </div>
         ${quick.length ? `<div class="leads-card-quick">${quick.map(q =>
-          `<a class="leads-quick-btn" href="${escHtml(q.href)}" target="_blank" rel="noopener" data-quick-action="1" title="${escHtml(q.title)}">${q.label}</a>`
+          `<a class="leads-quick-btn" href="${escHtml(q.href)}" target="_blank" rel="noopener" data-quick-action="1" title="${escHtml(q.title)}" aria-label="${escHtml(q.title)}">${crmActionIcon(q.icon)}</a>`
         ).join('')}</div>` : ''}
       </div>
     </div>
   `;
 }
 
+let leadsListRequestId = 0;
 async function loadLeadsList() {
   if (!leadsListEl) return;
+  syncLeadsFilterStatus();
+  const requestId = ++leadsListRequestId;
+  leadsListEl.querySelector('.workspace-state')?.remove();
+  leadsListEl.insertAdjacentHTML('afterbegin', workspaceStateHtml('loading', 'Завантажуємо ліди', 'Оновлюємо список за вибраними фільтрами.'));
   try {
     const res = await api('GET', '/leads?' + leadsQueryString());
+    if (requestId !== leadsListRequestId) return;
     const items = res?.items || [];
     leadsState.totalPages = res?.pages || 1;
-    leadsListEl.querySelectorAll('.leads-card:not(#leads-kanban-entry)').forEach(el => el.remove());
+    leadsState.total = Number(res?.total || 0);
+    renderLeadsResultMeta();
+    leadsListEl.querySelector('.workspace-state')?.remove();
+    leadsListEl.querySelectorAll('.leads-card:not(#leads-kanban-entry):not(#leads-work-queue-entry):not(#leads-openings-entry)').forEach(el => el.remove());
     if (!items.length) {
-      if (leadsEmptyEl) leadsEmptyEl.hidden = false;
+      if (leadsEmptyEl) {
+        leadsEmptyEl.innerHTML = `<strong>За цими умовами лідів немає</strong><span>Скиньте частину фільтрів або змініть пошуковий запит.</span>`;
+        leadsEmptyEl.hidden = false;
+      }
     } else {
       if (leadsEmptyEl) leadsEmptyEl.hidden = true;
       const frag = document.createElement('div');
@@ -1229,6 +1596,9 @@ async function loadLeadsList() {
     }
     renderLeadsPagination();
   } catch (err) {
+    if (requestId !== leadsListRequestId) return;
+    leadsListEl.querySelector('.workspace-state')?.remove();
+    leadsListEl.insertAdjacentHTML('afterbegin', workspaceStateHtml('error', 'Список не завантажився', err.message || 'Перевірте зʼєднання та спробуйте ще раз.', 'leads'));
     showToast(err.message || 'Не вдалося завантажити ліди.', true);
   }
 }
@@ -1251,24 +1621,50 @@ function renderLeadsPagination() {
 const LEADS_STAGE_OPTIONS = ['New', 'Contacted', 'Replied', 'Qualified', 'Proposal Sent', 'Won', 'Lost'];
 const LEADS_OUTREACH_OPTIONS = ['Not contacted', 'Message sent', 'Follow-up sent', 'Call made', 'No reply', 'Replied'];
 const LEADS_PRIORITY_OPTIONS = ['Hot', 'High', 'Medium', 'Low', 'Watch'];
-const LEADS_OWNER_OPTIONS = ['Manager 1', 'Manager 2'];
+let LEADS_OWNER_OPTIONS = [];
+let leadsOwnersPromise = null;
+
+// Список менеджерів приходить з /auth/managers (users.crm_owner + full_name).
+// Без цього LEADS_OWNER_OPTIONS лишався порожнім, і всюди, крім списку лідів,
+// зникав вибір менеджера: у воронці, в "Моєму дні" і в редакторі ліда — тобто
+// не було видно, за ким лід закріплений і кому писали.
+function ensureLeadsOwnerOptions(force = false) {
+  if (force) leadsOwnersPromise = null;
+  if (leadsOwnersPromise) return leadsOwnersPromise;
+  leadsOwnersPromise = api('GET', '/auth/managers')
+    .then(list => {
+      const managers = Array.isArray(list) ? list : [];
+      LEADS_OWNER_OPTIONS = managers.map(m => String(m.crm_owner || '').trim()).filter(Boolean);
+      LEADS_OWNER_LABELS = managers.reduce((acc, m) => {
+        const key = String(m.crm_owner || '').trim();
+        if (key) acc[key] = m.full_name || key;
+        return acc;
+      }, {});
+      return LEADS_OWNER_OPTIONS;
+    })
+    .catch(err => {
+      leadsOwnersPromise = null;   // дозволяємо повтор при наступному відкритті екрана
+      throw err;
+    });
+  return leadsOwnersPromise;
+}
 
 // Значення полів зберігаються англійською (сумісність з фільтрами/експортом/API),
 // але менеджери працюють з CRM російською — тому текст на екрані перекладається окремо.
 const LEADS_STAGE_LABELS = {
-  'New': 'Новый', 'Contacted': 'Связались', 'Replied': 'Ответил',
-  'Qualified': 'Квалифицирован', 'Proposal Sent': 'Предложение отправлено',
-  'Won': 'Выиграно', 'Lost': 'Проиграно',
+  'New': 'Новий', 'Contacted': 'Звʼязались', 'Replied': 'Відповів',
+  'Qualified': 'Кваліфікований', 'Proposal Sent': 'Пропозицію надіслано',
+  'Won': 'Успішно', 'Lost': 'Втрачено',
 };
 const LEADS_OUTREACH_LABELS = {
-  'Not contacted': 'Не связывались', 'Message sent': 'Сообщение отправлено',
-  'Follow-up sent': 'Напоминание отправлено', 'Call made': 'Звонок совершён',
-  'No reply': 'Без ответа', 'Replied': 'Ответил',
+  'Not contacted': 'Не звʼязувалися', 'Message sent': 'Повідомлення надіслано',
+  'Follow-up sent': 'Нагадування надіслано', 'Call made': 'Дзвінок виконано',
+  'No reply': 'Без відповіді', 'Replied': 'Відповів',
 };
 const LEADS_PRIORITY_LABELS = {
-  'Hot': 'Горячий', 'High': 'Высокий', 'Medium': 'Средний', 'Low': 'Низкий', 'Watch': 'Наблюдение',
+  'Hot': 'Гарячий', 'High': 'Високий', 'Medium': 'Середній', 'Low': 'Низький', 'Watch': 'Спостереження',
 };
-const LEADS_OWNER_LABELS = { 'Manager 1': 'Менеджер Миша', 'Manager 2': 'Менеджер Едуард' };
+let LEADS_OWNER_LABELS = {};
 
 function leadsLabel(map, value) {
   return map[value] || value || '';
@@ -1294,6 +1690,7 @@ function setLeadsSelectMode(on) {
   leadsSelectMode = on;
   if (leadsListEl) leadsListEl.classList.toggle('select-mode', on);
   if (btnLeadsSelect) btnLeadsSelect.classList.toggle('active-mode', on);
+  if (btnLeadsDirectorySelect) btnLeadsDirectorySelect.classList.toggle('active-mode', on);
   if (!on) {
     leadsListEl?.querySelectorAll('.leads-select-input').forEach(cb => { cb.checked = false; });
   }
@@ -1339,6 +1736,7 @@ async function applyLeadsBulkAction() {
 }
 
 if (btnLeadsSelect) btnLeadsSelect.addEventListener('click', () => setLeadsSelectMode(!leadsSelectMode));
+if (btnLeadsDirectorySelect) btnLeadsDirectorySelect.addEventListener('click', () => setLeadsSelectMode(!leadsSelectMode));
 if (btnLeadsBulkCancel) btnLeadsBulkCancel.addEventListener('click', () => setLeadsSelectMode(false));
 if (btnLeadsBulkApply) btnLeadsBulkApply.addEventListener('click', applyLeadsBulkAction);
 // Делегування на контейнер — картки перерендерюються при кожному loadLeadsList().
@@ -1351,13 +1749,57 @@ if (leadsListEl) {
 function leadThreadContactIcons(lead) {
   const firstPhone = (lead.phone || lead.whatsapp_viber || '').split(/[;,]/)[0].trim();
   const firstEmail = (lead.email || '').split(/[;,]/)[0].trim();
-  const icons = [
-    firstPhone ? { href: 'tel:' + firstPhone.replace(/[^\d+]/g, ''), label: '📞', title: 'Зателефонувати' } : null,
-    firstPhone ? { href: 'https://wa.me/' + firstPhone.replace(/[^\d]/g, ''), label: '💬', title: 'WhatsApp' } : null,
-    firstEmail ? { href: 'mailto:' + firstEmail, label: '✉️', title: 'Написати email' } : null,
-    lead.instagram ? { href: 'https://instagram.com/' + String(lead.instagram).replace('@', ''), label: '📷', title: 'Instagram' } : null,
-  ].filter(Boolean);
-  return icons.map(i => `<a class="leads-quick-btn" href="${escHtml(i.href)}" target="_blank" rel="noopener" title="${escHtml(i.title)}">${i.label}</a>`).join('');
+  const phoneHref = firstPhone ? 'tel:' + firstPhone.replace(/[^\d+]/g, '') : '';
+  const whatsappHref = firstPhone ? 'https://wa.me/' + firstPhone.replace(/[^\d]/g, '') : '';
+  const emailHref = firstEmail ? 'mailto:' + firstEmail : '';
+  const webUrl = value => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  };
+  const websiteHref = webUrl(lead.website_url);
+  const sourceHref = webUrl(lead.source_url);
+  const instagramHref = lead.instagram
+    ? webUrl(String(lead.instagram).includes('instagram.com') ? lead.instagram : `instagram.com/${String(lead.instagram).replace('@', '')}`)
+    : '';
+  const facebookHref = webUrl(lead.facebook_other_social);
+  const location = [lead.city_area, lead.country].filter(Boolean).join(', ') || 'Не вказано';
+  const opening = lead.opening_date || lead.opening_window || 'Не вказано';
+  const contactCard = (kind, label, value, href, emptyLabel = 'Не знайдено') => `
+    <article class="lead-profile-card lead-profile-${kind}${value ? '' : ' is-empty'}">
+      <span class="lead-profile-icon" aria-hidden="true">${crmActionIcon(kind)}</span>
+      <span class="lead-profile-label">${escHtml(label)}</span>
+      ${value
+        ? `<a class="lead-profile-value" href="${escHtml(href)}" ${href.startsWith('http') ? 'target="_blank" rel="noopener"' : ''}>${escHtml(value)}</a>`
+        : `<span class="lead-profile-value">${escHtml(emptyLabel)}</span>`}
+    </article>`;
+  return `
+    <div class="lead-profile-head">
+      <div><span class="mono-label">Профіль контакту</span><strong>Контакти та реквізити</strong></div>
+      <span class="lead-profile-quality">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority) || lead.priority || '—')} · ${escHtml(String(lead.lead_score || 0))} балів</span>
+    </div>
+    <div class="lead-profile-grid">
+      ${contactCard('phone', 'Телефон', firstPhone, phoneHref)}
+      ${contactCard('email', 'Email', firstEmail, emailHref)}
+      ${contactCard('website', 'Сайт', lead.website_url, websiteHref)}
+      ${contactCard('source', 'Джерело', lead.source_url ? 'Відкрити джерело' : '', sourceHref)}
+    </div>
+    <div class="lead-profile-actions">
+      ${firstPhone ? `<a href="${escHtml(phoneHref)}">Зателефонувати</a><a href="${escHtml(whatsappHref)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+      ${firstEmail ? `<a href="${escHtml(emailHref)}">Написати email</a>` : ''}
+      ${instagramHref ? `<a href="${escHtml(instagramHref)}" target="_blank" rel="noopener">Instagram</a>` : '<span>Instagram · не знайдено</span>'}
+      ${facebookHref ? `<a href="${escHtml(facebookHref)}" target="_blank" rel="noopener">Facebook</a>` : '<span>Facebook · не знайдено</span>'}
+    </div>
+    <div class="lead-profile-meta">
+      <div><span>Локація</span><strong>${escHtml(location)}</strong></div>
+      <div><span>Категорія</span><strong>${escHtml(lead.category || 'Не вказано')}</strong></div>
+      <div><span>Відкриття</span><strong>${escHtml(opening)}</strong></div>
+      <div><span>Відповідальний</span><strong>${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner) || lead.owner || 'Не призначено')}</strong></div>
+      <div><span>Основний канал</span><strong>${escHtml(lead.primary_channel || 'Не вказано')}</strong></div>
+      <div><span>Потреба</span><strong>${escHtml(lead.need_type || 'Не вказано')}</strong></div>
+    </div>
+    ${lead.notes ? `<div class="lead-profile-warning"><strong>Перевірити перед контактом</strong><span>${escHtml(lead.notes)}</span></div>` : ''}
+  `;
 }
 
 function leadThreadPillsHtml(lead) {
@@ -1365,32 +1807,42 @@ function leadThreadPillsHtml(lead) {
     `<option value="${escHtml(o)}" ${o === current ? 'selected' : ''}>${escHtml(leadsLabel(labels, o))}</option>`
   ).join('');
   return `
-    <select id="lead-edit-owner" class="leads-pill-select">${optSel(LEADS_OWNER_OPTIONS, lead.owner, LEADS_OWNER_LABELS)}</select>
-    <select id="lead-edit-priority" class="leads-pill-select">${optSel(LEADS_PRIORITY_OPTIONS, lead.priority, LEADS_PRIORITY_LABELS)}</select>
-    <select id="lead-edit-stage" class="leads-pill-select">${optSel(LEADS_STAGE_OPTIONS, lead.stage, LEADS_STAGE_LABELS)}</select>
-    <select id="lead-edit-outreach" class="leads-pill-select">${optSel(LEADS_OUTREACH_OPTIONS, lead.outreach_status, LEADS_OUTREACH_LABELS)}</select>
-    <input id="lead-edit-followup" class="leads-pill-select" type="date" title="Наступний контакт" value="${escHtml(lead.next_followup_date || '')}"/>
+    <div class="lead-editor-head"><span class="mono-label">Керування лідом</span><strong>Статус роботи</strong></div>
+    <label class="lead-editor-field"><span>Менеджер</span><select id="lead-edit-owner" class="leads-pill-select">${optSel(LEADS_OWNER_OPTIONS, lead.owner, LEADS_OWNER_LABELS)}</select></label>
+    <label class="lead-editor-field"><span>Пріоритет</span><select id="lead-edit-priority" class="leads-pill-select">${optSel(LEADS_PRIORITY_OPTIONS, lead.priority, LEADS_PRIORITY_LABELS)}</select></label>
+    <label class="lead-editor-field"><span>Стадія</span><select id="lead-edit-stage" class="leads-pill-select">${optSel(LEADS_STAGE_OPTIONS, lead.stage, LEADS_STAGE_LABELS)}</select></label>
+    <label class="lead-editor-field"><span>Контакт</span><select id="lead-edit-outreach" class="leads-pill-select">${optSel(LEADS_OUTREACH_OPTIONS, lead.outreach_status, LEADS_OUTREACH_LABELS)}</select></label>
+    <label class="lead-editor-field lead-editor-date"><span>Наступна дія</span><input id="lead-edit-followup" class="leads-pill-select" type="date" title="Наступний контакт" value="${escHtml(lead.next_followup_date || '')}"/></label>
   `;
 }
 
 async function openLeadDetail(leadId) {
   if (!leadInfoBanner) return;
   if (window.innerWidth <= 720) sidebar.classList.add('hidden');
+  hideWorkspaceViews();
   leadsState.currentLeadId = leadId;
+  leadsState.channelReadiness = null;
+  applyLeadChannelReadiness(null, true);
   document.querySelectorAll('.leads-card').forEach(el =>
     el.classList.toggle('active', Number(el.dataset.leadId) === leadId));
   try {
-    const [lead, convRes] = await Promise.all([
+    const [lead, convRes, readiness] = await Promise.all([
       api('GET', `/leads/${leadId}`),
       api('GET', `/leads/${leadId}/conversation`),
+      api('GET', `/messenger/leads/${leadId}/channel-readiness`),
     ]);
+    leadsState.currentLead = lead;
     renderLeadInfoBanner(lead);
     await openChat({
       id: convRes.conversation_id,
       is_group: true,
       group_name: lead.business_name,
       partner: null,
+      lead_id: lead.id,
     });
+    applyLeadChannelReadiness(readiness);
+    activateWorkspaceEntry(workspaceLeadsEntry);
+    if (chatTopbarSectionEl) chatTopbarSectionEl.textContent = 'Ліди';
     setChatHeaderStatus([lead.category, [lead.city_area, lead.country].filter(Boolean).join(', ')].filter(Boolean).join(' · '));
     if (btnCall) btnCall.hidden = true;
     const groupInfoBtn = document.getElementById('group-info-btn');
@@ -1400,12 +1852,82 @@ async function openLeadDetail(leadId) {
   }
 }
 
+function channelLabel(channel) {
+  return channel === 'whatsapp' ? 'WhatsApp' : channel === 'instagram' ? 'Instagram' : 'Канал';
+}
+
+function resetLeadChannelState() {
+  leadsState.currentLeadId = null;
+  leadsState.currentLead = null;
+  leadsState.channelReadiness = null;
+  if (leadInfoBanner) leadInfoBanner.hidden = true;
+  if (chatChannelGate) chatChannelGate.hidden = true;
+  msgInput.disabled = false;
+  if (btnAttachPhoto) btnAttachPhoto.hidden = false;
+  if (btnVoice) btnVoice.hidden = false;
+  msgInput.placeholder = 'Напишіть повідомлення...';
+}
+
+function applyLeadChannelReadiness(readiness, loading = false) {
+  leadsState.channelReadiness = readiness;
+  if (!chatChannelGate) return;
+  chatChannelGate.hidden = false;
+  chatChannelGate.classList.toggle('is-ready', !!readiness?.ready);
+  chatChannelGate.classList.toggle('is-blocked', !loading && !readiness?.ready);
+
+  if (loading) {
+    chatChannelGateMark.textContent = '···';
+    chatChannelGateTitle.textContent = 'Перевіряємо канал';
+    chatChannelGateText.textContent = 'Поле вводу відкриється після перевірки.';
+    chatChannelGateAction.hidden = true;
+    msgInput.disabled = true;
+    msgInput.placeholder = 'Перевіряємо підключення…';
+  } else if (readiness?.ready) {
+    const label = channelLabel(readiness.channel);
+    chatChannelGateMark.textContent = '✓';
+    chatChannelGateTitle.textContent = `${label} готовий`;
+    chatChannelGateText.textContent = [readiness.manager_label, readiness.account_label, 'текст надсилається реально'].filter(Boolean).join(' · ');
+    chatChannelGateAction.hidden = true;
+    msgInput.disabled = false;
+    msgInput.placeholder = `Написати через ${label}…`;
+  } else {
+    const label = channelLabel(readiness?.channel);
+    chatChannelGateMark.textContent = '!';
+    chatChannelGateTitle.textContent = `${label} не готовий`;
+    chatChannelGateText.textContent = readiness?.reason || 'Підключіть канал, щоб писати клієнту.';
+    const canOpenIntegrations = ['integration_missing', 'token_error', 'delivery_failed', 'integration_changed'].includes(readiness?.code);
+    chatChannelGateAction.hidden = !canOpenIntegrations;
+    chatChannelGateAction.textContent = readiness?.code === 'token_error' ? 'Перепідключити' : 'Підключити';
+    msgInput.disabled = true;
+    msgInput.placeholder = 'Відправка заблокована до налаштування каналу';
+  }
+
+  // External Meta delivery in this version is intentionally text-only.
+  if (btnAttachPhoto) btnAttachPhoto.hidden = true;
+  if (btnVoice) btnVoice.hidden = true;
+  updateSendBtn();
+}
+
+async function refreshLeadChannelReadiness() {
+  if (!leadsState.currentLeadId) return;
+  try {
+    const readiness = await api('GET', `/messenger/leads/${leadsState.currentLeadId}/channel-readiness`);
+    applyLeadChannelReadiness(readiness);
+  } catch (err) {
+    applyLeadChannelReadiness({ ready: false, code: 'status_unavailable', reason: err.message || 'Не вдалося перевірити канал.' });
+  }
+}
+
+chatChannelGateAction?.addEventListener('click', () => openIntegrationsView('channels'));
+
 function renderLeadInfoBanner(lead) {
   const contactsEl = document.getElementById('lead-thread-contacts');
   const pillsEl = document.getElementById('leads-thread-pills');
   const pinnedEl = document.getElementById('lead-first-message-pinned');
+  const intelligenceEl = document.getElementById('lead-intelligence-panel');
 
   leadInfoBanner.hidden = false;
+  leadInfoBanner.scrollTop = 0;
   if (contactsEl) contactsEl.innerHTML = leadThreadContactIcons(lead);
   if (pillsEl) {
     pillsEl.innerHTML = leadThreadPillsHtml(lead);
@@ -1414,11 +1936,12 @@ function renderLeadInfoBanner(lead) {
     });
     document.getElementById('lead-edit-followup')?.addEventListener('change', () => saveLeadPillEdit(lead.id));
   }
+  if (intelligenceEl) renderLeadIntelligence(intelligenceEl, lead);
   if (pinnedEl) {
     pinnedEl.hidden = !lead.first_message_en;
     pinnedEl.innerHTML = lead.first_message_en ? `
       <div class="leads-fm-label">Заготовка першого повідомлення</div>
-      ${escHtml(lead.first_message_en)}
+      <p class="leads-first-message-text">${escHtml(lead.first_message_en)}</p>
       <div><button class="btn-primary btn-secondary" id="btn-lead-copy-msg" type="button">Скопіювати</button></div>
     ` : '';
     document.getElementById('btn-lead-copy-msg')?.addEventListener('click', () => {
@@ -1431,6 +1954,75 @@ function renderLeadInfoBanner(lead) {
   renderAiDraftPanel(lead);
   renderLeadNudgePanel(lead);
   if (btnAiSuggest) btnAiSuggest.hidden = false;
+}
+
+const aiAnalysisCache = {};
+
+function leadIntelligenceHtml(intel, opts) {
+  const reasons = Array.isArray(intel.reasons) ? intel.reasons : [];
+  const strengthLabel = { high: 'сильний набір сигналів', medium: 'є робочі сигнали', low: 'потрібна перевірка' }[intel.strength] || 'потрібна перевірка';
+  const primaryReason = reasons[0]?.text || intel.description || 'Перевірте профіль перед першим контактом.';
+  const aiBadge = opts?.aiGenerated
+    ? `<span class="lead-intelligence-ai-badge" title="${escHtml(opts.modelUsed || '')}">✨ AI</span>`
+    : '';
+  const genBtn = opts?.aiGenerated
+    ? `<button type="button" class="lead-intelligence-regen-btn" id="btn-lead-intel-regen">↻ Оновити</button>`
+    : `<button type="button" class="lead-intelligence-regen-btn is-primary" id="btn-lead-intel-regen">✨ AI-аналітика замість шаблону</button>`;
+  return `
+    <div class="lead-intelligence-head">
+      <div><span class="mono-label">Аналітика контакту ${aiBadge}</span><strong>Коротко про можливість</strong></div>
+      <span class="lead-intelligence-score lead-intelligence-${escHtml(intel.strength || 'low')}">${escHtml(String(intel.score || 0))}/100 · ${escHtml(strengthLabel)}</span>
+    </div>
+    <div class="lead-intelligence-highlights">
+      <article class="lead-intelligence-highlight is-now"><span class="mono-label">Чому зараз</span><p>${escHtml(primaryReason)}</p></article>
+      <article class="lead-intelligence-highlight is-offer"><span class="mono-label">Що запропонувати</span><p>${escHtml(intel.recommended_offer || 'Короткий аудит цифрової присутності')}</p></article>
+      <article class="lead-intelligence-highlight is-next"><span class="mono-label">Наступний крок</span><p>${escHtml(intel.next_step || 'Перевірити контакт і підготувати коротке звернення.')}</p></article>
+    </div>
+    <details class="lead-intelligence-details" ${opts?.aiGenerated ? 'open' : ''}>
+      <summary><span>Повна аналітика</span><small>${reasons.length} сигналів</small></summary>
+      <div class="lead-intelligence-details-body">
+        ${intel.description ? `<p>${escHtml(intel.description)}</p>` : ''}
+        <div>${reasons.map(reason => `<article><strong>${escHtml(reason.label || 'Сигнал')}</strong><span>${escHtml(reason.text || '')}</span></article>`).join('')}</div>
+        ${intel.outreach_angle ? `<p><strong>Кут звернення:</strong> ${escHtml(intel.outreach_angle)}</p>` : ''}
+      </div>
+    </details>
+    <div class="lead-intelligence-actions">${genBtn}</div>
+  `;
+}
+
+function renderLeadIntelligence(container, lead) {
+  const cached = aiAnalysisCache[lead.id];
+  if (cached) {
+    container.hidden = false;
+    container.innerHTML = leadIntelligenceHtml(cached, { aiGenerated: true, modelUsed: cached.model_used });
+    document.getElementById('btn-lead-intel-regen')?.addEventListener('click', () => generateAiAnalysis(lead, container));
+    return;
+  }
+  const intel = lead.intelligence || {};
+  const reasons = Array.isArray(intel.reasons) ? intel.reasons : [];
+  if (!intel.description && !reasons.length) {
+    container.hidden = true;
+    container.innerHTML = '';
+    return;
+  }
+  container.hidden = false;
+  container.innerHTML = leadIntelligenceHtml(intel, { aiGenerated: false });
+  document.getElementById('btn-lead-intel-regen')?.addEventListener('click', () => generateAiAnalysis(lead, container));
+}
+
+async function generateAiAnalysis(lead, container) {
+  const btn = document.getElementById('btn-lead-intel-regen');
+  if (btn) { btn.disabled = true; btn.textContent = 'Аналізую…'; }
+  try {
+    const data = await api('POST', `/leads/${lead.id}/ai-analysis`, undefined, { timeoutMs: 30000 });
+    aiAnalysisCache[lead.id] = data;
+    container.hidden = false;
+    container.innerHTML = leadIntelligenceHtml(data, { aiGenerated: true, modelUsed: data.model_used });
+    document.getElementById('btn-lead-intel-regen')?.addEventListener('click', () => generateAiAnalysis(lead, container));
+  } catch (err) {
+    showToast(err.message || 'Не вдалося згенерувати AI-аналітику.', true);
+    if (btn) { btn.disabled = false; btn.textContent = '✨ AI-аналітика замість шаблону'; }
+  }
 }
 
 // Дні від next_followup_date до сьогодні; null якщо дата не задана або ще не настала.
@@ -1628,7 +2220,6 @@ async function saveLeadPillEdit(leadId) {
 }
 
 function closeLeadDetail() {
-  if (window.innerWidth <= 720) sidebar.classList.remove('hidden');
   if (leadInfoBanner) leadInfoBanner.hidden = true;
   if (btnAiSuggest) btnAiSuggest.hidden = true;
   if (aiReplySuggestionsEl) { aiReplySuggestionsEl.hidden = true; aiReplySuggestionsEl.innerHTML = ''; }
@@ -1638,63 +2229,402 @@ function closeLeadDetail() {
   activePartner = null;
   clearInterval(convPollTimer);
   if (chatView) chatView.hidden = true;
-  if (chatEmpty) chatEmpty.hidden = false;
   if (btnCall) btnCall.hidden = false;
-  loadLeadsList();
+  openLeadsSidebar();
 }
 
-async function openLeadsKanban() {
-  if (!leadsKanbanView || !leadsKanbanColumnsEl) return;
+function localIsoDate(offsetDays = 0) {
+  const value = new Date();
+  value.setHours(12, 0, 0, 0);
+  value.setDate(value.getDate() + offsetDays);
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+}
+
+function workQueueLeadHtml(lead) {
+  const location = [lead.city_area, lead.country].filter(Boolean).join(', ');
+  const due = String(lead.next_followup_date || '').slice(0, 10);
+  const reason = lead.queue_reason || '';
+  const dueLabel = reason === 'overdue' ? `Прострочено: ${due}`
+    : reason === 'today' ? 'Заплановано на сьогодні'
+    : 'Наступну дію не заплановано';
+  const actionLabel = due ? 'На завтра' : 'На сьогодні';
+  return `
+    <article class="work-queue-card" data-lead-id="${Number(lead.id)}">
+      <div class="work-queue-avatar" aria-hidden="true">${escHtml(initial(lead.business_name || '?'))}</div>
+      <div class="work-queue-card-main">
+        <div class="work-queue-card-title-row">
+          <strong>${escHtml(lead.business_name || 'Без назви')}</strong>
+          <span class="work-queue-priority priority-${escHtml(lead.priority || 'Medium')}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority || 'Medium'))}</span>
+        </div>
+        <div class="work-queue-card-meta">${escHtml([lead.category, location].filter(Boolean).join(' · ') || 'Деталі не вказані')}</div>
+        <div class="work-queue-card-due">${escHtml(dueLabel)} · ${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner || '') || 'Без менеджера')}</div>
+      </div>
+      <div class="work-queue-card-actions">
+        <button type="button" class="btn-secondary" data-work-open="${Number(lead.id)}">Відкрити</button>
+        <button type="button" class="btn-secondary work-queue-plan-btn" data-work-plan="${Number(lead.id)}" data-has-due="${due ? '1' : '0'}">${actionLabel}</button>
+      </div>
+    </article>`;
+}
+
+function renderLeadsWorkQueue(data) {
+  const summary = data.summary || {};
+  if (workQueueSummaryEl) {
+    const stats = [
+      ['overdue', 'Прострочено'], ['today', 'Сьогодні'],
+      ['hot_unscheduled', 'Гарячі без дати'], ['untouched', 'Не опрацьовано'],
+    ];
+    workQueueSummaryEl.innerHTML = stats.map(([key, label]) => `
+      <div class="work-queue-stat work-queue-stat-${key}">
+        <strong>${Number(summary[key] || 0)}</strong><span>${label}</span>
+      </div>`).join('');
+  }
+  if (!workQueueSectionsEl) return;
+  const groups = data.groups || [];
+  const total = Number(summary.total_actionable || 0);
+  if (!total) {
+    workQueueSectionsEl.innerHTML = `
+      <div class="work-queue-empty">
+        <strong>На зараз усе опрацьовано</strong>
+        <span>Нові прострочені або заплановані дії автоматично зʼявляться тут.</span>
+      </div>`;
+    return;
+  }
+  workQueueSectionsEl.innerHTML = groups.filter(group => group.count > 0).map(group => `
+    <section class="work-queue-group">
+      <div class="work-queue-group-head">
+        <div><h3>${escHtml(group.label)}</h3><p>${escHtml(group.description)}</p></div>
+        <span>${Number(group.count || 0)}</span>
+      </div>
+      <div class="work-queue-list">${(group.items || []).map(workQueueLeadHtml).join('')}</div>
+    </section>`).join('');
+}
+
+function schedulerFocusItemHtml(lead) {
+  const due = String(lead.next_followup_date || '').slice(0, 10);
+  const reason = lead.queue_reason || '';
+  const status = reason === 'overdue' ? `Прострочено · ${due}`
+    : reason === 'today' ? 'Сьогодні'
+    : reason === 'hot_unscheduled' ? 'Гарячий · без дати'
+    : 'Новий контакт';
+  return `<button type="button" class="scheduler-focus-item" data-scheduler-lead="${Number(lead.id)}">
+    <span class="scheduler-focus-mark priority-${escHtml(lead.priority || 'Medium')}" aria-hidden="true">${escHtml(initial(lead.business_name || '?'))}</span>
+    <span class="scheduler-focus-copy"><strong>${escHtml(lead.business_name || 'Без назви')}</strong><small>${escHtml(status)} · ${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner || '') || 'Без менеджера')}</small></span>
+    <span class="scheduler-focus-score">${Number(lead.lead_score || 0)}</span>
+  </button>`;
+}
+
+async function loadSchedulerOverview() {
+  if (!schedulerDashboardEl || schedulerOverviewEl?.hidden) return;
+  schedulerDashboardEl.innerHTML = workspaceStateHtml('loading', 'Оновлюємо план', '');
+  try {
+    const data = await api('GET', '/leads/work-queue');
+    const summary = data.summary || {};
+    const metrics = [
+      ['overdue', 'Прострочено', 'Повернути в роботу'], ['today', 'На сьогодні', 'Заплановані контакти'],
+      ['hot_unscheduled', 'Гарячі без дати', 'Варто запланувати'], ['untouched', 'Нові без контакту', 'Ще не опрацьовані'],
+    ];
+    const focus = (data.groups || []).flatMap(group => group.items || []).slice(0, 6);
+    schedulerDashboardEl.innerHTML = `
+      <div class="scheduler-metrics">${metrics.map(([key, label, hint]) => `
+        <button type="button" class="scheduler-metric is-${key}" data-open-workday="1">
+          <span class="scheduler-metric-head"><i aria-hidden="true"></i>${escHtml(label)}</span>
+          <strong>${Number(summary[key] || 0)}</strong><small>${escHtml(hint)}</small>
+        </button>`).join('')}</div>
+      <div class="scheduler-focus">
+        <div class="scheduler-focus-head"><strong>У фокусі</strong><span>${Number(summary.total_actionable || 0)} дій</span></div>
+        ${focus.length ? `<div class="scheduler-focus-list">${focus.map(schedulerFocusItemHtml).join('')}</div>`
+          : '<div class="scheduler-focus-empty"><strong>План чистий</strong><span>Нові дії зʼявляться тут автоматично.</span></div>'}
+      </div>`;
+  } catch (err) {
+    schedulerDashboardEl.innerHTML = workspaceStateHtml('error', 'Планувальник недоступний', err.message || 'Спробуйте оновити сторінку.');
+  }
+}
+
+// "Мій день" читає ті самі фільтри CRM (менеджер/стадія/статус/пріоритет/пошук).
+// due_today свідомо не передаємо: цей екран сам розкладає ліди на прострочені,
+// сьогоднішні та без дати — серверний зріз "тільки на сьогодні" вбив би дві секції.
+function workQueueQueryString() {
+  const params = new URLSearchParams();
+  const owner = workQueueOwnerEl?.value || leadsState.owner || '';
+  if (owner) params.set('owner', owner);
+  if (leadsState.stage) params.set('stage', leadsState.stage);
+  if (leadsState.priority) params.set('priority', leadsState.priority);
+  if (leadsState.outreachStatus) params.set('outreach_status', leadsState.outreachStatus);
+  if (leadsState.country) params.set('country', leadsState.country);
+  if (leadsState.channel) params.set('channel', leadsState.channel);
+  if (leadsState.search) params.set('search', leadsState.search);
+  return params.toString();
+}
+
+async function loadLeadsWorkQueue() {
+  if (!workQueueSectionsEl) return;
+  workQueueSectionsEl.innerHTML = workspaceStateHtml('loading', 'Готуємо робочий день', 'Збираємо прострочені та заплановані контакти.');
+  try {
+    const data = await api('GET', '/leads/work-queue?' + workQueueQueryString());
+    renderLeadsWorkQueue(data);
+    const total = Number(data.summary?.total_actionable || 0);
+    if (leadsWorkQueueBadge) {
+      leadsWorkQueueBadge.textContent = total > 99 ? '99+' : String(total);
+      leadsWorkQueueBadge.hidden = total === 0;
+    }
+  } catch (err) {
+    workQueueSectionsEl.innerHTML = workspaceStateHtml('error', 'Робочий список недоступний', err.message || 'Повторіть спробу за хвилину.', 'day');
+  }
+}
+
+function activateWorkspaceEntry(activeEntry = null) {
+  [workspaceLeadsEntry, workspaceDayEntry, workspaceKanbanEntry, workspaceSearchEntry,
+    workspaceOpeningsEntry, workspaceIntegrationsEntry].forEach(entry => {
+    entry?.classList.toggle('active', entry === activeEntry);
+  });
+}
+
+function getAllWorkspaceViews() {
+  const aug = document.getElementById('august-schedule-view');
+  const anl = document.getElementById('analytics-dashboard-view');
+  return [leadsDirectoryView, leadsWorkQueueView, leadsKanbanView, integrationsView,
+    prospectingView, openingsView, aug, anl].filter(Boolean);
+}
+
+function hideWorkspaceViews(except = null) {
+  getAllWorkspaceViews().forEach(view => {
+    if (view && view !== except) view.hidden = true;
+  });
+}
+
+function hasOpenWorkspace() {
+  return getAllWorkspaceViews().some(view => view && !view.hidden);
+}
+
+function syncWorkspaceResponsiveLayout() {
+  if (window.innerWidth <= 720) {
+    sidebar.classList.toggle('hidden', hasOpenWorkspace() || Boolean(activeConvId));
+  } else {
+    sidebar.classList.remove('hidden');
+  }
+}
+
+function prepareWorkspaceView(view, entry, title) {
+  if (!view) return false;
   if (window.innerWidth <= 720) sidebar.classList.add('hidden');
-  document.querySelectorAll('.leads-card').forEach(el => el.classList.remove('active'));
-  if (leadsKanbanEntry) leadsKanbanEntry.classList.add('active');
   activeConvId = null;
   activePartner = null;
   clearInterval(convPollTimer);
   if (chatEmpty) chatEmpty.hidden = true;
   if (chatView) chatView.hidden = true;
   if (leadInfoBanner) leadInfoBanner.hidden = true;
-  leadsKanbanView.hidden = false;
-  leadsKanbanColumnsEl.innerHTML = '<p class="leads-empty">Завантаження…</p>';
+  if (btnAiSuggest) btnAiSuggest.hidden = true;
+  if (aiReplySuggestionsEl) {
+    aiReplySuggestionsEl.hidden = true;
+    aiReplySuggestionsEl.innerHTML = '';
+  }
+  hideWorkspaceViews(view);
+  view.hidden = false;
+  activateWorkspaceEntry(entry);
+  if (chatTopbarSectionEl) chatTopbarSectionEl.textContent = title || 'CRM';
+  try { sessionStorage.setItem(LAST_WORKSPACE_KEY, view.id || ''); } catch (_) {}
+  return true;
+}
+
+function closeWorkspaceView() {
+  sidebarMode = 'chats';
+  if (btnLeadsExport) btnLeadsExport.hidden = true;
+  if (btnLeadsAdd) btnLeadsAdd.hidden = true;
+  if (btnLeadsSelect) btnLeadsSelect.hidden = true;
+  if (btnLeads) btnLeads.classList.remove('active-mode');
+  setLeadsSelectMode(false);
+  hideWorkspaceViews();
+  activateWorkspaceEntry(null);
+  if (chatTopbarSectionEl) chatTopbarSectionEl.textContent = 'Месенджер';
+  if (chatEmpty) chatEmpty.hidden = false;
+  if (window.innerWidth <= 720) sidebar.classList.remove('hidden');
+  try { sessionStorage.removeItem(LAST_WORKSPACE_KEY); } catch (_) {}
+}
+
+async function openLeadsWorkQueue() {
+  if (!prepareWorkspaceView(leadsWorkQueueView, workspaceDayEntry, 'Мій день')) return;
+  if (workQueueDateEl) {
+    const label = new Intl.DateTimeFormat('uk-UA', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+    workQueueDateEl.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+  }
+  document.querySelectorAll('.leads-card').forEach(el => el.classList.remove('active'));
+  leadsWorkQueueEntry?.classList.add('active');
+  await ensureLeadsOwnerOptions().catch(() => {});
+  if (workQueueOwnerEl && !workQueueOwnerEl.options.length) {
+    workQueueOwnerEl.innerHTML = '<option value="">Усі менеджери</option>' + LEADS_OWNER_OPTIONS.map(owner =>
+      `<option value="${escHtml(owner)}">${escHtml(leadsLabel(LEADS_OWNER_LABELS, owner))}</option>`
+    ).join('');
+  }
+  if (workQueueOwnerEl) workQueueOwnerEl.value = leadsState.owner || '';
+  await loadLeadsWorkQueue();
+}
+
+function closeLeadsWorkQueue() {
+  leadsWorkQueueEntry?.classList.remove('active');
+  closeWorkspaceView();
+}
+
+async function handleWorkQueueClick(event) {
+  const openButton = event.target.closest('[data-work-open]');
+  if (openButton) {
+    leadsWorkQueueView.hidden = true;
+    leadsWorkQueueEntry?.classList.remove('active');
+    await openLeadDetail(Number(openButton.dataset.workOpen));
+    return;
+  }
+  const planButton = event.target.closest('[data-work-plan]');
+  if (!planButton) return;
+  const leadId = Number(planButton.dataset.workPlan);
+  planButton.disabled = true;
   try {
-    const [stats, leadsRes] = await Promise.all([
-      api('GET', '/leads/stats'),
-      api('GET', '/leads?per_page=200'),
-    ]);
-    renderLeadsKanban(stats, leadsRes.items || []);
+    await api('PATCH', `/leads/${leadId}`, {
+      next_followup_date: localIsoDate(planButton.dataset.hasDue === '1' ? 1 : 0),
+    });
+    showToast(planButton.dataset.hasDue === '1' ? 'Контакт перенесено на завтра.' : 'Контакт заплановано на сьогодні.');
+    await loadLeadsWorkQueue();
+    loadLeadsStats().catch(() => {});
+    loadLeadsList().catch(() => {});
   } catch (err) {
-    leadsKanbanColumnsEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Не вдалося завантажити канбан.')}</p>`;
+    showToast(err.message || 'Не вдалося оновити дату.', true);
+    planButton.disabled = false;
+  }
+}
+
+const KANBAN_STAGE_BATCH = 50;
+const kanbanState = { stats: null, items: [], search: '', owner: '', priority: '', stageLimits: {} };
+
+function resetKanbanStageLimits() {
+  kanbanState.stageLimits = {};
+}
+
+// Воронка тягне той самий набір фільтрів, що й список лідів (стадія, статус
+// контакту, пріоритет, менеджер, пошук, "на сьогодні"). Раніше вона запитувала
+// /leads без фільтрів — і вибраний у лідах статус ніяк не відбивався на дошці.
+async function fetchAllKanbanLeads() {
+  const query = page => leadsQueryString({ page, per_page: 200, sort: 'score' });
+  const first = await api('GET', '/leads?' + query(1));
+  const pages = Number(first.pages || 1);
+  const items = [...(first.items || [])];
+  if (pages > 1) {
+    const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, index) =>
+      api('GET', '/leads?' + query(index + 2))
+    ));
+    rest.forEach(page => items.push(...(page.items || [])));
+  }
+  return items;
+}
+
+async function bindKanbanFilters() {
+  await ensureLeadsOwnerOptions().catch(() => {});
+  if (kanbanOwnerFilterEl) {
+    kanbanOwnerFilterEl.innerHTML = '<option value="">Всі менеджери</option>' + LEADS_OWNER_OPTIONS.map(owner =>
+      `<option value="${escHtml(owner)}">${escHtml(leadsLabel(LEADS_OWNER_LABELS, owner))}</option>`
+    ).join('');
+    kanbanOwnerFilterEl.value = kanbanState.owner;
+    kanbanOwnerFilterEl.onchange = () => {
+      kanbanState.owner = kanbanOwnerFilterEl.value;
+      // Фільтри дошки — це ті самі фільтри CRM: пишемо їх у leadsState, щоб
+      // список, чіпи і "Мій день" не розходились із тим, що видно на воронці.
+      setLeadsOwnerFilter(kanbanState.owner);
+      if (leadsFilterOwner) leadsFilterOwner.value = kanbanState.owner;
+      applyLeadsFilterChange();
+    };
+  }
+  if (kanbanPriorityFilterEl) {
+    kanbanPriorityFilterEl.innerHTML = '<option value="">Всі пріоритети</option>' + LEADS_PRIORITY_OPTIONS.map(priority =>
+      `<option value="${escHtml(priority)}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, priority))}</option>`
+    ).join('');
+    kanbanPriorityFilterEl.value = kanbanState.priority;
+    kanbanPriorityFilterEl.onchange = () => {
+      kanbanState.priority = kanbanPriorityFilterEl.value;
+      leadsState.priority = kanbanState.priority;
+      if (leadsFilterPriority) leadsFilterPriority.value = kanbanState.priority;
+      applyLeadsFilterChange();
+    };
+  }
+  if (kanbanSearchEl) {
+    kanbanSearchEl.value = kanbanState.search;
+    kanbanSearchEl.oninput = () => {
+      kanbanState.search = kanbanSearchEl.value.trim().toLowerCase();
+      resetKanbanStageLimits();
+      // Пошук фільтруємо на клієнті (дані вже в пам'яті) — без зайвого запиту,
+      // але той самий рядок кладемо в leadsState, щоб список показав те саме.
+      leadsState.search = kanbanSearchEl.value.trim();
+      if (leadsSearchInput) leadsSearchInput.value = leadsState.search;
+      syncLeadsFilterStatus();
+      renderLeadsKanban(kanbanState.stats, kanbanState.items);
+    };
+  }
+}
+
+// Перезапит воронки після зміни спільних фільтрів + підтягування списку/чіпів,
+// щоб усі три екрани CRM показували один і той самий зріз даних.
+async function refreshKanbanFromFilters() {
+  try {
+    kanbanState.items = await fetchAllKanbanLeads();
+    renderLeadsKanban(kanbanState.stats, kanbanState.items);
+  } catch (err) {
+    showToast(err.message || 'Не вдалося оновити воронку.', true);
+  }
+}
+
+async function openLeadsKanban() {
+  if (!leadsKanbanColumnsEl || !prepareWorkspaceView(leadsKanbanView, workspaceKanbanEntry, 'Воронка')) return;
+  document.querySelectorAll('.leads-card').forEach(el => el.classList.remove('active'));
+  if (leadsKanbanEntry) leadsKanbanEntry.classList.add('active');
+  // Дошка відкривається з тими ж фільтрами, що активні у списку лідів —
+  // інакше перехід "Ліди → Воронка" молча скидав вибраний менеджер/пріоритет.
+  kanbanState.owner = leadsState.owner || '';
+  kanbanState.priority = leadsState.priority || '';
+  kanbanState.search = (leadsState.search || '').toLowerCase();
+  resetKanbanStageLimits();
+  leadsKanbanColumnsEl.innerHTML = workspaceStateHtml('loading', 'Будуємо воронку', 'Розподіляємо ліди за поточними стадіями.');
+  try {
+    const [stats, items] = await Promise.all([
+      api('GET', '/leads/stats'),
+      fetchAllKanbanLeads(),
+    ]);
+    kanbanState.stats = stats;
+    kanbanState.items = items;
+    await bindKanbanFilters();
+    renderLeadsKanban(stats, items);
+  } catch (err) {
+    leadsKanbanColumnsEl.innerHTML = workspaceStateHtml('error', 'Воронка недоступна', err.message || 'Повторіть спробу за хвилину.', 'kanban');
   }
 }
 
 function closeLeadsKanban() {
-  if (window.innerWidth <= 720) sidebar.classList.remove('hidden');
-  if (leadsKanbanView) leadsKanbanView.hidden = true;
   if (leadsKanbanEntry) leadsKanbanEntry.classList.remove('active');
-  if (chatEmpty) chatEmpty.hidden = false;
+  closeWorkspaceView();
 }
 
 // ════════════════════════════════════════════
 // Integrations: self-serve WhatsApp/Instagram per manager
 // ════════════════════════════════════════════
 const INTEGRATIONS_CHANNEL_META = {
-  whatsapp: { label: 'WhatsApp', icon: '💬', idLabel: 'Phone Number ID', idField: 'phone_number_id', idPlaceholder: 'Напр. 109876543210987' },
-  instagram: { label: 'Instagram', icon: '📷', idLabel: 'Instagram User ID', idField: 'ig_user_id', idPlaceholder: 'Напр. 178414...' },
+  whatsapp: { label: 'WhatsApp Business', mark: 'WA', idLabel: 'Phone Number ID', idField: 'phone_number_id', idPlaceholder: 'Напр. 109876543210987' },
+  instagram: { label: 'Instagram', mark: 'IG', idLabel: 'Instagram User ID', idField: 'ig_user_id', idPlaceholder: 'Напр. 178414...' },
 };
 
-async function openIntegrationsView() {
-  if (!integrationsView) return;
-  if (window.innerWidth <= 720) sidebar.classList.add('hidden');
-  activeConvId = null;
-  activePartner = null;
-  clearInterval(convPollTimer);
-  if (chatEmpty) chatEmpty.hidden = true;
-  if (chatView) chatView.hidden = true;
-  if (leadInfoBanner) leadInfoBanner.hidden = true;
-  if (leadsKanbanView) leadsKanbanView.hidden = true;
-  if (prospectingView) prospectingView.hidden = true;
-  integrationsView.hidden = false;
-  if (integrationsGridEl) integrationsGridEl.innerHTML = '<p class="leads-empty">Завантаження…</p>';
+function setIntegrationsTab(tabName) {
+  document.querySelectorAll('[data-integrations-tab]').forEach(button => {
+    const active = button.dataset.integrationsTab === tabName;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', String(active));
+  });
+  document.querySelectorAll('[data-integrations-panel]').forEach(panel => {
+    panel.hidden = panel.dataset.integrationsPanel !== tabName;
+  });
+}
+
+document.querySelectorAll('[data-integrations-tab]').forEach(button => {
+  button.addEventListener('click', () => setIntegrationsTab(button.dataset.integrationsTab || 'channels'));
+});
+
+async function openIntegrationsView(initialTab = 'channels') {
+  if (!prepareWorkspaceView(integrationsView, workspaceIntegrationsEntry, 'Інтеграції')) return;
+  setIntegrationsTab(typeof initialTab === 'string' ? initialTab : 'channels');
+  if (integrationsGridEl) integrationsGridEl.innerHTML = workspaceStateHtml('loading', 'Перевіряємо підключення', 'Оновлюємо статус каналів менеджерів.');
   loadGoogleKeyCard();
   try {
     const [list, webhook] = await Promise.all([
@@ -1704,18 +2634,18 @@ async function openIntegrationsView() {
     renderIntegrationsWebhookCard(webhook);
     renderIntegrationsGrid(list);
   } catch (err) {
-    if (integrationsGridEl) integrationsGridEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Не вдалося завантажити інтеграції.')}</p>`;
+    if (integrationsGridEl) integrationsGridEl.innerHTML = workspaceStateHtml('error', 'Інтеграції недоступні', err.message || 'Перевірте налаштування та повторіть спробу.', 'integrations');
   }
 }
 
 async function loadGoogleKeyCard() {
   if (!googleKeyCardEl) return;
-  googleKeyCardEl.innerHTML = '<p class="leads-empty">Завантаження…</p>';
+  googleKeyCardEl.innerHTML = workspaceStateHtml('loading', 'Перевіряємо Google Search');
   try {
     const status = await api('GET', '/prospecting/google-key');
     renderGoogleKeyCard(status);
   } catch (err) {
-    googleKeyCardEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Не вдалося завантажити налаштування.')}</p>`;
+    googleKeyCardEl.innerHTML = workspaceStateHtml('error', 'Налаштування недоступні', err.message || 'Повторіть спробу.', 'google-key');
   }
 }
 
@@ -1808,33 +2738,124 @@ function renderGoogleKeyCard(status) {
 }
 
 function closeIntegrationsView() {
-  if (window.innerWidth <= 720) sidebar.classList.remove('hidden');
-  if (integrationsView) integrationsView.hidden = true;
-  if (chatEmpty) chatEmpty.hidden = false;
+  closeWorkspaceView();
 }
 
 // ════════════════════════════════════════════
 // Prospecting: конструктор пошуку клієнтів (OpenStreetMap)
 // ════════════════════════════════════════════
 async function openProspectingView() {
-  if (!prospectingView) return;
-  if (window.innerWidth <= 720) sidebar.classList.add('hidden');
-  activeConvId = null;
-  activePartner = null;
-  clearInterval(convPollTimer);
-  if (chatEmpty) chatEmpty.hidden = true;
-  if (chatView) chatView.hidden = true;
-  if (leadInfoBanner) leadInfoBanner.hidden = true;
-  if (leadsKanbanView) leadsKanbanView.hidden = true;
-  if (integrationsView) integrationsView.hidden = true;
-  prospectingView.hidden = false;
+  if (!prepareWorkspaceView(prospectingView, workspaceSearchEntry, 'Пошук клієнтів')) return;
   if (!prospCatalogLoaded) await loadProspectingCatalog();
 }
 
 function closeProspectingView() {
-  if (window.innerWidth <= 720) sidebar.classList.remove('hidden');
-  if (prospectingView) prospectingView.hidden = true;
-  if (chatEmpty) chatEmpty.hidden = false;
+  closeWorkspaceView();
+}
+
+function openingMonthLabel(value) {
+  return ({ '09': 'Вересень', '10': 'Жовтень', '11': 'Листопад' })[value] || value || '2026';
+}
+
+function openingCardHtml(item) {
+  const population = Number(item.city_population || 0).toLocaleString('uk-UA');
+  const confirmed = item.verification_status === 'confirmed';
+  const dateMatch = String(item.opening_date || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const dateDay = dateMatch ? dateMatch[3] : '—';
+  const dateYear = dateMatch ? dateMatch[1] : '2026';
+  return `
+    <article class="opening-card" data-opening-id="${escHtml(item.id || '')}">
+      <div class="opening-card-date"><span>${escHtml(openingMonthLabel(item.opening_month))}</span><strong>${escHtml(dateDay)}</strong><small>${escHtml(dateYear)}</small></div>
+      <div class="opening-card-main">
+        <div class="opening-card-topline">
+          <span class="opening-type">${escHtml(item.category_label || 'Локальний обʼєкт')}</span>
+          <span class="opening-status ${confirmed ? 'is-confirmed' : ''}">${escHtml(item.verification_label || 'Потребує перевірки')}</span>
+        </div>
+        <h3>${escHtml(item.business_name || '')}</h3>
+        <p class="opening-location">${escHtml(item.city_area || '')} · ${population} мешканців</p>
+        <p class="opening-description">${escHtml(item.description || '')}</p>
+        <div class="opening-card-actions">
+          <a href="${escHtml(item.source_url || '#')}" target="_blank" rel="noopener">${crmActionIcon('source')}<span>${escHtml(item.source_name || 'Відкрити джерело')}</span></a>
+          <button type="button" class="opening-import-btn" data-opening-import="${escHtml(item.id || '')}">Додати в CRM</button>
+        </div>
+      </div>
+    </article>`;
+}
+
+async function loadOpenings(page = 1) {
+  if (!openingsListEl) return;
+  openingsPage = page;
+  openingsFeedbackEl.textContent = 'Оновлюю реєстр…';
+  openingsFeedbackEl.hidden = false;
+  const params = new URLSearchParams({ page: String(page), per_page: '24' });
+  if (openingsSearchEl?.value.trim()) params.set('q', openingsSearchEl.value.trim());
+  if (openingsMonthEl?.value) params.set('month', openingsMonthEl.value);
+  if (openingsCityTierEl?.value) params.set('city_tier', openingsCityTierEl.value);
+  if (openingsCountryEl?.value) params.set('country', openingsCountryEl.value);
+  if (openingsCategoryEl?.value) params.set('category', openingsCategoryEl.value);
+  if (openingsVerificationEl?.value) params.set('verification', openingsVerificationEl.value);
+  try {
+    const data = await api('GET', '/prospecting/openings?' + params.toString());
+    if (!openingsFiltersLoaded) {
+      openingsCountryEl.innerHTML = '<option value="">Усі країни</option>' + (data.countries || []).map(x => `<option value="${escHtml(x.code)}">${escHtml(x.label)}</option>`).join('');
+      openingsCategoryEl.innerHTML = '<option value="">Усі типи</option>' + (data.categories || []).map(x => `<option value="${escHtml(x.key)}">${escHtml(x.label)}</option>`).join('');
+      openingsFiltersLoaded = true;
+    }
+    openingsTotalEl.textContent = String(data.total || 0);
+    if (workspaceOpeningsCountEl) workspaceOpeningsCountEl.textContent = String(data.registry_count || data.total || 0);
+    openingsFeedbackEl.textContent = data.total ? `Знайдено ${data.total}. Кожна дата має окреме джерело та статус перевірки.` : 'За цими фільтрами записів немає.';
+    openingsItemsById = new Map((data.records || []).map(item => [item.id, item]));
+    openingsListEl.innerHTML = (data.records || []).map(openingCardHtml).join('');
+    const pages = Math.max(1, Math.ceil((data.total || 0) / (data.per_page || 24)));
+    openingsPaginationEl.innerHTML = pages > 1 ? `<button type="button" data-opening-page="${Math.max(1, page - 1)}" ${page <= 1 ? 'disabled' : ''}>Назад</button><span>${page} / ${pages}</span><button type="button" data-opening-page="${Math.min(pages, page + 1)}" ${page >= pages ? 'disabled' : ''}>Далі</button>` : '';
+  } catch (err) {
+    openingsFeedbackEl.textContent = err.message || 'Не вдалося завантажити реєстр.';
+    openingsListEl.innerHTML = '';
+  }
+}
+
+async function loadOpeningsCount() {
+  if (!workspaceOpeningsCountEl) return;
+  try {
+    const data = await api('GET', '/prospecting/openings?per_page=12');
+    workspaceOpeningsCountEl.textContent = String(data.registry_count || data.total || 0);
+  } catch (_) {
+    workspaceOpeningsCountEl.textContent = '—';
+  }
+}
+
+async function openOpeningsView() {
+  if (!prepareWorkspaceView(openingsView, workspaceOpeningsEntry, 'Відкриття 2026')) return;
+  await loadOpenings(1);
+}
+
+function closeOpeningsView() {
+  closeWorkspaceView();
+}
+
+async function importOpeningById(id) {
+  const button = openingsListEl?.querySelector(`[data-opening-import="${CSS.escape(id)}"]`);
+  const card = button?.closest('.opening-card');
+  if (!button || !card) return;
+  button.disabled = true;
+  button.textContent = 'Додаю…';
+  try {
+    const item = openingsItemsById.get(id);
+    if (!item) throw new Error('Запис не знайдено.');
+    const result = await api('POST', '/prospecting/import', { candidates: [item], owner: 'Manager 1' });
+    if (result.created) {
+      button.textContent = 'У CRM';
+      card.classList.add('is-imported');
+      showToast('Лід додано менеджеру Міші.');
+    } else {
+      button.textContent = 'Вже у CRM';
+      showToast('Такий лід уже є у CRM.');
+    }
+  } catch (err) {
+    button.disabled = false;
+    button.textContent = 'Додати в CRM';
+    showToast(err.message || 'Не вдалося додати лід.', true);
+  }
 }
 
 async function loadProspectingCatalog() {
@@ -1853,14 +2874,59 @@ async function loadProspectingCatalog() {
     }
     prospGoogleConfigured = !!data.google_configured;
     if (prospTabGoogle && !prospGoogleConfigured) {
-      prospTabGoogle.innerHTML = '🔍 Google <span class="prosp-tab-badge">потрібен ключ</span>';
+      prospTabGoogle.innerHTML = '<span>Google</span><small>потрібен ключ</small>';
     }
     prospCatalogLoaded = true;
     loadSavedSearches().catch(() => {});
+    loadProspSearchRuns().catch(() => {});
     restoreLastProspSearch();
+    restoreActiveProspJob();
   } catch (err) {
-    if (prospResultsEl) prospResultsEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Не вдалося завантажити категорії.')}</p>`;
+    if (prospResultsEl) {
+      prospResultsEl.innerHTML = renderProspStatusHtml('error', 'Категорії не завантажились', friendlyApiMessage(err));
+      bindProspRecoveryActions();
+    }
   }
+}
+
+function renderProspStatusHtml(type, title, text, actions = '') {
+  const klass = type === 'loading' ? 'prosp-loading-card' : type === 'empty' ? 'prosp-empty-card' : 'prosp-error-card';
+  return `
+    <div class="${klass}">
+      <p class="mono-label">${type === 'loading' ? 'SEARCHING' : type === 'empty' ? 'NO RESULTS' : 'NEEDS ATTENTION'}</p>
+      <h3>${escHtml(title)}</h3>
+      <p>${escHtml(text)}</p>
+      ${actions}
+    </div>
+  `;
+}
+
+function renderProspLoading(label) {
+  if (!prospResultsEl) return;
+  prospResultsEl.innerHTML = renderProspStatusHtml('loading', 'Шукаю кандидатів', label);
+}
+
+function renderProspError(err) {
+  if (!prospResultsEl) return;
+  const actions = `
+    <div class="prosp-error-actions">
+      <button type="button" data-prosp-retry>Повторити пошук</button>
+      <button type="button" data-prosp-limit20>Зменшити ліміт до 20</button>
+    </div>
+  `;
+  prospResultsEl.innerHTML = renderProspStatusHtml('error', 'Пошук не завершився', friendlyApiMessage(err), actions);
+  bindProspRecoveryActions();
+}
+
+function bindProspRecoveryActions() {
+  prospResultsEl?.querySelector('[data-prosp-retry]')?.addEventListener('click', () => runProspectingSearch());
+  prospResultsEl?.querySelector('[data-prosp-limit20]')?.addEventListener('click', () => {
+    const limitEl = document.getElementById('prosp-limit');
+    const googleLimitEl = document.getElementById('prosp-g-num');
+    if (limitEl) limitEl.value = '20';
+    if (googleLimitEl) googleLimitEl.value = '10';
+    runProspectingSearch();
+  });
 }
 
 function prospSignalBadges(cand) {
@@ -1868,19 +2934,21 @@ function prospSignalBadges(cand) {
   if (cand.source === 'google') {
     const sig = cand.signals || {};
     if (sig.is_listicle) {
-      badges.push('<span class="prosp-badge prosp-badge-listicle">📄 Огляд/список — не один бізнес</span>');
+      badges.push('<span class="prosp-badge prosp-badge-listicle">Огляд / список — не один бізнес</span>');
     } else if (sig.platform_only) {
       badges.push('<span class="prosp-badge prosp-badge-gap">Тільки платформа, не власний сайт</span>');
     } else if (cand.website_url) {
-      badges.push('<span class="prosp-badge prosp-badge-new">🌐 Власний сайт знайдено</span>');
+      badges.push('<span class="prosp-badge prosp-badge-new">Власний сайт знайдено</span>');
     }
-    if (cand.phone) badges.push('<span class="prosp-badge prosp-badge-new">📞 Телефон у видачі</span>');
+    if (cand.phone) badges.push('<span class="prosp-badge prosp-badge-new">Телефон у видачі</span>');
     return badges.join('');
   }
   if (cand.opened) {
     const m = cand.opened.months_ago;
-    const label = m < 12 ? `Відкрито ${m} міс тому` : `Відкрито ${Math.floor(m / 12)} р тому`;
-    badges.push(`<span class="prosp-badge prosp-badge-new">🆕 ${escHtml(label)}</span>`);
+    const label = cand.opened.status === 'planned'
+      ? `Планується ${cand.opened.date}`
+      : (m < 12 ? `Відкрито ${m} міс тому` : `Відкрито ${Math.floor(m / 12)} р тому`);
+    badges.push(`<span class="prosp-badge prosp-badge-new">${escHtml(label)}</span>`);
   }
   const sig = cand.signals || {};
   if (sig.no_website) badges.push('<span class="prosp-badge prosp-badge-gap">Немає сайту</span>');
@@ -1889,24 +2957,119 @@ function prospSignalBadges(cand) {
   return badges.join('');
 }
 
-function renderProspResults(result) {
+function prospSourceLabel(source) {
+  if (source === 'google') return 'Google';
+  if (source === 'both') return 'OSM + Google';
+  return 'OSM';
+}
+
+function prospReasonLabel(reason) {
+  const labels = {
+    duplicate_phone: 'уже є в CRM за телефоном',
+    duplicate_domain: 'уже є в CRM за доменом сайту',
+    duplicate_name_city: 'уже є в CRM за назвою і містом',
+  };
+  return labels[reason] || reason || '';
+}
+
+function prospResultMetrics(list) {
+  const active = (list || []).filter(c => !c.__hidden);
+  return {
+    hot: active.filter(c => Number(c.score || 0) > 0).length,
+    contacts: active.filter(c => c.phone || c.email).length,
+    websites: active.filter(c => c.website_url).length,
+    gaps: active.filter(c => (c.signals || {}).no_website || (c.signals || {}).no_instagram || (c.signals || {}).no_facebook).length,
+  };
+}
+
+function visibleProspCards() {
+  return Array.from(prospResultsEl?.querySelectorAll('.prosp-card') || [])
+    .filter(card => card.style.display !== 'none' && !card.classList.contains('prosp-card-disabled'));
+}
+
+function setVisibleProspSelection(checked) {
+  visibleProspCards().forEach(card => {
+    const cb = card.querySelector('.prosp-select:not(:disabled)');
+    if (cb) cb.checked = checked;
+  });
+  updateProspImportBar();
+}
+
+function hideProspCandidate(idx) {
+  const cand = prospCandidates[idx];
+  if (!cand) return;
+  cand.__hidden = true;
+  renderProspResults({ ...(prospLastResult || {}), candidates: prospCandidates });
+  showToast('Кандидата приховано з поточної видачі.');
+}
+
+function renderProspResults(result, resultSource = prospSource) {
+  if (prospMap) { prospMap.remove(); prospMap = null; }
   prospLastResult = result;
   prospCandidates = result.candidates || [];
+  prospImportPreview = null;
   if (!prospResultsEl) return;
   if (prospQuickFilterRow) prospQuickFilterRow.hidden = !prospCandidates.length;
-  if (!prospCandidates.length) {
+  const visibleCandidates = prospCandidates.filter(c => !c.__hidden);
+  if (!visibleCandidates.length) {
     const note = result.recent_filter_applied
       ? 'Не знайдено бізнесів із відомою датою відкриття в цьому вікні. Спробуйте без фільтра «щойно відкриті» — OSM рідко має дату.'
       : 'Нічого не знайдено. Спробуйте іншу категорію, місто, або зніміть частину фільтрів.';
-    prospResultsEl.innerHTML = `<p class="leads-empty">${escHtml(note)}</p>`;
+    prospResultsEl.innerHTML = renderProspStatusHtml('empty', 'Нічого не знайдено', note);
     updateProspImportBar();
     return;
   }
   const excludedNote = result.excluded_existing
-    ? ` · приховано вже в CRM: <b>${result.excluded_existing}</b>`
+    ? `<span><b>${result.excluded_existing}</b> вже в CRM приховано</span>`
     : '';
-  const head = `<div class="prosp-results-head">Знайдено <b>${prospCandidates.length}</b> · усього в області: ${result.total_found}${excludedNote} · ${escHtml(result.area || '')}</div>`;
+  const metrics = prospResultMetrics(prospCandidates);
+  const locationWarnings = (result.location_errors || []).map(item => `${item.location}: ${item.message}`);
+  const warningNote = [result.osm_error ? `OSM: ${result.osm_error}` : '', result.google_error ? `Google: ${result.google_error}` : '', ...locationWarnings]
+    .filter(Boolean)
+    .map(t => `<span class="prosp-results-warning">${escHtml(t)}</span>`)
+    .join('');
+  const filterSummary = result.filter_summary || {};
+  const filterSummaryHtml = filterSummary.active
+    ? `<div class="prosp-filter-summary">Розумний фільтр: ${Number(filterSummary.before || 0)} до перевірки · ${Number(filterSummary.after || 0)} збігів${filterSummary.unknown ? ` · ${Number(filterSummary.unknown)} невідомих значень` : ''}</div>`
+    : '';
+  const queryPlanHtml = result.passes_completed
+    ? `<div class="prosp-query-plan"><b>${Number(result.passes_completed)} пошукових проходи</b>${(result.query_plan || []).map(item => `<span>${escHtml(item.label || item.kind || 'Пошук')}</span>`).join('')}</div>`
+    : '';
+  const catalogStats = result.catalog_stats || {};
+  const catalogHtml = (catalogStats.new || catalogStats.updated)
+    ? `<div class="prosp-catalog-note"><b>Власна база:</b> ${Number(catalogStats.new || 0)} нових · ${Number(catalogStats.updated || 0)} повторно підтверджено</div>`
+    : '';
+  const head = `
+    <div class="prosp-results-head">
+      <div>
+        <strong>${escHtml(prospSourceLabel(resultSource))}</strong>
+        <span>знайдено <b>${visibleCandidates.length}</b></span>
+        <span>усього: ${Number(result.total_found || prospCandidates.length)}</span>
+        ${excludedNote}
+      </div>
+      ${result.partial ? '<span class="prosp-partial-badge">Частковий результат</span>' : ''}
+      <small>${escHtml(result.area || 'Поточний пошук')}</small>
+      <div class="prosp-results-metrics">
+        <span><b>${metrics.hot}</b> гарячих</span>
+        <span><b>${metrics.contacts}</b> з контактами</span>
+        <span><b>${metrics.websites}</b> із сайтом</span>
+        <span><b>${metrics.gaps}</b> з прогалинами</span>
+      </div>
+      ${filterSummaryHtml}
+      ${queryPlanHtml}
+      ${catalogHtml}
+      <div class="prosp-results-actions">
+        <div class="prosp-view-switch" role="group" aria-label="Вигляд результатів">
+          <button type="button" data-prosp-view="list" class="${prospResultMode === 'list' ? 'active' : ''}">Список</button>
+          <button type="button" data-prosp-view="map" class="${prospResultMode === 'map' ? 'active' : ''}">Карта</button>
+        </div>
+        <button type="button" class="btn-secondary" id="btn-prosp-select-visible">Обрати видимі</button>
+        <button type="button" class="btn-secondary" id="btn-prosp-clear-selected">Зняти вибір</button>
+      </div>
+      ${warningNote ? `<div class="prosp-results-warnings">${warningNote}</div>` : ''}
+    </div>`;
   const rows = prospCandidates.map((c, i) => {
+    if (c.__hidden) return '';
     const isGoogle = c.source === 'google';
     const isListicle = isGoogle && !!(c.signals || {}).is_listicle;
     const metaLine = isGoogle
@@ -1917,60 +3080,288 @@ function renderProspResults(result) {
       : `<div class="prosp-card-avatar">${escHtml((c.business_name || '?').trim().charAt(0) || '?')}</div>`;
     const searchBlob = escHtml([c.business_name, c.domain, c.snippet, c.category, c.city_area].filter(Boolean).join(' ').toLowerCase());
     return `
-    <div class="prosp-card${isListicle ? ' prosp-card-disabled' : ''}" data-search="${searchBlob}">
+    <div class="prosp-card${isListicle ? ' prosp-card-disabled' : ''}" data-search="${searchBlob}" data-idx="${i}">
       <label class="prosp-card-check" title="${isListicle ? 'Це сторінка-огляд кількох бізнесів, а не один — виберіть конкретну назву самостійно за посиланням' : ''}">
         <input type="checkbox" class="prosp-select" data-idx="${i}" ${isListicle ? 'disabled' : ''}/>
       </label>
       ${avatar}
       <div class="prosp-card-body">
-        <div class="prosp-card-name">${escHtml(c.business_name)}${isGoogle ? ' <span class="prosp-badge prosp-badge-google">G</span>' : ''}${(c.score > 0 && !isListicle) ? ` <span class="prosp-score" title="Орієнтовна гарячість ліда">🔥${c.score}</span>` : ''}</div>
+        <div class="prosp-card-name">${escHtml(c.business_name)}${isGoogle ? ' <span class="prosp-badge prosp-badge-google">G</span>' : ''}${(c.score > 0 && !isListicle) ? ` <span class="prosp-score" title="Орієнтовна гарячість ліда">HOT ${c.score}</span>` : ''}</div>
         <div class="prosp-card-meta">${metaLine}</div>
         <div class="prosp-card-contacts">
-          ${c.phone ? `<span class="prosp-contact">📞 ${escHtml(c.phone)}</span>` : ''}
-          ${c.website_url ? `<a class="prosp-contact" href="${escHtml(c.website_url)}" target="_blank" rel="noopener">🌐 ${isGoogle ? escHtml(c.domain || 'сайт') : 'сайт'}</a>` : ''}
-          ${c.instagram ? `<span class="prosp-contact">📷 ${escHtml(c.instagram)}</span>` : ''}
+          ${c.phone ? `<span class="prosp-contact">phone · ${escHtml(c.phone)}</span>` : ''}
+          ${c.website_url ? `<a class="prosp-contact" href="${escHtml(c.website_url)}" target="_blank" rel="noopener">${isGoogle ? escHtml(c.domain || 'сайт') : 'site'}</a>` : ''}
+          ${c.instagram ? `<span class="prosp-contact">instagram · ${escHtml(c.instagram)}</span>` : ''}
+          ${c.facebook ? `<a class="prosp-contact" href="${escHtml(c.facebook)}" target="_blank" rel="noopener">Facebook</a>` : ''}
+          ${c.linkedin ? `<a class="prosp-contact" href="${escHtml(c.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ''}
+          ${c.whatsapp ? `<a class="prosp-contact" href="${escHtml(c.whatsapp)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
           ${c.source_url && !isGoogle ? `<a class="prosp-contact" href="${escHtml(c.source_url)}" target="_blank" rel="noopener">OSM</a>` : ''}
           ${c.source_url && isGoogle && !c.website_url ? `<a class="prosp-contact" href="${escHtml(c.source_url)}" target="_blank" rel="noopener">↗ переглянути</a>` : ''}
         </div>
         <div class="prosp-card-badges">${prospSignalBadges(c)}</div>
-        ${c.suggested_first_offer ? `<div class="prosp-card-offer">💡 ${escHtml(c.suggested_first_offer)}</div>` : ''}
-        ${(!isListicle && !c.phone && !c.email) ? `<button type="button" class="prosp-enrich-btn" data-idx="${i}">🔍 Знайти контакти</button>` : ''}
+        ${c.discovery_evidence?.length ? `<div class="prosp-discovery-proof"><b>Знайдено через:</b> ${c.discovery_evidence.map(item => escHtml(item.label)).join(' · ')}</div>` : ''}
+        ${c.match_reasons?.length ? `<div class="prosp-match-reasons">${c.match_reasons.map(reason => `<span>${escHtml(reason)}</span>`).join('')}</div>` : ''}
+        ${c.enrichment_sources?.length ? `<div class="prosp-enrichment-proof"><b>Якість ${Number(c.enrichment_quality || 0)}/100</b> · перевірено ${c.enrichment_sources.length} стор.${c.enrichment_structured ? ' · Schema.org' : ''}${c.enrichment_cache_hit ? ` · ${c.enrichment_cache_layer === 'persistent' ? 'серверний кеш' : 'швидкий кеш'}` : ''}${c.enrichment_languages?.length ? ` · ${escHtml(c.enrichment_languages.join(', ').toUpperCase())}` : ''} · <a href="${escHtml(c.enrichment_sources[0])}" target="_blank" rel="noopener">джерело ↗</a></div>` : ''}
+        ${c.enrichment_address ? `<div class="prosp-card-address">${escHtml(c.enrichment_address)}</div>` : ''}
+        ${c.suggested_first_offer ? `<div class="prosp-card-offer">${escHtml(c.suggested_first_offer)}</div>` : ''}
+        <div class="prosp-card-actions">
+          ${(!isListicle && !c.phone && !c.email) ? `<button type="button" class="prosp-enrich-btn" data-idx="${i}">Знайти контакти</button>` : ''}
+          ${(!isListicle && c.enrichment_sources?.length) ? `<button type="button" class="prosp-enrich-btn" data-idx="${i}" data-force-refresh="1">Оновити перевірку</button>` : ''}
+          ${c.website_url ? `<a class="prosp-card-link" href="${escHtml(c.website_url)}" target="_blank" rel="noopener">Відкрити сайт</a>` : ''}
+          <button type="button" class="prosp-hide-btn" data-idx="${i}">Сховати</button>
+        </div>
       </div>
     </div>
   `;
   }).join('');
-  prospResultsEl.innerHTML = head + `<div class="prosp-cards">${rows}</div>`;
+  const mapVisibleCandidates = prospCandidates.filter(c => !c.__hidden);
+  const mappedCount = mapVisibleCandidates.filter(hasProspCoordinates).length;
+  prospResultsEl.innerHTML = head + `
+    <div class="prosp-map-shell" id="prosp-map-shell" ${prospResultMode === 'map' ? '' : 'hidden'}>
+      <div class="prosp-map-meta">
+        <div><strong>${mappedCount}</strong> на карті <span>· ${mapVisibleCandidates.length - mappedCount} без координат у списку</span></div>
+        <div class="prosp-map-tools">
+          <span>Колесо миші не змінює масштаб</span>
+          <button type="button" id="btn-prosp-map-fit">Показати всі точки</button>
+        </div>
+      </div>
+      <div class="prosp-map" id="prosp-map" aria-label="Карта знайдених бізнесів"></div>
+    </div>
+    <div class="prosp-cards" ${prospResultMode === 'map' ? 'hidden' : ''}>${rows}</div>`;
+  prospResultsEl.querySelectorAll('[data-prosp-view]').forEach(btn => {
+    btn.addEventListener('click', () => setProspResultMode(btn.dataset.prospView));
+  });
+  document.getElementById('btn-prosp-select-visible')?.addEventListener('click', () => setVisibleProspSelection(true));
+  document.getElementById('btn-prosp-clear-selected')?.addEventListener('click', () => setVisibleProspSelection(false));
   prospResultsEl.querySelectorAll('.prosp-select').forEach(cb => {
     cb.addEventListener('change', updateProspImportBar);
   });
   prospResultsEl.querySelectorAll('.prosp-enrich-btn').forEach(btnEl => {
-    btnEl.addEventListener('click', () => enrichProspCandidate(Number(btnEl.dataset.idx)));
+    btnEl.addEventListener('click', () => enrichProspCandidate(Number(btnEl.dataset.idx), btnEl.dataset.forceRefresh === '1', btnEl));
+  });
+  prospResultsEl.querySelectorAll('.prosp-hide-btn').forEach(btnEl => {
+    btnEl.addEventListener('click', () => hideProspCandidate(Number(btnEl.dataset.idx)));
   });
   updateProspImportBar();
+  if (prospResultMode === 'map') requestAnimationFrame(() => renderProspMap());
 }
 
-async function enrichProspCandidate(idx) {
+function setProspResultMode(mode) {
+  prospResultMode = mode === 'map' ? 'map' : 'list';
+  const mapShell = document.getElementById('prosp-map-shell');
+  const cards = prospResultsEl?.querySelector('.prosp-cards');
+  if (mapShell) mapShell.hidden = prospResultMode !== 'map';
+  if (cards) cards.hidden = prospResultMode === 'map';
+  prospResultsEl?.querySelectorAll('[data-prosp-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.prospView === prospResultMode));
+  if (prospResultMode === 'map') requestAnimationFrame(() => renderProspMap());
+}
+
+function hasProspCoordinates(candidate) {
+  if (!candidate) return false;
+  const lat = candidate.latitude;
+  const lon = candidate.longitude;
+  if (lat === null || lat === undefined || lat === '' || lon === null || lon === undefined || lon === '') return false;
+  return Number.isFinite(Number(lat)) && Number.isFinite(Number(lon));
+}
+
+function renderProspMap() {
+  const mapEl = document.getElementById('prosp-map');
+  if (!mapEl || mapEl.offsetParent === null) return;
+  const located = prospCandidates
+    .filter(candidate => !candidate.__hidden && hasProspCoordinates(candidate))
+    .map((candidate, idx) => ({ candidate, idx, lat: Number(candidate.latitude), lon: Number(candidate.longitude) }))
+    .filter(item => Number.isFinite(item.lat) && Number.isFinite(item.lon));
+  if (!window.L) {
+    mapEl.innerHTML = '<div class="prosp-map-empty">Картографічний модуль не завантажився. Список результатів залишається доступним.</div>';
+    return;
+  }
+  if (!located.length) {
+    mapEl.innerHTML = '<div class="prosp-map-empty">У цих результатах немає координат. Перейдіть до списку або виконайте пошук через OSM.</div>';
+    return;
+  }
+  if (prospMap) { prospMap.invalidateSize(); return; }
+  prospMap = window.L.map(mapEl, { scrollWheelZoom: false, zoomControl: true });
+  window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors',
+  }).addTo(prospMap);
+  const bounds = [];
+  located.forEach(({ candidate, idx, lat, lon }) => {
+    bounds.push([lat, lon]);
+    const popupContacts = [
+      candidate.phone ? `<a href="tel:${escHtml(String(candidate.phone).replace(/[^+\d]/g, ''))}">${escHtml(candidate.phone)}</a>` : '',
+      candidate.website_url ? `<a href="${escHtml(candidate.website_url)}" target="_blank" rel="noopener">Сайт ↗</a>` : '',
+    ].filter(Boolean).join('');
+    const popup = `<div class="prosp-map-popup"><strong>${escHtml(candidate.business_name || 'Без назви')}</strong><span>${escHtml([candidate.category, candidate.city_area].filter(Boolean).join(' · '))}</span>${popupContacts ? `<div class="prosp-map-popup-contacts">${popupContacts}</div>` : ''}<button type="button" data-map-card="${idx}">Показати у списку</button></div>`;
+    window.L.marker([lat, lon]).addTo(prospMap).bindPopup(popup).on('popupopen', event => {
+      event.popup.getElement()?.querySelector('[data-map-card]')?.addEventListener('click', () => {
+        setProspResultMode('list');
+        const card = prospResultsEl?.querySelector(`.prosp-card[data-idx="${idx}"]`);
+        card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card?.classList.add('prosp-card-highlight');
+        setTimeout(() => card?.classList.remove('prosp-card-highlight'), 1800);
+      }, { once: true });
+    });
+  });
+  prospMap.fitBounds(bounds, { padding: [28, 28], maxZoom: 14 });
+  document.getElementById('btn-prosp-map-fit')?.addEventListener('click', () => {
+    prospMap?.fitBounds(bounds, { padding: [28, 28], maxZoom: 14 });
+  });
+}
+
+function renderProspImportPreview(preview, selected) {
+  if (!prospResultsEl) return;
+  prospImportPreview = preview;
+  document.getElementById('prosp-import-preview')?.remove();
+  const summary = preview.summary || {};
+  const rows = preview.rows || [];
+  const newIndexes = new Set(rows.filter(r => r.status === 'new').map(r => Number(r.idx)));
+  const selectedRows = rows.slice(0, 18).map(r => {
+    const statusLabel = r.status === 'new' ? 'додасться' : r.status === 'duplicate' ? 'дубль' : 'проблема';
+    return `
+      <div class="prosp-preview-row prosp-preview-${escHtml(r.status)}">
+        <span class="prosp-preview-status">${escHtml(statusLabel)}</span>
+        <strong>${escHtml(r.business_name || 'Без назви')}</strong>
+        <small>${escHtml([r.city_area, r.phone, r.website_url].filter(Boolean).join(' · '))}</small>
+        ${r.reason ? `<em>${escHtml(prospReasonLabel(r.reason))}</em>` : ''}
+      </div>
+    `;
+  }).join('');
+  const more = rows.length > 18 ? `<p class="prosp-preview-more">Показано 18 з ${rows.length}. Усі рядки будуть враховані при додаванні.</p>` : '';
+  const cleanSelected = selected.filter((_, idx) => newIndexes.has(idx));
+  const panel = document.createElement('div');
+  panel.id = 'prosp-import-preview';
+  panel.className = 'prosp-import-preview';
+  panel.innerHTML = `
+    <div class="prosp-preview-head">
+      <div>
+        <p class="mono-label">Перевірка перед імпортом</p>
+        <h3>${Number(summary.new || 0)} нових · ${Number(summary.duplicate || 0)} дублів · ${Number(summary.invalid || 0)} проблем</h3>
+        <p>CRM перевірила телефон, домен сайту, назву й місто. Додамо тільки чисті записи.</p>
+      </div>
+      <div class="prosp-preview-actions">
+        <button type="button" class="btn-secondary" id="btn-prosp-preview-back">Повернутись</button>
+        <button type="button" class="btn-primary" id="btn-prosp-preview-confirm" ${cleanSelected.length ? '' : 'disabled'}>Додати ${cleanSelected.length} нових</button>
+      </div>
+    </div>
+    <div class="prosp-preview-list">${selectedRows}</div>
+    ${more}
+  `;
+  prospResultsEl.prepend(panel);
+  document.getElementById('btn-prosp-preview-back')?.addEventListener('click', () => {
+    prospImportPreview = null;
+    panel.remove();
+  });
+  document.getElementById('btn-prosp-preview-confirm')?.addEventListener('click', () => {
+    commitProspImport(cleanSelected);
+  });
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function enrichProspCandidate(idx, forceRefresh = false, triggerButton = null) {
   const cand = prospCandidates[idx];
   if (!cand) return;
-  const btnEl = prospResultsEl?.querySelector(`.prosp-enrich-btn[data-idx="${idx}"]`);
+  const btnEl = triggerButton || prospResultsEl?.querySelector(`.prosp-enrich-btn[data-idx="${idx}"]`);
+  const originalBtnText = btnEl?.textContent || 'Знайти контакти';
   if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Шукаю…'; }
   try {
     const data = await api('POST', '/prospecting/enrich', {
-      business_name: cand.business_name, city: cand.city_area, country: cand.country || document.getElementById('prosp-country')?.value.trim() || '',
-    }, { timeoutMs: 20000 });
-    if (!data.phone && !data.email && !data.website_url) {
-      showToast('Нічого не знайдено в цьому запиті.');
-      if (btnEl) { btnEl.disabled = false; btnEl.textContent = '🔍 Знайти контакти'; }
+      business_name: cand.business_name,
+      website_url: cand.website_url || '',
+      city: cand.city_area,
+      country: cand.country || document.getElementById('prosp-country')?.value.trim() || '',
+      force_refresh: forceRefresh,
+    }, { timeoutMs: 35000 });
+    if (data.blocked_by_robots) {
+      showToast('Сайт заборонив автоматичну перевірку. Відкрийте його вручну.', true);
+      if (btnEl) { btnEl.disabled = false; btnEl.textContent = originalBtnText; }
       return;
     }
-    if (data.phone) cand.phone = data.phone;
-    if (data.email) cand.email = data.email;
-    if (data.website_url && !cand.website_url) cand.website_url = data.website_url;
-    showToast('Контакти оновлено.');
+    if (!applyProspEnrichment(cand, data)) {
+      const crawlError = Array.isArray(data.crawl_errors) ? data.crawl_errors[0] : '';
+      if (crawlError) showToast(`Не вдалося перевірити сайт: ${crawlError}`, true);
+      else showToast('На публічних сторінках контактів не знайдено.');
+      if (btnEl) { btnEl.disabled = false; btnEl.textContent = originalBtnText; }
+      return;
+    }
+    const checked = Number(data.pages_checked || 0);
+    showToast(checked ? `Контакти оновлено · перевірено сторінок: ${checked}` : 'Контакти оновлено.');
     if (prospLastResult) renderProspResults({ ...prospLastResult, candidates: prospCandidates });
   } catch (err) {
     showToast(err.message || 'Не вдалося знайти контакти.', true);
-    if (btnEl) { btnEl.disabled = false; btnEl.textContent = '🔍 Знайти контакти'; }
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = originalBtnText; }
+  }
+}
+
+function applyProspEnrichment(cand, data) {
+  const hadWebsite = Boolean(cand.website_url);
+  const foundContact = Boolean(data.phone || data.email || data.instagram || data.facebook || data.linkedin || data.whatsapp);
+  const foundWebsite = Boolean(data.website_url && !hadWebsite);
+  if (data.phone) cand.phone = data.phone;
+  if (data.email) cand.email = data.email;
+  if (data.website_url && !cand.website_url) cand.website_url = data.website_url;
+  if (data.instagram) cand.instagram = data.instagram;
+  if (data.facebook) cand.facebook = data.facebook;
+  if (data.linkedin) cand.linkedin = data.linkedin;
+  if (data.whatsapp) cand.whatsapp = data.whatsapp;
+  if (data.description && !cand.snippet) cand.snippet = data.description;
+  cand.enrichment_sources = data.sources || [];
+  cand.enrichment_evidence = data.evidence || [];
+  cand.enrichment_cache_hit = Boolean(data.cache_hit);
+  cand.enrichment_cache_layer = data.cache_layer || '';
+  cand.enrichment_cache_age = Number(data.cache_age_seconds || 0);
+  cand.enrichment_structured = Boolean(data.structured_data_found);
+  cand.enrichment_quality = Number(data.contact_quality_score || 0);
+  cand.enrichment_address = data.address || '';
+  cand.enrichment_languages = data.site_languages || [];
+  cand.enrichment_opening_hours = data.opening_hours || [];
+  cand.enrichment_schema_types = data.schema_types || [];
+  return foundContact || foundWebsite;
+}
+
+async function enrichSelectedProspCandidates() {
+  const selectedIndexes = Array.from(prospResultsEl?.querySelectorAll('.prosp-select:checked') || [])
+    .map(cb => Number(cb.dataset.idx))
+    .filter(idx => prospCandidates[idx]);
+  if (!selectedIndexes.length || !btnProspEnrichSelected) return;
+  const queue = selectedIndexes.slice(0, 10);
+  if (selectedIndexes.length > queue.length) showToast('За один запуск перевіряємо до 10 сайтів. Решта залишилася обраною.');
+  let updated = 0;
+  let unavailable = 0;
+  btnProspEnrichSelected.disabled = true;
+  btnProspImport.disabled = true;
+  try {
+    for (let position = 0; position < queue.length; position += 1) {
+      const idx = queue[position];
+      const cand = prospCandidates[idx];
+      btnProspEnrichSelected.textContent = `Перевіряю ${position + 1}/${queue.length}`;
+      try {
+        const data = await api('POST', '/prospecting/enrich', {
+          business_name: cand.business_name,
+          website_url: cand.website_url || '',
+          city: cand.city_area,
+          country: cand.country || document.getElementById('prosp-country')?.value.trim() || '',
+        }, { timeoutMs: 35000 });
+        if (!data.blocked_by_robots && applyProspEnrichment(cand, data)) updated += 1;
+        else unavailable += 1;
+      } catch (_) {
+        unavailable += 1;
+      }
+    }
+    if (prospLastResult) {
+      renderProspResults({ ...prospLastResult, candidates: prospCandidates });
+      selectedIndexes.forEach(idx => {
+        const checkbox = prospResultsEl?.querySelector(`.prosp-select[data-idx="${idx}"]`);
+        if (checkbox && !checkbox.disabled) checkbox.checked = true;
+      });
+      updateProspImportBar();
+    }
+    showToast(`Перевірено ${queue.length}: оновлено ${updated}, без нових контактів ${unavailable}.`);
+  } finally {
+    btnProspEnrichSelected.disabled = false;
+    btnProspEnrichSelected.textContent = 'Знайти контакти';
+    btnProspImport.disabled = false;
+    updateProspImportBar();
   }
 }
 
@@ -1983,7 +3374,12 @@ function selectedProspCandidates() {
 
 function updateProspImportBar() {
   const selected = selectedProspCandidates();
+  if (prospImportPreview) {
+    prospImportPreview = null;
+    document.getElementById('prosp-import-preview')?.remove();
+  }
   if (prospSelectedCount) prospSelectedCount.textContent = `Обрано: ${selected.length}`;
+  if (btnProspEnrichSelected) btnProspEnrichSelected.disabled = selected.length === 0;
   if (prospImportBar) prospImportBar.hidden = selected.length === 0;
 }
 
@@ -1994,8 +3390,8 @@ function setProspSource(source) {
   if (prospTabBoth) prospTabBoth.classList.toggle('active', prospSource === 'both');
   if (prospGoogleFiltersEl) prospGoogleFiltersEl.hidden = prospSource !== 'google';
   if (prospOsmFiltersEl) prospOsmFiltersEl.hidden = prospSource === 'google';
-  const recentRow = document.getElementById('prosp-recent')?.closest('.prospecting-checkbox');
-  if (recentRow) recentRow.hidden = prospSource === 'google';
+  const smartFilters = document.getElementById('prosp-smart-filters');
+  if (smartFilters) smartFilters.hidden = false;
   if (prospCountryEl) prospCountryEl.required = prospSource !== 'google';
   if (prospSourceSubEl) {
     prospSourceSubEl.textContent = prospSource === 'google'
@@ -2020,7 +3416,7 @@ if (prospTabGoogle) prospTabGoogle.addEventListener('click', () => setProspSourc
 if (prospTabBoth) prospTabBoth.addEventListener('click', () => setProspSource('both'));
 {
   const setupKeyBtn = document.getElementById('btn-prosp-setup-key');
-  if (setupKeyBtn) setupKeyBtn.addEventListener('click', () => openIntegrationsView());
+  if (setupKeyBtn) setupKeyBtn.addEventListener('click', () => openIntegrationsView('search'));
 }
 
 function sortProspCandidates(list, sortMode) {
@@ -2041,31 +3437,133 @@ function selectedProspCategoryKeys() {
   return Array.from(prospCategoryEl?.selectedOptions || []).map(o => o.value).filter(Boolean);
 }
 
+function parsedProspLocations() {
+  const raw = document.getElementById('prosp-locations')?.value || '';
+  return raw.split(/\n+/).map(line => line.trim()).filter(Boolean).slice(0, 8).map(line => {
+    const parts = line.split(/\s*[|;]\s*/);
+    return { country: (parts[0] || '').trim(), city: (parts.slice(1).join(' ') || '').trim() };
+  }).filter(item => item.country);
+}
+
+function currentProspLanguage() {
+  return document.getElementById('prosp-language')?.value || document.getElementById('prosp-g-lang')?.value || 'en';
+}
+
+function selectedValues(id) {
+  const el = document.getElementById(id);
+  return el ? Array.from(el.selectedOptions || []).map(option => option.value).filter(Boolean) : [];
+}
+
+function gatherProspAdvancedFilters() {
+  return {
+    city_sizes: selectedValues('prosp-city-size'),
+    zone_types: selectedValues('prosp-zone-type'),
+    opening_status: document.getElementById('prosp-opening-status')?.value || 'any',
+    recent_months: Number(document.getElementById('prosp-recent-months')?.value || 0),
+    opening_month: Number(document.getElementById('prosp-opening-month')?.value || 0),
+    opening_year: Number(document.getElementById('prosp-opening-year')?.value || 0),
+    digital_modes: selectedValues('prosp-digital-mode'),
+    filter_mode: document.getElementById('prosp-filter-mode')?.value || 'all',
+    unknown_policy: document.getElementById('prosp-unknown-policy')?.value || 'exclude',
+  };
+}
+
+function updateProspFilterExplain() {
+  const f = gatherProspAdvancedFilters();
+  const parts = [];
+  if (f.city_sizes.length) parts.push(`${f.city_sizes.length} масштаби міста`);
+  if (f.zone_types.length) parts.push(`${f.zone_types.length} профілі місцевості`);
+  if (f.opening_status !== 'any') parts.push(`статус: ${f.opening_status}`);
+  if (f.recent_months) parts.push(`за ${f.recent_months} міс.`);
+  if (f.opening_month) parts.push(`місяць ${String(f.opening_month).padStart(2, '0')}`);
+  if (f.opening_year) parts.push(`рік ${f.opening_year}`);
+  if (f.digital_modes.length) parts.push(`${f.digital_modes.length} digital-умови`);
+  const count = parts.length;
+  const countEl = document.getElementById('prosp-smart-count');
+  const explainEl = document.getElementById('prosp-filter-explain');
+  if (countEl) countEl.textContent = count ? `${count} активних` : 'Не застосовано';
+  if (explainEl) explainEl.textContent = count
+    ? `Показувати кандидатів, які виконують ${f.filter_mode === 'all' ? 'усі' : 'хоча б одну'} умови: ${parts.join(' · ')}. Невідомі значення ${f.unknown_policy === 'include' ? 'не виключають кандидата' : 'виключають кандидата'}.`
+    : 'Додаткові умови не застосовані.';
+}
+
+function applyProspAdvancedFilters(filters = {}) {
+  const selectMany = (id, values) => {
+    const el = document.getElementById(id);
+    if (el) Array.from(el.options).forEach(option => { option.selected = (values || []).includes(option.value); });
+  };
+  const set = (id, value) => { const el = document.getElementById(id); if (el) el.value = value ?? ''; };
+  selectMany('prosp-city-size', filters.city_sizes);
+  selectMany('prosp-zone-type', filters.zone_types);
+  selectMany('prosp-digital-mode', filters.digital_modes);
+  set('prosp-opening-status', filters.opening_status || 'any');
+  set('prosp-recent-months', String(filters.recent_months || 0));
+  set('prosp-opening-month', String(filters.opening_month || 0));
+  set('prosp-opening-year', filters.opening_year || '');
+  set('prosp-filter-mode', filters.filter_mode || 'all');
+  set('prosp-unknown-policy', filters.unknown_policy || 'exclude');
+  updateProspFilterExplain();
+}
+
 async function runProspectingSearch(e) {
   if (e) e.preventDefault();
   const categoryKeys = selectedProspCategoryKeys();
   const country = document.getElementById('prosp-country')?.value.trim() || '';
   const city = document.getElementById('prosp-city')?.value.trim() || '';
+  const locations = parsedProspLocations();
+  const lang = currentProspLanguage();
   const customQuery = document.getElementById('prosp-g-custom')?.value.trim() || '';
   if (prospSource !== 'google' || !customQuery) {
     if (!categoryKeys.length) { showToast('Оберіть хоча б одну категорію.', true); return; }
   }
   const excludeExisting = !!document.getElementById('prosp-exclude-existing')?.checked;
 
+  const discoveryDepth = document.getElementById('prosp-discovery-depth')?.value || 'standard';
+  const commonJobParams = {
+    category_keys: categoryKeys, country, city, locations, lang,
+    discovery_depth: discoveryDepth,
+    exclude_existing: excludeExisting,
+  };
+  if (locations.length > 1) {
+    const advancedFilters = gatherProspAdvancedFilters();
+    const qualifiers = Array.from(prospQualifiersEl?.querySelectorAll('.prosp-qualifier:checked') || []).map(cb => cb.value);
+    const params = prospSource === 'google' ? {
+      ...commonJobParams,
+      advanced_filters: advancedFilters,
+      custom_query: customQuery,
+      exact_terms: document.getElementById('prosp-g-exact')?.value.trim() || '',
+      exclude_terms: document.getElementById('prosp-g-exclude')?.value.trim() || '',
+      gl: document.getElementById('prosp-g-gl')?.value.trim().toLowerCase() || '',
+      date_restrict: document.getElementById('prosp-g-date')?.value || '',
+      exclude_platforms: document.getElementById('prosp-g-exclude-platforms')?.checked !== false,
+      limit: Number(document.getElementById('prosp-g-num')?.value || 20),
+    } : {
+      ...commonJobParams,
+      qualifiers,
+      advanced_filters: advancedFilters,
+      limit: Number(document.getElementById('prosp-limit')?.value || 30),
+    };
+    await startProspBackgroundJob(prospSource, params);
+    saveLastProspSearch();
+    return;
+  }
+
   const btn = document.getElementById('btn-prosp-search');
   if (btn) { btn.disabled = true; btn.textContent = 'Шукаю…'; }
   if (prospQuickFilterEl) prospQuickFilterEl.value = '';
 
   if (prospSource === 'google') {
-    if (!customQuery && !country && !city) { showToast('Вкажіть країну або місто.', true); if (btn) { btn.disabled = false; btn.textContent = 'Шукати'; } return; }
-    if (prospResultsEl) prospResultsEl.innerHTML = '<p class="leads-empty">Шукаю через Google Custom Search…</p>';
+    if (!customQuery && !country && !city && !locations.length) { showToast('Вкажіть країну, місто або список локацій.', true); if (btn) { btn.disabled = false; btn.textContent = 'Шукати'; } return; }
+    renderProspLoading('Перевіряю веб-видачу, прибираю сторінки-агрегатори та готую короткий список кандидатів.');
     try {
       const result = await api('POST', '/prospecting/search-google', {
-        category_keys: categoryKeys, country, city, custom_query: customQuery,
+        category_keys: categoryKeys, country, city, locations, custom_query: customQuery,
+        discovery_depth: discoveryDepth,
+        advanced_filters: gatherProspAdvancedFilters(),
         exact_terms: document.getElementById('prosp-g-exact')?.value.trim() || '',
         exclude_terms: document.getElementById('prosp-g-exclude')?.value.trim() || '',
         gl: document.getElementById('prosp-g-gl')?.value.trim().toLowerCase() || '',
-        lang: document.getElementById('prosp-g-lang')?.value || '',
+        lang,
         date_restrict: document.getElementById('prosp-g-date')?.value || '',
         exclude_platforms: document.getElementById('prosp-g-exclude-platforms')?.checked !== false,
         exclude_existing: excludeExisting,
@@ -2074,70 +3572,81 @@ async function runProspectingSearch(e) {
       renderProspResults(result);
       saveLastProspSearch();
     } catch (err) {
-      if (prospResultsEl) prospResultsEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Помилка пошуку.')}</p>`;
+      renderProspError(err);
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = 'Шукати'; }
+      loadProspSearchRuns().catch(() => {});
     }
     return;
   }
 
-  if (!country) { showToast('Вкажіть країну.', true); if (btn) { btn.disabled = false; btn.textContent = 'Шукати'; } return; }
-  const recentOnly = document.getElementById('prosp-recent')?.checked;
+  if (!country && !locations.length) { showToast('Вкажіть країну або додайте список локацій.', true); if (btn) { btn.disabled = false; btn.textContent = 'Шукати'; } return; }
+  const advancedFilters = gatherProspAdvancedFilters();
   const qualifiers = Array.from(prospQualifiersEl?.querySelectorAll('.prosp-qualifier:checked') || [])
     .map(cb => cb.value);
   const limit = Number(document.getElementById('prosp-limit')?.value || 30);
   const sortMode = document.getElementById('prosp-sort')?.value || 'default';
 
   if (prospSource === 'both') {
-    if (prospResultsEl) prospResultsEl.innerHTML = '<p class="leads-empty">Шукаю одночасно в OpenStreetMap і Google…</p>';
+    renderProspLoading('Збираю OSM і Google в один список, дедуплюю за телефоном, доменом і назвою.');
     try {
       const result = await api('POST', '/prospecting/search-both', {
-        category_keys: categoryKeys, country, city, qualifiers,
-        recent_months: recentOnly ? 12 : 0, limit, exclude_existing: excludeExisting,
+        category_keys: categoryKeys, country, city, locations, lang, qualifiers,
+        discovery_depth: discoveryDepth,
+        advanced_filters: advancedFilters, limit, exclude_existing: excludeExisting,
       }, { timeoutMs: 70000 });
       if (result.osm_error) showToast(`OSM: ${result.osm_error}`, true);
       if (result.google_error) showToast(`Google: ${result.google_error}`, true);
       renderProspResults(result);
       saveLastProspSearch();
     } catch (err) {
-      if (prospResultsEl) prospResultsEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Помилка пошуку.')}</p>`;
+      renderProspError(err);
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = 'Шукати'; }
+      loadProspSearchRuns().catch(() => {});
     }
     return;
   }
 
-  if (prospResultsEl) prospResultsEl.innerHTML = '<p class="leads-empty">Шукаю в OpenStreetMap… (може зайняти до хвилини)</p>';
+  renderProspLoading('Шукаю в OpenStreetMap. Якщо місто велике, краще тримати ліміт 20-30 для стабільної відповіді.');
   try {
     const result = await api('POST', '/prospecting/search', {
-      category_keys: categoryKeys, country, city, qualifiers,
-      recent_months: recentOnly ? 12 : 0, limit, exclude_existing: excludeExisting,
+      category_keys: categoryKeys, country, city, locations, lang, qualifiers,
+      advanced_filters: advancedFilters, limit, exclude_existing: excludeExisting,
     }, { timeoutMs: 70000 });
     result.candidates = sortProspCandidates(result.candidates || [], sortMode);
     renderProspResults(result);
     saveLastProspSearch();
   } catch (err) {
-    if (prospResultsEl) prospResultsEl.innerHTML = `<p class="leads-empty">${escHtml(err.message || 'Помилка пошуку.')}</p>`;
+    renderProspError(err);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Шукати'; }
+    loadProspSearchRuns().catch(() => {});
   }
 }
 
 function gatherProspFilters() {
   const excludeExisting = !!document.getElementById('prosp-exclude-existing')?.checked;
+  const locations = parsedProspLocations();
+  const lang = currentProspLanguage();
   if (prospSource === 'google') {
     return {
       category_keys: selectedProspCategoryKeys(),
       country: document.getElementById('prosp-country')?.value.trim() || '',
       city: document.getElementById('prosp-city')?.value.trim() || '',
+      locations,
+      locations_text: document.getElementById('prosp-locations')?.value || '',
+      market_lang: lang,
+      discovery_depth: document.getElementById('prosp-discovery-depth')?.value || 'standard',
       custom_query: document.getElementById('prosp-g-custom')?.value.trim() || '',
       exact_terms: document.getElementById('prosp-g-exact')?.value.trim() || '',
       exclude_terms: document.getElementById('prosp-g-exclude')?.value.trim() || '',
       gl: document.getElementById('prosp-g-gl')?.value.trim() || '',
-      lang: document.getElementById('prosp-g-lang')?.value || '',
+      lang,
       date_restrict: document.getElementById('prosp-g-date')?.value || '',
       exclude_platforms: document.getElementById('prosp-g-exclude-platforms')?.checked !== false,
       exclude_existing: excludeExisting,
+      advanced_filters: gatherProspAdvancedFilters(),
       num: document.getElementById('prosp-g-num')?.value || '20',
     };
   }
@@ -2145,8 +3654,12 @@ function gatherProspFilters() {
     category_keys: selectedProspCategoryKeys(),
     country: document.getElementById('prosp-country')?.value.trim() || '',
     city: document.getElementById('prosp-city')?.value.trim() || '',
+    locations,
+    locations_text: document.getElementById('prosp-locations')?.value || '',
+    market_lang: lang,
+    discovery_depth: document.getElementById('prosp-discovery-depth')?.value || 'standard',
     qualifiers: Array.from(prospQualifiersEl?.querySelectorAll('.prosp-qualifier:checked') || []).map(cb => cb.value),
-    recent: !!document.getElementById('prosp-recent')?.checked,
+    advanced_filters: gatherProspAdvancedFilters(),
     exclude_existing: excludeExisting,
     limit: document.getElementById('prosp-limit')?.value || '30',
     sort: document.getElementById('prosp-sort')?.value || 'default',
@@ -2163,9 +3676,16 @@ function applyProspFilters(source, params) {
   const cityEl = document.getElementById('prosp-city');
   if (countryEl) countryEl.value = params.country || '';
   if (cityEl) cityEl.value = params.city || '';
+  const locationsEl = document.getElementById('prosp-locations');
+  if (locationsEl) locationsEl.value = params.locations_text || (params.locations || []).map(item => `${item.country}${item.city ? ` | ${item.city}` : ''}`).join('\n');
+  const languageEl = document.getElementById('prosp-language');
+  if (languageEl) languageEl.value = params.market_lang || params.lang || 'en';
+  const discoveryDepthEl = document.getElementById('prosp-discovery-depth');
+  if (discoveryDepthEl) discoveryDepthEl.value = params.discovery_depth || 'standard';
   const exclExistingEl = document.getElementById('prosp-exclude-existing');
   if (exclExistingEl) exclExistingEl.checked = !!params.exclude_existing;
   if (source === 'google') {
+    applyProspAdvancedFilters(params.advanced_filters || {});
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? ''; };
     set('prosp-g-custom', params.custom_query);
     set('prosp-g-exact', params.exact_terms);
@@ -2177,8 +3697,7 @@ function applyProspFilters(source, params) {
     const excl = document.getElementById('prosp-g-exclude-platforms');
     if (excl) excl.checked = params.exclude_platforms !== false;
   } else {
-    const recentEl = document.getElementById('prosp-recent');
-    if (recentEl) recentEl.checked = !!params.recent;
+    applyProspAdvancedFilters(params.advanced_filters || (params.recent ? { recent_months: 12, opening_status: 'recent' } : {}));
     const limitEl = document.getElementById('prosp-limit');
     if (limitEl) limitEl.value = params.limit || '30';
     const sortEl = document.getElementById('prosp-sort');
@@ -2195,6 +3714,146 @@ function saveLastProspSearch() {
   } catch (err) { /* localStorage недоступний (приватний режим тощо) — не критично */ }
 }
 
+function setProspSearchButtonBusy(busy) {
+  const btn = document.getElementById('btn-prosp-search');
+  if (!btn) return;
+  btn.disabled = busy;
+  btn.textContent = busy ? 'Пошук триває…' : 'Шукати';
+}
+
+function stopProspJobPolling() {
+  if (prospJobPollTimer) window.clearTimeout(prospJobPollTimer);
+  prospJobPollTimer = null;
+}
+
+function renderProspJob(job) {
+  if (!prospJobPanelEl || !job) return;
+  activeProspJob = job;
+  prospJobPanelEl.hidden = false;
+  const status = job.status || 'queued';
+  const done = Number(job.completed_locations || 0);
+  const total = Number(job.total_locations || 0);
+  const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
+  const errors = job.error_data || [];
+  const result = job.result_data || {};
+  const candidates = result.candidates || [];
+  const terminal = ['completed', 'partial', 'error', 'cancelled'].includes(status);
+  const statusCopy = {
+    queued: ['У черзі', 'Підготовка фонового пошуку'],
+    running: [job.parent_job_id ? 'Повторюю невдалі' : 'Пошук триває', `Опрацьовано ${done} з ${total} локацій`],
+    completed: ['Готово', 'Усі локації опрацьовано'],
+    partial: ['Потрібна увага', 'Результати готові, але частина локацій не відповіла'],
+    error: ['Пошук не завершено', 'Жодна локація не повернула результат'],
+    cancelled: ['Скасовано', candidates.length ? 'Збережено вже знайдені результати' : 'Пошук зупинено'],
+  }[status] || ['Фоновий пошук', 'Оновлюю стан'];
+  if (prospJobKickerEl) prospJobKickerEl.textContent = statusCopy[0];
+  if (prospJobTitleEl) prospJobTitleEl.textContent = statusCopy[1];
+  if (prospJobDetailEl) prospJobDetailEl.textContent = terminal
+    ? (errors[0]?.message || 'Можна перейти до результатів або запустити новий пошук.')
+    : (job.current_location
+      ? `${job.current_location} · спроба ${Number(job.current_attempt || 1)} з 2`
+      : 'Можна працювати в інших розділах CRM — цей процес продовжиться у фоні.');
+  if (prospJobProgressBarEl) prospJobProgressBarEl.style.transform = `scaleX(${progress / 100})`;
+  const progressEl = prospJobPanelEl.querySelector('.prosp-job-progress');
+  if (progressEl) progressEl.setAttribute('aria-valuenow', String(progress));
+  if (prospJobLocationsEl) prospJobLocationsEl.textContent = `${done} / ${total} локацій`;
+  if (prospJobResultsEl) prospJobResultsEl.textContent = `${candidates.length} кандидатів${job.parent_job_id ? ' разом' : ''}`;
+  if (prospJobErrorsEl) prospJobErrorsEl.textContent = errors.length ? `${errors.length} помилок` : 'Без помилок';
+  if (btnProspJobCancel) btnProspJobCancel.hidden = terminal;
+  if (btnProspJobRetry) btnProspJobRetry.hidden = !terminal || !errors.length;
+  if (btnProspJobResults) btnProspJobResults.hidden = !candidates.length;
+  setProspSearchButtonBusy(!terminal);
+  prospJobPanelEl.dataset.status = status;
+}
+
+function showProspJobResults() {
+  const result = activeProspJob?.result_data;
+  if (!result) return;
+  renderProspResults(result, activeProspJob?.source || prospSource);
+  prospResultsEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function pollProspJob(jobId) {
+  stopProspJobPolling();
+  try {
+    const job = await api('GET', `/prospecting/search-jobs/${jobId}`);
+    renderProspJob(job);
+    const terminal = ['completed', 'partial', 'error', 'cancelled'].includes(job.status);
+    if (terminal) {
+      localStorage.removeItem(PROSP_ACTIVE_JOB_KEY);
+      if ((job.result_data?.candidates || []).length) showProspJobResults();
+      loadProspSearchRuns().catch(() => {});
+      return;
+    }
+    prospJobPollTimer = window.setTimeout(() => pollProspJob(jobId), 1400);
+  } catch (err) {
+    setProspSearchButtonBusy(false);
+    if (prospJobDetailEl) prospJobDetailEl.textContent = 'Не вдалося оновити прогрес. Повторюю з’єднання…';
+    prospJobPollTimer = window.setTimeout(() => pollProspJob(jobId), 3500);
+  }
+}
+
+async function startProspBackgroundJob(source, params) {
+  setProspSearchButtonBusy(true);
+  renderProspLoading(`Запускаю фоновий пошук у ${params.locations.length} локаціях.`);
+  try {
+    const job = await api('POST', '/prospecting/search-jobs', { source, params });
+    localStorage.setItem(PROSP_ACTIVE_JOB_KEY, String(job.id));
+    renderProspJob(job);
+    pollProspJob(job.id);
+  } catch (err) {
+    setProspSearchButtonBusy(false);
+    renderProspError(err);
+  }
+}
+
+async function restoreActiveProspJob() {
+  const storedJobId = Number(localStorage.getItem(PROSP_ACTIVE_JOB_KEY) || 0);
+  if (storedJobId) {
+    pollProspJob(storedJobId);
+    return;
+  }
+  try {
+    const jobs = await api('GET', '/prospecting/search-jobs?limit=8');
+    const active = (jobs || []).find(job => ['queued', 'running'].includes(job.status));
+    if (!active) return;
+    localStorage.setItem(PROSP_ACTIVE_JOB_KEY, String(active.id));
+    renderProspJob(active);
+    pollProspJob(active.id);
+  } catch (err) {
+    // The discovery workspace still works without restoring old jobs.
+  }
+}
+
+btnProspJobCancel?.addEventListener('click', async () => {
+  if (!activeProspJob?.id) return;
+  btnProspJobCancel.disabled = true;
+  try {
+    const job = await api('POST', `/prospecting/search-jobs/${activeProspJob.id}/cancel`, {});
+    renderProspJob(job);
+  } catch (err) {
+    showToast(err.message || 'Не вдалося скасувати пошук.', true);
+  } finally {
+    btnProspJobCancel.disabled = false;
+  }
+});
+
+btnProspJobRetry?.addEventListener('click', async () => {
+  if (!activeProspJob?.id) return;
+  btnProspJobRetry.disabled = true;
+  try {
+    const job = await api('POST', `/prospecting/search-jobs/${activeProspJob.id}/retry-errors`, {});
+    localStorage.setItem(PROSP_ACTIVE_JOB_KEY, String(job.id));
+    renderProspJob(job);
+    pollProspJob(job.id);
+  } catch (err) {
+    showToast(err.message || 'Не вдалося повторити невдалі локації.', true);
+  } finally {
+    btnProspJobRetry.disabled = false;
+  }
+});
+btnProspJobResults?.addEventListener('click', showProspJobResults);
+
 function restoreLastProspSearch() {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(PROSP_LAST_SEARCH_KEY) || 'null'); } catch (err) { saved = null; }
@@ -2210,9 +3869,63 @@ async function loadSavedSearches() {
   renderSavedChips();
 }
 
-const PROSP_SOURCE_ICONS = { google: '🔍', both: '🔀', osm: '🗺️' };
+function prospRunLocation(params) {
+  const locations = params.locations || [];
+  if (locations.length > 1) return `${locations.length} локацій`;
+  const first = locations[0] || params;
+  return [first.city, first.country].filter(Boolean).join(', ') || 'Без локації';
+}
+
+function prospRunCategories(params) {
+  const keys = params.category_keys || [];
+  const labels = keys.map(key => prospCategoryEl?.querySelector(`option[value="${CSS.escape(key)}"]`)?.textContent || key);
+  return labels.slice(0, 2).join(', ') + (labels.length > 2 ? ` +${labels.length - 2}` : '') || params.custom_query || 'Власний запит';
+}
+
+async function loadProspSearchRuns() {
+  if (!prospHistoryListEl) return;
+  const runs = await api('GET', '/prospecting/search-runs?limit=12');
+  if (prospHistoryCountEl) prospHistoryCountEl.textContent = String(runs.length || 0);
+  if (!runs.length) {
+    prospHistoryListEl.innerHTML = '<p class="prosp-history-empty">Історія з\'явиться після першого пошуку.</p>';
+    return;
+  }
+  prospHistoryListEl.innerHTML = runs.map(run => {
+    const params = run.params || {};
+    const statusLabel = run.status === 'success' ? 'Готово' : run.status === 'partial' ? 'Частково' : 'Помилка';
+    const d = new Date(run.created_at);
+    const when = Number.isNaN(d.getTime()) ? '' : `${formatDate(d)} · ${formatTimeFromDate(d)}`;
+    return `
+      <article class="prosp-history-item prosp-history-${escHtml(run.status)}" data-id="${run.id}">
+        <span class="prosp-history-status">${statusLabel}</span>
+        <div class="prosp-history-main">
+          <strong>${escHtml(prospRunCategories(params))}</strong>
+          <small>${escHtml(prospRunLocation(params))} · ${escHtml(prospSourceLabel(run.source))}</small>
+          ${run.error_text ? `<em>${escHtml(run.error_text)}</em>` : ''}
+        </div>
+        <div class="prosp-history-meta">
+          <b>${Number(run.result_count || 0)}</b><small>результатів</small>
+          <span>${Math.max(0, Number(run.duration_ms || 0) / 1000).toFixed(1)} с</span>
+        </div>
+        <div class="prosp-history-actions">
+          <span>${escHtml(when)}</span>
+          <button type="button" data-prosp-run="${run.id}">Повторити</button>
+        </div>
+      </article>`;
+  }).join('');
+  prospHistoryListEl.querySelectorAll('[data-prosp-run]').forEach(btnEl => {
+    btnEl.addEventListener('click', () => {
+      const run = runs.find(item => String(item.id) === btnEl.dataset.prospRun);
+      if (!run) return;
+      applyProspFilters(run.source || 'osm', run.params || {});
+      runProspectingSearch();
+    });
+  });
+}
+
+const PROSP_SOURCE_ICONS = { google: 'G', both: 'G+O', osm: 'OSM' };
 const PROSP_SCHEDULE_CYCLE = { off: 'daily', daily: 'weekly', weekly: 'off' };
-const PROSP_SCHEDULE_LABEL = { off: '⏰ Вимкн.', daily: '📅 Щодня', weekly: '🗓️ Щотижня' };
+const PROSP_SCHEDULE_LABEL = { off: 'Вимкн.', daily: 'Щодня', weekly: 'Щотижня' };
 
 function renderSavedChips() {
   if (!prospSavedRowEl || !prospSavedChipsEl) return;
@@ -2222,7 +3935,7 @@ function renderSavedChips() {
     const schedule = s.schedule || 'off';
     return `
     <span class="prosp-saved-chip" data-id="${s.id}">
-      <button type="button" class="prosp-saved-chip-load" data-id="${s.id}">${PROSP_SOURCE_ICONS[s.source] || '🗺️'} ${escHtml(s.name)}</button>
+      <button type="button" class="prosp-saved-chip-load" data-id="${s.id}">${PROSP_SOURCE_ICONS[s.source] || 'OSM'} · ${escHtml(s.name)}</button>
       <button type="button" class="prosp-saved-chip-schedule" data-id="${s.id}" data-schedule="${schedule}" title="Авто-перезапуск і сповіщення про нові результати — клік перемикає режим">${PROSP_SCHEDULE_LABEL[schedule]}</button>
       <button type="button" class="prosp-saved-chip-del" data-id="${s.id}" title="Видалити">✕</button>
     </span>
@@ -2288,10 +4001,25 @@ if (prospQuickFilterEl) prospQuickFilterEl.addEventListener('input', () => {
 async function importProspCandidates() {
   const selected = selectedProspCandidates();
   if (!selected.length) return;
-  const owner = document.getElementById('prosp-owner')?.value || 'Manager 1';
+  const owner = document.getElementById('prosp-owner')?.value || LEADS_OWNER_OPTIONS[0];
   const country = document.getElementById('prosp-country')?.value.trim() || '';
   const payload = selected.map(c => ({ ...c, country }));
-  if (btnProspImport) { btnProspImport.disabled = true; btnProspImport.textContent = 'Додаю…'; }
+  if (btnProspImport) { btnProspImport.disabled = true; btnProspImport.textContent = 'Перевіряю…'; }
+  try {
+    const preview = await api('POST', '/prospecting/import-preview', { candidates: payload, owner });
+    renderProspImportPreview(preview, payload);
+  } catch (err) {
+    showToast(err.message || 'Не вдалося перевірити кандидатів.', true);
+  } finally {
+    if (btnProspImport) { btnProspImport.disabled = false; btnProspImport.textContent = 'Перевірити і додати'; }
+  }
+}
+
+async function commitProspImport(payload) {
+  if (!payload.length) return;
+  const owner = document.getElementById('prosp-owner')?.value || LEADS_OWNER_OPTIONS[0];
+  const confirmBtn = document.getElementById('btn-prosp-preview-confirm');
+  if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Додаю…'; }
   try {
     const res = await api('POST', '/prospecting/import', { candidates: payload, owner });
     let msg = `Додано ${res.created} лід(ів).`;
@@ -2304,7 +4032,7 @@ async function importProspCandidates() {
   } catch (err) {
     showToast(err.message || 'Не вдалося додати лідів.', true);
   } finally {
-    if (btnProspImport) { btnProspImport.disabled = false; btnProspImport.textContent = 'Додати обраних у роботу'; }
+    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = `Додати ${payload.length} нових`; }
   }
 }
 
@@ -2314,7 +4042,30 @@ if (btnProspecting) btnProspecting.addEventListener('click', () => {
 });
 if (btnProspectingBack) btnProspectingBack.addEventListener('click', closeProspectingView);
 if (prospectingForm) prospectingForm.addEventListener('submit', runProspectingSearch);
+document.getElementById('prosp-smart-filters')?.querySelectorAll('select, input').forEach(control => {
+  control.addEventListener('change', updateProspFilterExplain);
+  control.addEventListener('input', updateProspFilterExplain);
+});
+updateProspFilterExplain();
 if (btnProspImport) btnProspImport.addEventListener('click', importProspCandidates);
+if (btnProspEnrichSelected) btnProspEnrichSelected.addEventListener('click', enrichSelectedProspCandidates);
+if (openingsEntry) openingsEntry.addEventListener('click', openOpeningsView);
+if (btnOpeningsBack) btnOpeningsBack.addEventListener('click', closeOpeningsView);
+for (const control of [openingsMonthEl, openingsCityTierEl, openingsCountryEl, openingsCategoryEl, openingsVerificationEl]) {
+  if (control) control.addEventListener('change', () => loadOpenings(1));
+}
+if (openingsSearchEl) openingsSearchEl.addEventListener('input', () => {
+  clearTimeout(openingsSearchTimer);
+  openingsSearchTimer = setTimeout(() => loadOpenings(1), 280);
+});
+if (openingsPaginationEl) openingsPaginationEl.addEventListener('click', event => {
+  const button = event.target.closest('[data-opening-page]');
+  if (button && !button.disabled) loadOpenings(Number(button.dataset.openingPage || 1));
+});
+if (openingsListEl) openingsListEl.addEventListener('click', event => {
+  const button = event.target.closest('[data-opening-import]');
+  if (button) importOpeningById(button.dataset.openingImport || '');
+});
 
 function renderIntegrationsWebhookCard(info) {
   if (!integrationsWebhookCard) return;
@@ -2350,46 +4101,76 @@ function integrationCardHtml(item) {
   const connected = item.status === 'connected' || hasError;
   const dotTitle = hasError ? 'Помилка — токен міг протухнути' : (connected ? 'Підключено' : 'Не підключено');
   return `
-    <div class="integration-card" data-manager="${escHtml(item.manager)}" data-channel="${escHtml(item.channel)}">
+    <section class="integration-channel ${connected ? 'is-connected' : ''} ${hasError ? 'has-error' : ''}" data-manager="${escHtml(item.manager)}" data-channel="${escHtml(item.channel)}">
       <div class="integration-card-top">
-        <span class="mono-label">${meta.icon} ${meta.label}</span>
-        <span class="integration-status-dot ${hasError ? 'error' : (connected ? 'on' : 'off')}" title="${dotTitle}"></span>
+        <div class="integration-channel-name"><span class="integration-channel-mark">${meta.mark}</span><div><strong>${meta.label}</strong><small>${meta.idLabel}</small></div></div>
+        <span class="integration-status ${hasError ? 'error' : (connected ? 'on' : 'off')}" title="${dotTitle}">${hasError ? 'Потрібна увага' : (connected ? 'Підключено' : 'Не підключено')}</span>
       </div>
-      <div class="integration-card-manager">${escHtml(item.manager_label)}</div>
       ${connected ? `
         <div class="integration-card-connected">
           <div class="integration-card-display">${escHtml(item.display_label || item.external_id)}</div>
-          <div class="integration-card-token">Token: ${escHtml(item.token_preview)}</div>
-          ${hasError ? '<div class="integration-card-error">Останню перевірку не пройдено — перевірте токен.</div>' : ''}
+          <div class="integration-card-token">ID ${escHtml(item.external_id)} · токен ${escHtml(item.token_preview)}</div>
+          ${hasError ? '<div class="integration-card-error">Meta відхилила останню перевірку. Оновіть токен або перепідключіть канал.</div>' : ''}
           <div class="integration-card-sig ${item.signature_verified ? 'ok' : 'warn'}">
-            ${item.signature_verified ? '🔒 Підпис вебхука перевіряється' : '⚠️ Підпис не перевіряється — додайте App Secret'}
+            ${item.signature_verified ? 'Підпис webhook захищено' : 'Додайте App Secret для перевірки підпису'}
           </div>
         </div>
         <div class="integration-card-actions">
-          <button type="button" class="integration-check-btn">Перевірити</button>
+          <button type="button" class="integration-check-btn">Перевірити доступ</button>
           <button type="button" class="integration-disconnect-btn">Відключити</button>
         </div>
       ` : `
         <form class="integration-connect-form">
-          <input class="integration-input-id" placeholder="${meta.idLabel}" autocomplete="off" required/>
-          <input class="integration-input-token" type="password" placeholder="Access Token" autocomplete="off" required/>
-          <input class="integration-input-secret" type="password" placeholder="App Secret (опційно, для перевірки підпису)" autocomplete="off"/>
-          <button type="submit" class="btn-primary">Підключити</button>
+          <label><span>${meta.idLabel}</span><input class="integration-input-id" placeholder="${meta.idPlaceholder}" inputmode="numeric" autocomplete="off" required/></label>
+          <label><span>Access Token</span><input class="integration-input-token" type="password" placeholder="Вставте постійний токен Meta" autocomplete="new-password" required/></label>
+          <details class="integration-secret-details">
+            <summary>Захист webhook <span>рекомендовано</span></summary>
+            <label><span>App Secret</span><input class="integration-input-secret" type="password" placeholder="З Meta App → Settings → Basic" autocomplete="new-password"/></label>
+          </details>
+          <div class="integration-connect-footer"><small>Перед збереженням CRM перевірить ID і токен реальним запитом до Meta.</small><button type="submit" class="btn-primary">Перевірити й підключити</button></div>
         </form>
       `}
-    </div>
+    </section>
+  `;
+}
+
+function renderIntegrationsReadiness(connectedCount, total) {
+  if (!integrationsReadinessEl) return;
+  const state = total === 0 ? 'empty' : connectedCount === 0 ? 'empty' : connectedCount === total ? 'complete' : 'partial';
+  integrationsReadinessEl.className = `integrations-readiness is-${state}`;
+  const segs = total > 0
+    ? Array.from({ length: total }, (_, i) => `<span class="integrations-readiness-seg${i < connectedCount ? ' is-done' : ''}"></span>`).join('')
+    : '';
+  integrationsReadinessEl.innerHTML = `
+    <div class="integrations-readiness-value"><strong>${connectedCount}/${total}</strong><span>каналів готово</span></div>
+    ${segs ? `<div class="integrations-readiness-bar" role="progressbar" aria-valuenow="${connectedCount}" aria-valuemin="0" aria-valuemax="${total}">${segs}</div>` : ''}
   `;
 }
 
 function renderIntegrationsGrid(items) {
   if (!integrationsGridEl) return;
   if (!items || !items.length) {
+    renderIntegrationsReadiness(0, 0);
     integrationsGridEl.innerHTML = '<p class="leads-empty">Немає даних.</p>';
     return;
   }
-  integrationsGridEl.innerHTML = items.map(integrationCardHtml).join('');
+  const connectedCount = items.filter(item => item.status === 'connected').length;
+  renderIntegrationsReadiness(connectedCount, items.length);
+  const managers = Array.from(new Map(items.map(item => [item.manager, item.manager_label])).entries());
+  integrationsGridEl.innerHTML = managers.map(([manager, label]) => {
+    const managerItems = items.filter(item => item.manager === manager);
+    const ready = managerItems.filter(item => item.status === 'connected').length;
+    return `<article class="integration-manager" data-manager-row="${escHtml(manager)}">
+      <header class="integration-manager-head">
+        <div class="integration-manager-avatar">${escHtml(String(label || manager).replace('Менеджер ', '').slice(0, 1))}</div>
+        <div><h4>${escHtml(label)}</h4><p>${ready === 2 ? 'Обидва канали готові до роботи' : ready === 1 ? 'Підключено один із двох каналів' : 'Підключення ще не налаштовані'}</p></div>
+        <span class="integration-manager-progress ${ready === 2 ? 'complete' : ''}">${ready}/2</span>
+      </header>
+      <div class="integration-manager-channels">${managerItems.map(integrationCardHtml).join('')}</div>
+    </article>`;
+  }).join('');
 
-  integrationsGridEl.querySelectorAll('.integration-card').forEach(card => {
+  integrationsGridEl.querySelectorAll('.integration-channel').forEach(card => {
     const manager = card.dataset.manager;
     const channel = card.dataset.channel;
     const meta = INTEGRATIONS_CHANNEL_META[channel];
@@ -2411,7 +4192,8 @@ function renderIntegrationsGrid(items) {
             access_token: tokenVal,
             app_secret: secretVal || '',
           });
-          showToast(`${meta.label} підключено для ${card.querySelector('.integration-card-manager')?.textContent || manager}.`);
+          const managerLabel = card.closest('.integration-manager')?.querySelector('h4')?.textContent || manager;
+          showToast(`${meta.label} підключено для ${managerLabel}.`);
           openIntegrationsView();
         } catch (err) {
           showToast(err.message || 'Не вдалося підключити.', true);
@@ -2439,6 +4221,7 @@ function renderIntegrationsGrid(items) {
     const disconnectBtn = card.querySelector('.integration-disconnect-btn');
     if (disconnectBtn) {
       disconnectBtn.addEventListener('click', async () => {
+        if (!window.confirm(`Відключити ${meta.label}? Нові повідомлення цього менеджера не надходитимуть у CRM.`)) return;
         disconnectBtn.disabled = true;
         try {
           await api('DELETE', `/integrations/${manager}/${channel}`);
@@ -2457,24 +4240,50 @@ function leadsKanbanCardHtml(lead, stageOptions) {
   const optSel = stageOptions.map(s =>
     `<option value="${escHtml(s)}" ${s === lead.stage ? 'selected' : ''}>${escHtml(leadsLabel(LEADS_STAGE_LABELS, s))}</option>`
   ).join('');
+  const location = [lead.city_area, lead.country].filter(Boolean).join(', ');
+  const due = String(lead.next_followup_date || '').slice(0, 10);
+  const today = localIsoDate();
+  const dueClass = due && due < today ? 'is-overdue' : (due === today ? 'is-today' : '');
+  const dueLabel = due ? (due < today ? `Прострочено · ${due}` : (due === today ? 'Дія сьогодні' : `Наступна дія · ${due}`)) : 'Дату не заплановано';
   return `
-    <div class="leads-kanban-card" data-lead-id="${lead.id}">
-      <div class="leads-kanban-card-name">${channelIcon(lead.primary_channel)}${escHtml(lead.business_name || '')}</div>
+    <article class="leads-kanban-card" data-lead-id="${lead.id}" draggable="true" tabindex="0" aria-label="${escHtml(lead.business_name || 'Лід')}">
+      <div class="leads-kanban-card-top">
+        <span class="leads-kanban-card-avatar" aria-hidden="true">${escHtml(initial(lead.business_name || '?'))}</span>
+        <div class="leads-kanban-card-heading">
+          <div class="leads-kanban-card-name">${channelIcon(lead.primary_channel)}${escHtml(lead.business_name || '')}</div>
+          <div class="leads-kanban-card-location">${escHtml(location || lead.category || 'Деталі не вказані')}</div>
+        </div>
+        <span class="leads-kanban-card-score">${Number(lead.lead_score || 0)}</span>
+      </div>
       <div class="leads-kanban-card-owner">
         <span class="leads-badge leads-badge-owner-${escHtml(leadsSlug(lead.owner))}">${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner) || '—')}</span>
         <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority))}</span>
+        ${leadOutreachBadgeHtml(lead)}
       </div>
-      <select class="leads-pill-select leads-kanban-stage-select">${optSel}</select>
-    </div>
+      <div class="leads-kanban-card-foot">
+        <span class="leads-kanban-due ${dueClass}">${escHtml(dueLabel)}</span>
+        <select class="leads-pill-select leads-kanban-stage-select" aria-label="Стадія ліда" title="Змінити етап">${optSel}</select>
+      </div>
+    </article>
   `;
 }
 
 function renderLeadsKanban(stats, items) {
+  const previousScrollLeft = leadsKanbanColumnsEl.scrollLeft;
+  const filteredItems = items.filter(lead => {
+    if (kanbanState.owner && lead.owner !== kanbanState.owner) return false;
+    if (kanbanState.priority && lead.priority !== kanbanState.priority) return false;
+    if (kanbanState.search) {
+      const haystack = [lead.business_name, lead.city_area, lead.country, lead.category].join(' ').toLowerCase();
+      if (!haystack.includes(kanbanState.search)) return false;
+    }
+    return true;
+  });
   const statStages = (stats.by_stage || []).map(s => s.stage).filter(Boolean);
   const allStageOptions = Array.from(new Set([...statStages, ...LEADS_STAGE_OPTIONS]));
   const byStage = new Map();
   allStageOptions.forEach(s => byStage.set(s, []));
-  items.forEach(lead => {
+  filteredItems.forEach(lead => {
     const s = lead.stage || 'New';
     if (!byStage.has(s)) byStage.set(s, []);
     byStage.get(s).push(lead);
@@ -2484,28 +4293,112 @@ function renderLeadsKanban(stats, items) {
   const orderedStages = LEADS_STAGE_OPTIONS.filter(s => byStage.has(s))
     .concat([...byStage.keys()].filter(s => !LEADS_STAGE_OPTIONS.includes(s)));
 
-  leadsKanbanColumnsEl.innerHTML = orderedStages.map(stage => `
-    <div class="leads-kanban-column leads-kanban-column-${escHtml(leadsSlug(stage))}" data-stage="${escHtml(stage)}">
-      <div class="leads-kanban-column-head">
-        <span class="leads-kanban-column-title">${escHtml(leadsLabel(LEADS_STAGE_LABELS, stage))}</span>
-        <span class="leads-kanban-column-count">${byStage.get(stage).length}</span>
-      </div>
-      <div class="leads-kanban-cards">
-        ${byStage.get(stage).map(lead => leadsKanbanCardHtml(lead, allStageOptions)).join('')}
-      </div>
-    </div>
-  `).join('');
-  leadsKanbanColumnsEl.scrollLeft = 0;
+  const today = localIsoDate();
+  const active = filteredItems.filter(lead => !['Won', 'Lost'].includes(lead.stage)).length;
+  const hot = filteredItems.filter(lead => ['Hot', 'High'].includes(lead.priority)).length;
+  const due = filteredItems.filter(lead => {
+    const value = String(lead.next_followup_date || '').slice(0, 10);
+    return value && value <= today && !['Won', 'Lost'].includes(lead.stage);
+  }).length;
+  const won = filteredItems.filter(lead => lead.stage === 'Won').length;
+  if (kanbanHeaderSummaryEl) kanbanHeaderSummaryEl.textContent = `${filteredItems.length} із ${items.length} лідів · ${orderedStages.length} етапів`;
+  if (kanbanOverviewEl) {
+    kanbanOverviewEl.innerHTML = [
+      ['active', 'В роботі', active], ['hot', 'Гарячі', hot],
+      ['due', 'Потребують дії', due], ['won', 'Успішно', won],
+    ].map(([key, label, value]) => `<div class="kanban-overview-tile is-${key}"><span>${label}</span><strong>${value}</strong></div>`).join('');
+  }
+
+  leadsKanbanColumnsEl.innerHTML = orderedStages.map(stage => {
+    const stageItems = byStage.get(stage);
+    const limit = kanbanState.stageLimits[stage] || KANBAN_STAGE_BATCH;
+    const visibleItems = stageItems.slice(0, limit);
+    const remaining = Math.max(0, stageItems.length - visibleItems.length);
+    const share = filteredItems.length ? Math.round((stageItems.length / filteredItems.length) * 100) : 0;
+    return `
+      <div class="leads-kanban-column leads-kanban-column-${escHtml(leadsSlug(stage).toLowerCase())}" data-stage="${escHtml(stage)}">
+        <div class="leads-kanban-column-head">
+          <span class="leads-kanban-column-copy">
+            <span class="leads-kanban-column-title">${escHtml(leadsLabel(LEADS_STAGE_LABELS, stage))}</span>
+            <small>${share}% воронки</small>
+          </span>
+          <span class="leads-kanban-column-count">${stageItems.length}</span>
+        </div>
+        <div class="leads-kanban-cards">
+          ${stageItems.length ? visibleItems.map(lead => leadsKanbanCardHtml(lead, allStageOptions)).join('') : '<div class="leads-kanban-empty-stage"><strong>Поки порожньо</strong><span>Перетягніть сюди потрібний лід</span></div>'}
+          ${remaining ? `<button type="button" class="kanban-load-more" data-kanban-more="${escHtml(stage)}">Показати ще ${Math.min(KANBAN_STAGE_BATCH, remaining)}<span>${remaining} залишилось</span></button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+  leadsKanbanColumnsEl.scrollLeft = previousScrollLeft;
+
+  leadsKanbanColumnsEl.querySelectorAll('[data-kanban-more]').forEach(button => {
+    button.addEventListener('click', () => {
+      const stage = button.dataset.kanbanMore || '';
+      kanbanState.stageLimits[stage] = (kanbanState.stageLimits[stage] || KANBAN_STAGE_BATCH) + KANBAN_STAGE_BATCH;
+      renderLeadsKanban(kanbanState.stats, kanbanState.items);
+    });
+  });
 
   leadsKanbanColumnsEl.querySelectorAll('.leads-kanban-card').forEach(card => {
     const leadId = Number(card.dataset.leadId);
+    card.addEventListener('click', event => {
+      if (event.target.closest('select')) return;
+      openLeadDetail(leadId);
+    });
+    card.addEventListener('keydown', event => {
+      if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('select')) {
+        event.preventDefault();
+        openLeadDetail(leadId);
+      }
+    });
+    card.addEventListener('dragstart', event => {
+      card.classList.add('is-dragging');
+      event.dataTransfer?.setData('text/plain', String(leadId));
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('is-dragging');
+      leadsKanbanColumnsEl.querySelectorAll('.is-drop-target').forEach(column => column.classList.remove('is-drop-target'));
+    });
     card.querySelector('.leads-kanban-stage-select')?.addEventListener('change', async e => {
       try {
         await api('PATCH', `/leads/${leadId}`, { stage: e.target.value });
+        const lead = kanbanState.items.find(item => Number(item.id) === leadId);
+        if (lead) lead.stage = e.target.value;
         showToast('Стадію оновлено.');
-        openLeadsKanban();
+        renderLeadsKanban(kanbanState.stats, kanbanState.items);
       } catch (err) {
         showToast(err.message || 'Не вдалося оновити стадію.', true);
+      }
+    });
+  });
+  leadsKanbanColumnsEl.querySelectorAll('.leads-kanban-column').forEach(column => {
+    column.addEventListener('dragover', event => {
+      event.preventDefault();
+      column.classList.add('is-drop-target');
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    });
+    column.addEventListener('dragleave', event => {
+      if (!column.contains(event.relatedTarget)) column.classList.remove('is-drop-target');
+    });
+    column.addEventListener('drop', async event => {
+      event.preventDefault();
+      column.classList.remove('is-drop-target');
+      const leadId = Number(event.dataTransfer?.getData('text/plain'));
+      const stage = column.dataset.stage || '';
+      const lead = kanbanState.items.find(item => Number(item.id) === leadId);
+      if (!lead || !stage || lead.stage === stage) return;
+      const previous = lead.stage;
+      lead.stage = stage;
+      renderLeadsKanban(kanbanState.stats, kanbanState.items);
+      try {
+        await api('PATCH', `/leads/${leadId}`, { stage });
+        showToast('Лід переміщено.');
+      } catch (err) {
+        lead.stage = previous;
+        renderLeadsKanban(kanbanState.stats, kanbanState.items);
+        showToast(err.message || 'Не вдалося перемістити лід.', true);
       }
     });
   });
@@ -2514,17 +4407,18 @@ function renderLeadsKanban(stats, items) {
 let sidebarMode = 'chats';
 
 function openLeadsSidebar() {
-  if (!leadsSidebarView) return;
+  if (!leadsDirectoryView) return;
   if (!token) { showToast('Спочатку виконайте вхід.', true); return; }
   sidebarMode = 'leads';
-  if (sidebarSearchEl) sidebarSearchEl.hidden = true;
-  if (convList) convList.hidden = true;
-  leadsSidebarView.hidden = false;
-  if (sidebarTitleEl) sidebarTitleEl.textContent = 'Ліди';
+  prepareWorkspaceView(leadsDirectoryView, workspaceLeadsEntry, 'Ліди');
+  if (sidebarSearchEl) sidebarSearchEl.hidden = false;
+  if (convList) convList.hidden = false;
+  if (leadsSidebarView) leadsSidebarView.hidden = true;
+  if (sidebarTitleEl) sidebarTitleEl.textContent = 'Робота';
   if (btnLeadsExport) btnLeadsExport.hidden = false;
   if (btnLeadsAdd) btnLeadsAdd.hidden = false;
   if (btnLeadsSelect) btnLeadsSelect.hidden = false;
-  if (btnNewChat) btnNewChat.hidden = true;
+  if (btnNewChat) btnNewChat.hidden = false;
   if (btnLeads) btnLeads.classList.add('active-mode');
   loadLeadsStats();
   loadLeadsList();
@@ -2532,17 +4426,13 @@ function openLeadsSidebar() {
 
 function closeLeadsSidebar() {
   sidebarMode = 'chats';
-  if (sidebarSearchEl) sidebarSearchEl.hidden = false;
-  if (convList) convList.hidden = false;
-  if (leadsSidebarView) leadsSidebarView.hidden = true;
-  if (sidebarTitleEl) sidebarTitleEl.textContent = 'Чати';
   if (btnLeadsExport) btnLeadsExport.hidden = true;
   if (btnLeadsAdd) btnLeadsAdd.hidden = true;
   if (btnLeadsSelect) btnLeadsSelect.hidden = true;
-  if (btnNewChat) btnNewChat.hidden = false;
   if (btnLeads) btnLeads.classList.remove('active-mode');
   setLeadsSelectMode(false);
-  closeLeadDetail();
+  if (leadInfoBanner) leadInfoBanner.hidden = true;
+  closeWorkspaceView();
 }
 
 function openLeadCreateModal() {
@@ -2552,7 +4442,7 @@ function openLeadCreateModal() {
   ['lead-new-name', 'lead-new-country', 'lead-new-city', 'lead-new-phone', 'lead-new-email', 'lead-new-instagram', 'lead-new-notes']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const ownerSel = document.getElementById('lead-new-owner');
-  if (ownerSel) ownerSel.value = leadsState.owner || 'Manager 1';
+  if (ownerSel) ownerSel.value = leadsState.owner || LEADS_OWNER_OPTIONS[0];
   if (leadNewPriority && !leadNewPriority.options.length) {
     leadNewPriority.innerHTML = LEADS_PRIORITY_OPTIONS.map(p => `<option value="${escHtml(p)}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, p))}</option>`).join('');
   }
@@ -2572,7 +4462,7 @@ async function saveNewLead() {
     business_name: name,
     country: document.getElementById('lead-new-country')?.value.trim() || '',
     city_area: document.getElementById('lead-new-city')?.value.trim() || '',
-    owner: document.getElementById('lead-new-owner')?.value || 'Manager 1',
+    owner: document.getElementById('lead-new-owner')?.value || LEADS_OWNER_OPTIONS[0],
     priority: leadNewPriority?.value || 'Medium',
     phone: document.getElementById('lead-new-phone')?.value.trim() || '',
     email: document.getElementById('lead-new-email')?.value.trim() || '',
@@ -2602,12 +4492,40 @@ if (btnLeads) btnLeads.addEventListener('click', () => {
   if (sidebarMode === 'leads') closeLeadsSidebar();
   else openLeadsSidebar();
 });
+if (workspaceLeadsEntry) workspaceLeadsEntry.addEventListener('click', openLeadsSidebar);
+if (workspaceDayEntry) workspaceDayEntry.addEventListener('click', openLeadsWorkQueue);
+if (workspaceKanbanEntry) workspaceKanbanEntry.addEventListener('click', openLeadsKanban);
+if (workspaceSearchEntry) workspaceSearchEntry.addEventListener('click', openProspectingView);
+if (crmHomeLeads) crmHomeLeads.addEventListener('click', openLeadsSidebar);
+if (crmHomeDay) crmHomeDay.addEventListener('click', openLeadsWorkQueue);
+if (crmHomeKanban) crmHomeKanban.addEventListener('click', openLeadsKanban);
+if (crmHomeSearch) crmHomeSearch.addEventListener('click', openProspectingView);
+if (workspaceOpeningsEntry) workspaceOpeningsEntry.addEventListener('click', openOpeningsView);
+if (workspaceIntegrationsEntry) workspaceIntegrationsEntry.addEventListener('click', openIntegrationsView);
 if (btnCloseLeadCreate) btnCloseLeadCreate.addEventListener('click', closeLeadCreateModal);
 if (btnLeadsAdd) btnLeadsAdd.addEventListener('click', openLeadCreateModal);
+if (btnLeadsDirectoryAdd) btnLeadsDirectoryAdd.addEventListener('click', openLeadCreateModal);
 if (btnLeadCreateSave) btnLeadCreateSave.addEventListener('click', saveNewLead);
 if (btnLeadsExport) btnLeadsExport.addEventListener('click', exportLeadsCsv);
+if (btnLeadsDirectoryExport) btnLeadsDirectoryExport.addEventListener('click', exportLeadsCsv);
+if (btnLeadsDirectoryBack) btnLeadsDirectoryBack.addEventListener('click', closeLeadsSidebar);
 if (leadsKanbanEntry) leadsKanbanEntry.addEventListener('click', openLeadsKanban);
 if (btnKanbanBack) btnKanbanBack.addEventListener('click', closeLeadsKanban);
+if (leadsWorkQueueEntry) leadsWorkQueueEntry.addEventListener('click', openLeadsWorkQueue);
+if (btnWorkQueueBack) btnWorkQueueBack.addEventListener('click', closeLeadsWorkQueue);
+if (btnWorkQueueRefresh) btnWorkQueueRefresh.addEventListener('click', loadLeadsWorkQueue);
+if (workQueueOwnerEl) workQueueOwnerEl.addEventListener('change', () => {
+  // Вибір менеджера в "Моєму дні" — це той самий фільтр CRM, тому він
+  // запам'ятовується і застосовується до списку, чіпів і воронки.
+  setLeadsOwnerFilter(workQueueOwnerEl.value);
+  if (leadsFilterOwner) leadsFilterOwner.value = leadsState.owner;
+  leadsState.page = 1;
+  syncLeadsFilterStatus();
+  loadLeadsWorkQueue();
+  loadLeadsList().catch(() => {});
+  loadLeadsStats().catch(() => {});
+});
+if (workQueueSectionsEl) workQueueSectionsEl.addEventListener('click', handleWorkQueueClick);
 if (btnIntegrations) btnIntegrations.addEventListener('click', () => {
   if (integrationsView && !integrationsView.hidden) closeIntegrationsView();
   else openIntegrationsView();
@@ -2622,19 +4540,51 @@ if (leadsSearchInput) {
     clearTimeout(leadsSearchTimer);
     leadsSearchTimer = setTimeout(() => {
       leadsState.search = leadsSearchInput.value.trim();
-      leadsState.page = 1;
-      loadLeadsList();
+      applyLeadsFilterChange();
     }, 350);
   });
 }
 if (leadsFilterOwner) leadsFilterOwner.addEventListener('change', () => {
-  setLeadsOwnerFilter(leadsFilterOwner.value); leadsState.page = 1; loadLeadsList();
+  setLeadsOwnerFilter(leadsFilterOwner.value); applyLeadsFilterChange();
 });
 if (leadsFilterStage) leadsFilterStage.addEventListener('change', () => {
-  leadsState.stage = leadsFilterStage.value; leadsState.page = 1; loadLeadsList();
+  leadsState.stage = leadsFilterStage.value; applyLeadsFilterChange();
 });
 if (leadsFilterPriority) leadsFilterPriority.addEventListener('change', () => {
-  leadsState.priority = leadsFilterPriority.value; leadsState.page = 1; loadLeadsList();
+  leadsState.priority = leadsFilterPriority.value; applyLeadsFilterChange();
+});
+if (leadsFilterCountry) leadsFilterCountry.addEventListener('change', () => {
+  leadsState.country = leadsFilterCountry.value; applyLeadsFilterChange();
+});
+if (leadsFilterOutreach) leadsFilterOutreach.addEventListener('change', () => {
+  leadsState.outreachStatus = leadsFilterOutreach.value; applyLeadsFilterChange();
+});
+if (leadsFilterChannel) leadsFilterChannel.addEventListener('change', () => {
+  leadsState.channel = leadsFilterChannel.value; applyLeadsFilterChange();
+});
+if (leadsSortEl) {
+  leadsSortEl.value = leadsState.sort;
+  leadsSortEl.addEventListener('change', () => {
+    leadsState.sort = leadsSortEl.value || 'score';
+    leadsState.page = 1;
+    localStorage.setItem(LEADS_SORT_KEY, leadsState.sort);
+    loadLeadsList();
+  });
+}
+if (btnLeadsFilterReset) btnLeadsFilterReset.addEventListener('click', resetLeadsFilters);
+
+document.addEventListener('click', event => {
+  const retry = event.target.closest('[data-workspace-retry]');
+  if (!retry) return;
+  const actions = {
+    leads: loadLeadsList,
+    day: loadLeadsWorkQueue,
+    kanban: openLeadsKanban,
+    integrations: openIntegrationsView,
+    'google-key': loadGoogleKeyCard,
+  };
+  const action = actions[retry.dataset.workspaceRetry];
+  if (action) action();
 });
 
 function parseFilenameFromDisposition(disposition, fallbackName) {
@@ -2650,8 +4600,11 @@ function parseFilenameFromDisposition(disposition, fallbackName) {
 
 async function downloadProtectedFile(path, fallbackName) {
   if (!token) throw new Error('Потрібна авторизація.');
+  const headers = {};
+  if (token !== COOKIE_SESSION_TOKEN) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(path, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers,
+    credentials: 'include',
   });
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
@@ -2733,6 +4686,8 @@ function syncOverlayLock() {
   ) || (
     !!callSettingsModal && !callSettingsModal.hidden
   ) || (
+    !!securityModal && !securityModal.hidden
+  ) || (
     !!callIncoming && !callIncoming.hidden
   ) || (
     !!callScreen && !callScreen.hidden
@@ -2746,6 +4701,123 @@ function syncOverlayLock() {
 // ════════════════════════════════════════════
 // Auth — login + register
 // ════════════════════════════════════════════
+function base64urlToBytes(value) {
+  const normalized = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+  const binary = atob(padded);
+  return Uint8Array.from(binary, ch => ch.charCodeAt(0));
+}
+
+function bytesToBase64url(value) {
+  if (!value) return null;
+  const bytes = new Uint8Array(value);
+  let binary = '';
+  bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function normalizeCredentialOptions(options, mode) {
+  const result = { ...options, challenge: base64urlToBytes(options.challenge) };
+  if (mode === 'create' && result.user?.id) {
+    result.user = { ...result.user, id: base64urlToBytes(result.user.id) };
+  }
+  const key = mode === 'create' ? 'excludeCredentials' : 'allowCredentials';
+  if (Array.isArray(result[key])) {
+    result[key] = result[key].map(item => ({ ...item, id: base64urlToBytes(item.id) }));
+  }
+  return result;
+}
+
+function serializeCredential(credential) {
+  const response = credential.response || {};
+  const data = {
+    id: credential.id,
+    rawId: bytesToBase64url(credential.rawId),
+    type: credential.type,
+    authenticatorAttachment: credential.authenticatorAttachment || undefined,
+    clientExtensionResults: credential.getClientExtensionResults?.() || {},
+    response: {
+      clientDataJSON: bytesToBase64url(response.clientDataJSON),
+    },
+  };
+  if (response.attestationObject) data.response.attestationObject = bytesToBase64url(response.attestationObject);
+  if (response.authenticatorData) data.response.authenticatorData = bytesToBase64url(response.authenticatorData);
+  if (response.signature) data.response.signature = bytesToBase64url(response.signature);
+  if (response.userHandle) data.response.userHandle = bytesToBase64url(response.userHandle);
+  if (typeof response.getTransports === 'function') data.response.transports = response.getTransports();
+  return data;
+}
+
+function passkeyAvailable() {
+  return !!(window.PublicKeyCredential && navigator.credentials);
+}
+
+async function loginWithPasskey() {
+  if (!passkeyAvailable()) throw new Error('Цей браузер не підтримує Passkey.');
+  const options = await api('POST', '/auth/passkey/login-options', {});
+  const credential = await navigator.credentials.get({ publicKey: normalizeCredentialOptions(options, 'get') });
+  if (!credential) throw new Error('Вхід скасовано.');
+  const data = await api('POST', '/auth/passkey/login', {
+    credential: serializeCredential(credential),
+    remember: !authRememberMe || authRememberMe.checked,
+  });
+  applyAuthPayload(data);
+  showApp();
+}
+
+function deviceLabel(userAgent) {
+  const ua = String(userAgent || '');
+  const browser = /Edg\//.test(ua) ? 'Edge' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Браузер';
+  const device = /iPhone|iPad/.test(ua) ? 'iPhone / iPad' : /Android/.test(ua) ? 'Android' : /Macintosh/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'Пристрій';
+  return `${browser} · ${device}`;
+}
+
+function formatSessionTime(value) {
+  if (!value) return 'час не визначено';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('uk-UA', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+async function loadSecurityCenter() {
+  if (!securitySessionList) return;
+  securitySessionList.innerHTML = '<div class="security-loading">Завантажую активні входи…</div>';
+  const [passkey, sessions] = await Promise.all([
+    api('GET', '/auth/passkey/status').catch(() => ({ has_passkey: false })),
+    api('GET', '/auth/sessions'),
+  ]);
+  const hasPasskey = !!passkey?.has_passkey;
+  if (passkeyStatusText) passkeyStatusText.textContent = hasPasskey
+    ? 'Passkey активний. Вхід підтверджується біометрією або кодом пристрою.'
+    : 'Додайте Passkey, щоб входити без введення пароля.';
+  if (btnPasskeyManage) {
+    btnPasskeyManage.textContent = hasPasskey ? 'Видалити Passkey' : 'Додати Passkey';
+    btnPasskeyManage.dataset.enabled = hasPasskey ? '1' : '0';
+  }
+  securitySessionList.innerHTML = (sessions || []).map(item => `
+    <article class="security-session ${item.is_current ? 'is-current' : ''}">
+      <div class="security-session-icon">${item.auth_method === 'passkey' ? 'PK' : 'PW'}</div>
+      <div class="security-session-copy">
+        <strong>${escHtml(deviceLabel(item.user_agent))}${item.is_current ? ' · цей пристрій' : ''}</strong>
+        <span>${escHtml(item.ip_address || 'IP не визначено')} · ${escHtml(formatSessionTime(item.last_seen_at || item.created_at))}</span>
+      </div>
+      ${item.is_current ? '<span class="security-current">Активний</span>' : `<button class="security-revoke" data-session-id="${Number(item.id)}">Завершити</button>`}
+    </article>`).join('') || '<div class="security-loading">Активних входів не знайдено.</div>';
+}
+
+async function openSecurityCenter() {
+  if (!securityModal) return;
+  securityModal.hidden = false;
+  syncOverlayLock();
+  try { await loadSecurityCenter(); }
+  catch (err) { securitySessionList.innerHTML = `<div class="security-loading is-error">${escHtml(err.message || 'Не вдалося завантажити входи.')}</div>`; }
+}
+
+function closeSecurityCenter() {
+  if (!securityModal) return;
+  securityModal.hidden = true;
+  syncOverlayLock();
+}
+
 function setAuthMode(mode) {
   authMode = mode;
   const isReg = mode === 'register';
@@ -2755,6 +4827,7 @@ function setAuthMode(mode) {
   if (authSwitchHint)     authSwitchHint.textContent = isReg ? 'Вже є акаунт?' : 'Немає акаунту?';
   if (authSwitchBtn)      authSwitchBtn.textContent  = isReg ? 'Увійти' : 'Зареєструватися';
   if (authError)          authError.hidden = true;
+  if (btnPasskeyLogin) btnPasskeyLogin.hidden = isReg || !passkeyAvailable();
   if (isReg && authFullName) authFullName.focus();
   else if (authIdentity)  authIdentity.focus();
 }
@@ -2771,14 +4844,21 @@ function setAuthLoading(on) {
 }
 
 function applyAuthPayload(data) {
-  token = data?.token || null;
+  token = data?.cookie_auth ? COOKIE_SESSION_TOKEN : (data?.token || null);
   me = data?.user || null;
   if (!token || !me) throw new Error('Некоректна відповідь сервера авторизації.');
   const remember = !authRememberMe || authRememberMe.checked;
   const store = remember ? localStorage : sessionStorage;
   const other = remember ? sessionStorage : localStorage;
-  store.setItem(TOKEN_KEY, token);
-  store.setItem(BANK_TOKEN_KEY, token);
+  if (token !== COOKIE_SESSION_TOKEN) {
+    store.setItem(TOKEN_KEY, token);
+    store.setItem(BANK_TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(BANK_TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(BANK_TOKEN_KEY);
+  }
   store.setItem(USER_KEY, JSON.stringify(me));
   // Прибираємо сліди з іншого сховища, щоб не лишався застарілий токен від попереднього вибору.
   other.removeItem(TOKEN_KEY);
@@ -2806,7 +4886,11 @@ async function doLogin(e) {
   }
   setAuthLoading(true);
   try {
-    const data = await api('POST', '/auth/login', { identity, password });
+    const data = await api('POST', '/auth/login', {
+      identity, password,
+      remember: !authRememberMe || authRememberMe.checked,
+      use_cookie: true,
+    });
     applyAuthPayload(data);
     showApp();
   } catch (err) {
@@ -2839,6 +4923,8 @@ async function doRegister() {
       password,
       ...(isEmail ? { email: identity } : { phone: identity }),
       ...(phone && !isEmail ? {} : phone ? { phone } : {}),
+      remember: !authRememberMe || authRememberMe.checked,
+      use_cookie: true,
     };
     const data = await api('POST', '/auth/register', body);
     applyAuthPayload(data);
@@ -2872,6 +4958,7 @@ function doLogout() {
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(BANK_TOKEN_KEY);
   sessionStorage.removeItem(USER_KEY);
+  sessionStorage.removeItem(LAST_WORKSPACE_KEY);
   clearPolling();
   clearInterval(incomingCheckTimer);
   hideIncoming();
@@ -2882,6 +4969,19 @@ function doLogout() {
 btnTogglePw.addEventListener('click', () => {
   authPassword.type = authPassword.type === 'text' ? 'password' : 'text';
 });
+
+if (btnPasskeyLogin) {
+  btnPasskeyLogin.hidden = !passkeyAvailable();
+  btnPasskeyLogin.addEventListener('click', async () => {
+    btnPasskeyLogin.disabled = true;
+    authError.hidden = true;
+    try { await loginWithPasskey(); }
+    catch (err) {
+      authError.textContent = err?.name === 'NotAllowedError' ? 'Вхід скасовано або не підтверджено.' : (err.message || 'Не вдалося увійти з Passkey.');
+      authError.hidden = false;
+    } finally { btnPasskeyLogin.disabled = false; }
+  });
+}
 
 // ════════════════════════════════════════════
 // Screen transitions
@@ -2904,19 +5004,100 @@ function showApp() {
   appEl.hidden = false;
   if (me && topbarAvatar) topbarAvatar.textContent = initial(me.full_name);
   const isLeadsAdmin = ['admin', 'platform_admin', 'manager'].includes(me?.role);
+  // Менеджер бачить лише своїх лідів (сервер це і забезпечує), тому вибір
+  // "за яким менеджером" фільтрувати/призначати для нього беззмістовний:
+  // будь-яке інше значення поверне порожньо або 403. Ховаємо самі контроли,
+  // а не лише опції — інакше лишається керування, яке нічого не робить.
+  if (me?.role === 'manager') {
+    ['leads-filter-owner', 'leads-bulk-owner', 'work-queue-owner',
+     'kanban-owner-filter', 'prosp-owner', 'lead-new-owner'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const holder = el.closest('label') || el;
+      holder.hidden = true;
+      holder.style.display = 'none';
+    });
+  }
+  if (workspaceChatsEl) workspaceChatsEl.hidden = !isLeadsAdmin;
   if (btnLeads) btnLeads.hidden = !isLeadsAdmin;
   if (btnIntegrations) btnIntegrations.hidden = !isLeadsAdmin;
   if (btnProspecting) btnProspecting.hidden = !isLeadsAdmin;
-  if (isLeadsAdmin) loadLeadsStats().catch(() => {});
+  if (isLeadsAdmin) {
+    ensureLeadsOwnerOptions().catch(() => {});
+    loadLeadsStats().catch(() => {});
+    loadOpeningsCount().catch(() => {});
+  }
   updateNetworkPill();
   ensureMessengerBankStatus().catch(() => {});
   loadConversations();
+  window.setTimeout(restoreLastWorkspace, 0);
   ensurePushSubscriptionSilent().catch(() => {});
   startGlobalPoll();
   pollUnreadBadge();
   runClientDiagnostics().catch(() => {});
   startIncomingCallCheck();
   syncOverlayLock();
+}
+
+if (btnSecurity) btnSecurity.addEventListener('click', openSecurityCenter);
+if (btnCloseSecurity) btnCloseSecurity.addEventListener('click', closeSecurityCenter);
+if (securityModal) securityModal.addEventListener('click', event => {
+  if (event.target === securityModal) closeSecurityCenter();
+});
+if (btnPasskeyManage) btnPasskeyManage.addEventListener('click', async () => {
+  btnPasskeyManage.disabled = true;
+  try {
+    if (btnPasskeyManage.dataset.enabled === '1') {
+      if (!window.confirm('Видалити Passkey для цього акаунта?')) return;
+      await api('DELETE', '/auth/passkey/remove');
+      showToast('Passkey видалено.');
+    } else {
+      if (!passkeyAvailable()) throw new Error('Цей браузер не підтримує Passkey.');
+      const options = await api('POST', '/auth/passkey/register-options', {});
+      const credential = await navigator.credentials.create({ publicKey: normalizeCredentialOptions(options, 'create') });
+      if (!credential) throw new Error('Створення Passkey скасовано.');
+      await api('POST', '/auth/passkey/register', serializeCredential(credential));
+      showToast('Passkey додано. Тепер можна входити без пароля.');
+    }
+    await loadSecurityCenter();
+  } catch (err) {
+    showToast(err?.name === 'NotAllowedError' ? 'Налаштування Passkey скасовано.' : (err.message || 'Не вдалося змінити Passkey.'), true);
+  } finally { btnPasskeyManage.disabled = false; }
+});
+if (securitySessionList) securitySessionList.addEventListener('click', async event => {
+  const button = event.target.closest('[data-session-id]');
+  if (!button) return;
+  button.disabled = true;
+  try {
+    await api('DELETE', `/auth/sessions/${Number(button.dataset.sessionId)}`);
+    await loadSecurityCenter();
+    showToast('Вхід на пристрої завершено.');
+  } catch (err) { showToast(err.message || 'Не вдалося завершити вхід.', true); }
+});
+if (btnRevokeOthers) btnRevokeOthers.addEventListener('click', async () => {
+  if (!window.confirm('Завершити всі інші активні входи?')) return;
+  btnRevokeOthers.disabled = true;
+  try {
+    const data = await api('DELETE', '/auth/sessions');
+    await loadSecurityCenter();
+    showToast(`Завершено входів: ${Number(data?.revoked || 0)}.`);
+  } catch (err) { showToast(err.message || 'Не вдалося завершити інші входи.', true); }
+  finally { btnRevokeOthers.disabled = false; }
+});
+
+function restoreLastWorkspace() {
+  if (!['admin', 'platform_admin', 'manager'].includes(me?.role)) return;
+  let workspace = '';
+  try { workspace = sessionStorage.getItem(LAST_WORKSPACE_KEY) || ''; } catch (_) {}
+  const openers = {
+    'leads-directory-view': openLeadsSidebar,
+    'leads-work-queue-view': openLeadsWorkQueue,
+    'leads-kanban-view': openLeadsKanban,
+    'prospecting-view': openProspectingView,
+    'openings-view': openOpeningsView,
+    'integrations-view': openIntegrationsView,
+  };
+  if (openers[workspace]) openers[workspace]();
 }
 
 // ════════════════════════════════════════════
@@ -3073,6 +5254,11 @@ function collectConversationPartnerIds(limit = 50) {
 
 function renderConvList(items) {
   const q = convSearch.value.trim().toLowerCase();
+  if (workspaceChatsEl) {
+    workspaceChatsEl.querySelectorAll('.workspace-chat').forEach(entry => {
+      entry.hidden = Boolean(q) && !entry.textContent.toLowerCase().includes(q);
+    });
+  }
   const filtered = q ? items.filter(c => convName(c).toLowerCase().includes(q)) : items;
   Array.from(convList.querySelectorAll('.conv-item')).forEach(el => el.remove());
   convEmpty.hidden = filtered.length > 0;
@@ -3121,7 +5307,19 @@ function updateConvItem(convId, patch) {
 // Open chat
 // ════════════════════════════════════════════
 async function openChat(conv) {
+  try { sessionStorage.removeItem(LAST_WORKSPACE_KEY); } catch (_) {}
   if (window.innerWidth <= 720) sidebar.classList.add('hidden');
+  sidebarMode = 'chats';
+  if (btnLeadsExport) btnLeadsExport.hidden = true;
+  if (btnLeadsAdd) btnLeadsAdd.hidden = true;
+  if (btnLeadsSelect) btnLeadsSelect.hidden = true;
+  if (btnLeads) btnLeads.classList.remove('active-mode');
+  setLeadsSelectMode(false);
+  activateWorkspaceEntry(null);
+  hideWorkspaceViews();
+  const isLeadChat = Number(conv.lead_id || 0) > 0;
+  if (!isLeadChat) resetLeadChannelState();
+  if (chatTopbarSectionEl) chatTopbarSectionEl.textContent = 'Месенджер';
   activeConvId  = conv.id;
   activePartner = conv.partner || null;
   lastMsgId     = 0;
@@ -3130,13 +5328,16 @@ async function openChat(conv) {
   const isGroup = !!conv.is_group;
   const isAssistant = !isGroup && isAssistantPartner(conv.partner);
   const isSelfChat = SELF_CHAT_NAMES.includes(conv.group_name);
+  const isSchedulerChat = conv.group_name === SCHEDULER_NAME;
+  chatView.classList.toggle('scheduler-chat', isSchedulerChat);
+  if (schedulerOverviewEl) schedulerOverviewEl.hidden = !isSchedulerChat;
   const name    = convName(conv);
   chatAvatar.innerHTML = isAssistant ? assistantGlyphMarkup() : esc(initial(name));
   chatAvatar.className = 'chat-header-avatar' + (isGroup ? ' group' : '') + (isAssistant ? ' assistant' : '');
   chatPartnerName.classList.toggle('with-verified', isAssistant);
   chatPartnerName.innerHTML = renderNameWithVerified(name, isAssistant);
   if (isSelfChat) {
-    setChatHeaderStatus('Особисті нотатки · тільки ви');
+    setChatHeaderStatus(isSchedulerChat ? 'Щоденний огляд · CRM оновлює автоматично' : 'Особисті нотатки · тільки ви');
   } else if (isGroup) {
     setChatHeaderStatus('Групова розмова');
   } else if (isAssistant) {
@@ -3156,8 +5357,13 @@ async function openChat(conv) {
   // (the chat input bar floating above the board).
   if (leadsKanbanView) leadsKanbanView.hidden = true;
   if (leadsKanbanEntry) leadsKanbanEntry.classList.remove('active');
+  if (leadsWorkQueueView) leadsWorkQueueView.hidden = true;
+  if (leadsWorkQueueEntry) leadsWorkQueueEntry.classList.remove('active');
   if (integrationsView) integrationsView.hidden = true;
   if (prospectingView) prospectingView.hidden = true;
+  if (openingsView) openingsView.hidden = true;
+  const _augV = document.getElementById('august-schedule-view'); if (_augV) _augV.hidden = true;
+  const _anlV = document.getElementById('analytics-dashboard-view'); if (_anlV) _anlV.hidden = true;
 
   chatEmpty.hidden = true;
   chatView.hidden  = false;
@@ -3173,6 +5379,7 @@ async function openChat(conv) {
   updateScrollBottomFab();
   updateSendBtn();
   await fetchMessages();
+  if (isSchedulerChat) loadSchedulerOverview();
   startConvPoll();
   if (!isGroup && !isAssistant) pollPresence().catch(() => {});
   if (window.innerWidth >= 1024 && msgInput) {
@@ -3324,6 +5531,22 @@ function buildAssistantStatementBubble(rawText) {
   </div>`;
 }
 
+function buildSchedulerDigestBubble(rawText) {
+  const lines = String(rawText || '').split('\n').map(line => line.trim()).filter(Boolean);
+  if (!lines[0]?.startsWith('📋 Нагадування на ')) return null;
+  const date = lines[0].match(/\d{4}-\d{2}-\d{2}/)?.[0] || '';
+  const tasks = lines.slice(1).map(line => line.replace(/^•\s*/, ''));
+  const empty = !tasks.length && /немає/i.test(lines[0]);
+  return `<div class="scheduler-digest-card ${empty ? 'is-clear' : 'has-tasks'}">
+    <div class="scheduler-digest-head">
+      <span class="scheduler-digest-icon" aria-hidden="true">${empty ? '✓' : '!'}</span>
+      <div><strong>${empty ? 'На сьогодні все спокійно' : `Потребують уваги: ${tasks.length}`}</strong><small>${esc(date || 'Щоденний огляд')}</small></div>
+    </div>
+    ${tasks.length ? `<ul>${tasks.map(task => `<li>${esc(task)}</li>`).join('')}</ul>` : '<p>Прострочених контактів немає. Нові задачі зʼявляться тут автоматично.</p>'}
+    <button type="button" class="scheduler-open-day" data-open-workday="1">Відкрити «Мій день»</button>
+  </div>`;
+}
+
 function buildBubble(msg) {
   const isMe    = msg.sender_id === (me?.id);
   const wrap    = document.createElement('div');
@@ -3335,10 +5558,14 @@ function buildBubble(msg) {
   const timeStr = formatTimeFromDate(new Date(msg.created_at));
   const msgType = msg.msg_type || 'text';
   const deleted = msg.is_deleted;
+  const schedulerDigest = buildSchedulerDigestBubble(msg.text);
+  if (schedulerDigest) wrap.className = 'msg-bubble-wrap system-event';
 
   let content;
   if (deleted) {
     content = `<div class="msg-bubble deleted">${esc('Повідомлення видалено')}</div>`;
+  } else if (schedulerDigest) {
+    content = schedulerDigest;
   } else if (msgType === 'voice') {
     const voice = parseVoicePayload(msg.text);
     if (!voice) {
@@ -3410,9 +5637,10 @@ function buildBubble(msg) {
     ? `<div class="msg-sender-name">${esc(msg.sender_name)}</div>`
     : '';
 
-  wrap.innerHTML = `
-    ${!isMe ? `<div class="msg-sender-avatar${assistantIncoming ? ' assistant' : ''}">${assistantIncoming ? assistantGlyphMarkup() : esc(ini)}</div>` : ''}
-    <div class="msg-inner">${senderNameHtml}${content}<div class="msg-time">${timeStr}</div></div>`;
+  wrap.innerHTML = schedulerDigest
+    ? `<div class="msg-inner">${content}<div class="msg-time">${timeStr}</div></div>`
+    : `${!isMe ? `<div class="msg-sender-avatar${assistantIncoming ? ' assistant' : ''}">${assistantIncoming ? assistantGlyphMarkup() : esc(ini)}</div>` : ''}
+      <div class="msg-inner">${senderNameHtml}${content}<div class="msg-time">${timeStr}</div></div>`;
   if (!deleted && msgType === 'image') hydratePhotoTiles(wrap);
   return wrap;
 }
@@ -3469,6 +5697,7 @@ async function sendMessage() {
     showToast(err.message, true);
     msgInput.value = text;
     updateSendBtn();
+    if (leadsState.currentLeadId) refreshLeadChannelReadiness();
   }
 }
 
@@ -6415,7 +8644,10 @@ function esc(str) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function updateSendBtn() { btnSend.disabled = !msgInput.value.trim(); }
+function updateSendBtn() {
+  const channelBlocked = !!leadsState.currentLeadId && !leadsState.channelReadiness?.ready;
+  btnSend.disabled = !msgInput.value.trim() || channelBlocked || msgInput.disabled;
+}
 
 function autoResizeInput() {
   msgInput.style.height = 'auto';
@@ -6448,7 +8680,10 @@ function refreshScrollState() {
 }
 
 function scrollToBottom(instant = false) {
-  scrollAnchor.scrollIntoView({ behavior: instant ? 'auto' : 'smooth' });
+  if (messagesWrap) {
+    messagesWrap.scrollTo({ top: messagesWrap.scrollHeight, behavior: instant ? 'auto' : 'smooth' });
+  }
+  if (chatView) chatView.scrollTop = 0;
   isNearBottom = true;
   unreadWhileScrolledUp = 0;
   updateScrollBottomFab();
@@ -6728,7 +8963,12 @@ document.addEventListener('keydown', e => {
     if (bankToolsModal && !bankToolsModal.hidden) { closeBankToolsModal(); return; }
     if (leadCreateModal && !leadCreateModal.hidden) { closeLeadCreateModal(); return; }
     if (leadInfoBanner && !leadInfoBanner.hidden) { closeLeadDetail(); return; }
+    if (leadsWorkQueueView && !leadsWorkQueueView.hidden) { closeLeadsWorkQueue(); return; }
     if (leadsKanbanView && !leadsKanbanView.hidden) { closeLeadsKanban(); return; }
+    if (leadsDirectoryView && !leadsDirectoryView.hidden) { closeLeadsSidebar(); return; }
+    if (prospectingView && !prospectingView.hidden) { closeProspectingView(); return; }
+    if (openingsView && !openingsView.hidden) { closeOpeningsView(); return; }
+    if (integrationsView && !integrationsView.hidden) { closeIntegrationsView(); return; }
     if (callSettingsModal && !callSettingsModal.hidden) { closeCallSettingsModal(); return; }
     closeNewChatModal();
     return;
@@ -6764,6 +9004,8 @@ btnBack.addEventListener('click', () => {
   clearInterval(convPollTimer);
   chatView.hidden = true;
   chatEmpty.hidden = false;
+  activateWorkspaceEntry(null);
+  if (chatTopbarSectionEl) chatTopbarSectionEl.textContent = 'Месенджер';
   syncAssistantUi(false);
   document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('active'));
 });
@@ -6811,6 +9053,16 @@ convSearch.addEventListener('input', () => renderConvList(convData));
 if (messagesList) {
   messagesList.addEventListener('click', e => {
     if (!(e.target instanceof Element)) return;
+    const workdayBtn = e.target.closest('[data-open-workday="1"]');
+    if (workdayBtn) {
+      openLeadsWorkQueue();
+      return;
+    }
+    const kanbanBtn = e.target.closest('[data-open-kanban="1"]');
+    if (kanbanBtn) {
+      openLeadsKanban();
+      return;
+    }
     const dlBtn = e.target.closest('.assistant-statement-btn[data-protected-download="1"]');
     if (dlBtn) {
       e.preventDefault();
@@ -6860,6 +9112,21 @@ if (messagesList) {
       .catch(() => showToast('Не вдалося скопіювати текст', true));
   });
 }
+if (schedulerOverviewEl) {
+  schedulerOverviewEl.addEventListener('click', e => {
+    if (!(e.target instanceof Element)) return;
+    if (e.target.closest('[data-open-workday="1"]')) {
+      openLeadsWorkQueue();
+      return;
+    }
+    if (e.target.closest('[data-open-kanban="1"]')) {
+      openLeadsKanban();
+      return;
+    }
+    const leadButton = e.target.closest('[data-scheduler-lead]');
+    if (leadButton) openLeadDetail(Number(leadButton.dataset.schedulerLead));
+  });
+}
 if (assistantQuickActions) {
   assistantQuickActions.addEventListener('click', e => {
     const btn = e.target instanceof Element ? e.target.closest('.assistant-quick-btn') : null;
@@ -6881,9 +9148,12 @@ if (btnRejectCall) btnRejectCall.addEventListener('click', rejectCall);
 
 function bestEffortEndActiveCall() {
   if (!activeCallId || !token) return;
+  const headers = {};
+  if (token !== COOKIE_SESSION_TOKEN) headers.Authorization = `Bearer ${token}`;
   fetch(`${API}/messenger/calls/${activeCallId}/end`, {
     method: 'PUT',
-    headers: { Authorization: `Bearer ${token}` },
+    headers,
+    credentials: 'include',
     keepalive: true,
   }).catch(() => {});
 }
@@ -6922,6 +9192,11 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 window.addEventListener('pageshow', () => {
   handleVisibilityChange();
 });
+let workspaceResizeFrame = 0;
+window.addEventListener('resize', () => {
+  cancelAnimationFrame(workspaceResizeFrame);
+  workspaceResizeFrame = requestAnimationFrame(syncWorkspaceResponsiveLayout);
+}, { passive: true });
 window.addEventListener('pointerdown', primeCallAudioOnUserGesture, { once: true, passive: true });
 window.addEventListener('keydown', primeCallAudioOnUserGesture, { once: true });
 if (btnScrollBottom) {
@@ -7005,8 +9280,35 @@ renderCallSettings();
 renderGroupPreview();
 syncMuteUi();
 syncCallButtonState();
-if (token && me) showApp();
-else showAuth();
+async function bootAuthenticatedApp() {
+  if (token && me) {
+    if (token !== COOKIE_SESSION_TOKEN) {
+      try {
+        await api('POST', '/auth/browser-session', { remember: true });
+        token = COOKIE_SESSION_TOKEN;
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(BANK_TOKEN_KEY);
+        sessionStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(BANK_TOKEN_KEY);
+      } catch (_) {
+        // Legacy Bearer remains usable if migration is temporarily unavailable.
+      }
+    }
+    showApp();
+    return;
+  }
+  try {
+    const user = await api('GET', '/auth/me');
+    token = COOKIE_SESSION_TOKEN;
+    me = user;
+    localStorage.setItem(USER_KEY, JSON.stringify(me));
+    showApp();
+  } catch (_) {
+    token = null;
+    showAuth();
+  }
+}
+bootAuthenticatedApp();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
@@ -7018,3 +9320,576 @@ if ('serviceWorker' in navigator) {
     } catch (_) {}
   });
 }
+
+
+// ════════════════════════════════════════════════════════════
+// AUGUST SCHEDULER — frontend logic
+// ════════════════════════════════════════════════════════════
+
+let augScheduleData   = {};   // { owner: { '2026-08-01': [...] }, ... }
+let augProgress       = {};   // { ok, generated, owners, today }
+let augSelectedOwner  = null;
+let augSelectedDay    = null;
+let augCurrentMonth   = '2026-08';  // 'YYYY-MM' — current viewed month
+
+const augView         = document.getElementById('august-schedule-view');
+const augBtnBack      = document.getElementById('btn-august-back');
+const augBtnGenerate  = document.getElementById('btn-august-generate');
+const augBtnPrev      = document.getElementById('btn-aug-prev');
+const augBtnNext      = document.getElementById('btn-aug-next');
+const augMonthTitle   = document.getElementById('aug-month-title');
+let AUG_SCHED_MONTHS = ['2026-08', '2026-09', '2026-10', '2026-11', '2026-12', '2027-01'];
+const AUG_MONTH_LABELS = {
+  '2026-08': 'СЕРПЕНЬ 2026',
+  '2026-09': 'ВЕРЕСЕНЬ 2026',
+  '2026-10': 'ЖОВТЕНЬ 2026',
+  '2026-11': 'ЛИСТОПАД 2026',
+  '2026-12': 'ГРУДЕНЬ 2026',
+  '2027-01': 'СІЧЕНЬ 2027',
+};
+const augCalGrid      = document.getElementById('august-cal-grid');
+const augDaySection   = document.getElementById('august-day-section');
+const augDayHeader    = document.getElementById('august-day-header');
+const augDayCards     = document.getElementById('august-day-cards');
+const augBarM1        = document.getElementById('aug-bar-m1');
+const augBarM2        = document.getElementById('aug-bar-m2');
+const augCountM1      = document.getElementById('aug-count-m1');
+const augCountM2      = document.getElementById('aug-count-m2');
+const augTabEls       = document.querySelectorAll('.august-tab');
+const workspaceAugEntry = document.getElementById('workspace-august-entry');
+const workspaceAugMeta  = document.getElementById('workspace-august-meta');
+
+const AUG_DAYS = ['ПН','ВТ','СР','ЧТ','ПТ','СБ','НД'];
+const AUG_MONTHS_UA = ['Січень','Лютий','Березень','Квітень','Травень','Червень',
+                       'Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+const AUG_WEEKDAYS_UA = ['Неділя','Понеділок','Вівторок','Середа','Четвер','Пятниця','Субота'];
+
+const AUG_PRIORITY_ORDER = { Hot: 0, High: 1, Medium: 2, Low: 3, Watch: 4 };
+const AUG_PRI_LABEL = { Hot: 'Гарячий', High: 'Високий пріоритет', Medium: 'Звичайний', Low: 'Низький', Watch: 'Спостереження' };
+
+function renderAugOwnerTabs(owners) {
+  const tabsContainer = document.querySelector('.august-tabs');
+  const availableOwners = (owners || []).filter(Boolean);
+  if (!tabsContainer || !availableOwners.length) return;
+  if (!augSelectedOwner || !availableOwners.includes(augSelectedOwner)) {
+    augSelectedOwner = availableOwners[0];
+  }
+  tabsContainer.hidden = availableOwners.length < 2;
+  tabsContainer.innerHTML = availableOwners.map((owner) =>
+    `<button type="button" class="august-tab ${augSelectedOwner === owner ? 'active' : ''}" data-owner="${escHtml(owner)}">${escHtml(leadsLabel(LEADS_OWNER_LABELS, owner))}</button>`
+  ).join('');
+  tabsContainer.querySelectorAll('.august-tab').forEach(tabEl => {
+    tabEl.addEventListener('click', () => {
+      tabsContainer.querySelectorAll('.august-tab').forEach(item => item.classList.remove('active'));
+      tabEl.classList.add('active');
+      augSelectedOwner = tabEl.dataset.owner;
+      augSelectedDay = null;
+      if (augDaySection) augDaySection.hidden = true;
+      renderAugustCalendar();
+    });
+  });
+}
+
+function openAugustScheduleView() {
+  const v = document.getElementById('august-schedule-view');
+  renderAugOwnerTabs(
+    (me && me.role === 'manager' && me.crm_owner) ? [me.crm_owner] : LEADS_OWNER_OPTIONS
+  );
+  if (v && prepareWorkspaceView && typeof prepareWorkspaceView === 'function') {
+    if (!prepareWorkspaceView(v, workspaceAugEntry, 'План контактів')) return;
+  } else {
+    hideWorkspaceViews(v);
+    if (v) v.hidden = false;
+  }
+  loadAugustData();
+}
+
+async function loadAugustData() {
+  try {
+    const progress = await api('GET', '/leads/schedule/progress');
+    augProgress = progress;
+    if (Array.isArray(progress.months) && progress.months.length) {
+      AUG_SCHED_MONTHS = progress.months;
+      if (!AUG_SCHED_MONTHS.includes(augCurrentMonth)) augCurrentMonth = AUG_SCHED_MONTHS[0];
+    }
+    updateAugProgressBars(progress);
+
+    if (!progress.generated) {
+      renderAugEmptyState();
+      return;
+    }
+    const schedData = await api('GET', '/leads/schedule/august');
+    augScheduleData = schedData;
+    renderAugOwnerTabs(Object.keys(schedData));
+    renderAugustCalendar();
+
+    // Відкрити сьогодні якщо є дані
+    const today = progress.today;
+    if (today && AUG_SCHED_MONTHS.some(month => today.startsWith(month))) {
+      augSelectedDay = today;
+      renderAugDayCards(today);
+    }
+  } catch (err) {
+    showToast(err.message || 'Помилка завантаження розкладу', true);
+  }
+}
+
+function updateAugProgressBars(progress) {
+  const owners = progress.owners || {};
+  const ownerKeys = LEADS_OWNER_OPTIONS.length ? LEADS_OWNER_OPTIONS : Object.keys(owners);
+  const m1 = owners[ownerKeys[0]] || {};
+  const m2 = owners[ownerKeys[1]] || {};
+  const row1 = document.getElementById('august-progress-m1');
+  const row2 = document.getElementById('august-progress-m2');
+  const name1 = row1 && row1.querySelector('.august-owner-name');
+  const name2 = row2 && row2.querySelector('.august-owner-name');
+  if (name1 && ownerKeys[0]) name1.textContent = `Менеджер ${leadsLabel(LEADS_OWNER_LABELS, ownerKeys[0])}`;
+  if (name2 && ownerKeys[1]) name2.textContent = `Менеджер ${leadsLabel(LEADS_OWNER_LABELS, ownerKeys[1])}`;
+  if (row1) row1.hidden = !ownerKeys[0] || !owners[ownerKeys[0]];
+  if (row2) row2.hidden = !ownerKeys[1] || !owners[ownerKeys[1]];
+
+  if (augBarM1)  augBarM1.style.width  = (m1.percent || 0) + '%';
+  if (augBarM2)  augBarM2.style.width  = (m2.percent || 0) + '%';
+  if (augCountM1) augCountM1.textContent = m1.total ? `${m1.done}/${m1.total} (${m1.percent}%)` : '—';
+  if (augCountM2) augCountM2.textContent = m2.total ? `${m2.done}/${m2.total} (${m2.percent}%)` : '—';
+
+  // Update sidebar meta
+  const myOwner = (me && me.role === 'manager') ? me.crm_owner : LEADS_OWNER_OPTIONS[0];
+  const myData = owners[myOwner] || {};
+  if (workspaceAugMeta) {
+    if (myData.today_total) {
+      workspaceAugMeta.textContent = `${myData.today_done}/${myData.today_total} ✓`;
+    } else {
+      workspaceAugMeta.textContent = '—';
+    }
+  }
+}
+
+function renderAugEmptyState() {
+  if (augCalGrid) augCalGrid.innerHTML = '';
+  if (augDaySection) augDaySection.hidden = true;
+  if (augCalGrid) {
+    augCalGrid.closest('.august-calendar-section').innerHTML = `
+      <div class="august-empty">
+        <strong>Розклад ще не згенеровано</strong>
+        <p>Зверніться до адміністратора для налаштування розкладу.</p>
+      </div>`;
+  }
+}
+
+function renderAugustCalendar() {
+  if (!augCalGrid) return;
+  augCalGrid.innerHTML = '';
+
+  // Update month title and nav buttons
+  if (augMonthTitle) augMonthTitle.textContent = AUG_MONTH_LABELS[augCurrentMonth] || augCurrentMonth;
+  if (augBtnPrev) augBtnPrev.disabled = augCurrentMonth === AUG_SCHED_MONTHS[0];
+  if (augBtnNext) augBtnNext.disabled = augCurrentMonth === AUG_SCHED_MONTHS[AUG_SCHED_MONTHS.length - 1];
+
+  // Header row: ПН ВТ СР ЧТ ПТ СБ НД
+  AUG_DAYS.forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'aug-cal-day-label';
+    el.textContent = d;
+    augCalGrid.appendChild(el);
+  });
+
+  // Month-aware first day offset (Monday-first)
+  const [year, month] = augCurrentMonth.split('-').map(Number);
+  const firstDay = new Date(year, month - 1, 1).getDay();
+  const offset = firstDay === 0 ? 6 : firstDay - 1;
+  const daysInMonth = new Date(year, month, 0).getDate();
+
+  // Empty cells before 1st
+  for (let i = 0; i < offset; i++) {
+    const el = document.createElement('div');
+    augCalGrid.appendChild(el);
+  }
+
+  const today = (augProgress.today || '');
+  const ownerData = augScheduleData[augSelectedOwner] || {};
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${augCurrentMonth}-${String(d).padStart(2, '0')}`;
+    const dayLeads = ownerData[dateStr] || [];
+    const done = dayLeads.filter(l => l.status === 'done').length;
+    const total = dayLeads.length;
+    const isPast = dateStr < today;
+    const isToday = dateStr === today;
+    const isSelected = dateStr === augSelectedDay;
+
+    const el = document.createElement('div');
+    el.className = 'aug-cal-day';
+    if (!total) el.classList.add('aug-empty');
+    else if (isPast) el.classList.add('aug-past');
+    if (isToday) el.classList.add('aug-today');
+    if (isSelected) el.classList.add('aug-selected');
+    if (total && done === total) el.classList.add('aug-done');
+
+    el.innerHTML = `
+      <span class="aug-cal-num">${d}</span>
+      ${total ? `<span class="aug-cal-quota">${done}/${total}</span>` : ''}
+      ${total ? `<div class="aug-cal-dot-row" aria-label="${done} виконано з ${total}">${dayLeads.slice(0, 5).map(l => `<div class="aug-cal-dot ${l.status === 'done' ? 'done' : 'pending'}"></div>`).join('')}</div>` : ''}
+    `;
+
+    if (total) {
+      el.setAttribute('role', 'button');
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('aria-label', `${d} ${AUG_MONTHS_UA[month - 1]}: ${done} виконано з ${total}`);
+      const selectDay = () => {
+        augSelectedDay = dateStr;
+        document.querySelectorAll('.aug-cal-day.aug-selected').forEach(e => e.classList.remove('aug-selected'));
+        el.classList.add('aug-selected');
+        renderAugDayCards(dateStr);
+      };
+      el.addEventListener('click', selectDay);
+      el.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          selectDay();
+        }
+      });
+    }
+    augCalGrid.appendChild(el);
+  }
+}
+
+function renderAugDayCards(dateStr) {
+  if (!augDaySection || !augDayCards || !augDayHeader) return;
+  const ownerData = augScheduleData[augSelectedOwner] || {};
+  const items = ownerData[dateStr] || [];
+  const done = items.filter(l => l.status === 'done').length;
+  const today = augProgress.today || '';
+
+  // Parse date for display
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dateObj = new Date(y, m - 1, d);
+  const weekdayName = AUG_WEEKDAYS_UA[dateObj.getDay()];
+  const allDone = items.length > 0 && done === items.length;
+
+  augDayHeader.innerHTML = `
+    <div class="august-day-title">${weekdayName}, ${d} ${AUG_MONTHS_UA[m - 1].toLowerCase()}</div>
+    <div class="august-day-progress ${allDone ? 'all-done' : ''}">${allDone ? '✓ Виконано' : `${done} з ${items.length}`}</div>
+  `;
+
+  if (!items.length) {
+    augDayCards.innerHTML = '<div class="august-empty"><p>На цей день лідів не заплановано.</p></div>';
+    augDaySection.hidden = false;
+    return;
+  }
+
+  augDayCards.innerHTML = items.map(item => {
+    const priClass = `aug-pri-${item.priority || 'Medium'}`;
+    const cardClass = item.status === 'done' ? 'aug-card-done' : item.status === 'skipped' ? 'aug-card-skipped' : '';
+    const metaLine = [item.category, item.city_area, item.country].filter(Boolean).join(' · ');
+    const phoneHref = String(item.phone || '').replace(/[^+\d]/g, '');
+    const igHandle = String(item.instagram || '').replace(/^@/, '');
+    const contactActions = [
+      igHandle ? `<a class="aug-contact-chip" href="https://instagram.com/${escHtml(igHandle)}" target="_blank" rel="noopener" aria-label="Відкрити Instagram ${escHtml(item.business_name || '')}">Instagram</a>` : '',
+      phoneHref ? `<a class="aug-contact-chip" href="tel:${escHtml(phoneHref)}" aria-label="Зателефонувати ${escHtml(item.business_name || '')}">Телефон</a>` : '',
+      item.email ? `<a class="aug-contact-chip" href="mailto:${escHtml(item.email)}" aria-label="Написати email ${escHtml(item.business_name || '')}">Email</a>` : '',
+    ].filter(Boolean).join('');
+    return `
+      <div class="aug-lead-card ${cardClass}" data-sched-id="${item.sched_id}">
+        <span class="aug-slot-num">#${item.slot}</span>
+        <div class="aug-lead-name">${escHtml(item.business_name || 'Без назви')}</div>
+        <span class="aug-lead-priority ${priClass}">${AUG_PRI_LABEL[item.priority] || item.priority || 'Medium'}</span>
+        ${metaLine ? `<div class="aug-lead-meta">${escHtml(metaLine)}</div>` : ''}
+        ${contactActions ? `<div class="aug-contact-row">${contactActions}</div>` : '<div class="aug-lead-meta">Контакт потребує перевірки</div>'}
+        <div class="aug-card-actions">
+          <button type="button" class="aug-btn-done" data-sched-id="${item.sched_id}" data-status="${item.status}">
+            ${item.status === 'done' ? '✓ Зроблено' : '✓ Зробити'}
+          </button>
+          <button type="button" class="aug-btn-skip" data-sched-id="${item.sched_id}">
+            ${item.status === 'skipped' ? 'Скасовано' : 'Пропустити'}
+          </button>
+          <button type="button" class="aug-btn-open" data-lead-id="${item.lead_id}" aria-label="Відкрити картку ліда">Картка</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Bind card action buttons
+  augDayCards.querySelectorAll('.aug-btn-done').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const sid = Number(btn.dataset.schedId);
+      const curStatus = btn.dataset.status;
+      const newStatus = curStatus === 'done' ? 'pending' : 'done';
+      await markAugScheduleLead(sid, newStatus, dateStr);
+    });
+  });
+  augDayCards.querySelectorAll('.aug-btn-skip').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const sid = Number(btn.dataset.schedId);
+      const card = btn.closest('.aug-lead-card');
+      const curStatus = card.classList.contains('aug-card-skipped') ? 'pending' : 'skipped';
+      await markAugScheduleLead(sid, curStatus, dateStr);
+    });
+  });
+  augDayCards.querySelectorAll('.aug-btn-open').forEach(btn => {
+    btn.addEventListener('click', () => openLeadDetail(Number(btn.dataset.leadId)));
+  });
+
+  augDaySection.hidden = false;
+}
+
+async function markAugScheduleLead(schedId, status, dateStr) {
+  try {
+    await api('PATCH', `/leads/schedule/${schedId}/status`, { status });
+    // Update local data
+    const ownerData = augScheduleData[augSelectedOwner] || {};
+    const items = ownerData[dateStr] || [];
+    const item = items.find(i => i.sched_id === schedId);
+    if (item) {
+      item.status = status;
+      item.completed_at = status === 'done' ? new Date().toISOString() : null;
+    }
+    // Refresh progress
+    const progress = await api('GET', '/leads/schedule/progress');
+    augProgress = progress;
+    updateAugProgressBars(progress);
+    // Re-render calendar and day
+    renderAugustCalendar();
+    renderAugDayCards(dateStr);
+  } catch (err) {
+    showToast(err.message || 'Помилка оновлення', true);
+  }
+}
+
+// Month navigation
+if (augBtnPrev) {
+  augBtnPrev.addEventListener('click', () => {
+    const idx = AUG_SCHED_MONTHS.indexOf(augCurrentMonth);
+    if (idx > 0) {
+      augCurrentMonth = AUG_SCHED_MONTHS[idx - 1];
+      augSelectedDay = null;
+      if (augDaySection) augDaySection.hidden = true;
+      renderAugustCalendar();
+    }
+  });
+}
+if (augBtnNext) {
+  augBtnNext.addEventListener('click', () => {
+    const idx = AUG_SCHED_MONTHS.indexOf(augCurrentMonth);
+    if (idx < AUG_SCHED_MONTHS.length - 1) {
+      augCurrentMonth = AUG_SCHED_MONTHS[idx + 1];
+      augSelectedDay = null;
+      if (augDaySection) augDaySection.hidden = true;
+      renderAugustCalendar();
+    }
+  });
+}
+
+// Back button
+if (augBtnBack) {
+  augBtnBack.addEventListener('click', () => {
+    if (augView) augView.hidden = true;
+    openLeadsWorkQueue();
+  });
+}
+
+// Generate schedule
+if (augBtnGenerate) {
+  augBtnGenerate.addEventListener('click', async () => {
+    const already = augProgress.generated;
+    if (already) {
+      const ok = window.confirm('Розклад вже існує. Перегенерувати (скинути всі невиконані дні)?');
+      if (!ok) return;
+    }
+    augBtnGenerate.disabled = true;
+    augBtnGenerate.textContent = 'Генерую…';
+    try {
+      const res = await api('POST', '/leads/schedule/generate', { reset_future_only: false });
+      const results = res.results || [];
+      showToast(`Розклад серпня створено: ${results.map(r => `${r.owner.replace('Manager ', 'М')}: ${r.scheduled} лідів`).join(', ')}`);
+      await loadAugustData();
+    } catch (err) {
+      showToast(err.message || 'Помилка генерації', true);
+    } finally {
+      augBtnGenerate.disabled = false;
+      augBtnGenerate.textContent = 'Згенерувати розклад';
+    }
+  });
+}
+
+// Sidebar entry
+if (workspaceAugEntry) {
+  workspaceAugEntry.addEventListener('click', openAugustScheduleView);
+}
+
+
+// ════════════════════════════════════════════════════════════
+// ANALYTICS DASHBOARD
+// ════════════════════════════════════════════════════════════
+
+const analyticsView      = document.getElementById('analytics-dashboard-view');
+const workspaceAnalytics = document.getElementById('workspace-analytics-entry');
+const btnAnalyticsBack   = document.getElementById('btn-analytics-back');
+const btnAnalyticsRef    = document.getElementById('btn-analytics-refresh');
+const analyticsLoading   = document.getElementById('analytics-loading');
+const analyticsGrid      = document.getElementById('analytics-grid');
+
+function openAnalyticsDashboard() {
+  const v = document.getElementById('analytics-dashboard-view');
+  if (v && prepareWorkspaceView && typeof prepareWorkspaceView === 'function') {
+    if (!prepareWorkspaceView(v, workspaceAnalytics, 'Аналітика')) return;
+  } else {
+    hideWorkspaceViews(v);
+    if (v) v.hidden = false;
+  }
+  loadAnalyticsData();
+}
+
+async function loadAnalyticsData() {
+  if (analyticsLoading) {
+    analyticsLoading.hidden = false;
+    analyticsLoading.innerHTML = '<div class="wow-spinner" aria-hidden="true"></div><div>Оновлюємо аналітику…</div>';
+  }
+  if (analyticsGrid) analyticsGrid.hidden = true;
+  
+  try {
+    const data = await api('GET', '/leads/analytics/dashboard');
+    renderAnalytics(data);
+    if (analyticsLoading) analyticsLoading.hidden = true;
+    if (analyticsGrid) analyticsGrid.hidden = false;
+  } catch (err) {
+    if (analyticsLoading) {
+      analyticsLoading.innerHTML = `<strong>Не вдалося завантажити аналітику</strong><span>${escHtml(err.message || 'Спробуйте оновити ще раз.')}</span>`;
+    }
+  }
+}
+
+
+// WOW Analytics animations
+function animateValue(obj, start, end, duration) {
+  if (!obj) return;
+  let startTimestamp = null;
+  const step = (timestamp) => {
+    if (!startTimestamp) startTimestamp = timestamp;
+    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+    obj.innerHTML = Math.floor(progress * (end - start) + start);
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
+    }
+  };
+  window.requestAnimationFrame(step);
+}
+
+function renderAnalytics(data) {
+  const setText = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+  };
+  const renderCol = (ownerId, m) => {
+    const id = ownerId === LEADS_OWNER_OPTIONS[0] ? 'm1' : 'm2';
+    
+    // Animate numbers
+    const totalEl = document.getElementById(`an-total-${id}`);
+    if (totalEl) totalEl.textContent = `${m.total_leads} в роботі`;
+    
+    // Donut animations
+    setTimeout(() => {
+      const contactSvg = document.getElementById(`an-contact-svg-${id}`);
+      const winSvg = document.getElementById(`an-win-svg-${id}`);
+      if (contactSvg) contactSvg.setAttribute('stroke-dasharray', `${m.contact_rate}, 100`);
+      if (winSvg) winSvg.setAttribute('stroke-dasharray', `${m.win_rate}, 100`);
+    }, 100);
+    
+    animateValue(document.getElementById(`an-contact-rate-${id}`), 0, m.contact_rate, 1500);
+    animateValue(document.getElementById(`an-win-rate-${id}`), 0, m.win_rate, 1500);
+    setTimeout(() => {
+       const contactRate = document.getElementById(`an-contact-rate-${id}`);
+       const winRate = document.getElementById(`an-win-rate-${id}`);
+       if (contactRate) contactRate.textContent += '%';
+       if (winRate) winRate.textContent += '%';
+    }, 1510);
+    
+    // Speed
+    const speedEl = document.getElementById(`an-speed-${id}`);
+    if (m.avg_speed_hours !== null) {
+      speedEl.textContent = m.avg_speed_hours;
+    } else {
+      speedEl.textContent = '—';
+    }
+    const speedMark = document.getElementById(`an-crown-speed-${id}`);
+    if (speedMark) speedMark.hidden = !m.is_winner_speed;
+    
+    // Schedule
+    setText(`an-sched-rate-${id}`, m.sched_rate + '%');
+    setTimeout(() => {
+      const bar = document.getElementById(`an-sched-bar-${id}`);
+      if (bar) bar.style.width = m.sched_rate + '%';
+    }, 200);
+    setText(`an-sched-val-${id}`, `${m.sched_done}/${m.sched_total}`);
+    
+    // Activity
+    animateValue(document.getElementById(`an-act-${id}`), 0, m.activity_count, 1000);
+    
+    // WOW logic: Power Score and Ranks
+    animateValue(document.getElementById(`wow-score-${id}`), 0, m.power_score, 2000);
+    setText(`wow-rank-${id}`, m.rank);
+    
+    // Leader & Fire styling
+    const colEl = document.getElementById(`analytics-${id}`);
+    const hdrEl = document.getElementById(`wow-header-${id}`);
+    if (m.is_leader && colEl && hdrEl) {
+      colEl.classList.add('wow-is-leader');
+      hdrEl.classList.add('wow-glow-green');
+    } else if (colEl && hdrEl) {
+      colEl.classList.remove('wow-is-leader');
+      hdrEl.classList.remove('wow-glow-green');
+    }
+    
+    if (m.is_on_fire && colEl) {
+      colEl.classList.add('wow-on-fire');
+    } else if (colEl) {
+      colEl.classList.remove('wow-on-fire');
+    }
+  };
+  
+  
+  const ownerOne = LEADS_OWNER_OPTIONS[0];
+  const ownerTwo = LEADS_OWNER_OPTIONS[1];
+  const colOne = document.getElementById('analytics-m1');
+  const colTwo = document.getElementById('analytics-m2');
+  if (colOne) colOne.hidden = !ownerOne || !data[ownerOne];
+  if (colTwo) colTwo.hidden = !ownerTwo || !data[ownerTwo];
+
+  // Update manager names in headers
+  if (LEADS_OWNER_OPTIONS[0]) {
+    const titleM1 = document.querySelector('#wow-header-m1 .wow-owner-name');
+    if (titleM1) titleM1.textContent = leadsLabel(LEADS_OWNER_LABELS, LEADS_OWNER_OPTIONS[0]);
+    if (data[LEADS_OWNER_OPTIONS[0]]) renderCol(LEADS_OWNER_OPTIONS[0], data[LEADS_OWNER_OPTIONS[0]]);
+  }
+  if (LEADS_OWNER_OPTIONS[1]) {
+    const titleM2 = document.querySelector('#wow-header-m2 .wow-owner-name');
+    if (titleM2) titleM2.textContent = leadsLabel(LEADS_OWNER_LABELS, LEADS_OWNER_OPTIONS[1]);
+    if (data[LEADS_OWNER_OPTIONS[1]]) renderCol(LEADS_OWNER_OPTIONS[1], data[LEADS_OWNER_OPTIONS[1]]);
+  }
+  
+  // Update VS text
+  const vsText = document.getElementById('wow-h2h-vs');
+  const visibleOwners = Object.keys(data);
+  const scoreOne = document.querySelector('.wow-h2h-m1');
+  const scoreTwo = document.querySelector('.wow-h2h-m2');
+  if (scoreOne) scoreOne.hidden = !ownerOne || !data[ownerOne];
+  if (scoreTwo) scoreTwo.hidden = !ownerTwo || !data[ownerTwo];
+  const columnsWrap = document.querySelector('.wow-cols-wrap');
+  if (columnsWrap) columnsWrap.classList.toggle('wow-single-owner', visibleOwners.length === 1);
+  if (!vsText) return;
+  if (visibleOwners.length === 1) {
+    vsText.textContent = 'МОЇ РЕЗУЛЬТАТИ';
+  } else if (LEADS_OWNER_OPTIONS[0] && data[LEADS_OWNER_OPTIONS[0]]?.is_leader) {
+    vsText.innerHTML = '<span style="color:#4caf82">ВЕДЕ В РАХУНКУ</span> ←';
+  } else if (LEADS_OWNER_OPTIONS[1] && data[LEADS_OWNER_OPTIONS[1]]?.is_leader) {
+    vsText.innerHTML = '→ <span style="color:#4caf82">ВЕДЕ В РАХУНКУ</span>';
+  } else {
+    vsText.textContent = 'НІЧИЯ';
+  }
+}
+
+if (workspaceAnalytics) workspaceAnalytics.addEventListener('click', openAnalyticsDashboard);
+if (btnAnalyticsBack) btnAnalyticsBack.addEventListener('click', () => {
+  if (analyticsView) analyticsView.hidden = true;
+  openLeadsWorkQueue();
+});
+if (btnAnalyticsRef) btnAnalyticsRef.addEventListener('click', loadAnalyticsData);

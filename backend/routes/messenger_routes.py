@@ -24,7 +24,7 @@ from ..services.messenger_crypto import (
 from ..services.meta_api import MetaApiError, send_instagram_text, send_whatsapp_text
 from ..utils.security import hash_password
 from .helpers import api_error, auth_required
-from .integrations_routes import get_integration
+from .integrations_routes import get_integration, _get_managers
 from .leads_routes import _log_activity as _log_lead_activity
 from .push_routes import send_push
 
@@ -155,21 +155,31 @@ def _maybe_post_scheduler_digest(me_id: int, conv_id: int, role: str) -> None:
     from .leads_routes import _ensure_schema as _ensure_leads_schema
     _ensure_leads_schema()
     with get_connection() as conn:
-        # Дивимось на останні N повідомлень, а не лише останнє — інакше якщо
-        # менеджер щось напише в Планувальнику ПІСЛЯ дайджесту, наступне
-        # відкриття месенджера того ж дня продублює дайджест.
+        # Сервер може отримати кілька паралельних poll-запитів. Блокуємо
+        # створення дайджесту для конкретного користувача в межах транзакції.
+        if USE_PG:
+            conn.execute('SELECT pg_advisory_xact_lock(%s)', (91000000 + int(me_id),))
+
+        # Прибираємо історичні дублікати: для кожної дати лишається останній
+        # дайджест. Це також лікує записи, створені старими версіями застосунку.
         recent = conn.execute(
-            'SELECT text, created_at FROM messages WHERE conversation_id = %s ORDER BY id DESC LIMIT 20',
-            (conv_id,),
+            'SELECT id, text, created_at FROM messages '
+            'WHERE conversation_id = %s AND text LIKE %s ORDER BY id DESC LIMIT 500',
+            (conv_id, f'{_SCHEDULER_DIGEST_TAG}%'),
         ).fetchall()
-        already_posted_today = any(
-            str(r.get('created_at') or '')[:10] == today_iso
-            and str(r.get('text') or '').startswith(_SCHEDULER_DIGEST_TAG)
-            for r in (recent or [])
-        )
-        if already_posted_today:
-            _scheduler_digest_checked_on[me_id] = today_iso
-            return
+        newest_by_day: dict[str, dict] = {}
+        duplicate_ids: list[int] = []
+        for row in (recent or []):
+            text = str(row.get('text') or '')
+            digest_day = text[len(_SCHEDULER_DIGEST_TAG):].split(':', 1)[0].strip()
+            if not digest_day:
+                digest_day = str(row.get('created_at') or '')[:10]
+            if digest_day in newest_by_day:
+                duplicate_ids.append(int(row['id']))
+            else:
+                newest_by_day[digest_day] = row
+        for message_id in duplicate_ids:
+            conn.execute('DELETE FROM messages WHERE id = %s', (message_id,))
 
         due = conn.execute(
             "SELECT business_name, next_followup_date FROM leads "
@@ -185,10 +195,17 @@ def _maybe_post_scheduler_digest(me_id: int, conv_id: int, role: str) -> None:
             lines = [f'{_SCHEDULER_DIGEST_TAG}{today_iso}: прострочених фоллоу-апів немає 🎉']
         digest_text = '\n'.join(lines)
 
-        conn.execute(
-            'INSERT INTO messages (conversation_id, sender_id, text, msg_type) VALUES (%s, %s, %s, %s)',
-            (conv_id, me_id, digest_text, 'text'),
-        )
+        today_digest = newest_by_day.get(today_iso)
+        if today_digest:
+            conn.execute(
+                'UPDATE messages SET text = %s, msg_type = %s WHERE id = %s',
+                (digest_text, 'system', int(today_digest['id'])),
+            )
+        else:
+            conn.execute(
+                'INSERT INTO messages (conversation_id, sender_id, text, msg_type) VALUES (%s, %s, %s, %s)',
+                (conv_id, me_id, digest_text, 'system'),
+            )
         conn.execute(
             f'UPDATE conversations SET last_message_at = {_now_sql()}, last_message_text = %s WHERE id = %s',
             (lines[0][:180], conv_id),
@@ -360,45 +377,95 @@ def _period_label(from_date: str, to_date: str) -> str:
     return f'{from_date} → {to_date}'
 
 
-def _try_send_via_channel(conn, lead_id: int, text: str) -> None:
-    """Якщо лід прийшов через WhatsApp/Instagram і менеджер-власник ліда
-    підключив свій канал у «Інтеграції» — реально надсилає відповідь через
-    Meta Graph API від його імені. Best-effort: збій відправки не повинен
-    ламати сам чат, лише лишає слід у лог ліда."""
+def _lead_channel_readiness(conn, lead_id: int) -> dict:
+    """Єдиний стан каналу для UI і серверної відправки."""
     lead = conn.execute(
         'SELECT owner, primary_channel, phone, whatsapp_viber, instagram FROM leads WHERE id = %s',
         (lead_id,),
     ).fetchone()
     if not lead:
-        return
+        return {'ready': False, 'code': 'lead_not_found', 'reason': 'Лід не знайдено.'}
     lead = dict(lead)
     channel = (lead.get('primary_channel') or '').strip().lower()
     owner = lead.get('owner') or ''
+    manager_label = _get_managers().get(owner, owner or 'Менеджер не призначений')
+
+    if channel not in ('whatsapp', 'instagram'):
+        return {
+            'ready': False, 'code': 'channel_missing', 'channel': channel,
+            'owner': owner, 'manager_label': manager_label,
+            'reason': 'Оберіть WhatsApp або Instagram як основний канал ліда.',
+        }
+
+    recipient = (
+        (lead.get('whatsapp_viber') or lead.get('phone') or '').strip()
+        if channel == 'whatsapp' else (lead.get('instagram') or '').strip()
+    )
+    if not recipient:
+        label = 'номер WhatsApp' if channel == 'whatsapp' else 'Instagram ID клієнта'
+        return {
+            'ready': False, 'code': 'recipient_missing', 'channel': channel,
+            'owner': owner, 'manager_label': manager_label,
+            'reason': f'Додайте {label} в картку ліда.',
+        }
+
+    integration = get_integration(conn, owner, channel)
+    if not integration:
+        try:
+            row = conn.execute(
+                'SELECT status, display_label FROM manager_integrations WHERE manager = %s AND channel = %s',
+                (owner, channel),
+            ).fetchone()
+        except Exception:
+            row = None
+        status = str((row or {}).get('status') or 'disconnected')
+        return {
+            'ready': False,
+            'code': 'token_error' if status == 'error' else 'integration_missing',
+            'channel': channel, 'owner': owner, 'manager_label': manager_label,
+            'integration_status': status,
+            'reason': (
+                f'Перепідключіть {channel.title()}: поточний токен не працює.'
+                if status == 'error' else f'{manager_label} ще не підключив {channel.title()}.'
+            ),
+        }
+
+    return {
+        'ready': True, 'code': 'ready', 'channel': channel,
+        'owner': owner, 'manager_label': manager_label, 'recipient': recipient,
+        'account_label': integration.get('display_label') or integration.get('external_id') or '',
+        'integration_status': 'connected',
+        'reason': f'{channel.title()} підключено. Повідомлення буде надіслано клієнту.',
+    }
+
+
+def _send_via_channel(conn, lead_id: int, text: str, readiness: dict | None = None) -> None:
+    """Надсилає текст у зовнішній канал; помилки не приховуються."""
+    readiness = readiness or _lead_channel_readiness(conn, lead_id)
+    if not readiness.get('ready'):
+        raise ValueError(readiness.get('reason') or 'Канал не готовий до відправки.')
+
+    channel = readiness['channel']
+    owner = readiness['owner']
+    to = readiness['recipient']
+    integration = get_integration(conn, owner, channel)
+    if not integration:
+        raise ValueError('Інтеграція більше недоступна. Оновіть стан чату.')
+    token = decrypt_message(integration['access_token'], fallback='')
 
     if channel == 'whatsapp':
-        to = (lead.get('whatsapp_viber') or lead.get('phone') or '').strip()
-        if not to:
-            return
-        integration = get_integration(conn, owner, 'whatsapp')
-        if not integration:
-            return
-        token = decrypt_message(integration['access_token'], fallback='')
-        try:
-            send_whatsapp_text(integration['external_id'], token, to, text)
-        except MetaApiError as exc:
-            _log_lead_activity(conn, lead_id, 'ARM CRM', 'system', f'Не вдалося надіслати у WhatsApp: {exc.message}')
+        send_whatsapp_text(integration['external_id'], token, to, text)
     elif channel == 'instagram':
-        to = (lead.get('instagram') or '').strip()
-        if not to:
-            return
-        integration = get_integration(conn, owner, 'instagram')
-        if not integration:
-            return
-        token = decrypt_message(integration['access_token'], fallback='')
-        try:
-            send_instagram_text(integration['external_id'], token, to, text)
-        except MetaApiError as exc:
-            _log_lead_activity(conn, lead_id, 'ARM CRM', 'system', f'Не вдалося надіслати в Instagram: {exc.message}')
+        send_instagram_text(integration['external_id'], token, to, text)
+
+
+@messenger_bp.get('/leads/<int:lead_id>/channel-readiness')
+@auth_required
+def lead_channel_readiness(lead_id: int):
+    with get_connection() as conn:
+        readiness = _lead_channel_readiness(conn, lead_id)
+    status = 200 if readiness.get('code') != 'lead_not_found' else 404
+    return jsonify({'ok': readiness.get('code') != 'lead_not_found', 'data': readiness}), status
 
 
 def _get_or_create_assistant_user(conn) -> int:
@@ -1418,6 +1485,36 @@ def send_message(conv_id: int):
         group_name = str((conv_row or {}).get('group_name') or '').strip()
         sender_name = str(g.current_user.get('full_name') or 'Користувач')
 
+        lead_row = conn.execute('SELECT lead_id FROM conversations WHERE id = %s', (conv_id,)).fetchone()
+        lead_id = (lead_row or {}).get('lead_id')
+        if lead_id:
+            readiness = _lead_channel_readiness(conn, int(lead_id))
+            if not readiness.get('ready'):
+                return jsonify({'ok': False, 'error': readiness['reason'], 'data': readiness}), 409
+            if msg_type != 'text':
+                return jsonify({
+                    'ok': False,
+                    'error': 'Фото та голосові повідомлення для зовнішніх каналів ще не підтримуються. Надішліть текст.',
+                    'data': {**readiness, 'code': 'message_type_unsupported'},
+                }), 409
+            try:
+                _send_via_channel(conn, int(lead_id), text, readiness)
+            except MetaApiError as exc:
+                _log_lead_activity(
+                    conn, int(lead_id), 'ARM CRM', 'system',
+                    f'Помилка доставки у {readiness["channel"].title()}: {exc.message}',
+                )
+                return jsonify({
+                    'ok': False,
+                    'error': f'Канал відхилив повідомлення: {exc.message}',
+                    'data': {**readiness, 'ready': False, 'code': 'delivery_failed'},
+                }), 502
+            except ValueError as exc:
+                return jsonify({
+                    'ok': False, 'error': str(exc),
+                    'data': {**readiness, 'ready': False, 'code': 'integration_changed'},
+                }), 409
+
         if USE_PG:
             cur = conn.execute(
                 'INSERT INTO messages (conversation_id, sender_id, text, msg_type) VALUES (%s, %s, %s, %s) RETURNING id, created_at',
@@ -1450,16 +1547,12 @@ def send_message(conv_id: int):
 
         # Lead-linked conversation: mirror the message into the CRM activity log
         # so lead_activity (used by stats/CSV export) stays in sync with the real chat.
-        lead_row = conn.execute('SELECT lead_id FROM conversations WHERE id = %s', (conv_id,)).fetchone()
-        lead_id = (lead_row or {}).get('lead_id')
         if lead_id:
             _log_lead_activity(conn, int(lead_id), sender_name, 'note', preview)
             conn.execute(
                 f'UPDATE leads SET last_touch_date = %s, updated_at = {_now_sql()} WHERE id = %s',
                 (date.today().isoformat(), int(lead_id)),
             )
-            if msg_type == 'text':
-                _try_send_via_channel(conn, int(lead_id), text)
 
         participant_rows = conn.execute(
             """

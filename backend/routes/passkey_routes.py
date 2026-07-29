@@ -17,12 +17,15 @@ from webauthn.helpers.exceptions import InvalidCBORData, InvalidAuthenticatorDat
 
 from ..repositories.passkey_repository import PasskeyRepository
 from ..repositories.user_repository import UserRepository
+from ..services.auth_service import AuthService
+from ..utils.security import generate_token, token_expiration_iso
 from .helpers import api_error, auth_required
 
 passkey_bp = Blueprint('passkey', __name__, url_prefix='/api/auth/passkey')
 
 _passkeys = PasskeyRepository()
 _users    = UserRepository()
+_auth     = AuthService()
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -46,6 +49,15 @@ def _origin() -> str:
     fwd_proto = request.headers.get('X-Forwarded-Proto', request.scheme)
     host = request.headers.get('X-Forwarded-Host') or request.host
     return f"{fwd_proto}://{host}"
+
+
+def _client_context() -> dict:
+    xff = (request.headers.get('X-Forwarded-For') or '').strip()
+    ip = xff.split(',')[0].strip() if xff else (request.remote_addr or 'unknown')
+    return {
+        'ip_address': ip[:80],
+        'user_agent': (request.headers.get('User-Agent') or '')[:500],
+    }
 
 
 # ── Registration ──────────────────────────────────────────────────────────────
@@ -92,7 +104,8 @@ def register_verify():
     if not challenge_b64:
         return api_error('Challenge не знайдено. Спробуйте ще раз.', 400)
 
-    data = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True) or {}
+    data = payload.get('credential') if isinstance(payload.get('credential'), dict) else payload
     if not data:
         return api_error('Порожнє тіло запиту', 400)
 
@@ -135,7 +148,8 @@ def login_verify():
     if not challenge_b64:
         return api_error('Challenge не знайдено. Спробуйте ще раз.', 400)
 
-    data = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True) or {}
+    data = payload.get('credential') if isinstance(payload.get('credential'), dict) else payload
     if not data:
         return api_error('Порожнє тіло запиту', 400)
 
@@ -168,22 +182,34 @@ def login_verify():
     if not user:
         return api_error('Користувача не знайдено', 404)
 
-    from ..utils.security import generate_token, token_expiration_iso
     token = generate_token()
-    _users.create_session(user['id'], token, token_expiration_iso())
+    remember = bool(payload.get('remember', True))
+    client = _client_context()
+    _users.create_session(
+        user['id'], token, token_expiration_iso(),
+        user_agent=client['user_agent'], ip_address=client['ip_address'],
+        auth_method='passkey', remembered=remember,
+    )
+    account, auto_created = _auth.ensure_user_bank_account(user['id'])
 
-    return jsonify({
+    response = jsonify({
         'ok': True,
         'data': {
-            'token': token,
+            'cookie_auth': True,
             'user': {
                 'id': user['id'],
                 'full_name': user.get('full_name'),
                 'phone': user.get('phone'),
                 'email': user.get('email'),
+                'role': user.get('role'),
+                'bank_account_linked': bool(account),
+                'bank_account_number': account.get('account_number') if account else None,
             },
+            'bank_notice': 'Банківський рахунок створено автоматично.' if auto_created else None,
         },
     })
+    from .auth_routes import set_auth_cookies
+    return set_auth_cookies(response, token, remember)
 
 
 # ── Status / remove ───────────────────────────────────────────────────────────
