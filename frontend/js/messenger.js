@@ -357,6 +357,9 @@ const workspaceKanbanEntry = $('workspace-kanban-entry');
 const workspaceSearchEntry = $('workspace-search-entry');
 const workspaceOpeningsEntry = $('workspace-openings-entry');
 const workspaceIntegrationsEntry = $('workspace-integrations-entry');
+const workspaceGuideEntry = $('workspace-guide-entry');
+const guideView = $('guide-view');
+const btnGuideBack = $('btn-guide-back');
 const workspaceLeadsCount = $('workspace-leads-count');
 const workspaceDayCount = $('workspace-day-count');
 const leadsStatsEl = $('leads-stats');
@@ -2382,7 +2385,7 @@ function activateWorkspaceEntry(activeEntry = null) {
 function getAllWorkspaceViews() {
   const aug = document.getElementById('august-schedule-view');
   const anl = document.getElementById('analytics-dashboard-view');
-  return [leadsDirectoryView, leadsWorkQueueView, leadsKanbanView, integrationsView,
+  return [guideView, leadsDirectoryView, leadsWorkQueueView, leadsKanbanView, integrationsView,
     prospectingView, openingsView, aug, anl].filter(Boolean);
 }
 
@@ -2620,6 +2623,17 @@ function setIntegrationsTab(tabName) {
 document.querySelectorAll('[data-integrations-tab]').forEach(button => {
   button.addEventListener('click', () => setIntegrationsTab(button.dataset.integrationsTab || 'channels'));
 });
+
+/* Інструкція — закріплений перший пункт списку. Тримається як звичайний
+   workspace-екран, а не модалка: її відкривають посеред роботи, і повертатися
+   треба туди ж, звідки прийшли. */
+function openGuideView() {
+  if (!prepareWorkspaceView(guideView, workspaceGuideEntry, 'Инструкция')) return;
+  if (guideView) guideView.scrollTop = 0;
+}
+
+if (workspaceGuideEntry) workspaceGuideEntry.addEventListener('click', openGuideView);
+if (btnGuideBack) btnGuideBack.addEventListener('click', closeWorkspaceView);
 
 async function openIntegrationsView(initialTab = 'channels') {
   if (!prepareWorkspaceView(integrationsView, workspaceIntegrationsEntry, 'Інтеграції')) return;
