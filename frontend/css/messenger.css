@@ -8813,47 +8813,94 @@ a.lead-profile-value:hover { text-decoration: underline; }
 .aug-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 /* ── Инструкция: закреплённый первый экран рабочего списка ────────────────
-   Вёрстка текстовая и намеренно узкая (68ch): это документ, который читают
-   подряд, а не панель, которую сканируют. Ширину держим на самом теле, а не
-   на карточках, чтобы длинная таблица диагнозов могла выйти за неё и
-   прокручиваться внутри себя, не растягивая страницу. */
-.workspace-chat.is-pinned { background: linear-gradient(90deg, rgba(255,193,7,.10), transparent 60%); }
+   Документ, а не панель: тело узкое (70ch), потому что это читают подряд.
+   Ширину держим на карточках, а не на теле, чтобы таблица диагнозов могла
+   прокручиваться внутри себя и не растягивала экран.
+
+   Раздел администратора скрыт классом на корне экрана, а не удалением узла:
+   админ должен видеть ровно то же, что видит менеджер, плюс своё. */
+.workspace-chat.is-pinned { background: linear-gradient(90deg, rgba(255,193,7,.12), transparent 62%); }
 .workspace-chat-icon.is-guide { background: #fff4d6; color: #8a6100; }
-.workspace-pin { font-size: 13px; opacity: .8; }
+.workspace-pin { font-size: 13px; opacity: .85; }
 
-.guide-body { padding: 18px 20px 60px; overflow-y: auto; height: 100%; }
-.guide-toc { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; max-width: 68ch; }
-.guide-toc a {
-  font-size: 11px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px;
-  color: var(--text-2); text-decoration: none; transition: background .15s, color .15s;
+.guide-body { padding: 20px 22px 64px; overflow-y: auto; height: 100%; }
+[data-guide-role="admin"] { display: none; }
+#guide-view.is-admin [data-guide-role="admin"] { display: block; }
+#guide-view.is-admin a[data-guide-role="admin"] { display: inline-block; }
+
+.guide-hero {
+  max-width: 70ch; margin: 0 0 16px; padding: 20px 22px; border-radius: 14px;
+  background: linear-gradient(135deg, #1f2544 0%, #3a2f5a 55%, #6b4a7a 100%);
+  color: #fff;
 }
+.guide-hero-kicker { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; opacity: .75; }
+.guide-hero-title { margin: 8px 0 8px; font-size: 26px; line-height: 1.15; font-weight: 700; }
+.guide-hero-sub { margin: 0; font-size: 13.5px; line-height: 1.65; opacity: .88; max-width: 58ch; }
+.guide-hero-role { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.guide-badge { font-size: 11px; padding: 4px 11px; border-radius: 999px; background: rgba(255,255,255,.18); }
+.guide-badge.is-soft { background: rgba(255,255,255,.10); }
+
+.guide-checklist { max-width: 70ch; margin: 0 0 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
+.guide-checklist-head { display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.guide-checklist-state { font-size: 11px; color: var(--text-2); }
+.guide-checklist-state.is-ready { color: #1a7f45; font-weight: 700; }
+.guide-checklist-items { list-style: none; margin: 0; padding: 0; }
+.guide-check { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.guide-check:last-child { border-bottom: 0; }
+.guide-check-mark { flex: 0 0 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+.guide-check.is-done .guide-check-mark { background: #d8f3e3; color: #1a7f45; }
+.guide-check.is-todo .guide-check-mark { border: 1.5px dashed var(--line); }
+.guide-check-copy { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.guide-check-copy b { font-size: 13px; color: var(--ink); }
+.guide-check-copy small { font-size: 11.5px; color: var(--text-2); }
+.guide-check-cta, .guide-cta {
+  border: 1px solid var(--ink); background: var(--ink); color: var(--surface);
+  border-radius: 7px; padding: 7px 13px; font-size: 11.5px; cursor: pointer; white-space: nowrap;
+}
+.guide-cta { margin-top: 4px; }
+.guide-check-cta:hover, .guide-cta:hover { opacity: .88; }
+
+.guide-toc { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; max-width: 70ch; }
+.guide-toc a { font-size: 11px; padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--text-2); text-decoration: none; transition: background .15s, color .15s; }
 .guide-toc a:hover { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.guide-toc-admin { border-style: dashed !important; }
 
-.guide-card {
-  max-width: 68ch; margin: 0 0 16px; padding: 16px 18px;
-  border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
-  scroll-margin-top: 12px;
-}
-.guide-card h2 { margin: 0 0 10px; font-size: 15px; font-weight: 700; color: var(--ink); }
-.guide-card p { margin: 0 0 10px; font-size: 13px; line-height: 1.65; color: var(--text-2); }
+.guide-card { max-width: 70ch; margin: 0 0 14px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); scroll-margin-top: 12px; }
+.guide-card h2 { margin: 0 0 10px; font-size: 15.5px; font-weight: 700; color: var(--ink); }
+.guide-card h3 { margin: 16px 0 7px; font-size: 13px; font-weight: 700; color: var(--ink); }
+.guide-card p { margin: 0 0 10px; font-size: 13px; line-height: 1.68; color: var(--text-2); }
 .guide-card b { color: var(--ink); }
 .guide-card code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
 .guide-card a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 
+.guide-step { display: flex; gap: 16px; }
+.guide-step-num { flex: 0 0 30px; height: 30px; border-radius: 50%; background: var(--ink); color: var(--surface); display: grid; place-items: center; font-size: 14px; font-weight: 700; }
+.guide-step-body { flex: 1; min-width: 0; }
+
 .guide-steps, .guide-list { margin: 0 0 10px; padding-left: 20px; font-size: 13px; line-height: 1.7; color: var(--text-2); }
 .guide-steps li, .guide-list li { margin-bottom: 8px; }
 .guide-note { font-size: 12px; color: var(--text-3, var(--text-2)); border-left: 2px solid var(--line); padding-left: 10px; }
-.guide-warn { display: inline-block; font-size: 12px; color: #8a2b12; background: #fff1ec; border-radius: 5px; padding: 4px 8px; margin-top: 4px; }
-p.guide-warn { display: block; }
+.guide-callout { background: var(--surface-2); border-radius: 8px; padding: 11px 13px; font-size: 12.5px !important; }
+.guide-warn { display: block; font-size: 12px; color: #8a2b12; background: #fff1ec; border-radius: 6px; padding: 5px 9px; margin-top: 5px; }
+.guide-warn-block { margin-top: 10px; line-height: 1.6; }
 
-/* Таблица шире тела инструкции — пусть прокручивается сама, а не тянет экран. */
 .guide-table { display: block; overflow-x: auto; width: 100%; border-collapse: collapse; margin: 4px 0 12px; font-size: 12.5px; }
 .guide-table th, .guide-table td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
 .guide-table th { background: var(--surface-2); font-weight: 700; color: var(--ink); white-space: nowrap; }
 .guide-table td:first-child { white-space: nowrap; }
+.guide-table tr.is-danger td { background: #fff6f3; }
 
 .guide-faq { margin: 0; font-size: 13px; line-height: 1.65; }
-.guide-faq dt { font-weight: 700; color: var(--ink); margin-top: 10px; }
-.guide-faq dd { margin: 3px 0 0; padding-left: 0; color: var(--text-2); }
+.guide-faq dt { font-weight: 700; color: var(--ink); margin-top: 11px; }
+.guide-faq dd { margin: 3px 0 0; color: var(--text-2); }
 
-@media (max-width: 720px) { .guide-body { padding: 14px 14px 48px; } }
+.guide-admin { border-color: #c9a227; background: linear-gradient(180deg, #fffdf5, var(--surface)); }
+.guide-code { background: #1f2430; color: #e8eaf0; border-radius: 8px; padding: 12px 14px; font-size: 11.5px; line-height: 1.6; overflow-x: auto; margin: 0 0 10px; }
+
+@media (max-width: 720px) {
+  .guide-body { padding: 14px 14px 48px; }
+  .guide-hero { padding: 16px; }
+  .guide-hero-title { font-size: 21px; }
+  .guide-step { flex-direction: column; gap: 10px; }
+  .guide-check { flex-wrap: wrap; }
+}

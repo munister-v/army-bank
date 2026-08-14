@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="/vendor/leaflet/leaflet.css?v=101"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=306"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=307"/>
 </head>
 <body>
 
@@ -625,108 +625,126 @@
         </button>
         <div class="leads-thread-info">
           <div class="leads-thread-name">Инструкция</div>
-          <div class="leads-thread-sub">Подключение ключей, поиск клиентов, работа с лидами</div>
+          <div class="leads-thread-sub">Новая инфраструктура: подключение, поиск, работа с лидами</div>
         </div>
       </div>
       <div class="guide-body">
 
+        <header class="guide-hero">
+          <span class="guide-hero-kicker">Новая инфраструктура</span>
+          <h1 class="guide-hero-title" id="guide-hero-title">Начнём сначала</h1>
+          <p class="guide-hero-sub" id="guide-hero-sub">Старая база лидов очищена. Дальше система ищет не «ещё названий», а бизнесы, до которых можно достучаться и у которых есть что чинить.</p>
+          <div class="guide-hero-role" id="guide-role-badges"></div>
+        </header>
+
+        <section class="guide-checklist" id="guide-checklist" aria-label="Готовность к работе">
+          <div class="guide-checklist-head">
+            <span class="mono-label">Ваша готовность</span>
+            <span class="guide-checklist-state" id="guide-checklist-state">проверяем…</span>
+          </div>
+          <ol class="guide-checklist-items" id="guide-checklist-items"></ol>
+        </section>
+
         <nav class="guide-toc" aria-label="Содержание">
-          <a href="#guide-start">С чего начать</a>
-          <a href="#guide-keys">Ключ Google</a>
-          <a href="#guide-channels">WhatsApp и Instagram</a>
-          <a href="#guide-search">Поиск клиентов</a>
-          <a href="#guide-diagnosis">Диагноз лида</a>
-          <a href="#guide-daily">Ежедневная работа</a>
-          <a href="#guide-limits">Чего система не делает</a>
-          <a href="#guide-faq">Если что-то не работает</a>
+          <a href="#guide-keys">1 · Ключ Google</a>
+          <a href="#guide-channels">2 · WhatsApp и Instagram</a>
+          <a href="#guide-search">3 · Поиск клиентов</a>
+          <a href="#guide-diagnosis">4 · Диагноз лида</a>
+          <a href="#guide-daily">5 · Ежедневная работа</a>
+          <a href="#guide-limits">Границы</a>
+          <a href="#guide-faq">Если не работает</a>
+          <a href="#guide-admin" class="guide-toc-admin" data-guide-role="admin">Для администратора</a>
         </nav>
 
-        <section class="guide-card" id="guide-start">
-          <h2>С чего начать</h2>
-          <p>Система решает одну задачу: найти бизнес, до которого <b>можно достучаться</b>, и у которого <b>есть что чинить</b> в интернете. Всё остальное — вспомогательное.</p>
-          <ol class="guide-steps">
-            <li><b>Подключите свой ключ Google</b> — без него поиск находит меньше клиентов (раздел ниже).</li>
-            <li><b>Подключите WhatsApp или Instagram</b>, если будете писать прямо из системы.</li>
-            <li><b>Запустите поиск клиентов</b> — по стране, городу и категории.</li>
-            <li><b>Разберите очередь</b> — у каждого лида написано, что именно у него сломано и о чём писать.</li>
-          </ol>
-          <p class="guide-note">Первые три шага делаются один раз. Дальше вы работаете только с четвёртым.</p>
+        <section class="guide-card guide-step" id="guide-keys">
+          <div class="guide-step-num">1</div>
+          <div class="guide-step-body">
+            <h2>Ключ Google — 5 минут, один раз</h2>
+            <p>Нужен, чтобы система нашла сайт бизнеса, когда его нет в карточке. Без ключа адрес известен примерно у четверти лидов, с ключом — у большинства. Это самый недооценённый шаг: он один поднимает отдачу всего парсера.</p>
+            <p class="guide-callout"><b>Ключ личный.</b> Квота считается на ключ: 100 запросов в сутки бесплатно. Общий ключ один человек сжёг бы за один прогон. Хранится зашифрованным, коллеги его не видят, удалить можно в любой момент.</p>
+            <ol class="guide-steps">
+              <li>Создайте проект: <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">console.cloud.google.com/projectcreate</a> → любое название → <i>Create</i>.</li>
+              <li>Включите Custom Search API: <a href="https://console.cloud.google.com/apis/library/customsearch.googleapis.com" target="_blank" rel="noopener">страница API</a> → <i>Enable</i>.<span class="guide-warn">Пропустите — ключ будет отвечать ошибкой 403.</span></li>
+              <li>Создайте ключ: <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Credentials</a> → <i>Create credentials</i> → <i>API key</i>. Строка вида <code>AIza…</code>.</li>
+              <li>Создайте поисковую систему: <a href="https://programmablesearchengine.google.com/controlpanel/create" target="_blank" rel="noopener">programmablesearchengine.google.com</a> → включите <b>«Search the entire web»</b> → <i>Create</i>.<span class="guide-warn">Без «весь интернет» поиск ищет только по указанным сайтам и не находит ничего.</span></li>
+              <li>Скопируйте <b>Search engine ID</b> (<code>cx</code>) со страницы <i>Overview</i>.</li>
+              <li>Вставьте оба значения в карточке Google в разделе «Интеграции» → <i>Перевірити й зберегти</i>.</li>
+            </ol>
+            <button type="button" class="guide-cta" data-guide-goto="integrations">Открыть Интеграции →</button>
+          </div>
         </section>
 
-        <section class="guide-card" id="guide-keys">
-          <h2>Ключ Google — 5 минут, один раз</h2>
-          <p>Ключ нужен, чтобы система могла найти сайт бизнеса, когда его нет в карточке. Без ключа адрес сайта известен примерно у четверти лидов, с ключом — у большинства.</p>
-          <p><b>Ключ личный.</b> Квота считается на ключ: 100 запросов в сутки бесплатно. Если бы ключ был общий, один прогон списал бы дневной лимит у всех. Ключ хранится зашифрованным, другие менеджеры его не видят, удалить можно в любой момент.</p>
-          <ol class="guide-steps">
-            <li>Создайте проект: <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">console.cloud.google.com/projectcreate</a> → любое название → <i>Create</i>.</li>
-            <li>Включите Custom Search API: <a href="https://console.cloud.google.com/apis/library/customsearch.googleapis.com" target="_blank" rel="noopener">страница API</a> → <i>Enable</i>.<br/><span class="guide-warn">Пропустите этот шаг — ключ будет отвечать ошибкой 403.</span></li>
-            <li>Создайте ключ: <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Credentials</a> → <i>Create credentials</i> → <i>API key</i>. Получится строка вида <code>AIza…</code>.</li>
-            <li>Создайте поисковую систему: <a href="https://programmablesearchengine.google.com/controlpanel/create" target="_blank" rel="noopener">programmablesearchengine.google.com</a> → включите <b>«Search the entire web»</b> → <i>Create</i>.<br/><span class="guide-warn">Без «весь интернет» поиск ищет только по перечисленным сайтам и не находит ничего.</span></li>
-            <li>Скопируйте <b>Search engine ID</b> (он же <code>cx</code>) со страницы <i>Overview</i> вашей поисковой системы.</li>
-            <li>Откройте <b>Интеграции</b> в левом меню → карточка «Google Custom Search» → вставьте оба значения → <i>Перевірити й зберегти</i>.</li>
-          </ol>
-          <p class="guide-note">Мы сразу делаем тестовый запрос и сохраняем ключ, только если он действительно работает. Платить не нужно: 100 запросов в сутки бесплатны, дальше — <a href="https://developers.google.com/custom-search/v1/overview#pricing" target="_blank" rel="noopener">тарифы Google</a>.</p>
+        <section class="guide-card guide-step" id="guide-channels">
+          <div class="guide-step-num">2</div>
+          <div class="guide-step-body">
+            <h2>WhatsApp и Instagram</h2>
+            <p>Нужны, только если пишете клиентам прямо из системы. Поиск и диагностика работают и без них.</p>
+            <p>Для WhatsApp Business — <b>Phone Number ID</b> и <b>Access Token</b> из <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">кабинета Meta</a>; для Instagram — <b>Instagram User ID</b> и токен оттуда же. Токен проверяется при подключении, а кнопка «Перевірити» покажет, что он истёк, раньше, чем вы потеряете переписку: временные токены живут сутки.</p>
+            <p class="guide-note">Каналы личные: чужие подключения вам не видны и отключить их нельзя.</p>
+          </div>
         </section>
 
-        <section class="guide-card" id="guide-channels">
-          <h2>WhatsApp и Instagram</h2>
-          <p>Нужны, только если вы пишете клиентам прямо из системы. Поиск и диагностика работают и без них.</p>
-          <p>Подключаются в разделе <b>Интеграции</b>. Для WhatsApp Business нужны <b>Phone Number ID</b> и <b>Access Token</b> из <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">кабинета Meta для разработчиков</a>, для Instagram — <b>Instagram User ID</b> и токен оттуда же. Токен проверяется при подключении: если он временный (такие живут сутки), кнопка «Перевірити» покажет это раньше, чем вы потеряете переписку.</p>
-          <p class="guide-note">Каждый менеджер подключает свои каналы. Чужие подключения вам не видны и не доступны.</p>
+        <section class="guide-card guide-step" id="guide-search">
+          <div class="guide-step-num">3</div>
+          <div class="guide-step-body">
+            <h2>Поиск клиентов</h2>
+            <p>Раздел <b>Пошук клієнтів</b>: страна, город, категория — система собирает бизнесы и кладёт их в базу лидов.</p>
+            <ul class="guide-list">
+              <li><b>OpenStreetMap</b> — бесплатно и без ключа. Хорошо покрывает Европу, хуже остальной мир.</li>
+              <li><b>Google</b> — работает с вашим ключом, находит тех, кого нет в OSM, и чаще даёт сайт.</li>
+            </ul>
+            <p>Данные OSM заполняют люди, поэтому «нет сайта» там — <b>предположение, а не факт</b>. Точный ответ даёт диагностика на следующем шаге.</p>
+            <button type="button" class="guide-cta" data-guide-goto="search">Открыть поиск →</button>
+          </div>
         </section>
 
-        <section class="guide-card" id="guide-search">
-          <h2>Поиск клиентов</h2>
-          <p>Раздел <b>Поиск клиентов</b> в левом меню. Выбираете страну, город и категорию — система собирает бизнесы и складывает их в базу лидов.</p>
-          <ul class="guide-list">
-            <li><b>OpenStreetMap</b> — бесплатный источник, без ключа. Хорошо покрывает Европу, хуже остальной мир. Даёт название, адрес, иногда телефон и сайт.</li>
-            <li><b>Google</b> — работает с вашим ключом. Находит тех, кого нет в OSM, и чаще даёт сайт.</li>
-          </ul>
-          <p><b>Квалификаторы</b> — это фильтры «почему лид горячий»: нет сайта, нет телефона и подобное. Помните, что данные OSM заполняют люди: отсутствие сайта в карточке ещё не значит, что сайта нет. Поэтому система показывает это как «похоже, нет», а точный ответ даёт уже диагностика.</p>
-          <p>Найденное можно сразу <b>назначить на себя</b> — тогда лиды попадут в ваш список и в «Мой день».</p>
+        <section class="guide-card guide-step" id="guide-diagnosis">
+          <div class="guide-step-num">4</div>
+          <div class="guide-step-body">
+            <h2>Диагноз лида — главное место</h2>
+            <p>У каждого проверенного лида есть диагноз и <b>доказательство</b>: код ответа, дата сертификата, кусок страницы. Доказательство — это первая фраза вашего сообщения. Не «у вас плохой сайт», а «с 3 августа ваш сайт отдаёт ошибку 502».</p>
+            <table class="guide-table">
+              <thead><tr><th>Диагноз</th><th>Что случилось</th><th>О чём писать</th></tr></thead>
+              <tbody>
+                <tr><td><code>dead_dns</code></td><td>Домен не существует или не настроен</td><td>Сайт не открывается ни у кого — самый сильный повод</td></tr>
+                <tr><td><code>unreachable</code></td><td>Домен есть, сервер молчит</td><td>То же, но перепроверьте через день</td></tr>
+                <tr><td><code>http_5xx</code></td><td>Сервер отвечает ошибкой</td><td>Сайт сломан прямо сейчас</td></tr>
+                <tr><td><code>tls_expired</code></td><td>Сертификат просрочен</td><td>Браузер пугает посетителей красным экраном</td></tr>
+                <tr><td><code>parked</code></td><td>Заглушка регистратора или дефолтная страница</td><td>Домен куплен, а сайта нет</td></tr>
+                <tr><td><code>placeholder</code></td><td>«Coming soon» или пустая страница</td><td>Сайт обещан, но не сделан</td></tr>
+                <tr><td><code>broken_shop</code></td><td>Магазин есть, корзина отдаёт ошибку</td><td>Люди не могут купить</td></tr>
+                <tr class="is-danger"><td><code>blocked</code></td><td>Нас не пустила защита от ботов</td><td><b>Не повод писать.</b> Проверьте руками</td></tr>
+                <tr class="is-danger"><td><code>domain_unknown</code></td><td>Мы не нашли адрес сайта</td><td><b>Это не значит, что сайта нет.</b> Нужен ключ Google</td></tr>
+                <tr><td><code>ok</code></td><td>Сайт работает</td><td>Технического повода нет — ищите другой</td></tr>
+              </tbody>
+            </table>
+            <p class="guide-warn guide-warn-block">Два диагноза никогда не превращайте в претензию: <code>blocked</code> и <code>domain_unknown</code>. В первом случае сайт скорее всего в порядке, во втором мы просто не знаем адреса. Написать «у вас нет сайта» тому, у кого он есть, — потерять клиента навсегда.</p>
+          </div>
         </section>
 
-        <section class="guide-card" id="guide-diagnosis">
-          <h2>Диагноз лида — что это и как читать</h2>
-          <p>После проверки у каждого лида появляется диагноз и <b>доказательство</b>: код ответа, дата сертификата, кусок страницы. Доказательство — это и есть первая фраза вашего сообщения. Не «у вас плохой сайт», а «с 3 августа ваш сайт отдаёт ошибку 502».</p>
-          <table class="guide-table">
-            <thead><tr><th>Диагноз</th><th>Что случилось</th><th>О чём писать</th></tr></thead>
-            <tbody>
-              <tr><td><code>dead_dns</code></td><td>Домен не существует или не настроен</td><td>Сайт не открывается ни у кого — самый сильный повод</td></tr>
-              <tr><td><code>unreachable</code></td><td>Домен есть, сервер молчит</td><td>То же, но стоит перепроверить через день</td></tr>
-              <tr><td><code>http_5xx</code></td><td>Сервер отвечает ошибкой</td><td>Сайт сломан прямо сейчас</td></tr>
-              <tr><td><code>tls_expired</code></td><td>Сертификат просрочен</td><td>Браузер пугает посетителей красным экраном</td></tr>
-              <tr><td><code>parked</code></td><td>Заглушка регистратора или дефолтная страница</td><td>Домен куплен, а сайта нет</td></tr>
-              <tr><td><code>placeholder</code></td><td>«Coming soon» или пустая страница</td><td>Сайт обещан, но не сделан</td></tr>
-              <tr><td><code>broken_shop</code></td><td>Магазин есть, корзина отдаёт ошибку</td><td>Люди не могут купить</td></tr>
-              <tr><td><code>blocked</code></td><td>Нас не пустила защита от ботов</td><td><b>Не повод писать.</b> Проверьте руками</td></tr>
-              <tr><td><code>domain_unknown</code></td><td>Мы не нашли адрес сайта</td><td><b>Это не значит, что сайта нет.</b> Нужен ключ Google</td></tr>
-              <tr><td><code>ok</code></td><td>Сайт работает</td><td>Технического повода нет — ищите другой</td></tr>
-            </tbody>
-          </table>
-          <p class="guide-warn">Два диагноза никогда не превращайте в претензию: <code>blocked</code> и <code>domain_unknown</code>. В первом случае сайт, скорее всего, в порядке, во втором мы просто не знаем адреса. Написать «у вас нет сайта» тому, у кого он есть, — потерять клиента навсегда.</p>
-        </section>
-
-        <section class="guide-card" id="guide-daily">
-          <h2>Ежедневная работа</h2>
-          <ul class="guide-list">
-            <li><b>Мой день</b> — те, кому пора написать или ответить. Начинайте отсюда.</li>
-            <li><b>План контактов</b> — норма по 5 лидов в рабочий день, чтобы не выгорать и не забывать.</li>
-            <li><b>Воронка</b> — перетаскиваете карточки по стадиям: Новый → Связались → Ответил → Предложение.</li>
-            <li><b>Ліди</b> — полный список с фильтрами: по владельцу, стадии, стране, диагнозу и баллу.</li>
-          </ul>
-          <p><b>Как добавить лида себе.</b> Три способа: назначить на себя прямо из результатов поиска; открыть карточку любого лида и поставить себя владельцем; добавить вручную кнопкой в разделе «Ліди», если клиент пришёл сам.</p>
-          <p><b>Заметки.</b> Всё, что вы пишете в карточке, видят коллеги — это общая память по клиенту. Личные пометки для себя есть отдельным полем.</p>
-          <p><b>Балл лида</b> складывается из понятных слагаемых и рядом всегда написано, из чего именно: есть WhatsApp, сломан сайт, нет магазина. Если балл выглядит странно — разверните объяснение и увидите причину.</p>
+        <section class="guide-card guide-step" id="guide-daily">
+          <div class="guide-step-num">5</div>
+          <div class="guide-step-body">
+            <h2>Ежедневная работа</h2>
+            <ul class="guide-list">
+              <li><b>Мій день</b> — кому пора написать или ответить. Начинайте отсюда.</li>
+              <li><b>План контактів</b> — норма 5 лидов в рабочий день.</li>
+              <li><b>Воронка</b> — карточки по стадиям: Новый → Связались → Ответил → Предложение.</li>
+              <li><b>Ліди</b> — весь список с фильтрами по владельцу, стадии, стране, диагнозу и баллу.</li>
+            </ul>
+            <p><b>Как добавить лида себе:</b> назначить на себя прямо из результатов поиска; открыть карточку и поставить себя владельцем; добавить вручную в разделе «Ліди», если клиент пришёл сам.</p>
+            <p><b>Заметки</b> в карточке видит вся команда — это общая память по клиенту. Для себя есть отдельное личное поле.</p>
+            <p><b>Балл</b> складывается из понятных слагаемых, и рядом всегда написано, из каких: есть WhatsApp, сломан сайт, нет магазина. Балл выглядит странно — разверните объяснение.</p>
+          </div>
         </section>
 
         <section class="guide-card" id="guide-limits">
-          <h2>Чего система не делает и почему</h2>
+          <h2>Границы, которые мы не переходим</h2>
           <ul class="guide-list">
-            <li><b>Не читает Instagram и Facebook.</b> Профили закрыты логином, а обход этого нарушает правила Meta и ставит под удар компанию. Берём только то, что бизнес сам выложил в открытый интернет.</li>
-            <li><b>Не проверяет номера в WhatsApp.</b> Значок «есть WhatsApp» ставится, только если бизнес сам разместил кнопку чата на своём сайте.</li>
-            <li><b>Не обходит капчи и защиту.</b> Если сайт нас не пустил, лид помечается как <code>blocked</code>, а не как сломанный.</li>
-            <li><b>Не выдумывает данные.</b> Пустое поле означает, что источник об этом молчал. Пустота честнее правдоподобной догадки.</li>
+            <li><b>Не читаем Instagram и Facebook.</b> Профили за логином, обход нарушает правила Meta и подставляет компанию. Берём только то, что бизнес сам выложил в открытый интернет.</li>
+            <li><b>Не проверяем номера в WhatsApp.</b> Значок ставится, только если бизнес сам разместил кнопку чата на сайте.</li>
+            <li><b>Не обходим капчи и защиту.</b> Не пустили — лид помечается <code>blocked</code>, а не «сломан».</li>
+            <li><b>Не выдумываем данные.</b> Пустое поле значит, что источник молчал. Пустота честнее правдоподобной догадки.</li>
           </ul>
         </section>
 
@@ -734,16 +752,43 @@
           <h2>Если что-то не работает</h2>
           <dl class="guide-faq">
             <dt>Ключ не сохраняется, ошибка 403</dt>
-            <dd>Не включён Custom Search API. Вернитесь к шагу 2 инструкции по ключу.</dd>
+            <dd>Не включён Custom Search API — шаг 2 в разделе про ключ.</dd>
             <dt>Ключ сохранился, но поиск ничего не находит</dt>
-            <dd>В поисковой системе не включён режим «Search the entire web» — она ищет только по сайтам из списка.</dd>
+            <dd>В поисковой системе не включён режим «Search the entire web».</dd>
             <dt>«Дневную квоту исчерпано» (429)</dt>
-            <dd>Ключ рабочий, но 100 бесплатных запросов на сегодня закончились. Продолжайте завтра или подключите платный тариф.</dd>
-            <dt>Много лидов с диагнозом <code>domain_unknown</code></dt>
-            <dd>Значит, у них в карточке нет ни сайта, ни рабочей почты, а ключ Google не подключён. Подключите ключ — большинство таких лидов получит нормальный диагноз.</dd>
+            <dd>Ключ рабочий, 100 бесплатных запросов на сегодня кончились. Завтра продолжит работать.</dd>
+            <dt>Много лидов с <code>domain_unknown</code></dt>
+            <dd>У них нет ни сайта, ни рабочей почты в карточке, а ключ Google не подключён. Подключите — большинство получит нормальный диагноз.</dd>
             <dt>Сообщение не уходит в WhatsApp</dt>
-            <dd>Скорее всего, истёк токен: временные живут сутки. Интеграции → «Перевірити» покажет точную причину.</dd>
+            <dd>Скорее всего истёк токен. Интеграции → «Перевірити» покажет причину.</dd>
           </dl>
+        </section>
+
+        <section class="guide-card guide-admin" id="guide-admin" data-guide-role="admin">
+          <h2>Для администратора</h2>
+          <p class="guide-note">Этот раздел видят только администраторы. Менеджерам он не показывается.</p>
+
+          <h3>Что произошло с базой</h3>
+          <p>Старая база из 1183 лидов очищена: 1132 карточки никто никогда не трогал. Сохранена <b>51</b> — те, у кого есть движение по воронке или живая заметка человека. Полная копия базы и отдельный JSON-дамп лежат на сервере в <code>/opt/army-bank/backups/</code>, восстановление точечное.</p>
+
+          <h3>Как запускать диагностику</h3>
+          <p>Прогон делается скриптом на сервере, а не через интерфейс: он долгий и gunicorn убил бы его по таймауту.</p>
+          <pre class="guide-code">cd /opt/army-bank
+.venv/bin/python backend/scripts/leads_diagnose.py \
+  --db database/army_bank.db --diagnose --limit 100 --user 5</pre>
+          <ul class="guide-list">
+            <li><code>--user 5</code> — прогон ключом Миши, <code>--user 6</code> — Едуарда. Без него поиск доменов выключен.</li>
+            <li><code>--stats</code> — сводка без изменений.</li>
+            <li><code>--all</code> — перепроверить и тех, у кого диагноз уже есть.</li>
+            <li><code>--purge</code> — чистка с сохранением проработанных, <code>--purge-all</code> — снести всё.</li>
+          </ul>
+          <p class="guide-warn guide-warn-block">Перед любой чисткой делайте копию: скрипт удаляет без подтверждения. Копия — <code>sqlite3.backup</code>, а не <code>cp</code> живого файла.</p>
+
+          <h3>Кому что подключать</h3>
+          <p>Ключ Google и каналы подключает <b>каждый сам под своей учётной записью</b> — токены и ключи привязаны к человеку. Администратор не может подключить ключ за менеджера, и это намеренно: квота и ответственность за токен персональные.</p>
+
+          <h3>Как понять, что всё работает</h3>
+          <p>Смотрите на долю лидов с диагнозом и на <code>domain_unknown</code>: если он выше половины, значит у менеджера не подключён ключ. Метрика качества — не количество лидов, а ответы на сотню сообщений.</p>
         </section>
 
       </div>
@@ -1892,6 +1937,6 @@
 </datalist>
 
 <script src="/vendor/leaflet/leaflet.js?v=101"></script>
-<script src="/js/messenger.js?v=308"></script>
+<script src="/js/messenger.js?v=309"></script>
 </body>
 </html>

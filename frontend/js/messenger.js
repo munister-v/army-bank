@@ -2626,11 +2626,92 @@ document.querySelectorAll('[data-integrations-tab]').forEach(button => {
 
 /* Інструкція — закріплений перший пункт списку. Тримається як звичайний
    workspace-екран, а не модалка: її відкривають посеред роботи, і повертатися
-   треба туди ж, звідки прийшли. */
+   треба туди ж, звідки прийшли.
+
+   Дві речі роблять її живою, а не полотном тексту:
+   — розділ адміністратора ховається від менеджерів (CSS-клас на корені, а не
+     видалення вузла: адмін має бачити те саме, що бачить менеджер);
+   — чек-лист готовності читає СПРАВЖНІЙ стан із тих самих ендпоінтів, що й
+     сторінка інтеграцій. Інакше це була б інструкція, яка не знає, чи ви їй
+     слідували. */
+function guideStepHtml(done, title, text, action) {
+  return `<li class="guide-check ${done ? 'is-done' : 'is-todo'}">
+    <span class="guide-check-mark">${done ? '✓' : ''}</span>
+    <span class="guide-check-copy">
+      <b>${escHtml(title)}</b>
+      <small>${escHtml(text)}</small>
+    </span>
+    ${done || !action ? '' : `<button type="button" class="guide-check-cta" data-guide-goto="${action}">Подключить</button>`}
+  </li>`;
+}
+
+async function renderGuideChecklist() {
+  const list = document.getElementById('guide-checklist-items');
+  const state = document.getElementById('guide-checklist-state');
+  if (!list) return;
+
+  const isManager = me?.role === 'manager';
+  let hasKey = false;
+  let channels = [];
+  try {
+    const key = await api('GET', '/prospecting/google-key');
+    hasKey = !!(key.has_own_key || key.active);
+  } catch (_) { /* немає доступу або мережа — крок просто лишиться незакритим */ }
+  try {
+    const list2 = await api('GET', '/integrations');
+    const rows = Array.isArray(list2) ? list2 : (list2.items || []);
+    channels = rows.filter(r => !isManager || r.manager === me?.crm_owner);
+  } catch (_) {}
+
+  const hasChannel = channels.some(c => c.status === 'connected');
+  const steps = [
+    guideStepHtml(hasKey, 'Ключ Google подключён',
+      hasKey ? 'Поиск сайтов работает.' : 'Без него сайт находится примерно у четверти лидов.', 'integrations'),
+    guideStepHtml(hasChannel, 'Канал для переписки подключён',
+      hasChannel ? `Подключено каналов: ${channels.length}.` : 'WhatsApp или Instagram — если пишете прямо из системы.', 'integrations'),
+    guideStepHtml(false, 'Первый поиск клиентов',
+      'Страна, город, категория — и лиды появятся в вашем списке.', 'search'),
+  ];
+  list.innerHTML = steps.join('');
+  const doneCount = [hasKey, hasChannel].filter(Boolean).length;
+  if (state) {
+    state.textContent = doneCount === 2 ? 'всё подключено' : `${doneCount} из 2 подключено`;
+    state.classList.toggle('is-ready', doneCount === 2);
+  }
+}
+
 function openGuideView() {
   if (!prepareWorkspaceView(guideView, workspaceGuideEntry, 'Инструкция')) return;
-  if (guideView) guideView.scrollTop = 0;
+  if (!guideView) return;
+  guideView.scrollTop = 0;
+
+  const isAdmin = me?.role === 'admin' || me?.role === 'platform_admin';
+  guideView.classList.toggle('is-admin', isAdmin);
+
+  const name = (me?.crm_owner || me?.full_name || '').trim();
+  const title = document.getElementById('guide-hero-title');
+  const sub = document.getElementById('guide-hero-sub');
+  const badges = document.getElementById('guide-role-badges');
+  if (title) title.textContent = name ? `${name}, начнём сначала` : 'Начнём сначала';
+  if (sub) {
+    sub.textContent = isAdmin
+      ? 'Старая база лидов очищена, проработанные карточки сохранены. Ниже — то же, что видят менеджеры, плюс раздел администратора.'
+      : 'Старая база лидов очищена. Дальше система ищет не «ещё названий», а бизнесы, до которых можно достучаться и у которых есть что чинить.';
+  }
+  if (badges) {
+    badges.innerHTML = `<span class="guide-badge">${escHtml(isAdmin ? 'Администратор' : 'Менеджер')}</span>`
+      + (name && !isAdmin ? `<span class="guide-badge is-soft">Ваши лиды: ${escHtml(name)}</span>` : '');
+  }
+  renderGuideChecklist();
 }
+
+document.addEventListener('click', e => {
+  const target = e.target.closest('[data-guide-goto]');
+  if (!target) return;
+  const where = target.dataset.guideGoto;
+  if (where === 'integrations') openIntegrationsView();
+  else if (where === 'search') openProspectingView();
+});
 
 if (workspaceGuideEntry) workspaceGuideEntry.addEventListener('click', openGuideView);
 if (btnGuideBack) btnGuideBack.addEventListener('click', closeWorkspaceView);
