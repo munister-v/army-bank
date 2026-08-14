@@ -43,9 +43,12 @@ def dict_factory(cursor: sqlite3.Cursor, row: tuple) -> dict:
 def get_connection_sqlite() -> Iterator[sqlite3.Connection]:
     """Підключення до SQLite."""
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = sqlite3.connect(DATABASE_PATH, timeout=30)
     conn.row_factory = dict_factory
     conn.execute('PRAGMA foreign_keys = ON;')
+    conn.execute('PRAGMA journal_mode = WAL;')
+    conn.execute('PRAGMA synchronous = NORMAL;')
+    conn.execute('PRAGMA busy_timeout = 30000;')
     try:
         yield conn
         conn.commit()
