@@ -8904,3 +8904,16 @@ a.lead-profile-value:hover { text-decoration: underline; }
   .guide-step { flex-direction: column; gap: 10px; }
   .guide-check { flex-wrap: wrap; }
 }
+
+/* Бейдж діагнозу в списку лідів. Три температури: hot — можна писати просто
+   зараз, warm — привід є, але слабший, mute — СЛУЖБОВИЙ факт, не привід
+   (blocked, domain_unknown, ok). Сірий колір тут несе сенс, а не економію:
+   менеджер не має сплутати «нас не пустив фаєрвол» із «сайт зламаний». */
+.leads-diag {
+  font-size: 9.5px; line-height: 1; padding: 4px 7px; border-radius: 5px;
+  white-space: nowrap; font-weight: 700; letter-spacing: .02em;
+}
+.leads-diag.is-hot  { background: #fde8e2; color: #8a2b12; }
+.leads-diag.is-warm { background: #fff3d6; color: #7a5600; }
+.leads-diag.is-mute { background: var(--surface-2); color: var(--text-2); font-weight: 600; }
+.leads-diag.is-wa   { background: #d8f3e3; color: #1a7f45; }

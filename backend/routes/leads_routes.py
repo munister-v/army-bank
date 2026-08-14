@@ -80,7 +80,31 @@ _COLUMNS = (
     'first_message_en', 'notes', 'crm_record_id', 'sync_status', 'duplicate_key',
     'data_quality_check', 'last_file_update', 'manager_private_notes',
     'created_at', 'updated_at',
+    # Результат діагностики (lead_prospector). Без цих колонок рушій писав у
+    # базу, а менеджер бачив стару здогадку з website_signal: діагноз просто
+    # не доходив до фронта, бо список полів старший за міграцію.
+    'domain', 'domain_source', 'diagnosis', 'diagnosis_evidence',
+    'has_whatsapp', 'score_why', 'checked_at',
 )
+
+# Людські назви діагнозів + чи можна з цим іти до клієнта. `sellable=False`
+# означає, що факт службовий: 'blocked' — це нас не пустив фаєрвол, а не
+# поломка, 'domain_unknown' — ми не знайшли адресу, а не переконались, що
+# сайту немає. Перетворити їх на претензію = втратити клієнта.
+DIAGNOSIS_META = {
+    'dead_dns':       ('Домен не працює',        'Сайт не відкривається ні в кого',       True),
+    'unreachable':    ('Сайт не відповідає',     'Сервер мовчить',                        True),
+    'http_5xx':       ('Помилка сервера',        'Сайт зламаний просто зараз',            True),
+    'tls_expired':    ('Сертифікат протух',      'Браузер лякає відвідувачів',            True),
+    'parked':         ('Заглушка на домені',     'Домен куплено, сайту немає',            True),
+    'placeholder':    ('Сторінка-заглушка',      'Сайт обіцяно, але не зроблено',         True),
+    'broken_shop':    ('Магазин не працює',      'Люди не можуть купити',                 True),
+    'no_shop':        ('Торгує без магазину',    'Продажів через сайт немає',             True),
+    'social_only':    ('Тільки соцмережі',       'Свого сайту немає',                     True),
+    'blocked':        ('Захист від ботів',       'Перевірити руками — сайт, певно, цілий', False),
+    'domain_unknown': ('Адресу сайту не знайдено', 'Це НЕ означає, що сайту немає',       False),
+    'ok':             ('Сайт працює',            'Технічного приводу немає',              False),
+}
 
 
 def insertable_cols_for_import() -> list[str]:
@@ -210,9 +234,31 @@ def _lead_intelligence(lead: dict[str, Any]) -> dict[str, Any]:
     description += '. Підказка сформована з полів CRM і потребує короткої перевірки перед контактом.'
 
     reasons: list[dict[str, str]] = []
+    # Діагноз іде ПЕРШИМ і витісняє слабкий website_signal: це перевірений факт
+    # з доказом, а не припущення джерела.
+    diagnosis = str(lead.get('diagnosis') or '').strip()
+    evidence = str(lead.get('diagnosis_evidence') or '').strip()
+    label, hint, sellable = DIAGNOSIS_META.get(diagnosis, ('', '', False))
+    if diagnosis and label:
+        body = evidence or hint
+        # Доказ приходить з probe і крапкою не закінчується («…HTTP 403 — схоже,
+        # захист від ботів, не поломка»), тож без цього речення злипались:
+        # «…не поломка Не згадуйте це клієнту».
+        if body and body[-1] not in '.!?…':
+            body += '.'
+        if not sellable:
+            body += ' Не згадуйте це клієнту як проблему.'
+        reasons.append({
+            'label': 'Діагноз' if sellable else 'Діагноз (не привід)',
+            'text': f'{label}. {body}',
+        })
+    if str(lead.get('has_whatsapp') or '') in ('1', 'True', 'true'):
+        reasons.append({'label': 'WhatsApp', 'text': 'На сайті є кнопка WhatsApp — повідомлення дійде до власника.'})
     if opening:
         reasons.append({'label': 'Таймінг', 'text': f'Є сигнал відкриття: {opening}. До запуску легше запропонувати базову цифрову інфраструктуру.'})
-    if 'no' in website_signal or 'нема' in website_signal or 'відсут' in website_signal:
+    if diagnosis:
+        pass  # перевірений діагноз вище вже сказав про сайт точніше
+    elif 'no' in website_signal or 'нема' in website_signal or 'відсут' in website_signal:
         reasons.append({'label': 'Слабкий сигнал', 'text': 'У джерелі не знайдено сайт. Це варто перевірити вручну перед згадкою у повідомленні.'})
     elif lead.get('website_url'):
         reasons.append({'label': 'Сайт знайдено', 'text': 'Можна швидко переглянути сайт і почати розмову з конкретного спостереження, а не загальної пропозиції.'})

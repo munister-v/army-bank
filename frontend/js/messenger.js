@@ -1516,6 +1516,31 @@ function leadOutreachBadgeHtml(lead) {
   return `<span class="leads-badge leads-badge-outreach-${escHtml(leadsSlug(st))}" title="${escHtml(title)}">${escHtml(leadsLabel(LEADS_OUTREACH_LABELS, st))}</span>`;
 }
 
+/* Діагноз у списку — короткий бейдж, щоб чергу можна було читати очима, не
+   відкриваючи картки. Два діагнози позначені як службові (`is-mute`): це не
+   привід писати, і плутати їх з поломкою не можна. */
+const LEAD_DIAGNOSIS_BADGE = {
+  dead_dns:       ['Домен мертвий', 'hot'],
+  unreachable:    ['Не відповідає', 'hot'],
+  http_5xx:       ['Помилка сервера', 'hot'],
+  broken_shop:    ['Магазин зламано', 'hot'],
+  tls_expired:    ['Сертифікат протух', 'warm'],
+  parked:         ['Заглушка', 'warm'],
+  placeholder:    ['Coming soon', 'warm'],
+  no_shop:        ['Без магазину', 'warm'],
+  social_only:    ['Тільки соцмережі', 'warm'],
+  blocked:        ['Захист від ботів', 'mute'],
+  domain_unknown: ['Сайт не знайдено', 'mute'],
+  ok:             ['Сайт працює', 'mute'],
+};
+
+function leadDiagnosisBadge(lead) {
+  const meta = LEAD_DIAGNOSIS_BADGE[String(lead.diagnosis || '')];
+  if (!meta) return '';
+  const evidence = String(lead.diagnosis_evidence || '');
+  return `<span class="leads-diag is-${meta[1]}" title="${escHtml(evidence)}">${escHtml(meta[0])}</span>`;
+}
+
 function leadCardHtml(lead) {
   const loc = [lead.city_area, lead.country].filter(Boolean).join(', ');
   const preview = [lead.category, loc].filter(Boolean).join(' · ') || 'Немає деталей';
@@ -1539,6 +1564,8 @@ function leadCardHtml(lead) {
         <div class="leads-card-name-row">
           <span class="conv-name">${channelIcon(lead.primary_channel)}${escHtml(lead.business_name || '')}</span>
           <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority))}</span>
+          ${lead.has_whatsapp ? '<span class="leads-diag is-wa" title="На сайті є кнопка WhatsApp">WA</span>' : ''}
+          ${leadDiagnosisBadge(lead)}
         </div>
         <div class="leads-card-preview">${escHtml(preview)}</div>
         ${insightReason ? `<div class="leads-card-insight" title="${escHtml(insightReason)}">Чому зараз · ${escHtml(insightReason)}</div>` : ''}
