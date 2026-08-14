@@ -2661,9 +2661,23 @@ function renderGoogleKeyCard(status) {
       <span class="mono-label">🔎 Google Custom Search — власний ключ</span>
       <span class="gkey-status">${statusLine}</span>
     </div>
-    <p class="gkey-hint">Кожен менеджер може підключити свій Google-ключ, щоб шукати клієнтів через Google.
-      Створіть <b>API key</b> (Cloud Console → Custom Search API) і <b>Search Engine ID (cx)</b>
-      (programmablesearchengine.google.com, шукати «весь інтернет»). Ключ зберігається зашифрованим і видно лише вам.</p>
+    <p class="gkey-hint">Ключ особистий: квота Google рахується на ключ, тому спільний згорів би за один прогін.
+      Зберігається зашифрованим, у відповідях сервера показується лише маска, інші менеджери його не бачать.
+      Безкоштовний ліміт — <b>100 запитів на добу</b>, цього вистачає приблизно на 100 лідів.</p>
+    <details class="gkey-guide">
+      <summary>Як отримати ключ за 5 хвилин</summary>
+      <ol class="gkey-steps">
+        <li><b>Створіть проєкт.</b> <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">console.cloud.google.com/projectcreate</a> → назва будь-яка → <i>Create</i>.</li>
+        <li><b>Увімкніть Custom Search API.</b> <a href="https://console.cloud.google.com/apis/library/customsearch.googleapis.com" target="_blank" rel="noopener">Сторінка API</a> → <i>Enable</i>. Без цього кроку ключ віддаватиме 403.</li>
+        <li><b>Створіть API key.</b> <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Credentials</a> → <i>Create credentials</i> → <i>API key</i>. Рядок виду <code>AIza…</code> — це поле «Google API key» нижче.</li>
+        <li><b>Створіть пошукову систему.</b> <a href="https://programmablesearchengine.google.com/controlpanel/create" target="_blank" rel="noopener">programmablesearchengine.google.com</a> → увімкніть <b>«Search the entire web»</b> (інакше пошук шукатиме лише по вказаних сайтах і нічого не знайде) → <i>Create</i>.</li>
+        <li><b>Скопіюйте Search Engine ID.</b> У створеній системі → <i>Overview</i> → <b>Search engine ID</b>. Це поле «cx» нижче.</li>
+        <li>Вставте обидва значення й натисніть «Перевірити й зберегти» — ми зробимо тестовий запит і збережемо ключ, тільки якщо він справді працює.</li>
+      </ol>
+      <p class="gkey-note">Платити не потрібно: 100 запитів на добу безкоштовні. Якщо захочете більше —
+        <a href="https://developers.google.com/custom-search/v1/overview#pricing" target="_blank" rel="noopener">тарифи Google</a> (5 $ за 1000 запитів).
+        Ключ можна будь-коли видалити кнопкою нижче — він зникає з бази повністю.</p>
+    </details>
     ${hasOwn ? `
       <div class="gkey-saved">
         <div class="gkey-saved-row"><span class="gkey-saved-label">API key</span><code>${escHtml(status.key_preview)}</code></div>

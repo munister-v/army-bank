@@ -102,7 +102,27 @@ def purge(conn: sqlite3.Connection, keep_worked: bool) -> None:
     print(f'видалено {doomed}, залишено {kept}')
 
 
-def diagnose(conn: sqlite3.Connection, limit: int, only_new: bool) -> None:
+def google_creds(conn: sqlite3.Connection, user_id: int) -> tuple[str, str]:
+    """Ключ конкретного менеджера з /prospecting/google-key.
+
+    Ключ лежить зашифрованим тим самим messenger_crypto, що й токени каналів,
+    тож розшифровуємо через нього, а не читаємо стовпець напряму.
+    """
+    if not user_id:
+        return ('', '')
+    try:
+        row = conn.execute(
+            'SELECT api_key, cx FROM prospecting_api_keys WHERE user_id = ?', (user_id,)
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return ('', '')
+    if not row:
+        return ('', '')
+    from backend.services.messenger_crypto import decrypt_message
+    return (decrypt_message(row[0], fallback=''), row[1] or '')
+
+
+def diagnose(conn: sqlite3.Connection, limit: int, only_new: bool, creds: tuple[str, str] = ('', '')) -> None:
     conn.row_factory = sqlite3.Row
     where = "WHERE diagnosis = ''" if only_new else ''
     leads = conn.execute(f'SELECT * FROM leads {where} ORDER BY id LIMIT ?', (limit,)).fetchall()
@@ -110,7 +130,7 @@ def diagnose(conn: sqlite3.Connection, limit: int, only_new: bool) -> None:
     done = 0
     for row in leads:
         lead = dict(row)
-        domain, source = lp.resolve_domain(lead)
+        domain, source = lp.resolve_domain(lead, creds)
         result = None
         if domain:
             try:
@@ -156,6 +176,8 @@ def main() -> None:
     parser.add_argument('--diagnose', action='store_true')
     parser.add_argument('--limit', type=int, default=50)
     parser.add_argument('--all', action='store_true', help='діагностувати й ті, що вже мають діагноз')
+    parser.add_argument('--user', type=int, default=0,
+                        help='id менеджера, чиїм ключем Google шукати домени (0 — без пошуку)')
     args = parser.parse_args()
 
     conn = sqlite3.connect(args.db)
@@ -164,7 +186,9 @@ def main() -> None:
     if args.purge or args.purge_all:
         purge(conn, keep_worked=not args.purge_all)
     if args.diagnose:
-        diagnose(conn, args.limit, only_new=not args.all)
+        creds = google_creds(conn, args.user)
+        print('пошук доменів через Google: ' + ('увімкнено' if creds[0] and creds[1] else 'вимкнено (ключ не заданий)'))
+        diagnose(conn, args.limit, only_new=not args.all, creds=creds)
     if args.stats or not (args.purge or args.purge_all or args.diagnose):
         stats(conn)
     conn.close()

@@ -313,12 +313,19 @@ def _probe_cart(base_url: str) -> str:
     return ''
 
 
-def resolve_domain(lead: dict) -> tuple[str, str]:
+def resolve_domain(lead: dict, creds: tuple[str, str] | None = None) -> tuple[str, str]:
     """Домен ліда і звідки він узявся. Порожньо — якщо домену немає.
 
     Порядок джерел — від найнадійнішого до найслабшого. Здогадок за назвою
     бізнесу тут НЕМАЄ навмисно: збіг «назва.com» надто часто веде на чужий сайт,
     а помилковий діагноз у листі гірший за відсутність ліда.
+
+    `creds` — пара (api_key, cx) Google Programmable Search КОНКРЕТНОГО
+    менеджера з /prospecting/google-key. Без неї лишаються тільки сайт і пошта,
+    а це, як показав прогін по 120 лідах, покриває чверть бази: у решти домену
+    просто нема серед контактів. З ключем додається третє джерело — пошук за
+    назвою й містом. Квота рахується на ключ, тому ключ особистий, а не
+    спільний: один прогін інакше з'їдав би денний ліміт на всіх.
     """
     site = domain_of(lead.get('website_url') or '')
     if site:
@@ -326,7 +333,48 @@ def resolve_domain(lead: dict) -> tuple[str, str]:
     email_domain = domain_of(lead.get('email') or '')
     if email_domain and email_domain not in _FREE_MAIL:
         return email_domain, 'email'
+    if creds and creds[0] and creds[1]:
+        found = _search_domain(lead, creds)
+        if found:
+            return found, 'search'
     return '', ''
+
+
+def _search_domain(lead: dict, creds: tuple[str, str]) -> str:
+    """Домен із пошукової видачі за назвою та містом.
+
+    Беремо ПЕРШИЙ результат, який не є соцмережею чи каталогом, і лише якщо
+    назва бізнесу справді впізнається в домені або в заголовку — інакше по
+    запиту «Pizza Roma Berlin» повернеться агрегатор, і ми припишемо бізнесу
+    чужий сайт разом із чужим діагнозом.
+    """
+    from .google_search_service import KNOWN_PLATFORM_DOMAINS
+
+    name = (lead.get('business_name') or '').strip()
+    if not name:
+        return ''
+    query = ' '.join(x for x in (name, lead.get('city_area') or '', lead.get('country') or '') if x)
+    try:
+        response = requests.get(
+            'https://www.googleapis.com/customsearch/v1',
+            params={'key': creds[0], 'cx': creds[1], 'q': query, 'num': 5},
+            timeout=15,
+        )
+        if response.status_code != 200:
+            return ''
+        items = response.json().get('items') or []
+    except (requests.RequestException, ValueError):
+        return ''
+
+    tokens = [t for t in re.split(r'[^\w]+', name.lower()) if len(t) > 3]
+    for item in items:
+        host = domain_of(item.get('link') or '')
+        if not host or any(host.endswith(platform) for platform in KNOWN_PLATFORM_DOMAINS):
+            continue
+        haystack = f"{host} {(item.get('title') or '').lower()}"
+        if not tokens or any(token in haystack for token in tokens):
+            return host
+    return ''
 
 
 _FREE_MAIL = {
