@@ -1809,52 +1809,62 @@ function leadDiagnosisBadge(lead) {
 }
 
 function leadCardHtml(lead) {
-  const loc = [lead.city_area, lead.country].filter(Boolean).join(', ');
+  /* city_area часто містить і місто, і повну вулицю ("Bakersfield, CA · 1600
+     20th Street, Bakersfield"). У списку від цього тільки шум: місто двічі, а
+     країна однакова в усій базі. Показуємо перший сегмент, повне — у підказці. */
+  const fullLoc = [lead.city_area, lead.country].filter(Boolean).join(', ');
+  const shortLoc = String(lead.city_area || '').split('·')[0].trim() || lead.country || '';
   const category = lead.category || 'Категорія не визначена';
   const firstPhone = (lead.phone || lead.whatsapp_viber || '').split(/[;,]/)[0].trim();
   const firstEmail = (lead.email || '').split(/[;,]/)[0].trim();
-  // source_bucket is an internal import key (e.g. "curated_2026").
-  // It is useful to the importer, but must never leak into the client-facing UI.
-  const sourceLabel = sourceBucketLabel(lead.source_bucket);
-  const nextAction = lead.next_followup_date ? `Наступний контакт · ${String(lead.next_followup_date).slice(0, 10)}` : (lead.diagnosis ? (LEAD_DIAGNOSIS_BADGE[lead.diagnosis]?.[0] || 'Потрібна перевірка') : 'Наступний крок не заплановано');
+  const score = Number(lead.score || lead.lead_score || 0);
+  const owner = leadsLabel(LEADS_OWNER_LABELS, lead.owner) || '';
+  const followup = String(lead.next_followup_date || '').slice(0, 10);
+
+  /* Рядок дії — те єдине, що менеджер має зробити далі. Раніше сюди підмішувався
+     діагноз сайту, і коли дати не було, «наступний крок» показував причину ліда.
+     Тепер діагноз має власний бейдж, а тут лишається тільки дія. */
+  const nextAction = followup
+    ? `Наступний контакт · ${followup}`
+    : 'Наступний крок не заплановано';
+
   const quick = [
-    firstPhone ? { href: 'tel:' + firstPhone.replace(/[^\d+]/g, ''), icon: 'phone', label: 'Телефон', title: 'Зателефонувати' } : null,
-    firstPhone ? { href: 'https://wa.me/' + firstPhone.replace(/[^\d]/g, ''), icon: 'whatsapp', label: 'WhatsApp', title: 'Відкрити WhatsApp' } : null,
-    firstEmail ? { href: 'mailto:' + firstEmail, icon: 'email', label: 'Email', title: 'Написати email' } : null,
+    firstPhone ? { href: 'tel:' + firstPhone.replace(/[^\d+]/g, ''), icon: 'phone', title: 'Зателефонувати' } : null,
+    firstPhone ? { href: 'https://wa.me/' + firstPhone.replace(/[^\d]/g, ''), icon: 'whatsapp', title: 'Відкрити WhatsApp' } : null,
+    firstEmail ? { href: 'mailto:' + firstEmail, icon: 'email', title: 'Написати email' } : null,
   ].filter(Boolean);
+
   return `
-    <article class="leads-card lead-card-premium" data-lead-id="${lead.id}">
+    <article class="leads-card lead-card-v2" data-lead-id="${lead.id}">
       <label class="leads-select-check" onclick="event.stopPropagation()">
         <input type="checkbox" class="leads-select-input" data-lead-id="${lead.id}"/>
       </label>
-      <div class="lead-card-main">
-        <div class="lead-card-head">
-          <div class="lead-card-identity">
-            <div class="lead-card-avatar">${escHtml(initial(lead.business_name || '?'))}</div>
-            <div class="lead-card-title">
-              <div class="lead-card-kicker">${escHtml(category)}${loc ? ` · ${escHtml(loc)}` : ''}</div>
-              <h3>${escHtml(lead.business_name || 'Без назви')}</h3>
-              <div class="lead-card-subline">${lead.primary_channel ? escHtml(lead.primary_channel) : 'Канал не визначено'}${sourceLabel ? ` <span>· ${escHtml(sourceLabel)}</span>` : ''}</div>
-            </div>
-          </div>
-          <div class="lead-card-state">
-            <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority))}</span>
-            ${Number(lead.score || lead.lead_score || 0) ? `<span class="lead-card-score">${Number(lead.score || lead.lead_score)}/100</span>` : ''}
-          </div>
+
+      <header class="lead-v2-head">
+        <div class="lead-v2-avatar">${escHtml(initial(lead.business_name || '?'))}</div>
+        <div class="lead-v2-title">
+          <h3>${escHtml(lead.business_name || 'Без назви')}</h3>
+          <p class="lead-v2-where" title="${escHtml(fullLoc)}">${escHtml(category)}${shortLoc ? ` · ${escHtml(shortLoc)}` : ''}</p>
         </div>
-        <div class="lead-card-signal"><span class="lead-card-signal-dot"></span><span>${escHtml(nextAction)}</span></div>
-        <div class="lead-card-grid">
-          <div class="lead-card-field"><span>Власник</span><strong>${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner) || 'Не призначено')}</strong></div>
-          <div class="lead-card-field"><span>Контакт</span><strong class="${firstPhone || firstEmail ? '' : 'is-muted'}">${escHtml(firstPhone || firstEmail || 'Не вказано')}</strong></div>
-          <div class="lead-card-field"><span>Оновлено</span><strong>${lead.updated_at ? escHtml(String(lead.updated_at).slice(0, 10)) : 'Щойно'}</strong></div>
+        <div class="lead-v2-rank">
+          <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority))}</span>
+          ${score ? `<span class="lead-v2-score" title="Оцінка ліда: ${score} зі 100">${score}</span>` : ''}
         </div>
+      </header>
+
+      <div class="lead-v2-chips">
+        ${leadDiagnosisBadge(lead)}
+        ${leadOutreachBadgeHtml(lead)}
+        ${owner ? `<span class="lead-v2-chip">${escHtml(owner)}</span>`
+                : '<span class="lead-v2-chip is-muted">Без відповідального</span>'}
       </div>
-      <div class="leads-card-body">
-        ${quick.length ? `<div class="leads-card-quick">${quick.map(q =>
-          `<a class="leads-quick-btn" href="${escHtml(q.href)}" target="_blank" rel="noopener" data-quick-action="1" title="${escHtml(q.title)}" aria-label="${escHtml(q.title)}"><span class="leads-quick-btn-icon" aria-hidden="true">${crmActionIcon(q.icon)}</span><span class="leads-quick-btn-label">${escHtml(q.label)}</span></a>`
-        ).join('')}</div>` : ''}
-        <div class="leads-card-footer"><span>${leadOutreachBadgeHtml(lead)}</span><button type="button" class="leads-card-open" data-lead-open="${lead.id}">Відкрити профіль</button></div>
-      </div>
+
+      <footer class="lead-v2-foot">
+        <span class="lead-v2-next${followup ? '' : ' is-muted'}">${escHtml(nextAction)}</span>
+        ${quick.length ? `<span class="lead-v2-actions">${quick.map(q =>
+          `<a class="lead-v2-action" href="${escHtml(q.href)}" target="_blank" rel="noopener" data-quick-action="1" title="${escHtml(q.title)}" aria-label="${escHtml(q.title)}">${crmActionIcon(q.icon)}</a>`
+        ).join('')}</span>` : ''}
+      </footer>
     </article>
   `;
 }
