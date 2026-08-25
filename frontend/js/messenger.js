@@ -5127,17 +5127,6 @@ function leadExportRows(text) {
   return rows;
 }
 
-function xmlEscape(value) {
-  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
-}
-
-function makeExcelXml(rows) {
-  const headers = Object.keys(rows[0]);
-  const labels = { 'id': 'ID', 'компанія': 'Компанія', 'локація': 'Локація', 'категорія': 'Категорія', 'контакти': 'Контакти', 'сайт': 'Сайт', 'джерело': 'Джерело', 'відповідальний': 'Відповідальний', 'пріоритет': 'Пріоритет', 'стадія': 'Стадія', 'статус контакту': 'Статус контакту', 'наступна дія': 'Наступна дія', 'відкриття': 'Відкриття', 'оцінка': 'Оцінка', 'нотатки': 'Нотатки' };
-  const cell = value => `<Cell><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`;
-  return `<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="Header"><Font ss:Bold="1"/><Interior ss:Color="#EAF2FF" ss:Pattern="Solid"/></Style></Styles><Worksheet ss:Name="Ліди"><Table><Row>${headers.map(h => `<Cell ss:StyleID="Header"><Data ss:Type="String">${xmlEscape(labels[h] || h)}</Data></Cell>`).join('')}</Row>${rows.map(row => `<Row>${headers.map(h => cell(row[h] || '')).join('')}</Row>`).join('')}</Table></Worksheet></Workbook>`;
-}
-
 function makeWordLeadReport(rows) {
   const value = (row, key) => escHtml(row[key] || '—');
   const cards = rows.map((row, index) => `<section class="lead"><div class="num">${index + 1}</div><h2>${value(row, 'компанія')}</h2><p class="sub">${value(row, 'категорія')} · ${value(row, 'локація')}</p><dl><div><dt>Контакти</dt><dd>${value(row, 'контакти')}</dd></div><div><dt>Сайт</dt><dd>${value(row, 'сайт')}</dd></div><div><dt>Відповідальний</dt><dd>${value(row, 'відповідальний')}</dd></div><div><dt>Статус</dt><dd>${value(row, 'стадія')} · ${value(row, 'статус контакту')}</dd></div><div><dt>Наступна дія</dt><dd>${value(row, 'наступна дія')}</dd></div><div><dt>Відкриття</dt><dd>${value(row, 'відкриття')}</dd></div></dl>${row['нотатки'] ? `<p class="note">${value(row, 'нотатки')}</p>` : ''}</section>`).join('');
@@ -5146,26 +5135,25 @@ function makeWordLeadReport(rows) {
 
 async function exportLeadsFormat(format = 'csv') {
   try {
-    if (format === 'pdf') {
-      document.body.classList.add('printing-leads');
-      window.print();
-      window.setTimeout(() => document.body.classList.remove('printing-leads'), 800);
-      recordActivity({ kind: 'lead', title: 'Підготовлено друк лідів', detail: 'Збережіть сторінку як PDF у системному діалозі' });
-      return;
-    }
     if (leadsSyncStatus) leadsSyncStatus.textContent = `Готуємо експорт ${format.toUpperCase()}…`;
-    if (format === 'xlsx-full') {
-      // Повне вивантаження робить сервер: усі колонки ліда, з технічними
-      // іменами другим рядком — саме за ними імпорт впізнає поля назад.
-      await downloadProtectedFile(`${API}/leads/export.xlsx?${leadsQueryString()}`, 'leads_export.xlsx');
-      recordActivity({ kind: 'lead', title: 'Експорт лідів · Excel (усі поля)', detail: 'Поточні фільтри' });
-      if (leadsSyncStatus) leadsSyncStatus.textContent = 'Повний Excel завантажено · можна правити і залити назад.';
+    // Excel і PDF тепер робить сервер. Раніше «Excel» був XML-таблицею .xls,
+    // зібраною з CSV на клієнті, а «PDF» — друком сторінки браузером, тобто
+    // тим, що на екрані: картки, обрізані колонки, випадкові розриви.
+    const serverFiles = {
+      'xlsx-full': [`${API}/leads/export.xlsx?${leadsQueryString()}`, 'leads_export.xlsx', 'Excel (усі поля)'],
+      'xlsx': [`${API}/leads/export.xlsx?scope=work&${leadsQueryString()}`, 'leads_work.xlsx', 'Excel (робочі поля)'],
+      'pdf': [`${API}/leads/export.pdf?${leadsQueryString()}`, 'leads.pdf', 'PDF (таблиця)'],
+    };
+    if (serverFiles[format]) {
+      const [url, filename, label] = serverFiles[format];
+      await downloadProtectedFile(url, filename);
+      recordActivity({ kind: 'lead', title: `Експорт лідів · ${label}`, detail: 'Поточні фільтри' });
+      if (leadsSyncStatus) leadsSyncStatus.textContent = `${label} завантажено · фільтри збережено.`;
       return;
     }
     const text = await fetchLeadsExportText();
     const rows = leadExportRows(text);
     if (format === 'csv') downloadTextFile(text, 'leads_export.csv', 'text/csv;charset=utf-8');
-    if (format === 'xlsx') downloadTextFile(makeExcelXml(rows), 'leads_export.xls', 'application/vnd.ms-excel;charset=utf-8');
     if (format === 'docx') downloadTextFile(makeWordLeadReport(rows), 'leads_report.doc', 'application/msword;charset=utf-8');
     recordActivity({ kind: 'lead', title: `Експорт лідів · ${format.toUpperCase()}`, detail: 'Поточні фільтри' });
     if (leadsSyncStatus) leadsSyncStatus.textContent = `Експорт ${format.toUpperCase()} завантажено · фільтри збережено.`;
@@ -5176,7 +5164,7 @@ function closeLeadsExportMenu() { document.querySelector('.leads-export-menu')?.
 function openLeadsExportMenu(anchor) {
   closeLeadsExportMenu();
   const menu = document.createElement('div'); menu.className = 'leads-export-menu';
-  menu.innerHTML = '<strong>Завантажити поточний список</strong><small class="export-menu-help">Робочі поля — коротка таблиця. «Усі поля» — повне вивантаження з сервера, придатне для правки й заливки назад.</small><button type="button" data-export-format="csv">CSV · таблиця</button><button type="button" data-export-format="xlsx">Excel · таблиця</button><button type="button" data-export-format="xlsx-full">Excel · усі поля</button><button type="button" data-export-format="docx">Word · звіт за лідами</button><button type="button" data-export-format="pdf">PDF · друк</button>';
+  menu.innerHTML = '<strong>Завантажити поточний список</strong><small class="export-menu-help">«Усі поля» — повне вивантаження: правте і заливайте назад через Імпорт. Решта форматів — короткий зріз за поточними фільтрами.</small><button type="button" data-export-format="xlsx-full">Excel · усі поля</button><button type="button" data-export-format="xlsx">Excel · робочі поля</button><button type="button" data-export-format="pdf">PDF · таблиця</button><button type="button" data-export-format="csv">CSV · таблиця</button><button type="button" data-export-format="docx">Word · звіт за лідами</button>';
   document.body.appendChild(menu);
   const rect = anchor.getBoundingClientRect(); menu.style.top = `${rect.bottom + 8}px`; menu.style.left = `${Math.max(12, rect.right - menu.offsetWidth)}px`;
   menu.querySelectorAll('[data-export-format]').forEach(btn => btn.addEventListener('click', () => { const format = btn.dataset.exportFormat; closeLeadsExportMenu(); exportLeadsFormat(format); }));

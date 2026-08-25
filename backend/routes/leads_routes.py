@@ -1330,32 +1330,46 @@ def _export_columns() -> list[str]:
     return known + rest
 
 
-@leads_bp.get('/export.xlsx')
-@auth_required
-@role_required(*_ADMIN_ROLES)
-def export_leads_xlsx():
-    """Excel з УСІМА полями ліда, з тими самими фільтрами, що й список."""
-    try:
-        from openpyxl import Workbook
-        from openpyxl.styles import Alignment, Font, PatternFill
-        from openpyxl.utils import get_column_letter
-    except ImportError:
-        return api_error(
-            'Excel-експорт недоступний: на сервері немає openpyxl. '
-            'Встановіть його (pip install openpyxl) або скористайтесь CSV.', 503)
+# ── Робочий набір колонок: те, з чим менеджер справді працює ────────────────
+# Повний експорт має 50+ колонок і годиться для правки та заливки назад, але
+# для друку й швидкого перегляду потрібен короткий зріз.
+_WORK_COLUMNS = (
+    'lead_id', 'business_name', 'category', 'city_area', 'country',
+    'phone', 'whatsapp_viber', 'email', 'instagram', 'website_url',
+    'owner', 'priority', 'stage', 'outreach_status', 'next_followup_date',
+    'lead_score', 'notes',
+)
 
+# Ширини колонок для PDF (в частках). Сума неважлива — нормалізується.
+_PDF_WEIGHTS = {
+    'lead_id': 0.7, 'business_name': 2.2, 'category': 1.3, 'city_area': 1.8,
+    'country': 0.8, 'phone': 1.2, 'whatsapp_viber': 1.0, 'email': 1.6,
+    'instagram': 1.3, 'website_url': 1.6, 'owner': 1.0, 'priority': 0.7,
+    'stage': 0.9, 'outreach_status': 1.0, 'next_followup_date': 0.9,
+    'lead_score': 0.6, 'notes': 2.4,
+}
+
+
+def _fetch_filtered_leads():
+    """Ліди за поточними фільтрами списку — спільне для всіх експортів."""
     _ensure_schema()
     where_sql, params = _build_leads_filter()
     with get_connection() as conn:
-        rows = conn.execute(
+        return conn.execute(
             f'SELECT * FROM leads {where_sql} ORDER BY lead_score DESC, id ASC',
             params,
         ).fetchall()
 
-    cols = _export_columns()
+
+def _build_xlsx(rows, cols, title):
+    """Спільний генератор xlsx для повного і робочого експорту."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
     wb = Workbook()
     ws = wb.active
-    ws.title = 'Leads'
+    ws.title = title
 
     head_fill = PatternFill('solid', fgColor='1D4ED8')
     for i, col in enumerate(cols, start=1):
@@ -1366,8 +1380,8 @@ def export_leads_xlsx():
         ws.column_dimensions[get_column_letter(i)].width = 46 if col in _WIDE_COLS else 20
     ws.row_dimensions[1].height = 30
 
-    # Технічні імена колонок другим рядком: саме за ним імпорт впізнає поля,
-    # навіть якщо хтось перекладе або перепише людські заголовки.
+    # Технічні імена другим рядком: саме за ними імпорт впізнає поля, навіть
+    # якщо хтось перекладе або перепише людські заголовки.
     tech_fill = PatternFill('solid', fgColor='E5E7EB')
     for i, col in enumerate(cols, start=1):
         cell = ws.cell(row=2, column=i, value=col)
@@ -1375,14 +1389,16 @@ def export_leads_xlsx():
         cell.fill = tech_fill
         cell.alignment = Alignment(horizontal='center')
 
+    band = PatternFill('solid', fgColor='F1F5F9')
     for r_i, r in enumerate(rows or [], start=3):
         row = dict(r)
         for c_i, col in enumerate(cols, start=1):
             value = row.get(col)
-            cell = ws.cell(row=r_i, column=c_i,
-                           value='' if value is None else value)
+            cell = ws.cell(row=r_i, column=c_i, value='' if value is None else value)
             cell.font = Font(name='Arial', size=10)
             cell.alignment = Alignment(vertical='top', wrap_text=col in _WIDE_COLS)
+            if r_i % 2 == 1:
+                cell.fill = band
 
     ws.freeze_panes = 'C3'
     ws.auto_filter.ref = f'A1:{get_column_letter(len(cols))}1'
@@ -1390,15 +1406,168 @@ def export_leads_xlsx():
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
+    return buf.getvalue()
+
+
+@leads_bp.get('/export.xlsx')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def export_leads_xlsx():
+    """Excel з тими самими фільтрами, що й список.
+
+    scope=full (типово) — усі колонки, придатні для правки та заливки назад.
+    scope=work — короткий робочий зріз.
+    """
+    try:
+        import openpyxl  # noqa: F401
+    except ImportError:
+        return api_error(
+            'Excel-експорт недоступний: на сервері немає openpyxl. '
+            'Встановіть його (pip install openpyxl) або скористайтесь CSV.', 503)
+
+    scope = (request.args.get('scope') or 'full').strip().lower()
+    rows = _fetch_filtered_leads()
+    if scope == 'work':
+        cols = [c for c in _WORK_COLUMNS if c in _COLUMNS]
+        name = 'leads_work.xlsx'
+    else:
+        cols = _export_columns()
+        name = 'leads_export.xlsx'
+
+    data = _build_xlsx(rows, cols, 'Leads')
+    return Response(
+        data,
+        mimetype=_XLSX_MIME,
+        headers={'Content-Disposition': f'attachment; filename="{name}"'},
+    )
+
+
+@leads_bp.get('/export.pdf')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def export_leads_pdf():
+    """Справжня таблиця в PDF замість друку сторінки браузером.
+
+    Друк вікна давав те, що на екрані: картки, обрізані колонки й випадкові
+    розриви. Тут — альбомна таблиця з повторюваною шапкою і нумерацією
+    сторінок, тобто документ, який можна віддати або підшити."""
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.units import mm
+        from reportlab.platypus import (
+            BaseDocTemplate, Frame, PageTemplate, Paragraph, Table, TableStyle,
+        )
+    except ImportError:
+        return api_error('PDF-експорт недоступний: на сервері немає reportlab.', 503)
+
+    from ..services.statement_service import _ensure_fonts, _f
+    _ensure_fonts()
+
+    rows = _fetch_filtered_leads()
+    cols = [c for c in _WORK_COLUMNS if c in _COLUMNS]
+
+    page_w, page_h = landscape(A4)
+    margin = 10 * mm
+    avail = page_w - 2 * margin
+
+    weights = [_PDF_WEIGHTS.get(c, 1.0) for c in cols]
+    total = sum(weights) or 1
+    widths = [avail * w / total for w in weights]
+
+    head_style = ParagraphStyle(
+        'h', fontName=_f(True), fontSize=6.5, leading=8, textColor=colors.white)
+    cell_style = ParagraphStyle(
+        'c', fontName=_f(), fontSize=6.5, leading=8, textColor=colors.HexColor('#1F2937'))
+
+    def esc(value):
+        s = '' if value is None else str(value)
+        return (s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;'))
+
+    table_data = [[Paragraph(esc(_EXPORT_HEADERS.get(c, c)), head_style) for c in cols]]
+    for r in (rows or []):
+        row = dict(r)
+        table_data.append([Paragraph(esc(row.get(c)), cell_style) for c in cols])
+
+    table = Table(table_data, colWidths=widths, repeatRows=1)
+    style = [
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1D4ED8')),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#D1D5DB')),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 2.5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2.5),
+    ]
+    for i in range(1, len(table_data)):
+        if i % 2 == 0:
+            style.append(('BACKGROUND', (0, i), (-1, i), colors.HexColor('#F1F5F9')))
+    table.setStyle(TableStyle(style))
+
+    generated = date.today().isoformat()
+    count = len(rows or [])
+
+    def decorate(canvas, doc):
+        canvas.saveState()
+        canvas.setFont(_f(True), 11)
+        canvas.setFillColor(colors.HexColor('#1F2937'))
+        canvas.drawString(margin, page_h - margin + 4 * mm, 'Ліди · ARM CRM')
+        canvas.setFont(_f(), 7.5)
+        canvas.setFillColor(colors.HexColor('#6B7280'))
+        canvas.drawString(margin, page_h - margin - 1 * mm,
+                          f'{generated} · записів: {count} · поточні фільтри списку')
+        canvas.drawRightString(page_w - margin, 6 * mm, f'Сторінка {doc.page}')
+        canvas.restoreState()
+
+    buf = io.BytesIO()
+    doc = BaseDocTemplate(
+        buf, pagesize=landscape(A4),
+        leftMargin=margin, rightMargin=margin,
+        topMargin=margin + 6 * mm, bottomMargin=margin,
+        title='Ліди · ARM CRM',
+    )
+    frame = Frame(margin, margin, avail, page_h - 2 * margin - 6 * mm, id='body',
+                  leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
+    doc.addPageTemplates([PageTemplate(id='p', frames=[frame], onPage=decorate)])
+    doc.build([table])
+    buf.seek(0)
+
     return Response(
         buf.getvalue(),
-        mimetype=_XLSX_MIME,
-        headers={'Content-Disposition': 'attachment; filename="leads_export.xlsx"'},
+        mimetype='application/pdf',
+        headers={'Content-Disposition': 'attachment; filename="leads.pdf"'},
     )
 
 
 def _norm_header(value: str) -> str:
     return str(value or '').strip().lower()
+
+
+# Поширені підписи з чужих файлів і вигрузок. Без них заливка чужої таблиці
+# падала з «не знайдено жодної відомої колонки», хоча дані там були.
+_HEADER_ALIASES = {
+    'business_name': ('name', 'business', 'company', 'company name', 'business name',
+                      'назва', 'назва бізнесу', 'компанія', 'название', 'компания'),
+    'city_area': ('city', 'town', 'city/area', 'city / metro', 'city metro', 'location',
+                  'address', 'адреса', 'місто', 'город', 'локація'),
+    'country': ('country name', 'країна', 'страна'),
+    'category': ('type', 'industry', 'категорія', 'категория', 'ніша'),
+    'phone': ('phone number', 'tel', 'telephone', 'mobile', 'телефон'),
+    'whatsapp_viber': ('whatsapp', 'whats app', 'viber', 'вотсап', 'вацап'),
+    'email': ('e-mail', 'mail', 'пошта', 'почта'),
+    'instagram': ('ig', 'insta', 'instagram handle', 'instagram link', 'інстаграм', 'инстаграм'),
+    'facebook_other_social': ('facebook', 'fb', 'social', 'соцмережі'),
+    'website_url': ('website', 'site', 'url', 'web', 'сайт'),
+    'owner': ('manager', 'assigned to', 'responsible', 'відповідальний', 'менеджер'),
+    'priority': ('пріоритет', 'приоритет'),
+    'stage': ('status', 'стадія', 'стадия', 'этап'),
+    'outreach_status': ('contact status', 'статус контакту'),
+    'notes': ('note', 'comment', 'comments', 'нотатки', 'заметки', 'комментарий'),
+    'lead_id': ('id', 'crm id', 'lead id', 'ід', 'ид'),
+    'next_followup_date': ('followup', 'follow up', 'next contact', 'наступний контакт'),
+    'lead_score': ('score', 'бали', 'оценка'),
+}
 
 
 def _header_map() -> dict[str, str]:
@@ -1410,6 +1579,13 @@ def _header_map() -> dict[str, str]:
     for col, label in _EXPORT_HEADERS.items():
         if col in _COLUMNS:
             out[_norm_header(label)] = col
+    # Аліаси додаються ОСТАННІМИ і не перетирають точні збіги, щоб
+    # власний заголовок завжди вигравав у здогадки.
+    for col, names in _HEADER_ALIASES.items():
+        if col not in _COLUMNS:
+            continue
+        for name in names:
+            out.setdefault(_norm_header(name), col)
     return out
 
 
