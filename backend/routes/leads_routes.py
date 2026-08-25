@@ -1361,6 +1361,22 @@ def _fetch_filtered_leads():
         ).fetchall()
 
 
+# Розмітка таблиці. 10pt на три десятки колонок з переносами читалось погано,
+# тому базовий кегль більший, а рядки мають висоту під два рядки тексту.
+_XLSX_BASE_SIZE = 11
+_XLSX_ROW_HEIGHT = 34
+
+# Колонки, де значення саме є посиланням: клікати треба по ньому, а не по
+# сусідній колонці з голим URL.
+_LINK_COLS = {
+    'instagram': lambda v: (v if str(v).startswith('http')
+                            else f'https://www.instagram.com/{str(v).lstrip("@")}/'),
+    'website_url': lambda v: v if str(v).startswith('http') else f'https://{v}',
+    'source_url': lambda v: v,
+    'email': lambda v: f'mailto:{v}',
+}
+
+
 def _build_xlsx(rows, cols, title):
     """Спільний генератор xlsx для повного і робочого експорту."""
     from openpyxl import Workbook
@@ -1374,34 +1390,52 @@ def _build_xlsx(rows, cols, title):
     head_fill = PatternFill('solid', fgColor='1D4ED8')
     for i, col in enumerate(cols, start=1):
         cell = ws.cell(row=1, column=i, value=_EXPORT_HEADERS.get(col, col))
-        cell.font = Font(name='Arial', size=10, bold=True, color='FFFFFF')
+        cell.font = Font(name='Arial', size=_XLSX_BASE_SIZE, bold=True, color='FFFFFF')
         cell.fill = head_fill
         cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-        ws.column_dimensions[get_column_letter(i)].width = 46 if col in _WIDE_COLS else 20
-    ws.row_dimensions[1].height = 30
+        ws.column_dimensions[get_column_letter(i)].width = 52 if col in _WIDE_COLS else 22
+    ws.row_dimensions[1].height = 38
 
     # Технічні імена другим рядком: саме за ними імпорт впізнає поля, навіть
     # якщо хтось перекладе або перепише людські заголовки.
     tech_fill = PatternFill('solid', fgColor='E5E7EB')
     for i, col in enumerate(cols, start=1):
         cell = ws.cell(row=2, column=i, value=col)
-        cell.font = Font(name='Arial', size=8, italic=True, color='6B7280')
+        cell.font = Font(name='Arial', size=9, italic=True, color='6B7280')
         cell.fill = tech_fill
         cell.alignment = Alignment(horizontal='center')
+    ws.row_dimensions[2].height = 18
 
     band = PatternFill('solid', fgColor='F1F5F9')
+    link_font = Font(name='Arial', size=_XLSX_BASE_SIZE, color='1D4ED8', underline='single')
     for r_i, r in enumerate(rows or [], start=3):
         row = dict(r)
         for c_i, col in enumerate(cols, start=1):
             value = row.get(col)
             cell = ws.cell(row=r_i, column=c_i, value='' if value is None else value)
-            cell.font = Font(name='Arial', size=10)
-            cell.alignment = Alignment(vertical='top', wrap_text=col in _WIDE_COLS)
+            cell.font = Font(name='Arial', size=_XLSX_BASE_SIZE)
+            cell.alignment = Alignment(vertical='center', wrap_text=col in _WIDE_COLS)
             if r_i % 2 == 1:
                 cell.fill = band
+            maker = _LINK_COLS.get(col)
+            if maker and value:
+                try:
+                    cell.hyperlink = maker(value)
+                    cell.font = link_font
+                except Exception:
+                    pass       # погане значення не має ламати весь експорт
+        ws.row_dimensions[r_i].height = _XLSX_ROW_HEIGHT
 
     ws.freeze_panes = 'C3'
     ws.auto_filter.ref = f'A1:{get_column_letter(len(cols))}1'
+    ws.sheet_view.showGridLines = False
+
+    # Друк: альбомно, на ширину сторінки, шапка повторюється на кожній.
+    ws.page_setup.orientation = 'landscape'
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.print_title_rows = '1:2'
 
     buf = io.BytesIO()
     wb.save(buf)
