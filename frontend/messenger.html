@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="/vendor/leaflet/leaflet.css?v=101"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=308"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=379"/>
 </head>
 <body>
 
@@ -161,7 +161,7 @@
             <line x1="12" y1="19" x2="12" y2="22"/>
           </svg>
         </button>
-        <button class="icon-btn" id="btn-prospecting" title="Пошук клієнтів" type="button" hidden>
+        <button class="icon-btn" id="btn-prospecting" title="Дослідження ринку" type="button" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="20" height="20">
             <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/>
           </svg>
@@ -185,7 +185,7 @@
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
         </button>
-        <button class="icon-btn" id="btn-leads-add" title="Додати лід" type="button" hidden>
+        <button class="icon-btn" id="btn-leads-add" title="Додати лід вручну" type="button" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
@@ -207,13 +207,8 @@
     </div>
 
     <div class="conv-list" id="conv-list">
-      <section class="workspace-chats" id="workspace-chats" aria-label="Робочі чати">
-        <div class="workspace-chats-label"><span>Робочі чати</span><small>CRM</small></div>
-        <button class="workspace-chat is-pinned" id="workspace-guide-entry" type="button">
-          <span class="workspace-chat-icon is-guide" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H5.5A1.5 1.5 0 0 1 4 16.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H14a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h4.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg></span>
-          <span class="workspace-chat-copy"><strong>Инструкция</strong><small>Как подключить ключи и работать с парсером</small></span>
-          <span class="workspace-chat-meta workspace-pin">📌</span>
-        </button>
+      <section class="workspace-chats" id="workspace-chats" aria-label="Робочий простір">
+        <div class="workspace-chats-label"><span>Робочий простір</span><small>CRM</small></div>
         <button class="workspace-chat" id="workspace-leads-entry" type="button">
           <span class="workspace-chat-icon is-crm">CRM</span>
           <span class="workspace-chat-copy"><strong>Ліди</strong><small>Клієнти, фільтри та швидкі дії</small></span>
@@ -229,30 +224,29 @@
           <span class="workspace-chat-copy"><strong>Воронка</strong><small>Ліди за стадіями угоди</small></span>
           <span class="workspace-chat-arrow">›</span>
         </button>
-        <button class="workspace-chat" id="workspace-search-entry" type="button">
-          <span class="workspace-chat-icon is-search" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span>
-          <span class="workspace-chat-copy"><strong>Пошук клієнтів</strong><small>OSM, Google і локальні ринки</small></span>
-          <span class="workspace-chat-arrow">›</span>
-        </button>
         <button class="workspace-chat" id="workspace-openings-entry" type="button">
           <span class="workspace-chat-icon is-openings" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg></span>
           <span class="workspace-chat-copy"><strong>Відкриття 2026</strong><small>Європа, США та Канада</small></span>
           <span class="workspace-chat-meta" id="workspace-openings-count">—</span>
         </button>
-                <button class="workspace-chat" id="workspace-august-entry" type="button">
+        <button class="workspace-chat" id="workspace-august-entry" type="button">
           <span class="workspace-chat-icon is-august" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="M9 14h6M9 17h4"/></svg></span>
           <span class="workspace-chat-copy"><strong>План контактів</strong><small>5 лідів на будній день · серпень–січень</small></span>
           <span class="workspace-chat-meta" id="workspace-august-meta">—</span>
         </button>
-                <button class="workspace-chat" id="workspace-analytics-entry" type="button">
-          <span class="workspace-chat-icon is-analytics" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 9l-5 5-4-4-4 4"/></svg></span>
-          <span class="workspace-chat-copy"><strong>Аналітика</strong><small>Ефективність та конверсія</small></span>
+        <button class="workspace-chat" id="workspace-activity-entry" type="button">
+          <span class="workspace-chat-icon is-activity" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
+          <span class="workspace-chat-copy"><strong>Журнал дій</strong><small>Ваші зміни та синхронізація</small></span>
+          <span class="workspace-chat-meta" id="workspace-activity-count" hidden></span>
         </button>
-        <button class="workspace-chat" id="workspace-integrations-entry" type="button">
-          <span class="workspace-chat-icon is-integrations" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.1-1.1"/></svg></span>
-          <span class="workspace-chat-copy"><strong>Інтеграції</strong><small>WhatsApp, Instagram і Google</small></span>
-          <span class="workspace-chat-arrow">›</span>
+        <button class="workspace-chat" id="workspace-notifications-entry" type="button">
+          <span class="workspace-chat-icon is-notifications" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M10 21h4"/></svg></span>
+          <span class="workspace-chat-copy"><strong>Сповіщення</strong><small>Керування push і тихими сигналами</small></span>
         </button>
+      </section>
+      <section class="team-directory" id="team-directory" aria-label="Команда" hidden>
+        <div class="workspace-chats-label"><span>Команда</span><small id="team-directory-count"></small></div>
+        <div class="team-directory-list" id="team-directory-list"></div>
       </section>
       <div class="workspace-chats-label conversations-label"><span>Розмови</span><small>LIVE</small></div>
       <div class="conv-empty" id="conv-empty" hidden>
@@ -300,9 +294,9 @@
     <!-- Empty state (no chat selected) -->
     <div class="chat-empty crm-home" id="chat-empty">
       <header class="crm-home-head">
-        <span class="crm-home-kicker">ARM CRM · TODAY</span>
-        <h1>Робота</h1>
-        <p>Клієнти, контакти та наступні дії</p>
+        <span class="crm-home-kicker">ARM CRM · WORKSPACE</span>
+        <h1>Робочий стіл</h1>
+        <p>Усі відділи, контакти та наступні дії — в одному вікні</p>
       </header>
       <div class="crm-home-grid">
         <button class="crm-home-tile crm-home-leads" id="crm-home-leads" type="button">
@@ -323,13 +317,40 @@
           <small>Стадії угод</small>
           <span class="crm-home-arrow">↗</span>
         </button>
-        <button class="crm-home-tile crm-home-search" id="crm-home-search" type="button">
+        <button class="crm-home-tile crm-home-openings" id="crm-home-openings" type="button">
           <span class="crm-home-index">04</span>
-          <strong>Пошук</strong>
-          <small>Нові клієнти</small>
+          <strong>Відкриття 2026</strong>
+          <small><span id="crm-home-openings-count">—</span> можливостей</small>
+          <span class="crm-home-arrow">↗</span>
+        </button>
+        <button class="crm-home-tile crm-home-planner" id="crm-home-planner" type="button">
+          <span class="crm-home-index">05</span>
+          <strong>План контактів</strong>
+          <small>Фокус, квота та календар</small>
           <span class="crm-home-arrow">↗</span>
         </button>
       </div>
+      <section class="crm-home-utilities" aria-label="Швидкі утиліти ARM CRM">
+        <div class="crm-home-utilities-copy">
+          <span class="crm-home-kicker">УТИЛІТИ</span>
+          <strong>Швидкі дії</strong>
+          <small>Тільки те, що потрібне щодня</small>
+        </div>
+        <div class="crm-home-utility-actions">
+          <button type="button" class="crm-home-utility" id="crm-home-new-chat">
+            <span class="crm-home-utility-symbol" aria-hidden="true">⌘</span>
+            <span><strong>Новий чат</strong><small>Написати команді</small></span>
+          </button>
+          <button type="button" class="crm-home-utility" id="crm-home-add-lead">
+            <span class="crm-home-utility-symbol" aria-hidden="true">＋</span>
+            <span><strong>Новий лід</strong><small>Додати вручну</small></span>
+          </button>
+          <button type="button" class="crm-home-utility" id="crm-home-security">
+            <span class="crm-home-utility-symbol" aria-hidden="true">◈</span>
+            <span><strong>Безпека</strong><small>Активні пристрої</small></span>
+          </button>
+        </div>
+      </section>
     </div>
 
     <!-- Active chat -->
@@ -370,10 +391,6 @@
       <div class="leads-info-banner" id="lead-info-banner" hidden>
         <div class="leads-thread-contacts" id="lead-thread-contacts"></div>
         <div class="leads-thread-pills" id="leads-thread-pills"></div>
-        <div class="lead-intelligence-panel" id="lead-intelligence-panel" hidden></div>
-        <div class="leads-first-message-pinned" id="lead-first-message-pinned" hidden></div>
-        <div class="ai-draft-panel" id="ai-draft-panel" hidden></div>
-        <div class="lead-nudge-panel" id="lead-nudge-panel" hidden></div>
       </div>
 
       <section class="assistant-panel" id="assistant-panel" hidden aria-label="Панель банківського асистента">
@@ -410,7 +427,6 @@
           <button type="button" class="assistant-quick-btn" data-assistant-action="menu">Усі команди</button>
           <button type="button" class="assistant-quick-btn" data-assistant-action="balance">Баланс</button>
           <button type="button" class="assistant-quick-btn" data-assistant-action="recent">Останні операції</button>
-          <button type="button" class="assistant-quick-btn" data-assistant-action="analytics">Аналітика</button>
           <button type="button" class="assistant-quick-btn" data-assistant-action="insights">Інсайти</button>
           <button type="button" class="assistant-quick-btn" data-assistant-action="statement_pdf">Виписка PDF</button>
           <button type="button" class="assistant-quick-btn" data-assistant-action="statement_csv">Виписка CSV</button>
@@ -418,7 +434,6 @@
           <button type="button" class="assistant-quick-btn" data-assistant-action="cards">Картки</button>
           <button type="button" class="assistant-quick-btn" data-assistant-action="requisites">Реквізити</button>
           <button type="button" class="assistant-quick-btn" data-assistant-action="goals">Цілі</button>
-          <button type="button" class="assistant-quick-btn" data-assistant-action="templates">Шаблони</button>
           <button type="button" class="assistant-quick-btn" data-assistant-action="contacts">Контакти</button>
           <button type="button" class="assistant-quick-btn" data-assistant-action="budget">Бюджет</button>
           <button type="button" class="assistant-quick-btn" data-assistant-action="debts">Борги</button>
@@ -433,8 +448,8 @@
       <section class="scheduler-overview" id="scheduler-overview" aria-label="Огляд планувальника" hidden>
         <div class="scheduler-overview-head">
           <div>
-            <span class="mono-label">РОБОЧИЙ РИТМ</span>
-            <h2>План на сьогодні</h2>
+            <span class="mono-label">ПЛАН</span>
+            <h2>Сьогодні</h2>
           </div>
           <div class="scheduler-overview-actions">
             <button type="button" class="btn-secondary" data-open-kanban="1">Воронка</button>
@@ -519,15 +534,18 @@
         <button class="icon-btn back-btn" id="btn-leads-directory-back" title="Назад" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
-        <div class="workspace-view-avatar" aria-hidden="true">CRM</div>
         <div class="leads-thread-info">
           <div class="leads-thread-name">Ліди</div>
           <div class="leads-thread-sub">Єдиний список клієнтів, відповідальних і наступних дій</div>
         </div>
         <div class="workspace-view-actions">
+          <button type="button" class="btn-secondary" id="btn-leads-directory-import" title="Excel або CSV. Підходить файл, вивантажений через «Excel · усі поля» — можна правити і залити назад">Імпорт</button>
+          <button type="button" class="btn-secondary leads-import-template" id="btn-leads-import-template" title="Завантажити приклад CSV">Шаблон</button>
+          <input id="leads-import-file" type="file" accept=".csv,.xlsx,.xlsm,text/csv" hidden />
           <button type="button" class="btn-secondary" id="btn-leads-directory-export">Експорт</button>
-          <button type="button" class="btn-primary" id="btn-leads-directory-add">Додати лід</button>
+          <button type="button" class="btn-primary" id="btn-leads-directory-add">Додати вручну</button>
         </div>
+        <div class="leads-sync-status" id="leads-sync-status" role="status" aria-live="polite">Дані зберігаються на сервері й доступні команді за правами доступу.</div>
       </div>
       <div class="leads-directory-body">
         <div class="leads-stats" id="leads-stats"></div>
@@ -545,7 +563,7 @@
             <option value="newest">Спочатку нові</option>
             <option value="name">За назвою</option>
           </select>
-          <button type="button" class="btn-secondary" id="btn-leads-directory-select">Обрати кілька</button>
+          <button type="button" class="btn-secondary" id="btn-leads-directory-select">Масове редагування</button>
         </div>
         <div class="leads-filter-status" id="leads-filter-status" hidden>
           <span id="leads-filter-status-text"></span>
@@ -554,7 +572,7 @@
         <div class="leads-result-meta" id="leads-result-meta" aria-live="polite"></div>
         <div class="leads-list" id="leads-list"><div class="leads-empty" id="leads-empty" hidden>Лідів не знайдено.</div></div>
         <div class="leads-bulk-bar" id="leads-bulk-bar" hidden>
-          <span class="leads-bulk-count" id="leads-bulk-count">Обрано: 0</span>
+          <span class="leads-bulk-count" id="leads-bulk-count">Обрано: 0 лідів</span>
           <select id="leads-bulk-stage"><option value="">Стадія — без змін</option></select>
           <select id="leads-bulk-owner"><option value="">Власник — без змін</option></select>
           <div class="leads-bulk-actions">
@@ -577,7 +595,7 @@
         <div class="work-queue-header-mark" aria-hidden="true">DAY</div>
         <div class="leads-thread-info">
           <div class="leads-thread-name">Мій день</div>
-          <div class="leads-thread-sub" id="work-queue-date">Наступні дії, які не варто залишати без уваги</div>
+          <div class="leads-thread-sub" id="work-queue-date">Черга дій, яку варто завершити сьогодні</div>
         </div>
         <div class="work-queue-controls">
           <select id="work-queue-owner" aria-label="Фільтр за менеджером"></select>
@@ -863,16 +881,16 @@
           </svg>
         </button>
         <div class="leads-thread-info">
-          <div class="leads-thread-name">Пошук клієнтів</div>
-          <div class="leads-thread-sub" id="prospecting-source-sub">Знаходьте бізнеси по світу та додавайте в роботу · дані OpenStreetMap</div>
+          <div class="leads-thread-name">Дослідження ринку</div>
+          <div class="leads-thread-sub" id="prospecting-source-sub">Знаходьте бізнеси по світу та оцінюйте ринок · дані OpenStreetMap</div>
         </div>
       </div>
       <div class="prospecting-body">
         <section class="prospecting-hero" aria-label="CRM prospecting overview">
           <div>
             <p class="mono-label">ARM CRM · DISCOVERY</p>
-            <h2>Знайдіть наступного клієнта й одразу ведіть його в роботу.</h2>
-            <p>Пошук збирає бізнеси з OSM і Google, прибирає дублікати, показує сигнали якості й додає в CRM тільки перевірені ліди.</p>
+            <h2>Знайдіть наступний ринок для дослідження.</h2>
+            <p>Пошук збирає бізнеси з OSM і Google, прибирає дублікати та показує сигнали якості. Ліди додаються вручну після вашої перевірки.</p>
           </div>
           <div class="prospecting-hero-stats" aria-hidden="true">
             <span><b>OSM</b><small>відкриті дані</small></span>
@@ -1172,15 +1190,6 @@
           <input type="text" id="prosp-quick-filter" class="prosp-quick-filter" placeholder="Швидкий фільтр по назві, домену, описі…" autocomplete="off"/>
         </div>
         <div class="prospecting-results" id="prosp-results"></div>
-        <div class="prospecting-import-bar" id="prosp-import-bar" hidden>
-          <span class="prospecting-selected-count" id="prosp-selected-count">Обрано: 0</span>
-          <select id="prosp-owner">
-            <option value="Manager 1">Менеджер Миша</option>
-            <option value="Manager 2">Менеджер Едуард</option>
-          </select>
-          <button type="button" class="btn-secondary" id="btn-prosp-enrich-selected">Знайти контакти</button>
-          <button type="button" class="btn-primary" id="btn-prosp-import">Перевірити і додати</button>
-        </div>
       </div>
     </div>
 
@@ -1229,24 +1238,49 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
         </div>
         <div class="leads-thread-info">
-          <div class="leads-thread-name">План контактів</div>
-          <div class="leads-thread-sub">5 пріоритетних лідів у кожен будній день</div>
+          <div class="leads-thread-name">Робочий ритм</div>
+          <div class="leads-thread-sub">Сьогодні, черга та календар</div>
         </div>
-        <div class="workspace-view-actions">
-          
+        <div class="workspace-view-actions planner-header-actions">
+          <button type="button" class="btn-secondary" id="btn-planner-refresh">Оновити</button>
+          <button type="button" class="btn-primary" id="btn-planner-settings">Налаштування</button>
         </div>
       </div>
       <div class="august-body">
-        <div class="schedule-brief" aria-label="Правила робочого плану">
-          <div><strong>5</strong><span>контактів на день</span></div>
-          <div><strong>Пн–Пт</strong><span>без вихідних у плані</span></div>
-          <div><strong>Hot → High</strong><span>спочатку найгарячіші</span></div>
+        <div class="schedule-brief" aria-label="Параметри плану">
+          <div><strong id="planner-brief-quota">5</strong><span>контактів на день</span></div>
+          <div><strong id="planner-brief-days">Пн–Пт</strong><span>робочі дні</span></div>
+          <div><strong id="planner-brief-sort">Гарячі першими</strong><span>порядок черги</span></div>
         </div>
+        <section class="planner-command-center" aria-label="Керування планом">
+          <div class="planner-focus" id="planner-focus">
+            <div class="planner-focus-kicker">Фокус на сьогодні</div>
+            <h2>Завантажую план…</h2>
+          </div>
+          <div class="planner-quick-actions">
+            <button type="button" class="btn-primary" id="btn-planner-today">Сьогодні</button>
+            <button type="button" class="btn-secondary" id="btn-planner-generate">Оновити план</button>
+            <button type="button" class="btn-secondary" id="btn-planner-leads">Відкрити ліди</button>
+          </div>
+        </section>
+        <section class="planner-settings" id="planner-settings" role="dialog" aria-modal="true" aria-labelledby="planner-settings-title" hidden>
+          <div class="planner-settings-head">
+            <div><span class="mono-label">ПАРАМЕТРИ ПЛАНУ</span><h2 id="planner-settings-title">Робочі налаштування</h2></div>
+            <button type="button" class="icon-btn" id="btn-planner-settings-close" aria-label="Закрити налаштування">×</button>
+          </div>
+          <div class="planner-settings-grid">
+            <label><span>Контактів на день</span><input id="planner-quota" type="number" min="1" max="30" value="5"/></label>
+            <label><span>Порядок пріоритетів</span><select id="planner-sort"><option value="priority">Спочатку найгарячіші</option><option value="oldest">Найдавніші без контакту</option><option value="owner">За менеджером</option></select></label>
+            <label><span>Менеджер за замовчуванням</span><select id="planner-owner"><option value="Михайло Хлюпін">Михайло</option><option value="Едуард Нестеров">Едуард</option></select></label>
+            <fieldset><legend>Робочі дні</legend><label><input type="checkbox" value="1" checked class="planner-weekday"/> Пн</label><label><input type="checkbox" value="2" checked class="planner-weekday"/> Вт</label><label><input type="checkbox" value="3" checked class="planner-weekday"/> Ср</label><label><input type="checkbox" value="4" checked class="planner-weekday"/> Чт</label><label><input type="checkbox" value="5" checked class="planner-weekday"/> Пт</label></fieldset>
+          </div>
+          <div class="planner-settings-foot"><span id="planner-settings-status">Зміни застосуються до наступного плану.</span><button type="button" class="btn-primary" id="btn-planner-settings-save">Зберегти й застосувати</button></div>
+        </section>
         <!-- Progress bars -->
         <div class="august-progress-section" id="august-progress-section">
           <div class="august-progress-row" id="august-progress-m1">
             <div class="august-progress-label">
-              <span class="august-owner-name">Менеджер Миша</span>
+              <span class="august-owner-name">Михайло</span>
               <span class="august-progress-count" id="aug-count-m1">—</span>
             </div>
             <div class="august-progress-bar-wrap">
@@ -1255,7 +1289,7 @@
           </div>
           <div class="august-progress-row" id="august-progress-m2">
             <div class="august-progress-label">
-              <span class="august-owner-name">Менеджер Едуард</span>
+              <span class="august-owner-name">Едуард</span>
               <span class="august-progress-count" id="aug-count-m2">—</span>
             </div>
             <div class="august-progress-bar-wrap">
@@ -1266,8 +1300,8 @@
 
         <!-- Owner filter tabs -->
         <div class="august-tabs" id="august-tabs">
-          <button type="button" class="august-tab active" data-aug-owner="Миша">Миша</button>
-          <button type="button" class="august-tab" data-aug-owner="Едуард">Едуард</button>
+          <button type="button" class="august-tab active" data-aug-owner="Михайло Хлюпін">Михайло</button>
+          <button type="button" class="august-tab" data-aug-owner="Едуард Нестеров">Едуард</button>
         </div>
 
         <!-- Calendar grid -->
@@ -1285,6 +1319,57 @@
           <div class="august-day-header" id="august-day-header"></div>
           <div class="august-day-cards" id="august-day-cards"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- Local, instant activity journal for the current workspace user -->
+    <div id="activity-log-view" class="workspace-view" hidden>
+      <div class="leads-thread-header activity-thread-header">
+        <button class="icon-btn back-btn" id="btn-activity-back" title="Назад" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="workspace-view-avatar activity-avatar" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+        </div>
+        <div class="leads-thread-info">
+          <div class="leads-thread-name">Журнал дій</div>
+          <div class="leads-thread-sub">Зміни зʼявляються одразу після збереження</div>
+        </div>
+        <div class="workspace-view-actions">
+          <button type="button" class="btn-secondary" id="btn-activity-refresh">Оновити</button>
+          <button type="button" class="btn-secondary" id="btn-activity-export-csv">Експорт CSV</button>
+          <button type="button" class="btn-secondary" id="btn-activity-export-json" hidden>JSON</button>
+          <button type="button" class="btn-secondary" id="btn-activity-clear">Очистити</button>
+        </div>
+      </div>
+      <div class="activity-log-body">
+        <div class="activity-log-summary"><div><strong id="activity-log-count">0</strong><span id="activity-log-summary-label">подій у журналі</span></div><span class="activity-sync-state" id="activity-sync-state">Усі зміни збережено</span></div>
+        <div class="activity-log-controls" aria-label="Фільтри журналу">
+          <label class="activity-log-search"><span class="sr-only">Пошук у журналі</span><input id="activity-log-search" type="search" placeholder="Пошук за дією, лідом або деталями" autocomplete="off"/></label>
+          <label><span class="sr-only">Тип дії</span><select id="activity-log-kind"><option value="">Усі дії</option><option value="lead">Ліди</option><option value="planner">Планувальник</option><option value="message">Повідомлення</option><option value="crm">CRM</option></select></label>
+          <button type="button" class="btn-secondary" id="btn-activity-reset">Скинути фільтри</button>
+        </div>
+        <div class="activity-log-list" id="activity-log-list" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div id="notifications-view" class="workspace-view" hidden>
+      <div class="leads-thread-header activity-thread-header">
+        <button class="icon-btn back-btn" id="btn-notifications-back" title="Назад" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="workspace-view-avatar notifications-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M10 21h4"/></svg></div>
+        <div class="leads-thread-info"><div class="leads-thread-name">Сповіщення</div><div class="leads-thread-sub">Зміни застосовуються одразу, без перезавантаження</div></div>
+      </div>
+      <div class="notification-settings-body">
+        <section class="notification-settings-card">
+          <div class="notification-settings-head"><div><span class="mono-label">СПЕЦІАЛЬНИЙ ЧАТ</span><h2>Що повідомляти</h2></div><span class="activity-sync-state" id="notification-settings-state">Синхронізовано</span></div>
+          <label class="notification-setting-row"><span><strong>Push-сповіщення</strong><small>Дозволити системні повідомлення ARM CRM</small></span><input id="notif-push-toggle" type="checkbox" checked></label>
+          <label class="notification-setting-row"><span><strong>Нові повідомлення</strong><small>Повідомлення у фоновому режимі</small></span><input id="notif-messages-toggle" type="checkbox" checked></label>
+          <label class="notification-setting-row"><span><strong>План контактів</strong><small>Нагадування та зміни виконання</small></span><input id="notif-planner-toggle" type="checkbox" checked></label>
+          <label class="notification-setting-row"><span><strong>Вхідні дзвінки</strong><small>Сигнали виклику залишаються активними</small></span><input id="notif-calls-toggle" type="checkbox" checked></label>
+          <button type="button" class="btn-primary" id="btn-notifications-enable">Увімкнути системні сповіщення</button>
+        </section>
       </div>
     </div>
 
@@ -1330,10 +1415,10 @@
           </div>
           
           <div class="wow-cols-wrap">
-            <!-- Manager 1 Column -->
+            <!-- Михайло Хрупін column -->
             <div class="analytics-col wow-col" id="analytics-m1">
               <div class="wow-owner-header" id="wow-header-m1">
-                <div class="wow-owner-name">Миша</div>
+                <div class="wow-owner-name">Михайло</div>
                 <div class="wow-rank" id="wow-rank-m1">Стартова позиція</div>
               </div>
               
@@ -1391,7 +1476,7 @@
               
             </div>
             
-            <!-- Manager 2 Column -->
+            <!-- Едуард Нестеров column -->
             <div class="analytics-col wow-col" id="analytics-m2">
               <div class="wow-owner-header" id="wow-header-m2">
                 <div class="wow-owner-name">Едуард</div>
@@ -1724,7 +1809,7 @@
         <label>Місто<input id="lead-new-city" type="text" list="crm-city-suggestions"/></label>
       </div>
       <div class="leads-edit-grid">
-        <label>Власник<select id="lead-new-owner"><option value="Manager 1">Менеджер Миша</option><option value="Manager 2">Менеджер Едуард</option></select></label>
+        <label>Власник<select id="lead-new-owner"><option value="Михайло Хлюпін">Михайло</option><option value="Едуард Нестеров">Едуард</option></select></label>
         <label>Пріоритет<select id="lead-new-priority"></select></label>
       </div>
       <label>Телефон<input id="lead-new-phone" type="text"/></label>
@@ -1857,8 +1942,6 @@
   <option value="Збережені повідомлення"></option>
   <option value="Планувальник"></option>
   <option value="Канбан-дошка"></option>
-  <option value="Пошук клієнтів"></option>
-  <option value="Інтеграції"></option>
 </datalist>
 <datalist id="crm-lead-search-suggestions">
   <option value="Berlin"></option>
@@ -1937,6 +2020,6 @@
 </datalist>
 
 <script src="/vendor/leaflet/leaflet.js?v=101"></script>
-<script src="/js/messenger.js?v=310"></script>
+<script src="/js/messenger.js?v=375"></script>
 </body>
 </html>

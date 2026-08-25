@@ -6,10 +6,10 @@
 
 const BASE = window.ARMY_BANK_BASE || '';
 const API  = BASE + '/api';
-const MESSENGER_ASSET_VERSION = '304';
+const MESSENGER_ASSET_VERSION = '345';
 // Мають точно збігатися з _SAVED_MESSAGES_NAME/_SCHEDULER_NAME у backend/routes/messenger_routes.py
-const SAVED_MESSAGES_NAME = '🔖 Збережені повідомлення';
-const SCHEDULER_NAME = '📅 Планувальник';
+const SAVED_MESSAGES_NAME = 'Збережені повідомлення';
+const SCHEDULER_NAME = 'Планувальник';
 const SELF_CHAT_NAMES = [SAVED_MESSAGES_NAME, SCHEDULER_NAME];
 const TOKEN_KEY = 'msng_token';
 const USER_KEY  = 'msng_user';
@@ -18,6 +18,9 @@ const COOKIE_SESSION_TOKEN = '__http_only_cookie__';
 const CALL_PREFS_KEY = 'msng_call_prefs_v1';
 const PERM_STATE_KEY = 'msng_permission_state_v1';
 const API_DEFAULT_TIMEOUT_MS = 12000;
+// On tablet widths the workspace needs the whole canvas; a split view clips
+// CRM controls and makes the next action ambiguous.
+const COMPACT_LAYOUT_MAX_WIDTH = 960;
 const DEFAULT_MSG_PLACEHOLDER = 'Напишіть повідомлення...';
 const DEFAULT_CALL_PREFS = Object.freeze({
   sounds: true,
@@ -49,6 +52,7 @@ let activeConvId   = null;
 let activePartner  = null;
 let lastMsgId      = 0;
 let convData       = [];
+let teamDirectoryUsers = [];
 let isLoadingOlder = false;
 let noMoreOlder    = false;
 let unreadWhileScrolledUp = 0;
@@ -205,6 +209,11 @@ const chatEmpty         = $('chat-empty');
 const crmHomeLeads      = $('crm-home-leads');
 const crmHomeDay        = $('crm-home-day');
 const crmHomeKanban     = $('crm-home-kanban');
+const crmHomeOpenings   = $('crm-home-openings');
+const crmHomePlanner    = $('crm-home-planner');
+const crmHomeNewChat    = $('crm-home-new-chat');
+const crmHomeAddLead    = $('crm-home-add-lead');
+const crmHomeSecurity   = $('crm-home-security');
 const crmHomeSearch     = $('crm-home-search');
 const crmHomeLeadsCount = $('crm-home-leads-count');
 const crmHomeDayCount   = $('crm-home-day-count');
@@ -358,6 +367,35 @@ const workspaceSearchEntry = $('workspace-search-entry');
 const workspaceOpeningsEntry = $('workspace-openings-entry');
 const workspaceIntegrationsEntry = $('workspace-integrations-entry');
 const workspaceGuideEntry = $('workspace-guide-entry');
+const workspaceActivityEntry = $('workspace-activity-entry');
+const teamDirectory = $('team-directory');
+const teamDirectoryList = $('team-directory-list');
+const teamDirectoryCount = $('team-directory-count');
+const workspaceActivityCount = $('workspace-activity-count');
+const workspaceNotificationsEntry = $('workspace-notifications-entry');
+const notificationsView = $('notifications-view');
+const btnNotificationsBack = $('btn-notifications-back');
+const btnNotificationsEnable = $('btn-notifications-enable');
+const notificationSettingsState = $('notification-settings-state');
+const notificationToggleEls = {
+  push: $('notif-push-toggle'),
+  messages: $('notif-messages-toggle'),
+  planner: $('notif-planner-toggle'),
+  calls: $('notif-calls-toggle'),
+};
+const activityLogView = $('activity-log-view');
+const btnActivityBack = $('btn-activity-back');
+const btnActivityRefresh = $('btn-activity-refresh');
+const btnActivityExportCsv = $('btn-activity-export-csv');
+const btnActivityExportJson = $('btn-activity-export-json');
+const btnActivityClear = $('btn-activity-clear');
+const activityLogList = $('activity-log-list');
+const activityLogCount = $('activity-log-count');
+const activityLogSummaryLabel = $('activity-log-summary-label');
+const activityLogSearch = $('activity-log-search');
+const activityLogKind = $('activity-log-kind');
+const btnActivityReset = $('btn-activity-reset');
+const activitySyncState = $('activity-sync-state');
 const guideView = $('guide-view');
 const btnGuideBack = $('btn-guide-back');
 const workspaceLeadsCount = $('workspace-leads-count');
@@ -387,7 +425,11 @@ const btnLeadsBulkCancel = $('btn-leads-bulk-cancel');
 const btnLeadsBulkApply = $('btn-leads-bulk-apply');
 const btnLeadsDirectoryBack = $('btn-leads-directory-back');
 const btnLeadsDirectoryExport = $('btn-leads-directory-export');
+const btnLeadsDirectoryImport = $('btn-leads-directory-import');
+const leadsImportFile = $('leads-import-file');
+const btnLeadsImportTemplate = $('btn-leads-import-template');
 const btnLeadsDirectoryAdd = $('btn-leads-directory-add');
+const leadsSyncStatus = $('leads-sync-status');
 const btnLeadsDirectorySelect = $('btn-leads-directory-select');
 const leadsFilterStatus = $('leads-filter-status');
 const leadsFilterStatusText = $('leads-filter-status-text');
@@ -903,6 +945,8 @@ async function ensureNotificationPermission(interactive = false) {
 
 async function notifyViaServiceWorker({ title, body = '', tag = '', data = {}, renotify = false, silent = false }) {
   try {
+    const notificationType = data?.type === 'call_incoming' || data?.type === 'call_background' ? 'calls' : data?.type === 'message' ? 'messages' : data?.type === 'planner' ? 'planner' : 'push';
+    if (notificationPrefs[notificationType] === false || notificationPrefs.push === false) return false;
     const reg = await navigator.serviceWorker?.ready;
     if (!reg?.showNotification || Notification.permission !== 'granted') return false;
     await reg.showNotification(String(title || 'ARM CRM'), {
@@ -1237,7 +1281,7 @@ const LAST_WORKSPACE_KEY = 'msng_last_workspace';
 const savedLeadsSort = localStorage.getItem(LEADS_SORT_KEY) || 'score';
 const leadsState = {
   page: 1,
-  perPage: 30,
+  perPage: 12,
   totalPages: 1,
   total: 0,
   owner: localStorage.getItem(LEADS_OWNER_FILTER_KEY) || '',
@@ -1254,6 +1298,229 @@ const leadsState = {
   currentLead: null,
   channelReadiness: null,
 };
+
+// ── Instant activity journal ─────────────────
+// The journal is intentionally local-first: every successful CRM mutation is
+// visible immediately, survives a refresh, and syncs between open tabs.
+const ACTIVITY_LOG_KEY = 'arm_crm_activity_log_v1';
+const ACTIVITY_LOG_LIMIT = 250;
+let activityServerLoaded = false;
+const NOTIFICATION_PREFS_KEY = 'arm_crm_notification_prefs_v1';
+const DEFAULT_NOTIFICATION_PREFS = { push: true, messages: true, planner: true, calls: true };
+let notificationPrefs = { ...DEFAULT_NOTIFICATION_PREFS };
+try {
+  const savedNotificationPrefs = JSON.parse(localStorage.getItem(NOTIFICATION_PREFS_KEY) || 'null');
+  if (savedNotificationPrefs && typeof savedNotificationPrefs === 'object') notificationPrefs = { ...DEFAULT_NOTIFICATION_PREFS, ...savedNotificationPrefs };
+} catch (_) {}
+
+function saveNotificationPrefs() {
+  try { localStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(notificationPrefs)); } catch (_) {}
+  if (notificationSettingsState) notificationSettingsState.textContent = 'Збережено щойно';
+  window.setTimeout(() => { if (notificationSettingsState) notificationSettingsState.textContent = 'Синхронізовано'; }, 1600);
+}
+
+function syncNotificationSettingsForm() {
+  Object.entries(notificationToggleEls).forEach(([key, el]) => { if (el) el.checked = notificationPrefs[key] !== false; });
+}
+
+function openNotificationsView() {
+  if (!prepareWorkspaceView(notificationsView, workspaceNotificationsEntry, 'Сповіщення')) return;
+  syncNotificationSettingsForm();
+}
+
+function readActivityLog() {
+  try {
+    const value = JSON.parse(localStorage.getItem(ACTIVITY_LOG_KEY) || '[]');
+    return Array.isArray(value) ? value.filter(item => item && item.created_at).slice(0, ACTIVITY_LOG_LIMIT) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function formatActivityTime(value) {
+  try {
+    return new Intl.DateTimeFormat('uk-UA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  } catch (_) {
+    return value || '';
+  }
+}
+
+function formatActivityDay(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Раніше';
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  const iso = date.toISOString().slice(0, 10);
+  if (iso === today.toISOString().slice(0, 10)) return 'Сьогодні';
+  if (iso === yesterday.toISOString().slice(0, 10)) return 'Учора';
+  return new Intl.DateTimeFormat('uk-UA', { day: 'numeric', month: 'long' }).format(date);
+}
+
+function activityKindLabel(kind) {
+  return ({ lead: 'Лід', planner: 'Планування', message: 'Повідомлення', crm: 'CRM' })[kind] || 'CRM';
+}
+
+function activityActorName() {
+  return me?.name || me?.full_name || me?.email || 'Ви';
+}
+
+const activityFilterState = { search: '', kind: '' };
+
+function renderActivityLog() {
+  const allItems = readActivityLog();
+  const query = activityFilterState.search.trim().toLowerCase();
+  const items = allItems.filter(item => {
+    if (activityFilterState.kind && (item.kind || 'crm') !== activityFilterState.kind) return false;
+    if (!query) return true;
+    return [item.title, item.detail, item.actor, item.lead_name].filter(Boolean).join(' ').toLowerCase().includes(query);
+  });
+  if (activityLogCount) activityLogCount.textContent = String(items.length);
+  if (activityLogSummaryLabel) activityLogSummaryLabel.textContent = items.length === allItems.length
+    ? 'подій у журналі'
+    : `показано з ${allItems.length}`;
+  if (workspaceActivityCount) {
+    workspaceActivityCount.textContent = items.length > 99 ? '99+' : String(items.length);
+    workspaceActivityCount.hidden = items.length === 0;
+  }
+  if (!activityLogList) return;
+  if (!items.length) {
+    activityLogList.innerHTML = allItems.length
+      ? '<div class="activity-log-empty"><strong>За фільтрами нічого немає</strong><span>Змініть пошук або тип дії.</span></div>'
+      : '<div class="activity-log-empty"><strong>Журнал поки порожній</strong><span>Зміни статусу, реквізитів і плану зʼявляться тут автоматично.</span></div>';
+    return;
+  }
+  const grouped = items.reduce((groups, item) => {
+    const key = formatActivityDay(item.created_at);
+    (groups[key] ||= []).push(item);
+    return groups;
+  }, {});
+  activityLogList.innerHTML = Object.entries(grouped).map(([day, dayItems]) => `
+    <section class="activity-log-day">
+      <div class="activity-log-day-head"><span>${escHtml(day)}</span><small>${dayItems.length}</small></div>
+      <div class="activity-log-day-items">${dayItems.map(item => `
+        <article class="activity-log-item activity-kind-${escHtml(item.kind || 'crm')}" data-activity-id="${escHtml(item.id || '')}">
+          <span class="activity-log-mark" aria-hidden="true"></span>
+          <div class="activity-log-copy"><div class="activity-log-title-row"><strong>${escHtml(item.title || 'Дію виконано')}</strong><span class="activity-log-kind">${escHtml(activityKindLabel(item.kind || 'crm'))}</span></div>${item.lead_name ? `<button type="button" class="activity-log-lead" data-activity-open="${Number(item.lead_id || 0)}">${escHtml(item.lead_name)}</button>` : ''}${item.detail ? `<span>${escHtml(item.detail)}</span>` : ''}<small>${escHtml(item.actor || 'Ви')} · ${escHtml(formatActivityTime(item.created_at))}</small></div>
+        </article>`).join('')}</div>
+    </section>`).join('');
+}
+
+function recordActivity({ title, detail = '', kind = 'crm', leadId = null, leadName = '' } = {}) {
+  if (!title) return;
+  const entry = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    created_at: new Date().toISOString(),
+    actor: activityActorName(),
+    title,
+    detail,
+    kind,
+    lead_id: leadId,
+    lead_name: leadName,
+  };
+  const items = [entry, ...readActivityLog()].slice(0, ACTIVITY_LOG_LIMIT);
+  try { localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(items)); } catch (_) {}
+  renderActivityLog();
+  if (activitySyncState) {
+    activitySyncState.textContent = 'Синхронізовано щойно';
+    window.setTimeout(() => { if (activitySyncState) activitySyncState.textContent = 'Синхронізовано'; }, 1800);
+  }
+  window.dispatchEvent(new CustomEvent('arm:activity-updated', { detail: entry }));
+  if (token && me) {
+    api('POST', '/leads/activity-log', { kind, title, detail, lead_id: leadId, lead_name: leadName }).then(serverEntry => {
+      const current = readActivityLog();
+      const local = current.find(item => item.id === entry.id);
+      if (local && serverEntry?.server_id) {
+        local.server_id = serverEntry.server_id;
+        try { localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(current)); } catch (_) {}
+      }
+    }).catch(() => {});
+  }
+}
+
+async function loadActivityLogFromServer() {
+  if (!token || !me || activityServerLoaded) return;
+  try {
+    const remote = await api('GET', '/leads/activity-log?limit=250');
+    const local = readActivityLog();
+    const remoteItems = Array.isArray(remote) ? remote : [];
+    const localUnsynced = local.filter(item => !item.server_id);
+    const merged = [...remoteItems, ...localUnsynced]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, ACTIVITY_LOG_LIMIT);
+    try { localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(merged)); } catch (_) {}
+    activityServerLoaded = true;
+    renderActivityLog();
+    if (activitySyncState) activitySyncState.textContent = 'Синхронізовано';
+  } catch (_) {}
+}
+
+async function clearActivityLog() {
+  try { localStorage.removeItem(ACTIVITY_LOG_KEY); } catch (_) {}
+  renderActivityLog();
+  if (activitySyncState) activitySyncState.textContent = 'Журнал очищено';
+  if (token && me) {
+    try {
+      const result = await api('DELETE', '/leads/activity-log');
+      if (activitySyncState) activitySyncState.textContent = `Видалено ${Number(result?.deleted || 0)} записів`;
+    } catch (_) {
+      if (activitySyncState) activitySyncState.textContent = 'Локально очищено · сервер недоступний';
+    }
+  }
+}
+
+async function downloadActivityLog(format = 'csv') {
+  if (token && me) {
+    try {
+      const response = await fetch(`${API}/leads/activity-log/export?format=${encodeURIComponent(format)}`, { credentials: 'include' });
+      if (response.ok) {
+        const blob = await response.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `arm-crm-activity-${new Date().toISOString().slice(0, 10)}.${format}`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
+        if (activitySyncState) activitySyncState.textContent = `Експортовано ${format.toUpperCase()}`;
+        return;
+      }
+    } catch (_) {
+      // Local fallback below keeps export usable offline.
+    }
+  }
+  const items = readActivityLog();
+  if (!items.length) { showToast('Журнал поки порожній.', true); return; }
+  const stamp = new Date().toISOString().slice(0, 10);
+  let content;
+  let mime;
+  let extension;
+  if (format === 'json') {
+    content = JSON.stringify(items, null, 2);
+    mime = 'application/json;charset=utf-8';
+    extension = 'json';
+  } else {
+    const columns = ['created_at', 'actor', 'kind', 'title', 'lead_name', 'lead_id', 'detail'];
+    const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    content = [columns.join(','), ...items.map(item => columns.map(column => csvCell(item[column])).join(','))].join('\n');
+    mime = 'text/csv;charset=utf-8';
+    extension = 'csv';
+  }
+  const blob = new Blob([content], { type: mime });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `arm-crm-activity-${stamp}.${extension}`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+  if (activitySyncState) activitySyncState.textContent = `Експортовано ${format.toUpperCase()}`;
+}
+
+window.addEventListener('storage', event => {
+  if (event.key === ACTIVITY_LOG_KEY) renderActivityLog();
+});
+renderActivityLog();
 
 function setLeadsOwnerFilter(owner) {
   leadsState.owner = owner || '';
@@ -1390,7 +1657,7 @@ async function loadLeadsStats() {
       { key: 'total', label: 'Всього', value: data.total },
       { key: 'not_contacted', label: 'Не звʼязались', value: data.not_contacted },
       { key: 'due_today', label: 'На сьогодні', value: data.due_today },
-      ...(data.by_owner || []).map(o => ({ key: 'owner:' + o.owner, label: leadsLabel(LEADS_OWNER_LABELS, o.owner), value: o.count })),
+      ...(data.by_owner || []).map(o => ({ key: 'owner:' + (o.owner || '__unassigned'), label: leadsLabel(LEADS_OWNER_LABELS, o.owner) || 'Без менеджера', value: o.count })),
     ];
     if (leadsDueBadge) leadsDueBadge.hidden = !(data.due_today > 0);
     if (workspaceLeadsCount) workspaceLeadsCount.textContent = String(data.total || 0);
@@ -1543,46 +1810,52 @@ function leadDiagnosisBadge(lead) {
 
 function leadCardHtml(lead) {
   const loc = [lead.city_area, lead.country].filter(Boolean).join(', ');
-  const preview = [lead.category, loc].filter(Boolean).join(' · ') || 'Немає деталей';
+  const category = lead.category || 'Категорія не визначена';
   const firstPhone = (lead.phone || lead.whatsapp_viber || '').split(/[;,]/)[0].trim();
   const firstEmail = (lead.email || '').split(/[;,]/)[0].trim();
-  const sourceLabel = String(lead.source_bucket || '').trim();
-  const intelligence = lead.intelligence || {};
-  const insightReason = (intelligence.reasons || [])[0]?.text || intelligence.recommended_offer || '';
+  // source_bucket is an internal import key (e.g. "curated_2026").
+  // It is useful to the importer, but must never leak into the client-facing UI.
+  const sourceLabel = sourceBucketLabel(lead.source_bucket);
+  const nextAction = lead.next_followup_date ? `Наступний контакт · ${String(lead.next_followup_date).slice(0, 10)}` : (lead.diagnosis ? (LEAD_DIAGNOSIS_BADGE[lead.diagnosis]?.[0] || 'Потрібна перевірка') : 'Наступний крок не заплановано');
   const quick = [
-    firstPhone ? { href: 'tel:' + firstPhone.replace(/[^\d+]/g, ''), icon: 'phone', title: 'Зателефонувати' } : null,
-    firstPhone ? { href: 'https://wa.me/' + firstPhone.replace(/[^\d]/g, ''), icon: 'whatsapp', title: 'Відкрити WhatsApp' } : null,
-    firstEmail ? { href: 'mailto:' + firstEmail, icon: 'email', title: 'Написати email' } : null,
+    firstPhone ? { href: 'tel:' + firstPhone.replace(/[^\d+]/g, ''), icon: 'phone', label: 'Телефон', title: 'Зателефонувати' } : null,
+    firstPhone ? { href: 'https://wa.me/' + firstPhone.replace(/[^\d]/g, ''), icon: 'whatsapp', label: 'WhatsApp', title: 'Відкрити WhatsApp' } : null,
+    firstEmail ? { href: 'mailto:' + firstEmail, icon: 'email', label: 'Email', title: 'Написати email' } : null,
   ].filter(Boolean);
   return `
-    <div class="leads-card conv-style" data-lead-id="${lead.id}">
+    <article class="leads-card lead-card-premium" data-lead-id="${lead.id}">
       <label class="leads-select-check" onclick="event.stopPropagation()">
         <input type="checkbox" class="leads-select-input" data-lead-id="${lead.id}"/>
       </label>
-      <div class="conv-avatar">${escHtml(initial(lead.business_name || '?'))}</div>
-      <div class="leads-card-body">
-        <div class="leads-card-name-row">
-          <span class="conv-name">${channelIcon(lead.primary_channel)}${escHtml(lead.business_name || '')}</span>
-          <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority))}</span>
-          ${lead.has_whatsapp ? '<span class="leads-diag is-wa" title="На сайті є кнопка WhatsApp">WA</span>' : ''}
-          ${leadDiagnosisBadge(lead)}
+      <div class="lead-card-main">
+        <div class="lead-card-head">
+          <div class="lead-card-identity">
+            <div class="lead-card-avatar">${escHtml(initial(lead.business_name || '?'))}</div>
+            <div class="lead-card-title">
+              <div class="lead-card-kicker">${escHtml(category)}${loc ? ` · ${escHtml(loc)}` : ''}</div>
+              <h3>${escHtml(lead.business_name || 'Без назви')}</h3>
+              <div class="lead-card-subline">${lead.primary_channel ? escHtml(lead.primary_channel) : 'Канал не визначено'}${sourceLabel ? ` <span>· ${escHtml(sourceLabel)}</span>` : ''}</div>
+            </div>
+          </div>
+          <div class="lead-card-state">
+            <span class="leads-badge leads-badge-${escHtml(lead.priority || 'Medium')}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority))}</span>
+            ${Number(lead.score || lead.lead_score || 0) ? `<span class="lead-card-score">${Number(lead.score || lead.lead_score)}/100</span>` : ''}
+          </div>
         </div>
-        <div class="leads-card-preview">${escHtml(preview)}</div>
-        ${insightReason ? `<div class="leads-card-insight" title="${escHtml(insightReason)}">Чому зараз · ${escHtml(insightReason)}</div>` : ''}
-        <div class="leads-card-context">
-          ${leadDateMeta(lead)}
-          ${sourceLabel ? `<span class="lead-source" title="Джерело ліда">${escHtml(sourceLabel)}</span>` : ''}
+        <div class="lead-card-signal"><span class="lead-card-signal-dot"></span><span>${escHtml(nextAction)}</span></div>
+        <div class="lead-card-grid">
+          <div class="lead-card-field"><span>Власник</span><strong>${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner) || 'Не призначено')}</strong></div>
+          <div class="lead-card-field"><span>Контакт</span><strong class="${firstPhone || firstEmail ? '' : 'is-muted'}">${escHtml(firstPhone || firstEmail || 'Не вказано')}</strong></div>
+          <div class="lead-card-field"><span>Оновлено</span><strong>${lead.updated_at ? escHtml(String(lead.updated_at).slice(0, 10)) : 'Щойно'}</strong></div>
         </div>
-        <div class="leads-card-badges">
-          <span class="leads-badge leads-badge-stage-${escHtml(leadsSlug(lead.stage))}">${escHtml(leadsLabel(LEADS_STAGE_LABELS, lead.stage))}</span>
-          <span class="leads-badge leads-badge-owner-${escHtml(leadsSlug(lead.owner))}">${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner) || '—')}</span>
-          ${leadOutreachBadgeHtml(lead)}
-        </div>
-        ${quick.length ? `<div class="leads-card-quick">${quick.map(q =>
-          `<a class="leads-quick-btn" href="${escHtml(q.href)}" target="_blank" rel="noopener" data-quick-action="1" title="${escHtml(q.title)}" aria-label="${escHtml(q.title)}">${crmActionIcon(q.icon)}</a>`
-        ).join('')}</div>` : ''}
       </div>
-    </div>
+      <div class="leads-card-body">
+        ${quick.length ? `<div class="leads-card-quick">${quick.map(q =>
+          `<a class="leads-quick-btn" href="${escHtml(q.href)}" target="_blank" rel="noopener" data-quick-action="1" title="${escHtml(q.title)}" aria-label="${escHtml(q.title)}"><span class="leads-quick-btn-icon" aria-hidden="true">${crmActionIcon(q.icon)}</span><span class="leads-quick-btn-label">${escHtml(q.label)}</span></a>`
+        ).join('')}</div>` : ''}
+        <div class="leads-card-footer"><span>${leadOutreachBadgeHtml(lead)}</span><button type="button" class="leads-card-open" data-lead-open="${lead.id}">Відкрити профіль</button></div>
+      </div>
+    </article>
   `;
 }
 
@@ -1654,6 +1927,13 @@ const LEADS_PRIORITY_OPTIONS = ['Hot', 'High', 'Medium', 'Low', 'Watch'];
 let LEADS_OWNER_OPTIONS = [];
 let leadsOwnersPromise = null;
 
+function conciseOwnerLabel(value) {
+  const name = String(value || '').trim();
+  if (name === 'Михайло Хлюпін') return 'Михайло';
+  if (name === 'Едуард Нестеров') return 'Едуард';
+  return name;
+}
+
 // Список менеджерів приходить з /auth/managers (users.crm_owner + full_name).
 // Без цього LEADS_OWNER_OPTIONS лишався порожнім, і всюди, крім списку лідів,
 // зникав вибір менеджера: у воронці, в "Моєму дні" і в редакторі ліда — тобто
@@ -1667,7 +1947,7 @@ function ensureLeadsOwnerOptions(force = false) {
       LEADS_OWNER_OPTIONS = managers.map(m => String(m.crm_owner || '').trim()).filter(Boolean);
       LEADS_OWNER_LABELS = managers.reduce((acc, m) => {
         const key = String(m.crm_owner || '').trim();
-        if (key) acc[key] = m.full_name || key;
+        if (key) acc[key] = conciseOwnerLabel(m.full_name || key);
         return acc;
       }, {});
       return LEADS_OWNER_OPTIONS;
@@ -1697,7 +1977,7 @@ const LEADS_PRIORITY_LABELS = {
 let LEADS_OWNER_LABELS = {};
 
 function leadsLabel(map, value) {
-  return map[value] || value || '';
+  return map[value] || conciseOwnerLabel(value);
 }
 function leadsSlug(value) {
   return String(value || '').trim().replace(/\s+/g, '-');
@@ -1760,6 +2040,11 @@ async function applyLeadsBulkAction() {
     setLeadsSelectMode(false);
     loadLeadsList();
     loadLeadsStats().catch(() => {});
+    if (ids.length - failed) recordActivity({
+      kind: 'lead',
+      title: `Оновлено ${ids.length - failed} лідів`,
+      detail: [payload.stage ? `стадія: ${payload.stage}` : '', payload.owner ? `власник: ${payload.owner}` : ''].filter(Boolean).join(' · '),
+    });
   } finally {
     if (btnLeadsBulkApply) { btnLeadsBulkApply.disabled = false; btnLeadsBulkApply.textContent = 'Застосувати'; }
   }
@@ -1776,25 +2061,44 @@ if (leadsListEl) {
   });
 }
 
+function sourceBucketLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw || /^(?:curated|opening_registry|prospecting|import|manual|osm|google)[_-]/i.test(raw)) return '';
+  return raw.replace(/[_-]+/g, ' ').trim();
+}
+
+function publicSourceUrl(value, normalise) {
+  const raw = String(value || '').trim();
+  if (!raw || /^(?:curated|opening_registry|prospecting|import|manual|osm|google)[_-]/i.test(raw)) return '';
+  return normalise(raw);
+}
+
 function leadThreadContactIcons(lead) {
   const firstPhone = (lead.phone || lead.whatsapp_viber || '').split(/[;,]/)[0].trim();
   const firstEmail = (lead.email || '').split(/[;,]/)[0].trim();
   const phoneHref = firstPhone ? 'tel:' + firstPhone.replace(/[^\d+]/g, '') : '';
-  const whatsappHref = firstPhone ? 'https://wa.me/' + firstPhone.replace(/[^\d]/g, '') : '';
+  const whatsappNumber = (lead.whatsapp_viber || '').split(/[;,]/)[0].trim();
+  const whatsappHref = whatsappNumber ? 'https://wa.me/' + whatsappNumber.replace(/[^\d]/g, '') : '';
   const emailHref = firstEmail ? 'mailto:' + firstEmail : '';
   const webUrl = value => {
     const raw = String(value || '').trim();
     if (!raw) return '';
     return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
   };
+  const sourceRaw = String(lead.source_url || '').trim();
+  // Registry/import identifiers are not URLs. Do not render a fake link such as
+  // https://curated_2026... and do not expose implementation names in the profile.
+  const sourceHref = publicSourceUrl(sourceRaw, webUrl);
+  const sourceEditorValue = sourceHref ? sourceRaw : '';
   const websiteHref = webUrl(lead.website_url);
-  const sourceHref = webUrl(lead.source_url);
   const instagramHref = lead.instagram
     ? webUrl(String(lead.instagram).includes('instagram.com') ? lead.instagram : `instagram.com/${String(lead.instagram).replace('@', '')}`)
     : '';
   const facebookHref = webUrl(lead.facebook_other_social);
   const location = [lead.city_area, lead.country].filter(Boolean).join(', ') || 'Не вказано';
   const opening = lead.opening_date || lead.opening_window || 'Не вказано';
+  const contactCount = [lead.phone || lead.whatsapp_viber, lead.email, lead.instagram, lead.website_url, sourceHref]
+    .filter(Boolean).length;
   const contactCard = (kind, label, value, href, emptyLabel = 'Не знайдено') => `
     <article class="lead-profile-card lead-profile-${kind}${value ? '' : ' is-empty'}">
       <span class="lead-profile-icon" aria-hidden="true">${crmActionIcon(kind)}</span>
@@ -1804,22 +2108,26 @@ function leadThreadContactIcons(lead) {
         : `<span class="lead-profile-value">${escHtml(emptyLabel)}</span>`}
     </article>`;
   return `
+    <div class="lead-profile-shell">
     <div class="lead-profile-head">
-      <div><span class="mono-label">Профіль контакту</span><strong>Контакти та реквізити</strong></div>
-      <span class="lead-profile-quality">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, lead.priority) || lead.priority || '—')} · ${escHtml(String(lead.lead_score || 0))} балів</span>
+      <div><span class="mono-label">ПРОФІЛЬ ЛІДА · КОНТАКТИ</span><strong>Контакти та реквізити</strong><small>Перевірені канали й дані для наступної дії</small></div>
+      <span class="lead-profile-quality">${contactCount}/5 каналів · ${escHtml(String(lead.lead_score || 0))} балів</span>
     </div>
     <div class="lead-profile-grid">
       ${contactCard('phone', 'Телефон', firstPhone, phoneHref)}
+      ${contactCard('whatsapp', 'WhatsApp', lead.whatsapp_viber || '', lead.whatsapp_viber ? 'https://wa.me/' + String(lead.whatsapp_viber).replace(/[^\d]/g, '') : '')}
       ${contactCard('email', 'Email', firstEmail, emailHref)}
       ${contactCard('website', 'Сайт', lead.website_url, websiteHref)}
-      ${contactCard('source', 'Джерело', lead.source_url ? 'Відкрити джерело' : '', sourceHref)}
+      ${contactCard('source', 'Джерело', sourceHref ? 'Відкрити джерело' : '', sourceHref)}
     </div>
     <div class="lead-profile-actions">
-      ${firstPhone ? `<a href="${escHtml(phoneHref)}">Зателефонувати</a><a href="${escHtml(whatsappHref)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+      ${firstPhone ? `<a class="is-primary" href="${escHtml(phoneHref)}">Зателефонувати</a>` : ''}
+      ${whatsappNumber ? `<a href="${escHtml(whatsappHref)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
       ${firstEmail ? `<a href="${escHtml(emailHref)}">Написати email</a>` : ''}
-      ${instagramHref ? `<a href="${escHtml(instagramHref)}" target="_blank" rel="noopener">Instagram</a>` : '<span>Instagram · не знайдено</span>'}
-      ${facebookHref ? `<a href="${escHtml(facebookHref)}" target="_blank" rel="noopener">Facebook</a>` : '<span>Facebook · не знайдено</span>'}
+      ${instagramHref ? `<a href="${escHtml(instagramHref)}" target="_blank" rel="noopener">Instagram</a>` : ''}
+      ${facebookHref ? `<a href="${escHtml(facebookHref)}" target="_blank" rel="noopener">Facebook</a>` : ''}
     </div>
+    <div class="lead-profile-context-label">Контекст ліда</div>
     <div class="lead-profile-meta">
       <div><span>Локація</span><strong>${escHtml(location)}</strong></div>
       <div><span>Категорія</span><strong>${escHtml(lead.category || 'Не вказано')}</strong></div>
@@ -1829,6 +2137,25 @@ function leadThreadContactIcons(lead) {
       <div><span>Потреба</span><strong>${escHtml(lead.need_type || 'Не вказано')}</strong></div>
     </div>
     ${lead.notes ? `<div class="lead-profile-warning"><strong>Перевірити перед контактом</strong><span>${escHtml(lead.notes)}</span></div>` : ''}
+    <details class="lead-profile-edit">
+      <summary><span>Доповнити дані</span><small>тільки підтверджені контакти й джерела</small></summary>
+      <div class="lead-profile-edit-grid">
+        <label><span>Телефон</span><input id="lead-data-phone" type="tel" value="${escHtml(lead.phone || '')}" autocomplete="tel"/></label>
+        <label><span>WhatsApp</span><input id="lead-data-whatsapp" type="tel" value="${escHtml(lead.whatsapp_viber || '')}" autocomplete="tel"/></label>
+        <label><span>Email</span><input id="lead-data-email" type="email" value="${escHtml(lead.email || '')}" autocomplete="email"/></label>
+        <label><span>Instagram</span><input id="lead-data-instagram" type="text" value="${escHtml(lead.instagram || '')}" placeholder="@business"/></label>
+        <label><span>Офіційний сайт</span><input id="lead-data-website" type="url" value="${escHtml(lead.website_url || '')}" placeholder="https://…"/></label>
+        <label><span>Посилання на джерело</span><input id="lead-data-source" type="url" value="${escHtml(sourceEditorValue)}" data-preserve-source="${sourceHref ? '0' : '1'}" placeholder="https://…"/></label>
+        <label class="lead-profile-edit-wide"><span>Чому це в роботі</span><textarea id="lead-data-rationale" rows="2" placeholder="Конкретна причина звернення, підтверджена джерелом">${escHtml(lead.why_help_fits || '')}</textarea></label>
+        <label class="lead-profile-edit-wide"><span>Що запропонувати</span><textarea id="lead-data-offer" rows="2" placeholder="Релевантна перша пропозиція">${escHtml(lead.suggested_first_offer || '')}</textarea></label>
+      </div>
+      <div class="lead-profile-edit-actions">
+        <button type="button" class="btn-secondary" id="btn-lead-enrich" ${lead.website_url ? '' : 'disabled'}>Перевірити офіційний сайт</button>
+        <button type="button" class="btn-primary" id="btn-lead-data-save">Зберегти дані</button>
+      </div>
+      <p class="lead-profile-edit-help">Перевірка сайту додає лише знайдені публічні контакти й не перезаписує введені вручну поля.</p>
+    </details>
+    </div>
   `;
 }
 
@@ -1836,8 +2163,10 @@ function leadThreadPillsHtml(lead) {
   const optSel = (options, current, labels) => options.map(o =>
     `<option value="${escHtml(o)}" ${o === current ? 'selected' : ''}>${escHtml(leadsLabel(labels, o))}</option>`
   ).join('');
+  const verifiedChannels = [lead.phone || lead.whatsapp_viber, lead.email, lead.instagram, lead.website_url, lead.source_url].filter(Boolean).length;
+  const contactHint = verifiedChannels ? `${verifiedChannels}/5 каналів заповнено` : 'Спочатку додайте реквізити';
   return `
-    <div class="lead-editor-head"><span class="mono-label">Керування лідом</span><strong>Статус роботи</strong></div>
+    <div class="lead-editor-head"><div><span class="mono-label">СТАТУС КОНТАКТУ</span><strong>Статус</strong></div><span class="lead-editor-context">${escHtml(contactHint)}</span></div>
     <label class="lead-editor-field"><span>Менеджер</span><select id="lead-edit-owner" class="leads-pill-select">${optSel(LEADS_OWNER_OPTIONS, lead.owner, LEADS_OWNER_LABELS)}</select></label>
     <label class="lead-editor-field"><span>Пріоритет</span><select id="lead-edit-priority" class="leads-pill-select">${optSel(LEADS_PRIORITY_OPTIONS, lead.priority, LEADS_PRIORITY_LABELS)}</select></label>
     <label class="lead-editor-field"><span>Стадія</span><select id="lead-edit-stage" class="leads-pill-select">${optSel(LEADS_STAGE_OPTIONS, lead.stage, LEADS_STAGE_LABELS)}</select></label>
@@ -1848,7 +2177,7 @@ function leadThreadPillsHtml(lead) {
 
 async function openLeadDetail(leadId) {
   if (!leadInfoBanner) return;
-  if (window.innerWidth <= 720) sidebar.classList.add('hidden');
+  if (window.innerWidth <= COMPACT_LAYOUT_MAX_WIDTH) sidebar.classList.add('hidden');
   hideWorkspaceViews();
   leadsState.currentLeadId = leadId;
   leadsState.channelReadiness = null;
@@ -1958,32 +2287,29 @@ function renderLeadInfoBanner(lead) {
 
   leadInfoBanner.hidden = false;
   leadInfoBanner.scrollTop = 0;
-  if (contactsEl) contactsEl.innerHTML = leadThreadContactIcons(lead);
+  if (contactsEl) {
+    const inlineStatus = `<div class="lead-status-inline"><div class="leads-thread-pills">${leadThreadPillsHtml(lead)}</div></div>`;
+    contactsEl.innerHTML = leadThreadContactIcons(lead).replace('<div class="lead-profile-meta">', `${inlineStatus}<div class="lead-profile-meta">`);
+    document.getElementById('btn-lead-data-save')?.addEventListener('click', () => saveLeadProfileData(lead));
+    document.getElementById('btn-lead-enrich')?.addEventListener('click', () => enrichLeadFromWebsite(lead));
+  }
   if (pillsEl) {
-    pillsEl.innerHTML = leadThreadPillsHtml(lead);
+    // The status controls now live directly in the profile surface above.
+    // Keep this legacy mount empty so the old detached inspector cannot render.
+    pillsEl.innerHTML = '';
+    pillsEl.hidden = true;
     ['owner', 'priority', 'stage', 'outreach'].forEach(field => {
       document.getElementById(`lead-edit-${field}`)?.addEventListener('change', () => saveLeadPillEdit(lead.id));
     });
     document.getElementById('lead-edit-followup')?.addEventListener('change', () => saveLeadPillEdit(lead.id));
   }
-  if (intelligenceEl) renderLeadIntelligence(intelligenceEl, lead);
-  if (pinnedEl) {
-    pinnedEl.hidden = !lead.first_message_en;
-    pinnedEl.innerHTML = lead.first_message_en ? `
-      <div class="leads-fm-label">Заготовка першого повідомлення</div>
-      <p class="leads-first-message-text">${escHtml(lead.first_message_en)}</p>
-      <div><button class="btn-primary btn-secondary" id="btn-lead-copy-msg" type="button">Скопіювати</button></div>
-    ` : '';
-    document.getElementById('btn-lead-copy-msg')?.addEventListener('click', () => {
-      navigator.clipboard?.writeText(lead.first_message_en || '').then(
-        () => showToast('Скопійовано.'),
-        () => showToast('Не вдалося скопіювати.', true)
-      );
-    });
-  }
-  renderAiDraftPanel(lead);
-  renderLeadNudgePanel(lead);
-  if (btnAiSuggest) btnAiSuggest.hidden = false;
+  // Profile view stays focused on verified data and explicit user actions.
+  // AI suggestions, generated drafts and message templates are intentionally removed.
+  if (intelligenceEl) { intelligenceEl.hidden = true; intelligenceEl.innerHTML = ''; }
+  if (pinnedEl) { pinnedEl.hidden = true; pinnedEl.innerHTML = ''; }
+  if (aiDraftPanelEl) { aiDraftPanelEl.hidden = true; aiDraftPanelEl.innerHTML = ''; }
+  if (leadNudgePanelEl) { leadNudgePanelEl.hidden = true; leadNudgePanelEl.innerHTML = ''; }
+  if (btnAiSuggest) btnAiSuggest.hidden = true;
 }
 
 const aiAnalysisCache = {};
@@ -2242,10 +2568,69 @@ async function saveLeadPillEdit(leadId) {
   try {
     await api('PATCH', `/leads/${leadId}`, payload);
     loadLeadsStats();
+    const currentLead = leadsState.currentLead;
+    recordActivity({
+      kind: 'lead',
+      leadId,
+      leadName: currentLead?.business_name || '',
+      title: 'Оновлено статус контакту',
+      detail: [payload.stage, payload.priority, payload.outreach_status].filter(Boolean).join(' · '),
+    });
+    loadLeadsList().catch(() => {});
     // Стадія/пріоритет тепер дзеркалиться в реальний чат бекендом — підтягуємо свіжі повідомлення одразу.
     if (activeConvId) fetchMessages();
   } catch (err) {
     showToast(err.message || 'Не вдалося зберегти зміни.', true);
+  }
+}
+
+async function saveLeadProfileData(lead) {
+  const btn = document.getElementById('btn-lead-data-save');
+  const sourceInput = document.getElementById('lead-data-source');
+  const preserveInternalSource = sourceInput?.dataset.preserveSource === '1' && !sourceInput.value.trim();
+  const payload = {
+    phone: document.getElementById('lead-data-phone')?.value.trim() || '',
+    whatsapp_viber: document.getElementById('lead-data-whatsapp')?.value.trim() || '',
+    email: document.getElementById('lead-data-email')?.value.trim() || '',
+    instagram: document.getElementById('lead-data-instagram')?.value.trim() || '',
+    website_url: document.getElementById('lead-data-website')?.value.trim() || '',
+    // Keep a hidden internal registry value intact when the user saves another field.
+    // A visible URL supplied by the user still replaces it as expected.
+    source_url: preserveInternalSource ? String(lead.source_url || '') : (sourceInput?.value.trim() || ''),
+    why_help_fits: document.getElementById('lead-data-rationale')?.value.trim() || '',
+    suggested_first_offer: document.getElementById('lead-data-offer')?.value.trim() || '',
+  };
+  if (btn) { btn.disabled = true; btn.textContent = 'Зберігаємо…'; }
+  try {
+    const fresh = await api('PATCH', `/leads/${lead.id}`, payload);
+    leadsState.currentLead = fresh;
+    renderLeadInfoBanner(fresh);
+    loadLeadsList();
+    loadLeadsStats().catch(() => {});
+    recordActivity({ kind: 'lead', leadId: lead.id, leadName: fresh.business_name || lead.business_name || '', title: 'Оновлено реквізити ліда', detail: 'Контакти та дані профілю збережено' });
+    showToast('Контакти й обґрунтування збережено.');
+  } catch (err) {
+    showToast(err.message || 'Не вдалося зберегти дані ліда.', true);
+    if (btn) { btn.disabled = false; btn.textContent = 'Зберегти дані'; }
+  }
+}
+
+async function enrichLeadFromWebsite(lead) {
+  const btn = document.getElementById('btn-lead-enrich');
+  if (btn) { btn.disabled = true; btn.textContent = 'Перевіряємо сайт…'; }
+  try {
+    const result = await api('POST', `/leads/${lead.id}/enrich`, {} , { timeoutMs: 45000 });
+    const fresh = result.lead || lead;
+    leadsState.currentLead = fresh;
+    renderLeadInfoBanner(fresh);
+    loadLeadsList();
+    loadLeadsStats().catch(() => {});
+    const changed = (result.updated_fields || []).length;
+    recordActivity({ kind: 'lead', leadId: lead.id, leadName: fresh.business_name || lead.business_name || '', title: 'Перевірено сайт ліда', detail: changed ? `Додано підтверджених полів: ${changed}` : 'Нових публічних контактів не знайдено' });
+    showToast(changed ? `Додано перевірені поля: ${changed}.` : 'Нових публічних контактів на сайті не знайдено.');
+  } catch (err) {
+    showToast(err.message || 'Не вдалося перевірити сайт.', true);
+    if (btn) { btn.disabled = false; btn.textContent = 'Перевірити офіційний сайт'; }
   }
 }
 
@@ -2277,7 +2662,7 @@ function workQueueLeadHtml(lead) {
   const dueLabel = reason === 'overdue' ? `Прострочено: ${due}`
     : reason === 'today' ? 'Заплановано на сьогодні'
     : 'Наступну дію не заплановано';
-  const actionLabel = due ? 'На завтра' : 'На сьогодні';
+  const actionLabel = due ? 'Завтра' : 'Запланувати';
   return `
     <article class="work-queue-card" data-lead-id="${Number(lead.id)}">
       <div class="work-queue-avatar" aria-hidden="true">${escHtml(initial(lead.business_name || '?'))}</div>
@@ -2290,7 +2675,7 @@ function workQueueLeadHtml(lead) {
         <div class="work-queue-card-due">${escHtml(dueLabel)} · ${escHtml(leadsLabel(LEADS_OWNER_LABELS, lead.owner || '') || 'Без менеджера')}</div>
       </div>
       <div class="work-queue-card-actions">
-        <button type="button" class="btn-secondary" data-work-open="${Number(lead.id)}">Відкрити</button>
+        <button type="button" class="btn-secondary" data-work-open="${Number(lead.id)}">Деталі</button>
         <button type="button" class="btn-secondary work-queue-plan-btn" data-work-plan="${Number(lead.id)}" data-has-due="${due ? '1' : '0'}">${actionLabel}</button>
       </div>
     </article>`;
@@ -2304,9 +2689,9 @@ function renderLeadsWorkQueue(data) {
       ['hot_unscheduled', 'Гарячі без дати'], ['untouched', 'Не опрацьовано'],
     ];
     workQueueSummaryEl.innerHTML = stats.map(([key, label]) => `
-      <div class="work-queue-stat work-queue-stat-${key}">
+      <button type="button" class="work-queue-stat work-queue-stat-${key}" data-work-group="${escHtml(key)}" aria-label="Показати: ${escHtml(label)}">
         <strong>${Number(summary[key] || 0)}</strong><span>${label}</span>
-      </div>`).join('');
+      </button>`).join('');
   }
   if (!workQueueSectionsEl) return;
   const groups = data.groups || [];
@@ -2320,7 +2705,7 @@ function renderLeadsWorkQueue(data) {
     return;
   }
   workQueueSectionsEl.innerHTML = groups.filter(group => group.count > 0).map(group => `
-    <section class="work-queue-group">
+    <section class="work-queue-group" data-work-group-section="${escHtml(group.key || '')}">
       <div class="work-queue-group-head">
         <div><h3>${escHtml(group.label)}</h3><p>${escHtml(group.description)}</p></div>
         <span>${Number(group.count || 0)}</span>
@@ -2347,14 +2732,14 @@ async function loadSchedulerOverview() {
   if (!schedulerDashboardEl || schedulerOverviewEl?.hidden) return;
   schedulerDashboardEl.innerHTML = workspaceStateHtml('loading', 'Оновлюємо план', '');
   try {
-    const data = await api('GET', '/leads/work-queue');
+      const data = await api('GET', '/leads/work-queue');
     const summary = data.summary || {};
     const metrics = [
       ['overdue', 'Прострочено', 'Повернути в роботу'], ['today', 'На сьогодні', 'Заплановані контакти'],
       ['hot_unscheduled', 'Гарячі без дати', 'Варто запланувати'], ['untouched', 'Нові без контакту', 'Ще не опрацьовані'],
     ];
     const focus = (data.groups || []).flatMap(group => group.items || []).slice(0, 6);
-    schedulerDashboardEl.innerHTML = `
+      schedulerDashboardEl.innerHTML = `
       <div class="scheduler-metrics">${metrics.map(([key, label, hint]) => `
         <button type="button" class="scheduler-metric is-${key}" data-open-workday="1">
           <span class="scheduler-metric-head"><i aria-hidden="true"></i>${escHtml(label)}</span>
@@ -2365,6 +2750,12 @@ async function loadSchedulerOverview() {
         ${focus.length ? `<div class="scheduler-focus-list">${focus.map(schedulerFocusItemHtml).join('')}</div>`
           : '<div class="scheduler-focus-empty"><strong>План чистий</strong><span>Нові дії зʼявляться тут автоматично.</span></div>'}
       </div>`;
+      // The overview is inserted above the message list asynchronously. Keep
+      // the scheduler chat anchored to the latest digest instead of leaving
+      // the old scroll position underneath the new dashboard.
+      if (chatView?.classList.contains('scheduler-chat') && activeConvId) {
+        requestAnimationFrame(() => scrollToBottom(true));
+      }
   } catch (err) {
     schedulerDashboardEl.innerHTML = workspaceStateHtml('error', 'Планувальник недоступний', err.message || 'Спробуйте оновити сторінку.');
   }
@@ -2404,7 +2795,7 @@ async function loadLeadsWorkQueue() {
 
 function activateWorkspaceEntry(activeEntry = null) {
   [workspaceLeadsEntry, workspaceDayEntry, workspaceKanbanEntry, workspaceSearchEntry,
-    workspaceOpeningsEntry, workspaceIntegrationsEntry].forEach(entry => {
+    workspaceOpeningsEntry, workspaceIntegrationsEntry, workspaceActivityEntry, workspaceNotificationsEntry].forEach(entry => {
     entry?.classList.toggle('active', entry === activeEntry);
   });
 }
@@ -2412,8 +2803,10 @@ function activateWorkspaceEntry(activeEntry = null) {
 function getAllWorkspaceViews() {
   const aug = document.getElementById('august-schedule-view');
   const anl = document.getElementById('analytics-dashboard-view');
+  const activity = document.getElementById('activity-log-view');
+  const notifications = document.getElementById('notifications-view');
   return [guideView, leadsDirectoryView, leadsWorkQueueView, leadsKanbanView, integrationsView,
-    prospectingView, openingsView, aug, anl].filter(Boolean);
+    prospectingView, openingsView, aug, anl, activity, notifications].filter(Boolean);
 }
 
 function hideWorkspaceViews(except = null) {
@@ -2427,7 +2820,7 @@ function hasOpenWorkspace() {
 }
 
 function syncWorkspaceResponsiveLayout() {
-  if (window.innerWidth <= 720) {
+  if (window.innerWidth <= COMPACT_LAYOUT_MAX_WIDTH) {
     sidebar.classList.toggle('hidden', hasOpenWorkspace() || Boolean(activeConvId));
   } else {
     sidebar.classList.remove('hidden');
@@ -2436,7 +2829,7 @@ function syncWorkspaceResponsiveLayout() {
 
 function prepareWorkspaceView(view, entry, title) {
   if (!view) return false;
-  if (window.innerWidth <= 720) sidebar.classList.add('hidden');
+  if (window.innerWidth <= COMPACT_LAYOUT_MAX_WIDTH) sidebar.classList.add('hidden');
   activeConvId = null;
   activePartner = null;
   clearInterval(convPollTimer);
@@ -2448,6 +2841,7 @@ function prepareWorkspaceView(view, entry, title) {
     aiReplySuggestionsEl.hidden = true;
     aiReplySuggestionsEl.innerHTML = '';
   }
+  if (btnNewChat) btnNewChat.hidden = true;
   hideWorkspaceViews(view);
   view.hidden = false;
   activateWorkspaceEntry(entry);
@@ -2462,13 +2856,19 @@ function closeWorkspaceView() {
   if (btnLeadsAdd) btnLeadsAdd.hidden = true;
   if (btnLeadsSelect) btnLeadsSelect.hidden = true;
   if (btnLeads) btnLeads.classList.remove('active-mode');
+  if (btnNewChat) btnNewChat.hidden = false;
   setLeadsSelectMode(false);
   hideWorkspaceViews();
   activateWorkspaceEntry(null);
   if (chatTopbarSectionEl) chatTopbarSectionEl.textContent = 'Месенджер';
   if (chatEmpty) chatEmpty.hidden = false;
-  if (window.innerWidth <= 720) sidebar.classList.remove('hidden');
+  if (window.innerWidth <= COMPACT_LAYOUT_MAX_WIDTH) sidebar.classList.remove('hidden');
   try { sessionStorage.removeItem(LAST_WORKSPACE_KEY); } catch (_) {}
+}
+
+function openActivityLogView() {
+  if (!prepareWorkspaceView(activityLogView, workspaceActivityEntry, 'Журнал дій')) return;
+  renderActivityLog();
 }
 
 async function openLeadsWorkQueue() {
@@ -2495,6 +2895,12 @@ function closeLeadsWorkQueue() {
 }
 
 async function handleWorkQueueClick(event) {
+  const summaryButton = event.target.closest('[data-work-group]');
+  if (summaryButton) {
+    const target = workQueueSectionsEl?.querySelector(`[data-work-group-section="${CSS.escape(summaryButton.dataset.workGroup || '')}"]`);
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
   const openButton = event.target.closest('[data-work-open]');
   if (openButton) {
     leadsWorkQueueView.hidden = true;
@@ -2510,10 +2916,12 @@ async function handleWorkQueueClick(event) {
     await api('PATCH', `/leads/${leadId}`, {
       next_followup_date: localIsoDate(planButton.dataset.hasDue === '1' ? 1 : 0),
     });
-    showToast(planButton.dataset.hasDue === '1' ? 'Контакт перенесено на завтра.' : 'Контакт заплановано на сьогодні.');
+    recordActivity({ kind: 'planner', leadId, title: planButton.dataset.hasDue === '1' ? 'Контакт перенесено на завтра' : 'Контакт заплановано на сьогодні', detail: 'Мій день · синхронізовано з CRM' });
+    showToast(planButton.dataset.hasDue === '1' ? 'Контакт перенесено на завтра і додано в календар.' : 'Контакт заплановано на сьогодні й додано в календар.');
     await loadLeadsWorkQueue();
     loadLeadsStats().catch(() => {});
     loadLeadsList().catch(() => {});
+    if (augView && !augView.hidden) loadAugustData().catch(() => {});
   } catch (err) {
     showToast(err.message || 'Не вдалося оновити дату.', true);
     planButton.disabled = false;
@@ -2740,9 +3148,6 @@ document.addEventListener('click', e => {
   else if (where === 'search') openProspectingView();
 });
 
-if (workspaceGuideEntry) workspaceGuideEntry.addEventListener('click', openGuideView);
-if (btnGuideBack) btnGuideBack.addEventListener('click', closeWorkspaceView);
-
 async function openIntegrationsView(initialTab = 'channels') {
   if (!prepareWorkspaceView(integrationsView, workspaceIntegrationsEntry, 'Інтеграції')) return;
   setIntegrationsTab(typeof initialTab === 'string' ? initialTab : 'channels');
@@ -2881,7 +3286,7 @@ function closeIntegrationsView() {
 // Prospecting: конструктор пошуку клієнтів (OpenStreetMap)
 // ════════════════════════════════════════════
 async function openProspectingView() {
-  if (!prepareWorkspaceView(prospectingView, workspaceSearchEntry, 'Пошук клієнтів')) return;
+  if (!prepareWorkspaceView(prospectingView, workspaceSearchEntry, 'Дослідження ринку')) return;
   if (!prospCatalogLoaded) await loadProspectingCatalog();
 }
 
@@ -2912,7 +3317,6 @@ function openingCardHtml(item) {
         <p class="opening-description">${escHtml(item.description || '')}</p>
         <div class="opening-card-actions">
           <a href="${escHtml(item.source_url || '#')}" target="_blank" rel="noopener">${crmActionIcon('source')}<span>${escHtml(item.source_name || 'Відкрити джерело')}</span></a>
-          <button type="button" class="opening-import-btn" data-opening-import="${escHtml(item.id || '')}">Додати в CRM</button>
         </div>
       </div>
     </article>`;
@@ -2978,7 +3382,7 @@ async function importOpeningById(id) {
   try {
     const item = openingsItemsById.get(id);
     if (!item) throw new Error('Запис не знайдено.');
-    const result = await api('POST', '/prospecting/import', { candidates: [item], owner: 'Manager 1' });
+    const result = await api('POST', '/prospecting/import', { candidates: [item], owner: LEADS_OWNER_OPTIONS[0] || '' });
     if (result.created) {
       button.textContent = 'У CRM';
       card.classList.add('is-imported');
@@ -3199,8 +3603,6 @@ function renderProspResults(result, resultSource = prospSource) {
           <button type="button" data-prosp-view="list" class="${prospResultMode === 'list' ? 'active' : ''}">Список</button>
           <button type="button" data-prosp-view="map" class="${prospResultMode === 'map' ? 'active' : ''}">Карта</button>
         </div>
-        <button type="button" class="btn-secondary" id="btn-prosp-select-visible">Обрати видимі</button>
-        <button type="button" class="btn-secondary" id="btn-prosp-clear-selected">Зняти вибір</button>
       </div>
       ${warningNote ? `<div class="prosp-results-warnings">${warningNote}</div>` : ''}
     </div>`;
@@ -3217,9 +3619,6 @@ function renderProspResults(result, resultSource = prospSource) {
     const searchBlob = escHtml([c.business_name, c.domain, c.snippet, c.category, c.city_area].filter(Boolean).join(' ').toLowerCase());
     return `
     <div class="prosp-card${isListicle ? ' prosp-card-disabled' : ''}" data-search="${searchBlob}" data-idx="${i}">
-      <label class="prosp-card-check" title="${isListicle ? 'Це сторінка-огляд кількох бізнесів, а не один — виберіть конкретну назву самостійно за посиланням' : ''}">
-        <input type="checkbox" class="prosp-select" data-idx="${i}" ${isListicle ? 'disabled' : ''}/>
-      </label>
       ${avatar}
       <div class="prosp-card-body">
         <div class="prosp-card-name">${escHtml(c.business_name)}${isGoogle ? ' <span class="prosp-badge prosp-badge-google">G</span>' : ''}${(c.score > 0 && !isListicle) ? ` <span class="prosp-score" title="Орієнтовна гарячість ліда">HOT ${c.score}</span>` : ''}</div>
@@ -3266,11 +3665,6 @@ function renderProspResults(result, resultSource = prospSource) {
     <div class="prosp-cards" ${prospResultMode === 'map' ? 'hidden' : ''}>${rows}</div>`;
   prospResultsEl.querySelectorAll('[data-prosp-view]').forEach(btn => {
     btn.addEventListener('click', () => setProspResultMode(btn.dataset.prospView));
-  });
-  document.getElementById('btn-prosp-select-visible')?.addEventListener('click', () => setVisibleProspSelection(true));
-  document.getElementById('btn-prosp-clear-selected')?.addEventListener('click', () => setVisibleProspSelection(false));
-  prospResultsEl.querySelectorAll('.prosp-select').forEach(cb => {
-    cb.addEventListener('change', updateProspImportBar);
   });
   prospResultsEl.querySelectorAll('.prosp-enrich-btn').forEach(btnEl => {
     btnEl.addEventListener('click', () => enrichProspCandidate(Number(btnEl.dataset.idx), btnEl.dataset.forceRefresh === '1', btnEl));
@@ -3465,7 +3859,7 @@ async function enrichSelectedProspCandidates() {
   let updated = 0;
   let unavailable = 0;
   btnProspEnrichSelected.disabled = true;
-  btnProspImport.disabled = true;
+  if (btnProspImport) btnProspImport.disabled = true;
   try {
     for (let position = 0; position < queue.length; position += 1) {
       const idx = queue[position];
@@ -3496,7 +3890,7 @@ async function enrichSelectedProspCandidates() {
   } finally {
     btnProspEnrichSelected.disabled = false;
     btnProspEnrichSelected.textContent = 'Знайти контакти';
-    btnProspImport.disabled = false;
+    if (btnProspImport) btnProspImport.disabled = false;
     updateProspImportBar();
   }
 }
@@ -4183,8 +4577,6 @@ document.getElementById('prosp-smart-filters')?.querySelectorAll('select, input'
   control.addEventListener('input', updateProspFilterExplain);
 });
 updateProspFilterExplain();
-if (btnProspImport) btnProspImport.addEventListener('click', importProspCandidates);
-if (btnProspEnrichSelected) btnProspEnrichSelected.addEventListener('click', enrichSelectedProspCandidates);
 if (openingsEntry) openingsEntry.addEventListener('click', openOpeningsView);
 if (btnOpeningsBack) btnOpeningsBack.addEventListener('click', closeOpeningsView);
 for (const control of [openingsMonthEl, openingsCityTierEl, openingsCountryEl, openingsCategoryEl, openingsVerificationEl]) {
@@ -4198,11 +4590,6 @@ if (openingsPaginationEl) openingsPaginationEl.addEventListener('click', event =
   const button = event.target.closest('[data-opening-page]');
   if (button && !button.disabled) loadOpenings(Number(button.dataset.openingPage || 1));
 });
-if (openingsListEl) openingsListEl.addEventListener('click', event => {
-  const button = event.target.closest('[data-opening-import]');
-  if (button) importOpeningById(button.dataset.openingImport || '');
-});
-
 function renderIntegrationsWebhookCard(info) {
   if (!integrationsWebhookCard) return;
   integrationsWebhookCard.innerHTML = `
@@ -4550,11 +4937,11 @@ function openLeadsSidebar() {
   if (sidebarSearchEl) sidebarSearchEl.hidden = false;
   if (convList) convList.hidden = false;
   if (leadsSidebarView) leadsSidebarView.hidden = true;
-  if (sidebarTitleEl) sidebarTitleEl.textContent = 'Робота';
+  if (sidebarTitleEl) sidebarTitleEl.textContent = 'ARM CRM';
   if (btnLeadsExport) btnLeadsExport.hidden = false;
   if (btnLeadsAdd) btnLeadsAdd.hidden = false;
   if (btnLeadsSelect) btnLeadsSelect.hidden = false;
-  if (btnNewChat) btnNewChat.hidden = false;
+  if (btnNewChat) btnNewChat.hidden = true;
   if (btnLeads) btnLeads.classList.add('active-mode');
   loadLeadsStats();
   loadLeadsList();
@@ -4607,6 +4994,7 @@ async function saveNewLead() {
   };
   try {
     await api('POST', '/leads', payload);
+    recordActivity({ kind: 'lead', leadName: name, title: 'Створено нового ліда', detail: [payload.city_area, payload.country].filter(Boolean).join(' · ') });
     showToast('Лід створено.');
     closeLeadCreateModal();
     loadLeadsStats();
@@ -4616,12 +5004,183 @@ async function saveNewLead() {
   }
 }
 
-async function exportLeadsCsv() {
-  try {
-    await downloadProtectedFile(`${API}/leads/export?${leadsQueryString()}`, 'leads_export.csv');
-  } catch (err) {
-    showToast(err.message || 'Не вдалося експортувати CSV.', true);
+async function fetchLeadsExportText() {
+  if (!token) throw new Error('Потрібна авторизація.');
+  const headers = token !== COOKIE_SESSION_TOKEN ? { Authorization: `Bearer ${token}` } : {};
+  const res = await fetch(`${API}/leads/export?${leadsQueryString()}`, { headers, credentials: 'include' });
+  if (res.ok) return res.text();
+  // Some deployments do not expose the CSV route yet. Build a valid CSV from
+  // the same filtered list so export remains useful instead of silently failing.
+  const fallback = await api('GET', '/leads?' + leadsQueryString({ page: 1, per_page: 500 }));
+  const items = Array.isArray(fallback?.items) ? fallback.items : [];
+  if (!items.length) throw new Error(`Експорт недоступний (HTTP ${res.status})`);
+  const cols = ['lead_id', 'business_name', 'city_area', 'country', 'category', 'phone', 'whatsapp_viber', 'email', 'website_url', 'owner', 'priority', 'stage', 'outreach_status', 'next_followup_date', 'opening_date', 'lead_score', 'notes'];
+  const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  return [cols.join(','), ...items.map(row => cols.map(col => csvCell(row[col])).join(','))].join('\n');
+}
+
+function parseLeadCsv(text) {
+  const rows = [];
+  let row = [], cell = '', quoted = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i], next = text[i + 1];
+    if (ch === '"' && quoted && next === '"') { cell += '"'; i += 1; continue; }
+    if (ch === '"') { quoted = !quoted; continue; }
+    if (!quoted && ch === ',') { row.push(cell.trim()); cell = ''; continue; }
+    if (!quoted && (ch === '\n' || ch === '\r')) {
+      if (ch === '\r' && next === '\n') i += 1;
+      row.push(cell.trim()); cell = '';
+      if (row.some(Boolean)) rows.push(row);
+      row = [];
+      continue;
+    }
+    cell += ch;
   }
+  if (cell || row.length) { row.push(cell.trim()); if (row.some(Boolean)) rows.push(row); }
+  if (rows.length < 2) throw new Error('Файл порожній або містить лише заголовок.');
+  const headers = rows.shift().map(h => h.toLowerCase().replace(/^\ufeff/, '').trim());
+  return rows.map(values => Object.fromEntries(headers.map((h, i) => [h, values[i] || ''])));
+}
+
+async function importLeadsFromFile(file) {
+  const rows = parseLeadCsv(await file.text());
+  const aliases = { name: 'business_name', business: 'business_name', city: 'city_area', country_name: 'country', website: 'website_url', url: 'website_url' };
+  const seen = new Set(), valid = [], errors = [];
+  rows.forEach((raw, index) => {
+    const row = { ...raw };
+    Object.entries(aliases).forEach(([from, to]) => { if (!row[to] && row[from]) row[to] = row[from]; });
+    const name = String(row.business_name || '').trim();
+    const key = `${name.toLowerCase()}|${String(row.country || '').toLowerCase()}|${String(row.city_area || '').toLowerCase()}`;
+    if (!name) errors.push(`Рядок ${index + 2}: немає business_name`);
+    else if (seen.has(key)) errors.push(`Рядок ${index + 2}: дубль у файлі`);
+    else { seen.add(key); valid.push({ business_name: name, country: row.country || '', city_area: row.city_area || '', phone: row.phone || '', email: row.email || '', website_url: row.website_url || '', instagram: row.instagram || '', notes: row.notes || '', owner: row.owner || '', priority: row.priority || 'Medium' }); }
+  });
+  if (!valid.length) throw new Error(`Немає коректних рядків. ${errors.slice(0, 2).join(' ')}`);
+  if (!window.confirm(`Імпортувати ${valid.length} лідів? Помилкових рядків: ${errors.length}. Дані будуть збережені на сервері.`)) return;
+  if (leadsSyncStatus) leadsSyncStatus.textContent = `Синхронізація: 0/${valid.length}…`;
+  let created = 0, failed = 0;
+  for (const [index, payload] of valid.entries()) {
+    try { await api('POST', '/leads', payload); created += 1; } catch (_) { failed += 1; }
+    if (leadsSyncStatus) leadsSyncStatus.textContent = `Синхронізація: ${index + 1}/${valid.length}…`;
+  }
+  recordActivity({ kind: 'lead', title: 'Імпорт лідів', detail: `Створено: ${created}; помилок: ${failed}; пропущено: ${errors.length}` });
+  showToast(`Імпорт завершено: ${created} створено${failed ? `, ${failed} не вдалося` : ''}.`);
+  if (leadsSyncStatus) leadsSyncStatus.textContent = `Синхронізовано на сервері: ${created} лідів · видно команді за правами доступу.`;
+  leadsState.page = 1;
+  await loadLeadsList();
+}
+
+async function importLeadsViaServer(file) {
+  /* Заливка одним запитом на сервер: усі колонки ліда, матчинг по lead_id.
+     Старий шлях слав по одному POST на рядок і знав лише десяток полів —
+     повний файл, вивантажений з CRM, через нього не заїжджав. */
+  if (!token) throw new Error('Потрібна авторизація.');
+  const headers = token !== COOKIE_SESSION_TOKEN ? { Authorization: `Bearer ${token}` } : {};
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`${API}/leads/import-file`, {
+    method: 'POST', headers, credentials: 'include', body: form,
+  });
+  if (res.status === 404 || res.status === 405) {
+    const e = new Error('no-server-import'); e.code = 'FALLBACK'; throw e;
+  }
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !json?.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+  const d = json.data || {};
+  let msg = `Імпорт завершено: додано ${d.created || 0}, оновлено ${d.updated || 0}`;
+  if (d.skipped) msg += `, пропущено ${d.skipped}`;
+  showToast(msg);
+  recordActivity({ kind: 'lead', title: 'Імпорт лідів з файлу', detail: msg });
+  if (leadsSyncStatus) leadsSyncStatus.textContent = `${msg} · дані на сервері.`;
+  /* Пропущені рядки показуємо, а не ховаємо: інакше менеджер вважає,
+     що заїхало все, і не помічає втрачених записів. */
+  if (d.errors?.length) {
+    console.warn('Import issues:', d.errors);
+    showToast(`Не заїхало: ${d.errors.slice(0, 3).join(' · ')}`, true);
+  }
+  leadsState.page = 1;
+  await loadLeadsList();
+  loadLeadsStats();
+}
+
+async function importLeadsSmart(file) {
+  const isExcel = /\.(xlsx|xlsm)$/i.test(file.name || '');
+  try {
+    await importLeadsViaServer(file);
+  } catch (err) {
+    if (err?.code !== 'FALLBACK') throw err;
+    if (isExcel) throw new Error('Сервер не приймає Excel. Збережіть файл як CSV UTF-8.');
+    await importLeadsFromFile(file);   // старий CSV-шлях на старих збірках
+  }
+}
+
+function downloadTextFile(text, filename, type = 'text/plain;charset=utf-8') {
+  const blob = new Blob([text], { type });
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = href; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 1500);
+}
+
+function leadExportRows(text) {
+  const rows = parseLeadCsv(text);
+  if (!rows.length) throw new Error('За вибраними фільтрами немає лідів для експорту.');
+  return rows;
+}
+
+function xmlEscape(value) {
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+function makeExcelXml(rows) {
+  const headers = Object.keys(rows[0]);
+  const labels = { 'id': 'ID', 'компанія': 'Компанія', 'локація': 'Локація', 'категорія': 'Категорія', 'контакти': 'Контакти', 'сайт': 'Сайт', 'джерело': 'Джерело', 'відповідальний': 'Відповідальний', 'пріоритет': 'Пріоритет', 'стадія': 'Стадія', 'статус контакту': 'Статус контакту', 'наступна дія': 'Наступна дія', 'відкриття': 'Відкриття', 'оцінка': 'Оцінка', 'нотатки': 'Нотатки' };
+  const cell = value => `<Cell><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`;
+  return `<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="Header"><Font ss:Bold="1"/><Interior ss:Color="#EAF2FF" ss:Pattern="Solid"/></Style></Styles><Worksheet ss:Name="Ліди"><Table><Row>${headers.map(h => `<Cell ss:StyleID="Header"><Data ss:Type="String">${xmlEscape(labels[h] || h)}</Data></Cell>`).join('')}</Row>${rows.map(row => `<Row>${headers.map(h => cell(row[h] || '')).join('')}</Row>`).join('')}</Table></Worksheet></Workbook>`;
+}
+
+function makeWordLeadReport(rows) {
+  const value = (row, key) => escHtml(row[key] || '—');
+  const cards = rows.map((row, index) => `<section class="lead"><div class="num">${index + 1}</div><h2>${value(row, 'компанія')}</h2><p class="sub">${value(row, 'категорія')} · ${value(row, 'локація')}</p><dl><div><dt>Контакти</dt><dd>${value(row, 'контакти')}</dd></div><div><dt>Сайт</dt><dd>${value(row, 'сайт')}</dd></div><div><dt>Відповідальний</dt><dd>${value(row, 'відповідальний')}</dd></div><div><dt>Статус</dt><dd>${value(row, 'стадія')} · ${value(row, 'статус контакту')}</dd></div><div><dt>Наступна дія</dt><dd>${value(row, 'наступна дія')}</dd></div><div><dt>Відкриття</dt><dd>${value(row, 'відкриття')}</dd></div></dl>${row['нотатки'] ? `<p class="note">${value(row, 'нотатки')}</p>` : ''}</section>`).join('');
+  return `<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>Ліди ARM CRM</title><style>body{font-family:Arial,sans-serif;color:#1d1d1f;margin:32px;line-height:1.45}h1{font-size:24px;margin:0 0 4px}.meta{color:#6e6e73;margin:0 0 24px}.lead{position:relative;border:1px solid #d2d2d7;border-radius:10px;padding:18px 20px;margin:0 0 16px;page-break-inside:avoid}.num{position:absolute;right:18px;top:18px;color:#6e6e73;font-size:12px}h2{font-size:18px;margin:0 36px 3px 0}.sub{margin:0 0 14px;color:#6e6e73;font-size:13px}dl{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin:0}dt{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#6e6e73}dd{margin:2px 0 0;font-size:13px;overflow-wrap:anywhere}.note{margin:14px 0 0;padding-top:12px;border-top:1px solid #e5e5ea;font-size:13px}@media print{body{margin:18mm}.lead{break-inside:avoid}}</style></head><body><h1>Ліди</h1><p class="meta">ARM CRM · ${new Date().toLocaleDateString('uk-UA')} · ${rows.length} записів</p>${cards}</body></html>`;
+}
+
+async function exportLeadsFormat(format = 'csv') {
+  try {
+    if (format === 'pdf') {
+      document.body.classList.add('printing-leads');
+      window.print();
+      window.setTimeout(() => document.body.classList.remove('printing-leads'), 800);
+      recordActivity({ kind: 'lead', title: 'Підготовлено друк лідів', detail: 'Збережіть сторінку як PDF у системному діалозі' });
+      return;
+    }
+    if (leadsSyncStatus) leadsSyncStatus.textContent = `Готуємо експорт ${format.toUpperCase()}…`;
+    if (format === 'xlsx-full') {
+      // Повне вивантаження робить сервер: усі колонки ліда, з технічними
+      // іменами другим рядком — саме за ними імпорт впізнає поля назад.
+      await downloadProtectedFile(`${API}/leads/export.xlsx?${leadsQueryString()}`, 'leads_export.xlsx');
+      recordActivity({ kind: 'lead', title: 'Експорт лідів · Excel (усі поля)', detail: 'Поточні фільтри' });
+      if (leadsSyncStatus) leadsSyncStatus.textContent = 'Повний Excel завантажено · можна правити і залити назад.';
+      return;
+    }
+    const text = await fetchLeadsExportText();
+    const rows = leadExportRows(text);
+    if (format === 'csv') downloadTextFile(text, 'leads_export.csv', 'text/csv;charset=utf-8');
+    if (format === 'xlsx') downloadTextFile(makeExcelXml(rows), 'leads_export.xls', 'application/vnd.ms-excel;charset=utf-8');
+    if (format === 'docx') downloadTextFile(makeWordLeadReport(rows), 'leads_report.doc', 'application/msword;charset=utf-8');
+    recordActivity({ kind: 'lead', title: `Експорт лідів · ${format.toUpperCase()}`, detail: 'Поточні фільтри' });
+    if (leadsSyncStatus) leadsSyncStatus.textContent = `Експорт ${format.toUpperCase()} завантажено · фільтри збережено.`;
+  } catch (err) { showToast(err.message || 'Не вдалося експортувати дані.', true); }
+}
+
+function closeLeadsExportMenu() { document.querySelector('.leads-export-menu')?.remove(); }
+function openLeadsExportMenu(anchor) {
+  closeLeadsExportMenu();
+  const menu = document.createElement('div'); menu.className = 'leads-export-menu';
+  menu.innerHTML = '<strong>Завантажити поточний список</strong><small class="export-menu-help">Робочі поля — коротка таблиця. «Усі поля» — повне вивантаження з сервера, придатне для правки й заливки назад.</small><button type="button" data-export-format="csv">CSV · таблиця</button><button type="button" data-export-format="xlsx">Excel · таблиця</button><button type="button" data-export-format="xlsx-full">Excel · усі поля</button><button type="button" data-export-format="docx">Word · звіт за лідами</button><button type="button" data-export-format="pdf">PDF · друк</button>';
+  document.body.appendChild(menu);
+  const rect = anchor.getBoundingClientRect(); menu.style.top = `${rect.bottom + 8}px`; menu.style.left = `${Math.max(12, rect.right - menu.offsetWidth)}px`;
+  menu.querySelectorAll('[data-export-format]').forEach(btn => btn.addEventListener('click', () => { const format = btn.dataset.exportFormat; closeLeadsExportMenu(); exportLeadsFormat(format); }));
+  setTimeout(() => document.addEventListener('click', function close(event) { if (!menu.contains(event.target) && event.target !== anchor) { closeLeadsExportMenu(); document.removeEventListener('click', close); } }, { once: true }), 0);
 }
 
 if (btnLeads) btnLeads.addEventListener('click', () => {
@@ -4635,15 +5194,75 @@ if (workspaceSearchEntry) workspaceSearchEntry.addEventListener('click', openPro
 if (crmHomeLeads) crmHomeLeads.addEventListener('click', openLeadsSidebar);
 if (crmHomeDay) crmHomeDay.addEventListener('click', openLeadsWorkQueue);
 if (crmHomeKanban) crmHomeKanban.addEventListener('click', openLeadsKanban);
+if (crmHomeOpenings) crmHomeOpenings.addEventListener('click', openOpeningsView);
+if (crmHomePlanner) crmHomePlanner.addEventListener('click', openAugustScheduleView);
+if (crmHomeNewChat) crmHomeNewChat.addEventListener('click', () => btnNewChat?.click());
+if (crmHomeAddLead) crmHomeAddLead.addEventListener('click', openLeadCreateModal);
+if (crmHomeSecurity) crmHomeSecurity.addEventListener('click', () => btnSecurity?.click());
 if (crmHomeSearch) crmHomeSearch.addEventListener('click', openProspectingView);
 if (workspaceOpeningsEntry) workspaceOpeningsEntry.addEventListener('click', openOpeningsView);
 if (workspaceIntegrationsEntry) workspaceIntegrationsEntry.addEventListener('click', openIntegrationsView);
+if (workspaceActivityEntry) workspaceActivityEntry.addEventListener('click', openActivityLogView);
+if (btnActivityBack) btnActivityBack.addEventListener('click', closeWorkspaceView);
+if (btnActivityRefresh) btnActivityRefresh.addEventListener('click', renderActivityLog);
+if (btnActivityExportCsv) btnActivityExportCsv.addEventListener('click', () => downloadActivityLog('csv'));
+if (btnActivityExportJson) btnActivityExportJson.addEventListener('click', () => downloadActivityLog('json'));
+if (activityLogList) activityLogList.addEventListener('click', event => {
+  const leadButton = event.target.closest('[data-activity-open]');
+  const leadId = Number(leadButton?.dataset.activityOpen || 0);
+  if (!leadId) return;
+  activityLogView.hidden = true;
+  openLeadDetail(leadId);
+});
+if (activityLogSearch) activityLogSearch.addEventListener('input', () => {
+  activityFilterState.search = activityLogSearch.value;
+  renderActivityLog();
+});
+if (activityLogKind) activityLogKind.addEventListener('change', () => {
+  activityFilterState.kind = activityLogKind.value;
+  renderActivityLog();
+});
+if (btnActivityReset) btnActivityReset.addEventListener('click', () => {
+  activityFilterState.search = '';
+  activityFilterState.kind = '';
+  if (activityLogSearch) activityLogSearch.value = '';
+  if (activityLogKind) activityLogKind.value = '';
+  renderActivityLog();
+});
+if (btnActivityClear) btnActivityClear.addEventListener('click', () => {
+  if (window.confirm('Очистити всі ваші записи журналу на цьому пристрої та сервері?')) clearActivityLog().catch(() => {});
+});
+if (workspaceNotificationsEntry) workspaceNotificationsEntry.addEventListener('click', openNotificationsView);
+if (btnNotificationsBack) btnNotificationsBack.addEventListener('click', closeWorkspaceView);
+Object.entries(notificationToggleEls).forEach(([key, el]) => el?.addEventListener('change', () => {
+  notificationPrefs[key] = !!el.checked;
+  saveNotificationPrefs();
+}));
+if (btnNotificationsEnable) btnNotificationsEnable.addEventListener('click', async () => {
+  const ok = await ensureNotificationPermission(true);
+  if (ok) {
+    notificationPrefs.push = true;
+    if (notificationToggleEls.push) notificationToggleEls.push.checked = true;
+    saveNotificationPrefs();
+    showToast('Системні сповіщення увімкнено.');
+  } else showToast(lastPushSetupError || 'Не вдалося увімкнути сповіщення.', true);
+});
 if (btnCloseLeadCreate) btnCloseLeadCreate.addEventListener('click', closeLeadCreateModal);
 if (btnLeadsAdd) btnLeadsAdd.addEventListener('click', openLeadCreateModal);
 if (btnLeadsDirectoryAdd) btnLeadsDirectoryAdd.addEventListener('click', openLeadCreateModal);
+if (btnLeadsDirectoryImport && leadsImportFile) {
+  btnLeadsDirectoryImport.addEventListener('click', () => leadsImportFile.click());
+  leadsImportFile.addEventListener('change', async () => {
+    const file = leadsImportFile.files?.[0];
+    leadsImportFile.value = '';
+    if (!file) return;
+    try { await importLeadsSmart(file); } catch (err) { showToast(err.message || 'Не вдалося імпортувати файл.', true); }
+  });
+}
+if (btnLeadsImportTemplate) btnLeadsImportTemplate.addEventListener('click', () => { downloadTextFile('business_name,country,city_area,phone,email,website_url,instagram,notes\nHotel Example,Ukraine,Kyiv,+380501234567,hello@example.com,https://example.com,@example,Потенційний клієнт\n', 'leads_import_template.csv', 'text/csv;charset=utf-8'); if (leadsSyncStatus) leadsSyncStatus.textContent = 'Шаблон CSV завантажено · заповніть business_name і збережіть UTF-8.'; });
 if (btnLeadCreateSave) btnLeadCreateSave.addEventListener('click', saveNewLead);
-if (btnLeadsExport) btnLeadsExport.addEventListener('click', exportLeadsCsv);
-if (btnLeadsDirectoryExport) btnLeadsDirectoryExport.addEventListener('click', exportLeadsCsv);
+if (btnLeadsExport) btnLeadsExport.addEventListener('click', () => openLeadsExportMenu(btnLeadsExport));
+if (btnLeadsDirectoryExport) btnLeadsDirectoryExport.addEventListener('click', () => openLeadsExportMenu(btnLeadsDirectoryExport));
 if (btnLeadsDirectoryBack) btnLeadsDirectoryBack.addEventListener('click', closeLeadsSidebar);
 if (leadsKanbanEntry) leadsKanbanEntry.addEventListener('click', openLeadsKanban);
 if (btnKanbanBack) btnKanbanBack.addEventListener('click', closeLeadsKanban);
@@ -4782,6 +5401,7 @@ async function sendTextToActiveChat(text) {
     last_message_text: conversationPreview(msg),
     last_message_at: msg.created_at,
   });
+  recordActivity({ kind: 'message', title: 'Надіслано повідомлення', detail: activePartner?.full_name || activePartner?.name || 'Розмова' });
   playSendTone().catch(() => {});
 }
 
@@ -5166,6 +5786,7 @@ function showApp() {
   updateNetworkPill();
   ensureMessengerBankStatus().catch(() => {});
   loadConversations();
+  loadTeamDirectory().catch(() => {});
   window.setTimeout(restoreLastWorkspace, 0);
   ensurePushSubscriptionSilent().catch(() => {});
   startGlobalPoll();
@@ -5229,9 +5850,7 @@ function restoreLastWorkspace() {
     'leads-directory-view': openLeadsSidebar,
     'leads-work-queue-view': openLeadsWorkQueue,
     'leads-kanban-view': openLeadsKanban,
-    'prospecting-view': openProspectingView,
     'openings-view': openOpeningsView,
-    'integrations-view': openIntegrationsView,
   };
   if (openers[workspace]) openers[workspace]();
 }
@@ -5259,6 +5878,14 @@ async function loadConversations() {
 
 function convName(conv) {
   return conv.is_group ? (conv.group_name || 'Група') : (conv.partner?.full_name || 'Невідомий');
+}
+
+// Keep service chats compatible with backend names while presenting a quiet macOS label.
+function displayConvName(conv) {
+  const name = convName(conv);
+  if (name === SAVED_MESSAGES_NAME) return 'Збережені повідомлення';
+  if (name === SCHEDULER_NAME) return 'Планувальник';
+  return name.replace(/^[\p{Extended_Pictographic}\uFE0F]+\s*/u, '');
 }
 
 function isAssistantPartner(partner) {
@@ -5411,7 +6038,7 @@ function buildConvItem(conv) {
   el.dataset.convId = conv.id;
   const isGroup = !!conv.is_group;
   const isAssistant = !isGroup && isAssistantPartner(conv.partner);
-  const name    = convName(conv);
+  const name    = displayConvName(conv);
   const preview = compactPreview(conv.last_message_text);
   const time    = conv.last_message_at ? formatTime(conv.last_message_at) : '';
   const unread  = conv.unread || 0;
@@ -5444,7 +6071,7 @@ function updateConvItem(convId, patch) {
 // ════════════════════════════════════════════
 async function openChat(conv) {
   try { sessionStorage.removeItem(LAST_WORKSPACE_KEY); } catch (_) {}
-  if (window.innerWidth <= 720) sidebar.classList.add('hidden');
+  if (window.innerWidth <= COMPACT_LAYOUT_MAX_WIDTH) sidebar.classList.add('hidden');
   sidebarMode = 'chats';
   if (btnLeadsExport) btnLeadsExport.hidden = true;
   if (btnLeadsAdd) btnLeadsAdd.hidden = true;
@@ -5467,13 +6094,13 @@ async function openChat(conv) {
   const isSchedulerChat = conv.group_name === SCHEDULER_NAME;
   chatView.classList.toggle('scheduler-chat', isSchedulerChat);
   if (schedulerOverviewEl) schedulerOverviewEl.hidden = !isSchedulerChat;
-  const name    = convName(conv);
+  const name    = displayConvName(conv);
   chatAvatar.innerHTML = isAssistant ? assistantGlyphMarkup() : esc(initial(name));
   chatAvatar.className = 'chat-header-avatar' + (isGroup ? ' group' : '') + (isAssistant ? ' assistant' : '');
   chatPartnerName.classList.toggle('with-verified', isAssistant);
   chatPartnerName.innerHTML = renderNameWithVerified(name, isAssistant);
   if (isSelfChat) {
-    setChatHeaderStatus(isSchedulerChat ? 'Щоденний огляд · CRM оновлює автоматично' : 'Особисті нотатки · тільки ви');
+    setChatHeaderStatus(isSchedulerChat ? 'Робочий ритм · черга та календар' : 'Особисті нотатки · тільки ви');
   } else if (isGroup) {
     setChatHeaderStatus('Групова розмова');
   } else if (isAssistant) {
@@ -5669,7 +6296,7 @@ function buildAssistantStatementBubble(rawText) {
 
 function buildSchedulerDigestBubble(rawText) {
   const lines = String(rawText || '').split('\n').map(line => line.trim()).filter(Boolean);
-  if (!lines[0]?.startsWith('📋 Нагадування на ')) return null;
+  if (!lines[0]?.startsWith('Нагадування на ')) return null;
   const date = lines[0].match(/\d{4}-\d{2}-\d{2}/)?.[0] || '';
   const tasks = lines.slice(1).map(line => line.replace(/^•\s*/, ''));
   const empty = !tasks.length && /немає/i.test(lines[0]);
@@ -6310,19 +6937,19 @@ function _globalPollInterval() {
     if (pushReadyCache) return saver ? 90000 : 60000;
     return saver ? 60000 : 28000;
   }
-  return saver ? 20000 : 12000;
+  return saver ? 6000 : 2000;
 }
 
 function _convPollInterval() {
   const saver = isDataSaverEnabled();
   if (document.hidden) return saver ? 12000 : 6000;
-  return saver ? 4500 : 2500;
+  return saver ? 1200 : 800;
 }
 
 function _presencePollInterval() {
   const saver = isDataSaverEnabled();
-  if (document.hidden) return saver ? 55000 : 34000;
-  return saver ? 24000 : 14000;
+  if (document.hidden) return saver ? 15000 : 8000;
+  return saver ? 8000 : 5000;
 }
 
 function _incomingPollInterval() {
@@ -6342,7 +6969,7 @@ function shouldSyncConversationsPresence(force = false) {
   const now = Date.now();
   const minGap = document.hidden
     ? (isDataSaverEnabled() ? 90000 : 50000)
-    : (isDataSaverEnabled() ? 45000 : 22000);
+    : (isDataSaverEnabled() ? 12000 : 5000);
   if ((now - lastConvPresenceSyncAt) < minGap) return false;
   lastConvPresenceSyncAt = now;
   return true;
@@ -6855,6 +7482,32 @@ async function startChatWith(user) {
     openChat(conv);
   } catch (err) { showToast(err.message, true); }
 }
+
+async function loadTeamDirectory() {
+  if (!teamDirectory || !teamDirectoryList || !token) return;
+  try {
+    const users = await api('GET', '/messenger/users');
+    const list = Array.isArray(users) ? users : [];
+    teamDirectoryUsers = list;
+    teamDirectory.hidden = list.length === 0;
+    if (teamDirectoryCount) teamDirectoryCount.textContent = list.length ? String(list.length) : '';
+    teamDirectoryList.innerHTML = list.map(user => `
+      <button type="button" class="team-user${user.is_current ? ' is-current' : ''}" data-team-user-id="${Number(user.id)}"${user.is_current ? ' aria-current="true"' : ''}>
+        <span class="team-user-avatar">${esc(initial(user.full_name || '?'))}</span>
+        <span class="team-user-copy"><strong>${esc(user.full_name || 'Користувач')}</strong><small>${user.is_current ? 'Ви' : esc(user.role || 'Учасник')}</small></span>
+      </button>`).join('');
+  } catch (_) {
+    teamDirectory.hidden = true;
+  }
+}
+
+teamDirectoryList?.addEventListener('click', event => {
+  const button = event.target.closest('[data-team-user-id]');
+  if (!button) return;
+  const userId = Number(button.dataset.teamUserId);
+  const user = teamDirectoryUsers.find(item => Number(item.id) === userId);
+  if (user && !user.is_current) startChatWith(user);
+});
 
 // ── Group creation ─────────────────────────
 async function performGroupUserSearch(q) {
@@ -8692,9 +9345,9 @@ function initial(name) { return (name || '?').trim().charAt(0).toUpperCase(); }
 function compactPreview(text) {
   const raw = String(text || '').trim();
   if (!raw) return 'Немає повідомлень';
-  if (/\/api\/transactions\/statement\?/i.test(raw)) return '📄 PDF-виписка готова';
-  if (/\/api\/transactions\/export\?/i.test(raw)) return '🧾 CSV-виписка готова';
-  if (/^[A-Za-z0-9+/=]{120,}$/.test(raw)) return '🎤 Голосове повідомлення';
+  if (/\/api\/transactions\/statement\?/i.test(raw)) return 'PDF-виписка готова';
+  if (/\/api\/transactions\/export\?/i.test(raw)) return 'CSV-виписка готова';
+  if (/^[A-Za-z0-9+/=]{120,}$/.test(raw)) return 'Голосове повідомлення';
   if (raw.length > 180) return raw.slice(0, 177) + '...';
   return raw;
 }
@@ -8768,9 +9421,9 @@ function conversationPreview(msg) {
   if (!msg) return 'Нове повідомлення';
   if (msg.is_deleted) return 'Повідомлення видалено';
   const ownPrefix = Number(msg.sender_id) === Number(me?.id) ? 'Ви: ' : '';
-  if ((msg.msg_type || 'text') === 'voice') return `${ownPrefix}🎤 Голосове повідомлення`;
-  if ((msg.msg_type || 'text') === 'image') return `${ownPrefix}🖼️ Фото`;
-  if ((msg.msg_type || 'text') === 'call') return `${ownPrefix}📞 Дзвінок`;
+  if ((msg.msg_type || 'text') === 'voice') return `${ownPrefix}Голосове повідомлення`;
+  if ((msg.msg_type || 'text') === 'image') return `${ownPrefix}Фото`;
+  if ((msg.msg_type || 'text') === 'call') return `${ownPrefix}Дзвінок`;
   return ownPrefix + compactPreview(msg.text || 'Нове повідомлення');
 }
 
@@ -9033,13 +9686,13 @@ async function removeMember(userId) {
 
 async function addMemberToGroup() {
   if (!activeConvId) return;
-  const phone = prompt('Телефон учасника (+380...)');
-  if (!phone) return;
+  const query = prompt('Ім’я або телефон учасника');
+  if (!query || query.trim().length < 2) return;
   try {
-    // Search user by phone first
-    const users = await api('GET', `/messenger/users/search?q=${encodeURIComponent(phone)}`);
-    const found = Array.isArray(users) ? users.find(u => u.phone === phone || u.phone === phone.replace(/\s/g, '')) : null;
-    if (!found) { showToast('Користувача не знайдено.', true); return; }
+    const users = await api('GET', `/messenger/users/search?q=${encodeURIComponent(query.trim())}`);
+    const candidates = Array.isArray(users) ? users : [];
+    if (!candidates.length) { showToast('Користувача не знайдено.', true); return; }
+    const found = candidates[0];
     await api('POST', `/messenger/conversations/${activeConvId}/members`, { user_id: found.id });
     await refreshGroupMembers();
     showToast(`${found.full_name} доданий.`);
@@ -9431,6 +10084,7 @@ async function bootAuthenticatedApp() {
       }
     }
     showApp();
+    loadActivityLogFromServer().catch(() => {});
     return;
   }
   try {
@@ -9439,6 +10093,7 @@ async function bootAuthenticatedApp() {
     me = user;
     localStorage.setItem(USER_KEY, JSON.stringify(me));
     showApp();
+    loadActivityLogFromServer().catch(() => {});
   } catch (_) {
     token = null;
     showAuth();
@@ -9494,6 +10149,147 @@ const augCountM2      = document.getElementById('aug-count-m2');
 const augTabEls       = document.querySelectorAll('.august-tab');
 const workspaceAugEntry = document.getElementById('workspace-august-entry');
 const workspaceAugMeta  = document.getElementById('workspace-august-meta');
+const plannerFocusEl = document.getElementById('planner-focus');
+const plannerSettingsEl = document.getElementById('planner-settings');
+const btnPlannerSettings = document.getElementById('btn-planner-settings');
+const btnPlannerSettingsClose = document.getElementById('btn-planner-settings-close');
+const btnPlannerSettingsSave = document.getElementById('btn-planner-settings-save');
+const btnPlannerRefresh = document.getElementById('btn-planner-refresh');
+const btnPlannerToday = document.getElementById('btn-planner-today');
+const btnPlannerGenerate = document.getElementById('btn-planner-generate');
+const btnPlannerLeads = document.getElementById('btn-planner-leads');
+const plannerQuotaEl = document.getElementById('planner-quota');
+const plannerSortEl = document.getElementById('planner-sort');
+const plannerOwnerEl = document.getElementById('planner-owner');
+const plannerSettingsStatusEl = document.getElementById('planner-settings-status');
+const plannerWeekdayEls = document.querySelectorAll('.planner-weekday');
+const plannerBriefQuotaEl = document.getElementById('planner-brief-quota');
+const plannerBriefDaysEl = document.getElementById('planner-brief-days');
+const plannerBriefSortEl = document.getElementById('planner-brief-sort');
+const PLANNER_PREFS_KEY = 'arm_crm_planner_prefs_v1';
+const DEFAULT_PLANNER_PREFS = { quota: 5, sort: 'priority', owner: 'Михайло Хлюпін', weekdays: [1, 2, 3, 4, 5] };
+let plannerPrefs = { ...DEFAULT_PLANNER_PREFS };
+
+try {
+  const savedPlannerPrefs = JSON.parse(localStorage.getItem(PLANNER_PREFS_KEY) || 'null');
+  if (savedPlannerPrefs && typeof savedPlannerPrefs === 'object') plannerPrefs = { ...DEFAULT_PLANNER_PREFS, ...savedPlannerPrefs };
+} catch (_) {}
+
+function syncPlannerSettingsForm() {
+  if (plannerQuotaEl) plannerQuotaEl.value = String(plannerPrefs.quota || 5);
+  if (plannerSortEl) plannerSortEl.value = plannerPrefs.sort || 'priority';
+  if (plannerOwnerEl) plannerOwnerEl.value = plannerPrefs.owner || DEFAULT_PLANNER_PREFS.owner;
+  const weekdays = Array.isArray(plannerPrefs.weekdays) ? plannerPrefs.weekdays : DEFAULT_PLANNER_PREFS.weekdays;
+  plannerWeekdayEls.forEach(el => { el.checked = weekdays.includes(Number(el.value)); });
+}
+
+function renderPlannerBrief() {
+  const dayLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
+  const weekdays = Array.isArray(plannerPrefs.weekdays) && plannerPrefs.weekdays.length ? plannerPrefs.weekdays : DEFAULT_PLANNER_PREFS.weekdays;
+  const first = Math.min(...weekdays);
+  const last = Math.max(...weekdays);
+  const contiguous = weekdays.length === (last - first + 1);
+  const dayLabel = contiguous ? `${dayLabels[first - 1]}–${dayLabels[last - 1]}` : weekdays.map(day => dayLabels[day - 1]).join(' · ');
+  const sortLabel = { priority: 'Гарячі першими', oldest: 'Найдавніші', owner: 'За менеджером' }[plannerPrefs.sort] || 'Гарячі першими';
+  if (plannerBriefQuotaEl) plannerBriefQuotaEl.textContent = String(plannerPrefs.quota || DEFAULT_PLANNER_PREFS.quota);
+  if (plannerBriefDaysEl) plannerBriefDaysEl.textContent = dayLabel;
+  if (plannerBriefSortEl) plannerBriefSortEl.textContent = sortLabel;
+}
+
+function renderPlannerFocus() {
+  if (!plannerFocusEl) return;
+  const dateStr = augSelectedDay || augProgress.today || '';
+  const ownerData = augScheduleData[augSelectedOwner] || {};
+  const items = dateStr ? (ownerData[dateStr] || []) : [];
+  const done = items.filter(item => item.status === 'done').length;
+  const pending = items.filter(item => item.status !== 'done' && item.status !== 'skipped');
+  const dateLabel = dateStr ? dateStr.split('-').reverse().join('.') : 'сьогодні';
+  const focusLabel = dateStr === augProgress.today ? 'Сьогодні' : dateLabel;
+  const ownerLabel = leadsLabel(LEADS_OWNER_LABELS, augSelectedOwner || plannerPrefs.owner || '');
+  const hasPlan = Boolean(augProgress.generated);
+  const emptyTitle = hasPlan ? 'На цей день дій немає' : 'Робочий ритм ще не налаштовано';
+  const emptyText = hasPlan
+    ? `Усі заплановані дії на ${dateStr === augProgress.today ? 'сьогодні' : 'цю дату'} завершені.`
+    : 'Оберіть темп роботи — CRM розкладе нові ліди за робочими днями. Це можна змінити будь-коли.';
+  plannerFocusEl.innerHTML = `
+    <div class="planner-focus-kicker">${escHtml(focusLabel)}</div>
+    <div class="planner-focus-main"><div><h2>${pending.length ? `${pending.length} дій у черзі` : emptyTitle}</h2><p>${pending.length ? `${escHtml(ownerLabel || 'Оберіть менеджера')} · ${done} виконано з ${items.length}` : emptyText}</p></div>${items.length ? `<span class="planner-focus-count">${done}/${items.length}</span>` : ''}</div>
+    ${pending.length ? `<div class="planner-focus-list">${pending.slice(0, 3).map(item => `<button type="button" class="planner-focus-item" data-planner-lead="${Number(item.lead_id)}"><span>${escHtml(item.business_name || 'Без назви')}</span><small>${escHtml(AUG_PRI_LABEL[item.priority] || AUG_PRI_LABEL[`${item.priority || ''}`.replace(/^./, char => char.toUpperCase())] || 'Звичайний')}</small></button>`).join('')}</div>` : `<div class="planner-focus-empty"><button type="button" class="planner-empty-action" data-planner-empty-action="${hasPlan ? 'leads' : 'generate'}">${hasPlan ? 'Відкрити ліди' : 'Налаштувати ритм'}</button></div>`}
+  `;
+  plannerFocusEl.querySelectorAll('[data-planner-lead]').forEach(btn => btn.addEventListener('click', () => openLeadDetail(Number(btn.dataset.plannerLead))));
+  plannerFocusEl.querySelector('[data-planner-empty-action]')?.addEventListener('click', (event) => {
+    const action = event.currentTarget.dataset.plannerEmptyAction;
+    if (action === 'generate') btnPlannerGenerate?.click();
+    else openLeadsSidebar();
+  });
+}
+
+function setPlannerSettingsOpen(open) {
+  if (!plannerSettingsEl) return;
+  plannerSettingsEl.hidden = !open;
+  document.body.classList.toggle('planner-settings-open', open);
+  if (open) {
+    syncPlannerSettingsForm();
+    requestAnimationFrame(() => plannerQuotaEl?.focus());
+  } else {
+    btnPlannerSettings?.focus();
+  }
+}
+
+async function savePlannerSettings() {
+  if (btnPlannerSettingsSave?.disabled) return;
+  plannerPrefs = {
+    quota: Math.min(30, Math.max(1, Number(plannerQuotaEl?.value || 5))),
+    sort: plannerSortEl?.value || 'priority',
+    owner: plannerOwnerEl?.value || DEFAULT_PLANNER_PREFS.owner,
+    weekdays: Array.from(plannerWeekdayEls).filter(el => el.checked).map(el => Number(el.value)),
+  };
+  if (!plannerPrefs.weekdays.length) plannerPrefs.weekdays = [...DEFAULT_PLANNER_PREFS.weekdays];
+  try { localStorage.setItem(PLANNER_PREFS_KEY, JSON.stringify(plannerPrefs)); } catch (_) {}
+  renderPlannerBrief();
+  if (plannerSettingsStatusEl) plannerSettingsStatusEl.textContent = 'Застосовую зміни…';
+  if (btnPlannerSettingsSave) {
+    btnPlannerSettingsSave.disabled = true;
+    btnPlannerSettingsSave.textContent = 'Застосовую…';
+  }
+  const isAdmin = me?.role === 'admin' || me?.role === 'platform_admin';
+  if (isAdmin) {
+    try {
+      await api('POST', '/leads/schedule/generate', {
+        reset_future_only: true,
+        quota: plannerPrefs.quota,
+        sort: plannerPrefs.sort,
+        weekdays: plannerPrefs.weekdays,
+      });
+      await loadAugustData();
+      if (plannerSettingsStatusEl) plannerSettingsStatusEl.textContent = 'Застосовано щойно · план оновлено.';
+      recordActivity({ kind: 'planner', title: 'Змінено налаштування плану', detail: `${plannerPrefs.quota} контактів · ${plannerPrefs.sort}` });
+      setPlannerSettingsOpen(false);
+      showToast('Налаштування збережено. План перебудовано.');
+    } catch (err) {
+      if (plannerSettingsStatusEl) plannerSettingsStatusEl.textContent = 'Не вдалося оновити план. Перевірте з’єднання й спробуйте ще раз.';
+      if (btnPlannerSettingsSave) {
+        btnPlannerSettingsSave.disabled = false;
+        btnPlannerSettingsSave.textContent = 'Спробувати ще раз';
+      }
+      showToast(err.message || 'Не вдалося перебудувати план.', true);
+    }
+  } else {
+    if (plannerSettingsStatusEl) plannerSettingsStatusEl.textContent = 'Збережено для цього браузера.';
+    if (augSelectedOwner !== plannerPrefs.owner && augScheduleData[plannerPrefs.owner]) {
+      augSelectedOwner = plannerPrefs.owner;
+      renderAugustCalendar();
+      renderPlannerFocus();
+    }
+    recordActivity({ kind: 'planner', title: 'Змінено налаштування плану', detail: `${plannerPrefs.quota} контактів · ${plannerPrefs.sort}` });
+    setPlannerSettingsOpen(false);
+    showToast('Налаштування збережено для цього браузера.');
+  }
+  if (btnPlannerSettingsSave) {
+    btnPlannerSettingsSave.disabled = false;
+    btnPlannerSettingsSave.textContent = 'Зберегти й застосувати';
+  }
+}
 
 const AUG_DAYS = ['ПН','ВТ','СР','ЧТ','ПТ','СБ','НД'];
 const AUG_MONTHS_UA = ['Січень','Лютий','Березень','Квітень','Травень','Червень',
@@ -9508,7 +10304,7 @@ function renderAugOwnerTabs(owners) {
   const availableOwners = (owners || []).filter(Boolean);
   if (!tabsContainer || !availableOwners.length) return;
   if (!augSelectedOwner || !availableOwners.includes(augSelectedOwner)) {
-    augSelectedOwner = availableOwners[0];
+    augSelectedOwner = availableOwners.includes(plannerPrefs.owner) ? plannerPrefs.owner : availableOwners[0];
   }
   tabsContainer.hidden = availableOwners.length < 2;
   tabsContainer.innerHTML = availableOwners.map((owner) =>
@@ -9522,12 +10318,14 @@ function renderAugOwnerTabs(owners) {
       augSelectedDay = null;
       if (augDaySection) augDaySection.hidden = true;
       renderAugustCalendar();
+      renderPlannerFocus();
     });
   });
 }
 
 function openAugustScheduleView() {
   const v = document.getElementById('august-schedule-view');
+  syncPlannerSettingsForm();
   renderAugOwnerTabs(
     (me && me.role === 'manager' && me.crm_owner) ? [me.crm_owner] : LEADS_OWNER_OPTIONS
   );
@@ -9541,13 +10339,22 @@ function openAugustScheduleView() {
 }
 
 async function loadAugustData() {
+  if (plannerFocusEl) {
+    plannerFocusEl.innerHTML = '<div class="planner-focus-main"><div><h2>Оновлюю робочий ритм…</h2><p>Звіряємо чергу з CRM та календарем.</p></div></div>';
+  }
+  if (augDaySection) augDaySection.hidden = true;
+  const loadingCalendar = augCalGrid?.closest('.august-calendar-section');
+  if (loadingCalendar) loadingCalendar.hidden = true;
   try {
     const progress = await api('GET', '/leads/schedule/progress');
     augProgress = progress;
     if (Array.isArray(progress.months) && progress.months.length) {
       AUG_SCHED_MONTHS = progress.months;
-      if (!AUG_SCHED_MONTHS.includes(augCurrentMonth)) augCurrentMonth = AUG_SCHED_MONTHS[0];
+      const todayMonth = String(progress.today || '').slice(0, 7);
+      if (todayMonth && AUG_SCHED_MONTHS.includes(todayMonth)) augCurrentMonth = todayMonth;
+      else if (!AUG_SCHED_MONTHS.includes(augCurrentMonth)) augCurrentMonth = AUG_SCHED_MONTHS[0];
     }
+    renderPlannerBrief();
     updateAugProgressBars(progress);
 
     if (!progress.generated) {
@@ -9558,16 +10365,37 @@ async function loadAugustData() {
     augScheduleData = schedData;
     renderAugOwnerTabs(Object.keys(schedData));
     renderAugustCalendar();
+    renderPlannerFocus();
 
-    // Відкрити сьогодні якщо є дані
+    // Відкрити сьогодні, а якщо сьогодні порожньо — найближчий запланований день.
+    // Користувач одразу бачить робочу чергу, а не порожній календар.
     const today = progress.today;
-    if (today && AUG_SCHED_MONTHS.some(month => today.startsWith(month))) {
-      augSelectedDay = today;
-      renderAugDayCards(today);
+    const ownerData = augScheduleData[augSelectedOwner] || {};
+    const plannedDays = Object.keys(ownerData).filter(date => (ownerData[date] || []).length).sort();
+    const firstUpcomingDay = plannedDays.find(date => !today || date >= today);
+    const initialDay = today && (ownerData[today] || []).length ? today : (firstUpcomingDay || plannedDays[plannedDays.length - 1]);
+    if (initialDay && AUG_SCHED_MONTHS.some(month => initialDay.startsWith(month))) {
+      augSelectedDay = initialDay;
+      renderAugDayCards(initialDay);
+      renderPlannerFocus();
     }
   } catch (err) {
-    showToast(err.message || 'Помилка завантаження розкладу', true);
+    renderAugLoadError(err);
+    showToast(err.message || 'Не вдалося оновити робочий ритм.', true);
   }
+}
+
+function renderAugLoadError(err) {
+  if (augDaySection) augDaySection.hidden = true;
+  const calendarSection = augCalGrid?.closest('.august-calendar-section');
+  if (calendarSection) calendarSection.hidden = true;
+  if (!plannerFocusEl) return;
+  plannerFocusEl.innerHTML = `
+    <div class="planner-focus-main">
+      <div><h2>Не вдалося оновити чергу</h2><p>${escHtml(err?.message || 'Сервер короткочасно недоступний. Дані не змінені.')}</p></div>
+      <button type="button" class="btn-secondary planner-retry-btn" data-planner-retry>Спробувати ще раз</button>
+    </div>`;
+  plannerFocusEl.querySelector('[data-planner-retry]')?.addEventListener('click', () => loadAugustData());
 }
 
 function updateAugProgressBars(progress) {
@@ -9604,17 +10432,17 @@ function updateAugProgressBars(progress) {
 function renderAugEmptyState() {
   if (augCalGrid) augCalGrid.innerHTML = '';
   if (augDaySection) augDaySection.hidden = true;
-  if (augCalGrid) {
-    augCalGrid.closest('.august-calendar-section').innerHTML = `
-      <div class="august-empty">
-        <strong>Розклад ще не згенеровано</strong>
-        <p>Зверніться до адміністратора для налаштування розкладу.</p>
-      </div>`;
+  const calendarSection = augCalGrid?.closest('.august-calendar-section');
+  if (calendarSection) {
+    calendarSection.hidden = true;
   }
+  renderPlannerFocus();
 }
 
 function renderAugustCalendar() {
   if (!augCalGrid) return;
+  const calendarSection = augCalGrid.closest('.august-calendar-section');
+  if (calendarSection) calendarSection.hidden = false;
   augCalGrid.innerHTML = '';
 
   // Update month title and nav buttons
@@ -9664,8 +10492,7 @@ function renderAugustCalendar() {
 
     el.innerHTML = `
       <span class="aug-cal-num">${d}</span>
-      ${total ? `<span class="aug-cal-quota">${done}/${total}</span>` : ''}
-      ${total ? `<div class="aug-cal-dot-row" aria-label="${done} виконано з ${total}">${dayLeads.slice(0, 5).map(l => `<div class="aug-cal-dot ${l.status === 'done' ? 'done' : 'pending'}"></div>`).join('')}</div>` : ''}
+      ${total ? `<span class="aug-cal-status">${done === total ? 'Виконано' : `${total} задач`}</span>` : ''}
     `;
 
     if (total) {
@@ -9677,6 +10504,7 @@ function renderAugustCalendar() {
         document.querySelectorAll('.aug-cal-day.aug-selected').forEach(e => e.classList.remove('aug-selected'));
         el.classList.add('aug-selected');
         renderAugDayCards(dateStr);
+        renderPlannerFocus();
       };
       el.addEventListener('click', selectDay);
       el.addEventListener('keydown', event => {
@@ -9720,26 +10548,30 @@ function renderAugDayCards(dateStr) {
     const metaLine = [item.category, item.city_area, item.country].filter(Boolean).join(' · ');
     const phoneHref = String(item.phone || '').replace(/[^+\d]/g, '');
     const igHandle = String(item.instagram || '').replace(/^@/, '');
-    const contactActions = [
-      igHandle ? `<a class="aug-contact-chip" href="https://instagram.com/${escHtml(igHandle)}" target="_blank" rel="noopener" aria-label="Відкрити Instagram ${escHtml(item.business_name || '')}">Instagram</a>` : '',
-      phoneHref ? `<a class="aug-contact-chip" href="tel:${escHtml(phoneHref)}" aria-label="Зателефонувати ${escHtml(item.business_name || '')}">Телефон</a>` : '',
-      item.email ? `<a class="aug-contact-chip" href="mailto:${escHtml(item.email)}" aria-label="Написати email ${escHtml(item.business_name || '')}">Email</a>` : '',
-    ].filter(Boolean).join('');
+    const contactLinks = [
+      igHandle ? `<a href="https://instagram.com/${escHtml(igHandle)}" target="_blank" rel="noopener">Instagram</a>` : '',
+      phoneHref ? `<a href="tel:${escHtml(phoneHref)}">Зателефонувати</a>` : '',
+      item.email ? `<a href="mailto:${escHtml(item.email)}">Написати email</a>` : '',
+    ].filter(Boolean);
     return `
       <div class="aug-lead-card ${cardClass}" data-sched-id="${item.sched_id}">
         <span class="aug-slot-num">#${item.slot}</span>
         <div class="aug-lead-name">${escHtml(item.business_name || 'Без назви')}</div>
-        <span class="aug-lead-priority ${priClass}">${AUG_PRI_LABEL[item.priority] || item.priority || 'Medium'}</span>
+        <span class="aug-lead-priority ${priClass}">${AUG_PRI_LABEL[item.priority] || 'Звичайний'}</span>
         ${metaLine ? `<div class="aug-lead-meta">${escHtml(metaLine)}</div>` : ''}
-        ${contactActions ? `<div class="aug-contact-row">${contactActions}</div>` : '<div class="aug-lead-meta">Контакт потребує перевірки</div>'}
+        <div class="aug-contact-status">${contactLinks.length ? `Доступно каналів: ${contactLinks.length}` : 'Контакт потребує перевірки'}</div>
         <div class="aug-card-actions">
           <button type="button" class="aug-btn-done" data-sched-id="${item.sched_id}" data-status="${item.status}">
             ${item.status === 'done' ? '✓ Зроблено' : '✓ Зробити'}
           </button>
-          <button type="button" class="aug-btn-skip" data-sched-id="${item.sched_id}">
-            ${item.status === 'skipped' ? 'Скасовано' : 'Пропустити'}
-          </button>
-          <button type="button" class="aug-btn-open" data-lead-id="${item.lead_id}" aria-label="Відкрити картку ліда">Картка</button>
+          <details class="aug-card-menu">
+            <summary aria-label="Додаткові дії">•••</summary>
+            <div class="aug-card-menu-popover">
+              ${contactLinks.length ? `<div class="aug-card-menu-links">${contactLinks.join('')}</div>` : ''}
+              <button type="button" class="aug-btn-open" data-lead-id="${item.lead_id}">Відкрити картку</button>
+              <button type="button" class="aug-btn-skip" data-sched-id="${item.sched_id}">${item.status === 'skipped' ? 'Повернути в план' : 'Пропустити'}</button>
+            </div>
+          </details>
         </div>
       </div>`;
   }).join('');
@@ -9778,6 +10610,7 @@ async function markAugScheduleLead(schedId, status, dateStr) {
     if (item) {
       item.status = status;
       item.completed_at = status === 'done' ? new Date().toISOString() : null;
+      recordActivity({ kind: 'planner', leadId: item.lead_id, leadName: item.business_name || '', title: status === 'done' ? 'Контакт позначено виконаним' : status === 'skipped' ? 'Контакт пропущено' : 'Повернуто контакт у план', detail: `${dateStr} · планувальник` });
     }
     // Refresh progress
     const progress = await api('GET', '/leads/schedule/progress');
@@ -9786,6 +10619,7 @@ async function markAugScheduleLead(schedId, status, dateStr) {
     // Re-render calendar and day
     renderAugustCalendar();
     renderAugDayCards(dateStr);
+    renderPlannerFocus();
   } catch (err) {
     showToast(err.message || 'Помилка оновлення', true);
   }
@@ -9818,12 +10652,44 @@ if (augBtnNext) {
 // Back button
 if (augBtnBack) {
   augBtnBack.addEventListener('click', () => {
-    if (augView) augView.hidden = true;
-    openLeadsWorkQueue();
+    closeWorkspaceView();
   });
 }
 
-// Generate schedule
+if (btnPlannerSettings) btnPlannerSettings.addEventListener('click', () => setPlannerSettingsOpen(true));
+if (btnPlannerSettingsClose) btnPlannerSettingsClose.addEventListener('click', () => setPlannerSettingsOpen(false));
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && plannerSettingsEl && !plannerSettingsEl.hidden) setPlannerSettingsOpen(false);
+});
+if (btnPlannerSettingsSave) btnPlannerSettingsSave.addEventListener('click', savePlannerSettings);
+if (btnPlannerRefresh) btnPlannerRefresh.addEventListener('click', () => loadAugustData());
+if (btnPlannerToday) btnPlannerToday.addEventListener('click', () => {
+  const today = augProgress.today || '';
+  if (!today) return;
+  augCurrentMonth = today.slice(0, 7);
+  augSelectedDay = today;
+  renderAugustCalendar();
+  renderAugDayCards(today);
+  renderPlannerFocus();
+});
+if (btnPlannerLeads) btnPlannerLeads.addEventListener('click', () => openLeadsSidebar());
+if (btnPlannerGenerate) btnPlannerGenerate.addEventListener('click', async () => {
+  btnPlannerGenerate.disabled = true;
+  btnPlannerGenerate.textContent = 'Пересобираю…';
+  try {
+    const res = await api('POST', '/leads/schedule/generate', { reset_future_only: false });
+    recordActivity({ kind: 'planner', title: 'Перебудовано план контактів', detail: 'Синхронізовано з CRM' });
+    showToast(`План оновлено: ${Number(res?.results?.reduce((sum, item) => sum + Number(item.scheduled || 0), 0) || 0)} контактів.`);
+    await loadAugustData();
+  } catch (err) {
+    showToast(err.message || 'Не вдалося оновити план.', true);
+  } finally {
+    btnPlannerGenerate.disabled = false;
+    btnPlannerGenerate.textContent = 'Оновити план';
+  }
+});
+
+// Generate schedule (legacy admin affordance, kept for compatibility)
 if (augBtnGenerate) {
   augBtnGenerate.addEventListener('click', async () => {
     const already = augProgress.generated;
@@ -9836,6 +10702,7 @@ if (augBtnGenerate) {
     try {
       const res = await api('POST', '/leads/schedule/generate', { reset_future_only: false });
       const results = res.results || [];
+      recordActivity({ kind: 'planner', title: 'Згенеровано розклад контактів', detail: `${results.reduce((sum, item) => sum + Number(item.scheduled || 0), 0)} контактів` });
       showToast(`Розклад серпня створено: ${results.map(r => `${r.owner.replace('Manager ', 'М')}: ${r.scheduled} лідів`).join(', ')}`);
       await loadAugustData();
     } catch (err) {

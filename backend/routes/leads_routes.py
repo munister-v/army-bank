@@ -15,7 +15,7 @@ from typing import Any
 from flask import Blueprint, Response, g, jsonify, request
 
 from ..database import get_connection, get_returning_id_suffix, insert_last_id
-from ..services import ai_drafts, openrouter_service
+from ..services import ai_drafts, openrouter_service, website_enrichment_service
 from ..services.messenger_crypto import decrypt_message, encrypt_message
 from ..services.lead_exclusions import exclusion_reason
 from ..services.openrouter_service import OpenRouterError
@@ -27,21 +27,20 @@ leads_bp = Blueprint('leads', __name__, url_prefix='/api/leads')
 # банківської адмінки (/api/admin/*, яка лишається на 'admin'/'platform_admin').
 _ADMIN_ROLES = ('admin', 'platform_admin', 'manager')
 
-# Менеджер бачить ТІЛЬКИ своїх лідів. Прив'язка — users.crm_owner <-> leads.owner.
-# Свідомо не збігається з жодним реальним owner: менеджер без crm_owner не
-# отримує доступу до всієї бази (fail closed), а не до нічого випадково.
+# Учасники CRM працюють в єдиному просторі: всі менеджери бачать і редагують
+# всі ліди та розклад. Банківські адміністративні маршрути залишаються окремими.
 _NO_MATCH_OWNER = '\x00__unassigned__'
 
 
 def _forced_owner() -> str | None:
-    """crm_owner поточного менеджера, або None для admin/platform_admin.
+    """Повертає обмеження owner для сумісності зі старими запитами.
 
-    None означає «без обмежень». Будь-який рядковий результат треба підставляти
-    у WHERE owner = ... — саме на цьому тримається розмежування доступу."""
+    У спільному CRM-просторі всі авторизовані учасники мають повний доступ,
+    тому обмеження завжди відсутнє; owner використовується лише як фільтр UI."""
     user = getattr(g, 'current_user', None) or {}
-    if user.get('role') != 'manager':
-        return None
-    return (user.get('crm_owner') or '').strip() or _NO_MATCH_OWNER
+    # Повні CRM-права для всіх учасників команди; owner лишається фільтром,
+    # а не обмеженням безпеки.
+    return None
 
 
 def own_lead_only(func):
@@ -67,6 +66,12 @@ _EDITABLE_FIELDS = (
     'next_followup_date', 'last_touch_date', 'reply_status',
     'crm_record_id', 'sync_status', 'notes', 'manager_private_notes',
     'first_message_en',
+    # Контакти й редакційний контекст не мають бути «захованими» імпортними
+    # полями. Менеджер може уточнити їх руками, але джерело все одно видно в
+    # картці, тож CRM не перетворюється на набір неперевірених припущень.
+    'website_url', 'phone', 'whatsapp_viber', 'email', 'instagram',
+    'facebook_other_social', 'source_url', 'primary_channel',
+    'need_type', 'suggested_first_offer', 'why_help_fits',
 )
 
 _COLUMNS = (
@@ -192,6 +197,19 @@ def _ensure_schema() -> None:
         )
         conn.execute('CREATE INDEX IF NOT EXISTS idx_lead_activity_lead ON lead_activity(lead_id, created_at)')
 
+        conn.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS crm_activity_log (
+                id {pk_sql}, user_id INTEGER NOT NULL,
+                kind VARCHAR(30) NOT NULL DEFAULT 'crm',
+                title VARCHAR(180) NOT NULL, detail TEXT NOT NULL DEFAULT '',
+                lead_id INTEGER, lead_name VARCHAR(200) NOT NULL DEFAULT '',
+                created_at TIMESTAMP NOT NULL DEFAULT {now_sql}
+            )
+            """
+        )
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_crm_activity_user ON crm_activity_log(user_id, created_at)')
+
 
 def _require_admin():
     """403 якщо не адмін; повертає поточного користувача інакше."""
@@ -205,6 +223,107 @@ def _row_to_payload(row: dict[str, Any]) -> dict[str, Any]:
     payload = {col: row.get(col) for col in _COLUMNS}
     payload['intelligence'] = _lead_intelligence(payload)
     return payload
+
+
+@leads_bp.get('/activity-log')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def list_activity_log():
+    _ensure_schema()
+    try:
+        limit = min(500, max(1, int(request.args.get('limit') or 250)))
+    except (TypeError, ValueError):
+        limit = 250
+    with get_connection() as conn:
+        rows = conn.execute(
+            'SELECT id, kind, title, detail, lead_id, lead_name, created_at '
+            'FROM crm_activity_log WHERE user_id = %s ORDER BY id DESC LIMIT %s',
+            (g.current_user['id'], limit),
+        ).fetchall()
+    return jsonify({'ok': True, 'data': [
+        {'server_id': r['id'], 'kind': r['kind'], 'title': r['title'], 'detail': r['detail'],
+         'lead_id': r['lead_id'], 'lead_name': r['lead_name'], 'created_at': r['created_at'],
+         'actor': g.current_user.get('full_name') or 'Ви'} for r in (rows or [])
+    ]})
+
+
+@leads_bp.post('/activity-log')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def add_activity_log():
+    _ensure_schema()
+    body = request.get_json(silent=True) or {}
+    title = str(body.get('title') or '').strip()[:180]
+    if not title:
+        return api_error('Назва дії обов’язкова.', 400)
+    kind = str(body.get('kind') or 'crm').strip()[:30] or 'crm'
+    detail = str(body.get('detail') or '').strip()[:1000]
+    lead_name = str(body.get('lead_name') or '').strip()[:200]
+    lead_id = body.get('lead_id')
+    try:
+        lead_id = int(lead_id) if lead_id not in (None, '', False) else None
+    except (TypeError, ValueError):
+        lead_id = None
+    with get_connection() as conn:
+        cur = conn.execute(
+            'INSERT INTO crm_activity_log (user_id, kind, title, detail, lead_id, lead_name) '
+            'VALUES (%s, %s, %s, %s, %s, %s)' + get_returning_id_suffix(),
+            (g.current_user['id'], kind, title, detail, lead_id, lead_name),
+        )
+        entry_id = insert_last_id(cur)
+        row = conn.execute(
+            'SELECT id, kind, title, detail, lead_id, lead_name, created_at '
+            'FROM crm_activity_log WHERE id = %s', (entry_id,)
+        ).fetchone()
+    return jsonify({'ok': True, 'data': {
+        'server_id': row['id'], 'kind': row['kind'], 'title': row['title'], 'detail': row['detail'],
+        'lead_id': row['lead_id'], 'lead_name': row['lead_name'], 'created_at': row['created_at'],
+        'actor': g.current_user.get('full_name') or 'Ви',
+    }})
+
+
+@leads_bp.delete('/activity-log')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def clear_activity_log():
+    """Очищує лише журнал поточного менеджера, не зачіпаючи lead_activity."""
+    _ensure_schema()
+    with get_connection() as conn:
+        cur = conn.execute('DELETE FROM crm_activity_log WHERE user_id = %s', (g.current_user['id'],))
+        deleted = int(getattr(cur, 'rowcount', 0) or 0)
+    return jsonify({'ok': True, 'data': {'deleted': deleted}})
+
+
+@leads_bp.get('/activity-log/export')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def export_activity_log():
+    """Експортує всю серверну історію поточного менеджера, не лише кеш браузера."""
+    _ensure_schema()
+    fmt = str(request.args.get('format') or 'csv').lower()
+    if fmt not in {'csv', 'json'}:
+        return api_error('Підтримуються формати CSV та JSON.', 400)
+    with get_connection() as conn:
+        rows = conn.execute(
+            'SELECT created_at, kind, title, detail, lead_name, lead_id FROM crm_activity_log '
+            'WHERE user_id = %s ORDER BY id DESC', (g.current_user['id'],)
+        ).fetchall()
+    records = [{
+        'created_at': r['created_at'], 'actor': g.current_user.get('full_name') or 'Ви',
+        'kind': r['kind'], 'title': r['title'], 'lead_name': r['lead_name'],
+        'lead_id': r['lead_id'], 'detail': r['detail'],
+    } for r in (rows or [])]
+    if fmt == 'json':
+        import json
+        return Response(json.dumps(records, ensure_ascii=False, default=str), mimetype='application/json',
+                        headers={'Content-Disposition': 'attachment; filename="arm-crm-activity.json"'})
+    output = io.StringIO()
+    columns = ['created_at', 'actor', 'kind', 'title', 'lead_name', 'lead_id', 'detail']
+    writer = csv.DictWriter(output, fieldnames=columns, extrasaction='ignore')
+    writer.writeheader()
+    writer.writerows(records)
+    return Response('\ufeff' + output.getvalue(), mimetype='text/csv; charset=utf-8',
+                    headers={'Content-Disposition': 'attachment; filename="arm-crm-activity.csv"'})
 
 
 def _lead_intelligence(lead: dict[str, Any]) -> dict[str, Any]:
@@ -300,7 +419,7 @@ def _build_leads_filter() -> tuple[str, list]:
     owner = (request.args.get('owner') or '').strip()
     forced = _forced_owner()
     if forced is not None:
-        owner = forced          # ігноруємо ?owner= з клієнта — менеджер бачить лише своє
+        owner = ''              # менеджер бачить своїх і нерозподілених лідів
     stage = (request.args.get('stage') or '').strip()
     pipeline = (request.args.get('pipeline') or '').strip()
     priority = (request.args.get('priority') or '').strip()
@@ -312,7 +431,10 @@ def _build_leads_filter() -> tuple[str, list]:
 
     where = []
     params: list = []
-    if owner:
+    if forced is not None:
+        where.append('(owner = %s OR owner IS NULL OR owner = %s)')
+        params.extend([forced, ''])
+    elif owner:
         where.append('owner = %s')
         params.append(owner)
     if stage:
@@ -629,6 +751,7 @@ def _get_or_create_lead_conversation(conn, lead_id: int, actor_user_id: int) -> 
 @own_lead_only
 def update_lead(lead_id: int):
     _ensure_schema()
+    _ensure_schedule_schema()
     body = request.get_json(silent=True) or {}
     updates = {k: v for k, v in body.items() if k in _EDITABLE_FIELDS}
     if not updates:
@@ -646,6 +769,22 @@ def update_lead(lead_id: int):
             f'UPDATE leads SET {set_sql}, updated_at = {_now_sql()} WHERE id = %s',
             params + [lead_id],
         )
+        # A closed lead cannot remain an actionable calendar item.
+        is_closed = str(updates.get('stage') or '') in ('Won', 'Lost')
+        if is_closed:
+            conn.execute("DELETE FROM lead_schedule WHERE lead_id=?", (lead_id,))
+            conn.execute(
+                f"UPDATE leads SET next_followup_date=NULL, updated_at={_now_sql()} WHERE id=?",
+                (lead_id,),
+            )
+        # The lead card and the planner are two views of the same next action.
+        # Keep their dates in sync whenever an editor changes either the date or
+        # the responsible manager; otherwise "На завтра" looks successful but
+        # never appears in the shared calendar.
+        if not is_closed and ('next_followup_date' in updates or 'owner' in updates):
+            target_date = str(updates.get('next_followup_date', existing.get('next_followup_date')) or '').strip()
+            target_owner = str(updates.get('owner', existing.get('owner')) or '').strip()
+            _sync_lead_schedule(conn, lead_id, target_date, target_owner)
         changed_lines = []
         for field, label in _SYSTEM_TRACKED_FIELDS.items():
             if field in updates and str(updates[field] or '') != str(existing.get(field) or ''):
@@ -667,6 +806,79 @@ def update_lead(lead_id: int):
             )
         row = conn.execute('SELECT * FROM leads WHERE id = %s', (lead_id,)).fetchone()
     return jsonify({'ok': True, 'data': _row_to_payload(dict(row))})
+
+
+@leads_bp.post('/<int:lead_id>/enrich')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+@own_lead_only
+def enrich_lead_contacts(lead_id: int):
+    """Обережно доповнює *один* лід даними з його офіційного сайту.
+
+    Ми не вигадуємо контактів і не шукаємо дані на приватних сторінках:
+    сервіс читає головну та кілька очевидних contact-сторінок, поважає
+    robots.txt і заповнює лише порожні поля. Такий режим дає менеджеру
+    зрозумілий контроль над якістю даних, а не непрозорий масовий скрапінг.
+    """
+    _ensure_schema()
+    with get_connection() as conn:
+        row = conn.execute('SELECT * FROM leads WHERE id = %s', (lead_id,)).fetchone()
+    if not row:
+        return api_error('Лід не знайдено.', 404)
+    lead = dict(row)
+    website_url = str(lead.get('website_url') or '').strip()
+    if not website_url:
+        return api_error('Спочатку додайте офіційний сайт — без нього перевірити контакти неможливо.', 400)
+
+    try:
+        found = website_enrichment_service.enrich_website(website_url)
+    except website_enrichment_service.WebsiteEnrichmentError as exc:
+        return api_error(f'Сайт не вдалося перевірити: {exc}', 502)
+
+    # Не стираємо те, що менеджер уже вніс вручну; заповнюємо тільки порожнє.
+    incoming = {
+        'phone': str(found.get('phone') or '').strip(),
+        'whatsapp_viber': str(found.get('whatsapp') or '').strip(),
+        'email': str(found.get('email') or '').strip(),
+        'instagram': str(found.get('instagram') or '').strip(),
+        'facebook_other_social': str(found.get('facebook') or '').strip(),
+        'website_url': str(found.get('website_url') or website_url).strip(),
+    }
+    updates = {key: value for key, value in incoming.items() if value and not str(lead.get(key) or '').strip()}
+    if incoming['whatsapp_viber']:
+        updates['has_whatsapp'] = '1'
+    quality = int(found.get('contact_quality_score') or 0)
+    if quality and not str(lead.get('contact_quality') or '').strip():
+        updates['contact_quality'] = str(quality)
+    if updates:
+        updates['last_file_update'] = date.today().isoformat()
+        updates['data_quality_check'] = 'site_checked'
+
+    author = str(g.current_user.get('full_name') or 'Менеджер')
+    with get_connection() as conn:
+        if updates:
+            set_sql = ', '.join(f'{column} = %s' for column in updates)
+            conn.execute(
+                f'UPDATE leads SET {set_sql}, updated_at = {_now_sql()} WHERE id = %s',
+                list(updates.values()) + [lead_id],
+            )
+            labels = {
+                'phone': 'телефон', 'whatsapp_viber': 'WhatsApp', 'email': 'email',
+                'instagram': 'Instagram', 'facebook_other_social': 'Facebook',
+                'website_url': 'сайт',
+            }
+            changed = ', '.join(labels[key] for key in updates if key in labels)
+            _log_activity(conn, lead_id, author, 'system', f'Перевірено офіційний сайт; додано: {changed or "дані перевірки"}.')
+        fresh = conn.execute('SELECT * FROM leads WHERE id = %s', (lead_id,)).fetchone()
+
+    return jsonify({'ok': True, 'data': {
+        'lead': _row_to_payload(dict(fresh)),
+        'updated_fields': sorted(updates),
+        'pages_checked': int(found.get('pages_checked') or 0),
+        'cache_hit': bool(found.get('cache_hit')),
+        'evidence': found.get('evidence') or [],
+        'errors': found.get('errors') or [],
+    }})
 
 
 @leads_bp.get('/<int:lead_id>/conversation')
@@ -1016,19 +1228,322 @@ def export_leads():
             params,
         ).fetchall()
 
-    export_cols = [c for c in _COLUMNS if c not in ('id',)]
+    # This is a working export, not a database dump. Keep technical importer
+    # fields (source_bucket, row IDs, internal notes) out of managers' files.
+    priority_labels = {'Hot': 'Гарячий', 'High': 'Високий', 'Medium': 'Середній', 'Low': 'Низький', 'Watch': 'Спостереження'}
+    stage_labels = {'New': 'Новий', 'Contacted': 'Звʼязались', 'Replied': 'Відповів', 'Qualified': 'Кваліфікований', 'Proposal Sent': 'Пропозицію надіслано', 'Won': 'Успішно', 'Lost': 'Втрачено'}
+    outreach_labels = {'Not contacted': 'Не звʼязувалися', 'Message sent': 'Повідомлення надіслано', 'Follow-up sent': 'Нагадування надіслано', 'Call made': 'Дзвінок виконано', 'No reply': 'Без відповіді', 'Replied': 'Відповів'}
+
+    def public_source(value: Any) -> str:
+        source = str(value or '').strip()
+        return source if source.lower().startswith(('http://', 'https://')) else ''
+
+    def export_record(raw: dict[str, Any]) -> list[str]:
+        owner = str(raw.get('owner') or '').strip()
+        contacts = ' · '.join(filter(None, [
+            str(raw.get('phone') or '').strip(),
+            str(raw.get('whatsapp_viber') or '').strip(),
+            str(raw.get('email') or '').strip(),
+            str(raw.get('instagram') or '').strip(),
+        ]))
+        return [
+            str(raw.get('lead_id') or ''),
+            str(raw.get('business_name') or ''),
+            ', '.join(filter(None, [str(raw.get('city_area') or '').strip(), str(raw.get('country') or '').strip()])),
+            str(raw.get('category') or ''),
+            contacts,
+            str(raw.get('website_url') or ''),
+            public_source(raw.get('source_url')),
+            owner.split()[0] if owner else '',
+            priority_labels.get(str(raw.get('priority') or ''), str(raw.get('priority') or '')),
+            stage_labels.get(str(raw.get('stage') or ''), str(raw.get('stage') or '')),
+            outreach_labels.get(str(raw.get('outreach_status') or ''), str(raw.get('outreach_status') or '')),
+            str(raw.get('next_followup_date') or ''),
+            str(raw.get('opening_date') or raw.get('opening_window') or ''),
+            str(raw.get('lead_score') or ''),
+            str(raw.get('notes') or ''),
+        ]
+
+    export_headers = [
+        'ID', 'Компанія', 'Локація', 'Категорія', 'Контакти', 'Сайт', 'Джерело',
+        'Відповідальний', 'Пріоритет', 'Стадія', 'Статус контакту', 'Наступна дія',
+        'Відкриття', 'Оцінка', 'Нотатки',
+    ]
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(export_cols)
+    writer.writerow(export_headers)
     for r in (rows or []):
-        row = dict(r)
-        writer.writerow([row.get(c) if row.get(c) is not None else '' for c in export_cols])
+        writer.writerow(export_record(dict(r)))
 
     return Response(
         buf.getvalue(),
         mimetype='text/csv',
         headers={'Content-Disposition': 'attachment; filename="leads_export.csv"'},
     )
+
+
+# ── Excel: вивантаження всіх полів і завантаження назад ──────────────────────
+# CSV гине на комах, переносах рядків у нотатках і кирилиці в Excel, тому
+# менеджерський обмін файлами робимо в xlsx.
+
+_XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+# Людські заголовки для колонок БД. Імпорт розуміє і їх, і технічні імена,
+# тому вивантажений файл можна правити й заливати назад без перейменувань.
+_EXPORT_HEADERS = {
+    'lead_id': 'ID ліда', 'business_name': 'Назва бізнесу', 'category': 'Категорія',
+    'country': 'Країна', 'city_area': 'Місто / район', 'opening_window': 'Вікно відкриття',
+    'opening_date': 'Дата відкриття', 'status_source': 'Джерело статусу',
+    'website_signal': 'Сигнал по сайту', 'website_url': 'Сайт', 'domain': 'Домен',
+    'domain_source': 'Звідки домен', 'diagnosis': 'Діагноз сайту',
+    'diagnosis_evidence': 'Доказ діагнозу', 'primary_channel': 'Основний канал',
+    'phone': 'Телефон', 'whatsapp_viber': 'WhatsApp / Viber', 'has_whatsapp': 'Є WhatsApp',
+    'email': 'Email', 'instagram': 'Instagram', 'facebook_other_social': 'Facebook / інші',
+    'messenger_note': 'Нотатка по каналу', 'source_url': 'Посилання на джерело',
+    'priority': 'Пріоритет', 'lead_score': 'Бали', 'score_why': 'Чому такі бали',
+    'contact_quality': 'Якість контакту', 'owner': 'Відповідальний', 'pipeline': 'Пайплайн',
+    'stage': 'Стадія', 'outreach_status': 'Статус контакту', 'last_touch_date': 'Останній контакт',
+    'next_followup_date': 'Наступний follow-up', 'followup_count': 'К-ть follow-up',
+    'reply_status': 'Відповідь', 'need_type': 'Тип потреби',
+    'suggested_first_offer': 'Перша пропозиція', 'why_help_fits': 'Чому ми підходимо',
+    'first_message_en': 'Перше повідомлення (EN)', 'notes': 'Нотатки',
+    'manager_private_notes': 'Приватні нотатки', 'crm_record_id': 'ID у зовнішній CRM',
+    'sync_status': 'Статус синхронізації', 'duplicate_key': 'Ключ дублікатів',
+    'data_quality_check': 'Перевірка якості даних', 'last_file_update': 'Оновлення файлу',
+    'checked_at': 'Перевірено', 'source_bucket': 'Джерело набору', 'source_row_id': 'Рядок джерела',
+    'created_at': 'Створено', 'updated_at': 'Оновлено',
+}
+
+# Ширші за замовчуванням — довгі текстові поля.
+_WIDE_COLS = {
+    'notes', 'manager_private_notes', 'first_message_en', 'why_help_fits',
+    'suggested_first_offer', 'diagnosis_evidence', 'score_why', 'website_signal',
+    'source_url', 'website_url', 'duplicate_key', 'data_quality_check',
+}
+
+
+def _export_columns() -> list[str]:
+    """Усі колонки, крім службового id. Порядок — як у _EXPORT_HEADERS,
+    решта (нові поля схеми) дописуються в кінець, щоб нічого не загубити."""
+    known = [c for c in _EXPORT_HEADERS if c in _COLUMNS]
+    rest = [c for c in _COLUMNS if c not in known and c != 'id']
+    return known + rest
+
+
+@leads_bp.get('/export.xlsx')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def export_leads_xlsx():
+    """Excel з УСІМА полями ліда, з тими самими фільтрами, що й список."""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment, Font, PatternFill
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        return api_error(
+            'Excel-експорт недоступний: на сервері немає openpyxl. '
+            'Встановіть його (pip install openpyxl) або скористайтесь CSV.', 503)
+
+    _ensure_schema()
+    where_sql, params = _build_leads_filter()
+    with get_connection() as conn:
+        rows = conn.execute(
+            f'SELECT * FROM leads {where_sql} ORDER BY lead_score DESC, id ASC',
+            params,
+        ).fetchall()
+
+    cols = _export_columns()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Leads'
+
+    head_fill = PatternFill('solid', fgColor='1D4ED8')
+    for i, col in enumerate(cols, start=1):
+        cell = ws.cell(row=1, column=i, value=_EXPORT_HEADERS.get(col, col))
+        cell.font = Font(name='Arial', size=10, bold=True, color='FFFFFF')
+        cell.fill = head_fill
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        ws.column_dimensions[get_column_letter(i)].width = 46 if col in _WIDE_COLS else 20
+    ws.row_dimensions[1].height = 30
+
+    # Технічні імена колонок другим рядком: саме за ним імпорт впізнає поля,
+    # навіть якщо хтось перекладе або перепише людські заголовки.
+    tech_fill = PatternFill('solid', fgColor='E5E7EB')
+    for i, col in enumerate(cols, start=1):
+        cell = ws.cell(row=2, column=i, value=col)
+        cell.font = Font(name='Arial', size=8, italic=True, color='6B7280')
+        cell.fill = tech_fill
+        cell.alignment = Alignment(horizontal='center')
+
+    for r_i, r in enumerate(rows or [], start=3):
+        row = dict(r)
+        for c_i, col in enumerate(cols, start=1):
+            value = row.get(col)
+            cell = ws.cell(row=r_i, column=c_i,
+                           value='' if value is None else value)
+            cell.font = Font(name='Arial', size=10)
+            cell.alignment = Alignment(vertical='top', wrap_text=col in _WIDE_COLS)
+
+    ws.freeze_panes = 'C3'
+    ws.auto_filter.ref = f'A1:{get_column_letter(len(cols))}1'
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return Response(
+        buf.getvalue(),
+        mimetype=_XLSX_MIME,
+        headers={'Content-Disposition': 'attachment; filename="leads_export.xlsx"'},
+    )
+
+
+def _norm_header(value: str) -> str:
+    return str(value or '').strip().lower()
+
+
+def _header_map() -> dict[str, str]:
+    """Заголовок у файлі -> колонка БД. Приймаємо і технічне ім'я, і людський
+    підпис, бо менеджер може заливати як вивантажений файл, так і свій."""
+    out = {}
+    for col in _COLUMNS:
+        out[_norm_header(col)] = col
+    for col, label in _EXPORT_HEADERS.items():
+        if col in _COLUMNS:
+            out[_norm_header(label)] = col
+    return out
+
+
+def _read_upload_rows(file_storage) -> tuple[list[dict], str]:
+    """Читає xlsx або csv у список словників {колонка БД: значення}."""
+    name = (file_storage.filename or '').lower()
+    raw = file_storage.read()
+    if not raw:
+        return [], 'Файл порожній.'
+
+    hmap = _header_map()
+
+    if name.endswith(('.xlsx', '.xlsm')):
+        try:
+            from openpyxl import load_workbook
+        except ImportError:
+            return [], ('Читання Excel недоступне: на сервері немає openpyxl. '
+                        'Збережіть файл як CSV.')
+        try:
+            wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+        except Exception as exc:
+            return [], f'Не вдалося прочитати Excel: {exc}'
+        ws = wb.active
+        table = [[c for c in row] for row in ws.iter_rows(values_only=True)]
+    else:
+        try:
+            text = raw.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            text = raw.decode('cp1251', errors='replace')
+        table = list(csv.reader(io.StringIO(text)))
+
+    if not table:
+        return [], 'У файлі немає рядків.'
+
+    # Шукаємо рядок заголовків серед перших трьох: вивантажений нами файл має
+    # людський підпис у першому рядку і технічні імена в другому.
+    header_idx, header, best = 0, [], -1
+    for i, row in enumerate(table[:3]):
+        mapped = [hmap.get(_norm_header(c)) for c in (row or [])]
+        score = sum(1 for m in mapped if m)
+        if score > best:
+            best, header_idx, header = score, i, mapped
+    if best <= 0:
+        return [], ('Не знайдено жодної відомої колонки. Заголовки мають збігатися '
+                    'з вивантаженим файлом (напр. "lead_id"/"ID ліда", "business_name").')
+
+    rows = []
+    for raw_row in table[header_idx + 1:]:
+        if not raw_row or all(c in (None, '') for c in raw_row):
+            continue
+        item = {}
+        for col, value in zip(header, raw_row):
+            if not col or value in (None, ''):
+                continue
+            item[col] = str(value).strip() if not isinstance(value, (int, float)) else value
+        # рядок технічних імен із нашого ж експорту — не дані
+        if item.get('lead_id') == 'lead_id':
+            continue
+        if item:
+            rows.append(item)
+    return rows, ''
+
+
+@leads_bp.post('/import-file')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def import_leads_file():
+    """Завантаження лідів файлом (xlsx/csv). Матчиться по lead_id: наявні
+    оновлюються, нові додаються — повторна заливка того самого файлу нічого
+    не дублює. Рядки без lead_id отримують наступний вільний CRM-номер."""
+    _ensure_schema()
+    file_storage = request.files.get('file')
+    if file_storage is None:
+        return api_error('Файл не передано (поле "file").', 400)
+
+    items, err = _read_upload_rows(file_storage)
+    if err:
+        return api_error(err, 400)
+    if not items:
+        return api_error('У файлі немає рядків із даними.', 400)
+
+    insertable = insertable_cols_for_import()
+    created = updated = skipped = 0
+    errors: list[str] = []
+
+    with get_connection() as conn:
+        for n, item in enumerate(items, start=1):
+            name = str(item.get('business_name') or '').strip()
+            lead_id = str(item.get('lead_id') or '').strip()
+            if not name and not lead_id:
+                skipped += 1
+                continue
+            reason = exclusion_reason(item)
+            if reason:
+                skipped += 1
+                errors.append(f'рядок {n}: {reason}')
+                continue
+
+            existing = None
+            if lead_id:
+                existing = conn.execute(
+                    'SELECT id FROM leads WHERE lead_id = %s', (lead_id,)
+                ).fetchone()
+            if not lead_id:
+                lead_id = _next_lead_id(conn)
+                item['lead_id'] = lead_id
+
+            values = [item.get(c) for c in insertable]
+            try:
+                if existing:
+                    set_sql = ', '.join(f'{c} = %s' for c in insertable)
+                    conn.execute(
+                        f'UPDATE leads SET {set_sql}, updated_at = {_now_sql()} '
+                        'WHERE lead_id = %s',
+                        values + [lead_id],
+                    )
+                    updated += 1
+                else:
+                    cols_sql = ', '.join(insertable)
+                    placeholders = ', '.join(['%s'] * len(insertable))
+                    conn.execute(
+                        f'INSERT INTO leads ({cols_sql}) VALUES ({placeholders})'
+                        + get_returning_id_suffix(),
+                        values,
+                    )
+                    created += 1
+            except Exception as exc:
+                skipped += 1
+                errors.append(f'рядок {n} ({name or lead_id}): {exc}')
+
+    return jsonify({'ok': True, 'data': {
+        'created': created, 'updated': updated, 'skipped': skipped,
+        'total': len(items), 'errors': errors[:20],
+    }})
 
 
 # ════════════════════════════════════════════════════════════
@@ -1042,6 +1557,7 @@ _SCHED_PERIODS = [
     (2027, 1),
 ]
 _DAILY_QUOTA = 5
+_SCHEDULE_SORTS = {'priority', 'oldest', 'owner'}
 
 def _get_active_managers(conn) -> list[str]:
     rows = conn.execute("SELECT crm_owner FROM users WHERE role = 'manager' AND crm_owner IS NOT NULL").fetchall()
@@ -1068,28 +1584,97 @@ def _ensure_schedule_schema() -> None:
         """)
 
 
-def _get_august_workdays() -> list[str]:
-    """Повертає робочі дні (пн–пт) всього активного періоду."""
+def _sync_lead_schedule(conn, lead_id: int, scheduled_date: str, owner: str = '') -> dict | None:
+    """Synchronize a lead's visible next action with its calendar entry.
+
+    `leads.next_followup_date` powers "Мій день" while `lead_schedule` powers
+    the planner.  A lead has one next action, therefore it must have at most
+    one matching schedule row as well.
+    """
+    target_date = str(scheduled_date or '').strip()
+    existing = conn.execute(
+        "SELECT id, owner, scheduled_date, slot_index FROM lead_schedule WHERE lead_id=?",
+        (lead_id,),
+    ).fetchone()
+    if not target_date:
+        if existing:
+            conn.execute("DELETE FROM lead_schedule WHERE lead_id=?", (lead_id,))
+        return None
+
+    target_owner = str(owner or (existing['owner'] if existing else '') or '').strip()
+    if not target_owner:
+        managers = _get_active_managers(conn)
+        target_owner = managers[0] if managers else ''
+    if not target_owner:
+        # No active manager yet: retain the lead date and let the first plan
+        # generation distribute it.  We never create an ownerless schedule row.
+        return None
+
+    if existing:
+        conn.execute(
+            """UPDATE lead_schedule
+               SET owner=?, scheduled_date=?, status='pending', completed_at=NULL, notes=''
+               WHERE id=?""",
+            (target_owner, target_date, existing['id']),
+        )
+        return {'sched_id': existing['id'], 'owner': target_owner, 'scheduled_date': target_date}
+
+    slot_row = conn.execute(
+        "SELECT COALESCE(MAX(slot_index), 0) AS slot FROM lead_schedule WHERE owner=? AND scheduled_date=?",
+        (target_owner, target_date),
+    ).fetchone()
+    slot_index = int(slot_row['slot'] or 0) + 1
+    cur = conn.execute(
+        """INSERT INTO lead_schedule (lead_id, owner, scheduled_date, slot_index, status)
+           VALUES (?, ?, ?, ?, 'pending')""",
+        (lead_id, target_owner, target_date, slot_index),
+    )
+    return {'sched_id': insert_last_id(cur), 'owner': target_owner, 'scheduled_date': target_date}
+
+
+def _get_august_workdays(weekdays: list[int] | None = None) -> list[str]:
+    """Повертає робочі дні активного періоду за налаштуванням менеджера."""
+    allowed_weekdays = set(weekdays or [1, 2, 3, 4, 5])
     result = []
     for year, month in _SCHED_PERIODS:
         days_in_month = _calendar.monthrange(year, month)[1]
         for d in range(1, days_in_month + 1):
             dt = _date(year, month, d)
-            if dt.weekday() < 5:   # 0=пн … 4=пт
+            if (dt.weekday() + 1) in allowed_weekdays:   # 1=пн … 7=нд
                 result.append(f'{year:04d}-{month:02d}-{d:02d}')
     return result
 
 
-def _generate_for_owner(conn, owner: str, reset_future_only: bool = False) -> dict:
+def _generate_for_owner(
+    conn,
+    owner: str,
+    reset_future_only: bool = False,
+    daily_quota: int = _DAILY_QUOTA,
+    sort_mode: str = 'priority',
+    weekdays: list[int] | None = None,
+) -> dict:
     today = _date.today().isoformat()
 
-    # Видаляємо незавершені записи (pending) або всі якщо reset_future_only=False
+    # Clear the mirror date before replacing pending rows.  The new rows below
+    # write it again; records that no longer qualify therefore cannot stay in
+    # "Мій день" with an orphaned date.
     if reset_future_only:
+        conn.execute(
+            """UPDATE leads SET next_followup_date=NULL, updated_at=CURRENT_TIMESTAMP
+               WHERE id IN (SELECT lead_id FROM lead_schedule
+                            WHERE owner=? AND status='pending' AND scheduled_date >= ?)""",
+            (owner, today),
+        )
         conn.execute(
             "DELETE FROM lead_schedule WHERE owner=? AND status='pending' AND scheduled_date >= ?",
             (owner, today)
         )
     else:
+        conn.execute(
+            """UPDATE leads SET next_followup_date=NULL, updated_at=CURRENT_TIMESTAMP
+               WHERE id IN (SELECT lead_id FROM lead_schedule WHERE owner=? AND status='pending')""",
+            (owner,),
+        )
         conn.execute("DELETE FROM lead_schedule WHERE owner=?", (owner,))
 
     # Плануємо тільки нові, ще не опрацьовані ліди.
@@ -1101,20 +1686,29 @@ def _generate_for_owner(conn, owner: str, reset_future_only: bool = False) -> di
         (owner,)
     ).fetchall()
 
-    # Сортуємо: priority → lead_score DESC
-    leads_sorted = sorted(
-        [dict(r) for r in (rows or [])],
-        key=lambda x: (_PRIORITY_ORDER.get(x.get('priority') or '', 5), -(x.get('lead_score') or 0))
-    )
+    # Порядок задається робочими налаштуваннями, але завжди стабільний.
+    if sort_mode == 'oldest':
+        leads_sorted = sorted([dict(r) for r in (rows or [])], key=lambda x: int(x.get('id') or 0))
+    elif sort_mode == 'owner':
+        leads_sorted = sorted([dict(r) for r in (rows or [])], key=lambda x: (x.get('owner') or '', int(x.get('id') or 0)))
+    else:
+        leads_sorted = sorted(
+            [dict(r) for r in (rows or [])],
+            key=lambda x: (_PRIORITY_ORDER.get(x.get('priority') or '', 5), -(x.get('lead_score') or 0), int(x.get('id') or 0))
+        )
 
     # Робочі дні всього періоду.
-    august_days = _get_august_workdays()
+    august_days = _get_august_workdays(weekdays)
 
     inserted = 0
     lead_idx = 0
     scheduled_dates = {}  # date → count
 
     for day_str in august_days:
+        # A newly generated plan starts today; it must never create an
+        # artificial backlog for dates that have already passed.
+        if day_str < today:
+            continue
         if lead_idx >= len(leads_sorted):
             break
         # Перевіряємо чи є вже done-записи на цей день (якщо reset_future_only)
@@ -1125,7 +1719,7 @@ def _generate_for_owner(conn, owner: str, reset_future_only: bool = False) -> di
                 (owner, day_str)
             ).fetchone()
             done_count = done_count_row['c'] if done_count_row else 0
-        quota = _DAILY_QUOTA - done_count
+        quota = max(1, int(daily_quota)) - done_count
         if quota <= 0:
             continue
 
@@ -1152,6 +1746,10 @@ def _generate_for_owner(conn, owner: str, reset_future_only: bool = False) -> di
             )
             inserted += 1
             scheduled_dates[day_str] = scheduled_dates.get(day_str, 0) + 1
+            conn.execute(
+                f"UPDATE leads SET next_followup_date=?, updated_at={_now_sql()} WHERE id=?",
+                (day_str, lid),
+            )
 
     return {
         'owner': owner,
@@ -1161,19 +1759,56 @@ def _generate_for_owner(conn, owner: str, reset_future_only: bool = False) -> di
     }
 
 
+def _assign_unowned_leads_for_schedule(conn, owners: list[str]) -> int:
+    """Рівномірно розподіляє нерозподілений вхідний список перед плануванням.
+
+    Це свідомо не чіпає вже призначені, виграні або закриті ліди. Завдяки цьому
+    «Сформувати план» працює й одразу після імпорту або скидання призначень.
+    """
+    if not owners:
+        return 0
+    rows = conn.execute(
+        """SELECT id FROM leads
+           WHERE (owner IS NULL OR TRIM(owner) = '')
+             AND stage NOT IN ('Won', 'Lost')
+             AND outreach_status = 'Not contacted'
+           ORDER BY CASE priority
+             WHEN 'Hot' THEN 0 WHEN 'High' THEN 1 WHEN 'Medium' THEN 2
+             WHEN 'Low' THEN 3 ELSE 4 END,
+             lead_score DESC, id ASC"""
+    ).fetchall()
+    for index, row in enumerate(rows):
+        conn.execute('UPDATE leads SET owner=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', (owners[index % len(owners)], row['id']))
+    return len(rows)
+
+
 @leads_bp.post('/schedule/generate')
 @auth_required
-@role_required('admin', 'platform_admin')
+@role_required(*_ADMIN_ROLES)
 def schedule_generate():
-    """Генерує або регенерує план по 5 нових лідів на будній день."""
+    """Генерує спільний план команди за налаштуваннями робочого ритму."""
     _ensure_schedule_schema()
-    reset_future = request.json.get('reset_future_only', False) if request.is_json else False
+    payload = request.get_json(silent=True) or {}
+    reset_future = bool(payload.get('reset_future_only', False))
+    try:
+        daily_quota = min(30, max(1, int(payload.get('quota', _DAILY_QUOTA))))
+    except (TypeError, ValueError):
+        daily_quota = _DAILY_QUOTA
+    sort_mode = str(payload.get('sort') or 'priority')
+    if sort_mode not in _SCHEDULE_SORTS:
+        sort_mode = 'priority'
+    raw_weekdays = payload.get('weekdays')
+    weekdays = sorted({int(day) for day in raw_weekdays if str(day).isdigit() and 1 <= int(day) <= 7}) if isinstance(raw_weekdays, list) else [1, 2, 3, 4, 5]
+    if not weekdays:
+        weekdays = [1, 2, 3, 4, 5]
     results = []
     with get_connection() as conn:
-        for owner in _get_active_managers(conn):
-            r = _generate_for_owner(conn, owner, reset_future_only=reset_future)
+        owners = _get_active_managers(conn)
+        assigned_from_inbox = _assign_unowned_leads_for_schedule(conn, owners)
+        for owner in owners:
+            r = _generate_for_owner(conn, owner, reset_future_only=reset_future, daily_quota=daily_quota, sort_mode=sort_mode, weekdays=weekdays)
             results.append(r)
-    return jsonify({'ok': True, 'data': {'results': results}})
+    return jsonify({'ok': True, 'data': {'results': results, 'assigned_from_inbox': assigned_from_inbox, 'daily_quota': daily_quota, 'sort': sort_mode, 'weekdays': weekdays}})
 
 
 @leads_bp.get('/schedule/progress')
@@ -1366,7 +2001,7 @@ def schedule_set_status(sched_id: int):
         return api_error('status має бути done / skipped / pending', 400)
     completed_at = _datetime.utcnow().isoformat() if status == 'done' else None
     with get_connection() as conn:
-        row = conn.execute("SELECT id, owner FROM lead_schedule WHERE id=?", (sched_id,)).fetchone()
+        row = conn.execute("SELECT id, owner, lead_id, scheduled_date FROM lead_schedule WHERE id=?", (sched_id,)).fetchone()
         if not row:
             return api_error('Запис не знайдено', 404)
         forced_owner = _forced_owner()
@@ -1376,6 +2011,23 @@ def schedule_set_status(sched_id: int):
             "UPDATE lead_schedule SET status=?, completed_at=?, notes=? WHERE id=?",
             (status, completed_at, notes, sched_id)
         )
+        # Completing a task clears it from "Мій день". Returning it to pending
+        # restores its date, so calendar, lead card and work queue never drift.
+        if status == 'pending':
+            conn.execute(
+                f"UPDATE leads SET next_followup_date=?, updated_at={_now_sql()} WHERE id=?",
+                (row['scheduled_date'], row['lead_id']),
+            )
+        elif status == 'done':
+            conn.execute(
+                f"UPDATE leads SET next_followup_date=NULL, last_touch_date=?, updated_at={_now_sql()} WHERE id=?",
+                (_date.today().isoformat(), row['lead_id']),
+            )
+        else:  # skipped: it was not a contact, only remove the planned action
+            conn.execute(
+                f"UPDATE leads SET next_followup_date=NULL, updated_at={_now_sql()} WHERE id=?",
+                (row['lead_id'],),
+            )
     return jsonify({'ok': True, 'data': {'sched_id': sched_id, 'status': status}})
 
 
