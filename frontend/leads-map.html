@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <meta name="theme-color" content="#0f3b2d"/>
+  <meta name="theme-color" content="#163f31"/>
   <meta name="description" content="ARM CRM: карта лідів у Сполучених Штатах"/>
   <title>Карта лідів США · ARM CRM</title>
   <link rel="icon" type="image/svg+xml" href="/icons/chat-favicon.svg"/>
@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="/vendor/leaflet/leaflet.css?v=101"/>
-  <link rel="stylesheet" href="/css/leads-map.css?v=1"/>
+  <link rel="stylesheet" href="/css/leads-map.css?v=2"/>
 </head>
 <body>
   <a class="skip-link" href="#map-main">Перейти до карти</a>
@@ -24,20 +24,26 @@
       <a href="/messenger">Месенджер</a>
       <span aria-current="page">Карта США</span>
     </nav>
-    <button class="refresh-button" id="refresh-map" type="button">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M20 11a8 8 0 1 0 2 5.4"/><path d="M20 4v7h-7"/></svg>
-      <span>Оновити</span>
-    </button>
+    <div class="map-topbar-actions">
+      <p class="map-sync" id="map-sync-status" role="status" aria-live="polite">Оновлюємо дані</p>
+      <button class="refresh-button" id="refresh-map" type="button" aria-describedby="map-sync-status">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M20 11a8 8 0 1 0 2 5.4"/><path d="M20 4v7h-7"/></svg>
+        <span>Оновити</span>
+      </button>
+    </div>
   </header>
 
   <main class="map-main" id="map-main">
     <section class="map-intro" aria-labelledby="map-title">
-      <div>
+      <div class="map-intro-copy">
         <p class="eyebrow">ARM CRM / РИНОК США</p>
         <h1 id="map-title">Карта лідів США</h1>
         <p class="map-lede">Робоча географія команди. Оберіть місто, щоб побачити ліди та перейти до їхніх карток у CRM.</p>
       </div>
-      <p class="map-privacy">Координати визначаються локально за містом. Дані лідів не передаються геокодерам.</p>
+      <aside class="map-privacy" aria-label="Приватність карти">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+        <p>Локації визначаються локально за містом. Дані лідів не передаються геокодерам.</p>
+      </aside>
     </section>
 
     <section class="map-stats" id="map-stats" aria-label="Підсумок лідів США" aria-live="polite">
@@ -106,6 +112,6 @@
   </main>
 
   <script src="/vendor/leaflet/leaflet.js?v=101"></script>
-  <script src="/js/leads-map.js?v=1"></script>
+  <script src="/js/leads-map.js?v=2"></script>
 </body>
 </html>

@@ -8,7 +8,7 @@ from __future__ import annotations
 import csv
 import io
 import math
-from datetime import date
+from datetime import date, datetime, timezone
 from functools import wraps
 from typing import Any
 
@@ -595,7 +595,12 @@ def us_leads_map():
             f'FROM leads {where} ORDER BY lead_score DESC, id ASC',
             params,
         ).fetchall()
-    return jsonify({'ok': True, 'data': build_us_lead_map([dict(row) for row in (rows or [])])})
+    data = build_us_lead_map([dict(row) for row in (rows or [])])
+    data['refreshed_at'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+    response = jsonify({'ok': True, 'data': data})
+    # Lead priority and follow-up state must always be fresh for the map.
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response
 
 
 def _lead_date_key(value: Any) -> str:

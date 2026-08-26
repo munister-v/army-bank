@@ -6,6 +6,7 @@ const TOKEN_KEY = 'msng_token';
 const BANK_TOKEN_KEY = 'army_bank_token';
 const COOKIE_SESSION_TOKEN = '__http_only_cookie__';
 const US_BOUNDS = [[24.2, -125.2], [49.8, -66.1]];
+const AUTO_REFRESH_MS = 90_000;
 
 const elements = {
   refresh: document.getElementById('refresh-map'), retry: document.getElementById('retry-map'), fit: document.getElementById('fit-map'),
@@ -15,6 +16,7 @@ const elements = {
   drawerSummary: document.getElementById('lead-drawer-summary'), leadList: document.getElementById('lead-list'), closeDrawer: document.getElementById('close-drawer'),
   unmapped: document.getElementById('unmapped-panel'), unmappedList: document.getElementById('unmapped-list'),
   total: document.getElementById('stat-total'), cities: document.getElementById('stat-cities'), hot: document.getElementById('stat-hot'), due: document.getElementById('stat-due'),
+  sync: document.getElementById('map-sync-status'),
 };
 
 let map = null;
@@ -24,6 +26,11 @@ let mapData = null;
 let activeFilter = 'all';
 let activeState = '';
 let selectedId = '';
+let refreshTimer = null;
+let syncTimer = null;
+let refreshInFlight = false;
+let lastRefreshedAt = null;
+let lastRefreshFailed = false;
 
 function storedToken() {
   return localStorage.getItem(TOKEN_KEY)
@@ -48,6 +55,25 @@ async function api(path) {
 
 function formatNumber(value) {
   return new Intl.NumberFormat('uk-UA').format(Number(value || 0));
+}
+
+function renderSyncStatus() {
+  if (!elements.sync) return;
+  if (refreshInFlight) {
+    elements.sync.textContent = mapData ? 'Оновлюємо дані' : 'Завантажуємо дані';
+    return;
+  }
+  if (lastRefreshFailed) {
+    elements.sync.textContent = mapData ? 'Останнє оновлення не вдалося' : 'Дані тимчасово недоступні';
+    return;
+  }
+  if (!lastRefreshedAt) {
+    elements.sync.textContent = 'Очікуємо дані';
+    return;
+  }
+  const seconds = Math.max(0, Math.floor((Date.now() - lastRefreshedAt.getTime()) / 1000));
+  const label = seconds < 10 ? 'щойно' : seconds < 60 ? `${seconds} с тому` : `${Math.floor(seconds / 60)} хв тому`;
+  elements.sync.textContent = `Оновлено ${label} · автооновлення`;
 }
 
 function cityVisible(point) {
@@ -205,29 +231,54 @@ function setLoading(isLoading) {
   elements.refresh.setAttribute('aria-busy', String(isLoading));
 }
 
-function renderAll(data) {
+function renderAll(data, options = {}) {
+  const selectedBeforeRefresh = selectedId;
   mapData = data;
   renderStats(data.summary || {});
   renderStateFilter(data.states || []);
   renderMarkers();
   renderCityList();
   renderUnmapped(data.unmapped || []);
-  fitVisibleCities();
+  if (selectedBeforeRefresh && data.points?.some(point => point.id === selectedBeforeRefresh)) {
+    selectPoint(selectedBeforeRefresh, { pan: false });
+  } else if (!options.keepViewport) {
+    fitVisibleCities();
+  }
 }
 
-async function loadMap() {
+async function loadMap(options = {}) {
+  if (refreshInFlight) return;
+  const hasData = Boolean(mapData);
+  refreshInFlight = true;
+  lastRefreshFailed = false;
   elements.error.hidden = true;
-  setLoading(true);
+  setLoading(!hasData);
+  renderSyncStatus();
   try {
     if (!window.L) throw new Error('Картографічний модуль не завантажився.');
     setupMap();
-    renderAll(await api('/leads/map/us'));
+    const data = await api('/leads/map/us');
+    renderAll(data, { keepViewport: hasData || options.keepViewport });
+    const sourceTime = new Date(data.refreshed_at || Date.now());
+    lastRefreshedAt = Number.isNaN(sourceTime.getTime()) ? new Date() : sourceTime;
   } catch (error) {
+    lastRefreshFailed = true;
     elements.errorText.textContent = error.message || 'Спробуйте оновити сторінку.';
-    elements.error.hidden = false;
+    if (!hasData) elements.error.hidden = false;
   } finally {
+    refreshInFlight = false;
     setLoading(false);
+    renderSyncStatus();
   }
+}
+
+function startAutoRefresh() {
+  window.clearInterval(refreshTimer);
+  window.clearInterval(syncTimer);
+  refreshTimer = window.setInterval(() => {
+    if (document.visibilityState === 'visible') loadMap({ keepViewport: true });
+  }, AUTO_REFRESH_MS);
+  syncTimer = window.setInterval(renderSyncStatus, 10_000);
 }
 
 document.querySelectorAll('[data-filter]').forEach(button => {
@@ -245,8 +296,17 @@ document.querySelectorAll('[data-filter]').forEach(button => {
 });
 elements.state.addEventListener('change', () => { activeState = elements.state.value; selectedId = ''; elements.drawer.hidden = true; renderMarkers(); renderCityList(); fitVisibleCities(); });
 elements.fit.addEventListener('click', fitVisibleCities);
-elements.refresh.addEventListener('click', loadMap);
-elements.retry.addEventListener('click', loadMap);
+elements.refresh.addEventListener('click', () => loadMap({ keepViewport: true }));
+elements.retry.addEventListener('click', () => loadMap());
 elements.closeDrawer.addEventListener('click', closeDrawer);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (!lastRefreshedAt || Date.now() - lastRefreshedAt.getTime() > 15_000) loadMap({ keepViewport: true });
+});
+window.addEventListener('pagehide', () => {
+  window.clearInterval(refreshTimer);
+  window.clearInterval(syncTimer);
+});
 
 loadMap();
+startAutoRefresh();
