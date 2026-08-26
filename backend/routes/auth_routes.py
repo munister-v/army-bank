@@ -275,7 +275,12 @@ def get_managers():
     try:
         from backend.database import get_connection
         with get_connection() as conn:
-            rows = conn.execute("SELECT id, full_name, crm_owner FROM users WHERE role = 'manager' AND crm_owner IS NOT NULL").fetchall()
+            # Учасник CRM визначається заповненим crm_owner, а не роллю:
+            # власник агенції веде ліди під роллю admin.
+            rows = conn.execute(
+                "SELECT id, full_name, crm_owner FROM users "
+                "WHERE crm_owner IS NOT NULL AND TRIM(crm_owner) <> '' ORDER BY id"
+            ).fetchall()
             managers = [{'id': r['id'], 'full_name': r['full_name'], 'crm_owner': r['crm_owner']} for r in rows]
             return jsonify({'ok': True, 'data': managers})
     except Exception as exc:

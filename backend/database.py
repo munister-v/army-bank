@@ -709,6 +709,11 @@ def init_db() -> None:
                 label='users.last_seen_at',
             )
             _pg_exec(
+                'ALTER TABLE users ADD COLUMN IF NOT EXISTS crm_owner VARCHAR(80) DEFAULT NULL;',
+                optional=True,
+                label='users.crm_owner',
+            )
+            _pg_exec(
                 "ALTER TABLE cards ADD COLUMN IF NOT EXISTS design VARCHAR(20) NOT NULL DEFAULT 'gold';",
                 optional=True,
                 label='cards.design',
@@ -1070,6 +1075,12 @@ def init_db() -> None:
                 pass
             try:
                 conn.execute('ALTER TABLE users ADD COLUMN last_seen_at TEXT DEFAULT NULL;')
+            except Exception:
+                pass
+            try:
+                # Участь у CRM: колонку додавали руками на проді, тож на
+                # чистій установці її не було і планувальник падав.
+                conn.execute('ALTER TABLE users ADD COLUMN crm_owner TEXT DEFAULT NULL;')
             except Exception:
                 pass
             try:

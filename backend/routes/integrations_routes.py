@@ -44,7 +44,10 @@ def _forced_manager() -> str | None:
 
 def _get_managers():
     with get_connection() as conn:
-        rows = conn.execute("SELECT crm_owner, full_name FROM users WHERE role = 'manager' AND crm_owner IS NOT NULL").fetchall()
+        rows = conn.execute(
+            "SELECT crm_owner, full_name FROM users "
+            "WHERE crm_owner IS NOT NULL AND TRIM(crm_owner) <> ''"
+        ).fetchall()
         return {r['crm_owner']: r['full_name'] for r in rows}
 
 CHANNELS = ('whatsapp', 'instagram')

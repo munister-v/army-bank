@@ -10431,7 +10431,7 @@ function updateAugProgressBars(progress) {
   if (augCountM2) augCountM2.textContent = m2.total ? `${m2.done}/${m2.total} (${m2.percent}%)` : '—';
 
   // Update sidebar meta
-  const myOwner = (me && me.role === 'manager') ? me.crm_owner : LEADS_OWNER_OPTIONS[0];
+  const myOwner = (me && me.crm_owner) ? me.crm_owner : LEADS_OWNER_OPTIONS[0];
   const myData = owners[myOwner] || {};
   if (workspaceAugMeta) {
     if (myData.today_total) {

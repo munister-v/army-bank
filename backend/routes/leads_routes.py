@@ -1945,8 +1945,20 @@ _DAILY_QUOTA = 5
 _SCHEDULE_SORTS = {'priority', 'oldest', 'owner'}
 
 def _get_active_managers(conn) -> list[str]:
-    rows = conn.execute("SELECT crm_owner FROM users WHERE role = 'manager' AND crm_owner IS NOT NULL").fetchall()
-    return [r['crm_owner'] for r in rows]
+    """Хто веде ліди. Ознака — заповнений crm_owner, а не роль: власник
+    агенції працює з базою під роллю admin, і прив'язка до 'manager'
+    залишала його поза списком і поза плануванням."""
+    rows = conn.execute(
+        "SELECT crm_owner FROM users WHERE crm_owner IS NOT NULL AND TRIM(crm_owner) <> '' "
+        "ORDER BY id"
+    ).fetchall()
+    seen, owners = set(), []
+    for row in (rows or []):
+        name = str(row['crm_owner'] or '').strip()
+        if name and name not in seen:
+            seen.add(name)
+            owners.append(name)
+    return owners
 
 _PRIORITY_ORDER = {'Hot': 0, 'High': 1, 'Medium': 2, 'Low': 3, 'Watch': 4, '': 5}
 
@@ -2037,8 +2049,12 @@ def _generate_for_owner(
     daily_quota: int = _DAILY_QUOTA,
     sort_mode: str = 'priority',
     weekdays: list[int] | None = None,
+    start_date: str | None = None,
 ) -> dict:
     today = _date.today().isoformat()
+    # План можна почати з наступного понеділка, а не з сьогодні: перший день
+    # роботи за новим ритмом рідко збігається з днем, коли план складають.
+    floor_date = max(today, str(start_date or '').strip() or today)
 
     # Clear the mirror date before replacing pending rows.  The new rows below
     # write it again; records that no longer qualify therefore cannot stay in
@@ -2090,9 +2106,10 @@ def _generate_for_owner(
     scheduled_dates = {}  # date → count
 
     for day_str in august_days:
-        # A newly generated plan starts today; it must never create an
-        # artificial backlog for dates that have already passed.
-        if day_str < today:
+        # A newly generated plan starts today (or on the requested start
+        # date); it must never create an artificial backlog for dates that
+        # have already passed.
+        if day_str < floor_date:
             continue
         if lead_idx >= len(leads_sorted):
             break
@@ -2182,6 +2199,12 @@ def schedule_generate():
     sort_mode = str(payload.get('sort') or 'priority')
     if sort_mode not in _SCHEDULE_SORTS:
         sort_mode = 'priority'
+    start_date = str(payload.get('start_date') or '').strip()
+    if start_date:
+        try:
+            _date.fromisoformat(start_date)
+        except ValueError:
+            return api_error('start_date має бути у форматі YYYY-MM-DD.', 400)
     raw_weekdays = payload.get('weekdays')
     weekdays = sorted({int(day) for day in raw_weekdays if str(day).isdigit() and 1 <= int(day) <= 7}) if isinstance(raw_weekdays, list) else [1, 2, 3, 4, 5]
     if not weekdays:
@@ -2191,9 +2214,9 @@ def schedule_generate():
         owners = _get_active_managers(conn)
         assigned_from_inbox = _assign_unowned_leads_for_schedule(conn, owners)
         for owner in owners:
-            r = _generate_for_owner(conn, owner, reset_future_only=reset_future, daily_quota=daily_quota, sort_mode=sort_mode, weekdays=weekdays)
+            r = _generate_for_owner(conn, owner, reset_future_only=reset_future, daily_quota=daily_quota, sort_mode=sort_mode, weekdays=weekdays, start_date=start_date)
             results.append(r)
-    return jsonify({'ok': True, 'data': {'results': results, 'assigned_from_inbox': assigned_from_inbox, 'daily_quota': daily_quota, 'sort': sort_mode, 'weekdays': weekdays}})
+    return jsonify({'ok': True, 'data': {'results': results, 'assigned_from_inbox': assigned_from_inbox, 'daily_quota': daily_quota, 'sort': sort_mode, 'weekdays': weekdays, 'start_date': start_date}})
 
 
 @leads_bp.get('/schedule/progress')

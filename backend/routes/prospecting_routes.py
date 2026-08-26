@@ -16,7 +16,9 @@ from pathlib import Path
 
 
 def _get_active_managers(conn) -> list[str]:
-    rows = conn.execute("SELECT crm_owner FROM users WHERE role = 'manager' AND crm_owner IS NOT NULL").fetchall()
+    rows = conn.execute(
+        "SELECT crm_owner FROM users WHERE crm_owner IS NOT NULL AND TRIM(crm_owner) <> '' ORDER BY id"
+    ).fetchall()
     return [r['crm_owner'] for r in rows]
 
 from flask import Blueprint, g, jsonify, request
