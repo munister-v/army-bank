@@ -121,6 +121,9 @@ def create_app() -> Flask:
     prefix = BASE_PATH or ''
 
     _ALLOWED_ORIGINS = {
+        # The agency site is static and posts its contact form to
+        # POST /api/leads/intake from its own origin.
+        'https://agency.munister.com.ua',
         'https://munister.com.ua',
         'https://www.munister.com.ua',
         'https://bank.munister.com.ua',

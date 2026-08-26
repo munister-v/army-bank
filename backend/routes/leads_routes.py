@@ -20,7 +20,7 @@ from ..services.messenger_crypto import decrypt_message, encrypt_message
 from ..services.lead_exclusions import exclusion_reason
 from ..services.openrouter_service import OpenRouterError
 from ..services.us_lead_map import build_us_lead_map
-from .helpers import api_error, auth_required, role_required
+from .helpers import api_error, auth_required, rate_limit, role_required
 
 leads_bp = Blueprint('leads', __name__, url_prefix='/api/leads')
 
@@ -1185,6 +1185,149 @@ def import_leads():
                 created += 1
 
     return jsonify({'ok': True, 'data': {'created': created, 'updated': updated}})
+
+
+# ─── Inbound: the contact form on agency.munister.com.ua ──────────────
+#
+# The agency site is static (GitHub Pages), so the form posts here and the
+# enquiry lands in the same Leads panel the team already works in, rather
+# than in a mailbox nobody grooms. Public route: no auth, and therefore
+# validated, rate limited and size capped like any other open door.
+
+_INTAKE_MAX = {
+    'name': 120, 'company': 160, 'email': 200, 'phone': 60,
+    'service': 120, 'budget': 60, 'message': 4000, 'page': 300, 'lang': 8,
+}
+
+# A lead that says only "hi" is still a lead; a lead with no way back is not.
+_INTAKE_REQUIRED = ('name', 'message')
+
+
+def _clean(value: Any, limit: int) -> str:
+    text = str(value or '').replace('\r\n', '\n').strip()
+    # Control characters have no business in a name or an e-mail field.
+    text = ''.join(ch for ch in text if ch >= ' ' or ch == '\n')
+    return text[:limit]
+
+
+def _looks_like_email(value: str) -> bool:
+    if not value or value.count('@') != 1:
+        return False
+    local, _, domain = value.partition('@')
+    return bool(local) and '.' in domain and ' ' not in value and not domain.startswith('.')
+
+
+def _within_hours(created_at: Any, hours: int) -> bool:
+    """Чи свіжий запис. Порівняння в Python, бо SQLite і Postgres віддають
+    created_at по-різному (рядок проти datetime), а вікно тут не критичне."""
+    from datetime import datetime, timedelta, timezone
+    if created_at is None:
+        return False
+    stamp = created_at
+    if isinstance(stamp, str):
+        try:
+            stamp = datetime.fromisoformat(stamp.replace('Z', '+00:00'))
+        except ValueError:
+            return False
+    if not isinstance(stamp, datetime):
+        return False
+    now = datetime.now(stamp.tzinfo) if stamp.tzinfo else datetime.now()
+    return (now - stamp) < timedelta(hours=hours)
+
+
+@leads_bp.post('/intake')
+@rate_limit(6, 3600)
+def intake_lead():
+    """Приймає заявку з контактної форми сайту агенції."""
+    _ensure_schema()
+    body = request.get_json(silent=True) or {}
+
+    # Honeypot: a field the form keeps off-screen and a person never fills.
+    # Bots are told the submission worked, because a bot that learns it was
+    # caught simply comes back without the field.
+    if str(body.get('website') or '').strip():
+        return jsonify({'ok': True, 'data': {'received': True}})
+
+    fields = {k: _clean(body.get(k), limit) for k, limit in _INTAKE_MAX.items()}
+
+    for key in _INTAKE_REQUIRED:
+        if not fields[key]:
+            return api_error('missing_' + key, 400)
+
+    email = fields['email']
+    if email and not _looks_like_email(email):
+        return api_error('bad_email', 400)
+    if not email and not fields['phone']:
+        return api_error('missing_contact', 400)
+
+    now = date.today().isoformat()
+    company = fields['company'] or fields['name']
+    contact_line = ' · '.join(filter(None, [fields['email'], fields['phone']]))
+    note_parts = [fields['message']]
+    if fields['budget']:
+        note_parts.append(f"Бюджет: {fields['budget']}")
+    if fields['page']:
+        note_parts.append(f"Сторінка: {fields['page']}")
+    if fields['lang']:
+        note_parts.append(f"Мова форми: {fields['lang']}")
+    notes = '\n\n'.join(note_parts)
+
+    with get_connection() as conn:
+        # The same enquiry sent twice (a double click, a retried request)
+        # should not become two cards. Same contact and same text within the
+        # hour is treated as the one enquiry it is.
+        recent = conn.execute(
+            """
+            SELECT id, created_at FROM leads
+             WHERE source_bucket = %s AND business_name = %s AND notes = %s
+             ORDER BY id DESC
+            """,
+            ('agency-site', company, notes),
+        ).fetchone()
+        if recent is not None and _within_hours(recent['created_at'], 6):
+            return jsonify({'ok': True, 'data': {'received': True, 'duplicate': True}})
+
+        lead_id = _next_lead_id(conn)
+        data = {
+            'lead_id': lead_id,
+            'source_bucket': 'agency-site',
+            'business_name': company,
+            'category': fields['service'],
+            'need_type': fields['service'],
+            'email': fields['email'],
+            'phone': fields['phone'],
+            'source_url': fields['page'],
+            'primary_channel': 'Email' if fields['email'] else 'Phone',
+            'pipeline': 'Inbound',
+            'stage': 'New',
+            # Somebody who found the site and wrote is warmer than anything
+            # outbound research produces, and the queue should show that.
+            # The list is ordered by lead_score, so an inbound enquiry left
+            # at the default 0 would sit under four hundred cold cards.
+            'priority': 'Hot',
+            'lead_score': 95,
+            'outreach_status': 'Not contacted',
+            'reply_status': 'Awaiting our reply',
+            'contact_quality': 'Direct',
+            'last_touch_date': now,
+            'notes': notes,
+        }
+        cols = list(data.keys())
+        cur = conn.execute(
+            f"INSERT INTO leads ({', '.join(cols)}) VALUES ({', '.join(['%s'] * len(cols))})"
+            + get_returning_id_suffix(),
+            [data[c] for c in cols],
+        )
+        new_id = insert_last_id(cur)
+        _log_activity(
+            conn, new_id, fields['name'], 'note',
+            'Заявка з форми на agency.munister.com.ua\n'
+            + (f'Контакт: {contact_line}\n' if contact_line else '')
+            + (f'Послуга: {fields["service"]}\n' if fields['service'] else '')
+            + '\n' + fields['message'],
+        )
+
+    return jsonify({'ok': True, 'data': {'received': True, 'lead_id': lead_id}})
 
 
 def _next_lead_id(conn) -> str:
