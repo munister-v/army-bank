@@ -1280,7 +1280,7 @@
           <div class="planner-settings-grid">
             <label><span>Контактів на день</span><input id="planner-quota" type="number" min="1" max="30" value="5"/></label>
             <label><span>Порядок пріоритетів</span><select id="planner-sort"><option value="priority">Спочатку найгарячіші</option><option value="oldest">Найдавніші без контакту</option><option value="owner">За менеджером</option></select></label>
-            <label><span>Менеджер за замовчуванням</span><select id="planner-owner"><option value="Михайло Хлюпін">Михайло</option><option value="Едуард Нестеров">Едуард</option></select></label>
+            <label><span>Менеджер за замовчуванням</span><select id="planner-owner"></select></label>
             <fieldset><legend>Робочі дні</legend><label><input type="checkbox" value="1" checked class="planner-weekday"/> Пн</label><label><input type="checkbox" value="2" checked class="planner-weekday"/> Вт</label><label><input type="checkbox" value="3" checked class="planner-weekday"/> Ср</label><label><input type="checkbox" value="4" checked class="planner-weekday"/> Чт</label><label><input type="checkbox" value="5" checked class="planner-weekday"/> Пт</label></fieldset>
           </div>
           <div class="planner-settings-foot"><span id="planner-settings-status">Зміни застосуються до наступного плану.</span><button type="button" class="btn-primary" id="btn-planner-settings-save">Зберегти й застосувати</button></div>
@@ -1289,7 +1289,7 @@
         <div class="august-progress-section" id="august-progress-section">
           <div class="august-progress-row" id="august-progress-m1">
             <div class="august-progress-label">
-              <span class="august-owner-name">Михайло</span>
+              <span class="august-owner-name">—</span>
               <span class="august-progress-count" id="aug-count-m1">—</span>
             </div>
             <div class="august-progress-bar-wrap">
@@ -1298,7 +1298,7 @@
           </div>
           <div class="august-progress-row" id="august-progress-m2">
             <div class="august-progress-label">
-              <span class="august-owner-name">Едуард</span>
+              <span class="august-owner-name">—</span>
               <span class="august-progress-count" id="aug-count-m2">—</span>
             </div>
             <div class="august-progress-bar-wrap">
@@ -1309,8 +1309,7 @@
 
         <!-- Owner filter tabs -->
         <div class="august-tabs" id="august-tabs">
-          <button type="button" class="august-tab active" data-aug-owner="Михайло Хлюпін">Михайло</button>
-          <button type="button" class="august-tab" data-aug-owner="Едуард Нестеров">Едуард</button>
+          
         </div>
 
         <!-- Calendar grid -->
@@ -1424,10 +1423,10 @@
           </div>
           
           <div class="wow-cols-wrap">
-            <!-- Михайло Хрупін column -->
+            <!-- Первая колонка состава: имя приходит из /auth/managers -->
             <div class="analytics-col wow-col" id="analytics-m1">
               <div class="wow-owner-header" id="wow-header-m1">
-                <div class="wow-owner-name">Михайло</div>
+                <div class="wow-owner-name">—</div>
                 <div class="wow-rank" id="wow-rank-m1">Стартова позиція</div>
               </div>
               
@@ -1488,7 +1487,7 @@
             <!-- Едуард Нестеров column -->
             <div class="analytics-col wow-col" id="analytics-m2">
               <div class="wow-owner-header" id="wow-header-m2">
-                <div class="wow-owner-name">Едуард</div>
+                <div class="wow-owner-name">—</div>
                 <div class="wow-rank" id="wow-rank-m2">Стартова позиція</div>
               </div>
               
@@ -2029,6 +2028,6 @@
 </datalist>
 
 <script src="/vendor/leaflet/leaflet.js?v=101"></script>
-<script src="/js/messenger.js?v=378"></script>
+<script src="/js/messenger.js?v=382"></script>
 </body>
 </html>

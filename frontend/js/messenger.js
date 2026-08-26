@@ -1937,11 +1937,15 @@ const LEADS_PRIORITY_OPTIONS = ['Hot', 'High', 'Medium', 'Low', 'Watch'];
 let LEADS_OWNER_OPTIONS = [];
 let leadsOwnersPromise = null;
 
-function conciseOwnerLabel(value) {
+function ownerFirstName(value) {
+  // Короткое имя для колонок и вкладок. Раньше здесь были прошиты два
+  // конкретных человека, и любой третий выводился полным ФИО.
   const name = String(value || '').trim();
-  if (name === 'Михайло Хлюпін') return 'Михайло';
-  if (name === 'Едуард Нестеров') return 'Едуард';
-  return name;
+  const first = name.split(/\s+/)[0] || '';
+  return first || name;
+}
+function conciseOwnerLabel(value) {
+  return ownerFirstName(value);
 }
 
 // Список менеджерів приходить з /auth/managers (users.crm_owner + full_name).
@@ -10186,7 +10190,9 @@ const plannerBriefQuotaEl = document.getElementById('planner-brief-quota');
 const plannerBriefDaysEl = document.getElementById('planner-brief-days');
 const plannerBriefSortEl = document.getElementById('planner-brief-sort');
 const PLANNER_PREFS_KEY = 'arm_crm_planner_prefs_v1';
-const DEFAULT_PLANNER_PREFS = { quota: 5, sort: 'priority', owner: 'Михайло Хлюпін', weekdays: [1, 2, 3, 4, 5] };
+// Владелец по умолчанию берётся из состава CRM, а не из константы: имя
+// уволившегося менеджера жило здесь и подставлялось в новый план.
+const DEFAULT_PLANNER_PREFS = { quota: 4, sort: 'priority', owner: '', weekdays: [1, 2, 3, 4, 5] };
 let plannerPrefs = { ...DEFAULT_PLANNER_PREFS };
 
 try {
@@ -10194,10 +10200,25 @@ try {
   if (savedPlannerPrefs && typeof savedPlannerPrefs === 'object') plannerPrefs = { ...DEFAULT_PLANNER_PREFS, ...savedPlannerPrefs };
 } catch (_) {}
 
+function plannerDefaultOwner() {
+  // Свой, если человек ведёт лиды; иначе первый в составе.
+  const mine = String(me?.crm_owner || '').trim();
+  if (mine && LEADS_OWNER_OPTIONS.includes(mine)) return mine;
+  return LEADS_OWNER_OPTIONS[0] || '';
+}
+
 function syncPlannerSettingsForm() {
-  if (plannerQuotaEl) plannerQuotaEl.value = String(plannerPrefs.quota || 5);
+  if (plannerQuotaEl) plannerQuotaEl.value = String(plannerPrefs.quota || DEFAULT_PLANNER_PREFS.quota);
   if (plannerSortEl) plannerSortEl.value = plannerPrefs.sort || 'priority';
-  if (plannerOwnerEl) plannerOwnerEl.value = plannerPrefs.owner || DEFAULT_PLANNER_PREFS.owner;
+  if (plannerOwnerEl) {
+    plannerOwnerEl.innerHTML = LEADS_OWNER_OPTIONS
+      .map(o => `<option value="${escHtml(o)}">${escHtml(leadsLabel(LEADS_OWNER_LABELS, o))}</option>`)
+      .join('');
+    // Сохранённая настройка могла указывать на человека, которого в составе
+    // уже нет: тогда она молча тянула бы план не на того.
+    if (!LEADS_OWNER_OPTIONS.includes(plannerPrefs.owner)) plannerPrefs.owner = plannerDefaultOwner();
+    plannerOwnerEl.value = plannerPrefs.owner || '';
+  }
   const weekdays = Array.isArray(plannerPrefs.weekdays) ? plannerPrefs.weekdays : DEFAULT_PLANNER_PREFS.weekdays;
   plannerWeekdayEls.forEach(el => { el.checked = weekdays.includes(Number(el.value)); });
 }
@@ -10260,7 +10281,7 @@ async function savePlannerSettings() {
   plannerPrefs = {
     quota: Math.min(30, Math.max(1, Number(plannerQuotaEl?.value || 5))),
     sort: plannerSortEl?.value || 'priority',
-    owner: plannerOwnerEl?.value || DEFAULT_PLANNER_PREFS.owner,
+    owner: plannerOwnerEl?.value || plannerDefaultOwner(),
     weekdays: Array.from(plannerWeekdayEls).filter(el => el.checked).map(el => Number(el.value)),
   };
   if (!plannerPrefs.weekdays.length) plannerPrefs.weekdays = [...DEFAULT_PLANNER_PREFS.weekdays];
