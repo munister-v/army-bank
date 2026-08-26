@@ -5532,6 +5532,16 @@ a.prosp-contact {
   box-shadow: none;
 }
 .workspace-view .btn-secondary:hover { background: #f1eee7; }
+.workspace-view-actions .leads-map-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-color: #acc6b5;
+  color: #1b5c43;
+  text-decoration: none;
+}
+.workspace-view-actions .leads-map-button:hover { border-color: #6e9a80; background: #edf5ef; }
+.workspace-view-actions .leads-map-button svg { width: 17px; height: 17px; }
 
 .leads-directory-body,
 .work-queue-body,
@@ -5759,6 +5769,8 @@ a.prosp-contact {
   .workspace-view-avatar { display: none; }
   .workspace-view-actions { gap: 6px; }
   .workspace-view-actions button { padding-right: 10px; padding-left: 10px; }
+  .workspace-view-actions .leads-map-button { width: 42px; justify-content: center; padding: 0; }
+  .workspace-view-actions .leads-map-button span { display: none; }
   .leads-directory-body,
   .work-queue-body,
   .integrations-body,

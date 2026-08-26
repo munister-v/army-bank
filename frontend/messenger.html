@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="/vendor/leaflet/leaflet.css?v=101"/>
-  <link rel="stylesheet" href="/css/messenger.css?v=381"/>
+  <link rel="stylesheet" href="/css/messenger.css?v=382"/>
 </head>
 <body>
 
@@ -544,6 +544,10 @@
           <div class="leads-thread-sub">Єдиний список клієнтів, відповідальних і наступних дій</div>
         </div>
         <div class="workspace-view-actions">
+          <a class="btn-secondary leads-map-button" href="/leads-map" aria-label="Відкрити карту лідів США" title="Ліди за містами, пріоритетом і наступними діями">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/></svg>
+            <span>Карта США</span>
+          </a>
           <button type="button" class="btn-secondary" id="btn-leads-directory-import" title="Excel або CSV. Підходить файл, вивантажений через «Excel · усі поля» — можна правити і залити назад">Імпорт</button>
           <button type="button" class="btn-secondary leads-import-template" id="btn-leads-import-template" title="Завантажити приклад CSV">Шаблон</button>
           <input id="leads-import-file" type="file" accept=".csv,.xlsx,.xlsm,text/csv" hidden />
