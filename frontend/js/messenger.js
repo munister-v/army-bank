@@ -4975,7 +4975,13 @@ function openLeadCreateModal() {
   ['lead-new-name', 'lead-new-country', 'lead-new-city', 'lead-new-phone', 'lead-new-email', 'lead-new-instagram', 'lead-new-notes']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const ownerSel = document.getElementById('lead-new-owner');
-  if (ownerSel) ownerSel.value = leadsState.owner || LEADS_OWNER_OPTIONS[0];
+  if (ownerSel) {
+    // Склад CRM меняется; список владельцев приходит с сервера, а не из вёрстки.
+    ownerSel.innerHTML = LEADS_OWNER_OPTIONS
+      .map(o => `<option value="${escHtml(o)}">${escHtml(leadsLabel(LEADS_OWNER_LABELS, o))}</option>`)
+      .join('');
+    ownerSel.value = leadsState.owner || LEADS_OWNER_OPTIONS[0] || '';
+  }
   if (leadNewPriority && !leadNewPriority.options.length) {
     leadNewPriority.innerHTML = LEADS_PRIORITY_OPTIONS.map(p => `<option value="${escHtml(p)}">${escHtml(leadsLabel(LEADS_PRIORITY_LABELS, p))}</option>`).join('');
   }
