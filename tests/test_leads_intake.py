@@ -85,3 +85,72 @@ def test_long_message_is_capped(client, app):
     client.post('/api/leads/intake', json=_payload(company='Longwind', message='x' * 9000))
     lead = [r for r in _lead_rows(app) if r['business_name'] == 'Longwind'][0]
     assert len(lead['notes']) <= 4200
+
+
+# ── входящая заявка не должна лежать ничьей ────────────────────────────
+
+def _make_owners(app, names=('Owner One', 'Owner Two')):
+    with app.app_context():
+        from backend.database import get_connection
+        with get_connection() as conn:
+            conn.execute("UPDATE users SET crm_owner = NULL WHERE crm_owner IS NOT NULL")
+            conn.execute("DELETE FROM users WHERE id >= 800 AND id < 900")
+            for i, name in enumerate(names, start=1):
+                conn.execute(
+                    "INSERT INTO users (id, full_name, phone, email, password_hash, role, crm_owner) "
+                    "VALUES (?, ?, ?, ?, 'x', 'manager', ?)",
+                    (800 + i, name, f'+38077000000{i}', f'o{i}@example.com', name),
+                )
+
+
+def _lead_and_slot(app, company):
+    with app.app_context():
+        from backend.database import get_connection
+        with get_connection() as conn:
+            lead = conn.execute(
+                "SELECT id, owner, next_followup_date FROM leads WHERE business_name = ?", (company,)
+            ).fetchone()
+            slot = conn.execute(
+                "SELECT owner, scheduled_date, slot_index, status FROM lead_schedule WHERE lead_id = ?",
+                (lead['id'],),
+            ).fetchone()
+            return dict(lead), (dict(slot) if slot else None)
+
+
+def test_intake_lands_on_a_desk_and_in_the_day(client, app):
+    _make_owners(app)
+    client.post('/api/leads/intake', json=_payload(company='Desk One', message='First inbound.'))
+    lead, slot = _lead_and_slot(app, 'Desk One')
+
+    assert lead['owner'] in ('Owner One', 'Owner Two')
+    assert slot is not None, 'заявка не попала ни в чей день'
+    assert slot['owner'] == lead['owner']
+    assert slot['status'] == 'pending'
+    # Нулевой слот ставит входящую заявку выше запланированных карточек.
+    assert slot['slot_index'] == 0
+    assert lead['next_followup_date'] == slot['scheduled_date']
+
+    from datetime import date
+    assert date.fromisoformat(slot['scheduled_date']).weekday() < 5, 'назначено на выходной'
+    assert slot['scheduled_date'] >= date.today().isoformat()
+
+
+def test_two_enquiries_go_to_different_people(client, app):
+    _make_owners(app)
+    client.post('/api/leads/intake', json=_payload(company='Split A', message='One.'))
+    client.post('/api/leads/intake', json=_payload(company='Split B', message='Two.'))
+    a, _ = _lead_and_slot(app, 'Split A')
+    b, _ = _lead_and_slot(app, 'Split B')
+    assert a['owner'] != b['owner'], 'обе заявки ушли одному человеку'
+
+
+def test_intake_still_works_without_any_owner(client, app):
+    with app.app_context():
+        from backend.database import get_connection
+        with get_connection() as conn:
+            conn.execute("UPDATE users SET crm_owner = NULL WHERE crm_owner IS NOT NULL")
+    res = client.post('/api/leads/intake', json=_payload(company='No Team', message='Nobody home.'))
+    assert res.status_code == 200
+    lead, slot = _lead_and_slot(app, 'No Team')
+    assert lead['owner'] == ''
+    assert slot is None

@@ -1235,6 +1235,35 @@ def _within_hours(created_at: Any, hours: int) -> bool:
     return (now - stamp) < timedelta(hours=hours)
 
 
+def _next_workday(from_date: date) -> str:
+    """Ближайший рабочий день, считая сегодняшний."""
+    from datetime import timedelta
+    day = from_date
+    while day.weekday() >= 5:      # 5=сб, 6=вс
+        day += timedelta(days=1)
+    return day.isoformat()
+
+
+def _pick_intake_owner(conn, owners: list[str]) -> str:
+    """Кому отдать входящую заявку.
+
+    Тому, у кого меньше заявок с сайта: очередь по факту нагрузки, а не по
+    порядку в списке, иначе первый в алфавите собирает всё.
+    """
+    if not owners:
+        return ''
+    counts = {owner: 0 for owner in owners}
+    rows = conn.execute(
+        "SELECT owner, COUNT(*) AS n FROM leads WHERE source_bucket = %s GROUP BY owner",
+        ('agency-site',),
+    ).fetchall()
+    for row in (rows or []):
+        name = str(row['owner'] or '').strip()
+        if name in counts:
+            counts[name] = int(row['n'] or 0)
+    return min(owners, key=lambda o: (counts[o], owners.index(o)))
+
+
 @leads_bp.post('/intake')
 @rate_limit(6, 3600)
 def intake_lead():
@@ -1260,6 +1289,7 @@ def intake_lead():
     if not email and not fields['phone']:
         return api_error('missing_contact', 400)
 
+    _ensure_schedule_schema()
     now = date.today().isoformat()
     company = fields['company'] or fields['name']
     contact_line = ' · '.join(filter(None, [fields['email'], fields['phone']]))
@@ -1312,6 +1342,16 @@ def intake_lead():
             'last_touch_date': now,
             'notes': notes,
         }
+        # Заявка с сайта не должна лежать ничьей: её кладут в день человека
+        # сразу, потому что план перегенерируют не каждый час, а отвечать
+        # обещано в течение рабочего дня.
+        owners = _get_active_managers(conn)
+        assigned_to = _pick_intake_owner(conn, owners)
+        work_day = _next_workday(date.today())
+        if assigned_to:
+            data['owner'] = assigned_to
+            data['next_followup_date'] = work_day
+
         cols = list(data.keys())
         cur = conn.execute(
             f"INSERT INTO leads ({', '.join(cols)}) VALUES ({', '.join(['%s'] * len(cols))})"
@@ -1319,6 +1359,14 @@ def intake_lead():
             [data[c] for c in cols],
         )
         new_id = insert_last_id(cur)
+        if assigned_to:
+            # slot_index 0 — выше запланированных на день карточек: входящий
+            # интерес остывает быстрее, чем холодная база.
+            conn.execute(
+                """INSERT INTO lead_schedule (lead_id, owner, scheduled_date, slot_index, status)
+                   VALUES (%s, %s, %s, 0, 'pending')""",
+                (new_id, assigned_to, work_day),
+            )
         _log_activity(
             conn, new_id, fields['name'], 'note',
             'Заявка з форми на agency.munister.com.ua\n'
