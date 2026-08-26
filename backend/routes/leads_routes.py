@@ -19,6 +19,7 @@ from ..services import ai_drafts, openrouter_service, website_enrichment_service
 from ..services.messenger_crypto import decrypt_message, encrypt_message
 from ..services.lead_exclusions import exclusion_reason
 from ..services.openrouter_service import OpenRouterError
+from ..services.us_lead_map import build_us_lead_map
 from .helpers import api_error, auth_required, role_required
 
 leads_bp = Blueprint('leads', __name__, url_prefix='/api/leads')
@@ -569,6 +570,32 @@ def leads_stats():
         'by_channel': [{'channel': r['primary_channel'], 'count': int(r['n'])} for r in (by_channel or [])],
         'by_country': [{'country': r['country'], 'count': int(r['n'])} for r in (by_country or []) if r['country']],
     }})
+
+
+@leads_bp.get('/map/us')
+@auth_required
+@role_required(*_ADMIN_ROLES)
+def us_leads_map():
+    """Read-only map data for CRM leads in the United States.
+
+    Coordinates are matched locally from city names. No lead address or CRM
+    record is sent to a third-party geocoding service.
+    """
+    _ensure_schema()
+    forced = _forced_owner()
+    where = ''
+    params: list[Any] = []
+    if forced is not None:
+        where = 'WHERE owner = %s'
+        params.append(forced)
+    with get_connection() as conn:
+        rows = conn.execute(
+            'SELECT id, business_name, category, country, city_area, priority, '
+            'lead_score, stage, outreach_status, next_followup_date '
+            f'FROM leads {where} ORDER BY lead_score DESC, id ASC',
+            params,
+        ).fetchall()
+    return jsonify({'ok': True, 'data': build_us_lead_map([dict(row) for row in (rows or [])])})
 
 
 def _lead_date_key(value: Any) -> str:

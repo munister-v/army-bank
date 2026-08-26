@@ -2693,6 +2693,8 @@ body.overlay-lock .photo-viewer:not([hidden]) { pointer-events: auto; }
 .workspace-chat-icon.is-search { background: #edf0f8; color: #33446d; font-size: 22px; }
 .workspace-chat-icon.is-openings { background: #5b1930; color: #fff; }
 .workspace-chat-icon.is-integrations { background: #f3e8ee; color: #7a2947; font-size: 18px; }
+.workspace-map-entry { color: inherit; text-decoration: none; }
+.workspace-chat-icon.is-map { background: #e7f0f3; color: #245a6a; }
 
 .workspace-chat-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .workspace-chat-copy strong { font-size: 13px; line-height: 1.2; }

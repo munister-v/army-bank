@@ -5785,7 +5785,22 @@ function showApp() {
   ensureMessengerBankStatus().catch(() => {});
   loadConversations();
   loadTeamDirectory().catch(() => {});
-  window.setTimeout(restoreLastWorkspace, 0);
+  window.setTimeout(() => {
+    const search = new URLSearchParams(window.location.search);
+    const requestedLead = Number(search.get('lead') || 0);
+    if (isLeadsAdmin && requestedLead > 0) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      openLeadDetail(requestedLead).catch(error => showToast(error.message || 'Не вдалося відкрити лід.', true));
+      return;
+    }
+    // The map asks unauthenticated visitors to sign in here first. Only allow
+    // the single local CRM destination, never an arbitrary redirect URL.
+    if (isLeadsAdmin && search.get('next') === '/leads-map') {
+      window.location.assign(`${BASE}/leads-map`);
+      return;
+    }
+    restoreLastWorkspace();
+  }, 0);
   ensurePushSubscriptionSilent().catch(() => {});
   startGlobalPoll();
   pollUnreadBadge();

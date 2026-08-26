@@ -442,6 +442,10 @@ def create_app() -> Flask:
     def messenger_page():
         return send_html('messenger.html')
 
+    @app.get(prefix + '/leads-map' if prefix else '/leads-map')
+    def leads_map_page():
+        return send_html('leads-map.html')
+
     @app.get(prefix + '/marketplace' if prefix else '/marketplace')
     @app.get(prefix + '/marketplace/' if prefix else '/marketplace/')
     def marketplace_page():

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0f3b2d"/>
+  <meta name="description" content="ARM CRM: карта лідів у Сполучених Штатах"/>
+  <title>Карта лідів США · ARM CRM</title>
+  <link rel="icon" type="image/svg+xml" href="/icons/chat-favicon.svg"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css?v=101"/>
+  <link rel="stylesheet" href="/css/leads-map.css?v=1"/>
+</head>
+<body>
+  <a class="skip-link" href="#map-main">Перейти до карти</a>
+  <header class="map-topbar">
+    <a class="map-brand" href="/messenger" aria-label="Повернутися до ARM CRM Messenger">
+      <img src="/icons/chat-icon-32.png" alt="" width="28" height="28"/>
+      <span>ARM CRM</span>
+    </a>
+    <nav class="map-nav" aria-label="Навігація карти">
+      <a href="/messenger">Месенджер</a>
+      <span aria-current="page">Карта США</span>
+    </nav>
+    <button class="refresh-button" id="refresh-map" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M20 11a8 8 0 1 0 2 5.4"/><path d="M20 4v7h-7"/></svg>
+      <span>Оновити</span>
+    </button>
+  </header>
+
+  <main class="map-main" id="map-main">
+    <section class="map-intro" aria-labelledby="map-title">
+      <div>
+        <p class="eyebrow">ARM CRM / РИНОК США</p>
+        <h1 id="map-title">Карта лідів США</h1>
+        <p class="map-lede">Робоча географія команди. Оберіть місто, щоб побачити ліди та перейти до їхніх карток у CRM.</p>
+      </div>
+      <p class="map-privacy">Координати визначаються локально за містом. Дані лідів не передаються геокодерам.</p>
+    </section>
+
+    <section class="map-stats" id="map-stats" aria-label="Підсумок лідів США" aria-live="polite">
+      <article><span>Ліди у США</span><strong id="stat-total">...</strong></article>
+      <article><span>Міста на карті</span><strong id="stat-cities">...</strong></article>
+      <article><span>Високий пріоритет</span><strong id="stat-hot">...</strong></article>
+      <article><span>Потребують дії</span><strong id="stat-due">...</strong></article>
+    </section>
+
+    <section class="map-workspace" aria-label="Інтерактивна карта лідів">
+      <div class="map-canvas-panel">
+        <div class="map-toolbar">
+          <div class="map-filter-group" role="group" aria-label="Фільтр карти">
+            <button type="button" class="map-filter is-active" data-filter="all" aria-pressed="true">Усі</button>
+            <button type="button" class="map-filter" data-filter="due" aria-pressed="false">Потребують дії</button>
+            <button type="button" class="map-filter" data-filter="hot" aria-pressed="false">Високий пріоритет</button>
+          </div>
+          <label class="state-filter-label" for="state-filter">Штат
+            <select id="state-filter"><option value="">Усі штати</option></select>
+          </label>
+          <button class="fit-button" id="fit-map" type="button">Показати всі міста</button>
+        </div>
+        <div class="map-frame">
+          <div id="us-leads-map" aria-label="Карта Сполучених Штатів з кластерами лідів"></div>
+          <div class="map-loading" id="map-loading" role="status"><span></span><p>Завантажуємо географію лідів...</p></div>
+          <div class="map-error" id="map-error" role="alert" hidden>
+            <strong>Карта поки недоступна</strong><p id="map-error-text">Спробуйте оновити сторінку.</p>
+            <button type="button" id="retry-map">Спробувати ще раз</button>
+          </div>
+        </div>
+        <div class="map-legend" aria-label="Легенда карти">
+          <span><i class="legend-dot is-normal"></i> Робочі ліди</span>
+          <span><i class="legend-dot is-hot"></i> Високий пріоритет</span>
+          <span><i class="legend-dot is-due"></i> Є дія на сьогодні або прострочена</span>
+        </div>
+      </div>
+
+      <aside class="city-panel" aria-labelledby="cities-title">
+        <div class="city-panel-head">
+          <div><p class="eyebrow">НА КАРТІ</p><h2 id="cities-title">Міста</h2></div>
+          <span id="cities-count" class="city-count"></span>
+        </div>
+        <div class="city-list" id="city-list" aria-live="polite"></div>
+      </aside>
+    </section>
+
+    <section class="lead-drawer" id="lead-drawer" aria-labelledby="lead-drawer-title" hidden>
+      <div class="lead-drawer-head">
+        <div>
+          <p class="eyebrow" id="lead-drawer-state">ШТАТ</p>
+          <h2 id="lead-drawer-title">Оберіть місто</h2>
+        </div>
+        <button id="close-drawer" class="drawer-close" type="button" aria-label="Закрити список лідів">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <p class="lead-drawer-summary" id="lead-drawer-summary"></p>
+      <div class="lead-list" id="lead-list"></div>
+    </section>
+
+    <section class="unmapped-panel" id="unmapped-panel" hidden aria-labelledby="unmapped-title">
+      <div><p class="eyebrow">ПОТРІБНЕ УТОЧНЕННЯ</p><h2 id="unmapped-title">Міста без точки на карті</h2></div>
+      <p>Ці ліди залишаються у CRM. Додайте місто у звичному форматі, наприклад <em>Austin, TX</em>, щоб вони з’явилися на мапі.</p>
+      <ul id="unmapped-list"></ul>
+    </section>
+  </main>
+
+  <script src="/vendor/leaflet/leaflet.js?v=101"></script>
+  <script src="/js/leads-map.js?v=1"></script>
+</body>
+</html>
