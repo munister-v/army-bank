@@ -11783,3 +11783,21 @@ no duplicated copy { grid-template-columns: minmax(0, 1fr) 176px !important; min
   #app .lead-v2-foot { flex-direction: column; align-items: flex-start; gap: 10px; }
   #app .lead-v2-next { white-space: normal; }
 }
+
+/* Direct map access belongs beside the daily lead controls, not in a hidden menu. */
+.workspace-view-actions .leads-map-button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-color: #97bda8 !important;
+  background: #edf5ef !important;
+  color: #1b5c43 !important;
+  text-decoration: none;
+}
+.workspace-view-actions .leads-map-button:hover { border-color: #5f9275 !important; background: #e1eee5 !important; }
+.workspace-view-actions .leads-map-button svg { width: 17px; height: 17px; }
+@media (max-width: 720px) {
+  .workspace-view-actions .leads-map-button { width: 42px; justify-content: center; padding: 0; }
+  .workspace-view-actions .leads-map-button span { display: none; }
+}
