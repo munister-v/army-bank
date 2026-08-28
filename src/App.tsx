@@ -33,17 +33,55 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
 const gold        = '#b8b09a';   // warm platinum (was bright gold)
 const goldDark    = '#7a7265';   // dark platinum
 const goldLight   = '#d4ccbc';   // light champagne
+// ── Висота поверхонь ────────────────────────────────────────
+// Ґрунт застосунку — #07150f (яскравість 17.6 за 0..255).
+// Було: картка = біле 4.2%, тобто ΔL всього 10, а рамка 8% давала ΔL 12 —
+// заливка і край читались однаково слабко, і жодна картка не відділялась
+// від фону. Тепер щабель між сусідніми рівнями ≈ 19-28.
+//
+// Підсвічуємо не чистим білим, а ледь зеленим: чистий білий на зеленому
+// ґрунті дає сірий наліт, через який інтерфейс виглядав запиленим.
+const LIFT = '198,236,214';      // зелений підсвіт поверхонь
+const EDGE = '184,176,154';      // шампань — рамки й розділювачі
+
 const bg = {
-  card:   'rgba(255,255,255,0.042)',
-  card2:  'rgba(255,255,255,0.026)',
-  border: 'rgba(180,172,155,0.08)',
-  hover:  'rgba(255,255,255,0.06)',
+  /** підкладки всередині карток: чипи, поля вводу */
+  sunken: `rgba(${LIFT},0.045)`,
+  /** основна картка (ΔL ≈ 19) */
+  card:   `rgba(${LIFT},0.095)`,
+  /** тихіша картка другого плану */
+  card2:  `rgba(${LIFT},0.06)`,
+  /** підняте: активний стан, модалка над карткою (ΔL ≈ 28) */
+  raised: `rgba(${LIFT},0.135)`,
+  hover:  `rgba(${LIFT},0.12)`,
+  /** рамка, що справді читається як край (ΔL ≈ 26, було 12) */
+  border: `rgba(${EDGE},0.16)`,
+  borderStrong: `rgba(${EDGE},0.24)`,
+  /** ледь помітна лінія між рядками списку */
+  divider: `rgba(${EDGE},0.10)`,
 };
+
+// ── Семантика грошей ────────────────────────────────────────
+// Було чотири різних червоних і три зелених — кожен екран винаходив свій.
+// Тепер один прихід, одна витрата, одне попередження: інакше однакова за
+// змістом сума виглядає по-різному залежно від екрана, на якому її показують.
+// #e05a40 лишається окремо як «критично» (ліміт вичерпано), це не те саме,
+// що звичайне списання.
+const money = {
+  pos:  '#7fb896',   // надходження
+  posDim: 'rgba(127,184,150,0.16)',
+  neg:  '#e07070',   // списання
+  negDim: 'rgba(224,112,112,0.14)',
+  warn: '#e8a864',   // увага, ліміт
+  warnDim: 'rgba(232,168,100,0.14)',
+  crit: '#e05a40',   // перевищення ліміту
+};
+
 const text = {
   primary:   '#f0ece4',
   secondary: '#ddd8cc',
-  muted:     'rgba(200,194,180,0.62)',
-  dim:       'rgba(200,194,180,0.38)',
+  muted:     'rgba(206,200,186,0.66)',
+  dim:       'rgba(206,200,186,0.42)',
   gold:      gold,
 };
 const radius = { sm: 10, md: 14, lg: 18, xl: 22, '2xl': 28 };
@@ -76,12 +114,16 @@ const T = {
 
 // ─── Liquid glass card ────────────────────────────────────────
 const glassCard = (extra?: React.CSSProperties): React.CSSProperties => ({
-  background: 'linear-gradient(180deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.03) 100%)',
+  // Скло лишається склом — міняються тільки значення. Верх картки світліший
+  // за низ, як і було, але тепер обидва щаблі реально відрізняються від
+  // ґрунту, а не висять за два відсотки від нього.
+  background: `linear-gradient(180deg, rgba(${LIFT},0.105) 0%, rgba(${LIFT},0.062) 100%)`,
   backdropFilter: 'blur(24px)',
   WebkitBackdropFilter: 'blur(24px)',
-  border: `1px solid rgba(184,176,154,0.10)`,
+  border: `1px solid ${bg.border}`,
   borderRadius: radius.xl,
-  boxShadow: '0 2px 12px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.04)',
+  // Тінь під карткою була майже нульова (8%), і картка ні на чому не лежала.
+  boxShadow: '0 8px 24px rgba(0,0,0,0.30), 0 1px 2px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.05)',
   ...extra,
 });
 
@@ -470,6 +512,7 @@ const translations = {
     spend_shopping: 'Покупки',
     spend_subscription: 'Підписки',
     cards_title: 'Мої картки',
+    cards_subtitle: 'Випуск, дизайн і ліміти',
     card_not_found: 'Картку не знайдено.',
     pin_change_error: 'Помилка зміни PIN',
     pin_saved: 'PIN картки змінено',
@@ -485,6 +528,7 @@ const translations = {
     saving: 'Збереження…',
     save_pin: 'Зберегти PIN',
     operations_title: 'Операції',
+    operations_subtitle: 'Історія та аналітика витрат',
     download_csv: 'Завантажити CSV',
     search_transactions: 'Пошук транзакцій...',
     nothing_found_for: 'Нічого не знайдено за',
@@ -514,6 +558,7 @@ const translations = {
     orders_tab: 'Замовлення',
     invoices_tab: 'Інвойси',
     market_title: 'Магазин',
+    market_subtitle: 'Техніка та спорядження за балами',
     loading: 'Завантаження…',
     market_empty: 'Магазин порожній',
     try_another_query: 'Спробуй інший запит',
@@ -732,6 +777,7 @@ const translations = {
     spend_shopping: 'Shopping',
     spend_subscription: 'Subscriptions',
     cards_title: 'My cards',
+    cards_subtitle: 'Issuing, design and limits',
     card_not_found: 'Card not found.',
     pin_change_error: 'PIN change error',
     pin_saved: 'Card PIN updated',
@@ -747,6 +793,7 @@ const translations = {
     saving: 'Saving…',
     save_pin: 'Save PIN',
     operations_title: 'Operations',
+    operations_subtitle: 'History and spending analytics',
     download_csv: 'Download CSV',
     search_transactions: 'Search transactions...',
     nothing_found_for: 'Nothing found for',
@@ -776,6 +823,7 @@ const translations = {
     orders_tab: 'Orders',
     invoices_tab: 'Invoices',
     market_title: 'Store',
+    market_subtitle: 'Gear and electronics for your points',
     loading: 'Loading…',
     market_empty: 'Store is empty',
     try_another_query: 'Try another query',
@@ -994,6 +1042,7 @@ const translations = {
     spend_shopping: 'Shopping',
     spend_subscription: 'Abbonamenti',
     cards_title: 'Le mie carte',
+    cards_subtitle: 'Emissione, design e limiti',
     card_not_found: 'Carta non trovata.',
     pin_change_error: 'Errore cambio PIN',
     pin_saved: 'PIN carta aggiornato',
@@ -1009,6 +1058,7 @@ const translations = {
     saving: 'Salvataggio…',
     save_pin: 'Salva PIN',
     operations_title: 'Operazioni',
+    operations_subtitle: 'Storico e analisi delle spese',
     download_csv: 'Scarica CSV',
     search_transactions: 'Cerca transazioni...',
     nothing_found_for: 'Nessun risultato per',
@@ -1038,6 +1088,7 @@ const translations = {
     orders_tab: 'Ordini',
     invoices_tab: 'Fatture',
     market_title: 'Negozio',
+    market_subtitle: 'Attrezzatura ed elettronica con i punti',
     loading: 'Caricamento…',
     market_empty: 'Negozio vuoto',
     try_another_query: "Prova un'altra ricerca",
@@ -1256,6 +1307,7 @@ const translations = {
     spend_shopping: 'Compras',
     spend_subscription: 'Suscripciones',
     cards_title: 'Mis tarjetas',
+    cards_subtitle: 'Emisión, diseño y límites',
     card_not_found: 'Tarjeta no encontrada.',
     pin_change_error: 'Error al cambiar PIN',
     pin_saved: 'PIN de la tarjeta actualizado',
@@ -1271,6 +1323,7 @@ const translations = {
     saving: 'Guardando…',
     save_pin: 'Guardar PIN',
     operations_title: 'Operaciones',
+    operations_subtitle: 'Historial y análisis de gastos',
     download_csv: 'Descargar CSV',
     search_transactions: 'Buscar transacciones...',
     nothing_found_for: 'No se encontró nada para',
@@ -1300,6 +1353,7 @@ const translations = {
     orders_tab: 'Pedidos',
     invoices_tab: 'Facturas',
     market_title: 'Tienda',
+    market_subtitle: 'Equipo y electrónica con tus puntos',
     loading: 'Cargando…',
     market_empty: 'La tienda está vacía',
     try_another_query: 'Prueba otra búsqueda',
@@ -1979,6 +2033,12 @@ const CARD_DESIGN_OPTIONS: CardDesignOption[] = [
 ];
 
 // ─── Data helpers ─────────────────────────────────────────────
+function pluralUk(n: number, one: string, few: string, many: string) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+}
 function fmtInt(n: number) {
   return Math.floor(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
 }
@@ -2002,9 +2062,25 @@ function fmtTime(iso: string, lang: AppLang = getStoredLanguage()): string {
   if (isNaN(d.getTime())) return iso.slice(11, 16) || '—';
   return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }
+// Ключові слова опису. tx_type з бекенду каже лише «payment / transfer /
+// topup», тож без цього кроку кожна покупка отримувала іконку переказу.
+const CAT_KEYWORDS: [TxCat, string[]][] = [
+  ['food',         ['їж', 'продукт', 'сільпо', 'атб', 'ашан', 'novus', 'варус', 'кафе', 'ресторан', 'пекарн', 'food', 'supermarket', 'coffee', 'кав']],
+  ['transport',    ['таксі', 'uber', 'bolt', 'uklon', 'метро', 'metro', 'автобус', 'квиток', 'заправ', 'wog', 'okko', 'паливо', 'парк']],
+  ['utility',      ['комунал', 'електр', 'газ', 'вода', 'опалюв', 'інтернет', 'зв\'язок', 'мобільн', 'kyivstar', 'vodafone', 'lifecell']],
+  ['shopping',     ['магаз', 'шопінг', 'amazon', 'rozetka', 'алло', 'одяг', 'взутт', 'покупк', 'аптек', 'shop', 'пошта', 'нова пошта', 'укрпошта', 'meest', 'доставк']],
+  ['subscription', ['підписк', 'netflix', 'spotify', 'youtube', 'icloud', 'apple', 'google', 'megogo', 'підпис']],
+];
+
 function txToCat(tx: TxItem): TxCat {
   if (tx.direction === 'in') return 'income';
   const m: Record<string, TxCat> = { food: 'food', transport: 'transport', utility: 'utility', shopping: 'shopping', subscription: 'subscription', transfer: 'transfer' };
+  const desc = (tx.description || '').toLowerCase();
+  if (desc) {
+    for (const [cat, words] of CAT_KEYWORDS) {
+      if (words.some(w => desc.includes(w))) return cat;
+    }
+  }
   return (m[tx.tx_type] ?? 'transfer') as TxCat;
 }
 function apiCardToData(c: CardInfo, holderFallback = 'ARMY BANK'): CardData & { id: number; type: string; limit: string; used: string; statusRaw: string; cardTypeRaw: string; balance: number; isPrimary: boolean } {
@@ -2217,7 +2293,7 @@ function BalanceHistoryChart() {
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
           <span style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8 }}>{t('balance_history_title')}</span>
           <span style={{ fontSize: 12, color: isUp ? '#7fb896' : '#e07070', fontWeight: 600, fontFeatureSettings: '"tnum"' }}>
-            {isUp ? '+' : ''}{fmtInt(diff)}{fmtDec(diff)} ₴
+            {isUp ? '+' : '−'}₴{fmtInt(diff)}{fmtDec(diff)}
           </span>
         </div>
         <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', height: 52, overflow: 'visible' }}>
@@ -2262,7 +2338,7 @@ function InsightsStrip() {
       <div style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>{t('insights_title')}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {insights.map((ins, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(180,172,155,0.1)', borderRadius: 14 }}>
+          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: bg.sunken, border: '1px solid rgba(180,172,155,0.1)', borderRadius: 14 }}>
             <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1.4 }}>{ins.icon}</span>
             <span style={{ fontSize: 12, color: text.secondary, lineHeight: 1.5 }}>{ins.text}</span>
           </div>
@@ -2297,7 +2373,7 @@ function TopRecipientsMini({ onTransfer }: { onTransfer: (account: string) => vo
         {recipients.map((r, i) => (
           <button key={i} onClick={() => onTransfer(r.related_account)} style={{
             flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
-            padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(180,172,155,0.12)',
+            padding: '10px 12px', background: bg.sunken, border: '1px solid rgba(180,172,155,0.12)',
             borderRadius: 16, cursor: 'pointer', minWidth: 80,
           }}>
             <div style={{ width: 36, height: 36, borderRadius: '50%', background: `linear-gradient(135deg, ${gold}30, ${goldDark}30)`, border: `1px solid ${gold}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: gold, fontFamily: 'monospace' }}>
@@ -2377,7 +2453,7 @@ function ActivityRow({ iconBg, iconEl, title, subtitle, amount, positive, onClic
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <div style={{ ...T.body, fontWeight: 600, color: positive ? '#7fb896' : text.secondary, ...T.num }}>
-          {positive ? '+' : ''}{amount}
+          {amount}
         </div>
         {onClick && <Chevron size={13} color="rgba(220,215,200,0.25)" />}
       </div>
@@ -2420,7 +2496,7 @@ function BalanceBlock({ visible, onToggle, balance, accountNumber }: { visible: 
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <span style={{ ...T.caption, color: text.muted }}>{t('balance_total')}</span>
-        <button onClick={onToggle} style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(184,176,154,0.1)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button onClick={onToggle} style={{ width: 24, height: 24, borderRadius: '50%', background: bg.card2, border: '1px solid rgba(184,176,154,0.1)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {visible
             ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" stroke={text.muted} strokeWidth="1.6" /><circle cx="12" cy="12" r="3" stroke={text.muted} strokeWidth="1.6" /></svg>
             : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.4 5.1A10.9 10.9 0 0112 5c6 0 10 7 10 7a18 18 0 01-3.2 3.9M6.6 6.6A18 18 0 002 12s4 7 10 7a11 11 0 003.4-.5" stroke={text.muted} strokeWidth="1.6" strokeLinecap="round" /></svg>
@@ -2436,7 +2512,7 @@ function BalanceBlock({ visible, onToggle, balance, accountNumber }: { visible: 
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
         {accountNumber && accountNumber !== '—' && (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(184,176,154,0.12)`, borderRadius: 100, fontSize: 11, color: 'rgba(220,215,200,0.65)', fontWeight: 500, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', background: bg.card2, border: `1px solid rgba(184,176,154,0.12)`, borderRadius: 100, fontSize: 11, color: 'rgba(220,215,200,0.65)', fontWeight: 500, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
             {accountNumber}
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="2" /><path d="M5 15V5a2 2 0 012-2h10" stroke="currentColor" strokeWidth="2" /></svg>
           </div>
@@ -2452,7 +2528,7 @@ function ActivityFeed({ title = true, transactions }: { title?: boolean; transac
   const rows = transactions.slice(0, 5).map(tx => {
     const cat = txToCat(tx);
     const s = CAT_STYLES[cat];
-    return { iconBg: s.bg, iconEl: s.icon, title: tx.description, subtitle: fmtTime(tx.created_at, lang), amount: `₴\u00a0${fmtInt(tx.amount)}${fmtDec(tx.amount)}`, positive: tx.direction === 'in' };
+    return { iconBg: s.bg, iconEl: s.icon, title: tx.description, subtitle: fmtTime(tx.created_at, lang), amount: `${tx.direction === 'in' ? '+' : '−'}₴\u00a0${fmtInt(tx.amount)}${fmtDec(tx.amount)}`, positive: tx.direction === 'in' };
   });
   return (
     <div>
@@ -2584,7 +2660,7 @@ function ThreeDSModal({
           <div style={{ flex: 1 }} />
           <div style={{
             width: 32, height: 32, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.1)',
+            background: bg.raised,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -2598,7 +2674,7 @@ function ThreeDSModal({
         <div style={{ padding: '24px 20px 28px' }}>
           {/* Payment summary */}
           <div style={{
-            background: 'rgba(255,255,255,0.04)', borderRadius: 14,
+            background: bg.card2, borderRadius: 14,
             border: '1px solid rgba(180,172,155,0.12)',
             padding: '14px 16px', marginBottom: 20,
           }}>
@@ -2649,7 +2725,7 @@ function ThreeDSModal({
                 width: '100%', padding: '16px', textAlign: 'center',
                 fontSize: 28, fontWeight: 700, letterSpacing: 10,
                 fontFamily: '"SF Mono", monospace',
-                background: 'rgba(255,255,255,0.06)',
+                background: bg.card,
                 border: `1px solid ${error ? 'rgba(220,80,80,0.5)' : 'rgba(180,172,155,0.2)'}`,
                 borderRadius: 14, color: '#f4ebd0', outline: 'none',
                 boxSizing: 'border-box',
@@ -2659,12 +2735,12 @@ function ThreeDSModal({
           </div>
 
           {/* Timer */}
-          <div style={{ textAlign: 'center', marginBottom: 16, fontSize: 12, color: expired ? '#f08080' : 'rgba(220,215,200,0.45)' }}>
+          <div style={{ textAlign: 'center', marginBottom: 16, fontSize: 12, color: expired ? '#e07070' : 'rgba(220,215,200,0.45)' }}>
             {expired ? '⚠ Код прострочено' : `Код дійсний: ${mm}:${ss}`}
           </div>
 
           {error && (
-            <div style={{ padding: '10px 14px', background: 'rgba(200,60,60,0.12)', borderRadius: 10, color: '#f08080', fontSize: 13, marginBottom: 12 }}>
+            <div style={{ padding: '10px 14px', background: 'rgba(200,60,60,0.12)', borderRadius: 10, color: '#e07070', fontSize: 13, marginBottom: 12 }}>
               {error}
             </div>
           )}
@@ -2674,7 +2750,7 @@ function ThreeDSModal({
               onClick={onCancel}
               style={{
                 flex: 1, padding: '13px', borderRadius: 12,
-                background: 'rgba(255,255,255,0.05)',
+                background: bg.card2,
                 border: '1px solid rgba(180,172,155,0.15)',
                 color: 'rgba(220,215,200,0.7)', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
               }}
@@ -2815,7 +2891,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
 
   const inp: React.CSSProperties = {
     width: '100%', padding: '12px 14px', boxSizing: 'border-box',
-    background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.16)`,
+    background: bg.card2, border: `1px solid rgba(180,172,155,0.16)`,
     borderRadius: 12, color: '#f4ebd0', fontSize: 15, outline: 'none', fontFamily: 'inherit',
   };
 
@@ -2868,7 +2944,7 @@ function TransferModal({ mode, onClose }: { mode: TransferMode; onClose: () => v
           <div>
             <input style={{ ...inp, fontSize: 13 }} value={description} onChange={e => setDescription(e.target.value)} placeholder={cfg.placeholder} />
           </div>
-          {error && <div style={{ padding: '10px 14px', background: 'rgba(200,60,60,0.12)', border: '1px solid rgba(200,60,60,0.25)', borderRadius: 10, color: '#f08080', fontSize: 13 }}>{error}</div>}
+          {error && <div style={{ padding: '10px 14px', background: 'rgba(200,60,60,0.12)', border: '1px solid rgba(200,60,60,0.25)', borderRadius: 10, color: '#e07070', fontSize: 13 }}>{error}</div>}
           <button type="submit" disabled={loading} style={{
             marginTop: 4, padding: '15px', borderRadius: 14,
             border: `1px solid ${bg.border}`,
@@ -2920,7 +2996,7 @@ function FxExchangeModal({ rates, onClose }: { rates: FxRate[]; onClose: () => v
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: text.primary }}>Обмін валюти</div>
           <div style={{ flex: 1 }} />
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: 'none', cursor: 'pointer', color: text.muted, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, background: bg.card, border: 'none', cursor: 'pointer', color: text.muted, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
         <div style={{ display: 'flex', background: 'rgba(26,40,32,0.6)', borderRadius: 14, padding: 4, marginBottom: 20 }}>
           {([['buy', '🛒 Купити'] as const, ['sell', '💵 Продати'] as const]).map(([d, label]) => (
@@ -2938,7 +3014,7 @@ function FxExchangeModal({ rates, onClose }: { rates: FxRate[]; onClose: () => v
         </div>
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 12, color: text.muted, display: 'block', marginBottom: 6 }}>{dir === 'buy' ? `Сума в гривнях (UAH)` : `Сума в ${currency}`}</label>
-          <input type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" style={{ width: '100%', padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.2)`, color: text.primary, fontSize: 22, fontWeight: 600, outline: 'none', textAlign: 'right' }} />
+          <input type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" style={{ width: '100%', padding: '14px 16px', borderRadius: 14, background: bg.card2, border: `1px solid rgba(180,172,155,0.2)`, color: text.primary, fontSize: 22, fontWeight: 600, outline: 'none', textAlign: 'right' }} />
         </div>
         {amtNum > 0 && (
           <div style={{ background: 'rgba(180,172,155,0.05)', border: '1px solid rgba(180,172,155,0.12)', borderRadius: 14, padding: '14px 16px', marginBottom: 20 }}>
@@ -2981,8 +3057,8 @@ function MonthlyFinanceSummary({ transactions }: { transactions: TxItem[] }) {
   const expensesDelta = prevExpenses > 0 ? ((expenses - prevExpenses) / prevExpenses * 100) : 0;
   const monthName = now.toLocaleDateString(lang === 'uk' ? 'uk-UA' : lang === 'en' ? 'en-US' : lang === 'it' ? 'it-IT' : 'es-ES', { month: 'long' });
   const items = [
-    { label: 'Дохід', value: `₴${fmtInt(income)}`, color: '#7fb896', icon: <TrendUpIcon color="#7fb896" /> },
-    { label: 'Витрати', value: `₴${fmtInt(expenses)}`, color: income > 0 && expenses > income ? '#e07070' : text.secondary, icon: <TrendDownIcon color={income > 0 && expenses > income ? '#e07070' : text.secondary} />, sub: prevExpenses > 0 ? `${expensesDelta >= 0 ? '+' : ''}${expensesDelta.toFixed(0)}% vs минулий міс.` : undefined },
+    { label: 'Дохід', value: `+₴${fmtInt(income)}`, color: '#7fb896', icon: <TrendUpIcon color="#7fb896" /> },
+    { label: 'Витрати', value: `−₴${fmtInt(expenses)}`, color: income > 0 && expenses > income ? '#e07070' : text.secondary, icon: <TrendDownIcon color={income > 0 && expenses > income ? '#e07070' : text.secondary} />, sub: prevExpenses > 0 ? `${expensesDelta >= 0 ? '+' : ''}${expensesDelta.toFixed(0)}% vs минулий міс.` : undefined },
     { label: 'Баланс', value: `${net >= 0 ? '+' : '−'}₴${fmtInt(Math.abs(net))}`, color: net >= 0 ? '#7fb896' : '#e07070', icon: <WalletIcon color={net >= 0 ? '#7fb896' : '#e07070'} /> },
     { label: 'Заощадження', value: `${savingsRate}%`, color: savingsRate >= 20 ? '#7fb896' : savingsRate >= 10 ? gold : text.secondary, icon: <BankIcon color={savingsRate >= 20 ? '#7fb896' : savingsRate >= 10 ? gold : text.secondary} /> },
   ];
@@ -3117,9 +3193,9 @@ function SavingsGoalsMini() {
       {showCreate && (
         <div style={{ ...glassCard(), padding: '14px 16px', marginBottom: 10 }}>
           <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Назва цілі"
-            style={{ width: '100%', padding: '9px 12px', marginBottom: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            style={{ width: '100%', padding: '9px 12px', marginBottom: 8, background: bg.card2, border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           <input value={newTarget} onChange={e => setNewTarget(e.target.value)} placeholder="Сума, ₴" type="text" inputMode="decimal"
-            style={{ width: '100%', padding: '9px 12px', marginBottom: 10, background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            style={{ width: '100%', padding: '9px 12px', marginBottom: 10, background: bg.card2, border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           <button onClick={createGoal} disabled={creating} style={{
             width: '100%', padding: '10px', fontSize: 13, fontWeight: 600,
             background: `linear-gradient(135deg, ${gold}, ${goldDark})`, color: '#0c1a12',
@@ -3162,7 +3238,7 @@ function SavingsGoalsMini() {
             ) : (
               <div style={{ display: 'flex', gap: 8 }}>
                 <input value={contributeAmt} onChange={e => setContributeAmt(e.target.value)} placeholder="Сума" type="text" inputMode="decimal"
-                  style={{ flex: 1, padding: '8px 10px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 8, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+                  style={{ flex: 1, padding: '8px 10px', background: bg.card2, border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 8, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
                 <button onClick={() => contribute(goal.id)} style={{
                   padding: '8px 14px', fontSize: 12, fontWeight: 600,
                   background: `linear-gradient(135deg, ${gold}, ${goldDark})`, color: '#0c1a12',
@@ -3239,7 +3315,7 @@ function RecurringSection() {
     finally { setCreating(false); }
   };
 
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '9px 12px', marginBottom: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '9px 12px', marginBottom: 8, background: bg.card2, border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
 
   return (
     <div style={{ padding: '24px 22px 0' }}>
@@ -3329,7 +3405,7 @@ function FinancialHealthScore({ transactions, account }: { transactions: TxItem[
 
   const level = score >= 80 ? { label: 'Відмінно', color: '#7fb896', icon: <TrophyIcon color="#7fb896" /> }
     : score >= 60 ? { label: 'Добре', color: '#c9a964', icon: <CheckBadgeIcon color="#c9a964" /> }
-    : score >= 40 ? { label: 'Задовільно', color: '#e8a84a', icon: <ChartIcon color="#e8a84a" /> }
+    : score >= 40 ? { label: 'Задовільно', color: '#e8a864', icon: <ChartIcon color="#e8a864" /> }
     : { label: 'Потребує уваги', color: '#e05a40', icon: <AlertIcon color="#e05a40" /> };
 
   const tips = [
@@ -3355,7 +3431,7 @@ function FinancialHealthScore({ transactions, account }: { transactions: TxItem[
         </div>
       </div>
       {/* Score bar */}
-      <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 4, height: 6, marginBottom: tips.length ? 14 : 0, overflow: 'hidden' }}>
+      <div style={{ background: bg.card, borderRadius: 4, height: 6, marginBottom: tips.length ? 14 : 0, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${score}%`, borderRadius: 4, background: `linear-gradient(90deg, ${level.color}88, ${level.color})`, transition: 'width 1s ease' }} />
       </div>
       {/* Components */}
@@ -3365,7 +3441,7 @@ function FinancialHealthScore({ transactions, account }: { transactions: TxItem[
           { label: 'Баланс', val: Math.round(balanceScore) },
           { label: 'Активність', val: Math.round(activityScore) },
         ].map(({ label, val }) => (
-          <div key={label} style={{ textAlign: 'center', background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '8px 4px' }}>
+          <div key={label} style={{ textAlign: 'center', background: bg.sunken, borderRadius: 10, padding: '8px 4px' }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: text.primary }}>{val}</div>
             <div style={{ fontSize: 9, color: text.muted, marginTop: 2 }}>{label}</div>
           </div>
@@ -3375,7 +3451,7 @@ function FinancialHealthScore({ transactions, account }: { transactions: TxItem[
       {tips.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {tips.map((tip, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 11, color: text.muted, background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '7px 10px' }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 11, color: text.muted, background: bg.sunken, borderRadius: 8, padding: '7px 10px' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, color: gold, flexShrink: 0, marginTop: 1 }}>
                 <TipIcon color={gold} />
               </span>
@@ -3451,7 +3527,7 @@ function BudgetPlanner({ transactions }: { transactions: TxItem[] }) {
           const spentAmt = spent[cat.key] || 0;
           const pct = limit > 0 ? Math.min(100, (spentAmt / limit) * 100) : 0;
           const pace = limit > 0 ? (spentAmt / limit) / monthProgress : 0; // >1 = over pace
-          const barColor = pct >= 100 ? '#e05a40' : pct >= 80 ? '#e8a84a' : '#7fb896';
+          const barColor = pct >= 100 ? '#e05a40' : pct >= 80 ? '#e8a864' : '#7fb896';
           const isEditing = editing === cat.key;
 
           return (
@@ -3478,7 +3554,7 @@ function BudgetPlanner({ transactions }: { transactions: TxItem[] }) {
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                   <input type="text" inputMode="decimal" value={editVal} onChange={e => setEditVal(e.target.value)}
                     placeholder="Ліміт ₴"
-                    style={{ flex: 1, padding: '8px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.05)', border: `1px solid ${bg.border}`, color: text.primary, fontSize: 14, outline: 'none' }} />
+                    style={{ flex: 1, padding: '8px 12px', borderRadius: 10, background: bg.card2, border: `1px solid ${bg.border}`, color: text.primary, fontSize: 14, outline: 'none' }} />
                   <button onClick={() => { const v = parseFloat(editVal.replace(',', '.')); if (v > 0) saveBudget(cat.key, v); }}
                     style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #7fb896, #4a8a68)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                     ОК
@@ -3487,10 +3563,10 @@ function BudgetPlanner({ transactions }: { transactions: TxItem[] }) {
               )}
               {limit > 0 && (
                 <>
-                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 4, height: 5, overflow: 'hidden' }}>
+                  <div style={{ background: bg.card, borderRadius: 4, height: 5, overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${pct}%`, borderRadius: 4, background: `linear-gradient(90deg, ${barColor}88, ${barColor})`, transition: 'width 0.6s' }} />
                   </div>
-                  {pace > 1.2 && <div style={{ fontSize: 10, color: '#e8a84a', marginTop: 4 }}>⚡ Темп витрат вищий за плановий</div>}
+                  {pace > 1.2 && <div style={{ fontSize: 10, color: '#e8a864', marginTop: 4 }}>⚡ Темп витрат вищий за плановий</div>}
                   {pct >= 100 && <div style={{ fontSize: 10, color: '#e05a40', marginTop: 4 }}>🚫 Ліміт вичерпано</div>}
                 </>
               )}
@@ -3770,7 +3846,7 @@ function OverviewScreen() {
           <div style={{ fontSize: 12, color: text.muted, marginBottom: 12 }}>{t('cards_issue_hint')}</div>
           <button
             onClick={() => goTo('cards')}
-            style={{ padding: '8px 12px', borderRadius: 10, border: `1px solid ${bg.border}`, background: 'rgba(255,255,255,0.03)', color: text.secondary, cursor: 'pointer' }}
+            style={{ padding: '8px 12px', borderRadius: 10, border: `1px solid ${bg.border}`, background: bg.sunken, color: text.secondary, cursor: 'pointer' }}
           >
             {t('open_cards')}
           </button>
@@ -3841,7 +3917,7 @@ function OverviewScreen() {
                             </div>
                             <div style={{ position: 'absolute', top: '62%', left: '5%', right: '5%' }}>
                               <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', letterSpacing: 1, marginBottom: 5 }}>НОМЕР КАРТКИ</div>
-                              <button onClick={e => { e.stopPropagation(); if (ovRevealed) navigator.clipboard.writeText(ovRevealed.card_number.replace(/\s/g, '')).then(() => toast('Номер скопійовано ✓')).catch(() => {}); }} style={{ width: '100%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                              <button onClick={e => { e.stopPropagation(); if (ovRevealed) navigator.clipboard.writeText(ovRevealed.card_number.replace(/\s/g, '')).then(() => toast('Номер скопійовано ✓')).catch(() => {}); }} style={{ width: '100%', background: bg.raised, border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                                 <span style={{ fontFamily: '"SF Mono", monospace', fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: 2 }}>
                                   {ovRevealed ? ovRevealed.card_number.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim() : `•••• •••• •••• ${c.number}`}
                                 </span>
@@ -3971,7 +4047,7 @@ function OverviewScreen() {
               <svg key="chat" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z" stroke="#ddd8cc" strokeWidth="1.6" strokeLinejoin="round" /></svg>,
               <svg key="bell" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0" stroke="#ddd8cc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>,
             ].map((icon, i) => (
-              <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : openNotificationsPanel()} style={{ width: 40, height: 40, borderRadius: 14, background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(184,176,154,0.08)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 2px 6px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, position: 'relative', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
+              <button key={i} onClick={() => i === 0 ? window.open('https://munister.com.ua/messenger', '_blank') : openNotificationsPanel()} style={{ width: 40, height: 40, borderRadius: 14, background: bg.card2, border: '1px solid rgba(184,176,154,0.08)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 2px 6px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, position: 'relative', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
 
                 {icon}
                 {i === 1 && unreadCount > 0 && <span style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: '50%', background: '#e07070', border: '1.5px solid rgba(7,21,15,0.9)' }} />}
@@ -3981,8 +4057,8 @@ function OverviewScreen() {
           <div style={{ height: 18 }} />
           <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} balance={account?.balance ?? 0} accountNumber={account?.account_number ?? '—'} />
           <div style={{ display: 'flex', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
-            <div style={{ padding: '8px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.06)', fontSize: 11, color: 'rgba(220,215,200,0.78)', fontWeight: 600 }}>
-              {cards.length} {cards.length === 1 ? 'картка' : 'картки'}
+            <div style={{ padding: '8px 12px', borderRadius: 999, background: bg.card2, border: '1px solid rgba(255,255,255,0.06)', fontSize: 11, color: 'rgba(220,215,200,0.78)', fontWeight: 600 }}>
+              {cards.length} {pluralUk(cards.length, 'картка', 'картки', 'карток')}
             </div>
             <div style={{ padding: '8px 12px', borderRadius: 999, background: flowNet >= 0 ? 'rgba(127,184,150,0.14)' : 'rgba(224,112,112,0.14)', border: `1px solid ${flowNet >= 0 ? 'rgba(127,184,150,0.24)' : 'rgba(224,112,112,0.22)'}`, fontSize: 11, color: flowNet >= 0 ? '#9ad4b0' : '#f0b2ad', fontWeight: 600, fontFeatureSettings: '"tnum" 1' }}>
               {flowNetSign}₴{fmtInt(Math.abs(flowNet))}{fmtDec(Math.abs(flowNet))} цього місяця
@@ -4334,11 +4410,11 @@ function CardsScreen() {
           <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(circle at 18% 10%, rgba(146,198,165,0.1) 0%, rgba(146,198,165,0) 38%), radial-gradient(circle at 85% 18%, rgba(201,169,100,0.12) 0%, rgba(201,169,100,0) 42%)' }} />
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.6, marginBottom: 4 }}>{t('cards_title')}</div>
+              <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.6, marginBottom: 4 }}>{t('cards_subtitle')}</div>
               <div style={{ ...T.h1, color: text.primary, marginBottom: 8 }}>{t('cards_title')}</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <div style={{ padding: '7px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)', fontSize: 11, color: 'rgba(220,215,200,0.78)', fontWeight: 600 }}>
-                  {cards.length} {cards.length === 1 ? 'картка' : 'картки'}
+                <div style={{ padding: '7px 12px', borderRadius: 999, background: bg.card2, border: '1px solid rgba(255,255,255,0.06)', fontSize: 11, color: 'rgba(220,215,200,0.78)', fontWeight: 600 }}>
+                  {cards.length} {pluralUk(cards.length, 'картка', 'картки', 'карток')}
                 </div>
                 <div style={{ padding: '7px 12px', borderRadius: 999, background: 'rgba(127,184,150,0.12)', border: '1px solid rgba(127,184,150,0.22)', fontSize: 11, color: '#9ad4b0', fontWeight: 600 }}>
                   {activeCardsCount} активних
@@ -4410,7 +4486,7 @@ function CardsScreen() {
                       {/* Card number — 62% from top */}
                       <div style={{ position: 'absolute', top: '62%', left: '5%', right: '5%' }}>
                         <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', letterSpacing: 1, marginBottom: 5 }}>НОМЕР КАРТКИ</div>
-                        <button onClick={e => { e.stopPropagation(); if (revealed) navigator.clipboard.writeText(revealed.card_number.replace(/\s/g, '')).then(() => toast('Номер скопійовано ✓')).catch(() => {}); }} style={{ width: '100%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <button onClick={e => { e.stopPropagation(); if (revealed) navigator.clipboard.writeText(revealed.card_number.replace(/\s/g, '')).then(() => toast('Номер скопійовано ✓')).catch(() => {}); }} style={{ width: '100%', background: bg.raised, border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                           <span style={{ fontFamily: '"SF Mono", monospace', fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: 2 }}>
                             {revealed ? revealed.card_number.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim() : `•••• •••• •••• ${c.number}`}
                           </span>
@@ -4472,13 +4548,13 @@ function CardsScreen() {
               onClick={() => openDesignModal('current')}
               style={{
                 padding: '7px 12px', borderRadius: 10, border: '1px solid rgba(180,172,155,0.24)',
-                background: 'rgba(255,255,255,0.04)', color: text.secondary, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                background: bg.card2, color: text.secondary, fontSize: 12, fontWeight: 600, cursor: 'pointer',
               }}
             >{t('change_label')}</button>
           </div>
 
           {/* Card balance block */}
-          <div style={{ marginBottom: 18, padding: '14px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: 14, border: '1px solid rgba(180,172,155,0.1)' }}>
+          <div style={{ marginBottom: 18, padding: '14px 16px', background: bg.sunken, borderRadius: 14, border: '1px solid rgba(180,172,155,0.1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontSize: 10, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>
@@ -4498,7 +4574,7 @@ function CardsScreen() {
                 {!card?.isPrimary && card?.statusRaw !== 'closed' && (
                   <button onClick={setPrimaryCard} style={{
                     padding: '8px 14px', borderRadius: 10, border: '1px solid rgba(180,172,155,0.22)',
-                    background: 'rgba(255,255,255,0.03)', color: text.muted, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+                    background: bg.sunken, color: text.muted, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
                   }}>Зробити головною</button>
                 )}
               </div>
@@ -4558,7 +4634,7 @@ function CardsScreen() {
             <button onClick={closeCard} style={{
               flex: 1, padding: '12px', background: 'rgba(220,100,110,0.06)',
               border: '1px solid rgba(220,100,110,0.2)', borderRadius: 12,
-              color: '#dc646e', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
+              color: '#e07070', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               opacity: busyCardId === card.id || card.statusRaw === 'closed' ? 0.6 : 1,
             }}>
@@ -4594,7 +4670,7 @@ function CardsScreen() {
                 type="password" inputMode="numeric" maxLength={4}
                 value={pinValue} onChange={e => setPinValue(e.target.value.replace(/\D/g, '').slice(0, 4))}
                 placeholder="••••"
-                style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.18)`, borderRadius: 12, color: text.primary, fontSize: 20, outline: 'none', fontFamily: fontFamily, letterSpacing: 8, boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '12px 14px', background: bg.card2, border: `1px solid rgba(180,172,155,0.18)`, borderRadius: 12, color: text.primary, fontSize: 20, outline: 'none', fontFamily: fontFamily, letterSpacing: 8, boxSizing: 'border-box' }}
               />
             </div>
             <div>
@@ -4603,7 +4679,7 @@ function CardsScreen() {
                 type="password" inputMode="numeric" maxLength={4}
                 value={pinConfirm} onChange={e => setPinConfirm(e.target.value.replace(/\D/g, '').slice(0, 4))}
                 placeholder="••••"
-                style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid ${pinConfirm && pinValue !== pinConfirm ? 'rgba(220,80,80,0.5)' : 'rgba(180,172,155,0.18)'}`, borderRadius: 12, color: text.primary, fontSize: 20, outline: 'none', fontFamily: fontFamily, letterSpacing: 8, boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '12px 14px', background: bg.card2, border: `1px solid ${pinConfirm && pinValue !== pinConfirm ? 'rgba(220,80,80,0.5)' : 'rgba(180,172,155,0.18)'}`, borderRadius: 12, color: text.primary, fontSize: 20, outline: 'none', fontFamily: fontFamily, letterSpacing: 8, boxSizing: 'border-box' }}
               />
               {pinConfirm && pinValue !== pinConfirm && <div style={{ fontSize: 11, color: '#e07070', marginTop: 4 }}>{t('pin_mismatch')}</div>}
             </div>
@@ -4689,7 +4765,7 @@ function CardsScreen() {
               disabled={designLoading}
               style={{
                 flex: 1, padding: '13px 12px', borderRadius: 14, border: '1px solid rgba(180,172,155,0.22)',
-                background: 'rgba(255,255,255,0.03)', color: text.secondary, fontSize: 14, fontWeight: 600, cursor: designLoading ? 'default' : 'pointer',
+                background: bg.sunken, color: text.secondary, fontSize: 14, fontWeight: 600, cursor: designLoading ? 'default' : 'pointer',
               }}
             >{t('cancel_label')}</button>
             <button
@@ -4727,7 +4803,7 @@ function CardsScreen() {
             type="text" inputMode="decimal"
             value={topupAmount} onChange={e => setTopupAmount(e.target.value)}
             placeholder="0.00"
-            style={{ width: '100%', padding: '13px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.18)`, borderRadius: 12, color: text.primary, fontSize: 20, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 6 }}
+            style={{ width: '100%', padding: '13px 14px', background: bg.card2, border: `1px solid rgba(180,172,155,0.18)`, borderRadius: 12, color: text.primary, fontSize: 20, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 6 }}
           />
           <div style={{ fontSize: 11, color: text.dim, marginBottom: 20 }}>
             Баланс рахунку: {formatUah(Number(account?.balance || 0))}
@@ -4752,9 +4828,9 @@ type TxCat = 'income' | 'food' | 'transport' | 'utility' | 'shopping' | 'transfe
 const CAT_STYLES: Record<TxCat, { bg: string; color: string; icon: React.ReactNode }> = {
   income:       { bg: 'rgba(127,184,150,0.12)', color: '#7fb896', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M6 16l6 6 6-6" stroke="#7fb896" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> },
   food:         { bg: 'rgba(232,168,100,0.12)', color: '#e8a864', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 2v8a3 3 0 006 0V2M9 2v6M18 2c-2 0-3 2-3 5s1 5 3 5v8" stroke="#e8a864" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  transport:    { bg: 'rgba(136,168,232,0.12)', color: '#88a8e8', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 17h14l-2-8H7l-2 8zM7 17v2M17 17v2M9 9V6a3 3 0 016 0v3" stroke="#88a8e8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  utility:      { bg: 'rgba(180,172,155,0.12)', color: gold, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L4 7v6c0 5 4 8 8 9 4-1 8-4 8-9V7l-8-5zM12 8v4l3 2" stroke={gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
-  shopping:     { bg: 'rgba(201,125,180,0.12)', color: '#c97db4', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 7h16l-1.5 11a2 2 0 01-2 1.8h-9a2 2 0 01-2-1.8L4 7zM9 7V5a3 3 0 016 0v2" stroke="#c97db4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+  transport:    { bg: 'rgba(136,168,232,0.12)', color: '#88a8e8', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 15v-3.2a2 2 0 01.35-1.13l2.05-3.07A2 2 0 018.06 6.7h7.88a2 2 0 011.66.9l2.05 3.07A2 2 0 0120 11.8V15a1 1 0 01-1 1H5a1 1 0 01-1-1zM4 12h16M7.5 18.5V16M16.5 18.5V16" stroke="#88a8e8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+  utility:      { bg: 'rgba(180,172,155,0.12)', color: gold, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" stroke={gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
+  shopping:     { bg: 'rgba(201,125,180,0.12)', color: '#c97db4', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 4h2l2.6 10.4a2 2 0 002 1.6h7.2a2 2 0 002-1.6L21 7H6M9.5 20a1 1 0 100-2 1 1 0 000 2zM17.5 20a1 1 0 100-2 1 1 0 000 2z" stroke="#c97db4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
   transfer:     { bg: 'rgba(220,215,200,0.1)', color: '#ddd8cc', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M7 17l-4-4 4-4M3 13h13M17 7l4 4-4 4M21 11H8" stroke="#ddd8cc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
   subscription: { bg: 'rgba(120,200,180,0.12)', color: '#78c8b4', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 0115-6.7L21 8M21 3v5h-5M21 12a9 9 0 01-15 6.7L3 16M3 21v-5h5" stroke="#78c8b4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg> },
 };
@@ -4836,7 +4912,7 @@ function DepositsSection() {
 
   const depStatusColor = (s: string) => ({
     active: '#7fb896', matured: gold, closed: 'rgba(220,215,200,0.4)',
-    withdrawn_early: '#f08080',
+    withdrawn_early: '#e07070',
   }[s] ?? 'rgba(220,215,200,0.4)');
 
   const projectedInterest = () => {
@@ -4935,7 +5011,7 @@ function DepositsSection() {
                 type="text" inputMode="decimal"
                 value={amount} onChange={e => setAmount(e.target.value)}
                 placeholder="0,00"
-                style={{ width: '100%', padding: '14px 16px', background: 'rgba(255,255,255,0.045)', border: `1px solid rgba(180,172,155,0.16)`, borderRadius: 14, color: text.primary, fontSize: 22, fontWeight: 500, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }}
+                style={{ width: '100%', padding: '14px 16px', background: bg.card2, border: `1px solid rgba(180,172,155,0.16)`, borderRadius: 14, color: text.primary, fontSize: 22, fontWeight: 500, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }}
               />
               <div style={{ fontSize: 11, color: text.muted, marginTop: 4 }}>{t('dep_min_amount')}</div>
             </div>
@@ -5083,7 +5159,7 @@ function DepositsSection() {
                           style={{
                             ...actionBtnBase,
                             background: 'rgba(220,100,100,0.06)', border: '1px solid rgba(220,100,100,0.18)',
-                            color: '#f08080', fontSize: 12, fontWeight: 600,
+                            color: '#e07070', fontSize: 12, fontWeight: 600,
                             cursor: closing === dep.id ? 'default' : 'pointer',
                             opacity: closing === dep.id ? 0.5 : 1,
                           }}
@@ -5369,7 +5445,7 @@ function CreditsSection() {
             <div style={{ fontSize: 12, color: text.muted }}>{activeCredits > 0 ? `${activeCredits} ${tt.activeSuffix}` : tt.subtitle}</div>
           </div>
         </div>
-        <button onClick={() => setShowCreate(v => !v)} style={{ padding: '10px 16px', borderRadius: 14, border: showCreate ? `1px solid ${bg.border}` : '1px solid rgba(192,115,72,0.18)', cursor: 'pointer', background: showCreate ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, rgba(164,84,48,0.96), rgba(108,55,32,0.96))', color: '#fff7f2', fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit', boxShadow: showCreate ? 'none' : '0 12px 28px rgba(85,39,20,0.22)' }}>{showCreate ? '✕' : tt.toggleOpen}</button>
+        <button onClick={() => setShowCreate(v => !v)} style={{ padding: '10px 16px', borderRadius: 14, border: showCreate ? `1px solid ${bg.border}` : '1px solid rgba(201,169,100,0.22)', cursor: 'pointer', background: showCreate ? bg.hover : 'linear-gradient(135deg, rgba(168,120,62,0.95), rgba(124,84,44,0.95))', color: showCreate ? text.secondary : '#faf4ea', fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit', boxShadow: showCreate ? 'none' : '0 12px 28px rgba(79,52,22,0.22)' }}>{showCreate ? '✕' : tt.toggleOpen}</button>
       </div>
 
       {showCreate && (
@@ -5377,7 +5453,7 @@ function CreditsSection() {
           <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label style={{ fontSize: 12, color: text.muted, display: 'block', marginBottom: 6 }}>{tt.amountLabel}</label>
-              <input type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder={tt.amountPlaceholder} style={{ width: '100%', padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.045)', border: `1px solid ${bg.border}`, color: text.primary, fontSize: 16, outline: 'none', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }} />
+              <input type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder={tt.amountPlaceholder} style={{ width: '100%', padding: '14px 16px', borderRadius: 14, background: bg.card2, border: `1px solid ${bg.border}`, color: text.primary, fontSize: 16, outline: 'none', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }} />
             </div>
             <div>
               <label style={{ fontSize: 12, color: text.muted, display: 'block', marginBottom: 8 }}>{tt.termLabel}</label>
@@ -5401,7 +5477,7 @@ function CreditsSection() {
                 </div>
               </div>
             )}
-            <input value={desc} onChange={e => setDesc(e.target.value)} placeholder={tt.purposePlaceholder} style={{ width: '100%', padding: '14px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.045)', border: `1px solid ${bg.border}`, color: text.primary, fontSize: 14, outline: 'none', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }} />
+            <input value={desc} onChange={e => setDesc(e.target.value)} placeholder={tt.purposePlaceholder} style={{ width: '100%', padding: '14px 16px', borderRadius: 14, background: bg.card2, border: `1px solid ${bg.border}`, color: text.primary, fontSize: 14, outline: 'none', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }} />
             <button type="submit" disabled={creating} style={{ padding: '14px', borderRadius: 16, border: 'none', background: creating ? 'rgba(40,55,45,0.4)' : 'linear-gradient(135deg, rgba(164,84,48,0.96), rgba(108,55,32,0.96))', color: creating ? text.dim : '#fff7f2', fontSize: 14, fontWeight: 700, cursor: creating ? 'default' : 'pointer', fontFamily: 'inherit', boxShadow: creating ? 'none' : '0 14px 30px rgba(85,39,20,0.2)' }}>{creating ? '…' : tt.submit}</button>
           </form>
         </div>
@@ -5429,7 +5505,7 @@ function CreditsSection() {
                     </div>
                     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '7px 12px', borderRadius: 999, background: `${statusColor}18`, color: statusColor, border: `1px solid ${statusColor}30` }}>{isActive ? tt.statusActive : tt.statusClosed}</div>
                   </div>
-                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 999, height: 6, overflow: 'hidden' }}>
+                  <div style={{ background: bg.card, borderRadius: 999, height: 6, overflow: 'hidden' }}>
                     <div style={{ height: '100%', borderRadius: 999, background: isActive ? 'linear-gradient(90deg, rgba(144,73,42,0.95), rgba(206,140,96,0.95))' : '#666', width: `${cr.progress}%`, transition: 'width 0.6s', boxShadow: isActive ? '0 0 16px rgba(206,140,96,0.16)' : 'none' }} />
                   </div>
                   <div style={{ fontSize: 11, color: text.muted, marginTop: 6 }}>{cr.progress.toFixed(0)}% {tt.progressPaid}</div>
@@ -5446,7 +5522,7 @@ function CreditsSection() {
                 {isActive && (
                   <div style={{ padding: '14px 16px 16px', display: 'flex', gap: 8 }}>
                     <button disabled={repaying === cr.id} onClick={() => handleRepay(cr.id)} style={{ flex: 1, padding: '14px', borderRadius: 16, border: 'none', cursor: 'pointer', background: repaying === cr.id ? 'rgba(40,55,45,0.4)' : 'linear-gradient(135deg, rgba(164,84,48,0.96), rgba(108,55,32,0.96))', color: '#fff7f2', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', boxShadow: repaying === cr.id ? 'none' : '0 14px 30px rgba(85,39,20,0.18)' }}>{repaying === cr.id ? '…' : tt.payInstallment}</button>
-                    <button disabled={repaying === cr.id} onClick={() => handleRepay(cr.id, true)} style={{ padding: '14px 16px', borderRadius: 16, border: `1px solid rgba(186,106,69,0.28)`, background: 'rgba(255,255,255,0.02)', color: '#efc2a9', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{tt.repayFull}</button>
+                    <button disabled={repaying === cr.id} onClick={() => handleRepay(cr.id, true)} style={{ padding: '14px 16px', borderRadius: 16, border: `1px solid rgba(186,106,69,0.28)`, background: bg.sunken, color: '#efc2a9', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{tt.repayFull}</button>
                   </div>
                 )}
               </div>
@@ -5585,7 +5661,7 @@ function OperationsScreen() {
           txId: tx.id,
           title: tx.description,
           subtitle: fmtTime(tx.created_at, lang) + (tx.related_account ? ` • ${tx.related_account}` : ''),
-          amount: (tx.direction === 'in' ? '+' : '-') + fmtInt(tx.amount) + fmtDec(tx.amount),
+          amount: (tx.direction === 'in' ? '+' : '−') + '₴\u00a0' + fmtInt(tx.amount) + fmtDec(tx.amount),
           positive: tx.direction === 'in',
           cat: txToCat(tx as TxItem),
         })),
@@ -5617,7 +5693,7 @@ function OperationsScreen() {
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(circle at 16% 8%, rgba(136,168,232,0.08) 0%, rgba(136,168,232,0) 34%), radial-gradient(circle at 84% 18%, rgba(201,169,100,0.1) 0%, rgba(201,169,100,0) 42%)' }} />
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: 12 }}>
           <div>
-            <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.6, marginBottom: 4 }}>{t('operations_title')}</div>
+            <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.6, marginBottom: 4 }}>{t('operations_subtitle')}</div>
             <div style={{ ...T.h1, color: text.primary }}>{t('operations_title')}</div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -5644,7 +5720,7 @@ function OperationsScreen() {
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder={t('search_transactions')}
-            style={{ width: '100%', padding: '10px 14px 10px 36px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 12, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '10px 14px 10px 36px', background: bg.card2, border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 12, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
           />
         </div>
         <div style={{ display: 'flex', gap: 4, padding: '3px', background: 'rgba(26,40,32,0.5)', borderRadius: 100, marginTop: 10 }}>
@@ -5716,14 +5792,20 @@ function OperationsScreen() {
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 90, marginBottom: 8 }}>
             {values.map((v, i) => (
               <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' }}>
-                <div style={{
-                  width: '100%', height: `${(v / max) * 100}%`,
-                  background: i === 6
-                    ? `linear-gradient(180deg, ${goldLight} 0%, ${gold} 50%, ${goldDark} 100%)`
-                    : 'linear-gradient(180deg, rgba(180,172,155,0.35) 0%, rgba(100,95,80,0.15) 100%)',
-                  borderRadius: 6,
-                  boxShadow: i === 6 ? '0 0 20px rgba(180,172,155,0.4)' : 'none',
-                }} />
+                {/* доріжка: без неї день з малою сумою зливався з фоном картки */}
+                <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'flex-end' }}>
+                  <div style={{ position: 'absolute', inset: 0, background: bg.sunken, borderRadius: 6 }} />
+                  <div style={{
+                    position: 'relative',
+                    width: '100%', height: `${Math.max((v / max) * 100, v > 0 ? 4 : 1.5)}%`,
+                    background: i === 6
+                      ? `linear-gradient(180deg, ${goldLight} 0%, ${gold} 50%, ${goldDark} 100%)`
+                      : `linear-gradient(180deg, rgba(${LIFT},0.42) 0%, rgba(${LIFT},0.20) 100%)`,
+                    border: i === 6 ? 'none' : `1px solid rgba(${EDGE},0.14)`,
+                    borderRadius: 6,
+                    boxShadow: i === 6 ? '0 0 20px rgba(180,172,155,0.4)' : 'none',
+                  }} />
+                </div>
               </div>
             ))}
           </div>
@@ -5768,7 +5850,7 @@ function OperationsScreen() {
                         <span style={{ fontSize: 12, color: text.secondary }}>{SPEND_LABELS[cat] || cat}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                        <span style={{ fontSize: 12, color: text.secondary, fontFeatureSettings: '"tnum"' }}>{fmtInt(amt)}{fmtDec(amt)} ₴</span>
+                        <span style={{ fontSize: 12, color: text.secondary, fontFeatureSettings: '"tnum"' }}>₴{fmtInt(amt)}{fmtDec(amt)}</span>
                         <span style={{ fontSize: 10, color: text.muted }}>{pct}%</span>
                       </div>
                     </div>
@@ -5819,7 +5901,7 @@ function OperationsScreen() {
                       <div style={{ ...T.sm, color: text.muted }}>{item.subtitle}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ ...T.body, fontWeight: 600, color: item.positive ? '#7fb896' : text.secondary, ...T.num }}>{item.amount} ₴</div>
+                      <div style={{ ...T.body, fontWeight: 600, color: item.positive ? '#7fb896' : text.secondary, ...T.num }}>{item.amount}</div>
                       {item.txId ? (
                         <button onClick={e => { e.stopPropagation(); downloadReceipt(item.txId!); }} disabled={dlReceipt === item.txId} title={t('download_receipt')} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(180,172,155,0.08)', border: `1px solid rgba(180,172,155,0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: goldLight }}>{dlReceipt === item.txId ? '…' : <ReceiptIcon size={14} color={goldLight} />}</button>
                       ) : (
@@ -5859,7 +5941,7 @@ function OperationsScreen() {
               <div style={{ fontSize: 12, color: text.muted, marginTop: 3 }}>{fmtTime(selectedTxData.created_at, lang)}</div>
             </div>
             <div style={{ fontSize: 18, fontWeight: 700, color: selectedTxData.direction === 'in' ? '#7fb896' : text.primary, fontFeatureSettings: '"tnum"', flexShrink: 0 }}>
-              {selectedTxData.direction === 'in' ? '+' : '-'}{fmtInt(selectedTxData.amount)}{fmtDec(selectedTxData.amount)} ₴
+              {selectedTxData.direction === 'in' ? '+' : '−'}₴{fmtInt(selectedTxData.amount)}{fmtDec(selectedTxData.amount)}
             </div>
           </div>
           <label style={{ fontSize: 11, color: text.muted, textTransform: 'uppercase', letterSpacing: 0.8, display: 'block', marginBottom: 8 }}>{t('tx_note_label')}</label>
@@ -5868,7 +5950,7 @@ function OperationsScreen() {
             onChange={e => setTxNote(e.target.value)}
             placeholder={t('tx_note_placeholder')}
             rows={3}
-            style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(180,172,155,0.18)', borderRadius: 14, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit', resize: 'none', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '12px 14px', background: bg.card2, border: '1px solid rgba(180,172,155,0.18)', borderRadius: 14, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit', resize: 'none', boxSizing: 'border-box' }}
           />
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button onClick={() => setSelectedTxId(null)} style={{ flex: 1, padding: '12px', background: 'rgba(180,172,155,0.07)', border: '1px solid rgba(180,172,155,0.15)', borderRadius: 14, color: text.muted, fontSize: 14, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}>
@@ -6227,7 +6309,7 @@ function ProfileScreen() {
             onClick={() => photoInputRef.current?.click()}
             style={{
               padding: '6px 12px', borderRadius: 10, border: '1px solid rgba(180,172,155,0.24)',
-              background: 'rgba(255,255,255,0.05)', color: text.secondary, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              background: bg.card2, color: text.secondary, fontSize: 12, fontWeight: 600, cursor: 'pointer',
             }}
           >
             {t('profile_change_photo')}
@@ -6251,11 +6333,11 @@ function ProfileScreen() {
           <span style={{ fontSize: 11.5, color: '#7fb896', fontWeight: 500 }}>{t('profile_verified')}</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10, width: '100%', marginTop: 16 }}>
-          <div style={{ padding: '12px 14px', borderRadius: 18, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ padding: '12px 14px', borderRadius: 18, background: bg.card2, border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.7, marginBottom: 4 }}>{t('profile_phone')}</div>
             <div style={{ fontSize: 13, color: text.secondary, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{phone}</div>
           </div>
-          <div style={{ padding: '12px 14px', borderRadius: 18, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ padding: '12px 14px', borderRadius: 18, background: bg.card2, border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ fontSize: 10, color: text.muted, letterSpacing: 0.7, marginBottom: 4 }}>{t('balance_total')}</div>
             <div style={{ fontSize: 13, color: text.primary, fontWeight: 700, fontFeatureSettings: '"tnum" 1' }}>{formatUah(Number(account?.balance || 0), lang)}</div>
           </div>
@@ -6367,11 +6449,11 @@ function ProfileScreen() {
             <form onSubmit={changePassword} style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
               <input
                 type="password" placeholder={t('profile_current_password')} value={oldPwd} onChange={e => setOldPwd(e.target.value)} required
-                style={{ padding: '11px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}
+                style={{ padding: '11px 14px', background: bg.card2, border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}
               />
               <input
                 type="password" placeholder={t('profile_new_password')} value={newPwd} onChange={e => setNewPwd(e.target.value)} required
-                style={{ padding: '11px 14px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}
+                style={{ padding: '11px 14px', background: bg.card2, border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 10, color: text.primary, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}
               />
               <button type="submit" disabled={pwdLoading} style={{
                 padding: '11px', background: pwdLoading ? 'rgba(100,95,80,0.3)' : `linear-gradient(135deg, ${goldDark}, ${gold})`,
@@ -6415,26 +6497,26 @@ function ProfileScreen() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
                   <div style={{ fontSize: 13, color: text.secondary, fontWeight: 500, textTransform: 'capitalize' }}>{lim.tx_type}</div>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <span style={{ fontSize: 11, color: over ? '#f08080' : text.muted }}>
+                    <span style={{ fontSize: 11, color: over ? '#e07070' : text.muted }}>
                       ₴{Number(lim.spent).toLocaleString('uk-UA')} {t('settings_limit_of')} ₴{Number(lim.monthly_limit).toLocaleString('uk-UA')}
                     </span>
-                    <button onClick={() => deleteLimit(lim.tx_type)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f08080', fontSize: 12, padding: 0 }}>✕</button>
+                    <button onClick={() => deleteLimit(lim.tx_type)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e07070', fontSize: 12, padding: 0 }}>✕</button>
                   </div>
                 </div>
                 <div style={{ height: 4, background: 'rgba(180,172,155,0.1)', borderRadius: 2, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${pct}%`, background: over ? '#f08080' : `linear-gradient(90deg, ${goldDark}, ${gold})`, borderRadius: 2 }} />
+                  <div style={{ height: '100%', width: `${pct}%`, background: over ? '#e07070' : `linear-gradient(90deg, ${goldDark}, ${gold})`, borderRadius: 2 }} />
                 </div>
               </div>
             );
           })}
           <form onSubmit={addLimit} style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <select value={newLimitType} onChange={e => setNewLimitType(e.target.value)}
-              style={{ flex: 1, padding: '9px 10px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.16)`, borderRadius: 10, color: text.secondary, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}>
+              style={{ flex: 1, padding: '9px 10px', background: bg.card2, border: `1px solid rgba(180,172,155,0.16)`, borderRadius: 10, color: text.secondary, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}>
               {['transfer','food','transport','utility','shopping','subscription'].map(v => <option key={v} value={v}>{v}</option>)}
             </select>
             <input value={newLimitAmt} onChange={e => setNewLimitAmt(e.target.value)}
               placeholder="5000" type="text" inputMode="decimal"
-              style={{ width: 80, padding: '9px 10px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.16)`, borderRadius: 10, color: text.secondary, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
+              style={{ width: 80, padding: '9px 10px', background: bg.card2, border: `1px solid rgba(180,172,155,0.16)`, borderRadius: 10, color: text.secondary, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
             />
             <button type="submit" disabled={limitsLoading}
               style={{ padding: '9px 12px', borderRadius: 10, border: 'none', background: `linear-gradient(135deg, ${goldDark}, ${gold})`, color: '#1a2820', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -6457,7 +6539,7 @@ function ProfileScreen() {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               {pinStatus && (
-                <button onClick={clearPin} style={{ padding: '6px 10px', borderRadius: 8, background: 'rgba(220,100,100,0.08)', border: '1px solid rgba(220,100,100,0.2)', color: '#f08080', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>{t('settings_pin_clear')}</button>
+                <button onClick={clearPin} style={{ padding: '6px 10px', borderRadius: 8, background: 'rgba(220,100,100,0.08)', border: '1px solid rgba(220,100,100,0.2)', color: '#e07070', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>{t('settings_pin_clear')}</button>
               )}
               <button onClick={() => setShowPinForm(v => !v)} style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(201,169,100,0.1)', border: `1px solid rgba(201,169,100,0.25)`, color: gold, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {pinStatus ? t('settings_pin_change') : t('settings_pin_set')}
@@ -6470,7 +6552,7 @@ function ProfileScreen() {
                 type="password" inputMode="numeric" pattern="[0-9]*" maxLength={8}
                 value={pinInput} onChange={e => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 8))}
                 placeholder="••••"
-                style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(180,172,155,0.16)`, borderRadius: 10, color: text.primary, fontSize: 20, letterSpacing: 8, outline: 'none', fontFamily: 'inherit' }}
+                style={{ flex: 1, padding: '10px 12px', background: bg.card2, border: `1px solid rgba(180,172,155,0.16)`, borderRadius: 10, color: text.primary, fontSize: 20, letterSpacing: 8, outline: 'none', fontFamily: 'inherit' }}
               />
               <button type="submit" disabled={pinLoading || pinInput.length < 4} style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: pinInput.length >= 4 ? `linear-gradient(135deg, ${goldDark}, ${gold})` : 'rgba(100,95,80,0.3)', color: '#1a2820', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>
                 {pinLoading ? '…' : t('profile_save')}
@@ -6534,7 +6616,7 @@ function ProfileScreen() {
         <button onClick={logout} style={{
           width: '100%', padding: '14px', borderRadius: 16,
           background: 'rgba(220,100,110,0.06)', border: '1px solid rgba(220,100,110,0.18)',
-          color: '#dc646e', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
+          color: '#e07070', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M17 16l4-4-4-4M21 12H9M13 4a9 9 0 100 16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -6705,7 +6787,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
   const cartRowsMaxHeight = cart.length > 3 ? 'min(42dvh, 360px)' : undefined;
 
   const fieldStyle: React.CSSProperties = {
-    width: '100%', padding: '11px 14px', background: 'rgba(255,255,255,0.05)',
+    width: '100%', padding: '11px 14px', background: bg.card2,
     border: '1px solid rgba(180,172,155,0.18)', borderRadius: 12,
     color: text.primary, fontSize: 14, outline: 'none', fontFamily: fontFamily,
     boxSizing: 'border-box',
@@ -6762,7 +6844,7 @@ function CartDrawer({ cart, onClose, onQtyChange, onRemove, onCheckout, checking
                 WebkitOverflowScrolling: 'touch',
               }}>
                 {cart.map(item => (
-                  <div key={item.product.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${bg.border}`, borderRadius: 16 }}>
+                  <div key={item.product.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px', background: bg.card2, border: `1px solid ${bg.border}`, borderRadius: 16 }}>
                     <div style={{ width: 46, height: 46, borderRadius: 13, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(221,216,204,0.06)' }}>
                       <ProductVisual product={item.product} size="cart" />
                     </div>
@@ -6974,8 +7056,8 @@ function MarketplaceScreen() {
   ];
 
   const statusTone: Record<string, { fg: string; bg: string; border: string }> = {
-    paid: { fg: '#86ca9f', bg: 'rgba(75,155,105,0.16)', border: 'rgba(134,202,159,0.35)' },
-    active: { fg: '#86ca9f', bg: 'rgba(75,155,105,0.16)', border: 'rgba(134,202,159,0.35)' },
+    paid: { fg: '#7fb896', bg: 'rgba(75,155,105,0.16)', border: 'rgba(134,202,159,0.35)' },
+    active: { fg: '#7fb896', bg: 'rgba(75,155,105,0.16)', border: 'rgba(134,202,159,0.35)' },
     issued: { fg: '#d8c9a6', bg: 'rgba(184,176,154,0.15)', border: 'rgba(216,201,166,0.3)' },
     pending: { fg: '#d8c9a6', bg: 'rgba(184,176,154,0.15)', border: 'rgba(216,201,166,0.3)' },
     overdue: { fg: '#f09b96', bg: 'rgba(190,85,80,0.14)', border: 'rgba(240,155,150,0.35)' },
@@ -7077,9 +7159,15 @@ function MarketplaceScreen() {
     )}
     <ContentWrap maxW={isMobileMarket ? 800 : 1400}>
     <div style={{ paddingBottom: layout === 'desktop' ? 80 : 'calc(104px + env(safe-area-inset-bottom, 0px))', paddingRight: isMobileMarket ? undefined : 356, overflowX: 'hidden' }}>
-      <div ref={marketTopRef} style={{ padding: isMobileMarket ? `${topPad} 22px 12px` : '40px 32px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ ...T.h1, color: text.primary }}>{t('market_title')}</div>
+      <div ref={marketTopRef} style={{ padding: isMobileMarket ? `${topPad} 18px 12px` : '40px 32px 16px' }}>
+        {/* Той самий скляний блок, що й на решті екранів: без нього Магазин
+            єдиний висів прямо на фоні застосунку. */}
+        <div style={{ ...glassCard({ padding: isMobileMarket ? '16px 16px 14px' : '18px 20px 16px', borderRadius: 26 }) }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: 12 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 11, color: text.muted, letterSpacing: 0.6, marginBottom: 4 }}>{t('market_subtitle')}</div>
+            <div style={{ ...T.h1, color: text.primary }}>{t('market_title')}</div>
+          </div>
           {isMobileMarket && (
             <button onClick={() => setShowCart(true)} style={{ position: 'relative', width: 44, height: 44, borderRadius: 14, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20 }}>
               ⌁
@@ -7103,9 +7191,10 @@ function MarketplaceScreen() {
         {tab === 'catalog' && (
           <div style={{ position: 'relative' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.4 }}><circle cx="11" cy="11" r="7" stroke="#ddd8cc" strokeWidth="1.8" /><path d="M20 20l-3-3" stroke="#ddd8cc" strokeWidth="1.8" strokeLinecap="round" /></svg>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('product_search')} style={{ width: '100%', padding: '10px 14px 10px 36px', background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 12, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('product_search')} style={{ width: '100%', padding: '10px 14px 10px 36px', background: bg.card2, border: `1px solid rgba(180,172,155,0.14)`, borderRadius: 12, color: '#ddd8cc', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>
         )}
+        </div>
       </div>
 
       {loading && <div style={{ padding: 60, textAlign: 'center', color: text.muted, fontSize: 14 }}>{t('loading')}</div>}
@@ -7123,7 +7212,7 @@ function MarketplaceScreen() {
             <>
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobileMarket ? 155 : 210}px, 1fr))`, gap: marketGridGap, padding: isMobileMarket ? '6px 22px' : '8px 32px' }}>
                 {pagedProducts.map(p => (
-                  <div key={p.id} onClick={() => setPreview(p)} style={{ background: 'rgba(255,255,255,0.036)', border: '1px solid rgba(180,172,155,0.07)', borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'background 0.15s', height: marketCardHeight }}>
+                  <div key={p.id} onClick={() => setPreview(p)} style={{ background: bg.card2, border: '1px solid rgba(180,172,155,0.07)', borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'background 0.15s', height: marketCardHeight }}>
                     <div style={{ height: marketImageHeight, flexShrink: 0, background: `linear-gradient(135deg, rgba(180,172,155,0.08), rgba(100,95,80,0.04))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42, position: 'relative', overflow: 'hidden' }}>
                       <ProductVisual product={p} />
                       {p.badge && (
@@ -7434,7 +7523,7 @@ function DesktopCartPanel({ cart, onQtyChange, onRemove, onCheckout, checkingOut
 
   const fieldSt: React.CSSProperties = {
     width: '100%', padding: '9px 12px',
-    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(180,172,155,0.18)',
+    background: bg.card2, border: '1px solid rgba(180,172,155,0.18)',
     borderRadius: 10, color: text.primary, fontSize: 13, outline: 'none',
     fontFamily, boxSizing: 'border-box',
   };
@@ -7478,7 +7567,7 @@ function DesktopCartPanel({ cart, onQtyChange, onRemove, onCheckout, checkingOut
         ) : step === 'cart' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {cart.map(item => (
-              <div key={item.product.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${bg.border}`, borderRadius: 14 }}>
+              <div key={item.product.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: bg.card2, border: `1px solid ${bg.border}`, borderRadius: 14 }}>
                 <div style={{ width: 42, height: 42, borderRadius: 11, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(221,216,204,0.06)' }}>
                   <ProductVisual product={item.product} size="cart" />
                 </div>
@@ -7589,8 +7678,8 @@ function DesktopSidebar({ active, onChange }: { active: TabKey; onChange: (k: Ta
           <div style={{ minWidth: 0 }}>
             <div style={{ ...T.body, fontWeight: 600, color: text.primary, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#6ec98a', boxShadow: '0 0 6px #6ec98a88' }} />
-              <span style={{ fontSize: 10.5, color: '#6ec98a', fontWeight: 500, letterSpacing: 0.2 }}>{t('profile_verified')}</span>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#7fb896', boxShadow: '0 0 6px #7fb89688' }} />
+              <span style={{ fontSize: 10.5, color: '#7fb896', fontWeight: 500, letterSpacing: 0.2 }}>{t('profile_verified')}</span>
             </div>
           </div>
         </div>
