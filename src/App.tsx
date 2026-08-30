@@ -511,6 +511,17 @@ const translations = {
     spend_utility: 'Комунальні',
     spend_shopping: 'Покупки',
     spend_subscription: 'Підписки',
+    spend_entertainment: 'Розваги',
+    spend_health: 'Здоров’я',
+    spend_other: 'Інше',
+    budget_title: 'Бюджет на місяць',
+    budget_days_short: 'дн.',
+    budget_add_limit: 'Ліміт',
+    budget_limit_placeholder: 'Ліміт, ₴',
+    budget_spent_this_month: 'цього місяця',
+    budget_over_pace: 'Темп витрат вищий за плановий',
+    budget_limit_reached: 'Ліміт вичерпано',
+    budget_save: 'Зберегти',
     cards_title: 'Мої картки',
     cards_subtitle: 'Випуск, дизайн і ліміти',
     card_not_found: 'Картку не знайдено.',
@@ -655,6 +666,8 @@ const translations = {
     choose_style_then_issue: 'Оберіть стиль, потім випустіть віртуальну картку',
     selected_label: 'Обрано',
     cancel_label: 'Скасувати',
+    spending_this_week: 'Витрати за тиждень',
+    spending_this_year: 'Витрати за рік',
     period_week_short: 'Т',
     period_month_short: 'М',
     period_year_short: 'Р',
@@ -671,6 +684,17 @@ const translations = {
     full_name_placeholder: 'Іван Петренко',
     data_load_failed: 'Не вдалося завантажити дані.',
     active_cards_metric: 'Активні картки',
+    card_word_one: 'картка',
+    card_word_few: 'картки',
+    card_word_many: 'карток',
+    cards_active_suffix: 'активних',
+    card_reveal_hint: 'Реквізити',
+    cvv_copy_hint: 'CVV2 / CVC2 · натисніть, щоб скопіювати',
+    card_face_number: 'Номер картки',
+    card_face_owner: 'Власник',
+    card_face_valid: 'Дійсна до',
+    card_face_account_balance: 'Баланс рахунку',
+    card_face_card_balance: 'Баланс картки',
     cardholder_label: 'Cardholder',
     valid_label: 'Valid',
     transfer_placeholder_card: '4721 •••• •••• ••••',
@@ -776,6 +800,17 @@ const translations = {
     spend_utility: 'Utilities',
     spend_shopping: 'Shopping',
     spend_subscription: 'Subscriptions',
+    spend_entertainment: 'Entertainment',
+    spend_health: 'Health',
+    spend_other: 'Other',
+    budget_title: 'Monthly budget',
+    budget_days_short: 'd.',
+    budget_add_limit: 'Limit',
+    budget_limit_placeholder: 'Limit, ₴',
+    budget_spent_this_month: 'this month',
+    budget_over_pace: 'Spending ahead of plan',
+    budget_limit_reached: 'Limit reached',
+    budget_save: 'Save',
     cards_title: 'My cards',
     cards_subtitle: 'Issuing, design and limits',
     card_not_found: 'Card not found.',
@@ -920,6 +955,8 @@ const translations = {
     choose_style_then_issue: 'Choose a style, then issue a virtual card',
     selected_label: 'Selected',
     cancel_label: 'Cancel',
+    spending_this_week: 'Spending this week',
+    spending_this_year: 'Spending this year',
     period_week_short: 'W',
     period_month_short: 'M',
     period_year_short: 'Y',
@@ -936,6 +973,17 @@ const translations = {
     full_name_placeholder: 'John Doe',
     data_load_failed: 'Failed to load data.',
     active_cards_metric: 'Active cards',
+    card_word_one: 'card',
+    card_word_few: 'cards',
+    card_word_many: 'cards',
+    cards_active_suffix: 'active',
+    card_reveal_hint: 'Details',
+    cvv_copy_hint: 'CVV2 / CVC2 · tap to copy',
+    card_face_number: 'Card number',
+    card_face_owner: 'Cardholder',
+    card_face_valid: 'Valid thru',
+    card_face_account_balance: 'Account balance',
+    card_face_card_balance: 'Card balance',
     cardholder_label: 'Cardholder',
     valid_label: 'Valid',
     transfer_placeholder_card: '4721 •••• •••• ••••',
@@ -1041,6 +1089,17 @@ const translations = {
     spend_utility: 'Utenze',
     spend_shopping: 'Shopping',
     spend_subscription: 'Abbonamenti',
+    spend_entertainment: 'Svago',
+    spend_health: 'Salute',
+    spend_other: 'Altro',
+    budget_title: 'Budget del mese',
+    budget_days_short: 'gg.',
+    budget_add_limit: 'Limite',
+    budget_limit_placeholder: 'Limite, ₴',
+    budget_spent_this_month: 'questo mese',
+    budget_over_pace: 'Spesa oltre il ritmo previsto',
+    budget_limit_reached: 'Limite raggiunto',
+    budget_save: 'Salva',
     cards_title: 'Le mie carte',
     cards_subtitle: 'Emissione, design e limiti',
     card_not_found: 'Carta non trovata.',
@@ -1185,6 +1244,8 @@ const translations = {
     choose_style_then_issue: 'Scegli uno stile, poi emetti una carta virtuale',
     selected_label: 'Selezionato',
     cancel_label: 'Annulla',
+    spending_this_week: 'Spese di questa settimana',
+    spending_this_year: 'Spese di quest’anno',
     period_week_short: 'S',
     period_month_short: 'M',
     period_year_short: 'A',
@@ -1201,6 +1262,17 @@ const translations = {
     full_name_placeholder: 'Mario Rossi',
     data_load_failed: 'Impossibile caricare i dati.',
     active_cards_metric: 'Carte attive',
+    card_word_one: 'carta',
+    card_word_few: 'carte',
+    card_word_many: 'carte',
+    cards_active_suffix: 'attive',
+    card_reveal_hint: 'Dati',
+    cvv_copy_hint: 'CVV2 / CVC2 · tocca per copiare',
+    card_face_number: 'Numero carta',
+    card_face_owner: 'Titolare',
+    card_face_valid: 'Valida fino',
+    card_face_account_balance: 'Saldo del conto',
+    card_face_card_balance: 'Saldo della carta',
     cardholder_label: 'Cardholder',
     valid_label: 'Valid',
     transfer_placeholder_card: '4721 •••• •••• ••••',
@@ -1306,6 +1378,17 @@ const translations = {
     spend_utility: 'Servicios',
     spend_shopping: 'Compras',
     spend_subscription: 'Suscripciones',
+    spend_entertainment: 'Ocio',
+    spend_health: 'Salud',
+    spend_other: 'Otros',
+    budget_title: 'Presupuesto del mes',
+    budget_days_short: 'd.',
+    budget_add_limit: 'Límite',
+    budget_limit_placeholder: 'Límite, ₴',
+    budget_spent_this_month: 'este mes',
+    budget_over_pace: 'Gasto por encima del ritmo',
+    budget_limit_reached: 'Límite alcanzado',
+    budget_save: 'Guardar',
     cards_title: 'Mis tarjetas',
     cards_subtitle: 'Emisión, diseño y límites',
     card_not_found: 'Tarjeta no encontrada.',
@@ -1450,6 +1533,8 @@ const translations = {
     choose_style_then_issue: 'Elige un estilo y luego emite una tarjeta virtual',
     selected_label: 'Seleccionado',
     cancel_label: 'Cancelar',
+    spending_this_week: 'Gastos de esta semana',
+    spending_this_year: 'Gastos de este año',
     period_week_short: 'S',
     period_month_short: 'M',
     period_year_short: 'A',
@@ -1466,6 +1551,17 @@ const translations = {
     full_name_placeholder: 'Juan Pérez',
     data_load_failed: 'No se pudieron cargar los datos.',
     active_cards_metric: 'Tarjetas activas',
+    card_word_one: 'tarjeta',
+    card_word_few: 'tarjetas',
+    card_word_many: 'tarjetas',
+    cards_active_suffix: 'activas',
+    card_reveal_hint: 'Datos',
+    cvv_copy_hint: 'CVV2 / CVC2 · toca para copiar',
+    card_face_number: 'Número de tarjeta',
+    card_face_owner: 'Titular',
+    card_face_valid: 'Válida hasta',
+    card_face_account_balance: 'Saldo de la cuenta',
+    card_face_card_balance: 'Saldo de la tarjeta',
     cardholder_label: 'Cardholder',
     valid_label: 'Valid',
     transfer_placeholder_card: '4721 •••• •••• ••••',
@@ -2160,7 +2256,7 @@ function PremiumCard({ variant, number, name, expiry, type, style = {}, balance,
             {balance !== undefined && (
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 7, fontWeight: 500, letterSpacing: 1.2, color: v.muted, textTransform: 'uppercase', marginBottom: 1 }}>
-                  {isPrimary ? 'БАЛАНС РАХУНКУ' : 'БАЛАНС КАРТКИ'}
+                  {isPrimary ? tt.card_face_account_balance : tt.card_face_card_balance}
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: v.text, textShadow: titleShadow, letterSpacing: 0.3 }}>
                   ₴ {balance.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -2175,9 +2271,10 @@ function PremiumCard({ variant, number, name, expiry, type, style = {}, balance,
           </div>
         </div>
         <div style={{
-          fontFamily: '"SF Mono", monospace', fontSize: 20, fontWeight: 600, letterSpacing: 2,
+          fontFamily: '"SF Mono", monospace', fontSize: 19, fontWeight: 600, letterSpacing: 1.4,
           color: v.text, textShadow: titleShadow,
-          display: 'flex', gap: 14, alignItems: 'center', marginBottom: -8,
+          // Ряд номера був ширший за саму картку і впирався в правий край
+          display: 'flex', gap: 12, alignItems: 'center', marginBottom: -8, whiteSpace: 'nowrap', minWidth: 0,
           padding: 0,
           background: 'transparent',
         }}>
@@ -2191,11 +2288,12 @@ function PremiumCard({ variant, number, name, expiry, type, style = {}, balance,
           padding: 0,
           background: 'transparent',
         }}>
-          <div>
+          <div style={{ minWidth: 0, flex: 1, marginRight: 12 }}>
             <div style={{ fontSize: 8, fontWeight: 500, letterSpacing: 1.2, color: v.muted, textTransform: 'uppercase', marginBottom: 3 }}>{tt.cardholder_label}</div>
-            <div style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: 0.4, textShadow: titleShadow }}>{name}</div>
+            {/* Довге ім'я раніше налазило на строк дії — тепер обрізається трикрапкою */}
+            <div style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: 0.4, textShadow: titleShadow, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 8, fontWeight: 500, letterSpacing: 1.2, color: v.muted, textTransform: 'uppercase', marginBottom: 3 }}>{tt.valid_label}</div>
               <div style={{ fontSize: 12.5, fontWeight: 600, fontFamily: '"SF Mono", monospace', textShadow: titleShadow }}>{expiry}</div>
@@ -2339,7 +2437,7 @@ function InsightsStrip() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {insights.map((ins, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: bg.sunken, border: '1px solid rgba(180,172,155,0.1)', borderRadius: 14 }}>
-            <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1.4 }}>{ins.icon}</span>
+            <span style={{ width: 28, height: 28, borderRadius: 9, flexShrink: 0, background: bg.card, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, lineHeight: 1 }}>{ins.icon}</span>
             <span style={{ fontSize: 12, color: text.secondary, lineHeight: 1.5 }}>{ins.text}</span>
           </div>
         ))}
@@ -3466,14 +3564,30 @@ function FinancialHealthScore({ transactions, account }: { transactions: TxItem[
 
 // ─── Budget Planner (localStorage) ────────────────────────────────────────
 const BUDGET_KEY = 'army_bank_budget_v1';
-const BUDGET_CATEGORIES = [
-  { key: 'food', label: 'Їжа', icon: '🛒' },
-  { key: 'transport', label: 'Транспорт', icon: '🚗' },
-  { key: 'entertainment', label: 'Розваги', icon: '🎭' },
-  { key: 'health', label: 'Здоров\'я', icon: '💊' },
-  { key: 'shopping', label: 'Шопінг', icon: '🛍️' },
-  { key: 'utilities', label: 'Комунальні', icon: '🏠' },
-  { key: 'other', label: 'Інше', icon: '📦' },
+// Іконки бюджету — той самий лінійний набір, що й у списку операцій.
+// Емодзі прибрані: вони віддавали системним шрифтом і випадали з айдентики.
+function BudgetIcon({ cat, color }: { cat: string; color: string }) {
+  const common = { width: 17, height: 17, viewBox: '0 0 24 24', fill: 'none' } as const;
+  const st = { stroke: color, strokeWidth: 1.7, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  switch (cat) {
+    case 'food':          return <svg {...common}><path d="M6 2v8a3 3 0 006 0V2M9 2v6M18 2c-2 0-3 2-3 5s1 5 3 5v8" {...st} /></svg>;
+    case 'transport':     return <svg {...common}><path d="M4 15v-3.2a2 2 0 01.35-1.13l2.05-3.07A2 2 0 018.06 6.7h7.88a2 2 0 011.66.9l2.05 3.07A2 2 0 0120 11.8V15a1 1 0 01-1 1H5a1 1 0 01-1-1zM4 12h16M7.5 18.5V16M16.5 18.5V16" {...st} /></svg>;
+    case 'entertainment': return <svg {...common}><path d="M4 8V6a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 000 4v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4a2 2 0 000-4zM10 4v16" {...st} /></svg>;
+    case 'health':        return <svg {...common}><path d="M12 20s-7-4.4-7-9.3A4.2 4.2 0 0112 8a4.2 4.2 0 017 2.7c0 4.9-7 9.3-7 9.3z" {...st} /></svg>;
+    case 'shopping':      return <svg {...common}><path d="M3 4h2l2.6 10.4a2 2 0 002 1.6h7.2a2 2 0 002-1.6L21 7H6M9.5 20a1 1 0 100-2 1 1 0 000 2zM17.5 20a1 1 0 100-2 1 1 0 000 2z" {...st} /></svg>;
+    case 'utilities':     return <svg {...common}><path d="M4 11l8-7 8 7M6 10v9a1 1 0 001 1h10a1 1 0 001-1v-9M10 20v-6h4v6" {...st} /></svg>;
+    default:              return <svg {...common}><path d="M3.5 8.5L12 4l8.5 4.5v7L12 20l-8.5-4.5v-7zM3.5 8.5L12 13l8.5-4.5M12 13v7" {...st} /></svg>;
+  }
+}
+
+const BUDGET_CATEGORIES: { key: string; labelKey: string; color: string }[] = [
+  { key: 'food',          labelKey: 'spend_food',          color: '#e8a864' },
+  { key: 'transport',     labelKey: 'spend_transport',     color: '#88a8e8' },
+  { key: 'entertainment', labelKey: 'spend_entertainment', color: '#c97db4' },
+  { key: 'health',        labelKey: 'spend_health',        color: '#7fb896' },
+  { key: 'shopping',      labelKey: 'spend_shopping',      color: '#c97db4' },
+  { key: 'utilities',     labelKey: 'spend_utility',       color: gold },
+  { key: 'other',         labelKey: 'spend_other',         color: '#ddd8cc' },
 ];
 
 function txToCategory(tx: TxItem): string {
@@ -3488,6 +3602,8 @@ function txToCategory(tx: TxItem): string {
 }
 
 function BudgetPlanner({ transactions }: { transactions: TxItem[] }) {
+  const { t, lang } = usePreferences();
+  const locale = localeForLang(lang);
   const [budgets, setBudgets] = useState<Record<string, number>>(() => {
     try { return JSON.parse(localStorage.getItem(BUDGET_KEY) || '{}'); } catch { return {}; }
   });
@@ -3518,8 +3634,11 @@ function BudgetPlanner({ transactions }: { transactions: TxItem[] }) {
   return (
     <div style={{ margin: '0 22px 20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: text.secondary }}>📋 Бюджет на місяць</div>
-        <div style={{ fontSize: 11, color: text.muted }}>{dayOfMonth}/{daysInMonth} дн.</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 700, color: text.secondary }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 4h6v3H9zM7 5H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1M8.5 12h7M8.5 16h4" stroke={gold} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          {t('budget_title')}
+        </div>
+        <div style={{ fontSize: 11, color: text.muted }}>{dayOfMonth}/{daysInMonth} {t('budget_days_short')}</div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {BUDGET_CATEGORIES.map(cat => {
@@ -3533,31 +3652,37 @@ function BudgetPlanner({ transactions }: { transactions: TxItem[] }) {
           return (
             <div key={cat.key} style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 16, padding: '12px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: limit > 0 ? 10 : 0 }}>
-                <span style={{ fontSize: 20 }}>{cat.icon}</span>
+                <span style={{ width: 32, height: 32, borderRadius: 10, flexShrink: 0, background: `${cat.color}1a`, border: `1px solid ${cat.color}2e`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <BudgetIcon cat={cat.key} color={cat.color} />
+                </span>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: text.primary }}>{cat.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: text.primary }}>{t(cat.labelKey as never)}</span>
                     {limit > 0 && (
                       <span style={{ fontSize: 12, color: pct >= 100 ? '#e05a40' : text.secondary, fontWeight: 600 }}>
-                        ₴{spentAmt.toLocaleString('uk-UA', { maximumFractionDigits: 0 })} / ₴{limit.toLocaleString('uk-UA', { maximumFractionDigits: 0 })}
+                        ₴{spentAmt.toLocaleString(locale, { maximumFractionDigits: 0 })} / ₴{limit.toLocaleString(locale, { maximumFractionDigits: 0 })}
                       </span>
                     )}
-                    {limit === 0 && <span style={{ fontSize: 11, color: text.dim }}>₴{spentAmt.toLocaleString('uk-UA', { maximumFractionDigits: 0 })} цього місяця</span>}
+                    {limit === 0 && <span style={{ fontSize: 11, color: text.dim }}>₴{spentAmt.toLocaleString(locale, { maximumFractionDigits: 0 })} {t('budget_spent_this_month')}</span>}
                   </div>
                 </div>
                 <button onClick={() => { setEditing(isEditing ? null : cat.key); setEditVal(limit > 0 ? String(limit) : ''); }}
                   style={{ background: 'none', border: 'none', color: gold, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 6px' }}>
-                  {isEditing ? '✕' : limit > 0 ? '✏️' : '+ Ліміт'}
+                  {isEditing
+                    ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke={gold} strokeWidth="2" strokeLinecap="round" /></svg>
+                    : limit > 0
+                      ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4 20h4l10-10a2.8 2.8 0 10-4-4L4 16v4z" stroke={gold} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                      : `+ ${t('budget_add_limit')}`}
                 </button>
               </div>
               {isEditing && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                   <input type="text" inputMode="decimal" value={editVal} onChange={e => setEditVal(e.target.value)}
-                    placeholder="Ліміт ₴"
+                    placeholder={t('budget_limit_placeholder')}
                     style={{ flex: 1, padding: '8px 12px', borderRadius: 10, background: bg.card2, border: `1px solid ${bg.border}`, color: text.primary, fontSize: 14, outline: 'none' }} />
                   <button onClick={() => { const v = parseFloat(editVal.replace(',', '.')); if (v > 0) saveBudget(cat.key, v); }}
                     style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #7fb896, #4a8a68)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                    ОК
+                    {t('budget_save')}
                   </button>
                 </div>
               )}
@@ -3566,8 +3691,8 @@ function BudgetPlanner({ transactions }: { transactions: TxItem[] }) {
                   <div style={{ background: bg.card, borderRadius: 4, height: 5, overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${pct}%`, borderRadius: 4, background: `linear-gradient(90deg, ${barColor}88, ${barColor})`, transition: 'width 0.6s' }} />
                   </div>
-                  {pace > 1.2 && <div style={{ fontSize: 10, color: '#e8a864', marginTop: 4 }}>⚡ Темп витрат вищий за плановий</div>}
-                  {pct >= 100 && <div style={{ fontSize: 10, color: '#e05a40', marginTop: 4 }}>🚫 Ліміт вичерпано</div>}
+                  {pace > 1.2 && <div style={{ fontSize: 10, color: '#e8a864', marginTop: 5, display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: '#e8a864' }} />{t('budget_over_pace')}</div>}
+                  {pct >= 100 && <div style={{ fontSize: 10, color: '#e05a40', marginTop: 5, display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: '#e05a40' }} />{t('budget_limit_reached')}</div>}
                 </>
               )}
             </div>
@@ -3913,10 +4038,10 @@ function OverviewScreen() {
                                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="#888" strokeWidth="2"/><path d="M5 15V5a2 2 0 012-2h10" stroke="#888" strokeWidth="2"/></svg>
                                 </button>
                               </div>
-                              <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 4, letterSpacing: 0.8 }}>CVV2 / CVC2 · натисни щоб скопіювати</div>
+                              <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 4, letterSpacing: 0.8 }}>{t('cvv_copy_hint')}</div>
                             </div>
                             <div style={{ position: 'absolute', top: '62%', left: '5%', right: '5%' }}>
-                              <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', letterSpacing: 1, marginBottom: 5 }}>НОМЕР КАРТКИ</div>
+                              <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', letterSpacing: 1, marginBottom: 5 }}>{t('card_face_number')}</div>
                               <button onClick={e => { e.stopPropagation(); if (ovRevealed) navigator.clipboard.writeText(ovRevealed.card_number.replace(/\s/g, '')).then(() => toast('Номер скопійовано ✓')).catch(() => {}); }} style={{ width: '100%', background: bg.raised, border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                                 <span style={{ fontFamily: '"SF Mono", monospace', fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: 2 }}>
                                   {ovRevealed ? ovRevealed.card_number.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim() : `•••• •••• •••• ${c.number}`}
@@ -3925,8 +4050,8 @@ function OverviewScreen() {
                               </button>
                             </div>
                             <div style={{ position: 'absolute', bottom: '5%', left: '5%', right: '5%', display: 'flex', gap: 16 }}>
-                              <div><div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>ДІЙСНА ДО</div><div style={{ fontFamily: '"SF Mono", monospace', fontSize: 11, fontWeight: 700, color: '#fff' }}>{c.expiry}</div></div>
-                              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>ВЛАСНИК</div><div style={{ fontSize: 10, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div></div>
+                              <div><div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>{t('card_face_valid')}</div><div style={{ fontFamily: '"SF Mono", monospace', fontSize: 11, fontWeight: 700, color: '#fff' }}>{c.expiry}</div></div>
+                              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>{t('card_face_owner')}</div><div style={{ fontSize: 10, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div></div>
                             </div>
                             <div style={{ position: 'absolute', top: 10, right: 14, fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>↩ закрити</div>
                           </div>
@@ -3991,6 +4116,12 @@ function OverviewScreen() {
             </div>
             {cardSection}
             {quickActionsSection}
+            {/* Блоки, які раніше жили лише в мобільній версії: на десктопі
+                курс валют, цілі та фінансовий стан були просто недоступні */}
+            <div style={{ margin: '0 -22px' }}>
+              <MonthlyFinanceSummary transactions={transactions} />
+              <FinancialHealthScore transactions={transactions} account={account} />
+            </div>
           </div>
           {/* Right: activity feed */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -4013,8 +4144,15 @@ function OverviewScreen() {
                 </div>
               ))}
             </div>
+            <div style={{ margin: '0 -22px' }}>
+              <BalanceHistoryChart />
+              <CurrencyRatesBar onRatesLoaded={setFxRates} onExchange={() => setShowFx(true)} />
+              <TopRecipientsMini onTransfer={() => { openTransfer('by_account'); }} />
+              <SavingsGoalsMini />
+            </div>
           </div>
         </div>
+        {showFx && fxRates.length > 0 && <FxExchangeModal rates={fxRates} onClose={() => setShowFx(false)} />}
       </div>
     );
   }
@@ -4058,7 +4196,7 @@ function OverviewScreen() {
           <BalanceBlock visible={balanceVisible} onToggle={() => setBalanceVisible(v => !v)} balance={account?.balance ?? 0} accountNumber={account?.account_number ?? '—'} />
           <div style={{ display: 'flex', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
             <div style={{ padding: '8px 12px', borderRadius: 999, background: bg.card2, border: '1px solid rgba(255,255,255,0.06)', fontSize: 11, color: 'rgba(220,215,200,0.78)', fontWeight: 600 }}>
-              {cards.length} {pluralUk(cards.length, 'картка', 'картки', 'карток')}
+              {cards.length} {pluralUk(cards.length, t('card_word_one'), t('card_word_few'), t('card_word_many'))}
             </div>
             <div style={{ padding: '8px 12px', borderRadius: 999, background: flowNet >= 0 ? 'rgba(127,184,150,0.14)' : 'rgba(224,112,112,0.14)', border: `1px solid ${flowNet >= 0 ? 'rgba(127,184,150,0.24)' : 'rgba(224,112,112,0.22)'}`, fontSize: 11, color: flowNet >= 0 ? '#9ad4b0' : '#f0b2ad', fontWeight: 600, fontFeatureSettings: '"tnum" 1' }}>
               {flowNetSign}₴{fmtInt(Math.abs(flowNet))}{fmtDec(Math.abs(flowNet))} цього місяця
@@ -4392,10 +4530,7 @@ function CardsScreen() {
 
   const isFrozen = apiCards.length > 0 ? apiCards[safeIdx]?.status === 'blocked' : card?.statusRaw === 'blocked';
 
-  return (
-    <>
-    <ContentWrap maxW={760}>
-    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
+  const cardsHeader = (<>
       <div style={{ padding: `${topPad} 18px 14px` }}>
         <div style={{
           ...glassCard({
@@ -4414,10 +4549,10 @@ function CardsScreen() {
               <div style={{ ...T.h1, color: text.primary, marginBottom: 8 }}>{t('cards_title')}</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <div style={{ padding: '7px 12px', borderRadius: 999, background: bg.card2, border: '1px solid rgba(255,255,255,0.06)', fontSize: 11, color: 'rgba(220,215,200,0.78)', fontWeight: 600 }}>
-                  {cards.length} {pluralUk(cards.length, 'картка', 'картки', 'карток')}
+                  {cards.length} {pluralUk(cards.length, t('card_word_one'), t('card_word_few'), t('card_word_many'))}
                 </div>
                 <div style={{ padding: '7px 12px', borderRadius: 999, background: 'rgba(127,184,150,0.12)', border: '1px solid rgba(127,184,150,0.22)', fontSize: 11, color: '#9ad4b0', fontWeight: 600 }}>
-                  {activeCardsCount} активних
+                  {activeCardsCount} {t('cards_active_suffix')}
                 </div>
               </div>
             </div>
@@ -4435,17 +4570,21 @@ function CardsScreen() {
           </div>
         </div>
       </div>
+  </>);
 
+  const cardsStrip = (<>
       {/* Horizontal card scroll */}
       <div style={{
         display: 'flex', gap: 12, padding: '0 18px 10px',
-        overflowX: 'auto', scrollSnapType: 'x mandatory', scrollbarWidth: 'none',
+        flexDirection: layout === 'desktop' ? 'column' : 'row',
+        overflowX: layout === 'desktop' ? 'visible' : 'auto',
+        scrollSnapType: layout === 'desktop' ? 'none' : 'x mandatory', scrollbarWidth: 'none',
       }}>
         {cards.map((c, i) => {
           const isSelected = i === safeIdx;
           const v = CARD_VARIANTS[c.variant] ?? CARD_VARIANTS.gold;
           return (
-            <div key={i} style={{ flexShrink: 0, width: 260, scrollSnapAlign: 'center' }}>
+            <div key={i} style={{ flexShrink: 0, width: layout === 'desktop' ? '100%' : 260, scrollSnapAlign: 'center' }}>
               {isSelected ? (
                 // ── Flippable selected card ──
                 <div style={{ perspective: 1000, width: '100%', aspectRatio: '1.586 / 1', cursor: 'pointer' }}
@@ -4459,7 +4598,7 @@ function CardsScreen() {
                     {/* Front */}
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
                       <PremiumCard {...c} style={{ width: '100%' }} balance={c.balance} isPrimary={c.isPrimary} />
-                      {!flipped && <div style={{ position: 'absolute', bottom: 12, right: 14, fontSize: 9, color: 'rgba(255,255,255,0.54)', pointerEvents: 'none', letterSpacing: 0.5, textTransform: 'uppercase' }}>{revealing ? '…' : 'Реквізити'}</div>}
+                      {!flipped && <div style={{ position: 'absolute', bottom: 12, right: 14, fontSize: 9, color: 'rgba(255,255,255,0.54)', pointerEvents: 'none', letterSpacing: 0.5, textTransform: 'uppercase' }}>{revealing ? '…' : t('card_reveal_hint')}</div>}
                     </div>
                     {/* Back */}
                     <div style={{
@@ -4481,11 +4620,11 @@ function CardsScreen() {
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="#888" strokeWidth="2"/><path d="M5 15V5a2 2 0 012-2h10" stroke="#888" strokeWidth="2"/></svg>
                           </button>
                         </div>
-                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 4, letterSpacing: 0.8 }}>CVV2 / CVC2 · натисни щоб скопіювати</div>
+                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 4, letterSpacing: 0.8 }}>{t('cvv_copy_hint')}</div>
                       </div>
                       {/* Card number — 62% from top */}
                       <div style={{ position: 'absolute', top: '62%', left: '5%', right: '5%' }}>
-                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', letterSpacing: 1, marginBottom: 5 }}>НОМЕР КАРТКИ</div>
+                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', letterSpacing: 1, marginBottom: 5 }}>{t('card_face_number')}</div>
                         <button onClick={e => { e.stopPropagation(); if (revealed) navigator.clipboard.writeText(revealed.card_number.replace(/\s/g, '')).then(() => toast('Номер скопійовано ✓')).catch(() => {}); }} style={{ width: '100%', background: bg.raised, border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                           <span style={{ fontFamily: '"SF Mono", monospace', fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: 2 }}>
                             {revealed ? revealed.card_number.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim() : `•••• •••• •••• ${c.number}`}
@@ -4495,8 +4634,8 @@ function CardsScreen() {
                       </div>
                       {/* Expiry + holder — bottom 5% */}
                       <div style={{ position: 'absolute', bottom: '5%', left: '5%', right: '5%', display: 'flex', gap: 16 }}>
-                        <div><div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>ДІЙСНА ДО</div><div style={{ fontFamily: '"SF Mono", monospace', fontSize: 11, fontWeight: 700, color: '#fff' }}>{c.expiry}</div></div>
-                        <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>ВЛАСНИК</div><div style={{ fontSize: 10, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div></div>
+                        <div><div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>{t('card_face_valid')}</div><div style={{ fontFamily: '"SF Mono", monospace', fontSize: 11, fontWeight: 700, color: '#fff' }}>{c.expiry}</div></div>
+                        <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>{t('card_face_owner')}</div><div style={{ fontSize: 10, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div></div>
                       </div>
                       <div style={{ position: 'absolute', top: 10, right: 14, fontSize: 9, color: 'rgba(255,255,255,0.42)', letterSpacing: 0.45, textTransform: 'uppercase' }}>Закрити</div>
                     </div>
@@ -4520,7 +4659,9 @@ function CardsScreen() {
           </div>
         )}
       </div>
+  </>);
 
+  const cardsDetails = (<>
       {/* Card details */}
       <div style={{ padding: '20px 22px 0' }}>
         <div style={{ background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 22, padding: 20 }}>
@@ -4646,6 +4787,24 @@ function CardsScreen() {
           )}
         </div>
       </div>
+  </>);
+
+  return (
+    <>
+    <ContentWrap maxW={layout === 'desktop' ? 1120 : 760}>
+    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
+      {layout === 'desktop' ? (
+        <>
+          {cardsHeader}
+          {/* Стрічка карток ліворуч, деталі обраної праворуч: на десктопі колонка на 760px лишала півекрана порожнім */}
+          <div style={{ display: 'grid', gridTemplateColumns: '320px minmax(0,1fr)', gap: 10, alignItems: 'start' }}>
+            <div style={{ minWidth: 0 }}>{cardsStrip}</div>
+            <div style={{ minWidth: 0 }}>{cardsDetails}</div>
+          </div>
+        </>
+      ) : (
+        <>{cardsHeader}{cardsStrip}{cardsDetails}</>
+      )}
     </div>
     </ContentWrap>
 
@@ -5538,7 +5697,7 @@ function OperationsScreen() {
   const layout = useLayout();
   const { t, lang } = usePreferences();
   const topPad = useTopPad();
-  const { toast, transactions, account } = useApp();
+  const { toast, transactions, account, openTransfer } = useApp();
   const [period, setPeriod] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [txFilter, setTxFilter] = useState<'all' | 'in' | 'out'>('all');
@@ -5623,25 +5782,23 @@ function OperationsScreen() {
     } catch { toast(t('download_error')); }
   }
 
-  // Build tx groups from real API data (or fallback to static)
-  const STATIC_GROUPS: { group: string; items: { txId?: number; title: string; subtitle: string; amount: string; positive?: boolean; cat: TxCat }[] }[] = [
-    { group: t('today_label'), items: [
-      { title: 'Income • FOP', subtitle: '14:32', amount: '+84 200,00', positive: true, cat: 'income' },
-      { title: 'Silpo', subtitle: `12:18 • ${t('card_short_label')} •• 0001`, amount: '-1 247,50', cat: 'food' },
-      { title: 'Uklon', subtitle: '09:42 • Apple Pay', amount: '-148,00', cat: 'transport' },
-    ]},
-    { group: t('yesterday_label'), items: [
-      { title: 'Utilities', subtitle: 'Kyivenergo', amount: '-3 180,00', cat: 'utility' },
-      { title: 'Rozetka', subtitle: 'Online shopping', amount: '-6 420,00', cat: 'shopping' },
-    ]},
-  ];
+  // Список будується лише з реальних транзакцій: демо-рядки більше не підмішуються.
 
-  const filtered = useMemo(() => (
-    (searchQuery.trim()
-      ? transactions.filter(tx => tx.description.toLowerCase().includes(searchQuery.toLowerCase()))
-      : transactions
-    ).filter(tx => txFilter === 'all' || tx.direction === txFilter)
-  ), [searchQuery, transactions, txFilter]);
+  const filtered = useMemo(() => {
+    // Пошук читає і опис, і суму, і рахунок кореспондента: раніше «1 247» нічого не знаходило
+    const q = searchQuery.trim().toLowerCase();
+    const match = (tx: ApiTransaction) => {
+      if (!q) return true;
+      const amount = String(tx.amount);
+      const amountPlain = amount.replace(/[^0-9.,]/g, '');
+      const qPlain = q.replace(/[\s\u00a0₴]/g, '').replace(',', '.');
+      return tx.description.toLowerCase().includes(q)
+        || (tx.related_account || '').toLowerCase().includes(q)
+        || (tx.note || '').toLowerCase().includes(q)
+        || (qPlain.length > 0 && /[0-9]/.test(qPlain) && amountPlain.includes(qPlain));
+    };
+    return transactions.filter(match).filter(tx => txFilter === 'all' || tx.direction === txFilter);
+  }, [searchQuery, transactions, txFilter]);
 
   const apiGroups = useMemo(() => {
     const map: Record<string, ApiTransaction[]> = {};
@@ -5669,16 +5826,14 @@ function OperationsScreen() {
     });
   }, [filtered, sortOrder, lang]);
 
-  const txGroups = apiGroups.length > 0 ? apiGroups : (searchQuery ? [] : STATIC_GROUPS);
+  const txGroups = apiGroups;
 
-  // Spending total from real data
-  const totalSpent = transactions.filter(t => t.direction === 'out').reduce((s, t) => s + t.amount, 0);
-  const spentLabel = account && transactions.length > 0 ? `₴\u00a0${fmtInt(totalSpent)}${fmtDec(totalSpent)}` : '₴\u00a042\u00a0380';
+  // Сума над графіком рахується за той самий період, що й стовпчики:
+  // раніше вона брала всі витрати за весь час і не змінювалась від перемикача Т/М/Р.
+  const totalSpent = values.reduce((sum, v) => sum + v, 0);
+  const spentLabel = `₴\u00a0${fmtInt(totalSpent)}${fmtDec(totalSpent)}`;
 
-  return (
-    <>
-    <ContentWrap maxW={720}>
-    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
+  const headerBlock = (<>
       <div style={{ padding: `${topPad} 18px 14px` }}>
         <div style={{
           ...glassCard({
@@ -5768,12 +5923,14 @@ function OperationsScreen() {
         </div>
         </div>
       </div>
+  </>);
 
+  const analyticsBlocks = (<>
       <div style={{ padding: '0 18px 18px' }}>
         <div style={{ padding: 20, ...glassCard({ borderRadius: 24, background: 'linear-gradient(180deg, rgba(15,34,25,0.72) 0%, rgba(10,22,16,0.58) 100%)' }) }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
-              <div style={{ ...sectionLabel, padding: 0, marginBottom: 4 }}>{t('spending_this_month')}</div>
+              <div style={{ ...sectionLabel, padding: 0, marginBottom: 4 }}>{period === 0 ? t('spending_this_week') : period === 2 ? t('spending_this_year') : t('spending_this_month')}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                 <span style={{ ...T.h1, ...T.num, color: text.primary }}>{spentLabel}</span>
               </div>
@@ -5873,11 +6030,29 @@ function OperationsScreen() {
         <CreditsSection />
         <DepositsSection />
       </div>
+  </>);
 
+  const listBlocks = (<>
       {/* Transactions */}
       {txGroups.length === 0 && (
-        <div style={{ padding: '40px 18px', textAlign: 'center', color: text.muted, fontSize: 14 }}>
-          {searchQuery ? `${t('nothing_found_for')} «${searchQuery}»` : t('no_transactions_yet')}
+        <div style={{ padding: '4px 18px 18px' }}>
+          <div style={{ padding: '32px 22px', textAlign: 'center', background: bg.card, border: `1px solid ${bg.border}`, borderRadius: 20 }}>
+            <div style={{ width: 46, height: 46, margin: '0 auto 14px', borderRadius: 14, background: bg.sunken, border: `1px solid ${bg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h9" stroke={gold} strokeWidth="1.6" strokeLinecap="round" /></svg>
+            </div>
+            <div style={{ ...T.body, color: text.secondary, fontWeight: 600, marginBottom: 6 }}>
+              {searchQuery ? `${t('nothing_found_for')} «${searchQuery}»` : t('no_transactions_yet')}
+            </div>
+            {!searchQuery && (
+              <>
+                <div style={{ ...T.sm, color: text.muted, marginBottom: 18 }}>{t('topup_or_transfer')}</div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button onClick={() => openTransfer('topup')} style={{ padding: '10px 18px', borderRadius: 12, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, color: '#0c1a12', background: `linear-gradient(135deg, ${goldLight}, ${gold})` }}>{t('quick_topup')}</button>
+                  <button onClick={() => openTransfer('by_card')} style={{ padding: '10px 18px', borderRadius: 12, border: `1px solid ${bg.border}`, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, color: text.secondary, background: bg.sunken }}>{t('quick_by_card')}</button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
       {txGroups.map((g, gi) => (
@@ -5919,6 +6094,24 @@ function OperationsScreen() {
 
       <RecurringSection />
       <div style={{ height: 20 }} />
+  </>);
+
+  return (
+    <>
+    <ContentWrap maxW={layout === 'desktop' ? 1180 : 720}>
+    <div style={{ paddingBottom: layout === 'desktop' ? 80 : 24 }}>
+      {layout === 'desktop' ? (
+        <>
+          {headerBlock}
+          {/* Список — головна колонка, аналітика — бічна рейка: на десктопі права половина екрана більше не порожня */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 380px', gap: 8, alignItems: 'start' }}>
+            <div style={{ minWidth: 0 }}>{listBlocks}</div>
+            <div style={{ minWidth: 0 }}>{analyticsBlocks}</div>
+          </div>
+        </>
+      ) : (
+        <>{headerBlock}{analyticsBlocks}{listBlocks}</>
+      )}
     </div>
     </ContentWrap>
 
