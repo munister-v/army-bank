@@ -688,6 +688,10 @@ function handleConnectivityChange() {
   showToast('З\'єднання відновлено');
   if (token && me) {
     startGlobalPoll(true);
+    // clearPolling() зупиняє і автооновлення лідів — піднімаємо його назад,
+    // інакше після кожного розриву звʼязку дошка знову застигає.
+    startLeadsAutoRefresh();
+    leadsAutoRefreshTick();
     if (activeConvId) startConvPoll(true);
     startIncomingCallCheck(true);
   }
@@ -1870,16 +1874,24 @@ function leadCardHtml(lead) {
 }
 
 let leadsListRequestId = 0;
-async function loadLeadsList() {
+async function loadLeadsList({ silent = false } = {}) {
   if (!leadsListEl) return;
   syncLeadsFilterStatus();
   const requestId = ++leadsListRequestId;
-  leadsListEl.querySelector('.workspace-state')?.remove();
-  leadsListEl.insertAdjacentHTML('afterbegin', workspaceStateHtml('loading', 'Завантажуємо ліди', 'Оновлюємо список за вибраними фільтрами.'));
+  if (!silent) {
+    leadsListEl.querySelector('.workspace-state')?.remove();
+    leadsListEl.insertAdjacentHTML('afterbegin', workspaceStateHtml('loading', 'Завантажуємо ліди', 'Оновлюємо список за вибраними фільтрами.'));
+  }
   try {
     const res = await api('GET', '/leads?' + leadsQueryString());
     if (requestId !== leadsListRequestId) return;
     const items = res?.items || [];
+    // Фонове оновлення не має перемальовувати список даремно: перемальовка
+    // збиває наведення, позначені чекбокси і позицію прокрутки. Малюємо лише
+    // тоді, коли дані справді змінилися.
+    const signature = JSON.stringify(items);
+    if (silent && signature === leadsListSignature) return;
+    leadsListSignature = signature;
     leadsState.totalPages = res?.pages || 1;
     leadsState.total = Number(res?.total || 0);
     renderLeadsResultMeta();
@@ -1910,11 +1922,68 @@ async function loadLeadsList() {
     renderLeadsPagination();
   } catch (err) {
     if (requestId !== leadsListRequestId) return;
+    // Мовчазне оновлення не кричить про мережеву помилку: людина в цей момент
+    // працює зі списком, а не просила його перезавантажити. Спробуємо наступного разу.
+    if (silent) return;
     leadsListEl.querySelector('.workspace-state')?.remove();
     leadsListEl.insertAdjacentHTML('afterbegin', workspaceStateHtml('error', 'Список не завантажився', err.message || 'Перевірте зʼєднання та спробуйте ще раз.', 'leads'));
     showToast(err.message || 'Не вдалося завантажити ліди.', true);
   }
 }
+
+// ── Автооновлення лідів і воронки ─────────────────────────────────────────
+// Список і дошка читалися рівно один раз — при відкритті розділу. Через це
+// зміни, зроблені іншим менеджером (перетягнув лід, змінив стадію), не
+// з'являлися, поки розділ не перевідкриють. Тепер обидва тихо перечитуються
+// за таймером і одразу при поверненні на вкладку.
+//
+// Оновлення саме тихе: без плашки «Завантажуємо» і без перемальовки, коли
+// дані не змінилися, — інакше кожні пів хвилини зривало б наведення, вибрані
+// чекбокси і прокрутку просто так.
+const LEADS_REFRESH_MS = 45000;
+let leadsRefreshTimer = null;
+let leadsListSignature = '';
+let kanbanSignature = '';
+
+async function refreshKanbanSilently() {
+  if (!leadsKanbanView || leadsKanbanView.hidden || !leadsKanbanColumnsEl) return;
+  // Не смикати дошку, поки картку тягнуть: перемальовка вб'є перетягування.
+  if (leadsKanbanColumnsEl.querySelector('.is-dragging')) return;
+  const [stats, items] = await Promise.all([
+    api('GET', '/leads/stats'),
+    fetchAllKanbanLeads(),
+  ]);
+  const signature = JSON.stringify(items.map(l => [l.id, l.stage, l.owner, l.priority, l.next_followup_date]));
+  kanbanState.stats = stats;
+  if (signature === kanbanSignature) return;
+  kanbanSignature = signature;
+  kanbanState.items = items;
+  renderLeadsKanban(stats, items);
+}
+
+function leadsAutoRefreshTick() {
+  if (!token || document.hidden) return;
+  if (leadsKanbanView && !leadsKanbanView.hidden) {
+    refreshKanbanSilently().catch(() => {});
+    return;
+  }
+  // Ліди оновлюємо лише коли список відкритий і людина не всередині картки:
+  // у картці лідів на екрані немає, оновлювати нічого.
+  if (leadsDirectoryView && !leadsDirectoryView.hidden) {
+    loadLeadsList({ silent: true }).catch(() => {});
+  }
+}
+
+function startLeadsAutoRefresh() {
+  clearInterval(leadsRefreshTimer);
+  leadsRefreshTimer = setInterval(leadsAutoRefreshTick, LEADS_REFRESH_MS);
+}
+
+// Повернення на вкладку — найчастіший момент, коли людина хоче побачити свіже:
+// відійшов, поговорив, повернувся. Чекати на таймер тут безглуздо.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) leadsAutoRefreshTick();
+});
 
 function renderLeadsPagination() {
   if (!leadsPaginationEl) return;
@@ -2206,6 +2275,7 @@ async function openLeadDetail(leadId) {
     ]);
     leadsState.currentLead = lead;
     renderLeadInfoBanner(lead);
+    loadLeadHistory(lead.id).catch(() => {});
     await openChat({
       id: convRes.conversation_id,
       is_group: true,
@@ -2324,6 +2394,54 @@ function renderLeadInfoBanner(lead) {
   if (aiDraftPanelEl) { aiDraftPanelEl.hidden = true; aiDraftPanelEl.innerHTML = ''; }
   if (leadNudgePanelEl) { leadNudgePanelEl.hidden = true; leadNudgePanelEl.innerHTML = ''; }
   if (btnAiSuggest) btnAiSuggest.hidden = true;
+}
+
+// ── Історія змін ліда ─────────────────────────────────────────────────────
+// Бекенд давно пише кожну зміну стадії, власника й дати в lead_activity, але
+// в картці цього не було видно: історія існувала тільки як повідомлення в чаті
+// ліда й тонула серед листування. Тепер вона поруч з профілем, окремим блоком.
+const LEAD_HISTORY_KIND_LABELS = { system: 'Зміна', note: 'Нотатка', call: 'Дзвінок', email: 'Email' };
+
+function leadHistoryHtml(entries) {
+  if (!entries.length) {
+    return `<div class="lead-history-head"><span class="mono-label">Історія</span></div>
+      <p class="lead-history-empty">Поки що змін не було. Тут з'являться стадії, відповідальні й дати — із зазначенням, хто саме змінив.</p>`;
+  }
+  // Найсвіжіше зверху: у роботі питання майже завжди «що сталося щойно».
+  const rows = entries.slice().reverse().map(item => `
+    <li class="lead-history-item is-${escHtml(item.kind || 'system')}">
+      <div class="lead-history-text">${escHtml(item.text || '')}</div>
+      <div class="lead-history-meta">
+        <span class="lead-history-kind">${escHtml(LEAD_HISTORY_KIND_LABELS[item.kind] || 'Подія')}</span>
+        <span>${escHtml(item.author || 'Невідомо')}</span>
+        <span>${escHtml(formatActivityTime(item.created_at))}</span>
+      </div>
+    </li>`).join('');
+  return `<div class="lead-history-head">
+      <span class="mono-label">Історія</span>
+      <span class="lead-history-count">${entries.length}</span>
+    </div>
+    <ul class="lead-history-list">${rows}</ul>`;
+}
+
+async function loadLeadHistory(leadId) {
+  const el = document.getElementById('lead-history');
+  if (!el) return;
+  el.hidden = false;
+  el.innerHTML = `<div class="lead-history-head"><span class="mono-label">Історія</span></div>
+    <p class="lead-history-empty">Завантажуємо…</p>`;
+  try {
+    const entries = await api('GET', `/leads/${leadId}/activity`);
+    // Картку могли вже перемкнути на інший лід, поки йшов запит.
+    if (leadsState.currentLeadId !== leadId) return;
+    el.innerHTML = leadHistoryHtml(Array.isArray(entries) ? entries : []);
+  } catch (_) {
+    if (leadsState.currentLeadId !== leadId) return;
+    // Історія — довідкова: якщо не завантажилась, ховаємо блок, а не лякаємо
+    // помилкою поверх картки, з якою людина зараз працює.
+    el.hidden = true;
+    el.innerHTML = '';
+  }
 }
 
 const aiAnalysisCache = {};
@@ -2591,6 +2709,7 @@ async function saveLeadPillEdit(leadId) {
       detail: [payload.stage, payload.priority, payload.outreach_status].filter(Boolean).join(' · '),
     });
     loadLeadsList().catch(() => {});
+    loadLeadHistory(leadId).catch(() => {});
     // Стадія/пріоритет тепер дзеркалиться в реальний чат бекендом — підтягуємо свіжі повідомлення одразу.
     if (activeConvId) fetchMessages();
   } catch (err) {
@@ -3038,6 +3157,7 @@ async function openLeadsKanban() {
     ]);
     kanbanState.stats = stats;
     kanbanState.items = items;
+    kanbanSignature = JSON.stringify(items.map(l => [l.id, l.stage, l.owner, l.priority, l.next_followup_date]));
     await bindKanbanFilters();
     renderLeadsKanban(stats, items);
   } catch (err) {
@@ -5813,6 +5933,7 @@ function showApp() {
   }, 0);
   ensurePushSubscriptionSilent().catch(() => {});
   startGlobalPoll();
+  startLeadsAutoRefresh();
   pollUnreadBadge();
   runClientDiagnostics().catch(() => {});
   startIncomingCallCheck();
@@ -7026,7 +7147,9 @@ function clearPolling() {
   clearInterval(globalPollTimer);
   clearInterval(convPollTimer);
   clearInterval(presencePollTimer);
+  clearInterval(leadsRefreshTimer);
   presencePollTimer = null;
+  leadsRefreshTimer = null;
 }
 
 // ── Presence ───────────────────────────────

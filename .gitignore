@@ -51,3 +51,4 @@ logs/
 # Node
 node_modules/
 .vite/
+.server-backup-20260902/
