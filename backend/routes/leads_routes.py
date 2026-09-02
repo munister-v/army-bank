@@ -8,6 +8,7 @@ from __future__ import annotations
 import csv
 import io
 import math
+import re
 from datetime import date, datetime, timezone
 from functools import wraps
 from typing import Any
@@ -460,13 +461,31 @@ def _build_leads_filter() -> tuple[str, list]:
         where.append("next_followup_date IS NOT NULL AND next_followup_date != '' AND next_followup_date <= %s")
         params.append(date.today().isoformat())
     if search:
-        where.append(
-            '(business_name ILIKE %s OR category ILIKE %s OR city_area ILIKE %s OR country ILIKE %s)'
-            if _use_pg() else
-            '(business_name LIKE %s OR category LIKE %s OR city_area LIKE %s OR country LIKE %s)'
-        )
+        # Телефон/WhatsApp шукаємо окремо від тексту: номери вставляють у
+        # довільному форматі ("+1 (407) 777-9905" чи "4077779905" чи просто
+        # хвіст "7779905"), а в базі вони теж лежать по-різному. Знімаємо
+        # звичну для телефону пунктуацію з обох боків через вкладені REPLACE —
+        # це працює однаково і в SQLite, і в Postgres, без regexp-функцій,
+        # яких у SQLite немає.
+        text_cols = ['business_name', 'category', 'city_area', 'country', 'email']
+        op = 'ILIKE' if _use_pg() else 'LIKE'
+        clauses = [f'{col} {op} %s' for col in text_cols]
         like = f'%{search}%'
-        params.extend([like, like, like, like])
+        params.extend([like] * len(text_cols))
+
+        search_digits = re.sub(r'\D', '', search)
+        if search_digits:
+            phone_expr = _strip_phone_punct_sql("coalesce(phone, '')")
+            wa_expr = _strip_phone_punct_sql("coalesce(whatsapp_viber, '')")
+            clauses.append(f'{phone_expr} LIKE %s')
+            clauses.append(f'{wa_expr} LIKE %s')
+            digits_like = f'%{search_digits}%'
+            params.extend([digits_like, digits_like])
+        else:
+            clauses.append(f'phone {op} %s')
+            clauses.append(f'whatsapp_viber {op} %s')
+            params.extend([like, like])
+        where.append('(' + ' OR '.join(clauses) + ')')
     where_sql = ('WHERE ' + ' AND '.join(where)) if where else ''
     return where_sql, params
 
@@ -520,6 +539,19 @@ def list_leads():
 def _use_pg() -> bool:
     from ..config import USE_PG
     return USE_PG
+
+
+_PHONE_PUNCT = (' ', '-', '(', ')', '.', '+')
+
+
+def _strip_phone_punct_sql(expr: str) -> str:
+    """SQL, що знімає звичну для телефону пунктуацію з виразу `expr`.
+
+    Портативно між SQLite і Postgres (лише вкладені REPLACE, без regexp) —
+    щоб пошук за цифрами номера поводився однаково і в тестах, і на проді."""
+    for ch in _PHONE_PUNCT:
+        expr = f"REPLACE({expr}, '{ch}', '')"
+    return expr
 
 
 @leads_bp.get('/stats')
